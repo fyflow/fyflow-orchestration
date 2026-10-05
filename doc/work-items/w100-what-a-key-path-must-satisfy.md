@@ -69,7 +69,7 @@ gives Q411 (W99 used Q410-Q411 and Q412-Q414 are SPENT, never reused), `ls doc/d
    empty one gives TWO findings. The conclusion is untouched — the three WRONG keys this item names are
    each validator-clean at 0 findings, which is the whole point.)* So three of the five DO move the counts —
    **and the fact's conclusion survives in a sharper form, because the `no` they produce reads
-   `$: consumer requires "series", producer does not guarantee it`, which is [Q391](../open-questions.md)'s
+   `$: consumer requires "series", producer does not guarantee it`, which is [Q391](../questions/q391.md)'s
    own string VERBATIM.** W99 resolved Q391 by removing that verdict from a correct flow and, one
    misspelled letter away, it is back in the same words. *A wrong key path now produces the exact
    verdict this plan exists to have removed, so an author who has read Q391 reads the check as wrong
@@ -216,11 +216,11 @@ its scope; whether it moves any shipped arc is measured at the build and reporte
   the gate, unrefined, so neither W99's refinement nor this refusal applies and both the right key and a
   forbidden one read `record fits`. Licensed by the spec's *the record is what the node before it would
   carry*; refining a record is a question about `JP-R12`'s shape, and the code now says so at that site.
-- **[Q410](../open-questions.md)** — a verdict carries no `route`, so it cannot say WHY an arc reads
+- **[Q410](../questions/q410.md)** — a verdict carries no `route`, so it cannot say WHY an arc reads
   what it reads. This item adds a reason that NAMES the gate and the route in its text, which is not
   the field that row asks for; W99 raised it with no owner and this item does not take it.
-- **[Q411](../open-questions.md)**, [Q405](../open-questions.md), [Q406](../open-questions.md),
-  [Q407](../open-questions.md) — none is about a key path.
+- **[Q411](../questions/q411.md)**, [Q405](../questions/q405.md), [Q406](../questions/q406.md),
+  [Q407](../questions/q407.md) — none is about a key path.
 
 ## Verification
 
@@ -367,7 +367,7 @@ ELEVEN named failures; `a5` re-declared a genuine ceiling once `schemaProblem`'s
 **And the verification pattern was wrong all along, in a way that cost nothing**: `grep -c "^FAIL"` can
 never match the Node runner's four-space indent, so every green run printed a FAIL count of zero by
 construction. The exit code was read every time and is the predicate, so no claim rests on it — which
-is v0.15's clause holding while its own counter-measure was defeated by the literal [Q276](../open-questions.md)
+is v0.15's clause holding while its own counter-measure was defeated by the literal [Q276](../questions/q276.md)
 is about. Extended there.
 
 ### Gate — what ran
@@ -384,7 +384,7 @@ is about. Extended there.
 
 **Content digest `6b9b19d796177e8b` before the gate and `6b9b19d796177e8b` after — IDENTICAL over 421 files.**
 
-**[Q142](../open-questions.md) measured BEFORE the record step and it does NOT fire**: on the tree this
+**[Q142](../questions/q142.md) measured BEFORE the record step and it does NOT fire**: on the tree this
 item ships the whole tree is 166 files / 7613 links against floors of 142 / 6225, probe 1 (`doc/decisions`
 cut) is 126 files and FIRES with an `M3` margin of **16 files**, and probe 2 (both directories cut) is 100
 files / 5668 links and FIRES with an `M4` margin of **557 links**. This item adds no document — the

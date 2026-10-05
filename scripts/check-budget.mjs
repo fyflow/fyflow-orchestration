@@ -25,7 +25,7 @@
 // post-cut measurement and W115 lands it on the target.
 //
 // **A ceiling goes stale toward WEAKNESS if nobody lowers it**, which is the opposite
-// direction from [Q102](../doc/open-questions.md)'s floors and is why the DISTANCE to
+// direction from [Q102](../doc/questions/q102.md)'s floors and is why the DISTANCE to
 // target is printed on every run rather than being recoverable from a plan document. A
 // number nobody sees drift is a number that drifts.
 //
@@ -66,7 +66,7 @@ const fail = (check, msg) => failures.push(`${check}: ${msg}`);
  * `TOTAL_TARGET` and `B5` bounds each ceiling to its target, so the three numbers collapse.
  * **So `B3` has lost its own case and the `b3` probe declares a compound** — stated here as well
  * as at `TOTAL_CEILING`, because this is the paragraph that supplies `B3`'s justification and the
- * adequacy reader found it still asserting the opposite. [Q479](../doc/open-questions.md).
+ * adequacy reader found it still asserting the opposite. [Q479](../doc/questions/q479.md).
  *
  * **The allowance was for the record step and is not any more, which is a claim this file
  * made about itself and got wrong within a day.** It read *"`CLAUDE.md` is a record-step
@@ -162,7 +162,7 @@ const SET = [
  *     52,730 bytes**. `B1` compares `SET.length` to `MIN_MEMBERS` and three is three; `B3` is
  *     guarded by `sizes.size === SET.length` and the `Map` de-duplicates to two, so **`B3` was
  *     skipped in silence as well.** *A count is not a membership* — obligation (d)'s own named
- *     failure ([Q217](../doc/open-questions.md)), inside the check that enforces the budget.
+ *     failure ([Q217](../doc/questions/q217.md)), inside the check that enforces the budget.
  *   * `B4` compares only the SUM of the targets, so the ALLOCATION was free. Targets of
  *     **1 / 1 / 75 KiB** still sum to 78,848; with the ceilings at 876,800 and `TOTAL_CEILING`
  *     matching, every clause is green and **the always-read set may grow to 876,800 bytes** — back
@@ -174,7 +174,7 @@ const SET = [
  *     made worthless without a clause going red"*; this was a second way, using nothing but integer
  *     literals and `N * 1024` products, and it was larger.
  *
- * **Its limit is [Q217](../doc/open-questions.md)'s and is stated rather than closed**: these are
+ * **Its limit is [Q217](../doc/questions/q217.md)'s and is stated rather than closed**: these are
  * literals in the same file as the `SET` they bind, so a member and its declaration are two edits
  * in one diff. What they buy is that the two edits must AGREE — and the second observer is in
  * another file, where `check-budget-selftest.mjs`'s `SOURCE` clauses read this declaration's own
@@ -219,7 +219,7 @@ const DECLARED_TARGETS = Object.freeze({
  *
  * Three, because P27 decision 1 decides the membership and three is what it decides.
  * Lowering this is how the budget leaves, in exactly the shape
- * [Q102](../doc/open-questions.md) describes.
+ * [Q102](../doc/questions/q102.md) describes.
  */
 const MIN_MEMBERS = 3;
 
@@ -247,7 +247,7 @@ const MIN_MEMBERS = 3;
 // set carelessly. The maintainer was asked and chose to DECLARE it rather than amend
 // [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
 // decision 4: `B3` keeps a probe as a compound and regains its own case the moment any member is
-// UN-met, which is what a fourth member would do. [Q479](../doc/open-questions.md).
+// UN-met, which is what a fourth member would do. [Q479](../doc/questions/q479.md).
 // 77 * 1024, which is both the sum of the ceilings and the sum of the targets.
 const TOTAL_CEILING = 78_848;
 const TOTAL_TARGET = 77 * 1024;  // P27 decision 1's 77 KB, and the per-file targets sum to it

@@ -289,7 +289,7 @@ throughout.
 counts *"against the header width of the table each row sits in (4 for Live, 3 for Resolved)"* — and
 an instrument that assumes a header width for a section with no header cannot see that there is no
 table. **So SEVEN undercounts the defect at `HEAD` by the whole Resolved half**: it is
-[Q135](../open-questions.md)'s mechanism, table TERMINATION, which that row names at ONE row,
+[Q135](../questions/q135.md)'s mechanism, table TERMINATION, which that row names at ONE row,
 applying to half the file. *Same shape as the case-sensitive home search in §7 — an instrument
 answering a narrower question than the sentence around it, and under-reporting.*
 
@@ -384,7 +384,7 @@ this is the clause of it that costs something.
 
 - **Any other document.** `CLAUDE.md` is W114's, `doc/README.md` and `doc/workflow.md` are W115's.
   The one `CLAUDE.md` sentence in scope is obligation (c) and nothing else.
-- **`doc/README.md`'s own register-shaped status block.** [Q466](../open-questions.md), W115's.
+- **`doc/README.md`'s own register-shaped status block.** [Q466](../questions/q466.md), W115's.
 - **`M3`, `M4` and every other floor.** `M3` counts documents and this cut deletes none; `M4` counts
   documents carrying a link and the register keeps two. Measured, not reasoned about.
 - ~~**An ADR.**~~ **ADR 0078 IS TAKEN**, extending P27's exhausted block on W86's precedent, by the
@@ -438,7 +438,7 @@ ADR 0077, both of which named this item as the withdrawer of the instruction the
 assumed**: its register row carried `230 questions - 176 open, 2 deferred, 52 resolved` — stale by
 four plans — on the exact line this item touched, which section 1 rule 5's re-take clause reaches.
 The cell now states no counts at all, which is P27 decision 4. **The rest of that file is W115's**
-and is untouched ([Q466](../open-questions.md)).
+and is untouched ([Q466](../questions/q466.md)).
 
 ## Record
 
@@ -505,7 +505,7 @@ instrument could see, and the LAST one this item found in its own new text.**
    the UNDER direction of `M7`'s own subject, in the index `X11` checks — and `X11` compares the
    ids, not the cells, so it was green over all three. *An item whose whole subject is table
    well-formedness shipped a malformed table row into the ADR index and found it by running its own
-   clause over its own output.* Fixed in all three; the general case is [Q471](../open-questions.md).
+   clause over its own output.* Fixed in all three; the general case is [Q471](../questions/q471.md).
 
 *Found by a READER:*
 
@@ -649,10 +649,10 @@ had 28, while its `461` and `(13, 16]` in the same area repeat W112's reader's e
 
 ### Questions
 
-**[Q131](../open-questions.md), [Q135](../open-questions.md) and [Q215](../open-questions.md)
+**[Q131](../questions/q131.md), [Q135](../questions/q135.md) and [Q215](../questions/q215.md)
 RESOLVED** — the three distinct cell-splitting mechanisms, all fixed by construction and now asserted
-by `M7`. **[Q407](../open-questions.md) and [Q442](../open-questions.md) NARROWED** with this item's
-figures. **[Q465](../open-questions.md) half closed** — the instruction is withdrawn, the membership
-binding stands. **[Q467](../open-questions.md)-[Q471](../open-questions.md) raised**, all five in
+by `M7`. **[Q407](../questions/q407.md) and [Q442](../questions/q442.md) NARROWED** with this item's
+figures. **[Q465](../questions/q465.md) half closed** — the instruction is withdrawn, the membership
+binding stands. **[Q467](../questions/q467.md)-[Q471](../questions/q471.md) raised**, all five in
 `Verification and fixtures`. **ADR 0078 TAKEN**, extending P27's exhausted block.
 **Census 362 / 282 / 1 / 79**, derived two ways and held by `M8`.

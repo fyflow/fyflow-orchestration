@@ -2,7 +2,7 @@
  * **The built-in JSON Schema subset — every keyword, both ways, and the refusal of everything
  * else** — `spec/flow-definition.md` section 3's registry-document subsection (v0.19),
  * [ADR 0053](../../doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md),
- * [Q278](../../doc/open-questions.md), [W65](../../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md).
+ * [Q278](../../doc/questions/q278.md), [W65](../../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md).
  *
  * **The fourteen cases are P18 fact 1's, verbatim** — the sample's six schemas and the values the
  * declaration measured against the prototype (`dev-dist/p18/subset-validator-check.mjs`), with the

@@ -25,7 +25,7 @@ Record:
    richer than *the node wins* — which is a small decision with its own evidence rather than a
    sentence in section 2.
 3. **[W59](w59-what-a-node-type-is.md)'s measurement favoured per-variant pools over the envelope**
-   ([Q250](../open-questions.md)) — settings delivered as pool `config`, one pool per distinct
+   ([Q250](../questions/q250.md)) — settings delivered as pool `config`, one pool per distinct
    settings value — in a direction that changes what P16 decision 2 decided.
 
 **Nothing else justifies issuing it.** An item that is *more of W59* is W59; an item that is a

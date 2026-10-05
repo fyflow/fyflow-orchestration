@@ -43,7 +43,7 @@
 // `check-docs` pass had to cap and its stated cap undercounted by four; the reason
 // there was cost, and the reason there is no cap here is also cost: a bare
 // `check-spec` run is **~155 ms**, against `check-docs`' 4.4 s. An entry is two runs
-// ([Q148](../doc/open-questions.md)), so 21 gradings are seconds rather than minutes.
+// ([Q148](../doc/questions/q148.md)), so 21 gradings are seconds rather than minutes.
 //
 // **`C5` is excluded from `GRADED_IDS` and from nothing else.** `trippedIn()` below
 // reads every `C\d+` the run reports, with no allowlist, so a probe that trips `C5`
@@ -139,7 +139,7 @@
 //  - **`tripped` re-sourced from the failure lines to the report ROWS costs 0 here and
 //    is REFUSED in `check-source-selftest.mjs`.** It makes `agree` compare a value with
 //    itself, and the two report entries then pass as `disappeared` rather than
-//    `disagreed` — [Q147](../doc/open-questions.md), the right verdict by the wrong
+//    `disagreed` — [Q147](../doc/questions/q147.md), the right verdict by the wrong
 //    route. **That single pair is the cleanest measurement anyone has of what a missing
 //    `SELF` list costs**: the same mutation, the same shape of file, one with a list
 //    beyond it and one without.
@@ -153,7 +153,7 @@
 //    instead means the guard can never fire, and that costs **0** — but a genuinely
 //    vacuous probe is **still refused** under it, by its declared set
 //    (`exited 0, wanted [C8], got []`) rather than by the guard. **Behaviour-preserving,
-//    and the right verdict by the wrong route** — [Q147](../doc/open-questions.md)'s
+//    and the right verdict by the wrong route** — [Q147](../doc/questions/q147.md)'s
 //    shape a third time, which is why it is a ceiling row and not a hole.
 //  - **The report's HEADER counts are as unread as its `note:` lines.** Replacing
 //    `${mdFiles.length} documents, ${jsonFiles.length} examples, ${declared.size} rules`
@@ -205,7 +205,7 @@
 // `check-spec.mjs` prints two `note:` lines — how many definition refusals `C4` covered,
 // and the 51 rules no example flow can express — and a header carrying three counts, and
 // **no probe and no grading here reads any of them.**
-// [Q100](../doc/open-questions.md)'s class, in this file's own subject.
+// [Q100](../doc/questions/q100.md)'s class, in this file's own subject.
 //
 // **And one survivor is NOT the ceiling and is not fixable from inside any of this**:
 // deleting the `--self-test` dispatch from `check-spec.mjs` leaves
@@ -216,7 +216,7 @@
 // probe script, which had omitted `check-markdown` — the second most expensive of them.
 // **The finding was right and its census was wrong**, which is W29's own blocking finding
 // one item later, in the file whose header opens "A CAP THAT UNDERCOUNTS READS AS
-// COVERAGE".)* [Q149](../doc/open-questions.md), and it is P8's proposed fifth obligation
+// COVERAGE".)* [Q149](../doc/questions/q149.md), and it is P8's proposed fifth obligation
 // for rule 8 earning itself on the item that predicted it would not.
 // ---------------------------------------------------------------------------
 
@@ -402,7 +402,7 @@ const PROBES = [
     // **The eighteenth probe, and the only one that is not one-per-`fail()`-site.**
     // It exists to make the failure-COUNT discriminator reachable, and W30 measured
     // that it was not: on this file's first run **no entry graded `caught`**, so the
-    // mechanism [Q146](../doc/open-questions.md) proposed and W29 built would have
+    // mechanism [Q146](../doc/questions/q146.md) proposed and W29 built would have
     // shipped here as decoration.
     //
     // With two C7 clauses firing on one input, disabling either leaves the id SET
@@ -696,7 +696,7 @@ const META = [
   // clause is the one the co-firing probe trips now, and this is that clause's ONE entry —
   // W59's entry for it against the typed flow was the same mutation, which this file refuses.)*
   // The failure COUNT is what moves — 2 -> 1 — and that is
-  // [Q146](../doc/open-questions.md)'s discriminator doing the whole of the work.
+  // [Q146](../doc/questions/q146.md)'s discriminator doing the whole of the work.
   ['C7`s unknown-type clause disabled, against the co-firing probe',
     'a valid flow naming an unknown type AND an unknown predicate — TWO C7 clauses under ONE id',
     (t) => t.replace("        fail('C7', `valid/${name}: type", "        [].push('C7', `valid/${name}: type")],
@@ -801,7 +801,7 @@ export async function selfTest(root) {
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
   // function deleted its parent's fixtures and two top-level runs did the same to each other
-  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // ([Q182](../doc/questions/q182.md)). The `rmSync` stays, and is now load-bearing for a different
   // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
   // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
   // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
@@ -969,7 +969,7 @@ export async function selfTest(root) {
     // really is about the exit path was indistinguishable from sixteen that are not.
     //
     // Both verdicts pass, so **no grading changes and only the reported reason
-    // does** — which is [Q147](../doc/open-questions.md) exactly: an entry passing
+    // does** — which is [Q147](../doc/questions/q147.md) exactly: an entry passing
     // for a reason it does not name. Asking *did the declared ids disappear* first
     // gives 17 `disappeared`, 2 `disagreed`, 1 `caught`-by-count and **one**
     // `exit0`. The same conflation is live in `check-source-selftest.mjs` and
@@ -1065,7 +1065,7 @@ export async function selfTest(root) {
       // **`caught` is not terminal — it asks one more question.** The id SET being
       // unchanged does not mean nothing changed: two clauses can report one id, and
       // then disabling either leaves the set alone and moves the COUNT.
-      // [Q146](../doc/open-questions.md), and it is live machinery here rather than
+      // [Q146](../doc/questions/q146.md), and it is live machinery here rather than
       // inherited decoration — **`C7` has five `fail()` sites under one id, `C3` and
       // `C8` three each, `C2` and `C4` two** — so this file is where a sibling
       // reporting the same id is most likely, not least.
@@ -1108,7 +1108,7 @@ export async function selfTest(root) {
   // **Every entry here is inert on the clean tree — measured, all 21 — so this file
   // declares that NONE of its gradings may be corpus-backed.** `check-markdown`
   // legitimately has six that cannot be made inert; this has none, so the bound is
-  // zero rather than a floor. [Q145](../doc/open-questions.md)'s verdict *"global
+  // zero rather than a floor. [Q145](../doc/questions/q145.md)'s verdict *"global
   // noise passes as `corpus`"* is right about a clause that cannot be made inert and
   // says nothing about a harness that broke.
   if (byCorpus > MAX_CORPUS) {

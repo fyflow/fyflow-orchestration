@@ -66,19 +66,19 @@ was taken from outside the block. **W2, W4 and W5 reserve ADRs from 0008 onward*
 **Out** — named rather than left implicit, with where it goes instead
 
 - **Run state and the fold.** W2 owns `src/fold/**`. The driver produces the ordered log and the
-  region events; **what a run *is* is [Q14](../open-questions.md), which W2 tests.** The driver must
+  region events; **what a run *is* is [Q14](../questions/q14.md), which W2 tests.** The driver must
   not accumulate a second copy of run truth on the side, and if it turns out to need one that is a
   finding about the spec rather than a thing to build.
 - **Either join policy.** `JP-R1`'s pure state machines are W2's. W3 emits the vocabulary
   (`JP-R5`) and calls `status()`; it must not decide what satisfies a join, and **an implementation
-  detail here cannot be allowed to settle [Q4](../open-questions.md)** — see *Traps*.
+  detail here cannot be allowed to settle [Q4](../questions/q4.md)** — see *Traps*.
 - **The join/failure matrix.** W4, gate L0-L5.
 - **A real scheduler end to end.** W5, gate L0-L6. W3's tests use a fake `EventTarget` that
   reproduces the two dispatch shapes `OR-R3` describes; **that fake is a fixture and must be
   hand-written from `spec/outcome-record.md` section 3, never captured from a live run** the driver
   also produced.
 - **Ladder L3 and L5.** Determinism is a property of the fold (W2); the matrix is W4's.
-- **Whether L6 runs in all three runtimes** — [Q33](../open-questions.md), answered at W5.
+- **Whether L6 runs in all three runtimes** — [Q33](../questions/q33.md), answered at W5.
 
 ### The toolchain is shared, and the fix is structural rather than a permission
 
@@ -147,7 +147,7 @@ Named because they are known, and because each is a way this item could quietly 
 |---|---|
 | **`OR-R1`** | `{...e.detail}` looks like compliance and is not — it copies the top level and still aliases `payload`, `result` and `error`. `spec/outcome-record.md` section 2's field table is the review instrument |
 | **`OR-R3`** | a `user_action` task dispatches **`task.failed` first**. Keying on the event name double-counts it and routes a human-intervention case down an error edge |
-| **`JP-R5`/`JP-R7`/`JP-R8`** | the driver decides *when* events are emitted, and the opening-order rule exists because `live-token` fires early without it. **Emitting for convenience rather than to the rule can settle [Q4](../open-questions.md) from inside W3**, where nobody is looking for it |
+| **`JP-R5`/`JP-R7`/`JP-R8`** | the driver decides *when* events are emitted, and the opening-order rule exists because `live-token` fires early without it. **Emitting for convenience rather than to the rule can settle [Q4](../questions/q4.md) from inside W3**, where nobody is looking for it |
 | **`FD-V14`** | the absent rule. If the validator "helpfully" requires every branch path to reach its join, P1's own example stops validating |
 | **`RT-R3`/`RT-R5`** | `types: []` versus `types: ["node"]`, and which config carries the DOM lib. Get these wrong and L0 still passes while checking nothing |
 
@@ -157,11 +157,11 @@ Named because they are known, and because each is a way this item could quietly 
 
 | Case | | Covered by W3 |
 |---|---|---|
-| A branch routed away from its join ([Q4](../open-questions.md)) | **emitted, not judged** | W3 emits `branch.exited`; whether that satisfies a join is W2's policy and W4's answer |
-| `user_action` ([Q17](../open-questions.md)) | **yes, fully** | `OR-R3` detection, suspension, `RS-R1`-`RS-R3` resolution, `branch.suspended`/`branch.resumed` |
-| No matching decision edge ([Q10](../open-questions.md)) | **yes** | `FD-V7` in the validator, `FD-R1` at run time |
-| A duplicate task id ([Q13](../open-questions.md)) | **yes** | `ID-R1`, asserting the scheduler received nothing |
-| Nested fan-out ([Q6](../open-questions.md)) | **refused** | `FD-V15` in the validator. No driver support, deliberately |
+| A branch routed away from its join ([Q4](../questions/q4.md)) | **emitted, not judged** | W3 emits `branch.exited`; whether that satisfies a join is W2's policy and W4's answer |
+| `user_action` ([Q17](../questions/q17.md)) | **yes, fully** | `OR-R3` detection, suspension, `RS-R1`-`RS-R3` resolution, `branch.suspended`/`branch.resumed` |
+| No matching decision edge ([Q10](../questions/q10.md)) | **yes** | `FD-V7` in the validator, `FD-R1` at run time |
+| A duplicate task id ([Q13](../questions/q13.md)) | **yes** | `ID-R1`, asserting the scheduler received nothing |
+| Nested fan-out ([Q6](../questions/q6.md)) | **refused** | `FD-V15` in the validator. No driver support, deliberately |
 
 ## Record
 

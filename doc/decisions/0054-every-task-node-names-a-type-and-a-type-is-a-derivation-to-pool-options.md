@@ -138,7 +138,7 @@ through the same checks a document type does.
 
 **What it costs, measured.** **Every flow document written before v0.19 breaks** at `FD-V17` and
 `FD-V23`, and nothing in the document signals which grammar it was written for
-([Q279](../open-questions.md)); the corpus paid it here — **74 flow documents, 199 `workerType` sites,
+([Q279](../questions/q279.md)); the corpus paid it here — **74 flow documents, 199 `workerType` sites,
 every one now `type`**, three invalid examples removed (`FD-V5`, `FD-V34`, the untyped `FD-V37`), two
 invalid and one valid added. **Every worker that read its
 payload whole reads `input`** — in `examples/workers/flow-worker.ts` that is one expression for
@@ -156,7 +156,7 @@ unmoved**, in both runtimes; L1-L5 **40 files / 1041 cases**; `spec/` **7 / 55 /
 
 **What this does NOT decide.** No `inputSchema` or `outputSchema` is applied at run time (P19). No
 pool, group or driver is built from a document by the library — `createRuntime` is W66's. Locking a
-type's config keys, and node-type versioning ([Q249](../open-questions.md)), wait for a registry
+type's config keys, and node-type versioning ([Q249](../questions/q249.md)), wait for a registry
 document to exist in a consumer's hands.
 
 ## Alternatives rejected
@@ -167,6 +167,6 @@ document to exist in a consumer's hands.
 | **A registry-wide default pool** rather than one per type (decision 1's *over*) | Only makes sense under a generic-worker model; in this corpus every node's behaviour is its worker, so a default that is not the type's is a wrong worker |
 | **A type as pure configuration** (decision 2's *over*) | Cannot compute one option from another — the sample's `model: "large"` into a resident cost, a thread count and a worker config — and a class beside it would compute around the checks; a derivation with one check over both outputs is what closes that |
 | **Refuse the NODE when a type's own config fails its schema** (the plan's first draft) | Contradicts the rule it was written under — the default *must be present in the registry* — and reports a registry defect at the node; struck by the maintainer on 2026-09-15 |
-| **One pool per distinct settings value, settings as pool `config`** | ADR 0049's road not taken, with its cost ([Q250](../open-questions.md)); a map of N instances at N settings would be N pools |
+| **One pool per distinct settings value, settings as pool `config`** | ADR 0049's road not taken, with its cost ([Q250](../questions/q250.md)); a map of N instances at N settings would be N pools |
 | **Keep ladder L6 on `workerType` until W67** (the item's own Scope Out) | Impossible on the tree: 24 of 24 L6 flows carried it and the harness read the old type shape, so the choice was which item pays, not whether — the maintainer's, recorded in W65 |
 | **Enforce `inputSchema`/`outputSchema` at dispatch here** | A run-time check on every settlement is a cost P19 is declared to measure first; declaring and carrying them costs nothing and lets a document say what it will mean |

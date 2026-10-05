@@ -29,7 +29,7 @@ receiving the reduced value as `input`; the same flow's typed `map` branch resha
 through a transform; and a row where the join is reached by ONE branch and by NONE, because
 JSONata's singleton rule makes the transform's result change TYPE with the region's arity (fact
 5). With what reverting each of the three items costs, in L6 failures. **It reaches
-[Q165](../open-questions.md)'s refused reducer from the successor's side**, by a road ADR 0037 rule 5
+[Q165](../questions/q165.md)'s refused reducer from the successor's side**, by a road ADR 0037 rule 5
 did not close.
 
 **Reserves:** W61-W64 (W64 expected unused), Q263-Q277, ADR 0051-0052. *Derived from P16's retro,
@@ -45,7 +45,7 @@ spent and not reused.*
 **Three things point at the same gap, and each was found by trying to do something else.**
 
 1. **The reshaping node is the library's own workaround, and it is where a silent wrong answer
-   lives.** [Q165](../open-questions.md)'s *score, then fan out over the scores* was expressible
+   lives.** [Q165](../questions/q165.md)'s *score, then fan out over the scores* was expressible
    only through a reshaping task until W41's `needs`, and a declared reducer on the join was refused
    **narrowly** by ADR 0037 rule 5 — *because a reducer is a function of what the join collects, so
    it cannot be specified before `JP-R12` is*. `JP-R12` has been specified since W34: a satisfied
@@ -66,7 +66,7 @@ spent and not reused.*
    it (fact 8). The road is cut; nothing drives on it.
 
 **And the placement was decided before this plan was drafted, with the alternative priced.** The
-maintainer decided on 2026-09-11 (P16, *Slices beyond this plan* item 1, [Q251](../open-questions.md))
+maintainer decided on 2026-09-11 (P16, *Slices beyond this plan* item 1, [Q251](../questions/q251.md))
 that a transform is applied **in the type's worker wrapper and never in the driver**, and that the
 language is **JSONata, registered by name, as the first and only adapter**, with CEL's statically
 typed alternative refused on the maturity of its JavaScript ports. This plan does not reopen either;
@@ -81,7 +81,7 @@ retro left, in both L6 runtimes, before a line of this plan was written.
 **Nine facts, taken on `4c269d4` with the tree held still, by `dev-dist/p17/facts.mjs` — run under
 Node 24.20.0 AND Deno 2.9.6, and the two outputs are IDENTICAL outside the timing rows and one
 value that is itself fact 3's finding.** The file prints every number below and is what an item
-re-runs rather than transcribes; it is untracked ([Q253](../open-questions.md)'s shape, stated),
+re-runs rather than transcribes; it is untracked ([Q253](../questions/q253.md)'s shape, stated),
 and it loads `jsonata` from a scratch install OUTSIDE the repository named by `JSONATA_URL`, because
 nothing here installs it until W62 decides how.
 
@@ -108,7 +108,7 @@ shadow is not global; and the shadow **reaches `$eval("$now()")`** — a run-tim
 expression sees the same frame. **On Node, `$millis()` returned the SAME value on two evaluations
 of one expression** (the two calls landed in one millisecond) where Deno's differed — so *evaluate
 twice and compare* passes a nondeterministic function on a fast machine, which is
-[Q9](../open-questions.md)'s own measurement (*evaluating twice caught 1 of 4*) one layer over.
+[Q9](../questions/q9.md)'s own measurement (*evaluating twice caught 1 of 4*) one layer over.
 **The plan unbinds by NAME and states detection as necessary, never sufficient.**
 
 **4. A path typo is SILENT and a type error is LOUD.** `input.scroe` evaluates to `undefined` with
@@ -123,7 +123,7 @@ and `$sum(*.score)` is **60**. Over a record with ONE match, `*.score` is the SC
 singleton-sequence rule — and `[*.score]` is `[7]`. Over `{}`, a join nothing reached, `$sum(*.score)`
 is **`undefined`** and `$sum([*.score])` is **0**. *An expression that is right at arity two is a
 different type at arity one and absent at arity zero*, which is exactly the three shapes P16's
-item 2 named for P18's minimal sample, and it is [Q263](../open-questions.md). The exit artifact
+item 2 named for P18's minimal sample, and it is [Q263](../questions/q263.md). The exit artifact
 carries all three arities so the row is a statement about the rule and not about one arity.
 
 **6. The cost is inside the clone the envelope already pays.** Medians of 21 evaluations in one
@@ -137,7 +137,7 @@ of N branches each holding a 1 KiB string:
 | 1000 | 0.001 | 0.30-0.33 | 4.4-4.7 | | **2.0-2.3 ms** |
 
 Ranges are Deno-Node. A reduction over a thousand branches costs a sixth of the clone; a filter
-and reshape over the same thousand costs twice it; and against [Q186](../open-questions.md)'s
+and reshape over the same thousand costs twice it; and against [Q186](../questions/q186.md)'s
 560 ms cliff — a clone of a 1000-item payload per map instance — every cell is two orders of
 magnitude down. **Quoted as the shape and the ratio, never the millisecond** (W54's rule); W62
 re-takes it inside the wrapper, where the thread boundary adds a clone of its own.
@@ -149,7 +149,7 @@ with **`() => 1 could not be cloned`**, no throw at `addTask`; a threaded pool w
 URL **string** runs. **So the thing the wrapper evaluates with must reach it as a MODULE URL**, and
 the thing the validator compiles with at `new Driver` — synchronous, on the main thread — is a
 function. One adapter, two halves: a registry-side `compile` and a worker-side module the bootstrap
-helper writes into the pool config beside the worker's own URL. [Q264](../open-questions.md) is what
+helper writes into the pool config beside the worker's own URL. [Q264](../questions/q264.md) is what
 that split leaves open.
 
 **8. `unpackEnvelope` keeps exactly `settings` and `input` and DROPS a third key.** Measured on the
@@ -165,7 +165,7 @@ runtimes, and the number is what a browser consumer of the sub-path pays.
 **What was NOT measured, and is an item's declaration step:** what `jsonata` costs at `typecheck`
 under the five configurations (its `jsonata.d.ts` is untested here); how the two manifests declare a
 second bare dependency reached only from a sub-path (W62's stop-and-ask, priced with `npm pack` and
-`deno publish --dry-run` — both green for the wrong reason once, [Q252](../open-questions.md)); and
+`deno publish --dry-run` — both green for the wrong reason once, [Q252](../questions/q252.md)); and
 the cost re-taken across a THREAD boundary, which fact 6 does not include.
 
 ## Scope
@@ -186,7 +186,7 @@ the cost re-taken across a THREAD boundary, which fact 6 does not include.
    pattern, so the pure entry and the scheduler sub-path both stay free of an engine. It shadows
    `$now`, `$millis` and `$random` on every compile (fact 3), passes the **adapter conformance
    suite** W61 writes against a fake language, bundles for the browser (fact 9), and is measured
-   inside the wrapper as [Q186](../open-questions.md)'s cost was. How the dependency is DECLARED is
+   inside the wrapper as [Q186](../questions/q186.md)'s cost was. How the dependency is DECLARED is
    ADR 0052's, with both shapes priced.
 3. **The exit artifact** on real workers in both L6 runtimes, and what reverting (1), (2) and (3)
    each costs — including the arity-one and arity-zero rows fact 5 demands.
@@ -197,7 +197,7 @@ the cost re-taken across a THREAD boundary, which fact 6 does not include.
   transformed edge.** P18's, in P16's *Slices beyond this plan* item 2, whose design is already
   written; this plan builds the thing it checks. **What this plan owes it is two things**: an adapter
   interface with the optional `check(expr, inputShape)` hook reserved by name and implemented by
-  nothing, and [Q263](../open-questions.md)'s three arities as the sample shapes it must include.
+  nothing, and [Q263](../questions/q263.md)'s three arities as the sample shapes it must include.
 - **Validating a transform's output at run time.** P19's, priced there.
 - **A transform on an UNTYPED node.** Only a typed node has a wrapper (decision 1), and putting one
   on a bare `workerType` node would mean the driver evaluates it — the placement the maintainer
@@ -209,16 +209,16 @@ the cost re-taken across a THREAD boundary, which fact 6 does not include.
   says so once.
 - **A second language.** CEL was refused by the maintainer with its reason; the adapter interface is
   what keeps that reversible, and a second adapter is a future item's, not a rule here.
-- **Making a region's collection referenceable** — [Q219](../open-questions.md), P15's follow-on,
+- **Making a region's collection referenceable** — [Q219](../questions/q219.md), P15's follow-on,
   untouched: a transform on the join's successor reaches the collection by the road that already
   exists, and since ADR 0046 rule 3 it is the LAST thing that sees it whole.
-- **`limitKey`, flow-level retry, node-type versioning** — [Q248](../open-questions.md),
-  [Q111](../open-questions.md), [Q249](../open-questions.md), unmoved.
+- **`limitKey`, flow-level retry, node-type versioning** — [Q248](../questions/q248.md),
+  [Q111](../questions/q111.md), [Q249](../questions/q249.md), unmoved.
 
 ## Decisions taken before fan-out
 
 *Section 7 rule 3: decide, then fan out. Decisions 1 and 2 are the maintainer's of 2026-09-11,
-recorded in P16 and [Q251](../open-questions.md); **decisions 4 and 7, and ADR 0052 standing
+recorded in P16 and [Q251](../questions/q251.md); **decisions 4 and 7, and ADR 0052 standing
 alone, are the maintainer's of 2026-09-12, taken at this declaration from the stop-and-ask list
 below with each alternative named**; the rest are derived from the facts above and are
 recorded here so an item argues from them rather than re-deriving them. The two that are
@@ -240,7 +240,7 @@ architectural become ADRs inside the items that measure them.*
    own `import.meta.url` — so a consumer who imports the sub-path holds both. The bootstrap helper
    writes the worker URL into the typed pool's config beside `worker` and `config`, and the wrapper
    loads it in `setup()`, once per worker instance, and compiles each expression **once per
-   instance** rather than per task. **What the split cannot see is [Q264](../open-questions.md).**
+   instance** rather than per task. **What the split cannot see is [Q264](../questions/q264.md).**
 4. **The shape is `transform: { lang, expr }`, both strings, on a typed task node only — the
    maintainer's, 2026-09-12**, over a bare string with the language fixed (a second language would
    need a new key) and over another key name. A
@@ -265,7 +265,7 @@ architectural become ADRs inside the items that measure them.*
    in the spec as a rule about ANY adapter — *a transform is a function of what the run produced* —
    with the conformance suite asserting the three by name and the two-evaluation comparison stated
    as a necessary check that is not sufficient. Whether `$eval` itself is unbound is W62's
-   stop-and-ask ([Q265](../open-questions.md)).
+   stop-and-ask ([Q265](../questions/q265.md)).
 7. **The expression sees its input as the context value and its settings as a binding.** `$` is
    `input` — so `*.score` over a join's record and `$.confidence` over a map item read as an author
    expects — and the node's effective `settings` are bound as **`$settings`**, so one expression can
@@ -329,7 +329,7 @@ language — so the plan's first item is not P11's shape.
 
 1. **P18 — what a node type SAYS about its input and output.** P16's item 2, verbatim, with two
    inputs this plan hands it: the adapter's reserved `check` hook (decision 10) and
-   [Q263](../open-questions.md)'s three arities as sample shapes.
+   [Q263](../questions/q263.md)'s three arities as sample shapes.
 2. **P19 — strict mode.** P16's item 3, and it gains one subject from here: a transform's declared
    output against what the transform produced, which is the only thing that can turn fact 4's silent
    typo into a refusal.
@@ -349,7 +349,7 @@ language — so the plan's first item is not P11's shape.
 - ~~**The transform's bindings** (decision 7)~~ and ~~**the key's name and shape** (decision 4)~~ —
   **both answered at the declaration, 2026-09-12**: `$` is the input and `$settings` is bound;
   `transform: { lang, expr }`. Recorded in the decisions; W61 argues from them.
-- **Whether `$eval` is unbound** ([Q265](../open-questions.md)).
+- **Whether `$eval` is unbound** ([Q265](../questions/q265.md)).
 - **Anything that would change what a typed node WITHOUT a transform receives, or what any
   existing L6 row asserts.** Decision 8 forbids it; an item that finds it necessary stops.
 
@@ -386,7 +386,7 @@ digest      - cde3b60a9d343c8e over 279 files, before the gate and after it, ide
 **The five-runtime claim is measured, not inherited**: `npm run gate` runs `test:browser`, which is
 chromium only, so `npm run test:browser:all` was run for firefox and webkit — exit 0, 32 / 858 in
 each, `dev-dist/p17/browser-all-declared.log`. **858 counts `test()` cases and 1281 counts individual
-assertions ([Q98](../open-questions.md)) — they are never added.** The numbers are P16's retro's,
+assertions ([Q98](../questions/q98.md)) — they are never added.** The numbers are P16's retro's,
 which touched documents only, and are RE-TAKEN here rather than inherited from it.
 
 **The census parser is P15's, unchanged** (`dev-dist/p15/census.mjs`): **204 / 151 / 2 / 51** before
@@ -394,10 +394,10 @@ this declaration's rows and **207 / 154 / 2 / 51** after, 45 ids in both tables,
 exactly one cluster cell, 0 aborts. **And it earned its run the same way it did at P13's retro**:
 the three rows were first written WITHOUT a Status cell, the parser did not abort — a three-column
 row is the Resolved table's shape — and reported **151 / 54**; found by reading the count against
-the line above it, not by the parser. [Q157](../open-questions.md)'s retro defect, reproduced at a
+the line above it, not by the parser. [Q157](../questions/q157.md)'s retro defect, reproduced at a
 declaration.
 
-**[Q142](../open-questions.md) was checked rather than assumed.** This declaration adds four documents
+**[Q142](../questions/q142.md) was checked rather than assumed.** This declaration adds four documents
 under `doc/work-items/` and one under `doc/plans/`; `M4`'s two-directory fixture, measured on a
 scratch copy outside the repository, is **3642 against a floor of 3960** — up from 3610 at P16's
 retro, a margin of 318 — so W58's retune holds and no floor moves. `check-markdown` self-test
@@ -419,7 +419,7 @@ test, byte-identical dispatch; the evaluation reverted costs 14 at L1, 0 at L2-L
 **Prediction 2's reversal condition measured REAL** — a `setup()` throw leaves the task `pending`
 forever and the run never hears of it — and avoided by the maintainer's stop-and-ask choice (a load
 failure remembered in `setup()`, thrown from `run()` as the task's), so no `FD-R` and no node kind;
-the inner worker's own `setup()` throw is [Q266](../open-questions.md). L1-L5 **36 / 958** in five
+the inner worker's own `setup()` throw is [Q266](../questions/q266.md). L1-L5 **36 / 958** in five
 runtimes, L6 **1281 / 46 unmoved**, spec **7 / 55 / 103**, census **209 / 156 / 2 / 51**. Readers
 10 / 1 and 66 / 10 / 3, overlap 1. Rule 8 93 probes: 1 control green, 81 caught, 10 declared ceilings each RUN against its rung, 1 revert measurement, 0 undeclared survivors, 0 crashes, 0 against declaration on the final pass — 1 abort re-anchored and then caught (a13, an anchor the adequacy fix moved) and 1 author probe rewritten (r7, first aimed at the wrong branch). Late exceptions **two** (the L6 byte walk's
 field lists in `examples/`, one cause). Q266-Q267 raised; Q184, Q253 extended; Q268-Q269 spent.
@@ -457,7 +457,7 @@ through a declared transform reading the map's settings as `$settings`, two type
 join, and the join's typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }`
 with **no reshaping node** — its worker receiving **990** as `input` at arity two, **400** when a
 decision routes one branch away (P1's own case under `live-token`), and **0** — the NUMBER, not
-`undefined` — when both are routed away and `live-token` fires the join over `{}`: **[Q263](../open-questions.md)
+`undefined` — when both are routed away and `live-token` fires the join over `{}`: **[Q263](../questions/q263.md)
 as three rows**, every value what the worker RECEIVED, read off the outcome record and never a literal
 the row alone carries, with the arity pair asserted as a difference. The `Echo` pool that evaluates
 the expression is a real THREAD in both runtimes, loading `fyflow-orchestration/jsonata` by its module
@@ -511,7 +511,7 @@ passes, two ADRs, and an exit artifact on real workers in both L6 runtimes. At d
 **207 / 154 / 2 / 51**. It closes at **7 / 55 / 104**, **38 / 979**, **1501 / 50** and
 **215 / 162 / 2 / 51**. What a node may do is declare a transform in a registered language, evaluated
 in its type's wrapper (ADR 0051); the first language is JSONata as a sub-path, its engine a declared
-dependency at an exact pin (ADR 0052); and what the exit artifact shows is [Q263](../open-questions.md)
+dependency at an exact pin (ADR 0052); and what the exit artifact shows is [Q263](../questions/q263.md)
 as three rows — the same expression a different type at each arity, a number at all three because
 the plan chose the array form.
 
@@ -519,20 +519,20 @@ the plan chose the array form.
 
 | | defect | rung |
 |---|---|---|
-| W61 | a wrapper whose `setup()` throws leaves the task `pending` forever and the run never hears of it | **none** — measured at the declaration step, before the stop-and-ask; the road W59 built still hangs ([Q266](../open-questions.md)) |
+| W61 | a wrapper whose `setup()` throws leaves the task `pending` forever and the run never hears of it | **none** — measured at the declaration step, before the stop-and-ask; the road W59 built still hangs ([Q266](../questions/q266.md)) |
 | W61 | the wrapper's memo keyed by expression TEXT alone — one language silently receiving another's compiled expression | **none** — adequacy reader; the author's own probe had keyed it by LANGUAGE and been caught (the hole in the direction the probe did not take) |
 | W61 | the real-pool `BACKENDS` narrowed to `inline` with 953 unmoved, because the browser's parity check forced the loop INSIDE a case | **none** — adequacy reader; a case count cannot see a loop inside a case |
 | W61 | `FD-V37`'s *reported alone* with no COUNT observer | **none** — adequacy reader |
 | W61 | the conformance suite asserted a COUNT of three where the spec and ADR said BY NAME | **none** — conformity reader |
-| W61 | a probe's `'$'` mangled by `String.replace` — a harness copied from W59's | **none** — reading the failure lines ([Q184](../open-questions.md)'s shape) |
-| W61 | an anchor that could not match because the file carried a NUL byte the author's tool had written, green at every rung | **none** — `grep` calling the file binary ([Q267](../open-questions.md)) |
+| W61 | a probe's `'$'` mangled by `String.replace` — a harness copied from W59's | **none** — reading the failure lines ([Q184](../questions/q184.md)'s shape) |
+| W61 | an anchor that could not match because the file carried a NUL byte the author's tool had written, green at every rung | **none** — `grep` calling the file binary ([Q267](../questions/q267.md)) |
 | W61 | `spec/README.md`'s HEADLINE refusal count reverted to 32 at `check:spec` exit 0, because `C4` read the LAST count in the row | **none** — the author's own set (`e7`), closed by a `C4` clause |
-| W61 | the plan's facts harness went vacuous at exit 0 on the item's first edit to the envelope line | **none** — untracked ([Q253](../open-questions.md)) |
-| W62 | in a browser bundle `import.meta.url` is the bundle itself, so `import(adapter.worker)` yielded no default export | **L1 in three browsers — it FIRED**, six clauses red, read correctly ([Q261](../open-questions.md), the maintainer's choice) |
+| W61 | the plan's facts harness went vacuous at exit 0 on the item's first edit to the envelope line | **none** — untracked ([Q253](../questions/q253.md)) |
+| W62 | in a browser bundle `import.meta.url` is the bundle itself, so `import(adapter.worker)` yielded no default export | **L1 in three browsers — it FIRED**, six clauses red, read correctly ([Q261](../questions/q261.md), the maintainer's choice) |
 | W62 | JSONata throws PLAIN OBJECTS, not `Error`s | **L1 — the conformance suite's `instanceof Error` clause FIRED** on the real adapter |
 | W62 | JSONata MARKS the arrays it builds with own keys that survive a thread | **none** — measured at the declaration step; the array-element depth found by the adequacy reader |
 | W62 | `$shuffle` draws from `Math.random()` — prediction 4 | **none** — the engine's own bind list, read before the probe ran |
-| W62 | `deno publish --dry-run` proves the presence of `node_modules` and nothing about the declaration | **none**, and none can be built ([Q252](../open-questions.md)) |
+| W62 | `deno publish --dry-run` proves the presence of `node_modules` and nothing about the declaration | **none**, and none can be built ([Q252](../questions/q252.md)) |
 | W62 | a probe's `deno check` rewrote `deno.lock` outside the probe's restore set | **the harness's DIGEST — it FIRED** (v0.17 change 1), and the lock joined the restore set by a no-op edit |
 | W62 | six anchors moved under the item's own edits; two ceilings became catches inside the item | **rule 7 (b) and v0.17's dated-ceiling clause — both FIRED as designed** |
 | W62 | `bundledDependencies: ["jsonata"]` shipped the engine's eight files in the tarball with every check green | **none** — adequacy reader; W57's adjacent-field shape one field over |
@@ -540,11 +540,11 @@ the plan chose the array form.
 | W62 | section 13's *not yet on this tree*; the pin literal in prose; `package-lock.json` undeclared | **none** — conformity reader |
 | W62 | the first gate over the final tree RED on ONE line — `check-scheduler`'s `D8` probe anchored on a two-line `imports` block the `jsonata` mapping made three | **the gate's self-test — it FIRED and was READ correctly**, rule 7 (b) on a file in nobody's `Owns` |
 | W62 | `make-copy.sh`'s `git add -A` failed silently on Windows (`core.longpaths`); the Bash tool collapsed `\n` inside a heredoc twice | **none** — instruments |
-| W63 | the `Echo` type's `maxRetries: 0` was INERT — the scheduler's default is zero retries, stated nowhere | **none** — the author's own set (`a12`), a survivor read as real ([Q275](../open-questions.md)) |
+| W63 | the `Echo` type's `maxRetries: 0` was INERT — the scheduler's default is zero retries, stated nowhere | **none** — the author's own set (`a12`), a survivor read as real ([Q275](../questions/q275.md)) |
 | W63 | the marker walk's DEPTH had one observer — a walk stopping at the top level reported the same empty list | **none** — the author's own set (`d4`), closed by the walk's reach |
-| W63 | a comment-line prefix anchor; the browser runner's `FAIL` at two spaces read with the Node runner's four; W61's revert anchor for an envelope line that is one expression now | **none** — three instrument defects, each read against its log ([Q276](../open-questions.md)) |
+| W63 | a comment-line prefix anchor; the browser runner's `FAIL` at two spaces read with the Node runner's four; W61's revert anchor for an envelope line that is one expression now | **none** — three instrument defects, each read against its log ([Q276](../questions/q276.md)) |
 | W63 | a ceiling declared with a wrong mechanism — the reach clause refuses a query-string spelling of the entry | **none** — the author's own set, CAUGHT against declaration and kept as the catch |
-| W63 | a deleted MIDDLE row renumbers every run after it — 15 of a deletion's 17 failures were the next row's ids | **none** — a measurement read against what it claimed ([Q274](../open-questions.md)) |
+| W63 | a deleted MIDDLE row renumbers every run after it — 15 of a deletion's 17 failures were the next row's ids | **none** — a measurement read against what it claimed ([Q274](../questions/q274.md)) |
 | W63 | the two CONTROLS of the new cross-row block absent from `CROSS_ROW_SUBJECTS`: a validator accepting everything green in both runtimes at 1498 | **none** — adequacy reader; **and this retro found the same shape live in W58's block** |
 | W63 | the thread claim with no observer, declared a ceiling with a reason about the observer | **none** — adequacy reader; obligation (c)'s LIMIT's closing sentence, again |
 | W63 | `FD-C5`'s first kind carried by no SUCCESSFUL transform; the Scope sentence *one flow carries the four kinds* false | **none** — adequacy reader; the enumeration clause's third short instance |
@@ -596,7 +596,7 @@ P11's seven of seven.
   real runs from P6, and the register's headline at 209 / 156. **Exactly ONE of the six is a number a
   check could compare without reading English** — the register's headline against the census
   parser's own sum, which that parser prints and compares to nothing — and the parser is untracked
-  in `dev-dist/` ([Q253](../open-questions.md)'s shape, recorded there). The other five are the
+  in `dev-dist/` ([Q253](../questions/q253.md)'s shape, recorded there). The other five are the
   standing ground: a sentence, not a number.
 - **An `Owns` pre-declaration rule, the SIXTH plan running — with P16's proposed procedure TRIED.**
   Late exceptions ran **2, 5, 2** — nine, zero undeclared. W63's table was SEEDED from W61's and
@@ -604,16 +604,16 @@ P11's seven of seven.
   spec split sentences fired as predicted, `AGENTS.md` fired as predicted, and nothing unpredicted
   fired. **One occurrence of the procedure working, and it is again a claim about a plan's later
   items** — a first item has no previous table. Recorded as the second datum, not adopted
-  ([Q157](../open-questions.md)).
+  ([Q157](../questions/q157.md)).
 - **A harness requirement that a CRASH verdict is read against every FAIL pattern the runners
   print.** W63's `e6` was a catch read as a crash because the browser runner indents `FAIL` two
-  spaces and the harness read four. One occurrence, closed in the harness; [Q276](../open-questions.md)
+  spaces and the harness read four. One occurrence, closed in the harness; [Q276](../questions/q276.md)
   records that the patterns live in every harness as literals and nowhere the runners declare them.
   A rule would restate *read the failure lines*, which the harness did — against the wrong pattern.
 - **A rule that a declared value must be one the default cannot supply.** W63's `maxRetries: 0`
   was inert against the scheduler's zero default and the first probe to delete it said so. One
   occurrence; rule 8 obligation (a) already deletes the declaration, which is how it was found.
-  [Q275](../open-questions.md) records the fact the scheduler's reference does not state.
+  [Q275](../questions/q275.md) records the fact the scheduler's reference does not state.
 - **A check that an item's Scope-Out is consistent with its Outputs.** W63's Out sentence bound
   out the second document its Output (3) could not do without. One occurrence, a sentence corrected
   under pass 3 rule 6; both readers read it the same way.
@@ -627,7 +627,7 @@ P11's seven of seven.
 | # | kind | verdict |
 |---|---|---|
 | 1 | derived | **CONFIRMED** — W61 cost 0 on every existing test at L1-L6 and the two P12 flows and `typed.flow.json` dispatch byte-identically with and without `languages`; W63 then added one clause to every existing row without moving any row's own numbers |
-| 2 | derived | **CONFIRMED, and its reversal condition was MEASURED REAL and DESIGNED AROUND** — a wrapper whose `setup()` throws IS a worker error the run never hears of (the row's own reversal clause, verbatim), so the maintainer chose to remember a load failure in `setup()` and throw it from `run()`; no `FD-R`, no node kind, and the road W59 built still hangs ([Q266](../open-questions.md)). A new shape: a prediction held because the item steered around the condition that would have reversed it |
+| 2 | derived | **CONFIRMED, and its reversal condition was MEASURED REAL and DESIGNED AROUND** — a wrapper whose `setup()` throws IS a worker error the run never hears of (the row's own reversal clause, verbatim), so the maintainer chose to remember a load failure in `setup()` and throw it from `run()`; no `FD-R`, no node kind, and the road W59 built still hangs ([Q266](../questions/q266.md)). A new shape: a prediction held because the item steered around the condition that would have reversed it |
 | 3 | derived | **CONFIRMED and measured to the row's own wording** — the evaluation deleted cost 14 at L1, 0 in every L2-L5 suite, 0 at L6 at W61, and **52 at L6 after W63** |
 | 4 | **reach** | **REVERSED — from the SOURCE, before the probe ran.** `$shuffle` draws from `Math.random()`, found in the engine's own bind list; the walk over all 63 built-ins confirmed exactly four differ. The rule was stated as a property and the list grew, which is what the row said would happen |
 
@@ -663,11 +663,11 @@ between them — `spec/README.md`'s headline count (W61), the by-name loop slice
 the inert zero-retry declaration and the marker walk's depth (W63) — and every one was closed
 before a reader saw the tree; three crashes and three wrong declarations on those passes were the
 instruments and were read as such. **Late exceptions 2, 5, 2 — nine, zero undeclared.**
-[Q142](../open-questions.md) did not fire: the two-directory fixture was **3694** at W61's end,
+[Q142](../questions/q142.md) did not fire: the two-directory fixture was **3694** at W61's end,
 **3741** at W62's, **3766** on the tree W63 ships and **3781** after this retro (`doc/workflow.md`'s new links are in both fixtures' universe; the plan file's are cut), against 3960;
 `M3`'s one-directory fixture 88 against 90 throughout. **Census CONFIRMED for the SEVENTEENTH plan
 running — 215 / 162 / 2 / 51**, 0 aborts, 215 of 215 in one cluster cell; this retro raises no
-question and extends [Q253](../open-questions.md). **The confirming `npm run gate` over the tree
+question and extends [Q253](../questions/q253.md). **The confirming `npm run gate` over the tree
 this retro ships: EXIT 0, zero lines beginning FAIL, digest `621b4e7c2cb49927` over 296 files before
 and after** (`dev-dist/w63/retro-gate.log`; markdown 116 / 5151 / 261, L6 1501 / 50 in both
 runtimes) — run after the last document edit, with this sentence the one edit after it.
@@ -680,7 +680,7 @@ runtimes) — run after the last document edit, with this sentence the one edit 
   engine's API; the adapter's shape came from the engine's VALUES.
 - **The scheduler's reference is silent on one more fact this plan needed**: the default retry
   budget is zero, learned by deleting a declaration and watching nothing change
-  ([Q275](../open-questions.md)). P16 found five such silences; this is the sixth.
+  ([Q275](../questions/q275.md)). P16 found five such silences; this is the sixth.
 - **A ceiling with a reason about the observer is a hole, in the item's own author's hand** — the
   thread claim (W63 `e10`), obligation (c)'s LIMIT's closing sentence one plan after it was
   written, found by the reader that sentence describes.

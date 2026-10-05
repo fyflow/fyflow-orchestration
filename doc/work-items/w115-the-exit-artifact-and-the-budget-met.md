@@ -28,11 +28,11 @@ Inputs:     P27 decisions 1, 2 and 4; **fact 8**; predictions 1, 2, 4 and 5; sto
             of one line per repeat. [W114](w114-claude-md-is-guidance-and-npm-run-state-is-the-index.md)'s
             Record and its obligation (d). [ADR 0076](../decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
             decisions 3, 4 and 5; [ADR 0077](../decisions/0077-an-item-does-not-write-its-status-into-claude-md.md)
-            decision 1 and **consequence 4, which is [Q466](../open-questions.md) and is
+            decision 1 and **consequence 4, which is [Q466](../questions/q466.md) and is
             this item's**; [ADR 0078](../decisions/0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md)
             decisions 1 and 2; [ADR 0073](../decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
             decision 1 and [W107](w107-the-readme-is-for-a-person-who-will-use-the-library.md)'s
-            method, as [Q468](../open-questions.md) corrects it. **EVERY figure re-taken at
+            method, as [Q468](../questions/q468.md) corrects it. **EVERY figure re-taken at
             this declaration step (P15 decision 5); section 2 is what that found.**
 Outputs:    (1) `doc/workflow.md` at or under P27 decision 1's **35,840-byte** target: the
             version blocks (L1-1801, 159,779) and the adapted-from table (22,898) DELETED
@@ -42,7 +42,7 @@ Outputs:    (1) `doc/workflow.md` at or under P27 decision 1's **35,840-byte** t
             and one line per repeatedly-refused proposal with the ordinal the file states
             (3) the home demonstration for BOTH cuts, W107's method as W113 corrected it,
             with a RESOLUTION FLOOR asserted before the instrument reports anything
-            ([Q470](../open-questions.md)) and the wrong-owner control beside it
+            ([Q470](../questions/q470.md)) and the wrong-owner control beside it
             (4) `doc/README.md`'s `## Current state` block — **489,966 bytes, 91.1%** —
             deleted to git, and the file out of the record step (Q466)
             (5) **`doc/workflow.md` section 1's loop DIAGRAM corrected**: it still lists
@@ -104,7 +104,7 @@ repeat.*
 
 And it carries a second cut that **buys no budget at all**, which is why it needed a decision rather
 than an argument. `doc/README.md` is not in `check:budget`'s `SET` — that set is three paths — so its
-489,966-byte status block costs a session nothing it is told to read. [Q466](../open-questions.md) is
+489,966-byte status block costs a session nothing it is told to read. [Q466](../questions/q466.md) is
 whether it goes anyway, [ADR 0077](../decisions/0077-an-item-does-not-write-its-status-into-claude-md.md)
 consequence 4 left it to the maintainer rather than to this item, and **the answer is yes, on the
 register's argument rather than on the budget's**: 490 KB of status nobody is told to read.
@@ -158,7 +158,7 @@ free `P28 W115 Q479 ADR 0079`; `check:markdown:selftest` EXIT 0 at **37/37 and 7
 
 ## 2. Five handed-over figures are wrong, and the predicate is stated before each is called wrong
 
-[Q469](../open-questions.md) is the hazard: W113 called P27's *17%* wrong at *4%* using six
+[Q469](../questions/q469.md) is the hazard: W113 called P27's *17%* wrong at *4%* using six
 phrasings, none of them the phrase the rows use, and P27 had been right. So each row below names the
 predicate.
 
@@ -167,14 +167,14 @@ predicate.
 | **P27 fact 8's refusal counts** | *"23 `for the Nth time` refusals, 63 `REFUSED` clauses, 14 `doc/`-check refusals and 11 `Owns`-rule refusals"* | **22 / 18 / 15 / 11** | four predicates, one per figure, each printed with the alternatives. *"for the Nth time"* over an ordinal list including the *TWENTY-FIRST* and *TWENTY-FIFTH* spellings the file uses is **22**; a looser *"the Nth time"* is 30 and *"Nth time or occurrence"* is 68, so no predicate gives 23. `REFUSED` verbatim is **18 LINES**; the numbered items beneath them are **47** and the counts those lines DECLARE sum to **43** where a number is given, so none is 63. `doc/`-check refusal sites are **15**. **Only the `Owns` figure reproduces, at 11.** *(My own first instrument said 11 for the first figure, because its ordinal list stopped at `tenth` and the file counts past twenty — the shape of defect this item then had to refuse in its own home-demonstration instrument.)* |
 | **what the ledger should carry instead** | a count | **the ORDINAL the file states** | and it is a better number than any count: the file says the `doc/` check has been refused **for the TWENTY-FIFTH time** and the `Owns` pre-declaration rule **for the THIRTEENTH**. A count of phrase occurrences depends on the predicate; an ordinal is the document's own claim about itself. Fact 8's CONCLUSION is confirmed and strengthened |
 | **`M3`'s margin** | *"documents >= 142 against 187 — you delete no file, so safe"* | **against 139, and the margin is TWO** | 187 is the WHOLE-TREE count and `M3`'s floor is two-sided: it must also be ABOVE the first `removes` probe's fixture or that probe stops firing it. Probe 1 (`-doc/decisions`) resolves **139** documents today and **140** with this item's own file added, against the floor **142**. **So W115 may add ONE document and exactly ONE more may ever be added.** [ADR 0076](../decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md) decision 2's table measures the floor's behaviour directly — at 142 it does NOT fire, `wanted [M1,M3], got [M1]`, and at 141 it does — so from 140 the next document is safe and the one after it is red. *This row said TWO and the conformity reader found it against that table; Scope `Out` below said the margin is TWO and this item spends one, which under the same convention means one further document. The two statements disagreed and the smaller is right.* **This is ADR 0076 decision 2's own arithmetic arriving** — it predicted the margin reaches 2 during P27 and that `M3` does not fire — and the brief's *"safe"* is right about the conclusion and reads the wrong number |
-| **`M5`'s margin** | *"anchored >= 28 against 35 — MARGIN 7"* | **a two-sided window `[28, 42]`** | the check needs `anchored >= 28`; `M5`'s own probe strips `doc/scheduler-upstream.md`, whose **15** anchored links are all self-anchors, so the probe needs `anchored - 15 < 28` and the UPPER edge is **42**. Measured with the check's own `blankCode` and `resolveLinks` against a resolution floor, not with a grep: `doc/scheduler-upstream.md` **15**, `doc/workflow.md` **5**, `doc/plans/**` **12**, `doc/open-questions.md` **2**, `doc/work-items/w96-*.md` **1**. The raw grep and the check agree at 5 for `doc/workflow.md`, which is luck rather than method. **And 35 is a DECLARATION-STEP figure that this item's own edit moved**: all five of that file's anchors were in the version blocks and went with them, and the version index then put back **SIX** — P20 through P24 and P26 — and the record step's own [Q481](../open-questions.md) row adds a same-file `](#live)`, so the shipped corpus carries **37**. *Three values for one figure in one item — 35 declared, 36 after the version index, 37 after a register row — which is section 1 rule 5's **when** direction and the conformity reader found it at both 35 and 36.* 37 sits inside the `[28, 42]` window: the check needs 28 and gets 37, and `M5`'s own probe strips `doc/scheduler-upstream.md`'s 15 to fire at **22** |
+| **`M5`'s margin** | *"anchored >= 28 against 35 — MARGIN 7"* | **a two-sided window `[28, 42]`** | the check needs `anchored >= 28`; `M5`'s own probe strips `doc/scheduler-upstream.md`, whose **15** anchored links are all self-anchors, so the probe needs `anchored - 15 < 28` and the UPPER edge is **42**. Measured with the check's own `blankCode` and `resolveLinks` against a resolution floor, not with a grep: `doc/scheduler-upstream.md` **15**, `doc/workflow.md` **5**, `doc/plans/**` **12**, `doc/open-questions.md` **2**, `doc/work-items/w96-*.md` **1**. The raw grep and the check agree at 5 for `doc/workflow.md`, which is luck rather than method. **And 35 is a DECLARATION-STEP figure that this item's own edit moved**: all five of that file's anchors were in the version blocks and went with them, and the version index then put back **SIX** — P20 through P24 and P26 — and the record step's own [Q481](../questions/q481.md) row adds a same-file `](#live)`, so the shipped corpus carries **37**. *Three values for one figure in one item — 35 declared, 36 after the version index, 37 after a register row — which is section 1 rule 5's **when** direction and the conformity reader found it at both 35 and 36.* 37 sits inside the `[28, 42]` window: the check needs 28 and gets 37, and `M5`'s own probe strips `doc/scheduler-upstream.md`'s 15 to fire at **22** |
 | **`check:markdown`'s link count** | 6149 (brief) / **6141** (W114's Record and its figures table) | **6149** | the check prints it. The brief's figure is right and W114's Record is wrong by 8, in two places. Not this item's file; reported rather than fixed |
 | the tree | `gate:full` EXIT 0, zero FAIL lines, selftests 9/9, 762.3 s / 2728.6 s | **not re-run at the declaration** | a confirming gate is ~760 s and an item does not spend one to confirm a predecessor's. Every rung this item's own gate names was run and redirected; section 1 has the figures |
 
 ## 3. The home demonstration, for both cuts
 
 **The instrument asserts a RESOLUTION FLOOR before it reports anything**, which is
-[Q470](../open-questions.md) and W114's own worst defect: that item's home instrument was wrong
+[Q470](../questions/q470.md) and W114's own worst defect: that item's home instrument was wrong
 twice, and the second time its wrong-owner control passed because both sides were missing. It also
 carries the wrong-owner control, scoring each block's tokens against the NEXT owner's file.
 
@@ -214,7 +214,7 @@ own Record.*
 **The token screen is WEAK here and that is stated rather than hidden**: 93 tokens over 24 owners,
 against `doc/README.md`'s 1,206 over 89. The version blocks are prose with few digests and few
 3-6 digit numbers, so the screen has almost nothing to grip. **The discharge is reading, which is
-[Q468](../open-questions.md)'s whole point**, and the reading found something the screen could not.
+[Q468](../questions/q468.md)'s whole point**, and the reading found something the screen could not.
 
 **The pointer between a version block and its plan runs BOTH WAYS for four of the twenty-four, and
 P27 fact 8's premise is false for those:**
@@ -260,7 +260,7 @@ not have that region in its subject. Run here, after the fact, which is the hone
 | the one without | **P27** — this plan, whose Retro does not exist yet. *Not a homeless fact: it is the plan this item belongs to* |
 | distinctive tokens over 116 owners | **56**; 12 absent from the owning file — 21.4% |
 | the WRONG-OWNER control | **71.4%** absent — a **3.33x** separation |
-| the RESOLUTION FLOOR asserted before any of it was reported | **30 owners**, against 116 resolving ([Q470](../open-questions.md)) |
+| the RESOLUTION FLOOR asserted before any of it was reported | **30 owners**, against 116 resolving ([Q470](../questions/q470.md)) |
 
 **And the honest limit, which is the finding rather than the figure: no mechanical predicate
 separates a DELETION from a RE-WORDING in a cut that re-words what it keeps.** Two were tried and
@@ -282,7 +282,7 @@ act on**. Two are fixed: section 6's ordinal clause, which said the ordinal is d
 list this item deleted, and rule 8's *four requirements on the set and one on the harness* against a
 table of four and seven. The third is the refusal ledger's six unmeasured rows, declared below. *A
 screen answers whether the WORDS have a home; this is the case where even the screen cannot be
-built, and [Q483](../open-questions.md) records it.*
+built, and [Q483](../questions/q483.md) records it.*
 
 ### The refusal ledger's own figures, measured — the conformity reader's F12
 
@@ -304,7 +304,7 @@ REFUSALS — a retro declining the proposal — rather than phrase mentions:
 | **a fourth list below `CROSS_ROW_SUBJECTS`** | **twice** | **5** | **the one that differs, and it differs by PREDICATE**: two of the five sites are a retro refusing it and the other three are rule 8's own discussion of the clause. A refusal count is not a mention count, and the ledger says so |
 
 **So seven of eight reproduce and the eighth is a predicate difference, stated rather than picked** —
-which is [Q469](../open-questions.md)'s procedure applied to this item's own deliverable. *The two
+which is [Q469](../questions/q469.md)'s procedure applied to this item's own deliverable. *The two
 largest rows rest on ordinals rather than counts for the reason §2 gives: a count of phrase
 occurrences depends on the predicate, and an ordinal is the document's own claim about itself.*
 
@@ -367,7 +367,7 @@ which is why it is not deleted.
 
 ### The arithmetic the budget rests on
 
-**The brief handed this item the sum `23,160 + 35,840 + 17,125 = 76,125` to verify before starting, and it verifies — as arithmetic. It is not the budget.** `35,840` is `doc/workflow.md`'s TARGET and the other two terms are MEASUREMENTS, so the figure is a mixed predicate: **the measured set is 23,160 + 35,576 + 17,125 = 75,890**, which is what `check:budget` prints, and the difference of 264 is exactly that file's headroom. *This is [Q469](../open-questions.md)'s hazard inside the section whose whole subject is Q469, and the adequacy reader found it. The item verified the sum as given rather than asking what its terms were.* The honest statement, re-taken on the tree this item ships: the three targets sum to **78,848**, the shipped set measures **76,500** — `CLAUDE.md` 23,754, `doc/workflow.md` 35,638, `doc/concept.md` 17,125 — and what each member has to spend is target-minus-measurement, **1,846, 219 and 283 bytes**, which `check:budget` prints in place of a distance that is permanently zero. *This paragraph has now been re-taken TWICE: it first said 76,125 with a ceiling mixed into a sum of measurements, then 75,890, which acting on the readers made stale by 610 — `CLAUDE.md` +594 for its record-step correction and `doc/workflow.md` net −16. Section 1 rule 5's **when** direction is the clause, the conformity reader found it twice, and the figure a reader should trust is the one `check:budget` prints.*
+**The brief handed this item the sum `23,160 + 35,840 + 17,125 = 76,125` to verify before starting, and it verifies — as arithmetic. It is not the budget.** `35,840` is `doc/workflow.md`'s TARGET and the other two terms are MEASUREMENTS, so the figure is a mixed predicate: **the measured set is 23,160 + 35,576 + 17,125 = 75,890**, which is what `check:budget` prints, and the difference of 264 is exactly that file's headroom. *This is [Q469](../questions/q469.md)'s hazard inside the section whose whole subject is Q469, and the adequacy reader found it. The item verified the sum as given rather than asking what its terms were.* The honest statement, re-taken on the tree this item ships: the three targets sum to **78,848**, the shipped set measures **76,500** — `CLAUDE.md` 23,754, `doc/workflow.md` 35,638, `doc/concept.md` 17,125 — and what each member has to spend is target-minus-measurement, **1,846, 219 and 283 bytes**, which `check:budget` prints in place of a distance that is permanently zero. *This paragraph has now been re-taken TWICE: it first said 76,125 with a ceiling mixed into a sum of measurements, then 75,890, which acting on the readers made stale by 610 — `CLAUDE.md` +594 for its record-step correction and `doc/workflow.md` net −16. Section 1 rule 5's **when** direction is the clause, the conformity reader found it twice, and the figure a reader should trust is the one `check:budget` prints.*
 
 ## 5. What stays, and the two ledgers
 
@@ -376,7 +376,7 @@ arguments where they are the bulk:
 
 | | stays | goes, and where to |
 |---|---|---|
-| the loop, the 5 rules, the status-provenance clause and its **four** directions — read, write, when, un-write. *This cell said THREE and the shipped table says four, which the conformity reader then resolved AGAINST both: the pre-cut file names four directions in prose and folds P7's any-copy amendment into the read row, so **four is faithful and three undercounts**. My own first correction here said it had SIX, counting bold PARAGRAPHS rather than named directions — [Q469](../open-questions.md) in the correction of a Q469 defect, which is why the predicate is now stated: four NAMED directions over six pre-cut paragraphs* | the clauses and the grep procedure | the per-occurrence case histories — to the items and plans that own them |
+| the loop, the 5 rules, the status-provenance clause and its **four** directions — read, write, when, un-write. *This cell said THREE and the shipped table says four, which the conformity reader then resolved AGAINST both: the pre-cut file names four directions in prose and folds P7's any-copy amendment into the read row, so **four is faithful and three undercounts**. My own first correction here said it had SIX, counting bold PARAGRAPHS rather than named directions — [Q469](../questions/q469.md) in the correction of a Q469 defect, which is why the predicate is now stated: four NAMED directions over six pre-cut paragraphs* | the clauses and the grep procedure | the per-occurrence case histories — to the items and plans that own them |
 | sections 2, 3 | nearly whole; they are already one line a rule | |
 | section 4 | both tables, *a rung is RUN never PIPED*, *the confirming gate is `gate:full`*, the two-directions blockquote, *what the ladder does not cover* | the four occurrence narratives behind *never piped* |
 | section 5 rules 1-7 | whole; 235-482 bytes each | |
@@ -472,7 +472,7 @@ standing ground it does.
 | path | why | predicted? |
 |---|---|---|
 | `CLAUDE.md`, three sentences | **BOTH readers found the first independently, and it is the overlap's first shared subject**: that file still said the record step is FIVE files and still named `doc/README.md`, so two of the three always-read documents contradicted each other about the list this item changed. It is the un-write direction of the very rule being edited. Two neighbours went stale from the same cut — *one block per version ABOVE sections 1-8*, where nothing is above them now, and a note that section 6 states its own total twice, which it no longer does. **The maintainer was asked**, because that file is W114's and was explicitly fenced, and chose to fix it here as a declared exception on W114's own precedent for `doc/workflow.md`. *Net +594 bytes, against 1,846 of headroom* | **no** |
-| `scripts/check-markdown-selftest.mjs`, two probes and one META entry | **This item's cut killed two probes in a file it does not own, and `npm run check:markdown` stayed GREEN for both.** The first mutated a link that lived inside `doc/README.md`'s deleted block, so rule 7 (b) aborted the lane at 36/37. The second was subtler: its probe put a dead link INSIDE an indented fence and its META entry relied on the mutation blanking the rest of `doc/README.md` to trip a FLOOR — and at 50 KB no floor moves, because `M4` counts SOURCE DOCUMENTS since W112. The entry graded *STILL CAUGHT*. Re-anchored and re-shaped; the link now sits OUTSIDE the fence, where the indented closer is what makes it visible, so `M1` fires unmutated and disappears mutated. **This is [ADR 0073](../decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) consequence 2's class and [ADR 0076](../decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md) decision 3's handed-forward obligation**, which counted 30 probes in that file anchored on link text inside documents P27 cuts. [Q482](../open-questions.md) | **no** — the plan predicted the class and this item's declaration did not carry it |
+| `scripts/check-markdown-selftest.mjs`, two probes and one META entry | **This item's cut killed two probes in a file it does not own, and `npm run check:markdown` stayed GREEN for both.** The first mutated a link that lived inside `doc/README.md`'s deleted block, so rule 7 (b) aborted the lane at 36/37. The second was subtler: its probe put a dead link INSIDE an indented fence and its META entry relied on the mutation blanking the rest of `doc/README.md` to trip a FLOOR — and at 50 KB no floor moves, because `M4` counts SOURCE DOCUMENTS since W112. The entry graded *STILL CAUGHT*. Re-anchored and re-shaped; the link now sits OUTSIDE the fence, where the indented closer is what makes it visible, so `M1` fires unmutated and disappears mutated. **This is [ADR 0073](../decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) consequence 2's class and [ADR 0076](../decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md) decision 3's handed-forward obligation**, which counted 30 probes in that file anchored on link text inside documents P27 cuts. [Q482](../questions/q482.md) | **no** — the plan predicted the class and this item's declaration did not carry it |
 | `doc/workflow.md` section 6 pass 3, a SEVENTH rule | **A live rule ADDED, where Scope `Out` says a live rule is never re-decided.** *A retro appends its refusals to the ledger below, one line each, with the ordinal.* The refusal ledger is P27 stop-and-ask (b)'s mandated artifact and a ledger nobody appends to is what rots — the overlap list in the same section went stale by three, then three, then four, each time found by a retro trying to append to it. **The conformity reader found it as F5**, in no declared Output and arguably excluded by Scope. **The maintainer was asked** and chose to keep it as a declared exception rather than remove it or spend an ADR on it | **no** |
 
 **Within the record step's FOUR**: [P27](../plans/p27-what-a-register-row-is.md)'s Record;
@@ -552,7 +552,7 @@ section 6 exists to prevent.
    background, and the delete fired **minutes later** — after a different command had populated both
    trees and after both readers had started. Section 6 ships the `--force`-follows-a-link hazard; this
    is its sibling from the author's side, and the honest cost is that the first pass produced only
-   DERIVED findings. [Q480](../open-questions.md). *Both readers diagnosed it correctly and neither
+   DERIVED findings. [Q480](../questions/q480.md). *Both readers diagnosed it correctly and neither
    blamed itself.*
 2. **`npm run selftests` was started and then the tree was edited underneath it** — P14's *a
    measurement over a moving tree is a claim about no tree*, by the author, after defect 1. The run is
@@ -567,7 +567,7 @@ section 6 exists to prevent.
    understood the pair.
 6. **Both home-demonstration predicates over-count, each by a different mechanism.** Line-exact
    counts a RE-FLOW as a deletion (58.3% of its "deleted" text survives); sentence-exact counts a
-   RE-WORDING. [Q483](../open-questions.md).
+   RE-WORDING. [Q483](../questions/q483.md).
 7. **Three heredoc manglings**: an em dash mis-decoded because python read its script from stdin
    under the ANSI codepage, a `\n` that became a real newline in a JS string literal, and a
    conditional expression that evaluated its subject eagerly. All three refused by an assertion rather
@@ -584,14 +584,14 @@ section 6 exists to prevent.
    OUTSIDE the fence, where the indented closer is what makes it visible: `M1` fires unmutated,
    measured, and disappears mutated. **Both are [ADR 0073](../decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md)
    consequence 2's class and [ADR 0076](../decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
-   decision 3's handed-forward obligation.** [Q482](../open-questions.md)
+   decision 3's handed-forward obligation.** [Q482](../questions/q482.md)
 10. **`B5` fired on `doc/workflow.md`'s ceiling the moment the cut landed** — obligation (d) arriving
     as a red gate, exactly as W112 predicted when it wrote the clause.
 11. **`check:budget:selftest`'s coverage bound refused `B6` and `B7` the moment they existed** — *`B6`
     has no probe; `B6` has no META entry naming a probe of it* — a bound catching its own clauses'
     author, as it did for `B5` at W114.
 12. **Five failures in the first run of `B6`/`B7`'s own probes.** Two are declared sets my new clauses
-    widened — **[Q474](../open-questions.md)'s SECOND occurrence**, `B7` turning the `B4` target
+    widened — **[Q474](../questions/q474.md)'s SECOND occurrence**, `B7` turning the `B4` target
     probe — and three are META anchors written at four spaces of indent against source at two, all
     three aborted by rule 7 (b) rather than passing.
 13. **`npm run state` refused its own reading** — *live rows that are open or deferred: 295, and the
@@ -614,7 +614,7 @@ CONFIRMED by running it before it was acted on:*
     may grow to 876,800 bytes — back to P27's starting size**. The smallest instance is a 1 KiB swap.
     ADR 0076 decision 5 names a derived ceiling as *the one way this check can be made worthless
     without a clause going red*; **this was a second way, using nothing but integer literals and
-    `N * 1024` products, and it was larger.** Closed by `B7`. [Q481](../open-questions.md)
+    `N * 1024` products, and it was larger.** Closed by `B7`. [Q481](../questions/q481.md)
 17. **`MEASURE_ROOT` was named nowhere in the output**, so a run with `CHECK_BUDGET_ROOT` set measured
     a COPY and its report was indistinguishable from one against the repository. The banner
     interpolates it now, with a `SOURCE` clause over the control's own stdout so the interpolation
@@ -631,7 +631,7 @@ CONFIRMED by running it before it was acted on:*
 21. **`doc/README.md`'s undeclared +2,373 bytes** — both readers measured it; it is the provenance
     preamble, now Output (9).
 22. **§4's arithmetic mixed a ceiling into a sum of measurements** — 23,160 + **35,840** + 17,125 =
-    76,125 where the terms are two measurements and a target. [Q469](../open-questions.md)'s hazard
+    76,125 where the terms are two measurements and a target. [Q469](../questions/q469.md)'s hazard
     inside the section whose whole subject is Q469, and **the brief handed that sum over to be
     verified and it verifies as arithmetic.**
 
@@ -741,10 +741,10 @@ probe 3 strips — the opposite of what the bound needs. The constraint a future
 | **`B7`'s `continue` justified itself with a claim about a DIFFERENT list** | `if (want === undefined) continue; // B6 has already reported an undeclared member` — and `B6` read `DECLARED_PATHS` while `B7` read `DECLARED_TARGETS`, with **nothing comparing the two**. A path in the first and absent from the second made `B7` skip that member in silence while `B6` stayed correctly quiet. Obligation (d)'s own clause: *a control must fail where its claim is VACUOUS, not only where its subject is ABSENT*. Closed: `B6` compares the two declarations both ways first, which is what makes that comment TRUE |
 | **`MIN_META` carried TWO of slack against a comment asserting it has none** | *"`MIN_META` and `MIN_SELF` sit AT their lists' lengths, not one below"* — and META was 16 against 14, PROBES 17 against 16, `SOURCE` 10 against 9. **Inherited from W112 and carried forward by me**, since I raised each floor by exactly what I added rather than to the length. All four floors are at their lengths now |
 | **`B1` reports a member it could not READ and not one it never VISITED** | narrowing its measuring loop left `doc/concept.md` unmeasured and the check printed `MISSING` in its row, `TOTAL … met`, and **EXIT 0** — a member absent from `sizes` only trips `B3`'s `sizes.size === SET.length` guard, which DISABLES that clause in silence. *The same guard shape `B6` was added to close, in the one direction `B6` does not cover.* Closed by one `fail('B1')` on the mismatch |
-| **ADR 0076 decision 5's *the ONLY guard* is no longer true** | with every ceiling forced to its target, a DERIVED ceiling cannot be green: measured, `statSync(…).size + 4_096` fires `B5` three times and `statSync(…).size` fires `B4`. So `SOURCE`'s *every ceiling is an integer LITERAL* clause — which that ADR calls the only guard against the one way this check can be made worthless — **has no instance of its own any more**. *Exactly the status this item diagnosed for `B3`, arriving in a second clause nobody looked at.* Kept, because the freeze or the literal shape being removed with no derivation added is still its own case; recorded on [Q479](../open-questions.md) |
+| **ADR 0076 decision 5's *the ONLY guard* is no longer true** | with every ceiling forced to its target, a DERIVED ceiling cannot be green: measured, `statSync(…).size + 4_096` fires `B5` three times and `statSync(…).size` fires `B4`. So `SOURCE`'s *every ceiling is an integer LITERAL* clause — which that ADR calls the only guard against the one way this check can be made worthless — **has no instance of its own any more**. *Exactly the status this item diagnosed for `B3`, arriving in a second clause nobody looked at.* Kept, because the freeze or the literal shape being removed with no derivation added is still its own case; recorded on [Q479](../questions/q479.md) |
 | **My new cross-declaration loop DUPLICATED an existing probe anchor** | both it and `B6`'s undeclared-member loop contained `if (!DECLARED_PATHS.includes(p)) {`, so the META mutation for the second hit the first and that entry graded **STILL CAUGHT**. **W109's defect at P26** — *a second comparison duplicated two probe anchors* — which is the reason ADR 0070 consequence 2 made `gate:full` an item's confirming gate. *A mutation pinned to text two clauses share is pinned to neither.* Closed by giving the loops distinct text, deliberately, and saying so where a reader will tidy it |
 | **`B7`'s loop bound had no META entry**, where `B2` and `B5` each have one | and the entry I then wrote graded STILL CAUGHT, because the probe it names breaks members 0 and 2 so narrowing to member 0 leaves `B7` firing. **The reader predicted exactly that**: *no `B7` probe exercises index 1*. Narrowed to the MIDDLE member, which is the only narrowing that probe can discriminate |
-| **[Q474](../open-questions.md) a FIFTH and SIXTH time, both mine** | `B1`'s new clause widened the `r1` probe to `[B1,B6,B7]` in the self-test and again in the rule 8 set. *Six declared sets of mine, widened by clauses of mine, in one item* |
+| **[Q474](../questions/q474.md) a FIFTH and SIXTH time, both mine** | `B1`'s new clause widened the `r1` probe to `[B1,B6,B7]` in the self-test and again in the rule 8 set. *Six declared sets of mine, widened by clauses of mine, in one item* |
 | **The headroom pair was re-taken by hand THREE times and is now DERIVED** | 236/235, then 265/264, then 220/219 — every edit to `doc/workflow.md` dates them, and this item edited that file five times. The harness's dated-ceiling clause caught all three, which is the clause working *and* the signal that a literal was the wrong shape: what the pair asserts is that `B2` compares `>` and not `>=`, so the padding is computed from the ceiling literal and the measured size, with a floor under it |
 | **The META anchor indent, a second time** | written at four spaces against source at two, aborted by rule 7 (b) rather than passing |
 
@@ -768,7 +768,7 @@ the gate said green; deleting another 12% — the obligation set this whole pass
 green, and the one number a reader sees moves in the *deleting* direction. The refusal ledger's
 standing ground is *both mechanisms are worse than the problem*, and that ground is about holding
 prose TRUE. **This is about a 4 KB deletion from the always-read set being indistinguishable from
-progress**, which is a different proposition and is recorded on [Q483](../open-questions.md) rather
+progress**, which is a different proposition and is recorded on [Q483](../questions/q483.md) rather
 than argued here.
 
 ### The predictions
@@ -836,7 +836,7 @@ and then made it load-bearing** by adding *so the next is the SIXTIETH*.
 
 **Derived instead:** the list carried **71** entries, W113 and W114 published the **seventy-second**
 and **seventy-third** by counting it, which reconciles at 71 + 2 = 73, and W115's two reader pairs
-make **75**. So the next is the seventy-sixth. *[Q469](../open-questions.md)'s shape — picking one of
+make **75**. So the next is the seventy-sixth. *[Q469](../questions/q469.md)'s shape — picking one of
 three inherited figures and building on it — and the repository's most common defect, a written claim
 nobody ran, introduced by the item whose own §2 is about that hazard.*
 
@@ -856,10 +856,10 @@ scoped to the tree it shipped, which is what section 1 rule 5 asks of one.*
 
 ### Questions
 
-**[Q479](../open-questions.md)-[Q485](../open-questions.md) raised**, extending P27's exhausted block
+**[Q479](../questions/q479.md)-[Q485](../questions/q485.md) raised**, extending P27's exhausted block
 by grep on W86's, W113's and W114's precedent, by the maintainer's answer to stop-and-ask (c).
-**[Q466](../open-questions.md) ANSWERED and [Q481](../open-questions.md) RESOLVED**, both moved to
-`## Resolved`; **[Q474](../open-questions.md) extended** with its second occurrence. **No ADR** — the
+**[Q466](../questions/q466.md) ANSWERED and [Q481](../questions/q481.md) RESOLVED**, both moved to
+`## Resolved`; **[Q474](../questions/q474.md) extended** with its second occurrence. **No ADR** — the
 maintainer's answer to stop-and-ask (b). Census **376 / 295 live / 294 open / 1 deferred / 81
 resolved**.
 
@@ -867,6 +867,6 @@ resolved**.
 
 | | the question, priced | answer |
 |---|---|---|
-| **(a)** | **[Q466](../open-questions.md) — does `doc/README.md` stop carrying an item's status?** ADR 0077 consequence 4 left it to the maintainer. Priced: its cut buys **zero budget**, since `check:budget`'s `SET` is three paths and this is not one, so the whole argument is the register's — 489,966 bytes of status nobody is told to read, in a file every item grows. Roads: cut the block and take the file out of the record step; cut it and give the four surviving sections decision 4's treatment too; refuse, and argue the asymmetry ADR 0077 consequence 4 raises | **CUT IT, and `doc/README.md` leaves the record step** — so finishing an item writes FOUR files. The four surviving sections keep their stale counts, as a Q row |
+| **(a)** | **[Q466](../questions/q466.md) — does `doc/README.md` stop carrying an item's status?** ADR 0077 consequence 4 left it to the maintainer. Priced: its cut buys **zero budget**, since `check:budget`'s `SET` is three paths and this is not one, so the whole argument is the register's — 489,966 bytes of status nobody is told to read, in a file every item grows. Roads: cut the block and take the file out of the record step; cut it and give the four surviving sections decision 4's treatment too; refuse, and argue the asymmetry ADR 0077 consequence 4 raises | **CUT IT, and `doc/README.md` leaves the record step** — so finishing an item writes FOUR files. The four surviving sections keep their stale counts, as a Q row |
 | **(b)** | **A MET budget makes `B3` unreachable alone (section 4, proved by search). Which road?** Priced: **(i)** re-declare the probe as a `B2`/`B3` compound, state the collapse in the check's comment, raise a Q — no change to the check and no ADR; **(ii)** amend ADR 0076 decision 4 so a met budget keeps an allowance at the total, which keeps `B3`'s own case and needs **ADR 0079**; **(iii)** delete `B3` and its probe, which is wrong the moment a fourth member joins the set un-met | **(i).** As recommended, and **no ADR** |
 | **(c)** | **P27's id blocks are EXHAUSTED — Q459-Q478 and ADR 0076-0078 all spent. May this item extend them by grep, on W86's, W113's and W114's precedent?** | **EXTEND to Q479-Q485; NO ADR**, since (b) took road (i). As recommended |

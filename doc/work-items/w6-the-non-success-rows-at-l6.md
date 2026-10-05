@@ -103,12 +103,12 @@ driven by the sequence rather than by a timer, exactly as termination is.
 - **Changing `src/`.** Every rule these rows exercise is already implemented. If a row fails, that is
   a finding about the code and it goes in the Record — **not a fix inside this item**, because a row
   whose expectations were adjusted to match output has stopped being a test.
-- **Making `OR-R6`'s pool-dependence normative.** Reported as [Q61](../open-questions.md). A spec
+- **Making `OR-R6`'s pool-dependence normative.** Reported as [Q61](../questions/q61.md). A spec
   change is its own change with its rationale stated (`spec/README.md` rule 1), and `OR-R6` is W1's.
 - **A second policy column.** W5's rows run both policies where the comparison means something; rows
   1 and 3 have no fan-out and row 2's answer is the same under both, which is itself the point of
   `branch.suspended`. Stated so a reader does not read the missing column as an oversight.
-- **[Q53](../open-questions.md), [Q52](../open-questions.md), [Q44](../open-questions.md).**
+- **[Q53](../questions/q53.md), [Q52](../questions/q52.md), [Q44](../questions/q44.md).**
   Untouched.
 
 ## What this item edits outside its `Owns`
@@ -145,11 +145,11 @@ stand is the current position, where the honest answer to *"did you edit outside
 
 | Case | | Covered by W6 |
 |---|---|---|
-| `user_action` ([Q17](../open-questions.md)) | **this is the item** — row 2, and the first time it occurs outside a fixture |
-| A branch routed away from its join ([Q4](../open-questions.md)) | **no** — P1's case, covered at L6 by W5's rows 5 and 6 |
-| No matching decision edge ([Q10](../open-questions.md)) | **no.** `FD-V7` refuses the shape at instantiation; `FD-R1` is unreachable through the public API and W3 says so |
-| A duplicate task id ([Q13](../open-questions.md)) | **no.** `ID-R1` is covered at L2, and row 3 exercises a *different* refusal reaching the same `OR-R10` path |
-| Nested fan-out ([Q6](../open-questions.md)) | **not applicable** — `FD-V15` refuses it |
+| `user_action` ([Q17](../questions/q17.md)) | **this is the item** — row 2, and the first time it occurs outside a fixture |
+| A branch routed away from its join ([Q4](../questions/q4.md)) | **no** — P1's case, covered at L6 by W5's rows 5 and 6 |
+| No matching decision edge ([Q10](../questions/q10.md)) | **no.** `FD-V7` refuses the shape at instantiation; `FD-R1` is unreachable through the public API and W3 says so |
+| A duplicate task id ([Q13](../questions/q13.md)) | **no.** `ID-R1` is covered at L2, and row 3 exercises a *different* refusal reaching the same `OR-R10` path |
+| Nested fan-out ([Q6](../questions/q6.md)) | **not applicable** — `FD-V15` refuses it |
 
 ## Record
 
@@ -267,12 +267,12 @@ passed both — measured at 174 assertions, exit 0. There is now an **absolute a
 wrote down, which nothing else derives from.
 
 **7. Three fields were populated for the first time and asserted by nothing** — `stoppedBy`,
-`regions[*].suspended`, and the join's `null` payload reaching a real worker ([Q36](../open-questions.md)).
+`regions[*].suspended`, and the join's `null` payload reaching a real worker ([Q36](../questions/q36.md)).
 All three now have assertions. `regions[*].suspended` turned up a **spec gap** on the way:
 `spec/run-state.md` does not fix whether it is cumulative or current. Reported as
-[Q62](../open-questions.md), not patched — it is W1's and W2's document.
+[Q62](../questions/q62.md), not patched — it is W1's and W2's document.
 
-**8. `doc/open-questions.md` was wrong again, for the third time in three items.** [Q44](../open-questions.md)
+**8. `doc/open-questions.md` was wrong again, for the third time in three items.** [Q44](../questions/q44.md)
 said W5's runs *"needed no local flow at all"*; W5 committed one and its own `l6.ts` comment calls it
 the second occurrence. W6 added three more. **The trigger that row named has now fired four times in
 three consecutive items**, which is the answer it was waiting for. Corrected in place.

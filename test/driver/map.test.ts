@@ -109,7 +109,7 @@ const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
  * Map<openerPath, Map<branchPath, payload>>>` since W84 (ADR 0062). The reach is
  * `test/driver/retention.test.ts`'s and is here for the same reason: the alternative
  * is a public accessor for a private field, which enlarges the surface for a test's
- * convenience ([Q53](../../doc/open-questions.md)).
+ * convenience ([Q53](../../doc/questions/q53.md)).
  */
 const arrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>> =>
   (d as unknown as { arrivals: Map<string, Map<string, Map<string, unknown>>> }).arrivals;
@@ -253,7 +253,7 @@ suite('L2 — a map dispatches one task per item, at an arity no document carrie
     // **This test read *"each instance receives the map`s OWN payload — Q11/W34,
     // not decided here"* and asserted the opposite of what it now asserts.**
     // [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md) wrote it that way
-    // deliberately, so that deciding [Q11](../../doc/open-questions.md) at the
+    // deliberately, so that deciding [Q11](../../doc/questions/q11.md) at the
     // fan-out edge would be a **visible edit rather than a silent one**. It is, and
     // this is it: [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
     // rule 3, `JP-R11`.
@@ -1151,7 +1151,7 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
 suite('L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE', (test) => {
   // **W33 REFUSED this shape at construction and W84 lifts the refusal**
   // ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
-  // [Q160](../../doc/open-questions.md), [Q156](../../doc/open-questions.md)).
+  // [Q160](../../doc/questions/q160.md), [Q156](../../doc/questions/q156.md)).
   //
   // A `map` is the first construct that enters one opener node MORE THAN ONCE in a
   // run, and every per-region run-time structure was keyed by that node's id alone —
@@ -1277,7 +1277,7 @@ suite('L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE', 
     // silently attributing a branch to the wrong join.
     //
     // **Each loop CARRIES ITS COUNT** — W84's adequacy reader, finding 5. The runner
-    // counts `test()` cases and not assertions ([Q98](../../doc/open-questions.md)),
+    // counts `test()` cases and not assertions ([Q98](../../doc/questions/q98.md)),
     // so narrowing either filter to a name no event carries emptied the loop and cost
     // **ZERO**: two real properties with no observer, for one token. The count is
     // derived from the fixture on paper — three instances x (2 opened + 2 arrived) for

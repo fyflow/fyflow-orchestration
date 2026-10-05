@@ -287,7 +287,7 @@ export async function selfTest(ROOT) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   /**
-   * **[Q426](../doc/open-questions.md)'s class, in the one of eight self-tests W105 listed in its `Owns`
+   * **[Q426](../doc/questions/q426.md)'s class, in the one of eight self-tests W105 listed in its `Owns`
    * block and did not touch — its conformity reader, BLOCKING.** The path already carried the pid, so
    * this file looked done; what it had no cover for is the ABORT path, which is the half output (1)
    * names. The only removals were before the `mkdirSync` above and one line before the single `return`,
@@ -297,7 +297,7 @@ export async function selfTest(ROOT) {
    */
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
   /**
-   * **[Q426](../doc/open-questions.md)'s class, in the one of eight self-tests W105 listed in its `Owns`
+   * **[Q426](../doc/questions/q426.md)'s class, in the one of eight self-tests W105 listed in its `Owns`
    * block and did not touch — its conformity reader, BLOCKING.** The path already carried the pid, so
    * this file looked done; what it had no cover for is the ABORT path, which is the half output (1)
    * names. The only removals were before the `mkdirSync` above and one line before the single `return`,
@@ -359,7 +359,7 @@ export async function selfTest(ROOT) {
     // document is the measurement `OR-R13`'s capability half rests on.* (14 until then, 16 until
     // [W86](../doc/work-items/w86-score-each-item-then-fan-out-per-item.md) added `shard`.)
     //
-    // **This literal is [Q342](../doc/open-questions.md), and it fires on every item that adds a
+    // **This literal is [Q342](../doc/questions/q342.md), and it fires on every item that adds a
     // worker**: the tally is a corpus CENSUS pinned in the GRADING rather than in the check, so a
     // seventeenth worker takes this gate entry RED while `check:workers` itself stays green. W82
     // recorded it and W86 is the second item to pay it, which is the datum rather than the edit.

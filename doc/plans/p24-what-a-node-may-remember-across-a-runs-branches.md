@@ -28,7 +28,7 @@ per-series work while thumbnails proceed for every file.
 **Nothing in the library can do that today, and the reason is structural.** A branch cannot see its
 siblings ([ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
 makes two instances of one `map` invisible to each other); a join is the only thing that brings branches
-together, and it waits for all of them; a predicate is asked to be pure ([Q9](../open-questions.md)), and
+together, and it waits for all of them; a predicate is asked to be pure ([Q9](../questions/q9.md)), and
 a worker's own memory is lost on idle teardown and per thread — measured below. So the memory has to be
 the DRIVER's, and **since [P23](p23-what-a-run-needs-to-outlive-its-process.md) the driver's private state
 is exactly what a resume regenerates from the log** — which is the argument for putting it there.
@@ -57,7 +57,7 @@ is exactly what a resume regenerates from the log** — which is the argument fo
    (`branch.exited`) and the outcome (`completed`) are the ones an `end` already produces, and an author
    may use one `end` per dropped route so a graph stays local. *Over*: dropping by omission, which the
    library allows for a task's terminal states because those are a fixed list the library owns; a gate
-   type's routes are the registry's, the registry carries no version ([Q249](../open-questions.md)), and a
+   type's routes are the registry's, the registry carries no version ([Q249](../questions/q249.md)), and a
    route added to a type later would be dropped in silence by every flow that omitted it.
 5. **The gate is evaluated by the DRIVER, synchronously, where a branch ENTERS it** — an arm of
    `enter()` beside `end` and `fanout`, with no dispatch and no task id. The key is a plain DOTTED PATH over
@@ -69,7 +69,7 @@ is exactly what a resume regenerates from the log** — which is the argument fo
    REBUILDS it by replay, and a checkpoint needs no new field.
 7. **"First" means first to reach the gate in this run**, which varies between runs and is reproduced
    exactly by a resume. No test may assert WHICH file wins, only that exactly one does per key.
-   *(**Corrected by [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md), [Q402](../open-questions.md)**:
+   *(**Corrected by [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md), [Q402](../questions/q402.md)**:
    *reproduced exactly by a resume* is true of the decisions in the STORED PREFIX, which a replay regenerates and
    `RN-R20` compares, and FALSE of the decisions after the cut — a resume re-dispatches what was in flight, so their
    arrival order is a fresh sample. [W97](../work-items/w97-obligation-f-across-ladder-l6.md) measured it: with
@@ -92,7 +92,7 @@ has today, a decision whose predicate keeps closure memory.*
 | 1 | **Where a gate goes.** The driver's `enter()` is synchronous and switches on the node's kind — `task` dispatches, `fanout`/`map` open, `join` settles, `end` appends `pathEnded` and `branch.exited` — and has a `default` arm that REFUSES an unknown kind. `src/driver/` holds no `async` and no `await` outside a comment | a gate is one more arm there: it receives `compose(node, payload)` like every other kind, and routes by calling `enter()` for its chosen edge's target |
 | 2 | **Arrival order on real pools.** Six files over three series, a `map`, the emulated dedupe on the decision after `identify`, equal work, ten runs per pool mode | **inline: settle order `0,1,2,3,4,5` in 10 of 10 runs in node and 9 of 10 in deno — the winners are ALWAYS the lowest index per series.** Threaded: a different order in every run, and three different winner sets over ten. With the work ARRANGED so later files finish first, the winners move (`f1,f2,f3` instead of `f0,f1,f3`) |
 | 3 | **A drop to an `end` inside the map** | `completed`, **three `branch.exited`** and three `pathEnded end@dropped` beside the one `end@done` — the events and the outcome the design needs, with no new rule |
-| 4 | **Memory across a resume.** The emulated run killed after its third `identify` settles (the store frozen, the runtime shut down — which DRAINS, [Q376](../open-questions.md)), then resumed on a fresh runtime | **naive memory kept in the same process: REFUSED `diverged` at position 16** — the replay re-asks the predicate and a remembered key answers differently. Memory cleared, or memory that records the OWNER task id: **identical to a run nobody killed**, in both runtimes. The predicate was called 6 times during the resume — **the replay re-evaluates every decision on the stored settlements**, which is what will rebuild a gate's memory |
+| 4 | **Memory across a resume.** The emulated run killed after its third `identify` settles (the store frozen, the runtime shut down — which DRAINS, [Q376](../questions/q376.md)), then resumed on a fresh runtime | **naive memory kept in the same process: REFUSED `diverged` at position 16** — the replay re-asks the predicate and a remembered key answers differently. Memory cleared, or memory that records the OWNER task id: **identical to a run nobody killed**, in both runtimes. The predicate was called 6 times during the resume — **the replay re-evaluates every decision on the stored settlements**, which is what will rebuild a gate's memory |
 | 5 | **What a sixth node kind costs at L0.** `GateNode` added to the `FlowNode` union in a copy of the tree, the five typecheck lanes run separately | **ONE error, the same in four lanes**: the driver's exhaustive `never` in `enter()`'s `default` arm (`typecheck:deno` fails on it too). **`src/` has 51 node-kind dispatch sites in 6 files** — `validate.ts` 18, `wiring.ts` 12, `regions.ts` 10, `driver.ts` 9, one each in `bootstrap.ts` and `routing.ts` — **and ONE is exhaustive.** 45 more sit outside `src/`, in `examples/l6.ts`, `scripts/check-spec.mjs` and nine test files. *(**Re-taken at [W92](../work-items/w92-what-a-gate-is.md)'s declaration step**: the one error is in ALL FIVE lanes — *four, deno too* is five; and *51 / 45* recorded no predicate on disk, so it could not be reproduced. With one STATED — `kind ===\|!== '<kind>'`, `case '<kind>'`, `opensWith`, `KINDS` — it is **55 in the same six files and 58 outside, in fifteen**, plus 11 `kindOf` comparisons and the two key TABLES the validator indexes by kind. **And `gate` in `KINDS` alone makes the validator THROW**, which *every other site falls through in silence* below does not say.)* |
 | 6 | **The validator today** | a `kind` outside its `KINDS` literal is refused by **`FD-V24`** by name — so before this plan a gate document is LOUD; the moment `gate` joins that literal, every other site that does not name it falls through in silence |
 | 7 | **A worker cannot hold the memory** (measured in conversation, `dev-dist/teardown/`) | an inline pool's instance state is LOST on idle teardown and its MODULE state survives; a threaded pool loses both, because a new thread loads the module fresh |
@@ -103,11 +103,11 @@ has today, a decision whose predicate keeps closure memory.*
   says a fixture at the default position cannot tell a rule from its most plausible wrong selection — and
   on an inline pool *first to arrive* and *lowest index* are the same selection 19 times in 20. Every
   fixture that asserts a winner must ARRANGE the order and assert the arrangement's own effect, and the
-  exit artifact's threaded rows are where the two differ without arrangement. **[Q379](../open-questions.md).**
+  exit artifact's threaded rows are where the two differ without arrangement. **[Q379](../questions/q379.md).**
 - **The churn is SILENT, and fact 5 is why.** *(Half right, measured at W92: SILENT at L0, and LOUD in the wrong way at
-  the validator, which threw a `TypeError` the moment `gate` joined `KINDS` — [Q380](../open-questions.md), resolved.)* One exhaustive check among 51 dispatch sites means the
+  the validator, which threw a `TypeError` the moment `gate` joined `KINDS` — [Q380](../questions/q380.md), resolved.)* One exhaustive check among 51 dispatch sites means the
   typechecker names one place and L1-L6 must find the rest — P22's *the churn is loud at L0* reversed
-  before this plan's first item, measured rather than predicted. **[Q380](../open-questions.md).**
+  before this plan's first item, measured rather than predicted. **[Q380](../questions/q380.md).**
 - **A dotted key path is a new grammar.** `map`'s `over` is a KEY NAME in `FD-V16`'s charset, which has no
   dot. `item.seriesId` needs a rule for what a segment may be and what a missing segment means — which is
   what `distinct`'s `nokey` route is for.
@@ -168,12 +168,12 @@ Seeded here from P22's and P23's late tables and from fact 5; each item re-measu
 | W92 | `examples/l6.ts` | ten node-kind dispatch sites (fact 5) and the byte walk's field lists, if a type or the registry gains a member it walks |
 | W92 | `scripts/check-spec.mjs`, `scripts/check-spec-selftest.mjs` | six node-kind sites; `C7` reads every task's type, and a gate has a type and is not a task *(W92: `check-spec.mjs` NOT needed — its sites fall through correctly; the SELF-TEST was, for its count anchors)* |
 | W92 | `scripts/check-docs-selftest.mjs` | *NOT SEEDED, found at W92's declaration step*: two `X7` probes anchored on *34 refusals*, which three new rules move |
-| W92 | `AGENTS.md` | *Five node kinds* in section 3, and section 9's executed error-class enumeration if a refusal gains a class ([Q101](../open-questions.md)) |
+| W92 | `AGENTS.md` | *Five node kinds* in section 3, and section 9's executed error-class enumeration if a refusal gains a class ([Q101](../questions/q101.md)) |
 | W93 | `examples/l6.ts` | the driver's new private field reaches `DRIVER_FIELDS` — W55's universe binding, which fired on W59, W61, W88 and W89 *(W93: TWO fields, and a sentence of the kind clause)* |
 | W93 | `AGENTS.md` | a new `FoldInput` kind, if stop-and-ask (b) takes one, reaches the executed snippets that walk `kind` *(W93: re-taken, every such snippet FILTERS on a named kind; what moved is section 9's class list and three sentences the item made false)* |
 | W93 | `examples/run-flow.ts`, `src/definition/types.ts`, `validate.ts`, `wiring.ts` | *NOT SEEDED, found at W93's declaration step*: `NOT_RUN_STATE` must skip the driver's gate types; `RegistryCode.gateTypes`; the expiry-dated sentences W92 wrote with W93's id; `boundaryTargets`' chooser for `FD-R4` |
 | W94 | `scripts/check-docs.mjs`, `scripts/check-docs-selftest.mjs` | `RUN_FLOOR`, `README_SNIPPET_FLOOR`, the `X8` pair list, and the `X9` probe's version anchor *(W94: **both fired as seeded**; the `X9` probe made version-agnostic)* |
-| W94 | `test/definition/wiring.test.ts`, `spec/outcome-record.md` section 4 | the corpus censuses pinned outside their corpus ([Q342](../open-questions.md), [Q360](../open-questions.md)), because W94 ADDS a flow *(W94: **both fired as seeded** — and the wiring census now asserts a false `no`, [Q391](../open-questions.md))* |
+| W94 | `test/definition/wiring.test.ts`, `spec/outcome-record.md` section 4 | the corpus censuses pinned outside their corpus ([Q342](../questions/q342.md), [Q360](../questions/q360.md)), because W94 ADDS a flow *(W94: **both fired as seeded** — and the wiring census now asserts a false `no`, [Q391](../questions/q391.md))* |
 | W94 | `scripts/check-workers-selftest.mjs` | W94 adds workers (fetch, identify, thumbnail, series setup) *(W94: **fired as seeded**, 17 → 21; `fetch` was P18's name already, so the fetch is `download`)* |
 
 ---
@@ -186,7 +186,7 @@ Seeded here from P22's and P23's late tables and from fact 5; each item re-measu
 |---|---|---|---|
 | 1 | **The churn surfaces at L1 and not at L0**: W92's typecheck names only the driver's `default` arm, and every other site that must learn the kind is found by a failing test or by reading | fact 5: 51 sites, one exhaustive, measured by the TYPE change alone; no site's BEHAVIOUR on a gate document was measured | a second exhaustive site, or a site that mishandles a gate with every test green — which would be a silent defect, not a reversal to be glad of |
 | 2 | **Resume needs no new mechanism**: the gate's memory is rebuilt by the replay P23 built, a checkpoint needs no new field, and a checkpoint taken before this plan resumes unchanged | fact 4: an EMULATION — a predicate, not a gate — one flow, one kill point, both runtimes | a memory the replay cannot regenerate — anything keyed by wall time, by pool, or by a callback's side effect |
-| 3 | ***CONFIRMED by W94, with one named exception outside the run — the wiring check reads the gate as a pass-through ([Q391](../open-questions.md)).*** **REACH: the TV-series flow runs as the maintainer described it** — one per-series branch per series whatever the arrival order, thumbnails for every file, the run `completed`, and identical after a kill at every kill point | **none — this is a reach.** No gate has run; fact 2 measured arrival order under a predicate | a shape the flow needs that a gate cannot express — a key the task before it cannot compute, a drop that must report more than `branch.exited`, a join that must know how many were dropped |
+| 3 | ***CONFIRMED by W94, with one named exception outside the run — the wiring check reads the gate as a pass-through ([Q391](../questions/q391.md)).*** **REACH: the TV-series flow runs as the maintainer described it** — one per-series branch per series whatever the arrival order, thumbnails for every file, the run `completed`, and identical after a kill at every kill point | **none — this is a reach.** No gate has run; fact 2 measured arrival order under a predicate | a shape the flow needs that a gate cannot express — a key the task before it cannot compute, a drop that must report more than `branch.exited`, a join that must know how many were dropped |
 | 4 | **`RN-R13`'s TEXT moves** — a run's footprint gains the gate memory as a term — and no other existing rule's text changes except the lists that enumerate node kinds and fold-input kinds | P23 prediction 4 reversed by retention at its first test; this plan predicts the reversal in advance | an existing rule that changes for a gate — `JP-R5`'s terminal events, `branch.exited`'s definition, or the outcome table |
 
 ---
@@ -195,10 +195,10 @@ Seeded here from P22's and P23's late tables and from fact 5; each item re-measu
 
 | Q | | Owner |
 |---|---|---|
-| [Q379](../open-questions.md) | *on an inline pool, first-to-arrive is lowest-index* — raised by this declaration | W94 |
-| [Q380](../open-questions.md) | *node-kind dispatch is exhaustive at one site of 51* — raised by this declaration | W92 |
-| [Q9](../open-questions.md) | *predicate purity is requested, not enforced* — a gate type is held to the same, and resume's divergence check is what catches it | out |
-| [Q249](../open-questions.md) | *the registry carries no version* — decision 4's exhaustiveness is the defence against a gate type growing a route | out |
+| [Q379](../questions/q379.md) | *on an inline pool, first-to-arrive is lowest-index* — raised by this declaration | W94 |
+| [Q380](../questions/q380.md) | *node-kind dispatch is exhaustive at one site of 51* — raised by this declaration | W92 |
+| [Q9](../questions/q9.md) | *predicate purity is requested, not enforced* — a gate type is held to the same, and resume's divergence check is what catches it | out |
+| [Q249](../questions/q249.md) | *the registry carries no version* — decision 4's exhaustiveness is the defence against a gate type growing a route | out |
 | Q381-Q393 | *reserved for the items* | |
 
 ---
@@ -235,7 +235,7 @@ runs** in node 24.20.0 and deno 2.9.6; **L1-L5 51 files / 1376 assertions** in n
 documents, 7069 relative links, 381 anchored**; census **295 / 230 / 1 / 64** before this declaration's
 rows.
 
-**[Q142](../open-questions.md) was MEASURED at this declaration, on the tree it commits, and does NOT fire —
+**[Q142](../questions/q142.md) was MEASURED at this declaration, on the tree it commits, and does NOT fire —
 but it is tighter than at any declaration since P18**: P23's retro left `M3`'s margin at **7** files and
 `M4`'s at **37** links, and this declaration's two documents and index paragraphs take them to **5** (probe 1:
 118 files against 123) and **22** (probe 2: 5248 links against 5270). `check:markdown` **155 documents,
@@ -258,26 +258,26 @@ and **`DriverOptions` does not carry them until W93**, because W76 binds every `
 and the refusal is taken at CONSTRUCTION, because the declaration step measured the run-time `default` arm letting a real
 worker run first. **Prediction 1 CONFIRMED**, with a loud site no lane names; **prediction 4 holding** at W92 —
 `FD-V21`, `FD-V23` and `FD-V24` moved, every one an enumeration. **Handed to W93**: the driver's road for a consumer's gate
-types; `routing.ts`' `eligibleEdges`, which answers `[]` for a gate. **Handed to W94**: [Q381](../open-questions.md) — a new
+types; `routing.ts`' `eligibleEdges`, which answers `[]` for a gate. **Handed to W94**: [Q381](../questions/q381.md) — a new
 node kind is BREAKING for a consumer's exhaustive switch, and the `README.md` list must say so; and `examples/l6.ts`'
 `NOT_YET_AT_L6` exemption, which W94's row turns red until it is removed.
 
 **What W94 found that this plan left open**, each measured: an arrangement is defeated by a SERIAL pool, so the exit
 artifact's `identify` pool is as wide as the map, and Deno's threaded pool nearly repeats Q379's trap (28 of 30 keys); the
 per-series road ENDS at its own `end`, or every row field naming the per-file record would name the winner; `checkWiring`
-reads the gate as a pass-through and calls the natural wiring `no` ([Q391](../open-questions.md)); and the package's
+reads the gate as a pass-through and calls the natural wiring `no` ([Q391](../questions/q391.md)); and the package's
 breaks are FOUR — a `route` key on a non-gate edge moved from `FD-V17` to `FD-V41`. **Prediction 3 CONFIRMED**, its one
 exception an authoring tool's rather than the run's. **P24 is COMPLETE pending its retro**; W95 was never issued.
 
 **What W93 decided that this plan left open**, each argued in ADR 0067: the memory is a DRIVER FIELD created empty and never
 handed in or out — its declaration step measured a memory kept by the PROCESS resuming WRONG, in silence, when the kill preceded
-the first decision ([Q386](../open-questions.md)); the `gated` element is REGENERATED on resume, never fed, and recorded BEFORE
+the first decision ([Q386](../questions/q386.md)); the `gated` element is REGENERATED on resume, never fed, and recorded BEFORE
 what its route leads to; a type that throws stops the run with its own error, a throwing predicate's road; `DriverOptions.gateTypes`
 travels W76's road (b), `RuntimeRegistry`; and `FD-R4` through an entry gate holds the payload to the chosen target, asking the
-type against a throwaway memory ([Q387](../open-questions.md)). **And the key is resolved ONCE, off the value as a
+type against a throwaway memory ([Q387](../questions/q387.md)). **And the key is resolved ONCE, off the value as a
 `structuredClone` carries it** — its conformity reader found a class instance at an entry gate routing differently in a run and
 its replay. **Predictions 2 and 4 CONFIRMED.** **Handed to W94**: the `gated` kind in `README.md`'s breaking-change list beside
-[Q381](../open-questions.md)'s node kind, and the exit artifact.
+[Q381](../questions/q381.md)'s node kind, and the exit artifact.
 
 ---
 
@@ -315,7 +315,7 @@ every rung takes one, and rule 8's harness grades its L6 probes in one runtime.*
 completion wins — they break the tree, not the timing — so a set of any size cannot see it, and an ARRANGEMENT sees it every
 time. And it is not new: W23 (P7) shipped nested rows asserting terminal-event order, found at the build; W51 (P14) asserted
 `refine`'s dispatch order, found by its conformity reader and measured **25 / 25 identical inline and 12 / 12 REVERSED
-threaded** — an arrangement, used by a reader, ten plans before anyone wrote it down as a procedure. **And run once against the tree P24 SHIPS it found one more** (`dev-dist/p24r/order2.py`): `Thumbnail` — a worker no TV row arranges — delayed 5 → 300 ms turns L6 red **2 of 2 in node and 2 of 2 in deno**, ONE `FAIL` line each and every other clause green: the cross-row CONTROL *only the P22 artifact and the rows through a gate have two instances of one opener holding together*, whose comment says the TV rows hold *by construction* and which holds by a thumbnail settling before `identify` — a completion order W94's rows configure and never assert ([Q394](../open-questions.md), raised here). *The procedure's first application to a shipped tree found a latent order the item's readers, its three rule 8 passes and its confirming gate had all passed over.*
+threaded** — an arrangement, used by a reader, ten plans before anyone wrote it down as a procedure. **And run once against the tree P24 SHIPS it found one more** (`dev-dist/p24r/order2.py`): `Thumbnail` — a worker no TV row arranges — delayed 5 → 300 ms turns L6 red **2 of 2 in node and 2 of 2 in deno**, ONE `FAIL` line each and every other clause green: the cross-row CONTROL *only the P22 artifact and the rows through a gate have two instances of one opener holding together*, whose comment says the TV rows hold *by construction* and which holds by a thumbnail settling before `identify` — a completion order W94's rows configure and never assert ([Q394](../questions/q394.md), raised here). *The procedure's first application to a shipped tree found a latent order the item's readers, its three rule 8 passes and its confirming gate had all passed over.*
 
 **THE ONE CHANGE: rule 8 gains obligation (f), BREAK THE ORDER** — for each worker a row runs whose timing the row does not
 ARRANGE, the set re-runs the row with that worker delayed past its peers (within one worker type, the other pool mode, W51's
@@ -338,16 +338,16 @@ misread, after P22.
 |---|---|
 | L0, each lane RUN separately, read off the exit code | W92's `typecheck:tests` at exit 2 with ZERO `FAIL` lines; W94's `lint` on an unused local while printing *Checked 129 files* |
 | L1, by name, an item's own suite on its first run | W92's shapes carrying an `end` no gate reached, and the record fixture no consumer judged; W93's entry-gate fixture leaving a task `FD-V11`-unreachable |
-| L6, by name | W93's `NOT_RUN_STATE` walking the gate types — two NAMED failures where the declaration predicted a crash; W94's two TYPE clauses reading a gate's `type`, and its own cross-row claims' missing subjects; `checkWiring`'s false `no` ([Q391](../open-questions.md)), with the L4 census |
+| L6, by name | W93's `NOT_RUN_STATE` walking the gate types — two NAMED failures where the declaration predicted a crash; W94's two TYPE clauses reading a gate's `type`, and its own cross-row claims' missing subjects; `checkWiring`'s false `no` ([Q391](../questions/q391.md)), with the L4 census |
 | a gate-entry self-test | W92's `check:docs:selftest`, rule 7 (b) ABORT on two renamed probes; W94's at 20 / 21 on the author's own `X9` probe edit |
-| **rule 8's GRADER — v0.24's clause, on its first plan** | W92's two cases running under EACH OTHER's names ([Q382](../open-questions.md)) — WRONG-REASON on the failure line, which no assertion in the file could see; W93's `e1` declared against a suite name, and W92's `d2` crashing another suite |
+| **rule 8's GRADER — v0.24's clause, on its first plan** | W92's two cases running under EACH OTHER's names ([Q382](../questions/q382.md)) — WRONG-REASON on the failure line, which no assertion in the file could see; W93's `e1` declared against a suite name, and W92's `d2` crashing another suite |
 | rule 8's RE-RUN with the readers' edits (v0.8) | W94's realm fix, which read its expected side from the very knob the reader's edit flipped |
 | the confirming `npm run gate` | W94's gated `pathEnds` — above, by chance |
 
 **THIRTY-THREE have no rung (11 / 13 / 9)**: EIGHTEEN found by a reader (5 / 9 / 4), SEVEN at a declaration step's re-take
 (2 / 2 / 3 — a validator that THREW, the design's incompatible *L6 UNMOVED*, the process-kept memory resuming wrong in
-silence ([Q386](../open-questions.md)), the fold throwing on a new kind, a serial pool defeating an arrangement, Deno's
-threaded pool nearly repeating [Q379](../open-questions.md)'s trap, a winner leaking into every row field), and EIGHT by the
+silence ([Q386](../questions/q386.md)), the fold throwing on a new kind, a serial pool defeating an arrangement, Deno's
+threaded pool nearly repeating [Q379](../questions/q379.md)'s trap, a winner leaking into every row field), and EIGHT by the
 author's own reading. **ELEVEN of the fifty are in the INSTRUMENTS (6 / 3 / 2)** — probes and their declarations, two
 self-tests' anchors, heredocs broken four times, a reader copy past Windows' path limit, a self-test run while a test file
 moved. **All thirteen BLOCKING reader findings have no rung** (3 conformity / 10 adequacy), and the split held: the
@@ -360,8 +360,8 @@ only, W93's one gate in every fixture, W94's kill points never checked DISTINCT.
 | # | kind | verdict |
 |---|---|---|
 | 1 | derived, from fact 5 | **CONFIRMED** (W92) — L0 named ONE site in all five lanes, and every other site surfaced at L1 or by reading. **And the churn did not stop at the item it named**: W94's two L6 TYPE clauses read a gate's `type` as a registry node type, a node-kind site W92's census could not list because its read is `.type` and not `kind ===`, found at L6 BY NAME two items later — true to the prediction's letter (not L0), and a scope the prediction did not state |
-| 2 | derived, from fact 4 (an EMULATION, one kill point) | **CONFIRMED** (W93), then **on real workers at all 25 kill points in both L6 runtimes** (W94's block (2h)). Its reversal condition — a memory the replay cannot regenerate — was MET by one placement at W93's declaration step, a memory kept by the PROCESS, which completed wrong in silence past the stored events ([Q386](../open-questions.md)); that measurement is why the shipped memory is a driver field |
-| 3 | **the REACH** | **CONFIRMED** (W94), one exception outside the run — the wiring check reads the gate as a pass-through ([Q391](../open-questions.md)); none of its reversal column's three shapes was needed. [Q387](../open-questions.md) (an entry gate's type asked twice) was observed on real workers and is outside the artifact |
+| 2 | derived, from fact 4 (an EMULATION, one kill point) | **CONFIRMED** (W93), then **on real workers at all 25 kill points in both L6 runtimes** (W94's block (2h)). Its reversal condition — a memory the replay cannot regenerate — was MET by one placement at W93's declaration step, a memory kept by the PROCESS, which completed wrong in silence past the stored events ([Q386](../questions/q386.md)); that measurement is why the shipped memory is a driver field |
+| 3 | **the REACH** | **CONFIRMED** (W94), one exception outside the run — the wiring check reads the gate as a pass-through ([Q391](../questions/q391.md)); none of its reversal column's three shapes was needed. [Q387](../questions/q387.md) (an entry gate's type asked twice) was observed on real workers and is outside the artifact |
 | 4 | derived, from P23 prediction 4's reversal | **CONFIRMED** (W93) — `RN-R13`'s TEXT moved and no other rule's did but enumerations. **With one thing its wording could not see**: `FD-V17`'s text did not move and its REACH did — a `route` key on a non-gate edge was refused as `FD-V17` before P24 and as `FD-V41` after, which W94 found as `README.md`'s FOURTH break. *A prediction about which rules' TEXT moves cannot see a rule whose extension moves under unchanged text* |
 
 **Four of four CONFIRMED — the third plan to record that, after P16 and P18** — and P10's reading holds: the three derived
@@ -370,7 +370,7 @@ predictions tested the inference, and the one REACH is the one that could have r
 ### v0.24's grader clause: FOLLOWED in all three items, and it caught a defect nothing else could
 
 `gX` (right verdict CRASH) and `gW` (right verdict WRONG-REASON) were graded right on every pass of all three items — three,
-two and three — and on this retro's three re-runs. **Its yield is W92's [Q382](../open-questions.md)**: a case's NAME
+two and three — and on this retro's three re-runs. **Its yield is W92's [Q382](../questions/q382.md)**: a case's NAME
 appended to `DECLARED_CASES` after the self-check's while its BODY sat before it, so two cases ran under each other's names,
 invisible to the in-file membership (a SET) and to the outside count — seen only because the grader matched the reason on
 the clause's own failure line. **CONFIRMED on its first plan, no change.**
@@ -389,7 +389,7 @@ the edit it answers — and the clause that catches it fired.
 
 **(2) A `doc/` check for the TWENTY-THIRD time, on the English class** — and **P24's declaration did not take either
 machine-comparable class P23's retro handed it.** Re-measured: `doc/decisions/README.md` indexed every ADR on disk at all
-three of P24's commits, so that class did not recur; **[Q171](../open-questions.md)'s did** — W94 shipped its four L6 count
+three of P24's commits, so that class did not recur; **[Q171](../questions/q171.md)'s did** — W94 shipped its four L6 count
 copies at 2059 on a tree running 2060 until its conformity reader's finding 1, BLOCKING, no rung. **A hand-off to a
 declaration has now been taken by NONE of the plans it was handed to** — P20's retro named Q171 and P23's named both —
 because a plan is the maintainer's question and P24 was a feature request. This retro cannot build a check (`scripts/**` is
@@ -432,15 +432,15 @@ disagreements on the VALUES — the fourth plan running.**
 **Late exceptions: zero undeclared in any of the three.**
 
 **Census CONFIRMED for the TWENTY-SIXTH plan running — 303 / 235 / 1 / 67 before this retro's edits and 304 / 236 / 1 / 67
-after, every id in exactly one cluster cell**, by W92's parser unchanged. The retro RAISES [Q394](../open-questions.md) — the
-next free id, outside P24's block, found by applying the change it adopts — and resolves none: [Q391](../open-questions.md) stays open (an authoring tool
+after, every id in exactly one cluster cell**, by W92's parser unchanged. The retro RAISES [Q394](../questions/q394.md) — the
+next free id, outside P24's block, found by applying the change it adopts — and resolves none: [Q391](../questions/q391.md) stays open (an authoring tool
 that reads a gate as a pass-through is conservative, not wrong about the run, and teaching it routes is a plan's
-question); [Q392](../open-questions.md) stays open (the static root import that makes L6 honest is what makes a revert
-unreadable, and a dynamic one would reach a surface no consumer has); [Q386](../open-questions.md) stays open (the shipped
-gate cannot resume wrong; a decision predicate with closure memory still can, which is [Q9](../open-questions.md)'s purity
-one road over); [Q387](../open-questions.md) stays open (an entry gate's type asked twice, observed on real workers).
+question); [Q392](../questions/q392.md) stays open (the static root import that makes L6 honest is what makes a revert
+unreadable, and a dynamic one would reach a surface no consumer has); [Q386](../questions/q386.md) stays open (the shipped
+gate cannot resume wrong; a decision predicate with closure memory still can, which is [Q9](../questions/q9.md)'s purity
+one road over); [Q387](../questions/q387.md) stays open (an entry gate's type asked twice, observed on real workers).
 
-**[Q142](../open-questions.md)** — measured before this retro's edits on the shipped tree: probe 1 **120 files against `M3`'s
+**[Q142](../questions/q142.md)** — measured before this retro's edits on the shipped tree: probe 1 **120 files against `M3`'s
 123, margin 3**; probe 2 **5402 links against `M4`'s 6225, margin 823**. **Re-measured AFTER this retro's edits, on the tree it commits: `M3` unmoved at margin 3 (the retro adds no document), and probe 2 5449 links — `M4` margin 776**, forty-seven links narrower, every one in `CLAUDE.md`, `README.md`, `doc/README.md`, `doc/workflow.md` and the register — files probe 2 does not cut (it cuts this one). Q142 does not fire. **`M3` at 3 is the tightest any retro
 has handed on**: the next plan's declaration writes a plan and a work item outside `doc/decisions`, which takes it to 1, and
 its second item's file FIRES it — **predicted here, from the count, as P24 predicted `M4` at W92.**

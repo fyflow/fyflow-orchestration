@@ -175,7 +175,7 @@ suite('L2 — FD-C1: what a node receives', (test) => {
     // holds a primitive, which cannot alias in principle. The reachable case is one
     // node with two `"."` keys, and without the copy both are the DRIVER's own edge
     // value: an inline worker mutating `payload.a` edits `payload.b` and the object
-    // the driver is still holding. That is [Q154](../../doc/open-questions.md) at the
+    // the driver is still holding. That is [Q154](../../doc/questions/q154.md) at the
     // `needs` edge, and `FD-C1`'s *each key gets its own copy* is what refuses it.
     const def = {
       flowId: 'two-self-keys', version: 1, entry: 'ingest',
@@ -357,7 +357,7 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // the set of region-bearing flows is derived from the CORPUS ON DISK, both ways.
     // A flow that gains a region and is not censused is red; a censused flow that
     // leaves the corpus is red; and neither edit is inside this file. *A magic
-    // number beside its own list is [Q102](../../doc/open-questions.md)'s shape, and
+    // number beside its own list is [Q102](../../doc/questions/q102.md)'s shape, and
     // this item wrote three before the reader found them.*
     const REGION_KINDS = new Set(['fanout', 'map']);
     const onDisk: string[] = [];
@@ -667,7 +667,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
    * Until v0.13 the case was *a decision routed around the target*: `ingest`
    * decides between `flag` and `skip`, and `publish` declares `needs: {f: 'flag'}`.
    * **`FD-V29` now refuses that document at instantiation**, which is
-   * [Q187](../../doc/open-questions.md)'s whole point — so the cheap way to build an
+   * [Q187](../../doc/questions/q187.md)'s whole point — so the cheap way to build an
    * unresolvable reference is gone, and what is left is the two things a validator
    * provably cannot see (`FD-R3`'s own row in section 6).
    *
@@ -678,7 +678,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
    * removes that case**: the two regions are SIBLINGS, they share no region, and a
    * reader now sees ALL of the target's outputs whatever its own index — so the
    * document resolves at every arity pair and `FD-R3` does not fire on it. That was
-   * `FD-R3`'s last road needing no custom policy ([Q218](../../doc/open-questions.md)),
+   * `FD-R3`'s last road needing no custom policy ([Q218](../../doc/questions/q218.md)),
    * and **what the flow demonstrates now is the fix**, asserted in the suite below.
    *
    * *Twice in two plans this rule's cheap fixture has turned out to be a defect
@@ -687,7 +687,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
    *
    * The ONE remaining case is a join **policy** firing before a branch entry has
    * settled, which `validateDefinition` cannot know about because it is not given
-   * the policy (`FD-V15`'s note, [Q97](../../doc/open-questions.md)). **It IS a
+   * the policy (`FD-V15`'s note, [Q97](../../doc/questions/q97.md)). **It IS a
    * fixture, below, and the first version of this comment said it deliberately was
    * not** — both of W45's readers found that, and they were right: `ADR 0042` rule 5
    * is what makes `FD-V29` affordable to have got slightly wrong, and that argument
@@ -877,7 +877,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     equal(validateDefinition(def, { predicates: [], workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools }), [],
       'FD-V29 ACCEPTS it — `scoreA` is a branch entry and JP-R5 dispatches it when the region opens');
 
-    /** Satisfied on the first arrival, whatever else is live — [Q97](../../doc/open-questions.md)'s shape. */
+    /** Satisfied on the first arrival, whatever else is live — [Q97](../../doc/questions/q97.md)'s shape. */
     const seenEvents: string[] = [];
     const eager: JoinPolicy<{ arrived: number }> = {
       id: 'eager-any-arrival',
@@ -1052,7 +1052,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     // [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
     // makes a sibling reference resolve at every arity. **What is left is the one
     // road `FD-R3`'s row still names** — a join policy firing before a branch entry
-    // has settled ([Q218](../../doc/open-questions.md)) — so this fixture brings its
+    // has settled ([Q218](../../doc/questions/q218.md)) — so this fixture brings its
     // own policy, exactly as the suite's own limit case does, and the SHIPPED-policy
     // control below is what makes it a statement about `resolve()` rather than about
     // the policy.
@@ -1368,7 +1368,7 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
     // and [ADR 0044](../../doc/decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
     // makes that instance see every output — so `[]` needs a road where the target
     // produced nothing ANYWHERE, which is a decision routing around the whole
-    // region ([Q218](../../doc/open-questions.md)).
+    // region ([Q218](../../doc/questions/q218.md)).
     //
     // **`.` beside it is the half that keeps `[]` a VALUE rather than the
     // composition failing**: the reader still receives its own item under `own`,
@@ -1448,10 +1448,10 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
 /**
  * **What a reference COSTS, stated so a machine can check it** —
  * [W46](../../doc/work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md),
- * [Q186](../../doc/open-questions.md), and `spec/flow-definition.md` section 3's cost blockquote.
+ * [Q186](../../doc/questions/q186.md), and `spec/flow-definition.md` section 3's cost blockquote.
  *
  * **A timing assertion is refused in advance** — wall time here is not reproducible
- * ([Q179](../../doc/open-questions.md)), and W46 measured a cause: a table taken in
+ * ([Q179](../../doc/questions/q179.md)), and W46 measured a cause: a table taken in
  * ONE process carries up to **4.4x of accumulation** in its last row. So the numbers
  * live in section 3 and this suite asserts what is deterministic.
  *
@@ -1467,7 +1467,7 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
  *
  * So the two clauses below are the two things nothing else asserts: **the product**,
  * as a deterministic proxy its own adequacy reader proposed, and **the decision**,
- * which is [Q190](../../doc/open-questions.md)'s bar for a verdict recorded in
+ * which is [Q190](../../doc/questions/q190.md)'s bar for a verdict recorded in
  * `spec/` with no ADR.
  */
 suite('L2 — Q186: what a reference costs, as a product and as a decision', (test) => {
@@ -1549,7 +1549,7 @@ suite('L2 — Q186: what a reference costs, as a product and as a decision', (te
   });
 
   test('and NOTHING refuses it: the decision, asserted — Q190`s bar', async () => {
-    // **[Q190](../../doc/open-questions.md)'s precedent for a verdict with no ADR is
+    // **[Q190](../../doc/questions/q190.md)'s precedent for a verdict with no ADR is
     // *recorded in section 3 AND asserted at L2*, and W46's conformity reader found
     // this line missing.** The decision is that the flow whose reference the candidate
     // predicate fires on is **accepted with zero findings** — so if a warning channel

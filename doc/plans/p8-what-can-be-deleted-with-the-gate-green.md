@@ -39,10 +39,10 @@ fourth defect had no id at all.
 
 | | what the register said | what one command says |
 |---|---|---|
-| [Q126](../open-questions.md) | *"`test:l6:deno` can be dropped for 0 failures"* | **True, and the hole is wider.** `scripts/check-source.mjs:290` is the only thing in the repository that reads `scripts.gate`, and its loop is `if (!name.startsWith('check:')) continue`. **S11 guards 8 of the gate's 15 entries; 7 are unguarded.** One level down nothing guards the `typecheck` sub-chain, `test:browser`'s `build:browser-tests`, or **`lint`'s directory list** |
-| [Q121](../open-questions.md) | *"five dead links, all fixed; two false positives, both illustrations of link syntax"* | **0 dead file links today**, and the false positives are **4, in three files** — one a placeholder rather than an illustration. **And the anchor half is unmeasured and is where the live defects are** |
-| [Q123](../open-questions.md) | *"seven files converted to CRLF where `HEAD` is LF throughout"* | ***"LF throughout" is false.*** `git ls-files --eol` reports **161 LF and 1 CRLF**, and the CRLF file is **`doc/concept.md`** — CRLF in the index, in the working tree, and in **all six commits that ever touched it**, back to the founding commit `2936a72` |
-| **no id** | — | **`Q119` and `Q71` carry unescaped `\|`.** GitHub splits the cell, so in the file read before every work item Q119 renders its Status as `regions` and its Owner as `^2) with the inner call doubled…`, dropping `open` / `no owner` entirely. **Raised as [Q131](../open-questions.md)** |
+| [Q126](../questions/q126.md) | *"`test:l6:deno` can be dropped for 0 failures"* | **True, and the hole is wider.** `scripts/check-source.mjs:290` is the only thing in the repository that reads `scripts.gate`, and its loop is `if (!name.startsWith('check:')) continue`. **S11 guards 8 of the gate's 15 entries; 7 are unguarded.** One level down nothing guards the `typecheck` sub-chain, `test:browser`'s `build:browser-tests`, or **`lint`'s directory list** |
+| [Q121](../questions/q121.md) | *"five dead links, all fixed; two false positives, both illustrations of link syntax"* | **0 dead file links today**, and the false positives are **4, in three files** — one a placeholder rather than an illustration. **And the anchor half is unmeasured and is where the live defects are** |
+| [Q123](../questions/q123.md) | *"seven files converted to CRLF where `HEAD` is LF throughout"* | ***"LF throughout" is false.*** `git ls-files --eol` reports **161 LF and 1 CRLF**, and the CRLF file is **`doc/concept.md`** — CRLF in the index, in the working tree, and in **all six commits that ever touched it**, back to the founding commit `2936a72` |
+| **no id** | — | **`Q119` and `Q71` carry unescaped `\|`.** GitHub splits the cell, so in the file read before every work item Q119 renders its Status as `regions` and its Owner as `^2) with the inner call doubled…`, dropping `open` / `no owner` entirely. **Raised as [Q131](../questions/q131.md)** |
 
 **The anchor measurement is the one that changes the plan's shape.** `doc/scheduler-upstream.md`'s
 index links to its own nine S-ids, and **all nine are dead** — 14 occurrences over 9 distinct targets.
@@ -77,7 +77,7 @@ over the product; every defect here is in the **wiring that runs those commands*
 4. **The fourteen dead anchors fixed**, which is what makes the check non-vacuous on the day it ships.
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q123](../open-questions.md) and [Q131](../open-questions.md) — a tracked text file's *bytes*.**
+- **[Q123](../questions/q123.md) and [Q131](../questions/q131.md) — a tracked text file's *bytes*.**
   Declared as a third item and **dropped before it started**, leaving P8 at exactly the two checks P7
   declined. **What was measured stays measured** and is recorded on both rows; what is not built is a
   check. **One half is discharged anyway and outside any item**: `doc/concept.md` is normalised to LF
@@ -100,9 +100,9 @@ over the product; every defect here is in the **wiring that runs those commands*
   different `C5`. The conclusion is unaffected and reinforced.)*; section 3 says
   ids are never reused or renumbered. The lift shares an implementation and `C5` keeps its id and its
   row in `check-spec`'s report.
-- **[Q100](../open-questions.md)** — a rendered artifact no assertion reads, now in five files. Named
+- **[Q100](../questions/q100.md)** — a rendered artifact no assertion reads, now in five files. Named
   so that a link check is not read as closing it; it is about output nothing asserts, not about links.
-- **[Q98](../open-questions.md)** — cases counted as assertions. A different noun problem in different
+- **[Q98](../questions/q98.md)** — cases counted as assertions. A different noun problem in different
   files.
 - **`test:browser:all`.** It is deliberately outside the gate, which is exactly why (1) is a named
   list: *"every `test:*` script is in the chain"* would be **false**.
@@ -121,7 +121,7 @@ over the product; every defect here is in the **wiring that runs those commands*
 2. **The check blanks fenced blocks and inline code spans before parsing.** Measured: **4** false
    positives otherwise. `C5` never needed it because `spec/` prose does not illustrate link syntax;
    `doc/` prose does, and `doc/work-items/TEMPLATE.md`'s `../plans/p_-<slug>.md` shows the phenomenon
-   is **placeholders as well as illustrations** — wider than [Q121](../open-questions.md) states, same
+   is **placeholders as well as illustrations** — wider than [Q121](../questions/q121.md) states, same
    fix.
 3. **Anchors are checked.** This is the half with the defects and the half `C5` structurally cannot
    reach. Same-file (`#live`) and cross-file targets both; the slug rule is *lowercase, drop
@@ -142,7 +142,7 @@ over the product; every defect here is in the **wiring that runs those commands*
    construct the discriminating cases the repository does not contain. *(Thirteenth declaration to
    measure a load-bearing fact first; second time in two plans that it took out the ARGUMENT behind a
    decision rather than a table, after W22 took out one of P7's decisions outright.)*
-4. **S11's widening is a NAMED LIST.** [Q126](../open-questions.md)'s own point, and the general form
+4. **S11's widening is a NAMED LIST.** [Q126](../questions/q126.md)'s own point, and the general form
    is false. **A list is a loop bound**, so it inherits rule 8's fourth obligation: whatever asserts
    the list must fail when an entry leaves it *and* when the whole list leaves.
 
@@ -172,8 +172,8 @@ guards those**; running W24 first means the *widened* list is what W25's entry l
 the narrow one.
 
 **A third item was declared and dropped before it started, and it is recorded rather than deleted.**
-W26 was *a tracked text file's bytes* — the register's unescaped pipes ([Q131](../open-questions.md))
-and line endings ([Q123](../open-questions.md)) — owning `.gitattributes`, `doc/open-questions.md`,
+W26 was *a tracked text file's bytes* — the register's unescaped pipes ([Q131](../questions/q131.md))
+and line endings ([Q123](../questions/q123.md)) — owning `.gitattributes`, `doc/open-questions.md`,
 `doc/concept.md` and a clause in W25's script. **It is out on a scope call, not on a measurement**:
 both defects are real and both are recorded on their rows. Its one **irreversible** half was taken
 outside it — `doc/concept.md` normalised to LF in this plan's declaration commit — because the file
@@ -195,13 +195,13 @@ where section 1 rule 5 already grants them.
 
 | Q | | Owner |
 |---|---|---|
-| [Q126](../open-questions.md) | a runtime droppable from the gate chain for 0 failures | **W24 — RESOLVED.** The chain is 16 of 16 guarded, plus the three composed lists; `S12` compares a declared list to `scripts.gate` both ways and in order, `S13` takes the sub-chains with two clauses derived from `package.json` and from disk rather than from the declaration |
-| [Q121](../open-questions.md) | dead relative links in `doc/**` and `AGENTS.md` | **W25 — RESOLVED.** `scripts/check-markdown.mjs` holds the lifted `C5` plus `M1`/`M2`/`M3`/`M4`/`M5`, and the fourteen dead anchors are fixed. What the check still cannot see is [Q136](../open-questions.md); what `C5` did not inherit is [Q137](../open-questions.md) |
-| [Q123](../open-questions.md) | nothing fixes line endings and there is no `.gitattributes` | **no owner — W26 dropped.** Its premise is corrected (`HEAD` is **not** LF throughout) and **its one instance is fixed**: `doc/concept.md` is LF from this plan's declaration commit. **The mechanism is unguarded exactly as before** |
-| [Q131](../open-questions.md) | the register's own rows render their Status and Owner columns wrong | **no owner — W26 dropped.** Raised and measured by this plan's declaration step; **not fixed**, so Q119 and Q71 still render wrong |
-| [Q102](../open-questions.md) | `check-docs`' `RUN_FLOOR` ratchet sits in nobody's `Owns` and went stale silently | **W24 — ANSWERED, not closed.** An owner **moves** it (`Owns` is per-item, not standing), **narrows** it (`S12` is equality, so it cannot go stale the way a floor does — measured by the probe that *swaps* an entry) and **multiplies** it (three more floors of the same shape, two of them made to fire by a list one level out). `RUN_FLOOR` is untouched. What settles the ownership half is the next plan outside P8 that edits the gate chain |
-| [Q100](../open-questions.md) | a rendered artifact no assertion reads, in five files | **no owner.** Named so this plan is not read as closing it |
-| [Q98](../open-questions.md) | the runner counts `test()` cases, not assertions | **no owner.** Named because every Record this plan writes will quote a count, and the noun stays *cases* |
+| [Q126](../questions/q126.md) | a runtime droppable from the gate chain for 0 failures | **W24 — RESOLVED.** The chain is 16 of 16 guarded, plus the three composed lists; `S12` compares a declared list to `scripts.gate` both ways and in order, `S13` takes the sub-chains with two clauses derived from `package.json` and from disk rather than from the declaration |
+| [Q121](../questions/q121.md) | dead relative links in `doc/**` and `AGENTS.md` | **W25 — RESOLVED.** `scripts/check-markdown.mjs` holds the lifted `C5` plus `M1`/`M2`/`M3`/`M4`/`M5`, and the fourteen dead anchors are fixed. What the check still cannot see is [Q136](../questions/q136.md); what `C5` did not inherit is [Q137](../questions/q137.md) |
+| [Q123](../questions/q123.md) | nothing fixes line endings and there is no `.gitattributes` | **no owner — W26 dropped.** Its premise is corrected (`HEAD` is **not** LF throughout) and **its one instance is fixed**: `doc/concept.md` is LF from this plan's declaration commit. **The mechanism is unguarded exactly as before** |
+| [Q131](../questions/q131.md) | the register's own rows render their Status and Owner columns wrong | **no owner — W26 dropped.** Raised and measured by this plan's declaration step; **not fixed**, so Q119 and Q71 still render wrong |
+| [Q102](../questions/q102.md) | `check-docs`' `RUN_FLOOR` ratchet sits in nobody's `Owns` and went stale silently | **W24 — ANSWERED, not closed.** An owner **moves** it (`Owns` is per-item, not standing), **narrows** it (`S12` is equality, so it cannot go stale the way a floor does — measured by the probe that *swaps* an entry) and **multiplies** it (three more floors of the same shape, two of them made to fire by a list one level out). `RUN_FLOOR` is untouched. What settles the ownership half is the next plan outside P8 that edits the gate chain |
+| [Q100](../questions/q100.md) | a rendered artifact no assertion reads, in five files | **no owner.** Named so this plan is not read as closing it |
+| [Q98](../questions/q98.md) | the runner counts `test()` cases, not assertions | **no owner.** Named because every Record this plan writes will quote a count, and the noun stays *cases* |
 
 ## A note on ids
 
@@ -220,7 +220,7 @@ skipped and never reissued**, as is **Q125** before them. Q131 is taken by this 
 register's unescaped pipes.
 
 **ADR ids resume at 0032.** P7 reserved 0030-0031 and used 0030, so **0031 is skipped**. **0026 stays
-held for [Q97](../open-questions.md)**, for the third plan running — P5 reserved it for the `stuck`
+held for [Q97](../questions/q97.md)**, for the third plan running — P5 reserved it for the `stuck`
 conflation and deliberately did not take it, and neither P7 nor this plan takes it. **0028 stays
 skipped.**
 
@@ -237,7 +237,7 @@ this plan.**
 
 | deletion the gate accepted | now refused by | cost then → now |
 |---|---|---|
-| ` && npm run test:l6:deno` dropped from the `gate` chain — [Q126](../open-questions.md) | `S12` | 0 → 1 |
+| ` && npm run test:l6:deno` dropped from the `gate` chain — [Q126](../questions/q126.md) | `S12` | 0 → 1 |
 | any of `lint`, `typecheck`, `test`, `test:deno`, `test:browser`, `test:l6` dropped | `S12` | 0 → 1 |
 | an entry **swapped** for another, count unmoved | `S12` | 0 → 1 |
 | an entry **added** to the chain and not declared | `S12` | 0 → 1 |
@@ -263,9 +263,9 @@ upstream wants.
 than before, and the honest answer is still "a great deal".** The gate chain went from **8 of 15
 entries guarded to 18 of 18**, plus the three lists one level down and the markdown corpus. What is
 still deletable for 0 is now written down rather than unknown: nine of `check-source`'s thirteen
-checks have no probe ([Q132](../open-questions.md)), `check-spec`'s eight have none at all, `C5` can
-still pass vacuously ([Q137](../open-questions.md)), and ten markdown shapes are invisible
-([Q136](../open-questions.md)).
+checks have no probe ([Q132](../questions/q132.md)), `check-spec`'s eight have none at all, `C5` can
+still pass vacuously ([Q137](../questions/q137.md)), and ten markdown shapes are invisible
+([Q136](../questions/q136.md)).
 
 ### Retro — `doc/workflow.md` section 6 pass 3
 
@@ -291,7 +291,7 @@ plan should not amend the document on its own evidence alone:
    not a provenance and not a bound. The argument for generalising from one item: **rule 8's four
    obligations all assume the check runs**, and this repository's own history says that assumption
    fails — `RT-R4`'s grep was reported as a gate and did not exist (P1's retro), and
-   [Q126](../open-questions.md) is the same shape at the chain level.
+   [Q126](../questions/q126.md) is the same shape at the chain level.
 2. **A check written for a defect you have just fixed has no live case, and its probes are not a
    supplement to its corpus but the whole of its evidence.** W25 has three instances in one item: the
    slug rule (four different rules each reported the same 14 dead of 76, disagreeing about 134-294 of
@@ -302,7 +302,7 @@ plan should not amend the document on its own evidence alone:
    thirds of the first one false**, which is the part to carry: fixing the defect built the fixture
    that proves the rule, and only a reader noticed.
 
-**[Q102](../open-questions.md) is answered and it reproduced one item later, not one plan later.**
+**[Q102](../questions/q102.md) is answered and it reproduced one item later, not one plan later.**
 W24 said an owner **moves** it (per-item `Owns`, not standing), **narrows** it (`S12` is equality, so
 it cannot go stale the way a floor does) and **multiplies** it (three more floors of the same shape,
 two made to fire by a list one level out). W24's Record predicted the ownership half would be settled
@@ -319,9 +319,9 @@ a later plan cannot pick up, and P8 ran at the size it could finish. **The quali
 W26's subject came from the register rather than from this plan's question**, which is the risk the
 plan named of itself: *what can be deleted with the gate green* is about checks, and *a tracked text
 file's bytes* is about bytes. **The declaration step is where that should be caught, and it was.**
-[Q131](../open-questions.md) and [Q123](../open-questions.md) return to the register unowned, and
+[Q131](../questions/q131.md) and [Q123](../questions/q123.md) return to the register unowned, and
 **Q131's two malformed rows are still unfixed on purpose** so the check that would catch them has a
-live defect — joined now by a **third**, [Q135](../open-questions.md), which fails by a different
+live defect — joined now by a **third**, [Q135](../questions/q135.md), which fails by a different
 mechanism.
 
 **What this plan cost, and it is a decision somebody owes.** *(**The ratio below is corrected in place
@@ -335,7 +335,7 @@ reinforced: that run's `check:markdown:selftest` came in at **2m09**, below the 
 **What was wrong was not the measurement but the comparison**, which is a third shape for this
 repository's standing count problem — not stale, not mis-derived, but a correct number answering a
 narrower question than the sentence around it claims.)* `check:markdown:selftest` is **2m31 to 3m14** of a **4m46 to 6m00** gate — two runs of the same tree each, so the absolutes vary by a quarter and the **ratio does not: roughly half the gate, either way**, with `check:source:selftest` at 23s. **More than half the gate is now the gate proving its own checks can fail**, and the ratio is the durable number — the first version of this paragraph quoted one gate run as though a duration were a constant.
-[Q133](../open-questions.md) raised it and [Q138](../open-questions.md) has the mechanism — a META
+[Q133](../questions/q133.md) raised it and [Q138](../questions/q138.md) has the mechanism — a META
 entry asserts that *some* probe notices and never *which*, so each one re-runs the whole suite — and
 a fix that would cut it by roughly twenty. **Changing what the gate RUNS was declared out of this
 plan's scope**, so it is recorded rather than acted on.

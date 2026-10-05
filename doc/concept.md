@@ -221,7 +221,7 @@ of leaning produced.
   rules 4-6 let an external actor *resolve a suspended `user_action` node*, because a run that stops
   for a human and can never be restarted is not read-only observation - it is a dead run.** It is
   not pause, not cancel and not retry: it supplies the outcome for a dispatch that already happened
-  ([Q28](open-questions.md)), and it arrives as an appended log record rather than as a mutation, so
+  ([Q28](questions/q28.md)), and it arrives as an appended log record rather than as a mutation, so
   section 5's invariant is untouched.
 - **Ingestion transports.** Kafka and friends from `FLOW_PLANNING.md` are a consumer of this
   library, not part of it.

@@ -103,10 +103,10 @@ knowing it owes a replacement.
 - **The L6 row.** [W14](w14-two-runs-two-drivers-one-scheduler-at-l6.md). This item proves it at L2,
   which is where the repository's own rule says routing is proved; L6 is what proves a *fixture* was
   not lying, and it is the plan's exit artifact rather than this item's gate.
-- **[Q71](../open-questions.md)** — `SchedulerLike` under the DOM lib. Adjacent, differently argued,
+- **[Q71](../questions/q71.md)** — `SchedulerLike` under the DOM lib. Adjacent, differently argued,
   and `X5` already reports it. Touching `SchedulerLike` here would put two surface decisions behind
   one ADR.
-- **[Q20](../open-questions.md)** — whether a run id is global. This item will form an opinion while
+- **[Q20](../questions/q20.md)** — whether a run id is global. This item will form an opinion while
   moving the id to construction and **is not entitled to record it as an answer**; it goes in the
   Record as a finding.
 - **`index.ts`'s exports.** Unchanged in number. If the collapse of `hasFailed(runId)` removes a
@@ -162,7 +162,7 @@ the conformity reader's blocking finding restored as its own probe:
 | provocation | result |
 |---|---|
 | delete both tiers / tier 1 / tier 2 | **RED** 12 / 7 / 9 |
-| **a run-id filter instead** — the mechanism [Q72](../open-questions.md) proposed | **RED** 9 |
+| **a run-id filter instead** — the mechanism [Q72](../questions/q72.md) proposed | **RED** 9 |
 | make tier 1 loud | **RED** 7 |
 | **restore the original order — `normalizeEvent` before the ownership test (B1)** | **RED** 1, and it is the case named for it |
 | **tier 2 exempt for `user_action`** / for `failed`; **tier 1 exempt for `user_action`** | **RED** 1 each — *all three survived everything before the readers* |
@@ -213,17 +213,17 @@ real — and the comment says where the credit actually belongs.
 **5. Two preconditions of the blessed topology were unstated, and both readers found the sharper one
 independently.** Two `Driver`s on the **same** run id mint the same task ids, so `dispatched.has()`
 is true in both, `ID-R4` is not violated, and one settlement produces two dispatches of the successor
-with nothing reported — [Q72](../open-questions.md)'s corruption verbatim, for the one case ADR 0023
+with nothing reported — [Q72](../questions/q72.md)'s corruption verbatim, for the one case ADR 0023
 does not close. No driver can detect it. And a plain **non-flow** task on a shared scheduler does not
 parse, so rule 2 stops every driver on it. Both are now stated in the ADR's Correction, in `ID-R4`,
-and in `AGENTS.md` §9; the second is [Q86](../open-questions.md) and the first
-[Q87](../open-questions.md).
+and in `AGENTS.md` §9; the second is [Q86](../questions/q86.md) and the first
+[Q87](../questions/q87.md).
 
 **6. Three claims in the item's own documents were false.** `AGENTS.md:583` still said
 *"`InvalidRunId` is thrown by `start()`"*, two paragraphs below the table row this item correctly
 rewrote. §9's prose named `UndispatchedTask` while its executed snippet asserted a seven-name string
 omitting it — **the reference contradicting itself inside one section**, which is worse than either
-state alone; [Q84](../open-questions.md) is closed by adding it, and Q84's *stated reason for
+state alone; [Q84](../questions/q84.md) is closed by adding it, and Q84's *stated reason for
 deferring was itself wrong* (`AGENTS.md` is in this item's `Owns` outright). And `README.md` said
 *"eight ADRs"* where there are ten, in the same commit that corrected the two lines beside it.
 
@@ -261,13 +261,13 @@ occurrence.** For P4's retro.
 | Q | | raised by |
 |---|---|---|
 | ~~Q84~~ | `AGENTS.md` §9 did not name `UndispatchedTask` — **resolved**, added after both readers found the section contradicting itself | W13, then its conformity reader |
-| Q85 | [Q20](../open-questions.md) is now a design question: a `Driver` is a per-run object and rule 3 ignores other runs, both of which assume a run id means the same thing everywhere | W13 |
+| Q85 | [Q20](../questions/q20.md) is now a design question: a `Driver` is a per-run object and rule 3 ignores other runs, both of which assume a run id means the same thing everywhere | W13 |
 | Q86 | **Should an unparseable task id be treated as "not ours" rather than as a defect?** A driver mints only parseable ids, so an unparseable one cannot be ours — but refusing it stops every driver on a scheduler that also carries non-flow tasks | W13's conformity reader |
 | Q87 | **Nothing enforces run-id uniqueness across drivers on one scheduler**, and `ID-R4` cannot see the violation | both readers, independently |
 
 ## What is still open in this item, deliberately
 
-- **`AGENTS.md` §12's cast for [Q71](../open-questions.md)** — the third of P3's three absorbed
+- **`AGENTS.md` §12's cast for [Q71](../questions/q71.md)** — the third of P3's three absorbed
   defects, out of scope by declaration and argued on both sides.
 - **The L6 row is [W14](w14-two-runs-two-drivers-one-scheduler-at-l6.md)'s**, and the adequacy reader
   measured what that means: **L6 gives `ID-R4` zero coverage today** — single driver, single run, no

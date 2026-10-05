@@ -12,7 +12,7 @@ import type { OutcomeRecord } from './log.ts';
 /**
  * What a predicate receives — `FD-C3`, and
  * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
- * answering [Q8](../../doc/open-questions.md).
+ * answering [Q8](../../doc/questions/q8.md).
  *
  * **P1 populated exactly one field and the comment here asked whether it would grow.
  * It grows by one**, and the field is declared on the EDGE rather than on the node —
@@ -56,7 +56,7 @@ export class NoMatchingEdge extends Error {}
  *
  * **It reads `ctx` and nothing else.** There is no clock here, no random source, no I/O and no
  * closure over anything — so a declared predicate **CANNOT** be impure, which is strictly stronger
- * than [Q9](../../doc/open-questions.md)'s measured result for a function (evaluating twice caught
+ * than [Q9](../../doc/questions/q9.md)'s measured result for a function (evaluating twice caught
  * 1 impurity shape of 4) and is asserted rather than argued.
  *
  * **Total by construction**, because `FD-V42`-`FD-V45` refuse everything this does not handle at

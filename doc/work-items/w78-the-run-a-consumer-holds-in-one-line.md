@@ -78,10 +78,10 @@ Reserves:   Q324-Q329, ADR 0059 (expected unused)
 - **A deadline on `StartOptions`.** ADR 0058 rule 8, decided.
 - **`examples/run-flow.ts` CONVERTING to `done`.** Stop-and-ask (e), answered NO with the argument
   measured — see finding E. The destructure W77 made stands; nothing else moves.
-- **[Q320](../open-questions.md), [Q321](../open-questions.md), [Q322](../open-questions.md),
-  [Q323](../open-questions.md).** W77's four prices and hazards. This item observes Q320's residue at
+- **[Q320](../questions/q320.md), [Q321](../questions/q321.md), [Q322](../questions/q322.md),
+  [Q323](../questions/q323.md).** W77's four prices and hazards. This item observes Q320's residue at
   L6 by construction — every L6 run now pays it — and prices none of them further.
-- **[Q310](../open-questions.md) in general** — a `check-docs` clause comparing a snippet's stdout to
+- **[Q310](../questions/q310.md) in general** — a `check-docs` clause comparing a snippet's stdout to
   its output comments. What this item owes Q310 is the v0.20 TAUTOLOGY pass over every snippet it
   rewrites, which is in the rule 8 set.
 
@@ -122,7 +122,7 @@ make hand-rolling unnecessary.
 *That is not a defect — it is the mechanism landing, plus its tests. What it is, is a measured input
 that expired between one item and the next, for the THIRD consecutive item in this plan:* W76 found
 P20 fact 1's arithmetic wrong, W77 found fact 5c stale **because W76 had moved its inputs**, and this
-finds fact 3 moved because W77 moved its inputs. **[Q317](../open-questions.md)'s shape one level up,
+finds fact 3 moved because W77 moved its inputs. **[Q317](../questions/q317.md)'s shape one level up,
 three times in three items** — and the reason it keeps happening here rather than elsewhere is that
 P20's facts are measurements **over this repository's own source**, so each item is inside its own
 plan's measuring instrument.
@@ -154,7 +154,7 @@ telling apart:
 | **this** (fact 4) | broke the **code** | **exits 1 and names the line** |
 
 *The failure mode that breaks loudly is the safe one*, and the difference between them is exactly
-whether the harness's claim is CODE or PROSE. [Q253](../open-questions.md)'s row is about a harness
+whether the harness's claim is CODE or PROSE. [Q253](../questions/q253.md)'s row is about a harness
 that can go vacuous at exit 0; the sharper reading these four instances give is that **a facts
 harness's prose is what rots and its code is what breaks**, and only one of the two is visible.
 
@@ -252,7 +252,7 @@ goes to the maintainer** with the measurement above.
 | `examples/l6.ts` | this item's | **CONFIRMED and in `Owns`.** `ROW_KEYS` is **predicted UNMOVED** (finding C: this is not an `EXPECTED` row); `CROSS_ROW`, `CROSS_ROW_SUBJECTS`, `DECLARED_TOTAL` and the run count all move, and v0.18 requires the subject list to name this block's **CONTROLS** beside its claims |
 | `examples/README.md` | this item's | **CONFIRMED and in `Owns`.** Its L6 counts (`1627 assertions over 53 real runs`, in two places) go stale the moment the block lands — W71's, W72's and W74's late exception on the same two paragraphs, taken UP FRONT here |
 | `examples/run-flow.ts` | **CONDITIONAL on stop-and-ask (e)** | **NEEDED EITHER WAY, and it is in `Owns`.** Whatever the answer, its comment at line 1759 addresses stop-and-ask (e) *"which is W78's to answer"* — a claim with an expiry date naming this item, found by the grep section 1 rule 5 prescribes |
-| `scripts/check-docs.mjs` | this item's, *"`RUN_FLOOR` is a ratchet an item that adds or removes a `run` snippet must move — [Q102](../open-questions.md)'s shape, live for six plans. **W78 may REMOVE snippets, which is the direction that lowers it**"* | **CONFIRMED UNNEEDED, and MEASURED rather than predicted-and-left** (W74's defect on this exact row): this item removes no `run` snippet — it reduces the block INSIDE ten of them, so the fences, their tags and their count are untouched. `check:docs` reports **33 snippets: 27 run, 6 check — UNMOVED**, and `RUN_FLOOR` stays 27. *No item has yet taken that ratchet downward and this one does not either* |
+| `scripts/check-docs.mjs` | this item's, *"`RUN_FLOOR` is a ratchet an item that adds or removes a `run` snippet must move — [Q102](../questions/q102.md)'s shape, live for six plans. **W78 may REMOVE snippets, which is the direction that lowers it**"* | **CONFIRMED UNNEEDED, and MEASURED rather than predicted-and-left** (W74's defect on this exact row): this item removes no `run` snippet — it reduces the block INSIDE ten of them, so the fences, their tags and their count are untouched. `check:docs` reports **33 snippets: 27 run, 6 check — UNMOVED**, and `RUN_FLOOR` stays 27. *No item has yet taken that ratchet downward and this one does not either* |
 | `scripts/check-docs-selftest.mjs` | **the row above covered it and predicted it UNNEEDED** | **WRONG, and it is this item's ONE LATE exception — found by the CONFIRMING GATE at `GATE EXIT=1`, ONE FAIL line.** `check:docs:selftest`'s `X4` probe *a snippet that stops producing its stated result* anchors on `if (!accepted || again) throw` in `AGENTS.md` §7, and **this item's own fix for the conformity reader's findings 10 and 11 turned that `throw` into a `reject`** — so the probe reported *the mutation matched nothing*, which is **rule 7 (b) firing correctly rather than passing**. Re-anchored AGNOSTICALLY on the CONDITION alone rather than re-pinned to what follows it: **33/33 probes caught, zero FAIL lines**. *The fix for a reader's finding un-anchored a probe in a file this item does not own, and the GATE is the only thing that could have said so* — the same self-test W74's conformity reader found red one plan earlier, for the mirror reason |
 | `scripts/check-markdown.mjs` | predicted UNNEEDED | measured at this declaration: `M3 = 107` against **103**, **margin 4**; `M4 = 4450` against **4331**, **margin 119**. This item adds ONE markdown file, in `doc/work-items`, which **neither probe cuts** — so the `M3` fixture goes 103 → 104, **margin 3**, and this file's links and the record step's index paragraphs both land inside `M4`'s lower bound. **`M4` is the tight one and it is predicted NOT to fire; re-measured before the record step** |
 | `scripts/check-source.mjs` | predicted UNNEEDED | no new gate entry, no new published module, no `src/**` file, no construction under `src/scheduler/**` for `S16`. *`S16`'s scope is the published set and `examples/**` is outside it (W74's finding), so this block constructing nothing is not what keeps it green* |
@@ -278,8 +278,8 @@ available and it does not make anyone read it). Node 24 asserted in every shell.
 | `check:markdown`, `check:source` | each RUN and redirected, expected green |
 | whole gate | `npm run gate > … 2>&1; echo "GATE EXIT=$?"`, tree held STILL, content digest at both ends |
 | revert costs | W76's forwarding line and W77's `done` machinery each reverted ALONE against L6, and both together, each read by `$?` and by the FAIL count |
-| rule 8 | `node dev-dist/w78/rule8.mjs`, twice — the author pass and a re-run with the readers' exact edits checked back in. **Every probe that awaits a promise is BOUNDED and every real scheduler is shut down in a `finally`** ([Q323](../open-questions.md)), and the harness writes its originals to disk before the first edit so a kill leaves the tree restorable |
-| **W76's 25 and W77's 34 probes, re-run HERE** | the dated-ceiling clause: this item rewrites `AGENTS.md` §10, which W76's `b1`/`b2` anchor on, and every snippet W77's `check:docs` probes reach. [Q317](../open-questions.md) is read before any DECLARED verdict from either set is trusted |
+| rule 8 | `node dev-dist/w78/rule8.mjs`, twice — the author pass and a re-run with the readers' exact edits checked back in. **Every probe that awaits a promise is BOUNDED and every real scheduler is shut down in a `finally`** ([Q323](../questions/q323.md)), and the harness writes its originals to disk before the first edit so a kill leaves the tree restorable |
+| **W76's 25 and W77's 34 probes, re-run HERE** | the dated-ceiling clause: this item rewrites `AGENTS.md` §10, which W76's `b1`/`b2` anchor on, and every snippet W77's `check:docs` probes reach. [Q317](../questions/q317.md) is read before any DECLARED verdict from either set is trusted |
 | both readers | conformity and adequacy per section 6, adequacy in an isolated copy, both reading P20, ADR 0014 and ADR 0058 before the artifact |
 
 *This item touches routing not at all. A branch routed away from its join (Q4), `user_action` (Q17),
@@ -311,7 +311,7 @@ available and does not make anyone read it). Node 24.20.0 asserted in every shel
 | rule 8, RE-RUN with the readers' exact edits checked back in | **RAN** | **33 probes: 1 control green, 20 CAUGHT, 12 declared ceilings RUN, 0 UNDECLARED survivors, 0 crashes, 0 timeouts, 0 aborts, 0 against declaration.** All NINE reader edits are probes; five FIRE and four are declared with a stated reason and a NAMED second route. Digest identical at both ends of every pass |
 | **W76's 25 and W77's 34 probes, re-run HERE** | **RAN — 23 + 28 caught, 1 + 5 declared ceilings, ZERO catches** | `doc/workflow.md` rule 8's dated-ceiling clause, in the item that rewrites both files their anchors live in. **Both predecessor sets hold entirely on this tree**, and the digest is identical at both ends of each |
 | revert costs at L6 | **MEASURED on the tree that ships** | **W76 alone 2, W77 alone 8, both 10 — additive.** Before this block each cost **ZERO**: both items declared L6 UNMOVED and nothing at this rung reached either half. *W77's read 4 until the conformity reader's finding 9; the two clauses that were self-comparing are the difference* |
-| [Q142](../open-questions.md) | **measured, does NOT fire** | `M3 = 107` against a fixture of **104** (margin 3), `M4 = 4450` against **4382** (margin 68), re-measured AFTER the record step — the tightest that bound has been at any item here, and it holds. *(It read 4347 / margin 103 before the record step's six files.)* |
+| [Q142](../questions/q142.md) | **measured, does NOT fire** | `M3 = 107` against a fixture of **104** (margin 3), `M4 = 4450` against **4382** (margin 68), re-measured AFTER the record step — the tightest that bound has been at any item here, and it holds. *(It read 4347 / margin 103 before the record step's six files.)* |
 | census | **252 / 195 / 2 / 55**, 252 of 252 in exactly one cluster cell, **0 aborts** | from 248 / 191 / 2 / 55, by `dev-dist/p15/census.mjs` unchanged: Q324-Q327 raised and placed, none resolved; Q328-Q329 unused and SPENT. **The register's headline was CORRECT on arrival for the first time in five items**, because W77 fixed it at its own record step rather than leaving it to its successor. *(This row read 248 / 191 — the figure from BEFORE this item's own four rows: the same WHEN-clause defect as the `check:markdown` row above, in the same table, found in the same pass.)* |
 | `Owns` audit | **ONE LATE exception, declared before the Record** | `git status --porcelain` by hand: `Owns` (5 files) + the six record-step files + this file + **`scripts/check-docs-selftest.mjs` LATE**, found by the confirming gate rather than by reading. **`src/**` ZERO edits, so P20's scope tripwire is clean**, and `scripts/check-source.mjs`, `scripts/check-markdown.mjs`, `scripts/build-browser-tests.mjs` and `test/definition/l4-corpus.test.ts` are all UNTOUCHED — four seeded predictions, all four CONFIRMED |
 | `npm run gate`, CONFIRMING (first run) | **GATE EXIT=1, ONE FAIL line** | `check:docs:selftest`'s `X4` probe reporting *the mutation matched nothing* — rule 7 (b) on an anchor §7's restructure moved. Digest `6e0414786b8b6f70` over 365 files, **IDENTICAL before and after**, so the tree did not move while it ran |
@@ -321,7 +321,7 @@ available and does not make anyone read it). Node 24.20.0 asserted in every shel
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| (1) the thirteen copies reduced, the residue MEASURED | **yes — 13 → 1, 135 lines → 16** | `b1` (§2's reduction reverted in `AGENTS.md` alone): `check:docs` red at `X3`/`X4`/`X5`. **The reduction itself has NO RUNG** — re-expanding every block to the old hand-rolled shape is green everywhere, and the only thing that counts them is an UNTRACKED harness ([Q324](../open-questions.md)) |
+| (1) the thirteen copies reduced, the residue MEASURED | **yes — 13 → 1, 135 lines → 16** | `b1` (§2's reduction reverted in `AGENTS.md` alone): `check:docs` red at `X3`/`X4`/`X5`. **The reduction itself has NO RUNG** — re-expanding every block to the old hand-rolled shape is green everywhere, and the only thing that counts them is an UNTRACKED harness ([Q324](../questions/q324.md)) |
 | (2) `Promise.race` and the `awaiting_action` trap taught | **yes** — §7's snippet, §8's three bullets, §10's three bullets | `b3` (§7's deadline made to fire immediately): `FAIL X4`, so the race is LIVE. `r-c1` (the decision made to fail): caught. **`r-a1` is a declared ceiling and the declaration is the finding** — a timeout on a correct tree never fires, so nothing a correct run does can observe that it is there |
 | (3) ONE L6 block, TWO runs, the consumer holding only `{ driver, done }` | **yes** | `a1`, `a2`, `a3` (the two `src/` lines reverted): 2, 8 and 10. `b2` (an `onFoldInput` passed after all): the option-key membership names it. `a4` (the forwarding narrowed by variant): the element-for-element equality |
 | (4) the discriminating PAIR — `done` RESOLVES `stopped` | **yes** | `a5` (run B given run A's flow): 3 failures. **ADR 0058 rules 3 and 4 had no real-worker observer anywhere** before this: W77's `stopped` cases are on the recorded seam and its one real-scheduler case asserts `completed` (the conformity reader confirmed it) |
@@ -363,7 +363,7 @@ waits for `onRunFailure` rather than for terminality.)*
 **HOLDS** against code lines (119 against 26, 4.6x) and **FALSE** against raw lines (119 against
 171). And the reference shrank by only 35 net, because ~84 lines went back in as the teaching ADR
 0058 leaves to it. *In a repository whose `src/` is majority comment by convention, "lines added to
-`src/`" is ambiguous by a factor of six* — [Q326](../open-questions.md).
+`src/`" is ambiguous by a factor of six* — [Q326](../questions/q326.md).
 
 **What broke.**
 
@@ -401,13 +401,13 @@ waits for `onRunFailure` rather than for terminality.)*
    in the same column that carries a real 2 or 10. It had no timeout, no crash discrimination and no
    control, because it was a measurement harness rather than a rule 8 one and nothing obliged it to
    be. **The authoritative revert costs are the rule 8 probes**, which carry all three.
-   [Q327](../open-questions.md).
+   [Q327](../questions/q327.md).
 
 6. **§7's `Promise.race` was written where it could not fire** — the author pass's one undeclared
    survivor. The deadline was armed AFTER the poll had already resolved the parked task, so `done`
    was settled before the race began and a 0 ms timeout changed nothing. *A deadline written where
    its other side has already lost demonstrates the shape and cannot exercise it* —
-   [Q325](../open-questions.md). Restructured to race the decision; the probe now costs `X4`.
+   [Q325](../questions/q325.md). Restructured to race the decision; the probe now costs `X4`.
 
 7. **And the restructure put the defect back one line along, which is why the readers matter.** With
    `person` awaited AFTER the race, a run that never parks leaves the poll looping for ever, and its
@@ -417,7 +417,7 @@ waits for `onRunFailure` rather than for terminality.)*
 8. **`r-c1b` was DECLARED a crash and MEASURED a catch.** The reader saw Node kill its own child
    fatally; through `check:docs` the same death arrives as `X4`, exit 1, one named FAIL line, because
    `X4` runs each snippet in a child and reports a non-zero exit whatever killed it. **So at that rung
-   the two shapes are indistinguishable** — [Q138](../open-questions.md) one document across — and the
+   the two shapes are indistinguishable** — [Q138](../questions/q138.md) one document across — and the
    *crash versus detection* discrimination the pair was written for does not exist there.
 
 9. **The item's own finding D was wrong in BOTH directions**, written from the plan before the
@@ -430,7 +430,7 @@ waits for `onRunFailure` rather than for terminality.)*
     `createRuntime` "hands back a `Driver` per run" while its `README.md` twin had been corrected by
     W77 — the two documents disagreeing on one sentence, in the direction section 1 rule 5's THIRD
     clause names; `README.md` carried **1627 / 53** in two places while `examples/README.md` was
-    updated, which is [Q171](../open-questions.md) verbatim and the sentence that page carries about
+    updated, which is [Q171](../questions/q171.md) verbatim and the sentence that page carries about
     itself; **ADR 0058's Context cited a phrase this item DELETED** (*"load-bearing rather than
     decoration"*), moved to §8 where the teaching now lives; and §7 claimed to be "the only deadline
     advice this document has" in a document to which this item added three more.
@@ -442,7 +442,7 @@ waits for `onRunFailure` rather than for terminality.)*
 
 13. **The CONFIRMING GATE went RED at `check:docs:selftest`, in a file this item does not own, and the fix for a READER's finding is what did it.** The `X4` probe *a snippet that stops producing its stated result* anchors on `if (!accepted || again) throw`; §7's restructure — made to close the conformity reader's findings 10 and 11, which were that `person`'s rejections reached a promise nothing had attached to — turned that `throw` into a `reject`. The probe reported **the mutation matched nothing**, which is rule 7 (b) working: a probe whose edit matches nothing FAILS rather than passing for the wrong reason. Re-anchored agnostically on the condition alone; **33/33 caught**. *No rung below the whole gate could have said so*, and it is the same self-test W74's conformity reader found red one plan earlier — there because the item MOVED the last fence, here because it moved a keyword inside one.
 
-12. **A shell heredoc ate `\n` escapes again** ([Q272](../open-questions.md)), in the patch that was
+12. **A shell heredoc ate `\n` escapes again** ([Q272](../questions/q272.md)), in the patch that was
     splitting a probe into a discriminating pair — the harness stopped parsing. Written as a file and
     the multi-line literals hoisted to named constants, which is the shape that cannot recur.
 
@@ -452,8 +452,8 @@ waits for `onRunFailure` rather than for terminality.)*
 item in twenty plans where that is the central output.** Re-expanding all ten blocks to their
 hand-rolled shape is green on `check:docs`, `check:markdown`, every typechecker and L6; the snippet
 COUNT is what `X4` binds, and the count does not move. The only thing that measured 13 → 1 is an
-**untracked harness in `dev-dist/`** — which is [Q253](../open-questions.md)'s row about the
-PRODUCT rather than about a facts harness, and it is [Q324](../open-questions.md).
+**untracked harness in `dev-dist/`** — which is [Q253](../questions/q253.md)'s row about the
+PRODUCT rather than about a facts harness, and it is [Q324](../questions/q324.md).
 
 **And the same item shows the two halves of that row apart.** P20 fact 6A's printed line was
 falsified by W76 and the harness still exits 0 printing a lie; P20 fact 4's CODE was broken by W77's
@@ -477,9 +477,9 @@ a source swap; run A handed the clauses an object and **one token** re-sourced i
 fold. *One block, two shapes, and the projected one survived* — which is obligation (c)'s procedure
 answered by a coding habit rather than by a second observer.
 
-**Questions raised.** [Q324](../open-questions.md) (a documentation reduction has no rung and its only
-measure lives in no commit), [Q325](../open-questions.md) (a deadline taught in a position where its
-other side has already lost), [Q326](../open-questions.md) (*lines added to `src/`* is ambiguous by a
-factor of six here, and prediction 4 names neither count), [Q327](../open-questions.md) (a killed
+**Questions raised.** [Q324](../questions/q324.md) (a documentation reduction has no rung and its only
+measure lives in no commit), [Q325](../questions/q325.md) (a deadline taught in a position where its
+other side has already lost), [Q326](../questions/q326.md) (*lines added to `src/`* is ambiguous by a
+factor of six here, and prediction 4 names neither count), [Q327](../questions/q327.md) (a killed
 harness that keeps running, and a measurement harness that reports a killed rung as zero cost).
 **Q328 and Q329 reserved and unused, so they are spent. ADR 0059 not taken.**

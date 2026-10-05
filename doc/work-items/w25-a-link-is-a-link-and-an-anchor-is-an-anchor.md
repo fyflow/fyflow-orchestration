@@ -35,7 +35,7 @@ Reserves:   Q136-Q140, ADR 0033
 
 ## Why this item exists
 
-**[Q121](../open-questions.md): dead relative links in `doc/**` and `AGENTS.md` are mechanically
+**[Q121](../questions/q121.md): dead relative links in `doc/**` and `AGENTS.md` are mechanically
 checkable and nothing checks them**, while `check-spec`'s **`C5`** has done exactly this for `spec/**`
 since W1. `doc/` is upstream of every check in this repository and **seven retros have refused to
 mechanise it** — and this is the one sub-case that needs none of that argument, because a link target
@@ -98,7 +98,7 @@ discriminating case**, because the repository does not contain one.
   the id finds ten files and two of the matches are a different `C5`. Worth knowing before an item
   goes looking for citations of one.
 
-## The one late exception, and it is [Q102](../open-questions.md) reproducing inside P8
+## The one late exception, and it is [Q102](../questions/q102.md) reproducing inside P8
 
 **`doc/workflow.md` section 7 rule 2's exceptions table, declared as soon as it was found rather
 than at the Record.**
@@ -108,7 +108,7 @@ than at the Record.**
 | `scripts/check-source.mjs` | **`S12` requires it.** This item adds `check:markdown` and `check:markdown:selftest` to `package.json`, and [W24](w24-the-gates-own-wiring.md)'s `S12` asserts the gate chain **equals** the `GATE_CHAIN` literal in that file — so an entry added to the chain and not to the list is a failure, by design. The edit is two lines |
 | `doc/plans/p8-what-can-be-deleted-with-the-gate-green.md` | **Not only its Record**, which is the part section 1 rule 5 grants. This item's declaration measured **decision 3's argument false** and corrected it **in place**, per the convention P7 used when W22 falsified one of its decisions — and it also edited the plan's Scope bullet and its work-item index row. **Missed on the first pass and added by W25's conformity reader**, which is the second entry in a table this item declared as having one |
 
-**This is the first test of W24's answer to [Q102](../open-questions.md) and it fired one item
+**This is the first test of W24's answer to [Q102](../questions/q102.md) and it fired one item
 later, not one plan later.** W24's Record said an owner *moves, narrows and multiplies* the problem
 and that *"what settles the ownership half is the next plan outside P8 that edits the gate chain."*
 **It did not take another plan.** P8's own work-item table — which this item's `Owns` was written from,
@@ -152,19 +152,19 @@ reading of it.**
   `C6`-`C8` are about rule ids, examples, refusals and a version column, and probing them means
   mutating `spec/**`, which is in no P8 item's `Owns` and which needs an input override per clause.
   **This item takes `C5` because it is lifting `C5`**, and the remaining seven join
-  [Q132](../open-questions.md)'s nine as a measured gap with a named owner-shaped answer. *(The lifted
+  [Q132](../questions/q132.md)'s nine as a measured gap with a named owner-shaped answer. *(The lifted
   clause does get probes: they are this item's.)*
 - **Checking what a document SAYS.** P8: *"a false sentence is not in scope and this plan does not
   reopen that argument."* A dead link and an unresolvable anchor are arithmetic; a wrong claim is not.
 - **Renaming or renumbering `C5`.** Nine documents cite it and section 3 forbids it. The lift shares an
   implementation and `check-spec` still reports `C5 links resolve`.
-- **[Q131](../open-questions.md) and [Q135](../open-questions.md) — the register's malformed rows.**
+- **[Q131](../questions/q131.md) and [Q135](../questions/q135.md) — the register's malformed rows.**
   Three rows render their cells wrong and **all three are deliberately left unfixed** so that whoever
   builds a cell-count check has live defects to fire on. A cell-count clause is **not** in this item;
   P8 named it as mechanically decidable, and W26 — the item that would have taken it — was dropped.
-- **[Q123](../open-questions.md) — line endings.** Same reason: W26 was dropped and the row has no
+- **[Q123](../questions/q123.md) — line endings.** Same reason: W26 was dropped and the row has no
   owner.
-- **[Q100](../open-questions.md)'s class.** This check's report is a render; W24's answer — requiring
+- **[Q100](../questions/q100.md)'s class.** This check's report is a render; W24's answer — requiring
   the report rows and the failure lines to agree — is available here and is the standard this item
   should meet rather than a thing it gets to skip.
 
@@ -205,7 +205,7 @@ The expected numbers, **to be re-derived rather than copied at the Record**: 474
 × node, deno, chromium, and 489 assertions / 25 real runs / 23 row labels at L6 × node and deno.
 *(`npm run gate` runs `test:browser`, which is **chromium only**; firefox and webkit need
 `test:browser:all`, which the gate does not run. `474` counts `test()` **cases** and `489` counts
-individual assertions — [Q98](../open-questions.md) — so they are never added. The row-label count is
+individual assertions — [Q98](../questions/q98.md) — so they are never added. The row-label count is
 derived from the run count, not read from a header.)*
 
 **Routing cases.** *Not applicable, and stated rather than left silent*: this item touches no routing,
@@ -268,11 +268,11 @@ reach, measured against the file as shipped rather than copied from a sibling.
 | Clause | Verdict | Notes |
 |---|---|---|
 | L0 own coverage | **pass** | `check:markdown` 5 checks over **62 documents / 1577 relative links / 78 anchored**; `check:markdown:selftest` **37 probes, 37 META gradings, 3 SELF gradings**; `check:spec` C1-C8 with `C5` served by the lift; `check:source` S1-S13, 18 gate entries; `lint` 43 files; `typecheck` 5 projects |
-| L1-L6 regression | **pass, and UNMOVED** | **474 assertions, 19 files** in node 24.20.0, deno 2.9.6 and chromium; **489 assertions, 25 real runs, 23 row labels** at L6 in node and deno. Identical to the pre-item baseline. *(`test:browser` is **chromium only**; firefox and webkit need `test:browser:all`, which the gate does not run and this item did not run. `474` counts `test()` **cases** and `489` counts individual assertions — [Q98](../open-questions.md) — so they are never added.)* |
+| L1-L6 regression | **pass, and UNMOVED** | **474 assertions, 19 files** in node 24.20.0, deno 2.9.6 and chromium; **489 assertions, 25 real runs, 23 row labels** at L6 in node and deno. Identical to the pre-item baseline. *(`test:browser` is **chromium only**; firefox and webkit need `test:browser:all`, which the gate does not run and this item did not run. `474` counts `test()` **cases** and `489` counts individual assertions — [Q98](../questions/q98.md) — so they are never added.)* |
 | conformity reader | **13 findings, 2 BLOCKING**, all acted on | Both blocking ones were in the check's centre — see *What broke* |
 | adequacy reader | **75 mutations, 23 survivors, 7 BLOCKING**, all acted on | Ran in an isolated copy verified green first; zero symlinks and zero reparse points before and after; copy left in place |
 | **a FIRST reader died mid-run** | **partial, salvaged, re-verified** | An earlier adequacy pass was interrupted with no report. Its harness and logs were salvaged to `scratchpad/w25-salvage/`, its candidate survivors **re-verified by the author against the current tree** — its own verdicts were partly stale — and all of them closed before the replacement reader started, which was told what ground was covered. **Recorded because a stopped agent's log is a claim, not a measurement** |
-| overlap | **2 of 20** | `C5`'s missing vacuity guard ([Q137](../open-questions.md)) and *the report rows are counted from nothing*. Union 13 + 9 − 2. Inside the 1-4 absolute band section 6 declares settled |
+| overlap | **2 of 20** | `C5`'s missing vacuity guard ([Q137](../questions/q137.md)) and *the report rows are counted from nothing*. Union 13 + 9 − 2. Inside the 1-4 absolute band section 6 declares settled |
 | re-run at the fixes | **fired four times, and twice it changed an outcome** | Rule 8's re-run after acting. It caught: an off-by-one cap mutation (`min(n,3)` still emits `-2`); **four probes wrong at birth**; **two META entries that matched a comment instead of the code**; and two probes that could not discriminate at all. The readers' own edits are checked in — **26 of them** |
 
 **Outputs — what was actually built.**
@@ -361,7 +361,7 @@ implementation. **Three clauses, three corpora that cannot falsify them.** The g
 item offers: *a check written for a defect you have just fixed has no live case by construction, and
 its probes are not a supplement to the corpus but the whole of its evidence.*
 
-**And [Q102](../open-questions.md) reproduced one item later, not one plan later.** W24's Record said
+**And [Q102](../questions/q102.md) reproduced one item later, not one plan later.** W24's Record said
 the ownership question would be settled by *"the next plan outside P8 that edits the gate chain"*. It
 took the next **item**: W25 adds two `check:*` entries, `S12` obliges the `GATE_CHAIN` literal in
 `scripts/check-source.mjs`, and this item's `Owns` — written from P8's index row, which predates
@@ -378,11 +378,11 @@ pass and added by the conformity reader**, in a table this item had declared as 
 **Questions raised.** Q136-Q138, one line each, and written to `doc/open-questions.md`. **Q139 and
 Q140 are unused and are skipped.**
 
-- **[Q136](../open-questions.md)** — ten markdown shapes the check cannot see, all at zero occurrences,
+- **[Q136](../questions/q136.md)** — ten markdown shapes the check cannot see, all at zero occurrences,
   failing in **both** directions; one of them was miscategorised in the file that declares them.
-- **[Q137](../open-questions.md)** — `C5` did not inherit `M3`: `spec/`'s link check can still pass
+- **[Q137](../questions/q137.md)** — `C5` did not inherit `M3`: `spec/`'s link check can still pass
   vacuously where `doc/`'s cannot, and filtering one of `spec/`'s seven documents out costs 0.
-- **[Q138](../open-questions.md)** — the META pass asserts that **some** probe notices, never **which**,
+- **[Q138](../questions/q138.md)** — the META pass asserts that **some** probe notices, never **which**,
   which is what let two entries report a verdict about a check that was never broken — and it is why
   `check:markdown:selftest` costs **2m31 to 3m14** of a **4m46 to 6m00** gate — two runs of the same tree each, so the absolutes vary by a quarter and the **ratio does not: roughly half the gate, either way**.
 

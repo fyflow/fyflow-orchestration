@@ -120,7 +120,7 @@ changes cannot be tried locally without unpinning.
 `package.json` and `examples/deno-import-map.json` both carry `0.5.2`, and `D3` is what makes
 forgetting one of them a failure rather than a silent divergence.
 
-**What is unchanged and should not be re-litigated.** [Q33](../open-questions.md)'s answer — L6 runs
+**What is unchanged and should not be re-litigated.** [Q33](../questions/q33.md)'s answer — L6 runs
 in Node **and** Deno — stands, and so does half of the reason: a typed `.ts` worker runs fine under
 Node 24.
 
@@ -148,7 +148,7 @@ it should not, that is ADR 0013 rule 1 and it is untouched. *(**Decided YES on 2
 [ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)**, which
 supersedes that rule; the sentence stays as the record of what this decision believed it was leaving
 alone.)* Which version to pin next
-([Q3](../open-questions.md)) — **0.5.2 since 2026-09-08**, and a bump still means re-reading
+([Q3](../questions/q3.md)) — **0.5.2 since 2026-09-08**, and a bump still means re-reading
 `AGENTS.md` section 6 because there is still **no changelog**. *(This read 0.3.0 when the ADR was
 written; the pin has moved twice since, by W36 and [W37](../work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).)*
 

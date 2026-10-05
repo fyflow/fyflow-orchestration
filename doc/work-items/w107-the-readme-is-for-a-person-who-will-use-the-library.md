@@ -63,14 +63,14 @@ Under this contract the README keeps **three** and the floor moves with it.
 ## What to be careful of
 
 1. **`README_SNIPPET_FLOOR` is a RATCHET and this lowers it, 8 -> 3.** That is the move
-   [Q102](../open-questions.md) exists to make visible and which this repository treats as *how a
+   [Q102](../questions/q102.md) exists to make visible and which this repository treats as *how a
    deliverable leaves*. It is legitimate here only because the DECISION above changes what the floor
    is counting — and the reason goes in the ADR, not in a comment. **W101's adequacy reader (F12)
    measured that lowering it is NOT caught by `check:docs:selftest`**, so nothing will stop a later
    author lowering it again for a worse reason; that is the residue and it is Q102's own shape.
 2. **`X10` loses a subject and that is a coverage REDUCTION.** It holds every current copy of ladder
    L6's counts against `examples/l6.ts`; README carries three of them and all three go. `X10` keeps
-   `examples/README.md`, so the clause survives with a smaller universe — but [Q171](../open-questions.md)
+   `examples/README.md`, so the clause survives with a smaller universe — but [Q171](../questions/q171.md)
    is the row about those counts going stale, and README was one of the two places the check was built
    to watch. Record it rather than let it pass as tidying.
 3. **Deleting is not the same as having a home.** Decision (4) is a check, not a courtesy: for every
@@ -148,7 +148,7 @@ reports *compared 3 README snippet(s) … byte for byte … both ways*.
    version sentence stopped being bold when the document became a consumer's, so the probe went DEAD
    while **`X9` itself stayed green**, because `X9`'s own pattern never required the bold. Re-anchored
    on what the clause reads. *A probe anchored on a document's formatting is a probe about the
-   formatting* ([Q441](../open-questions.md)).
+   formatting* ([Q441](../questions/q441.md)).
 2. **The *fence above the first heading* probe stopped being about the opening.** It anchored on
    `## Getting started` while that was the FIRST heading; `## Install` now sits above it, so the
    inserted fence landed at the end of an UNLISTED section and clause (ii) caught it on its own — and
@@ -159,7 +159,7 @@ reports *compared 3 README snippet(s) … byte for byte … both ways*.
    looks for it* arm. The lane said so loudly — two `META` entries ABORTED with *no probe is named …*,
    rule 7 (c) working — and an `examples/README.md` equivalent was ADDED. Seven of the twelve remain:
    both copies, both directions, the missing declaration, two decoys. *A smaller universe is not the
-   same as smaller coverage* ([Q440](../open-questions.md)).
+   same as smaller coverage* ([Q440](../questions/q440.md)).
 4. **I put a correction on the WRONG one of two adjacent probes.** The note about a declared set
    changing went on *an indented fence, ditto*, which mutates the FIRST fence — still paired, so it
    still trips both. The one that moved is *an unclosed fence*, which mutates the LAST. Rule 7 (c)
@@ -242,7 +242,7 @@ overlapped by the author's own doing. The six: the register's table break, the `
 | **one of the three examples deletable with the whole lane green** — a pairing DUPLICATED takes the length back over the floor, and the reader deleted `## Checking a flow before it runs` whole (6554 bytes) at `check:docs` EXIT 0, `check:markdown` EXIT 0 and **all 47 probes still caught**, because no probe anchors on the third pairing | **0** | both sides of `README_SNIPPETS` held distinct, which is `X11`'s `duplicated` clause one check along; the message names the mechanism — *the floor is satisfied by a duplicate* |
 | `X10` carried `X8`'s own defect, **in the block this item edited**, with no floor of any kind — narrowing its loop EXIT 0, deleting an entry EXIT 0 with the note printing *compared 1 copies* | **0** | `COPIES_FLOOR` and a per-entry verdict |
 | the **re-anchoring was also a reduction**: two probes moved from line 935 of 1101 to line 23 of 317, so the section loop narrows to its first TWO sections and the line scan to the first 30 of 317, both lane-green | **0** | both anchored at the README's LAST section, which is the whole document again at no cost |
-| ADR 0073 decision 2 is a **TAUTOLOGY** — a reinstated `## Current state` with plan history, withdrawn gate figures, correction archaeology and a stale L6 count in the exact sentence shape `X10` used to hold, all three checks green | **0** | NOT closed; recorded as ADR 0073 consequence 10 and [Q443](../open-questions.md) |
+| ADR 0073 decision 2 is a **TAUTOLOGY** — a reinstated `## Current state` with plan history, withdrawn gate figures, correction archaeology and a stale L6 count in the exact sentence shape `X10` used to hold, all three checks green | **0** | NOT closed; recorded as ADR 0073 consequence 10 and [Q443](../questions/q443.md) |
 
 **And two defects were in the author's own instruments rather than in the product.** The duplication
 probe used `bytes.replace(old, new, 0)` — count zero replaces nothing — so it reported EXIT 0 having
@@ -263,7 +263,7 @@ crash is not a detection*, in the harness measuring it.
 CAUGHT, TWO declared ceilings, ZERO aborts, digest `45cd73df94cb03ed` identical at both ends.**
 
 The two ceilings: **`b1`**, the floor lowered, which is this item's own
-[Q439](../open-questions.md) — W101's adequacy reader measured that lowering it is not caught, and
+[Q439](../questions/q439.md) — W101's adequacy reader measured that lowering it is not caught, and
 W107 lowered it deliberately, so the next lowering has a decision above it and nothing below it; and
 **`d2`**, the unlisted-section loop emptied, which is **inert on the shipped tree by construction**
 because every README fence is under a listed heading — `a1` is what binds that clause, by adding an

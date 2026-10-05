@@ -128,7 +128,7 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     // **The bound is READ FROM THE SPEC, not written beside the list** — W41's
     // adequacy reader, whose compound probe deleted one form AND narrowed the
     // literal to match, for **0 failures**. A magic number beside its own list is
-    // [Q102](../../doc/open-questions.md)'s shape and cannot survive an edit that
+    // [Q102](../../doc/questions/q102.md)'s shape and cannot survive an edit that
     // touches both; a count taken from `spec/flow-definition.md` section 3's own
     // reference table lives in a file this one does not own, so the same probe has
     // to edit the NORMATIVE document to stay green — which is the whole point.
@@ -209,7 +209,7 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     // list it bounds** — W45's rule 8 re-run found it: `cells.length ===
     // Object.keys(bodies).length * Object.keys(suffixes).length` shrinks on BOTH
     // sides when an axis member leaves, so dropping `empty` cost **0**. That is
-    // [Q102](../../doc/open-questions.md)'s shape inside the fix for a reader's
+    // [Q102](../../doc/questions/q102.md)'s shape inside the fix for a reader's
     // finding about exactly that shape, which is rule 8's own founding observation.
     equal(Object.keys(bodies).sort(), ['dot', 'empty', 'invalid', 'valid'],
       'the BODY axis is a valid id, an id outside the charset, the `.` token and the empty string — ' +
@@ -758,7 +758,7 @@ suite('L1 — FD-V29: an unconditional reference names a node that MUST have run
  * executable L2 clause where this one was prose in three files.
  *
  * **The four PROPERTIES are asserted and the four absolute NUMBERS are not**, which
- * is deliberate and is [Q102](../../doc/open-questions.md)'s shape avoided rather
+ * is deliberate and is [Q102](../../doc/questions/q102.md)'s shape avoided rather
  * than met: `127 / 30 / 8 / 22` are true of the corpus this rule was decided over and
  * would go stale the next time anyone adds a flow, so pinning them would oblige every
  * future item to retune a literal it has no opinion about. The properties are what the

@@ -52,8 +52,8 @@ Reserves:   Q194-Q198. NO ADR - see Scope Out.
 
 1. **P12's exit artifact.** The two flows the plan named as *ordinary flows this library cannot
    express today*, expressed and **run on real workers in both L6 runtimes**:
-   [Q166](../open-questions.md)'s *score each item against the run's config* and
-   [Q165](../open-questions.md)'s *score, then fan out over the scores*.
+   [Q166](../questions/q166.md)'s *score each item against the run's config* and
+   [Q165](../questions/q165.md)'s *score, then fan out over the scores*.
 2. **A third row, for W42.** The plan's row asks for *what reverting each item costs measured in L6
    failures*, and measurement 3 below shows that neither of the two flows carries an edge-level
    `needs` — so without a third row that clause is unsatisfiable for W42 and its revert cost is
@@ -76,12 +76,12 @@ Reserves:   Q194-Q198. NO ADR - see Scope Out.
   it does not decide. If real workers force a decision, that is a **stop and ask the maintainer**.
 - **W44.** Reserved and expected unused, and this item does not need it.
 - **Q19's actual question** (is retention bounded), **Q21** redaction, **Q15** resumability, **Q9**
-  predicate purity, **Q22**'s constraint decision, and **the gate** — [Q181](../open-questions.md),
-  [Q182](../open-questions.md) and [Q183](../open-questions.md) are live, unowned and not P12's.
+  predicate purity, **Q22**'s constraint decision, and **the gate** — [Q181](../questions/q181.md),
+  [Q182](../questions/q182.md) and [Q183](../questions/q183.md) are live, unowned and not P12's.
   All named OUT by the plan.
-- **[Q165](../open-questions.md)'s reducer.** The plan takes *the FLOW as a case and not the reducer
+- **[Q165](../questions/q165.md)'s reducer.** The plan takes *the FLOW as a case and not the reducer
   as a feature*. The flow runs here; `reduce:` is not built and stays unowned.
-- **[Q186](../open-questions.md)** — the cost of pointing a `needs` key at a large value. W41 raised
+- **[Q186](../questions/q186.md)** — the cost of pointing a `needs` key at a large value. W41 raised
   it; L6 runs three-word payloads and would measure nothing about it.
 
 ## What the declaration measured
@@ -151,14 +151,14 @@ How each clause of `Gate:` is actually run. Name the commands.
 | rule 8 | the whole set — five obligations, the three requirements on the set, and the requirement on the harness (a control, and the restore asserted) — run once by the author and **re-run after the readers**, with their exact edits checked back in |
 | `npm run gate` | last, in the background, with a **control** first: W42's two red runs are this gate's standing evidence that it can fail |
 
-**Routing coverage, per the template.** A branch routed away from its join ([Q4](../open-questions.md)):
+**Routing coverage, per the template.** A branch routed away from its join ([Q4](../questions/q4.md)):
 **not applicable** — no row here routes a branch away; `p1-routed-away` covers it and is unmoved.
-`user_action` ([Q17](../open-questions.md)): **not covered by this item's rows**; W6's two rows are
-unmoved. No matching decision edge ([Q10](../open-questions.md)): **not covered** — every decision
+`user_action` ([Q17](../questions/q17.md)): **not covered by this item's rows**; W6's two rows are
+unmoved. No matching decision edge ([Q10](../questions/q10.md)): **not covered** — every decision
 row here has a default edge, and the refusal is L1's. A duplicate task id
-([Q13](../open-questions.md)): **not covered directly**, and the map rows are its live pressure —
+([Q13](../questions/q13.md)): **not covered directly**, and the map rows are its live pressure —
 three instances of one node id at three branch paths, which is `ID-R6`'s whole reason for existing.
-A nested fan-out ([Q6](../open-questions.md)): **not covered by this item's rows**; W23's four rows
+A nested fan-out ([Q6](../questions/q6.md)): **not covered by this item's rows**; W23's four rows
 and W35's `nested-map` are unmoved.
 
 ## Record
@@ -182,14 +182,14 @@ checked back in.
 | **overlap** | **2 of 39** | see below |
 | rule 8, author pass | **RAN** | 33 probes: 24 caught, 9 declared ceilings, 0 undeclared, 0 crash, 0 aborted — after three rounds of re-anchoring and two fixes to the item |
 | rule 8, re-run after the readers | **RAN** | **43 probes: 32 caught, 11 declared ceilings, 0 undeclared, 0 crash, 0 aborted**, with **ten of the readers' own edits checked back in and all ten firing** |
-| `npm run gate` | **RAN**, `GATE EXIT=0`, zero `FAIL` lines | 15 chain entries, `selftests — 7/7 completed, 7 ok`, **380.1 s wall / 723.6 s serial-equivalent over 5 lanes**. **A CONTROL was held first**: every entry was run individually green before the chain, and W42`s two red runs — at entry 1 and at entry 15, both with ZERO `FAIL` lines — are this gate`s standing evidence that it can fail. **[Q142](../open-questions.md) did not fire**: `M3` and `M4` were retuned to 74 and 2700 four documents earlier, and this item adds one |
+| `npm run gate` | **RAN**, `GATE EXIT=0`, zero `FAIL` lines | 15 chain entries, `selftests — 7/7 completed, 7 ok`, **380.1 s wall / 723.6 s serial-equivalent over 5 lanes**. **A CONTROL was held first**: every entry was run individually green before the chain, and W42`s two red runs — at entry 1 and at entry 15, both with ZERO `FAIL` lines — are this gate`s standing evidence that it can fail. **[Q142](../questions/q142.md) did not fire**: `M3` and `M4` were retuned to 74 and 2700 four documents earlier, and this item adds one |
 
 **Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| (1) **[Q166](../open-questions.md)'s flow on real workers, both runtimes** | yes — `map-with-context / Q166`, and a second row at another run config | probe 9 renames it out of `ROW_KEYS`: `cross-row` red. Probe 40 hollows its `nodeResults`: red |
-| (2) **[Q165](../open-questions.md)'s flow, with no `over: "0"`** | yes — `map-over-region-output / Q165`, two regions, the second's arity from the first's results | probe 10 drops `rank`'s `needs` and the run stops at `UnresolvedMapArity` |
+| (1) **[Q166](../questions/q166.md)'s flow on real workers, both runtimes** | yes — `map-with-context / Q166`, and a second row at another run config | probe 9 renames it out of `ROW_KEYS`: `cross-row` red. Probe 40 hollows its `nodeResults`: red |
+| (2) **[Q165](../questions/q165.md)'s flow, with no `over: "0"`** | yes — `map-over-region-output / Q165`, two regions, the second's arity from the first's results | probe 10 drops `rank`'s `needs` and the run stops at `UnresolvedMapArity` |
 | (3) **A row that exercises W42** | yes — `decision-on-an-earlier-step` LOW and HIGH | probe 13 is the W42 revert and costs 2; probes 36 and 37 are the reader's edits to the pair and both fire |
 | (4) **What reverting W41 costs, in L6 failures** | yes — **18**, on all three map rows | it is probe 12, and it is the measurement |
 | (5) **What reverting W42 costs, in L6 failures** | yes — **2**, on the LOW decision row | it is probe 13. **Before this item it was 0** |
@@ -235,15 +235,15 @@ PRODUCT item, and it is W41's shape for the FOURTH time.** `Role`, the `switch` 
 the pool's role and `run()` falls off the end of a switch TypeScript does not require to be
 exhaustive, returns `undefined`, and from a **thread** pool the scheduler's own message handler dies
 with `Cannot read properties of undefined (reading 'isWorkerTerminationRequest')` before any
-assertion runs — [Q194](../open-questions.md). Closed in one direction: `ROLES` is the list, `Role`
+assertion runs — [Q194](../questions/q194.md). Closed in one direction: `ROLES` is the list, `Role`
 is derived from it, `pool()` takes a `Role`, so the typo is `TS2345` at **ladder L0** naming all
 eight; and `run()` gains a `default` arm that throws naming the role. **The other direction is still
 open and the adequacy reader is why it is stated**: a member added to `ROLES` with no arm and no pool
-costs zero — [Q196](../open-questions.md).
+costs zero — [Q196](../questions/q196.md).
 
 **What this taught.**
 
-1. **A SENSOR CANNOT CORROBORATE ITSELF** — [Q195](../open-questions.md). ADR 0040 rule 6's *exactly*
+1. **A SENSOR CANNOT CORROBORATE ITSELF** — [Q195](../questions/q195.md). ADR 0040 rule 6's *exactly*
    can only be observed by something reading the composed payload's key set, and at L6 that is a
    worker. The author's rule 8 pass graded the provenance probe a **declared ceiling** on exactly
    that argument, and named L2 as the second route. **The adequacy reader measured what the ceiling
@@ -251,7 +251,7 @@ costs zero — [Q196](../open-questions.md).
    otherwise costs 8. *A ceiling declared with a correct reason is still a hole if the reason is
    about the observer rather than about the fact.* Closed by `extraKeys` — the negative form of the
    same reading, computed by a different expression — and the compound probe now fires.
-2. **A discriminating PAIR is a claim, and a claim needs an assertion** — [Q197](../open-questions.md).
+2. **A discriminating PAIR is a claim, and a claim needs an assertion** — [Q197](../questions/q197.md).
    This item added two rows whose whole purpose is to be the other half of a row beside them, and in
    **both** cases the differing property was carried by literals nothing compared: making the two run
    configs equal cost 0, and making the HIGH decision row LOW cost 0 — and with either done, the
@@ -271,7 +271,7 @@ costs zero — [Q196](../open-questions.md).
    *"Derive them"* and then restates the literals — and fixed it. **Its conformity reader then found
    the same class in `examples/README.md`, which this item also owns**, wrong in four places. The
    header's numbers are now gone rather than corrected; the README's are corrected, because a
-   markdown file cannot derive one ([Q100](../open-questions.md)).
+   markdown file cannot derive one ([Q100](../questions/q100.md)).
 
 **Obligation (e)'s SECOND QUESTION on a product item — what P12's retro is owed a verdict on.**
 
@@ -313,7 +313,7 @@ Everything else is inside `examples/**`: `l6.ts`, `run-flow.ts`, `workers/flow-w
 three plans** (W32 five, W33 nine, W34 five, W35 three, W41 and W42 eight and ten) — and the reason is
 structural rather than a virtue: **an exit artifact owns one tree and writes no rule**, so the
 `spec/**`, `AGENTS.md` and `scripts/**` obligations that produced every earlier late column have no
-instance here. **[Q142](../open-questions.md) did not fire** — this item adds one document and the
+instance here. **[Q142](../questions/q142.md) did not fire** — this item adds one document and the
 `M3`/`M4` floors were retuned to 74 and 2700 at W42, four documents earlier.
 
 **The one thing found and NOT fixed, because it is not this item's** — `spec/join-policy.md`
@@ -326,11 +326,11 @@ join-policy section 4 is **untouched** — **true of its rules and false of its 
 Found by W43's conformity reader while reading the spec before the artifact, which is the whole
 argument for that ordering.
 
-**Questions raised.** [Q194](../open-questions.md) a worker with no arm for its role kills the
-scheduler's own handler. [Q195](../open-questions.md) a sensor cannot corroborate itself.
-[Q196](../open-questions.md) `ROLES` binds its uses and not the switch arms.
-[Q197](../open-questions.md) a fixture coincidence moves rather than vanishes when the fixture
-changes. [Q198](../open-questions.md) a cross-row bound cannot detect its own vacuity and L6 has no
+**Questions raised.** [Q194](../questions/q194.md) a worker with no arm for its role kills the
+scheduler's own handler. [Q195](../questions/q195.md) a sensor cannot corroborate itself.
+[Q196](../questions/q196.md) `ROLES` binds its uses and not the switch arms.
+[Q197](../questions/q197.md) a fixture coincidence moves rather than vanishes when the fixture
+changes. [Q198](../questions/q198.md) a cross-row bound cannot detect its own vacuity and L6 has no
 self-test.
 
 **Resolved:** none. **That is what an exit artifact looks like in the register** — it demonstrates

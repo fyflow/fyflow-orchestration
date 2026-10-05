@@ -14,7 +14,7 @@ resolves: ""
 
 **Status:** accepted — **supersedes [ADR 0023](0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
 rule 2 and retires the first of that ADR's two preconditions**
-**Raised by:** [Q86](../open-questions.md), decided by
+**Raised by:** [Q86](../questions/q86.md), decided by
 [W18](../work-items/w18-the-scheduler-edge-and-what-an-id-we-did-not-mint-means.md) under
 [P6](../plans/p6-what-may-share-a-scheduler-with-a-driver.md)
 
@@ -211,7 +211,7 @@ out, and it is the second time that passage has been needed.
 **What a future reader will try.** Widening `onUnmintedTask` to cover `ID-R4` tier 1 as well, so
 *"every settlement I dropped"* is one channel. **Resist it**: rule 4's asymmetry is an argument about
 who else will report the thing, not a gap in coverage, and merging the two would make a driver noisy
-on precisely the case ADR 0023 chose silence for. If it ever lands, [Q20](../open-questions.md) —
+on precisely the case ADR 0023 chose silence for. If it ever lands, [Q20](../questions/q20.md) —
 whether a run id is global at all — is the question that decides it, exactly as ADR 0023 said.
 
 ## Alternatives rejected
@@ -223,4 +223,4 @@ whether a run id is global at all — is the question that decides it, exactly a
 | **Report it through `onRunFailure` with a new `kind`** | **The run has not failed.** `RunFailure`'s whole contract is *"the driver has stopped routing it"* and a caller keys on that; a `kind` that arrives without the stop makes the type lie to every existing consumer |
 | **Report it as a new `FoldInput` kind**, so it lands in the sequence and `RunState` can carry it | Puts an unparseable string into the one place that parses every id it is given — `fold()` would throw `InvalidTaskId` at `run-state.ts:154`. **Decision rule 5.** It is also wrong in principle: the fold's sequence is *this run's* record, and this event is definitionally not this run's |
 | **A total `tryParseTaskId`, exported, instead of `try`/`catch`** | A second entry point into the id grammar, which `spec/task-id.md` section 2 is about, and it throws away `parseTaskId`'s message — the report's most useful field. The `catch` costs one exception per foreign settlement, which is the right side of that trade |
-| **Keep stopping, but only for ids that "look like" ours** — a prefix check before the full parse | There is nothing to check against. A run id is caller-supplied (`ID-R2`, [Q34](../open-questions.md)) and the driver knows only its own, so *"looks like a flow id"* and *"parses"* are the same predicate with a worse spelling |
+| **Keep stopping, but only for ids that "look like" ours** — a prefix check before the full parse | There is nothing to check against. A run id is caller-supplied (`ID-R2`, [Q34](../questions/q34.md)) and the driver knows only its own, so *"looks like a flow id"* and *"parses"* are the same predicate with a worse spelling |

@@ -17,7 +17,7 @@ two decisions, *what validates the schemas a registry document declares*, on tha
 and 8 and its fact 1. **The choice — a built-in SUBSET over a dependency — is the maintainer's, taken
 at the draft on 2026-09-15 once fact 1 had priced all three candidates, and this record is written
 from the decision rather than re-taking it.** The second half, *what happens to a keyword the subset
-does not have*, is [Q278](../open-questions.md), decided at the declaration for W65. **One departure from
+does not have*, is [Q278](../questions/q278.md), decided at the declaration for W65. **One departure from
 the plan's decision 8, named here**: that decision put the validator on the RUNTIME sub-path, and it lives
 in `src/definition/**` and is exported from the root, because the DRIVER applies it (`FD-V33` at
 `new Driver`) and it imports nothing (decision 1 below). Amends nothing:
@@ -81,7 +81,7 @@ it** (`test/definition/schema.test.ts`):
    schema and not a tuple. **`number` and `integer` admit FINITE numbers only** (fact 2). An empty
    schema `{}` is in the subset and accepts every value.
 3. **A keyword outside the subset is REFUSED at construction naming the keyword and its path, never
-   ignored** — [Q278](../open-questions.md), decided at P18's declaration. `schemaProblem` walks
+   ignored** — [Q278](../questions/q278.md), decided at P18's declaration. `schemaProblem` walks
    every declared schema, `properties` and `items` included, before any value is checked, and the
    first keyword it does not know is a `SchemaRefused` naming the worker, the field, the path inside
    the schema and the keyword. A keyword's VALUE has a shape too, and a wrong one is refused the same
@@ -123,7 +123,7 @@ the same thing `FD-V17` does for a flow document's keys.
 2. **`description` and `title` are refused** (rule 3), which will surprise an author who annotates
    schemas out of habit. The alternative — a list of ignorable keywords — is a second enumeration,
    and every list in this repository that was not bound to something went stale
-   ([Q102](../open-questions.md)'s shape); the refusal is the smaller thing to be wrong about.
+   ([Q102](../questions/q102.md)'s shape); the refusal is the smaller thing to be wrong about.
 3. **The subset has no way to say *exclusive*** (`exclusiveMinimum` is outside it), so *a positive
    number* is written `minimum: 0` and accepts zero, or the consumer refuses zero in the worker. The
    corpus's `Scorer` type had a function that refused zero; its schema does not, and the corpus's

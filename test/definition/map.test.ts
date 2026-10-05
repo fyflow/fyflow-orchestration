@@ -2,7 +2,7 @@
  * **A `map` node** — `spec/flow-definition.md` v0.8 sections 2, 4 and 5, and
  * `spec/task-id.md` v0.8 sections 1 and 3, under
  * [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md),
- * answering [Q12](../../doc/open-questions.md): **fan-out is two features over one
+ * answering [Q12](../../doc/questions/q12.md): **fan-out is two features over one
  * region.**
  *
  * **Every expected value below was derived from the spec text before the validator

@@ -1,7 +1,7 @@
 /**
  * Ladder L1 — **resuming through the RUNTIME**: `runtime.resume` (`RN-R25`), the positions a consumer is
  * handed through ADR 0058's composition (`RN-R24`), and the run ids in use
- * ([Q364](../../doc/open-questions.md), P23 stop-and-ask (b)).
+ * ([Q364](../../doc/questions/q364.md), P23 stop-and-ask (b)).
  * [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
  * [W89](../../doc/work-items/w89-what-resuming-is.md). `createRuntime`'s two construction seams, as
  * `test/scheduler/checkpoint.test.ts` uses them, so nothing here builds a thread.

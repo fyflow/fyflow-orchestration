@@ -93,8 +93,8 @@ the other is an easy and expensive mistake, so:
    retires a threat to P1's validity**.
 5. **The resource events are still mostly not ours.** They make a *scheduler-level* stall visible. A
    stuck **join** is a flow-level condition with nothing queued and nothing blocked, so no
-   `resource.blocked` fires for it — [Q7](open-questions.md) stays entirely ours.
-6. **Two patterns there are worth stealing if [Q21](open-questions.md) lands.** §6.2 — *one
+   `resource.blocked` fires for it — [Q7](questions/q7.md) stays entirely ours.
+6. **Two patterns there are worth stealing if [Q21](questions/q21.md) lands.** §6.2 — *one
    emitter only*, because a consumer listening to two `EventTarget`s double-counts — and §3.5 —
    *an unrecognised gauge kind renders as `level`*, so a vocabulary can grow without breaking
    deployed viewers. Both shipped and are now documented in `AGENTS.md` §6.
@@ -107,7 +107,7 @@ the other is an easy and expensive mistake, so:
   `AGENTS.md` documents both. There is no changelog, so a 0.2.1 consumer reading `detail.taskId`
   gets `undefined` silently. We do not consume it yet; W3 must not assume the 0.2.1 shape.
 - **`released.reason: 'settled'` is per *attempt*, not per task.** A retried or requeued task emits
-  one pair per attempt. Relevant to [Q16](open-questions.md), where flow-level and task-level retry
+  one pair per attempt. Relevant to [Q16](questions/q16.md), where flow-level and task-level retry
   counts compose into a product nobody intended.
 - **[S1](#s1---spawntaskconfigparents-is-declared-and-never-read) is still there in the code**, and
   has since been **answered directly**: it stays dead and will eventually be removed.
@@ -265,7 +265,7 @@ it.
 waiting on that node waits forever. **That is the same observable signature as a stuck join** —
 nothing queued, nothing running, no error — which is precisely the condition
 [P1](plans/p1-what-satisfies-a-join.md) exists to study. A confounder that mimics the experiment's
-result is worth more to us than to anyone else reading that plan ([Q32](open-questions.md)).
+result is worth more to us than to anyone else reading that plan ([Q32](questions/q32.md)).
 
 **Ask.** Fix it — requeue, or fail the task loudly.
 
@@ -283,7 +283,7 @@ both of which are the right call and neither of which we would have thought to s
 It is also swept out of **every** blocked queue with one `orphaned` exit each, so a consumer's
 membership fold drains.
 
-**What this retires.** [Q32](open-questions.md) — a dropped task no longer produces silence, so a
+**What this retires.** [Q32](questions/q32.md) — a dropped task no longer produces silence, so a
 P1 hang can no longer be a silently-lost task masquerading as a stuck join. W5's
 every-node-settles assertion stays, demoted from *a gate on the experiment's validity* to *cheap
 insurance*, because it is now checking a property the library asserts rather than one it violates.

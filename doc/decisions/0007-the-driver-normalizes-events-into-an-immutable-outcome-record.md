@@ -106,13 +106,13 @@ nothing downstream of that boundary ever sees a library object.
 that passes for the wrong reason. Fixtures become hand-writable, because an outcome record is plain
 data with no library types in it (`doc/workflow.md` section 5 rule 4). And rule 2 means `user_action`
 is handled once, deliberately, rather than arriving as a duplicate failure — which is the
-[Q17](../open-questions.md) hole that two repos independently left open.
+[Q17](../questions/q17.md) hole that two repos independently left open.
 
 **Hard, and it is a direct tension with [ADR 0001](0001-routing-executes-in-the-driver-outside-the-scheduler.md).**
 That ADR puts the driver's listener on a hot path and says it must stay cheap; this one adds an
 allocation and a copy to every event on that path. Both are right and the tension is real: it is
 resolved by copying *only the fields the log declares*, never by a deep clone of a `FyflowTask`, and
-by [Q19](../open-questions.md) measuring it rather than assuming.
+by [Q19](../questions/q19.md) measuring it rather than assuming.
 
 **What a future reader will try.** Writing `log.push(e.detail)` — or a "harmless" `{...e.detail}`
 shallow spread, which copies the top level and still aliases `payload`, `result` and `error`. The

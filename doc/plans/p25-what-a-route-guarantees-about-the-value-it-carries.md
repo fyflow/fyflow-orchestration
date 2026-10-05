@@ -20,7 +20,7 @@ its opposite**, in both runtimes, where L6 MOVES.
 
 ## Why this plan, and why now
 
-[Q391](../open-questions.md) is the only open row that says a tool this repository ships gives a **wrong
+[Q391](../questions/q391.md) is the only open row that says a tool this repository ships gives a **wrong
 answer about a correct flow**. P19 built the authoring surface to answer *what does a schema buy an author*;
 P24 added the sixth node kind; and `checkWiring` reads a gate as a **pass-through**, so the arc through one
 is judged as the arc INTO it. On P24's own exit artifact that produces `consumer requires "series", producer
@@ -66,7 +66,7 @@ before use) and **restored byte-for-byte**.
 | **4** | **The guarantee is EXPRESSIBLE, and the producer already describes the path.** `identify`'s `outputSchema` describes 7 paths including `$.series` and `$.series.id`. What is missing is that they are not **required** — and the `first`/default route is exactly the condition under which they are | `pathsOf` over the producer's own schema |
 | **5** | **Widening `WiringRegistry` with `gateTypes` costs ZERO.** `Registry.gateTypes` is optional, so the widened `Pick` is **exit 0, 0 TS errors on all five typecheck lanes**, restored byte-for-byte. *The surface change is free and the whole cost is the derivation* — P20's *the half-fix is free* shape, in the direction that helps | The isolated copy, `npm run typecheck` RUN and its exit code read |
 | **6** | **The derivation WORKS.** Prototyped: the gate arc carries its ROUTE, the check is handed `gateTypes`, and on a route that means *the key resolved* the arrival's schema gains `required` along the key path. **The corpus goes 2 `no` → 1**, the survivor being `map-no-array`'s deliberate one; **typecheck 0 errors**; **+1587 bytes**; and **every other verdict is unmoved** (13 `unchecked`/`transform-*` lines identical) | The isolated copy, `distinct`'s resolved routes HARD-CODED — so it measures the derivation's VALUE, not the declaration's shape, which is (a)'s |
-| **7** | **A WRONG key path is caught by NOTHING.** A typo (`sereis.id`), a path the producer does not emit (`series.slug`) and a nonsense one (`name.id`, where `name` is a string) each give `validateDefinition` **0 findings** and `checkWiring` verdict counts **identical to the correct flow**, with **not one verdict mentioning a key, a gate or a route**. Only an EMPTY key is refused, by `FD-V40`'s shape clause — *the grammar catches an absent key and nothing catches a wrong one*. *(**RE-TAKEN at [W100](../work-items/w100-what-a-key-path-must-satisfy.md)'s declaration step on the tree W99 SHIPS, where the COUNTS half no longer holds**: `series.slug` is still 4 fits / 0 `no` like the correct flow, and `sereis.id`, `name.id` and the absent key are 3 / 1 — because W99's refinement adds `required` for a step it cannot describe, so the arc reads [Q391](../open-questions.md)'s own string back. The row's CONCLUSION is unmoved and sharper: still not one verdict mentions a key, a gate or a route, and the worst of the three is the one whose counts DO match.)* | Constructed from `tv-ingest`, five keys, read-only on the live tree |
+| **7** | **A WRONG key path is caught by NOTHING.** A typo (`sereis.id`), a path the producer does not emit (`series.slug`) and a nonsense one (`name.id`, where `name` is a string) each give `validateDefinition` **0 findings** and `checkWiring` verdict counts **identical to the correct flow**, with **not one verdict mentioning a key, a gate or a route**. Only an EMPTY key is refused, by `FD-V40`'s shape clause — *the grammar catches an absent key and nothing catches a wrong one*. *(**RE-TAKEN at [W100](../work-items/w100-what-a-key-path-must-satisfy.md)'s declaration step on the tree W99 SHIPS, where the COUNTS half no longer holds**: `series.slug` is still 4 fits / 0 `no` like the correct flow, and `sereis.id`, `name.id` and the absent key are 3 / 1 — because W99's refinement adds `required` for a step it cannot describe, so the arc reads [Q391](../questions/q391.md)'s own string back. The row's CONCLUSION is unmoved and sharper: still not one verdict mentions a key, a gate or a route, and the worst of the three is the one whose counts DO match.)* | Constructed from `tv-ingest`, five keys, read-only on the live tree |
 | **8** | **The assists are UNAFFECTED and the subject is `checkWiring` alone.** `pathsOf`, `describePaths`, `tryTransform`, `tsTypeOf`, `signatureOf` and `signaturesOf` every one take a SCHEMA or a worker entry, never a flow — so no gate reaches them | Their six signatures in `src/definition/assist.ts` |
 | **9** | **A DECISION's guard is OUT, for a structural reason rather than on scope.** A predicate is an opaque registered function ([ADR 0002](../decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md) rule 1), so nothing static can be derived from it — where a gate's key path is resolved **by the library itself** and handed to `fn` as `ctx.key`. *What bounds this plan is not which guards matter but which guarantees the LIBRARY computes* | `src/definition/types.ts`' `GateContext`, and the absence of any predicate input to `checkWiring` |
 
@@ -104,15 +104,15 @@ before use) and **restored byte-for-byte**.
 **Out** — named rather than left implicit, with where it goes instead
 
 - **A decision's predicate**, by fact 9: opaque by ADR 0002 rule 1, so no static tool can read it. Nothing
-  in this plan narrows [Q9](../open-questions.md).
+  in this plan narrows [Q9](../questions/q9.md).
 - **An `FD-V` refusal for a wrong key path** — stop-and-ask (b)'s other road, named as a follow-on rather
   than refused: it needs the validator to read a producer's schema, which is a wider change than this plan.
-- **[Q405](../open-questions.md) and [Q406](../open-questions.md)**, W98's two: a relation whose label
+- **[Q405](../questions/q405.md) and [Q406](../questions/q406.md)**, W98's two: a relation whose label
   varies between runs, and `RN-R27`'s barrier keyed by a region rather than a region instance. Neither is
   about a route, and Q406's case needs two instances of one opener.
-- **[Q407](../open-questions.md)'s two unfixed rows** in `doc/README.md`'s plan-history table. This plan's
+- **[Q407](../questions/q407.md)'s two unfixed rows** in `doc/README.md`'s plan-history table. This plan's
   own retro may take them under section 6 pass 3 rule 6, or they stay with that row's owner.
-- **[Q401](../open-questions.md)'s WORDING half** — obligation (f)'s reach. That row says *P25's retro*, so
+- **[Q401](../questions/q401.md)'s WORDING half** — obligation (f)'s reach. That row says *P25's retro*, so
   this plan's retro owes it and no item does.
 
 ## Work items
@@ -162,7 +162,7 @@ the ones this table gets WRONG, which the retro reads.
 
 ## Open questions this plan carries
 
-**[Q391](../open-questions.md)** is the subject and W99 resolves it. **[Q392](../open-questions.md)** (a
+**[Q391](../questions/q391.md)** is the subject and W99 resolves it. **[Q392](../questions/q392.md)** (a
 revert that crashes L6 at module link with zero failure lines) was expected to be W101's hazard by construction, since that item was expected to edit the file that imports `distinct` from the root — **it does not**, and `examples/l6.ts` is not in its diff (W101's conformity reader, F6). The sentence stood while the item it names falsified it. *The original read:* since W101
 edits the file that imports `distinct` from the root — it is named here so the item does not rediscover it.
 **Raised by this declaration: none** — every gap it found is one of the two halves it takes.
@@ -190,7 +190,7 @@ that is unusual is not measured here — the retro can say, since it is the one 
 | `check:docs` | **37 snippets — 31 run, 6 check**; `X8` pairing seven, `X10` four count copies, `X11` 37 ADRs |
 | `checkWiring` over `examples/flows` | **89 arcs, 2 `no`, 13 `unchecked`/`transform-*`** — the number W99 moves |
 | Census | **311 / 239 / 1 / 71** |
-| `M3` margin | **18** files, measured with this plan's own document on the tree (124 against the floor of 142, both `removes` probes still firing at exit 1) — so **[Q142](../open-questions.md) does NOT fire on this plan and is 18 documents away, not 2.** *This row first read 19 and predicted `M3` firing at this plan's SECOND document, inheriting P24's retro's prediction — which was made against a floor of 123, where the margin was 3. [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md) retuned `M3` to 142 and reset it. A prediction carried across a retune is a claim about a number that moved, and it was corrected here by taking the measurement rather than by reading the sentence.* `M4`'s binding margin is **644** links at probe 2 |
+| `M3` margin | **18** files, measured with this plan's own document on the tree (124 against the floor of 142, both `removes` probes still firing at exit 1) — so **[Q142](../questions/q142.md) does NOT fire on this plan and is 18 documents away, not 2.** *This row first read 19 and predicted `M3` firing at this plan's SECOND document, inheriting P24's retro's prediction — which was made against a floor of 123, where the margin was 3. [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md) retuned `M3` to 142 and reset it. A prediction carried across a retune is a claim about a number that moved, and it was corrected here by taking the measurement rather than by reading the sentence.* `M4`'s binding margin is **644** links at probe 2 |
 | Gate | `npm run gate` EXIT 0, zero FAIL lines, 31 entries, digest `bb186b0bbaca70a4` over 417 files |
 
 ## Record
@@ -200,7 +200,7 @@ what its TYPE declares, and the library derives it from the KEY PATH.**
 
 | | | |
 |---|---|---|
-| [W99](../work-items/w99-what-a-route-guarantees.md) | what a route GUARANTEES | **ADR 0068**; `GateType.keyResolvedRoutes`, `WiringRegistry` widened with `gateTypes`, `requireAlong` along the key path; `spec/flow-definition.md` **v0.25**; [Q391](../open-questions.md) RESOLVED |
+| [W99](../work-items/w99-what-a-route-guarantees.md) | what a route GUARANTEES | **ADR 0068**; `GateType.keyResolvedRoutes`, `WiringRegistry` widened with `gateTypes`, `requireAlong` along the key path; `spec/flow-definition.md` **v0.25**; [Q391](../questions/q391.md) RESOLVED |
 | [W100](../work-items/w100-what-a-key-path-must-satisfy.md) | what a KEY PATH must satisfy | `keyPathRefusal`: two shapes forbid a step, an OPEN producer silent there forbids nothing, the LEAF's type is never read; `spec/flow-definition.md` **v0.26**; no rule id, count stays 37 |
 | [W101](../work-items/w101-the-authoring-session-wiring-a-gate-before-it-runs.md) | the EXIT ARTIFACT | `AGENTS.md` section 20, an authoring session the gate EXECUTES on a CONSUMER'S OWN gate type, with its `README.md` twin byte-equal under `X8`; no ADR |
 
@@ -323,7 +323,7 @@ it is why a third control was added on the `test` rung. And at W101 **my own ver
 never match**: `grep -c "^FAIL"` against a runner that indents by four, so every green run printed a FAIL
 count of zero by construction. The exit code was read every time, which is the predicate, so no claim
 rests on it — v0.15's clause holding while its own counter-measure was defeated by the literal
-[Q276](../open-questions.md) is about.
+[Q276](../questions/q276.md) is about.
 
 ### REFUSED, seven, each with a measurement — and the first two are the ones this retro drafted and then measured as already written
 
@@ -352,7 +352,7 @@ rests on it — v0.15's clause holding while its own counter-measure was defeate
    refusal keeps the class it has always covered — and this plan supplies that too, in
    `examples/README.md`'s `getting-started/` paragraph, wrong in **three** counts at once (*nine workers*
    for a directory of fifteen, a section list missing 20, *six* README pairs where there are seven), whose
-   own parenthetical records W71 doing the same thing. **[Q420](../open-questions.md) carries the
+   own parenthetical records W71 doing the same thing. **[Q420](../questions/q420.md) carries the
    machine-comparable one**, on [W96](../work-items/w96-the-counts-and-the-index-a-check-can-compare-and-q394.md)'s
    precedent: P23's retro handed two such classes forward, P24 refused them and sent them to the maintainer
    as an item outside any plan, and that item BUILT them as `X10` and `X11`.
@@ -373,7 +373,7 @@ rests on it — v0.15's clause holding while its own counter-measure was defeate
    resolved to a path that does not exist and the tasks stayed `pending` with the process alive. What
    isolated it was a TWO-file run timing out where a five-file one had worked — *which is what said the
    fault was not the file the item had just added.* **Refused at one occurrence**:
-   [Q266](../open-questions.md) already carries the class, no rung can report a hang by construction, and
+   [Q266](../questions/q266.md) already carries the class, no rung can report a hang by construction, and
    the cost here was a diagnosis rather than a defect that shipped.
 7. **A rule that a fix must not edit a row already carrying its own answer.** W100's conformity pass closed
    its reader's F5 by adding a scope sentence to `spec/flow-definition.md`'s `fits` row, and that row
@@ -411,7 +411,7 @@ rests on it — v0.15's clause holding while its own counter-measure was defeate
   wrong selections reads, from inside, exactly like naming all of them.*
 - **v0.14's WITHDRAWN-claim clause: FOLLOWED and SHORT once more.** W99 searched for and corrected three
   live copies of the claim it narrowed; W101's conformity reader then found P25's own file saying
-  [Q392](../open-questions.md) *is W101's hazard by construction, since W101 edits the file that imports
+  [Q392](../questions/q392.md) *is W101's hazard by construction, since W101 edits the file that imports
   `distinct` from the root* — **W101 edits no such file**. A sentence naming the item that falsifies it,
   which is v0.15's third direction and its own recorded limit.
 - **v0.8's re-run: CONFIRMED, and it caught a fix in the fix.** W100's F1 repair removed a dead arm whose
@@ -458,7 +458,7 @@ between start and end while W100's and W101's both ran **IDENTICAL**; after all 
 the copy's 427 tracked files is byte-identical to the shipped tree**, so no probe edit survived and no
 verdict rests on a mutated tree. The one honest candidate is that this measurement's FIRST attempt was
 terminated mid-run by a network failure, so the tree W99's re-run started from is not guaranteed to have
-been the shipped one — a harness killed between apply and restore, which is [Q323](../open-questions.md)'s
+been the shipped one — a harness killed between apply and restore, which is [Q323](../questions/q323.md)'s
 class, even though the restore evidently completed. **And twice in this retro the OBSERVER read a mutation
 that was not there**, by sampling the copy while a harness was mid-restore: first concluding that
 `AGENTS.md` and `README.md` had been left edited, then reading `l4-corpus.test.ts` as ten bytes longer.
@@ -508,7 +508,7 @@ machine, **EXIT 0 in 15 seconds** for all thirty-two. `scripts/check-docs.mjs:23
 was slowed past thirty seconds — and two of the nine do nothing but call `validateDefinition` and
 `fold`. **The cause is machine LOAD, and the retro first wrote down ONE cause where it went on to measure
 THREE contributors**: its own `TaskStop` on a gate twenty minutes earlier, another project's CI
-running node in a different fnm shell on this machine, and **[Q426](../open-questions.md)'s 12 574
+running node in a different fnm shell on this machine, and **[Q426](../questions/q426.md)'s 12 574
 leaked directories**. *The sharpest reading is one check, three times, over 32 snippets that never
 moved: `check:docs` EXIT 0 in **15 s**, then in **639 s**, then in **563 s** — up to 43 times
 slower, with every snippet inside the 30 s cap on all three, so the cap is crossed by LOAD alone and no
@@ -519,22 +519,22 @@ It is the SECOND time in this retro that a kill produced a misleading measuremen
 ceiling re-run's terminated first attempt is counted — and the first attribution was itself a
 fourth: *one cause is what you write when you stop measuring at the first one you recognise.* *A varying failure SET is what said it was not a
 defect; one run would have read as nine broken snippets, and the message names the snippet rather than
-the clock in either case.* [Q425](../open-questions.md), and it is
-[Q327](../open-questions.md)'s class by a THIRD mechanism — not a killed harness reporting a rung as
+the clock in either case.* [Q425](../questions/q425.md), and it is
+[Q327](../questions/q327.md)'s class by a THIRD mechanism — not a killed harness reporting a rung as
 zero cost, but a SHIPPED gate entry converting machine load into a named product failure, in the one
 check a consumer runs. **It takes Q425 rather than Q421**, on
 [P24](p24-what-a-node-may-remember-across-a-runs-branches.md)'s precedent, where Q393 was spent and that
 retro's own question was Q394: a reserved-and-unused id is spent, never reused, and a retro's question
 comes after its plan's block.
 
-**And it EXTENDS [Q407](../open-questions.md) with a THIRD mechanism, by running that row's own proposed
+**And it EXTENDS [Q407](../questions/q407.md) with a THIRD mechanism, by running that row's own proposed
 clause over the five documents this retro edits**: `doc/README.md`'s plan-history rows for **P19 and
 P21 carry TWO cells where their header has FOUR**, so those two plans' *exit artifact* and *date*
 columns render EMPTY while every row around them carries both. It is the quietest of the three — a
 row SHORT of its header rather than one broken by a pipe or a newline, so nothing is garbled and two
 cells are simply absent. **Both pre-date this retro**, measured on the `HEAD` copy, and both are
 **deliberately NOT fixed** on [P8](p8-what-can-be-deleted-with-the-gate-green.md)'s precedent for
-[Q131](../open-questions.md): whoever builds that clause gets a live case, and filling two historical
+[Q131](../questions/q131.md): whoever builds that clause gets a live case, and filling two historical
 rows in from memory is how a wrong date gets written down. *The clause was run here because this retro
 appends a row to that very table, which is the one reason anybody looks at it.*
 
@@ -546,7 +546,7 @@ as 427 untracked files and the next `git add -A` would have tracked every one. I
 digest itself reading **854 files where the tree has 427**, which is the number that does not lie about
 what is on disk. *`dev-dist/` is ignored and a directory named after a flag is not*, so the guard that
 keeps twenty-five plans' scratch out of history has no reach over a path the tool invents — and
-unlike [Q323](../open-questions.md) and [Q327](../open-questions.md) this is not a KILL but an ARGUMENT,
+unlike [Q323](../questions/q323.md) and [Q327](../questions/q327.md) this is not a KILL but an ARGUMENT,
 with no probe, no rung and no exit code involved. Removed, and the tree is the retro's five modified
 files with zero untracked.
 
@@ -554,7 +554,7 @@ files with zero untracked.
 close, 318 of 318 in exactly one
 cluster cell, by the parser W100 wrote re-run here. *The ordinal is deliberately NOT stated: P23's retro
 said TWENTY-FIFTH and P24's stated none, so writing one here would be the inherited count this
-repository keeps finding wrong. The predicate is what matters and it held.* **[Q142](../open-questions.md) measured before this
+repository keeps finding wrong. The predicate is what matters and it held.* **[Q142](../questions/q142.md) measured before this
 retro's own edits and it does NOT fire**: `M3`'s margin is 15 files and `M4`'s 531 links. *The retro's own
 paragraphs land in `doc/plans/`, which probe 2 cuts, and in `CLAUDE.md` and `doc/README.md`, which neither
 probe cuts — so `M4` is the one to watch and it has 531.*
@@ -564,10 +564,10 @@ probe cuts — so `M4` is the one to watch and it has 531.*
 **`npm run gate` was started three times over the final tree and none of the three finished**, for a
 reason outside the retro: the machine's filesystem is degraded by roughly 20-100x, measured rather
 than inferred. The first run reached its LAST chain entry and reported `EXIT 1` on `X4` with nine
-snippets at *exit null* — [Q425](../open-questions.md), a 30 s per-snippet cap crossed by load.
+snippets at *exit null* — [Q425](../questions/q425.md), a 30 s per-snippet cap crossed by load.
 The second reached `selftests` and **`check:wiring:selftest` ran 46 minutes at 1% CPU** without
 finishing, against the 170-200 s that entry is recorded at — which is what found
-**[Q426](../open-questions.md)**, the 12 574 empty directories leaked into `dev-dist/` by a sibling
+**[Q426](../questions/q426.md)**, the 12 574 empty directories leaked into `dev-dist/` by a sibling
 self-test. The third, taken after deleting them, **blocked on `tsc` at 1% CPU with the log frozen**,
 and was stopped. *Nothing computes at 1% CPU; all three were waiting on I/O.*
 
@@ -587,7 +587,7 @@ where that clause eats itself: writing the second pass's numbers down CHANGES th
 pass reports a tree the table cannot describe without a fourth. *The regress stops at what did not
 move* — twelve readings, twelve EXIT 0, and `check:docs` counting 38 snippets with 32 run on every
 one. The walls are a range because the machine is degraded and because no rung asserts a clock
-([Q179](../open-questions.md)). **And the sentence you are reading was written after the third pass**,
+([Q179](../questions/q179.md)). **And the sentence you are reading was written after the third pass**,
 which is stated rather than hidden: it changes no relative link, no anchor, no count and no snippet, and
 `AGENTS.md` — where all 32 executed snippets live — is byte-identical through every pass, as
 `git status` shows five modified documents and nothing else.
@@ -595,7 +595,7 @@ which is stated rather than hidden: it changes no relative link, no anchor, no c
 **Plus three measurements no rung takes**: the census parser at **319 / 246 / 1 / 72 with 319 of 319 in
 exactly one cluster cell**; [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md)'s
 table checker over all five edited documents, clean but for the two rows
-[Q407](../open-questions.md) already declares; and the tree's own content digest, **`434073cf37ca35fb`
+[Q407](../questions/q407.md) already declares; and the tree's own content digest, **`434073cf37ca35fb`
 over 427 files, identical before the first gate and after the last kill**, so nothing any killed
 process touched survived. **Not run: `lint`, `typecheck`, `npm test`, L1-L5, L6 and `selftests`** 
 — every one of them unreachable from a markdown edit, and every one of them currently unable to

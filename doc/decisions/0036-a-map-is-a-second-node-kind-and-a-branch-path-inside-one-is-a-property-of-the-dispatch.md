@@ -12,13 +12,13 @@ resolves: ""
 
 # ADR 0036 — Fan-out is two features over one region: a `map` is a second node kind, and a `branchPath` inside one is a property of the dispatch
 
-**Raised by:** [Q12](../open-questions.md), decided by
+**Raised by:** [Q12](../questions/q12.md), decided by
 [W32](../work-items/w32-what-a-map-fanout-is.md) under
 [P10](../plans/p10-is-fan-out-one-feature-or-two.md)
 
 ## Context
 
-**[Q12](../open-questions.md) has been open since P1** and is the only open question that might mean
+**[Q12](../questions/q12.md) has been open since P1** and is the only open question that might mean
 the library is missing a **feature** rather than a guarantee. Its row states the case and this
 decision does not improve on it:
 
@@ -67,11 +67,11 @@ machinery*, not because the two features are one.
 ### The correction this forced to P10's own framing
 
 P10's declaration says *"`FD-V19`'s own refusal text says the same thing from the other side …
-**a map is that condition on purpose**"*, and [Q27](../open-questions.md)'s row is written from the
+**a map is that condition on purpose**"*, and [Q27](../questions/q27.md)'s row is written from the
 same reading. **Measured, that is true of the repeated-entry ENCODING of a map and false of a map.**
 A `map` node declares **one** branch, so *"two distinct branch entries of the same fanout"* has no
 instance and `FD-V19` is not reached at all — 0 pairs, measured. **This decision therefore weakens
-`FD-V19` by nothing**, which is what the [Q27](../open-questions.md) paragraph below turns on.
+`FD-V19` by nothing**, which is what the [Q27](../questions/q27.md) paragraph below turns on.
 
 ## Decision
 
@@ -113,9 +113,9 @@ instance and `FD-V19` is not reached at all — 0 pairs, measured. **This decisi
    `parseTaskId` or `buildTaskId`'s signature. A map's ids are the shape P1 reserved, at an arity P1
    did not have.
 
-## What this does to [Q27](../open-questions.md)
+## What this does to [Q27](../questions/q27.md)
 
-**Nothing, and that is the answer rather than an omission.** [Q27](../open-questions.md) asks
+**Nothing, and that is the answer rather than an omission.** [Q27](../questions/q27.md) asks
 whether two branches of one fan-out may converge on a shared node, which `FD-V19` refuses.
 
 - `FD-V19` is **unchanged**: same text, same scope, same `fanout`.
@@ -139,7 +139,7 @@ conditional: *"If ADR 0036 answers two features, Q27 is untouched."* It does, an
   are now about two kinds of region without a word changing, because they never mentioned branches.
 - **A reader of the JSON can see where the arity comes from** without knowing the worker, because
   `over` is required.
-- **[Q27](../open-questions.md) is not entangled with [Q12](../open-questions.md) after all**, which
+- **[Q27](../questions/q27.md) is not entangled with [Q12](../questions/q12.md) after all**, which
   is the opposite of what both rows predicted.
 
 **What it makes hard, stated rather than minimised.**
@@ -174,8 +174,8 @@ conditional: *"If ADR 0036 answers two features, Q27 is untouched."* It does, an
 
 **What this does NOT decide**, named so the ADR is not read as having closed it:
 
-- **What a branch receives, and what a join carries.** [Q11](../open-questions.md),
-  [Q36](../open-questions.md) and [Q154](../open-questions.md) are **W34**'s, deliberately after the
+- **What a branch receives, and what a join carries.** [Q11](../questions/q11.md),
+  [Q36](../questions/q36.md) and [Q154](../questions/q154.md) are **W34**'s, deliberately after the
   map runs — P10 decision 2. `over` names a key on the map node's input; the *contract* on what a
   node receives is that item's.
 - **What happens when `over`'s value is absent or is not an array at run time.** A run-time refusal,
@@ -188,7 +188,7 @@ conditional: *"If ADR 0036 answers two features, Q27 is untouched."* It does, an
   it of a `fanout`'s entries, so nesting goes through that task's edges and stays expressible and
   undecided, which is where P10's *"not taken"* left it. `branchPathOf`'s index parameter is keyed
   **per region** rather than taking a single index, so neither answer needs a signature change:
-  [Q156](../open-questions.md).
+  [Q156](../questions/q156.md).
 - **An upper bound on arity.** Same. Not taken.
 
 ## Alternatives rejected

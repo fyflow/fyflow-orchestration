@@ -15,7 +15,7 @@
  * **What this file does NOT do.** It does not choose which self-tests run, does not
  * skip any, and does not change what any of them prove. The set is *derived* from the
  * manifest — every entry whose name ends in `:selftest` — so there is no list here to
- * go stale against `package.json`, which is [Q102](../doc/open-questions.md)'s shape
+ * go stale against `package.json`, which is [Q102](../doc/questions/q102.md)'s shape
  * and the reason `G3` reads the `scripts/` listing rather than a declaration.
  *
  * **What binds it.** `G4` in `scripts/check-wiring.mjs`:
@@ -28,14 +28,14 @@
  *     report every planned entry as completed. That last one is the accounting path,
  *     and it is a clause rather than a comment because "the runner ran everything it
  *     planned" is exactly the wiring `doc/workflow.md` rule 8 obligation (e) asks
- *     about: [Q149](../doc/open-questions.md) one level out, in the item after the
+ *     about: [Q149](../doc/questions/q149.md) one level out, in the item after the
  *     one that closed it.
  *
  * **Exclusivity is a property of a FILE, not of a list here.** A self-test that
  * mutates something outside `dev-dist/` cannot overlap anything that reads it —
  * today that is `check-scheduler-selftest.mjs`, whose install probes delete
  * `node_modules/fyflow-scheduler` and restore it from a stash
- * ([Q148](../doc/open-questions.md), whose row said it *renames* and whose scope was
+ * ([Q148](../doc/questions/q148.md), whose row said it *renames* and whose scope was
  * one entry rather than four). Such a file declares itself with the marker below,
  * and this runner reads the marker rather than carrying a name. The authority is the
  * file, which is `G3`'s own argument one directory across.
@@ -53,7 +53,7 @@ const SCRIPTS = resolve(ROOT, process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 
 /**
  * **The marker a self-test uses to say it cannot share the tree.** Written as two
  * halves so this line is not itself a marker — the defect
- * [Q178](../doc/open-questions.md) records, where a literal that quotes the pattern
+ * [Q178](../doc/questions/q178.md) records, where a literal that quotes the pattern
  * it searches for is a false match for itself, twice in one hour in one file.
  */
 const MARK = `SELFTEST-${'EXCLUSIVE'}:`;

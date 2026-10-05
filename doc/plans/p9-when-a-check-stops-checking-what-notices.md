@@ -22,8 +22,8 @@ names both:
 > **Changing what the gate RUNS was declared out of this plan's scope**, so it is recorded rather
 > than acted on."*
 
-[Q133](../open-questions.md) is that cost, [Q138](../open-questions.md) is its mechanism, and
-[Q132](../open-questions.md) is the coverage hole beside it. **They are one subject and this plan
+[Q133](../questions/q133.md) is that cost, [Q138](../questions/q138.md) is its mechanism, and
+[Q132](../questions/q132.md) is the coverage hole beside it. **They are one subject and this plan
 says so in a sentence**: a self-test's META pass grades a broken check by its **exit code**, so it
 cannot tell *the clause I broke was caught* from *something else went wrong* — and because the
 verdict is an exit code, the only way to reach it is to re-run the whole probe suite. **The
@@ -53,16 +53,16 @@ plans.**
 
 | | what was written | what one command says |
 |---|---|---|
-| [Q132](../open-questions.md) | *"`check-spec` has no self-test at all: **8 more clauses, 0 probes**"* | **7, not 8.** `C5` has **two** checked-in probes — `scripts/check-markdown-selftest.mjs:386-401`, *a dead link inside `spec/`* and *a dead ANCHOR inside `spec/`* — added by [W25](../work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) one item **after** Q132 was written at W24. The row is right about the **file** and wrong about the **count**: `check-spec.mjs` still has no `--self-test`, and C5's probes live in another script |
+| [Q132](../questions/q132.md) | *"`check-spec` has no self-test at all: **8 more clauses, 0 probes**"* | **7, not 8.** `C5` has **two** checked-in probes — `scripts/check-markdown-selftest.mjs:386-401`, *a dead link inside `spec/`* and *a dead ANCHOR inside `spec/`* — added by [W25](../work-items/w25-a-link-is-a-link-and-an-anchor-is-an-anchor.md) one item **after** Q132 was written at W24. The row is right about the **file** and wrong about the **count**: `check-spec.mjs` still has no `--self-test`, and C5's probes live in another script |
 | [P8's Record](p8-what-can-be-deleted-with-the-gate-green.md) | *"roughly half the gate, either way"* | **88%.** One timed pass over the gate's own 18 entries: **206.3 s of 234.6 s**. P8 compared **one** self-test against the total; there are **five**, and the other four add 76.9 s. **The whole product-facing gate — every check, L0-L5 in three runtimes, both L6 runtimes — is 28 s** |
 | **no id** | — | **Two of the five self-tests have NO META pass at all.** `check-docs` (14 probes) and `check-scheduler` (12 probes) assert that the check refuses a broken input and **nothing asserts the probes would notice a broken check**. `check-policies` has META and no SELF. So the 39 clauses split **16 / 10 / 13**, not into probed and unprobed |
-| **no id** | — | **`check-scheduler`'s `D5` empty-parse clause can be made inert with all 12 probes green.** The one live defect this declaration step found; **raised as [Q141](../open-questions.md)** and owned by W29. Four other clause-level mutations of the two ungraded checks were **caught**, so the yield is **1 of 5** and is stated as measured rather than assumed |
-| **a hypothesis, killed** | *"three of the five self-tests still carry the `ALL_CHECKS` allowlist W24 removed, so a probe can trip a check the harness cannot see"* | **FALSE, and measured before it was written down.** The allowlist is there in `check-docs`, `check-scheduler` and `check-policies` — but renaming a reported id to one outside each list was **caught in all three**, because every id those checks report is declared by some probe and the probe then sees an empty set. W24's hole needed **undeclared** ids in the list and those three have **zero**. [Q43](../open-questions.md)'s class, refused at the declaration step |
+| **no id** | — | **`check-scheduler`'s `D5` empty-parse clause can be made inert with all 12 probes green.** The one live defect this declaration step found; **raised as [Q141](../questions/q141.md)** and owned by W29. Four other clause-level mutations of the two ungraded checks were **caught**, so the yield is **1 of 5** and is stated as measured rather than assumed |
+| **a hypothesis, killed** | *"three of the five self-tests still carry the `ALL_CHECKS` allowlist W24 removed, so a probe can trip a check the harness cannot see"* | **FALSE, and measured before it was written down.** The allowlist is there in `check-docs`, `check-scheduler` and `check-policies` — but renaming a reported id to one outside each list was **caught in all three**, because every id those checks report is declared by some probe and the probe then sees an empty set. W24's hole needed **undeclared** ids in the list and those three have **zero**. [Q43](../questions/q43.md)'s class, refused at the declaration step |
 | the register's census | *"99 questions - 64 open, 2 deferred, 33 resolved"* | **Confirmed.** Re-derived by a parser that aborts on any row it cannot classify: 127 rows, 99 distinct ids, **64 / 2 / 33**, 28 ids in both tables. **It aborted three times on real hazards first** — a status cell carrying prose after its value, a row whose FIRST line does not close with a pipe, and a row whose status cell sits on a line that does not START with one. The last two are the same row and losing it silently merged **Q87 into Q86 and dropped a whole question** |
 
 **And a seventh fact arrived last, because this declaration's own four documents turned the gate
 RED.** `scripts/check-markdown.mjs`'s header argues that its `M3`/`M4`/`M5` floors are *"a MINIMUM
-nobody is obliged to raise, which is what keeps them out of [Q102](../open-questions.md)'s shape …
+nobody is obliged to raise, which is what keeps them out of [Q102](../questions/q102.md)'s shape …
 adding a document here can only move these numbers up and away."* **That is right about the CHECK and
 false about the PROBES**, and only the probes make the check falsifiable: `M3` and `M4` can be fired
 **only** by the two `removes` probes, which cut directories out of a copy of the tree, so each floor
@@ -70,12 +70,12 @@ must sit **above the probe's fixture and below the whole tree**. Adding one plan
 took *doc/decisions removed* from **46 files to 50** against a floor of `< 50`, and `npm run gate`
 exited **1** with `wanted [M1,M3], got [M1]` and `wanted [M1,M3,M4], got [M1,M3]`.
 
-**So it IS [Q102](../open-questions.md)'s shape, and worse** — a two-sided window rather than a
+**So it IS [Q102](../questions/q102.md)'s shape, and worse** — a two-sided window rather than a
 one-sided ratchet — **and the mitigation is the direction, which is W24's own finding about `S12`
 reproducing a third time**: `RUN_FLOOR` went stale *silently, toward weakness*; this failed *loudly,
 in the gate*, naming both probes and both files. Retuned to **56 / 1350 / 60** from a measurement
 (whole tree 66/1746/86; the two fixtures 50/1548/86 and 40/1217/86), which restores green and **does
-not remove the ratchet**. **[Q142](../open-questions.md), owned by W28**, which already owns both
+not remove the ratchet**. **[Q142](../questions/q142.md), owned by W28**, which already owns both
 broken probes. *(And retuning it broke two more things: the META entries that disable those floors are
 pinned to the literals `if (r.files < 50)` and `if (r.links < 1200)`, so both came back **"the
 mutation matched nothing"** — rule 7 (b) firing correctly rather than passing, and W25's
@@ -101,9 +101,9 @@ instead, which is `CLAUDE.md`'s *"do not read the gate through a grep"* one laye
 reporting the verdict was not the thing that produced it.**
 
 **The malformed rows are exactly the three that are named and exactly three**: `Q119` and `Q71` split
-on unescaped pipes ([Q131](../open-questions.md)); `Q87` spans five lines with two blank lines inside
+on unescaped pipes ([Q131](../questions/q131.md)); `Q87` spans five lines with two blank lines inside
 it and its status and owner sit on a line that does not begin with `|`
-([Q135](../open-questions.md)). **All three stay unfixed on P8's reasoning** — whoever builds that
+([Q135](../questions/q135.md)). **All three stay unfixed on P8's reasoning** — whoever builds that
 check should have all three shapes to fire on — and **this plan does not build it**.
 
 ### The measurement that shapes the plan
@@ -130,7 +130,7 @@ at:
 2. **In 7 of 56 the mutant was noticed because it became NOISY, not because it was detected.** The
    crediting probe declared `[M1]` and reported `[M1,M2]`, or `[S12]` and reported `[S12,S13]` — the
    broken check produced an **extra, unrelated** failure across the corpus. An exit code cannot tell
-   that from a detection, which is exactly [Q138](../open-questions.md), and it is the same shape as
+   that from a detection, which is exactly [Q138](../questions/q138.md), and it is the same shape as
    W24's conformity reader's finding that an entry scored *noticed* because the mutant **crashed**.
 3. **The cost is entirely this.** A bare `check-markdown` run is **220 ms**; the META pass re-runs up
    to 37 of them per entry, 37 times. Naming the probe reduces each child to **one** probe. The same
@@ -191,30 +191,30 @@ and this compares five.
 
 - **Any change to what the gate RUNS.** Same declaration P8 made, and for the same reason: a `verify`
   chain split out of `gate` is a policy decision about how this repository is worked, and
-  [Q133](../open-questions.md) records that *"nothing in `doc/` says whether anyone runs `npm run
+  [Q133](../questions/q133.md) records that *"nothing in `doc/` says whether anyone runs `npm run
   gate` on every change or only at the join"*. **This plan makes the cost go away rather than
   deciding the policy**, and if the measured saving is not enough, Q133 stays open **with a better
   number** and the decision is a later plan's. **If an item finds itself editing the `gate` chain's
   membership, its scope has grown.**
 - **Seven of the sixteen unprobed clauses** — `S1`, `S2`, `S3`, `S5`, `S6`, `S9`, `S10`. The cap is
   stated because a silent cap reads as coverage: see decision 3.
-- **[Q131](../open-questions.md), [Q135](../open-questions.md) and [Q123](../open-questions.md) — the
+- **[Q131](../questions/q131.md), [Q135](../questions/q135.md) and [Q123](../questions/q123.md) — the
   register's own bytes.** P8 declared W26 for these and dropped it on a scope call; **this plan does
   not pick it up**, for the same reason P8 gave of itself: *when a check stops checking, what
   notices* is about gradings, and *a tracked text file's bytes* is about bytes. The three malformed
   rows are re-measured above and **stay unfixed on purpose** so the check that would catch them has
   live defects. All three return to the register with no owner.
-- **[Q134](../open-questions.md)** — whether `S11`'s membership clause should be retired now that
+- **[Q134](../questions/q134.md)** — whether `S11`'s membership clause should be retired now that
   `S12` subsumes it. It is a question about **one** check's clause boundaries, not about what a
   self-test asserts, and retiring a clause interacts with section 3's no-renumbering rule. Named so
   this plan is not read as closing it.
-- **[Q136](../open-questions.md) and [Q137](../open-questions.md)** — the markdown shapes
+- **[Q136](../questions/q136.md) and [Q137](../questions/q137.md)** — the markdown shapes
   `check-markdown` cannot read, and `C5`'s missing `M3`-style floor. **Q137 is genuinely close to
   W30** — its own row says *"`check-spec`'s `C1`-`C8` have no self-test at all, so a new clause there
   ships unprobed unless that gap is closed first"*, and W30 closes exactly that gap. **It is still
   out**: adding a floor to `C5` is a change to `check-spec`'s *behaviour*, and W30's subject is its
   *negative tests*. W30 will leave Q137 buildable rather than build it, and say so.
-- **[Q100](../open-questions.md), [Q101](../open-questions.md), [Q104](../open-questions.md)** — what
+- **[Q100](../questions/q100.md), [Q101](../questions/q101.md), [Q104](../questions/q104.md)** — what
   `check-docs`' clauses check less than their names claim. W29 gives `X1`-`X5` a grading; it does not
   change what they check.
 - **A check over `doc/` *claims*.** Refused seven times; not reopened.
@@ -229,7 +229,7 @@ and this compares five.
    mutant disturbs, which in 7 of 56 gradings is a probe reacting to unrelated noise. **The failure
    mode this introduces is deliberate and is the right one**: an entry whose named probe no longer
    exists **aborts** rather than passing, which is rule 7 (b) one layer out and is
-   [Q138](../open-questions.md)'s own *"against"* argument turned into an argument for.
+   [Q138](../questions/q138.md)'s own *"against"* argument turned into an argument for.
 
    **And it predicts its own findings.** Entries whose named probe does not in fact fail will go red
    on the day the contract lands. From the measurement, at least **seven** are candidates — six in
@@ -245,7 +245,7 @@ and this compares five.
 
 3. **W30 takes 9 of the 16 unprobed clauses and the other 7 are named.** `check-spec`'s `C1`-`C4`,
    `C6`, `C7`, `C8`, plus `check-source`'s **`S4`** (*no syntax Node cannot type-strip*) and **`S7`**
-   (*no published file imports the scheduler*). [Q132](../open-questions.md)'s own argument, checked
+   (*no published file imports the scheduler*). [Q132](../questions/q132.md)'s own argument, checked
    and adopted: `S1`, `S2` and `S3` are guarded a second way by `typecheck:deno` and
    `typecheck:browser`; `S5`, `S6`, `S9` and `S10` are publish-set and reach bookkeeping with a second
    route; **`S4` and `S7` are the two the ladder has no rung for at all.** `S7` is
@@ -274,7 +274,7 @@ edits as a deliverable.
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
 | [**W28**](../work-items/w28-a-grading-names-the-probe-it-breaks.md) | **A grading names the probe it breaks** — the META contract in the three self-tests that have one | `scripts/check-source-selftest.mjs` (W24), `scripts/check-markdown-selftest.mjs` (W25), `scripts/check-policies-selftest.mjs` (W16) | nothing | **L0**, own coverage at L0; **L1-L6 as regression and must not move**; then two readers |
-| [**W29**](../work-items/w29-the-two-self-tests-that-grade-nothing.md) | **The two self-tests that grade nothing** — a META pass for `check-docs` and `check-scheduler`, and [Q141](../open-questions.md) closed | `scripts/check-docs-selftest.mjs` (W9), `scripts/check-scheduler-selftest.mjs` (W5), `scripts/check-scheduler.mjs` (W5), `scripts/check-docs.mjs` (W9) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
+| [**W29**](../work-items/w29-the-two-self-tests-that-grade-nothing.md) | **The two self-tests that grade nothing** — a META pass for `check-docs` and `check-scheduler`, and [Q141](../questions/q141.md) closed | `scripts/check-docs-selftest.mjs` (W9), `scripts/check-scheduler-selftest.mjs` (W5), `scripts/check-scheduler.mjs` (W5), `scripts/check-docs.mjs` (W9) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
 | [**W30**](../work-items/w30-the-clauses-nothing-probes.md) | **The clauses nothing probes** — `check-spec`'s first self-test, and `S4` and `S7` | `scripts/check-spec.mjs` (W1), **`scripts/check-spec-selftest.mjs`** (new), `scripts/check-source.mjs` (W24), `scripts/check-source-selftest.mjs` (W28), **`package.json`** (P8) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
 | [**W31**](../work-items/w31-the-self-list-check-policies-never-had.md) — **declared late, on a measurement** | **The `SELF` list `check-policies` never had** | `scripts/check-policies-selftest.mjs` (W16, then W28) | W28 | **L0**, own coverage at L0; L1-L6 as regression; then two readers |
 
@@ -334,17 +334,17 @@ because the three guards W28 shipped are currently inside the reach it moves.
 
 | Q | | Owner |
 |---|---|---|
-| [Q138](../open-questions.md) | a META pass asserts that SOME probe notices, never WHICH | **W28.** The contract change is this row's own proposed fix, with the count of gradings it will turn red predicted above |
-| [Q133](../open-questions.md) | the gate spends most of its time proving its own checks can fail | **W28, and answered rather than decided.** Its number is corrected here from *"roughly half"* to **88%**; whether the saving is enough is measured at W28's close and **the policy decision stays out of scope** |
-| [Q132](../open-questions.md) | 16 of 39 clauses have no probe | **W30 — partially.** 9 of the 16, with the other 7 named in decision 3 and carried in the exit artifact as *no probe* |
-| [Q141](../open-questions.md) | `check-scheduler`'s `D5` empty-parse clause is inert for 0 failures | **W29.** Raised by this declaration step; the one live defect it found |
-| [Q137](../open-questions.md) | `C5` did not inherit `M3`, so `spec/`'s link check can pass vacuously | **no owner, and W30 makes it buildable.** Its stated blocker — *"`check-spec` has no self-test, so a new clause ships unprobed"* — is what W30 removes |
-| [Q142](../open-questions.md) | the markdown floors are a two-sided window and ordinary work closes it | **W28.** Raised by this declaration step, which tripped it with its own four documents. The floors are retuned and green; what W28 owes it is a verdict and a working pair of probes |
-| [Q134](../open-questions.md) | `S12` subsumes `S11`'s membership half | **no owner.** Named so this plan is not read as closing it |
-| [Q131](../open-questions.md) [Q135](../open-questions.md) [Q123](../open-questions.md) | the register's own bytes | **no owner** — W26 was dropped by P8 and this plan does not pick it up. All three re-measured here and deliberately unfixed |
-| [Q100](../open-questions.md) [Q101](../open-questions.md) [Q104](../open-questions.md) [Q136](../open-questions.md) | what a check checks, as against what its name claims | **no owner.** This plan changes what **grades** the checks, not what they check |
-| [Q102](../open-questions.md) | a ratchet in nobody's `Owns` | **answered by P8 and reproducing.** W30 edits `scripts/check-source.mjs`, which `S12` obliges whenever `package.json`'s chain changes; its `Owns` row above names that file for exactly this reason |
-| [Q98](../open-questions.md) | the runner counts `test()` cases, not assertions | **no owner.** Named because every Record this plan writes quotes a count, and the noun stays *cases* |
+| [Q138](../questions/q138.md) | a META pass asserts that SOME probe notices, never WHICH | **W28.** The contract change is this row's own proposed fix, with the count of gradings it will turn red predicted above |
+| [Q133](../questions/q133.md) | the gate spends most of its time proving its own checks can fail | **W28, and answered rather than decided.** Its number is corrected here from *"roughly half"* to **88%**; whether the saving is enough is measured at W28's close and **the policy decision stays out of scope** |
+| [Q132](../questions/q132.md) | 16 of 39 clauses have no probe | **W30 — partially.** 9 of the 16, with the other 7 named in decision 3 and carried in the exit artifact as *no probe* |
+| [Q141](../questions/q141.md) | `check-scheduler`'s `D5` empty-parse clause is inert for 0 failures | **W29.** Raised by this declaration step; the one live defect it found |
+| [Q137](../questions/q137.md) | `C5` did not inherit `M3`, so `spec/`'s link check can pass vacuously | **no owner, and W30 makes it buildable.** Its stated blocker — *"`check-spec` has no self-test, so a new clause ships unprobed"* — is what W30 removes |
+| [Q142](../questions/q142.md) | the markdown floors are a two-sided window and ordinary work closes it | **W28.** Raised by this declaration step, which tripped it with its own four documents. The floors are retuned and green; what W28 owes it is a verdict and a working pair of probes |
+| [Q134](../questions/q134.md) | `S12` subsumes `S11`'s membership half | **no owner.** Named so this plan is not read as closing it |
+| [Q131](../questions/q131.md) [Q135](../questions/q135.md) [Q123](../questions/q123.md) | the register's own bytes | **no owner** — W26 was dropped by P8 and this plan does not pick it up. All three re-measured here and deliberately unfixed |
+| [Q100](../questions/q100.md) [Q101](../questions/q101.md) [Q104](../questions/q104.md) [Q136](../questions/q136.md) | what a check checks, as against what its name claims | **no owner.** This plan changes what **grades** the checks, not what they check |
+| [Q102](../questions/q102.md) | a ratchet in nobody's `Owns` | **answered by P8 and reproducing.** W30 edits `scripts/check-source.mjs`, which `S12` obliges whenever `package.json`'s chain changes; its `Owns` row above names that file for exactly this reason |
+| [Q98](../questions/q98.md) | the runner counts `test()` cases, not assertions | **no owner.** Named because every Record this plan writes quotes a count, and the noun stays *cases* |
 
 ## A note on ids
 
@@ -365,7 +365,7 @@ declaration's own four documents tripped. **Q143-Q150 are reserved for the three
 W28's `Reserves:` line reads Q143-Q145 rather than Q142-Q145.
 
 **ADR ids resume at 0034.** P8 reserved 0032-0033 and used neither, so **both are skipped**. **0026
-stays held for [Q97](../open-questions.md)**, for the **fourth** plan running — P5 reserved it for the
+stays held for [Q97](../questions/q97.md)**, for the **fourth** plan running — P5 reserved it for the
 `stuck` conflation and deliberately did not take it, and neither P7, P8 nor this plan takes it.
 **0028 and 0031 stay skipped.**
 
@@ -379,10 +379,10 @@ than left to a reader's `git show --stat`:**
 | file | why |
 |---|---|
 | [P8's Record](p8-what-can-be-deleted-with-the-gate-green.md) | **a correction in place.** Its *"roughly half the gate, either way"* is wrong by a factor of nearly two, and the correction is the paragraph beside it rather than a replacement — P7's practice, and W22's and W25's precedent for correcting a prior plan's text from a measurement. **Not deleted**: the absolutes it records are right and its *"absolutes are not constants"* sentence is reinforced by this measurement, not undermined |
-| `scripts/check-markdown.mjs` and `scripts/check-markdown-selftest.mjs` | **a repair the declaration was OBLIGED to make, because its own four documents turned the gate red.** [Q142](../open-questions.md): the floors retuned to 56 / 1350 / 60 from a measurement, the falsified paragraph corrected in place rather than deleted, the two probes' stale measured comments updated, and the two META entries re-anchored to the new literals. **This is the exception that proves Q142's own point** — an item that adds documents is obliged to edit a file it does not own — and it is declared here rather than discovered by a reader running `git show --stat` |
+| `scripts/check-markdown.mjs` and `scripts/check-markdown-selftest.mjs` | **a repair the declaration was OBLIGED to make, because its own four documents turned the gate red.** [Q142](../questions/q142.md): the floors retuned to 56 / 1350 / 60 from a measurement, the falsified paragraph corrected in place rather than deleted, the two probes' stale measured comments updated, and the two META entries re-anchored to the new literals. **This is the exception that proves Q142's own point** — an item that adds documents is obliged to edit a file it does not own — and it is declared here rather than discovered by a reader running `git show --stat` |
 
 **And the same claim was corrected in three other places it had been copied to** — `CLAUDE.md`,
-`doc/README.md` and [Q133](../open-questions.md) — all four within the record step's grant except the
+`doc/README.md` and [Q133](../questions/q133.md) — all four within the record step's grant except the
 first. **That it lived in four documents is the point**: it is `doc/`'s standing failure in a shape
 none of the seven refusals has named, because the number was **right** and only the comparison was
 wrong.
@@ -406,7 +406,7 @@ the entry gutted of ` --self-test`, removed from `package.json`, removed from th
 from `GATE_CHAIN` — all four measured and all four refused by name. **It does not catch the
 SCRIPT**: delete the four-line `--self-test` dispatch from `check-spec.mjs` and
 `npm run check:spec:selftest` runs the plain check, exits **0**, and `check:source` exits 0 beside
-it. Measured in **all SIX** checks that carry a dispatch. [Q149](../open-questions.md), and **the fifth
+it. Measured in **all SIX** checks that carry a dispatch. [Q149](../questions/q149.md), and **the fifth
 obligation is earned on the item that predicted it would not be.** *(W30 wrote **five** into six
 documents, having enumerated the checks in its own probe script rather than counting the
 `:selftest` entries in `package.json`; its conformity reader found `check-markdown` missing. The
@@ -414,7 +414,7 @@ finding was right and its census was wrong — W29's own blocking finding, one i
 
 **The exit artifact gains a THIRD row shape, and it is neither a detection nor a miss either.** W29
 added *a sibling clause reporting the same id* and *a clause unreachable by construction*; W30 adds
-**a clause whose grading passes as `corpus`** — [Q150](../open-questions.md). A mutant that fails on
+**a clause whose grading passes as `corpus`** — [Q150](../questions/q150.md). A mutant that fails on
 the clean tree is graded `corpus` and `corpus` is a PASS, so a harness bug that makes every mutant
 non-inert reads as full coverage: dropping W30's import relocation put all 21 entries there at exit
 0, with the summary line reading *"0 noticed by the named probe, 21 by the corpus"*. Closed in
@@ -425,7 +425,7 @@ render wrong; W30's first one aborted on **three rows that render perfectly** �
 Q117's Live row — because it was **code-span aware** and all three carry an odd number of backticks.
 GFM cuts a table row on `|` FIRST and parses inline code afterwards. **A parser more careful than
 the renderer reads a different document**, and that is also precisely why
-[Q131](../open-questions.md)'s two rows do render wrong. Corrected to split on unescaped pipes only,
+[Q131](../questions/q131.md)'s two rows do render wrong. Corrected to split on unescaped pipes only,
 after which the census is **CONFIRMED for the second plan running** — 109 questions, **73 open, 2
 deferred, 34 resolved**, 29 ids in both tables — with Q119 and Q71 carried as two **declared**
 exemptions. **The cluster table was stale by three**: Q146, Q147 and Q148 were in no cluster cell at
@@ -443,9 +443,9 @@ fourteen times:
    `check-scheduler`. The ordering argument for W28-before-W29 is **unaffected and strengthened** —
    the saving is larger, not smaller — but the plan's estimate of what W29 would add to the gate was
    the wrong number, and W29's coverage is cost-proportionate because of it.
-   [Q148](../open-questions.md).
+   [Q148](../questions/q148.md).
 2. **The `corpus` split this plan predicted for `check-docs` did not happen.**
-   [Q145](../open-questions.md) warned that non-inert mutations would need reporting rather than
+   [Q145](../questions/q145.md) warned that non-inert mutations would need reporting rather than
    engineering away; all **13** candidate `check-docs` clause mutations and every `check-scheduler`
    one measured **inert**, so both new summary lines read `N/N` with no corpus term. Predicted from
    the shape of the clauses, measured to the contrary, and reported because the prediction was
@@ -456,7 +456,7 @@ artifact is *one row per check clause saying what notices*, with three answers �
 unrelated probe reacting to noise, or nothing.
 
 1. **A sibling clause reporting the same id**, which is neither a detection nor a miss.
-   [Q146](../open-questions.md). W29 first measured two of these and the count discriminator then
+   [Q146](../questions/q146.md). W29 first measured two of these and the count discriminator then
    showed **one is co-firing (detectable, by the failure count) and one is true masking**. So the
    artifact needs **two** more columns rather than one, and the distinction is the finding.
 2. **A clause that is unreachable by construction.** `scripts/check-scheduler.mjs:191` reads
@@ -485,7 +485,7 @@ in **one file, before and after**:
 | `MIN_META -> 0` together with a shortened `META` | 0 | **1** |
 | a `META` entry replaced by a DUPLICATE of another | 0 | **1** |
 | one entry's anchor made GLOBAL — six `P3` sites, one name | 0 | **1** |
-| a grading passing as `corpus` ([Q150](../open-questions.md)) | 0 | **1** |
+| a grading passing as `corpus` ([Q150](../questions/q150.md)) | 0 | **1** |
 | `MAX_WIDE -> 99` — **which W30 recorded as SURVIVING in `check-source`** | — | **1** |
 | the `ran:` crash guard, both halves | 0 | **1** |
 | `if (!meta) -> if (true)`; `if (nestedSelf) -> if (true)`; the outermost verdict | 0 | **still 0** |
@@ -500,24 +500,24 @@ and corrected it in place.
 **And the cost is the honest half, which the plan asked for explicitly.**
 `check:policies:selftest` was **2.2 s** and is **14.0 s** — 6.3x, for a check with three clause ids
 and ten `fail()` sites, to close eight holes that each cost 0. **That is the cheapest self-test in the
-gate becoming a mid-priced one**, and it is [Q133](../open-questions.md) moving in the wrong direction
+gate becoming a mid-priced one**, and it is [Q133](../questions/q133.md) moving in the wrong direction
 for the right reason, exactly as W30's did. Self-tests were ~87% of the gate at W30's close.
 
 **W31's own defect is the plan's question one layer further out, and it is the sharpest single
-instance this plan produced.** [Q151](../open-questions.md): the `SELF` mutants were written into the
+instance this plan produced.** [Q151](../questions/q151.md): the `SELF` mutants were written into the
 scratch directory a child deletes on its first line, so every `META` grandchild failed to import,
 every grading inside every child read *"the mutant did not run: this is a crash, not a detection"*,
 and the file reported **`12/12 bounded` at exit 0**. The whole pass was measuring the deletion. **A
 grading of the shape *the child failed* cannot tell a fired floor from a broken harness** — which is
-[Q138](../open-questions.md) restated one level out, in the entries written to close Q138. Closed by
+[Q138](../questions/q138.md) restated one level out, in the entries written to close Q138. Closed by
 a control run; **live in `check-source-selftest.mjs` and `check-markdown-selftest.mjs`**, the two
 other files with a `SELF` list.
 
-**Two more rows for the exit artifact, both from W31.** [Q152](../open-questions.md) — two of W28's
+**Two more rows for the exit artifact, both from W31.** [Q152](../questions/q152.md) — two of W28's
 three verdicts are **message-only**, so *what notices when this clause goes inert* has the answer
 **nothing, and nothing can**, in all three files that carry them; that is a third shape after W29's
 *a sibling clause reporting the same id* and *a clause unreachable by construction*.
-[Q153](../open-questions.md) — a `SELF` list is bounded by count and not by content, which is W29's
+[Q153](../questions/q153.md) — a `SELF` list is bounded by count and not by content, which is W29's
 `META` finding at the outermost list.
 
 **What this plan owes `doc/workflow.md`.** Two verdicts, both from P8's retro, both to be reached on
@@ -593,12 +593,12 @@ vocabulary has no word for, and **four of them are neither a detection nor a mis
 | 1 | a **named probe** | the plan's own |
 | 2 | an **unrelated probe reacting to noise** | the plan's own; `noisy` is now REFUSED |
 | 3 | **nothing** | the plan's own |
-| 4 | a **sibling clause reporting the same id** — masking | W29, [Q146](../open-questions.md) |
+| 4 | a **sibling clause reporting the same id** — masking | W29, [Q146](../questions/q146.md) |
 | 5 | the same, but **co-firing**: same id, different COUNT, so it *is* detected | W29 — and *co-firing is detectable by a projection nobody was reading; masking is not* |
 | 6 | **nothing, and nothing could** — a clause unreachable by construction | W29 (`check-scheduler.mjs:191`), W30 (`SCHEDULER_REACH[4]`) |
-| 7 | the gate, as **`corpus`** — which is a PASS, so a broken harness reads as coverage | W30, [Q150](../open-questions.md) |
+| 7 | the gate, as **`corpus`** — which is a PASS, so a broken harness reads as coverage | W30, [Q150](../questions/q150.md) |
 | 8 | a **different id** — the run fails for the wrong reason | W29: four `check-docs` clauses, noticed by `RUN_FLOOR` |
-| 9 | **nothing, and nothing can** — a **message-only** clause, which assigns a diagnosis and touches no verdict | W31, [Q152](../open-questions.md) |
+| 9 | **nothing, and nothing can** — a **message-only** clause, which assigns a diagnosis and touches no verdict | W31, [Q152](../questions/q152.md) |
 
 **Row 9 is the one to carry, because it is invisible to every mechanism this plan built.** W28's
 contract asks *did the named probe stop noticing*; a branch that only writes `why` changes no verdict,
@@ -615,8 +615,8 @@ naming six; see change 3.
 | | the wiring | what happened |
 |---|---|---|
 | **W24** (P8) | the **MANIFEST** | ` --self-test` dropped from a `package.json` entry — the name stays in the chain and the plain check runs twice. Found by **both** of W24's readers. `S11` now refuses it, four ways |
-| **W30** | the **SCRIPT** | the four-line `--self-test` dispatch deleted from the check itself: `npm run check:X:selftest` runs the plain check, exits **0**, and `check:source` exits 0 beside it. **Measured six for six** — for `check-docs` that is 128 s of gradings silently not running. `S11` reads the **manifest** and cannot see it. [Q149](../open-questions.md) |
-| **W31** | the **HARNESS** | the `SELF` mutants written into the scratch directory a child deletes on its own first line, so no grandchild could re-import them: **`12/12 bounded` at exit 0**, with every grading in every child reading *"the mutant did not run: this is a crash, not a detection"*. The pass ran, and measured the deletion. [Q151](../open-questions.md) |
+| **W30** | the **SCRIPT** | the four-line `--self-test` dispatch deleted from the check itself: `npm run check:X:selftest` runs the plain check, exits **0**, and `check:source` exits 0 beside it. **Measured six for six** — for `check-docs` that is 128 s of gradings silently not running. `S11` reads the **manifest** and cannot see it. [Q149](../questions/q149.md) |
+| **W31** | the **HARNESS** | the `SELF` mutants written into the scratch directory a child deletes on its own first line, so no grandchild could re-import them: **`12/12 bounded` at exit 0**, with every grading in every child reading *"the mutant did not run: this is a crash, not a detection"*. The pass ran, and measured the deletion. [Q151](../questions/q151.md) |
 
 **The prediction was written into this plan's work-items section before W30 started**, in the words the
 verdict would have to match: *"the prediction is that `S11` catches it and the obligation is therefore
@@ -648,14 +648,14 @@ the missing half is this plan's own subject turned on rule 8's own set.
 **The half P8 named — does the guard ever FIRE?** W30 is seventeen instances (`spec/` has passed
 `C1`-`C8` since W1, so every probe there builds an invalid `spec/` that has never existed) plus one
 with **no case the corpus can express at all**. W29's `D5` is the counter-case — a check written for a
-defect that was live, [Q141](../open-questions.md). W31 has three guards whose case had to be
-**constructed**: [Q144](../open-questions.md)'s `ran:` case, the control run's, and an ambiguous-anchor
+defect that was live, [Q141](../questions/q141.md). W31 has three guards whose case had to be
+**constructed**: [Q144](../questions/q144.md)'s `ran:` case, the control run's, and an ambiguous-anchor
 guard whose defect **was never in the tree at all**. And P9's own declaration supplied the answer to
 *how long does a corpus take to catch up*: `M1` shipped green with no live case at W25 and caught a
 real dead link **one plan later**, written by this plan's own declaration.
 
 **The half nobody had named — when it fires, is it for THIS reason?** Rule 8 grades a provocation by
-*did the gate go red*. **That is [Q138](../open-questions.md) — the defect this whole plan exists to
+*did the gate go red*. **That is [Q138](../questions/q138.md) — the defect this whole plan exists to
 remove — living inside rule 8's own procedure**, and it was found six times in three items:
 
 | | the provocation | it went red for |
@@ -705,9 +705,9 @@ the two files W31's own record step edits, one item later.
 | v0.9 change | What would show it was wrong | **P9's verdict** |
 |---|---|---|
 | **Rule 8's FOURTH obligation: break the LOOP BOUNDS** | the readers still find blocking gaps on a fifth axis, or the obligation fires on nothing | **Right, and it is the highest-yield obligation in the document — and STILL NOT SUFFICIENT.** W30's adequacy reader: **twelve of seventeen survivors** were obligations (a) and (d) and **not one was reachable by a probe that breaks a VALUE**. W31's: three of five blocking findings are bounds. **But the gap it leaves is verdict 2**: W31's three `MIN_PROBES` entries instantiate the obligation perfectly — one entry out, the whole list out — and all three bounded the ABORT instead of the floor. **Knowing which list to break is not knowing that you broke it for that list's reason** |
-| **Rule 8 states the PROCEDURE for a provenance probe** | an author instantiates it wrong again, or a reader corrects it a fifth time | **Right, and NOT corrected once in four items — the first of v0.8's or v0.9's rule-8 amendments to go a whole plan clean.** [Q112](../open-questions.md) had corrected the axis four times across three items before the procedure was written down. P9 ran nine provenance probes across its four items and **every one changed a source expression and nothing else**; the two that survived (`SELF_RAN`, `tripped` re-sourced) survived as findings rather than as rewrites. **One sentence in the rule ended a class that four items could not** |
+| **Rule 8 states the PROCEDURE for a provenance probe** | an author instantiates it wrong again, or a reader corrects it a fifth time | **Right, and NOT corrected once in four items — the first of v0.8's or v0.9's rule-8 amendments to go a whole plan clean.** [Q112](../questions/q112.md) had corrected the axis four times across three items before the procedure was written down. P9 ran nine provenance probes across its four items and **every one changed a source expression and nothing else**; the two that survived (`SELF_RAN`, `tripped` re-sourced) survived as findings rather than as rewrites. **One sentence in the rule ended a class that four items could not** |
 | **Section 1 rule 5's provenance clause extends to ANY copy** | an author believes a derived claim again, including their own | **Right, EXERCISED, and it is now the standard readers judge by — and it has a blind side, which is change 3.** W30's conformity reader cited it against a cluster table, W31's against `CLAUDE.md` carrying W29's author-pass counts and against an index contradicting itself inside one document. **Every one of those is a READ.** The two blocking findings it could not reach are the two in change 3, where the author measured correctly and wrote a scope they had not measured |
-| **Section 7 rule 2: `Owns` from the PLAN's index row** | an item's block is wrong again, or late exceptions rise | **Right, and the numbers hold at the floor.** Across P9's four items: **zero, zero, two, zero** late exceptions, and W30's two are the same pair P9's own declaration took for itself, on the same two files, for the same reason — [Q142](../open-questions.md)'s two-sided window obliging an item that **adds documents** to edit a file it does not own. **That is a plan's problem, not a discipline problem**, and it is the second plan running to hit it |
+| **Section 7 rule 2: `Owns` from the PLAN's index row** | an item's block is wrong again, or late exceptions rise | **Right, and the numbers hold at the floor.** Across P9's four items: **zero, zero, two, zero** late exceptions, and W30's two are the same pair P9's own declaration took for itself, on the same two files, for the same reason — [Q142](../questions/q142.md)'s two-sided window obliging an item that **adds documents** to edit a file it does not own. **That is a plan's problem, not a discipline problem**, and it is the second plan running to hit it |
 
 ### What did NOT change, and all four were live
 
@@ -747,7 +747,7 @@ found by a reader and none by a check, and the two candidate mechanisms are stil
 problem.** What P9 adopts instead is change 3, which is a rule about **where a claim's scope comes
 from** — the one sub-case that has now occurred twice, in two items, in the same direction.
 
-### [Q133](../open-questions.md), answered with a number rather than decided
+### [Q133](../questions/q133.md), answered with a number rather than decided
 
 **P8's retro said *"roughly half the gate"*; P9's declaration corrected that to 88% (206.3 s of
 234.6 s over 18 entries) and predicted the contract change would bring it down. It did not, and the
@@ -783,7 +783,7 @@ readers required, the eight new `SELF` entries, W29's two META passes, W30's new
 probes, and W31's fourteen `SELF` entries put it back and more. **Every one of those is measured
 coverage that did not exist**, and the plan's scope declared changing what the gate RUNS out of bounds.
 **Q133 stays open with a better number on both sides of it**, and the decision it asks for — whether a
-`verify` chain should split out of `gate` — is still nobody's. [Q148](../open-questions.md) is the
+`verify` chain should split out of `gate` — is still nobody's. [Q148](../questions/q148.md) is the
 constraint whoever takes it must start from: **the obvious mitigation is unsafe**, because
 `check:scheduler:selftest` moves `node_modules/fyflow-scheduler` aside while an `AGENTS.md` snippet
 imports it, so two of the six cannot run concurrently.
@@ -796,10 +796,10 @@ adequacy reader's measurement, against a trigger written into W28's `Out` list *
 eighth plan running.**
 
 **Q ids: Q141-Q153 reserved and all thirteen used** — the first plan to spend its whole block.
-**One resolved** ([Q141](../open-questions.md), by W29); twelve open. **ADR 0034 and 0035 are both
+**One resolved** ([Q141](../questions/q141.md), by W29); twelve open. **ADR 0034 and 0035 are both
 SKIPPED**, exactly as the plan predicted for four items that change harnesses rather than
 architecture, and **no item wanted one** — which was the plan's own stated signal that scope had grown.
-**0026 stays held for [Q97](../open-questions.md) for the fifth plan; 0028 and 0031 stay skipped.**
+**0026 stays held for [Q97](../questions/q97.md) for the fifth plan; 0028 and 0031 stay skipped.**
 
 ### The one sentence to carry
 

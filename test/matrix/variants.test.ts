@@ -14,7 +14,7 @@
  * [W15](../../doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md)
  * so the matrix can run them as its third and fourth **columns**. Neither is
  * exported from `src/`. `spec/join-policy.md`: *"if it is built it is built under
- * its own id"*, and [Q24](../../doc/open-questions.md) is where they go if W4's
+ * its own id"*, and [Q24](../../doc/questions/q24.md) is where they go if W4's
  * result makes them interesting.
  *
  * **This file's job is unchanged and it is not the matrix's.** It asserts what

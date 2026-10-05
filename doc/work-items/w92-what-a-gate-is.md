@@ -80,7 +80,7 @@ takes **0066**.*
 | 1 | P24 fact 5: `GateNode` in the union, the five lanes run separately — the number of typecheck errors and their sites | the churn this item must pay; Q380 |
 | 2 | every one of the 51 `src/` sites and the 45 outside it, each classified: must learn the kind / falls through correctly / falls through WRONG | Outputs (5); the seeded exceptions |
 | 3 | what `new Driver` does today with a gate document: `FD-V24` from the validator, and what reaches the driver's `default` arm | Outputs (6) |
-| 4 | which corpus censuses pinned outside the corpus a new valid example moves ([Q342](../open-questions.md), [Q360](../open-questions.md)) | the seeded exceptions |
+| 4 | which corpus censuses pinned outside the corpus a new valid example moves ([Q342](../questions/q342.md), [Q360](../questions/q360.md)) | the seeded exceptions |
 | 5 | Q142's margins on the tree this item starts from | `M3` 5, `M4` 22 after P24's declaration |
 
 ### What the re-takes found — 2026-09-25, before any `src/` edit
@@ -90,7 +90,7 @@ zero links). Re-run, never transcribed.*
 
 **Row 1 — REPRODUCES, and the plan's wording is corrected.** `GateNode` added to the `FlowNode` union in the copy:
 **one error, `src/driver/driver.ts:2451` — `Type 'GateNode' is not assignable to type 'never'` — in ALL FIVE lanes**,
-`typecheck:deno` included; `lint` exit 0. P24 fact 5 and [Q380](../open-questions.md) say *four lanes* (fact 5 adds
+`typecheck:deno` included; `lint` exit 0. P24 fact 5 and [Q380](../questions/q380.md) say *four lanes* (fact 5 adds
 *"`typecheck:deno` fails on it too"*, which makes five): it is five of five.
 
 **Row 2 — the census, re-derived with a STATED predicate, because the plan's is recorded nowhere on disk.**
@@ -139,8 +139,8 @@ construction refusal, so a SEVENTH kind is still a compile error.
 
 **Row 4 — FIVE censuses a valid gate example moves, and the seeded table named NONE of them** (it seeded
 `l6.ts` for dispatch sites, which is a different reason): `test/definition/wiring.test.ts`' L4 arc total, a
-LITERAL (`56`, [Q342](../open-questions.md)'s shape); `spec/outcome-record.md` section 4's task-node split, DERIVED
-by `test/fold/result-value.test.ts` ([Q360](../open-questions.md)) — and a gate is not a task node, so only the
+LITERAL (`56`, [Q342](../questions/q342.md)'s shape); `spec/outcome-record.md` section 4's task-node split, DERIVED
+by `test/fold/result-value.test.ts` ([Q360](../questions/q360.md)) — and a gate is not a task node, so only the
 example's tasks count; `test/driver/needs.test.ts`' region-bearing census, derived and RUN; the L4 kind list; and
 **`examples/l6.ts`' kind clause, which makes W92's declared valid example and W92's declared *L6 UNMOVED*
 incompatible as written** — a gate in the corpus is a kind no L6 row runs, and no L6 row CAN run one until W94.
@@ -171,7 +171,7 @@ cut, so `M3` is predicted unmoved; `M4` is predicted to fire at the record step.
 
 | file | why | predicted? |
 |---|---|---|
-| `scripts/check-markdown.mjs` | `M4`'s margin is 22 links at P24's declaration; this item's record step is predicted to cross it ([Q142](../open-questions.md)) | P24 seed |
+| `scripts/check-markdown.mjs` | `M4`'s margin is 22 links at P24's declaration; this item's record step is predicted to cross it ([Q142](../questions/q142.md)) | P24 seed |
 | `examples/l6.ts` | node-kind dispatch sites; a registry or type member its walks list — **re-taken: the reason is its cross-row clause *L6 runs a flow containing every node kind the spec corpus expresses*, which a valid gate example turns red** (row 4) | P24 seed, reason corrected at the declaration step |
 | `scripts/check-spec.mjs`, `scripts/check-spec-selftest.mjs` | six node-kind sites; `C7` reads every task's type — **re-taken: the six sites fall through correctly; the self-test's anchors on *34 refusals* are what move** | P24 seed, reason corrected |
 | `AGENTS.md` | section 3's *five node kinds* and *34 refusals*; section 9's executed error-class enumeration if a class is added | P24 seed |
@@ -252,7 +252,7 @@ a WRONG-REASON control (`gW`, a real break graded against a clause it does not b
 | pass | probes | result |
 |---|---|---|
 | author | 35 | control clean, both grader controls RIGHT, 31 caught, 2 declared ceilings RUN, **1 against declaration — the probe, not the product**: `d2` renamed a case where it meant to delete one, and the name it left, `undefined`, crashed W76's suite (it calls `.endsWith` on every registered name). Rewritten and re-run: CAUGHT |
-| 2 — with the readers' 13 exact edits | 48 | **4 against declaration**: `a13` SURVIVED because the fix for conformity finding 10 made its guard unreachable (the guard is removed and the probe re-aimed); and **`r7`, `r8`, `r9` graded WRONG-REASON — the new case's NAME had been appended after the self-check's in `DECLARED_CASES` while its BODY sat before it, so each case ran under the other's name.** No assertion in the file could see it — the in-file membership is a SET — and v0.24's reason-on-the-failure-line is what did ([Q382](../open-questions.md)) |
+| 2 — with the readers' 13 exact edits | 48 | **4 against declaration**: `a13` SURVIVED because the fix for conformity finding 10 made its guard unreachable (the guard is removed and the probe re-aimed); and **`r7`, `r8`, `r9` graded WRONG-REASON — the new case's NAME had been appended after the self-check's in `DECLARED_CASES` while its BODY sat before it, so each case ran under the other's name.** No assertion in the file could see it — the in-file membership is a SET — and v0.24's reason-on-the-failure-line is what did ([Q382](../questions/q382.md)) |
 | 3 — the final tree | 48 | **control clean, `gX` CRASH and `gW` WRONG-REASON as declared, 41 caught, 4 declared ceilings RUN, 0 aborts, 0 against declaration**, digest `d53a765d26fa2d77` identical at both ends |
 
 **The four ceilings, each run against the rung its reason names**: `b10` — the `enter()` gate arm returning silently
@@ -325,8 +325,8 @@ made a tautology — two findings, one line, as W78's pair was.
 
 ### Questions
 
-**[Q380](../open-questions.md) RESOLVED** — answered by measurement, not fixed. **Raised: [Q381](../open-questions.md)**
+**[Q380](../questions/q380.md) RESOLVED** — answered by measurement, not fixed. **Raised: [Q381](../questions/q381.md)**
 (a new node kind is BREAKING for a consumer's exhaustive `switch` over `FlowNode`, through `index.ts`' `export *`, and
-nothing names it for W94's `README.md` list) and **[Q382](../open-questions.md)** (a suite naming its cases by INDEX can
+nothing names it for W94's `README.md` list) and **[Q382](../questions/q382.md)** (a suite naming its cases by INDEX can
 run two cases under each other's names, invisible to its own membership and to the outside count). **Q383-Q385 unused
-and not reused.** Census ****299 / 233 / 1 / 65**, by a parser that first reproduced HEAD's **297 / 232 / 1 / 64** — and ABORTED four times on the way, each naming a row it could not classify: a pointer row's lower-case `**resolved`, a row followed directly by a heading, [Q87](../open-questions.md)'s blank lines inside one row, and an upper-case `**RESOLVED**`; every id in exactly one cluster cell**.
+and not reused.** Census ****299 / 233 / 1 / 65**, by a parser that first reproduced HEAD's **297 / 232 / 1 / 64** — and ABORTED four times on the way, each naming a row it could not classify: a pointer row's lower-case `**resolved`, a row followed directly by a heading, [Q87](../questions/q87.md)'s blank lines inside one row, and an upper-case `**RESOLVED**`; every id in exactly one cluster cell**.

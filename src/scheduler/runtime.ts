@@ -99,7 +99,7 @@ export class LanguageNotBuilt extends RuntimeError {}
 /**
  * **A `start` or a `resume` naming a run id a driver of THIS runtime already holds** — `RN-R25`,
  * [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
- * [Q364](../../doc/open-questions.md), P23 stop-and-ask (b). `at` is the run id. Thrown before any
+ * [Q364](../../doc/questions/q364.md), P23 stop-and-ask (b). `at` is the run id. Thrown before any
  * driver is built, so the refused call costs nothing — and a minted id never reaches it, because the
  * counter skips ids in use.
  */
@@ -142,7 +142,7 @@ export interface RuntimeOptions {
    * `"./workers/prompt.ts"`, and `new URL(that)` on its own THROWS (measured, fact 8) — so a
    * document carrying any relative URL needs this, and the refusal says so by name. Pass
    * `import.meta.url`. Inside a bundle `import.meta.url` is the bundle
-   * ([Q261](../../doc/open-questions.md)), which is why the runtime cannot guess it.
+   * ([Q261](../../doc/questions/q261.md)), which is why the runtime cannot guess it.
    */
   base?: string;
   /**
@@ -183,11 +183,11 @@ export interface RuntimeOptions {
  * `runId` be on it: P20 decision 5 knew of `joinPolicy` alone and W76's declaration step measured
  * two. *(The test also PINS that road's membership to `['joinPolicy', 'runId']`, so moving a member
  * between the two roads fails and has to be done deliberately — a ratchet of
- * [Q102](../../doc/open-questions.md)'s shape. Both of W76's readers found the first version of
+ * [Q102](../../doc/questions/q102.md)'s shape. Both of W76's readers found the first version of
  * this sentence overclaiming, because it said the test named nobody.)*
  *
  * **`onRegionEvent` is here because it was the one `DriverOptions` member no consumer of
- * `createRuntime` could reach** ([Q297](../../doc/open-questions.md), [W71](../../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)).
+ * `createRuntime` could reach** ([Q297](../../doc/questions/q297.md), [W71](../../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)).
  * Of the eighteen members AS THEY STOOD a consumer reaches **two** because the runtime supplies them (`runId`,
  * `scheduler`), **six** through `RuntimeRegistry`, **two** through `RuntimeOptions` — and only two,
  * because `base`, `flows`, `createPool` and `createScheduler` are the runtime's own and are not
@@ -196,7 +196,7 @@ export interface RuntimeOptions {
  * makes its table 21 slots over 18 members and therefore not a partition at all; what survives is
  * its conclusion — one residue, and a unique one — which is why this was a defect rather than a
  * judgement about which callbacks are worth carrying.* The event the callback receives is **already
- * frozen by the driver** (`OR-R7`, [Q73](../../doc/open-questions.md), W12), so nothing is copied or
+ * frozen by the driver** (`OR-R7`, [Q73](../../doc/questions/q73.md), W12), so nothing is copied or
  * re-frozen at this seam; measured across it rather than assumed, at W76's declaration step and in
  * `AGENTS.md` section 10. *(What `onFoldInput` receives IS re-copied — `freezeInput` gives it its
  * own frozen object — so the two outbound paths carry equal values and not the same one, which
@@ -240,7 +240,7 @@ export type RuntimeRegistry = Pick<DriverOptions, 'predicates' | 'workers' | 'no
 /**
  * **What `runtime.start` hands back — the run's driver, and the run's END** —
  * [ADR 0058](../../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md),
- * [W77](../../doc/work-items/w77-what-start-returns.md), [Q293](../../doc/open-questions.md).
+ * [W77](../../doc/work-items/w77-what-start-returns.md), [Q293](../../doc/questions/q293.md).
  *
  * **Why the runtime and not the driver.** A run's state is a pure fold of what the driver reports,
  * and [ADR 0014](../../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)
@@ -510,7 +510,7 @@ export function createRuntime(
 
   let minted = 0;
   /**
-   * **Every run id a driver of THIS runtime holds** — `RN-R25`, [Q364](../../doc/open-questions.md), P23 stop-and-ask (b),
+   * **Every run id a driver of THIS runtime holds** — `RN-R25`, [Q364](../../doc/questions/q364.md), P23 stop-and-ask (b),
    * answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's**, and that is a
    * measurement rather than caution: a driver subscribes to the scheduler at construction and `SchedulerLike` has no way to
    * unsubscribe it, so a completed run's driver still hears every settlement carrying its run id — a second run under that
@@ -613,7 +613,7 @@ export function createRuntime(
     // settled handles holds N `RunState`s. A consumer who previously kept no completion machinery
     // at all now pays one copy they did not, and the `structuredClone` `freezeInput` makes is now
     // paid on every settlement of every run rather than only where a consumer asked for one.
-    // [Q320](../../doc/open-questions.md).
+    // [Q320](../../doc/questions/q320.md).
     let settle!: (s: RunState) => void;
     const done = new Promise<RunState>((resolve) => { settle = resolve; });
     let state = emptyState();

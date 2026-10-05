@@ -64,7 +64,7 @@ probe would notice a clause going inert is **unknown** — not *would not*. Four
 because a probe drives the clause and the mutation removes its report. `D5`'s survivor is different in
 kind: `scripts/check-scheduler.mjs:195` fires only when the `.d.ts` parse yields **nothing**, and no
 probe supplies a `.d.ts` the parse cannot read. **A clause no probe drives is invisible to every probe
-by construction**, and only a META pass asks the question. [Q141](../open-questions.md).
+by construction**, and only a META pass asks the question. [Q141](../questions/q141.md).
 
 **And the reason this item is second rather than first is arithmetic.** A `check-docs` probe costs
 **4.4 s**. Ten META entries under the pre-W28 contract — each re-running the whole 14-probe suite —
@@ -85,11 +85,11 @@ every probe.
 |---|---|---|
 | **the cost model** | *"~450 s under today's contract and **~46 s** under this one"* | **~46 s is wrong and optimistic by 2.3x.** That figure is `4.4 s × 10` — **one** check run per entry. W28's readers added an **inertness run**, so an entry is **two** full check runs. Measured: a bare `check-docs` run is **3.72 s / 3.80 s**, and one META entry costs **~7.0 s** (inertness 3.6 s + named probe 3.4 s). Ten entries is **~70 s**, and full clause coverage — 13 distinguishable clauses — is **~108 s** |
 | **the baselines** | `check-docs` 45.3 s, `check-scheduler` 2.0 s (P9's census) | **50.1 s / 46.1 s** and **1.30 s / 1.39 s**. A pair each, ratio 1.09 on the expensive one. The census figures sit inside the docs band and **above** the scheduler one; *absolutes are not constants* holds in both directions |
-| [Q141](../open-questions.md) | `D5`'s empty-parse clause is inert for 0 failures | **Confirmed, reproduced exactly.** `if (expected.length === 0 && …)` → `if (false)`: the mutant exits **0 on the clean tree** and the self-test reports **12/12 probes caught, exit 0** |
+| [Q141](../questions/q141.md) | `D5`'s empty-parse clause is inert for 0 failures | **Confirmed, reproduced exactly.** `if (expected.length === 0 && …)` → `if (false)`: the mutant exits **0 on the clean tree** and the self-test reports **12/12 probes caught, exit 0** |
 | **the `corpus` split** | expected — *"some `check-docs` mutations will be non-inert (X5's DOM-lib clause, X4's floor)"* | **FALSE for `check-docs`.** All **13** candidate clause mutations are **inert**, X5's and X4's included, and all 13 have a named probe that goes **uncaught**. There is no split to report. Predicted from the shape of the clause; measured to the contrary |
-| **the report block** | not mentioned | **A hole, live in BOTH files, and neither has the `agree` clause `check-source` and `check-markdown` carry.** Deleting a row from the `checks` array, and making the report loop print `ok` for every row, are **invisible to every probe**: `wanted [D3] got [D3] exit 1` in `check-scheduler` and `wanted [X2] got [X2] exit 1` in `check-docs`. [Q100](../open-questions.md)'s class, and in `check-scheduler` it erases the **`NOT RUN`** state `doc/workflow.md` section 1 rule 4 exists for |
+| **the report block** | not mentioned | **A hole, live in BOTH files, and neither has the `agree` clause `check-source` and `check-markdown` carry.** Deleting a row from the `checks` array, and making the report loop print `ok` for every row, are **invisible to every probe**: `wanted [D3] got [D3] exit 1` in `check-scheduler` and `wanted [X2] got [X2] exit 1` in `check-docs`. [Q100](../questions/q100.md)'s class, and in `check-scheduler` it erases the **`NOT RUN`** state `doc/workflow.md` section 1 rule 4 exists for |
 | the `ALL_CHECKS` allowlist | *"P9's declaration tested it and it is inert"* | **Confirmed independently.** Renaming a reported id to one outside the list is **caught** in both files — `wanted [D3] got []` and `wanted [X2] got [X4]`. **Left alone**, as this item's `Out` list asks; the three probes added below all report under `D5`, which the list already names, so the hazard does not go live here |
-| the register's census | *"104 questions - 69 open, 2 deferred, 33 resolved"* | **CONFIRMED**, by a parser that aborts on any row it cannot classify. 99 live row starts + 33 resolved, 28 ids in both tables, **104 distinct — 69 / 2 / 33**. It **aborted on Q119 and Q71** ([Q131](../open-questions.md)), hand-classified as `open` / `no owner` from the cells the unescaped pipes shift right. **It did not abort on Q87** ([Q135](../open-questions.md)) and did not merge it either: gathering a row from its `\| Qn \|` line to the next boundary reads its status through two blank lines correctly. *A parser that GATHERS correctly never meets the hazard a parser that only SPLITS meets* |
+| the register's census | *"104 questions - 69 open, 2 deferred, 33 resolved"* | **CONFIRMED**, by a parser that aborts on any row it cannot classify. 99 live row starts + 33 resolved, 28 ids in both tables, **104 distinct — 69 / 2 / 33**. It **aborted on Q119 and Q71** ([Q131](../questions/q131.md)), hand-classified as `open` / `no owner` from the cells the unescaped pipes shift right. **It did not abort on Q87** ([Q135](../questions/q135.md)) and did not merge it either: gathering a row from its `\| Qn \|` line to the next boundary reads its status through two blank lines correctly. *A parser that GATHERS correctly never meets the hazard a parser that only SPLITS meets* |
 
 **And a finding the survey produced that nobody had written down: four `check-docs` clauses, made
 inert, are noticed by a DIFFERENT clause — and an exit code would call that a detection.** With the
@@ -98,7 +98,7 @@ the retag refusal (`X2`) made inert, the run still **fails** — under **`X4`**,
 mutations removes a snippet from the extract and `RUN_FLOOR` fires. The named-probe grading calls this
 `disappeared` and is right; a `r.status !== 0` grading would call it *noticed* and be wrong about
 **which clause is still checking**. **That is P9's own question answered four times inside one file**,
-and it is why [Q102](../open-questions.md)'s ratchet is more load-bearing than its row records: it is
+and it is why [Q102](../questions/q102.md)'s ratchet is more load-bearing than its row records: it is
 the fallback detector for four clauses that are not its own.
 
 **The cost decision, taken against a stated criterion rather than a feeling.** ~7.0 s an entry is not
@@ -115,7 +115,7 @@ in what a second buys:
 clauses it leaves ungraded are listed in the Record and carried into the exit artifact as *no
 grading*, not omitted from it. Taking all thirteen would put `check:docs:selftest` at **~155 s** and
 the gate at **~310 s**, which reverses W28's saving and takes self-tests from 82% back above 88%;
-that trade belongs to [Q133](../open-questions.md) and to P9's retro, with the number this item
+that trade belongs to [Q133](../questions/q133.md) and to P9's retro, with the number this item
 measures, rather than to an item spending it unremarked.
 
 ## Scope
@@ -130,10 +130,10 @@ measures, rather than to an item spending it unremarked.
    is 0.13 s.
 2a. **The report-row `agree` clause in both files**, without which the `disagreed` outcome can never
    fire and the two report defects measured above stay invisible. A second, independent projection of
-   the same fact — `check-source`'s form, and the mechanism [Q100](../open-questions.md) named.
+   the same fact — `check-source`'s form, and the mechanism [Q100](../questions/q100.md) named.
 3. **`MIN_META` floors on both**, because `noticed === META.length` is **vacuously true at zero** —
    W16's adequacy reader's finding on `check-policies`, inherited rather than rediscovered.
-4. **[Q141](../open-questions.md) closed**: a probe that drives `D5`'s empty-parse branch, and the
+4. **[Q141](../questions/q141.md) closed**: a probe that drives `D5`'s empty-parse branch, and the
    input override it needs on `scripts/check-scheduler.mjs` — on the pattern of `CHECK_SOURCE_PKG`,
    which is how `check-source`'s probes reach a manifest without editing the real one.
    **And two more probes on the SAME override**, because the survey found `D5`'s other two clauses —
@@ -147,8 +147,8 @@ measures, rather than to an item spending it unremarked.
 **Out** — named rather than left implicit, with where it goes instead
 
 - **Changing what `X1`-`X5` or `D1`-`D5` check.** Three register rows say these clauses check less
-  than their names claim — [Q100](../open-questions.md), [Q101](../open-questions.md) and
-  [Q104](../open-questions.md), the last of which is `X4a`'s *"any `throw` answers it"*. **This item
+  than their names claim — [Q100](../questions/q100.md), [Q101](../questions/q101.md) and
+  [Q104](../questions/q104.md), the last of which is `X4a`'s *"any `throw` answers it"*. **This item
   gives them a grading and leaves what they check alone.** A grading that only passes once a clause is
   strengthened is this item having grown into a different one.
 - **`SELF` passes.** Neither file has one, so nothing bounds their `PROBES` lists. P9 reserves **W31**
@@ -162,7 +162,7 @@ measures, rather than to an item spending it unremarked.
   **Named here so a later item does not "fix" a non-problem**, and flagged as going live the moment
   either check gains a clause id no probe names — which is [W30](w30-the-clauses-nothing-probes.md)'s
   situation in a different file.
-- **`check-docs`' `RUN_FLOOR`** — [Q102](../open-questions.md)'s ratchet. It is a floor on the
+- **`check-docs`' `RUN_FLOOR`** — [Q102](../questions/q102.md)'s ratchet. It is a floor on the
   reference's snippet count, not a grading, and it is untouched. **Ruled on rather than passed over,
   because this item is the first to own the file since Q102 was raised**: the survey above found it is
   **not only a ratchet** — it is what actually reports when four *other* clauses go inert, so a stale
@@ -175,7 +175,7 @@ measures, rather than to an item spending it unremarked.
   **Both new files carry it anyway, for the message**, and this is recorded as a second occurrence of
   that measurement rather than as a new finding. A dangling probe name is the failure this contract
   introduces on purpose, and *"no probe is named X"* is what a reader needs to fix it.
-- **A `SELF` list, and therefore a CHECKED-IN provocation of `ran:`.** [Q144](../open-questions.md)
+- **A `SELF` list, and therefore a CHECKED-IN provocation of `ran:`.** [Q144](../questions/q144.md)
   records that `ran:` is live in three files and provoked in none, and the case it wants —
   *inert on the clean tree, FATAL under the probe* — **is constructible in `check-docs`** and is
   demonstrated in the Record. It is demonstrated as a **`doc/workflow.md` rule 8 provocation**, which
@@ -183,7 +183,7 @@ measures, rather than to an item spending it unremarked.
   **because the checked-in form is a `SELF` entry and `SELF` is out of this item's scope** — and
   [W31](w31-the-self-list-check-policies-never-had.md) is narrowed to `check-policies`, so no declared
   item picks these two files up. **Named as a gap with an address**, not closed.
-- **[Q145](../open-questions.md)'s `corpus` split.** The contract counts a non-inert mutant separately
+- **[Q145](../questions/q145.md)'s `corpus` split.** The contract counts a non-inert mutant separately
   and passes it. **There is nothing to report here**: all 13 `check-docs` candidates and every
   `check-scheduler` one measured **inert**, so this item's summary lines should read `N/N noticed`
   with no corpus term. **If one appears, it is reported rather than engineered away** — but the
@@ -228,7 +228,7 @@ npm run test:l6                   # 23 row labels, 25 real runs, 489 assertions
 
 Baseline at `76bf5e6`: **474 `test()` cases** in 19 files across Node 24.20.0, Deno 2.9.6 and
 chromium; **489 assertions at L6** in Node and Deno. *(`npm run gate` runs `test:browser`, which is
-**chromium only**. The two counts count different things — [Q98](../open-questions.md) — and are never
+**chromium only**. The two counts count different things — [Q98](../questions/q98.md) — and are never
 added.)*
 
 **Rule 8's four obligations, on this item's own fix**, written before the readers report and **re-run
@@ -284,7 +284,7 @@ adequacy reader's re-run then exercised.
 | a META pass for `check-scheduler` (every clause) | **yes — 22 gradings**, one per `fail()` site (18) plus one per way the report can lie (3), plus the exit path | ignoring `CHECK_SCHEDULER_SCRIPT` costs **19**; ignoring `CHECK_SCHEDULER_PROBE` costs **21** |
 | `MIN_META` on both, and `MIN_PROBES` where there was none | **yes** | deleting one META entry costs **1** in each file. `check-docs` had **no probe floor at all**; `check-scheduler`'s rose 12 -> 20. **And both lists are now bounded by CONTENT as well** — a duplicate entry costs 1 in each, which the floors could not see |
 | the report-row `agree` projection in both | **yes** | dropping the `agree` term costs **2** in `check-scheduler` and **1** in `check-docs`. **It covered only the FAIL third of the report** — the adequacy reader found `ok` and `NOT RUN` matched and discarded — so a per-probe `notRun` declaration now covers the rest, at **3** |
-| the `D5` probes and `CHECK_SCHEDULER_DTS` — [Q141](../open-questions.md) | **yes — three probes, one override** | removing the override from the check costs **3 probes**. Reading the fixture from `node_modules` instead of hand-writing it costs **1** |
+| the `D5` probes and `CHECK_SCHEDULER_DTS` — [Q141](../questions/q141.md) | **yes — three probes, one override** | removing the override from the check costs **3 probes**. Reading the fixture from `node_modules` instead of hand-writing it costs **1** |
 | the ABORT, the inertness run, `ran:`, the named `probe:` | **yes** | ignoring `probe:` and running `PROBES[0]` regardless costs **16**. **The ABORT fired in the wild** on the author's own probe rename, during the fix step |
 | **the ambiguous-anchor guard** — not declared, added | **yes** | an anchor matching 3 times is refused by name. **Extended after the adequacy reader**: a GLOBAL regex satisfied the first form (one pass edits all six matches, the second pass changes nothing), so the mutation is also applied to the source concatenated with itself. Costs **1** |
 | the cost, measured on both sides | **yes** | below, as pairs with a control |
@@ -307,9 +307,9 @@ written, which is how the cap was chosen; *cost now* is what the shipped list ch
 
 | clause | cost then | cost now |
 |---|---|---|
-| `D5` empty-parse — [Q141](../open-questions.md) | **0 of 12, exit 0** | refused |
+| `D5` empty-parse — [Q141](../questions/q141.md) | **0 of 12, exit 0** | refused |
 | `D5` unreadable / `D5` missing value exports | **no probe could reach either** | refused / refused |
-| `D1` unreadable manifest, `D2` unreadable manifest, `D3` unreadable map | **no probe** | refused, refused, **masked** ([Q146](../open-questions.md)) |
+| `D1` unreadable manifest, `D2` unreadable manifest, `D3` unreadable map | **no probe** | refused, refused, **masked** ([Q146](../questions/q146.md)) |
 | the other 12 `D` clauses | unknown — nothing asked | refused |
 | `check-scheduler`'s report block, 3 ways | **0, every probe green** | refused |
 | `X1` near-fence, `X2` untagged, `X3` tsc, `X4a` no-throw, `X5` DOM count | **0, nothing graded them** | refused |
@@ -326,8 +326,8 @@ written, which is how the cap was chosen; *cost now* is what the shipped list ch
    guard exists so the two do not both report, and that guard is what makes the second step forward.
    **Relabelling them was not available** and dropping them would have put two clauses in the exit
    artifact as *no grading* when what happens to them is known exactly, so they **declare the
-   masking** and go red if it ever changes. [Q146](../open-questions.md).
-2. **The cost model was wrong by 2.3x and it changed the item's size.** [Q148](../open-questions.md).
+   masking** and go red if it ever changes. [Q146](../questions/q146.md).
+2. **The cost model was wrong by 2.3x and it changed the item's size.** [Q148](../questions/q148.md).
 3. **A tooling failure of the author's own, recorded because it wasted about an hour.**
    `node -e "await new Promise(r => setTimeout(r, 60000))"` is a **CommonJS syntax error** — top-level
    `await` needs `--input-type=module` — and it was written inside `|| true`, so a wait loop that
@@ -339,7 +339,7 @@ written, which is how the cap was chosen; *cost now* is what the shipped list ch
 *by absence*: the set can only show that disabling them costs 0, and 0 is the honest answer when
 nothing in the tree triggers them.
 
-- **[Q144](../open-questions.md)'s missing case, CONSTRUCTED — the first demonstration that `ran:`
+- **[Q144](../questions/q144.md)'s missing case, CONSTRUCTED — the first demonstration that `ran:`
   fires.** That row records the guard as live in three files and **provoked in none**. The case it
   wants is *inert on the clean tree, FATAL under the probe*, and `check-docs` has one: inside `X4`'s
   execution loop, entered only when a `run` snippet exits non-zero. With `const err = r.stderr…`
@@ -365,7 +365,7 @@ further out. In `check-source` the floors, the verdict and the `refused` express
 |---|---|---|
 | the rule's clauses | `agree` dropped (2 / 1); the MASKED branch removed (2) | STILL CAUGHT accepted; `ran:` forced true; inertness forced true; the ABORT reduced to an ordinary failure; the matched-nothing guard; the matched-more-than-once guard; the final verdict forced to 0; MASKED accepted whatever the child reports |
 | the `Outputs` rows | `CHECK_*_SCRIPT` ignored (19 / 7); `CHECK_*_PROBE` ignored (21 / 7); `CHECK_SCHEDULER_DTS` removed (3); `probe:` ignored (16) | — **every declared output is load-bearing** |
-| **provenance** | the `D5` fixture read from `node_modules` instead of hand-written (**1**) | `tripped` re-sourced from the report rows (**0**) — [Q147](../open-questions.md) |
+| **provenance** | the `D5` fixture read from `node_modules` instead of hand-written (**1**) | `tripped` re-sourced from the report rows (**0**) — [Q147](../questions/q147.md) |
 | **loop bounds** | one META entry out (1 / 1); the whole META list out (1); one probe out (1) | a floor dropped to 0 *together with* shortening its list, both files |
 
 **Three of those deserve naming rather than counting.**
@@ -377,7 +377,7 @@ further out. In `check-source` the floors, the verdict and the `refused` express
 - **`tripped` re-sourced to the report rows costs 0, and it is a real provenance hole** rather than a
   vacuous probe. It makes `agree` compare a value with itself, and the three report entries then pass
   as `disappeared` instead of `disagreed` — **the right verdict by the wrong route**.
-  [Q147](../open-questions.md), and it is [Q138](../open-questions.md)'s own shape one layer further
+  [Q147](../questions/q147.md), and it is [Q138](../questions/q138.md)'s own shape one layer further
   in: W28 replaced *some probe noticed* with *this probe noticed*, and what is still unasserted is
   *this probe noticed in the way the entry claims*.
 - **`MASKED accepted whatever the child reports` survives**, which means the masking claim this item
@@ -400,9 +400,9 @@ further out. In `check-source` the floors, the verdict and the `refused` express
 - **A prediction in the prompt was wrong and measuring it first is what caught it.** The expected
   `corpus` split — *"X5's DOM-lib clause and X4's floor will be non-inert"* — is **false**: all 13
   `check-docs` candidates and every `check-scheduler` one are inert, so both summary lines read
-  `N/N` with no corpus term. [Q145](../open-questions.md) has nothing to report here.
+  `N/N` with no corpus term. [Q145](../questions/q145.md) has nothing to report here.
 - **Four `check-docs` clauses are noticed under a different id.** The run fails; it fails for the
-  wrong reason, and `RUN_FLOOR` is what does the noticing — [Q102](../open-questions.md)'s ratchet
+  wrong reason, and `RUN_FLOOR` is what does the noticing — [Q102](../questions/q102.md)'s ratchet
   holding up four clauses that are not its own. **This is P9's own question answered four times
   inside one file**, and it is the clearest argument the plan has produced for why an exit code is
   not a grading.
@@ -414,7 +414,7 @@ further out. In `check-source` the floors, the verdict and the `refused` express
 | finding | what it was | now |
 |---|---|---|
 | **the stated cap undercounted, in five documents** | the header named **six** ungraded `check-docs` clauses. The real census is **14 `fail()` sites + 3 report ways = 17**, 7 graded, **ten** ungraded — and two were named nowhere: the *snippet-does-not-run* clause (buildable, `outcome: exit0`) and the *missing-document* clause, which is ungraded **and unprobed** because every probe writes its reference to disk. **P9 decision 3 requires the cap be stated *because a silent cap reads as coverage*; a stated cap that undercounts reads exactly the same way** | corrected in all five, with the unprobed one called out as a different kind |
-| **the `masked` verdict's justification was FALSE** | the entry claimed it goes red *"if the guard is removed"*. Deleting `D5`'s fallthrough guard left the file at **18/18, 21/21, exit 0** — a **third** instance of [Q146](../open-questions.md)'s own class, inside the mechanism written to describe it | the failure **COUNT** discriminator Q146 proposed and this item had declined. The reader's edit now costs **1** |
+| **the `masked` verdict's justification was FALSE** | the entry claimed it goes red *"if the guard is removed"*. Deleting `D5`'s fallthrough guard left the file at **18/18, 21/21, exit 0** — a **third** instance of [Q146](../questions/q146.md)'s own class, inside the mechanism written to describe it | the failure **COUNT** discriminator Q146 proposed and this item had declined. The reader's edit now costs **1** |
 
 **And fixing it falsified the item's OTHER masking claim, which is the better half.** With counts
 available, `D2`'s unreadable-manifest clause is **co-firing, not masking**: both it and the
@@ -442,7 +442,7 @@ values, which is **ten**; and the type-only fixture's name, which claimed to tes
 **Four survive with a stated verdict**, and all four are the ceiling rather than holes with fixes:
 `caught++` forced unconditional (the **probe-pass** verdict — a separate expression from the META one
 the ceiling list already named); the `byMask`/`byCount` tallies dropped from the summary (**the exit
-artifact itself is unasserted**, [Q100](../open-questions.md)'s class in this item's own deliverable);
+artifact itself is unasserted**, [Q100](../questions/q100.md)'s class in this item's own deliverable);
 the type-only fixture replaced by garbage (the clause fires on *nothing parsed* and any garbage
 satisfies it — the **name** was the defect, and it is fixed); and a `masked` entry naming a sibling
 that does not exist. **That last one is half-closed and the honest statement is the split**: the
@@ -475,18 +475,18 @@ ten-second fix rather than a hunt. **Two verdicts and a message, and the message
 minute, but it is the same hazard `doc/workflow.md` section 6 names for two readers on one tree,
 arriving one level in: **a harness that restores files is a second writer.**
 
-**Questions raised.** [Q146](../open-questions.md) — a clause masked by a sibling reporting the same
+**Questions raised.** [Q146](../questions/q146.md) — a clause masked by a sibling reporting the same
 id; **corrected under measurement from two occurrences to one**, with the co-firing half split out and
 made detectable, and the discriminator built for one grading in one file rather than for the contract.
-[Q147](../open-questions.md) — an entry passes on any of **three** outcomes (not four; `fires` is a
+[Q147](../questions/q147.md) — an entry passes on any of **three** outcomes (not four; `fires` is a
 sibling's verdict), so it can pass for a reason it does not name; the adequacy reader sharpened it with
 a **direction**: re-sourcing `tripped` from the rows costs 0, the reverse costs 2, because `agree` is
-only consulted after `tripped` has been compared to `declared`. [Q148](../open-questions.md) — a META
-entry is two check runs, and the obvious mitigation for [Q133](../open-questions.md) is unsafe today
+only consulted after `tripped` has been compared to `declared`. [Q148](../questions/q148.md) — a META
+entry is two check runs, and the obvious mitigation for [Q133](../questions/q133.md) is unsafe today
 because `check:scheduler:selftest` moves `node_modules/fyflow-scheduler` aside while an `AGENTS.md`
 snippet imports it. **All three of the reserved block are used. ADR 0035 is unused and is skipped**,
 as the plan predicted for an item that changes a harness rather than an architecture.
-**[Q141](../open-questions.md) is RESOLVED.**
+**[Q141](../questions/q141.md) is RESOLVED.**
 
 ### Cost, re-measured after the readers
 
@@ -513,7 +513,7 @@ Everything else is `doc/workflow.md` section 1 rule 5's record step. **Zero late
 check table said `check:source:selftest` runs *"3 of the probe list itself"*; `MIN_SELF` is **7** and
 has been since [W28](w28-a-grading-names-the-probe-it-breaks.md) added four `SELF` entries without
 raising the sentence. **That is `doc/` is checked by nothing, in the front-door document, one item
-after the change that made it false** — the same shape as [Q102](../open-questions.md)'s ratchet and
+after the change that made it false** — the same shape as [Q102](../questions/q102.md)'s ratchet and
 the same shape as this repository's standing complaint. Corrected in place with the reason beside it,
 and rows added for the two self-tests this item changed.
 
@@ -523,5 +523,5 @@ and rows added for the two self-tests this item changed.
 the run. **It is not corrected here** because it belongs to whoever owns `examples/**` and because a
 record-step grant is for recording *this* item, not for sweeping the document — but leaving it
 unmentioned would be the failure this repository keeps naming. **Two stale counts in one table, found
-by an item that was not looking for either**, which is [Q100](../open-questions.md)'s class in the one
+by an item that was not looking for either**, which is [Q100](../questions/q100.md)'s class in the one
 file the gate carries nothing to.

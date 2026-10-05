@@ -23,7 +23,7 @@ has had one shape since W1.
 **`npm run gate` cost 516.1 s and 94.7% of that proved that the seven checks can still fail.**
 Measured on a clean tree at `ff2d064`, every entry run as `npm run <entry>` three times and reported
 as the median — the measure this item stated **before** the change, because
-[Q179](../open-questions.md) says a single timed pass cannot see one:
+[Q179](../questions/q179.md) says a single timed pass cannot see one:
 
 ```
 TOTAL                   516.1 s   over 21 entries
@@ -67,7 +67,7 @@ one; W39's declaration added the fifth and preferred none either.
 | | | verdict |
 |---|---|---|
 | **(a)** | keep it and record that the cost is deliberate | **refused** |
-| **(b)** | run them concurrently, within the constraint [Q148](../open-questions.md) names | **ADOPTED**, with a sixth |
+| **(b)** | run them concurrently, within the constraint [Q148](../questions/q148.md) names | **ADOPTED**, with a sixth |
 | **(c)** | move them off the gate, with something else requiring them | **refused** |
 | **(d)** | reduce what the two most expensive self-tests prove | **refused** |
 | **(e)** | stop paying for a process per probe | **refused for this item, not on the merits** |
@@ -108,7 +108,7 @@ it costs to remove is seven self-tests rewritten to load a check by `import` rat
 than returning; a mutant that crashes or loops must not take the harness with it; a mutated script
 must be loaded fresh; and stdout must be captured per run. **`NODE_COMPILE_CACHE` was measured as the
 cheap half and buys nothing** — 128 ms against 129 for `check-source`, because Node's own bootstrap
-is already snapshotted and these scripts are small. [Q180](../open-questions.md) stays open with the
+is already snapshotted and these scripts are small. [Q180](../questions/q180.md) stays open with the
 number attached.
 
 ## Decision
@@ -142,7 +142,7 @@ lint finding, a broken test — is in the first tier.
 **3. The seven `:selftest` entries leave the `&&` chain for one entry that runs them concurrently.**
 `npm run selftests` is `node scripts/run-selftests.mjs`. **It carries no list**: the set is every
 `*:selftest` entry in `package.json`, derived at run time, so there is nothing here to go stale
-against the manifest — [Q102](../open-questions.md)'s shape, and `G3`'s own argument that *the
+against the manifest — [Q102](../questions/q102.md)'s shape, and `G3`'s own argument that *the
 authority is the file*.
 
 **4. An entry that mutates state outside its own scratch space declares itself exclusive IN ITS OWN
@@ -150,14 +150,14 @@ FILE, and runs alone.** The marker is `SELFTEST-EXCLUSIVE:` followed by the reas
 that causes the hazard; the runner reads it and `G4` **computes the same set a second
 time, from the same authority**, and compares both ways. *Not independently: it is a
 second computation over one source, so what it catches is the runner ceasing to read
-the marker and not the marker being wrong — which is [Q181](../open-questions.md), and
+the marker and not the marker being wrong — which is [Q181](../questions/q181.md), and
 W39's conformity reader made the distinction.*
 **Two files carry it and both were established by running the seven concurrently and reading the
 failures:**
 
 | | why it cannot share the tree | how it showed |
 |---|---|---|
-| `check-scheduler-selftest.mjs` | its install probes **delete** `node_modules/fyflow-scheduler` and restore it from a stash | [Q148](../open-questions.md), and P11's declaration measured **four** entries that fail while it is gone, not the one that row named |
+| `check-scheduler-selftest.mjs` | its install probes **delete** `node_modules/fyflow-scheduler` and restore it from a stash | [Q148](../questions/q148.md), and P11's declaration measured **four** entries that fail while it is gone, not the one that row named |
 | `check-wiring-selftest.mjs` | `stage()` writes every `scripts/check-*.mjs` **flat into `dev-dist/`** — the directory every other self-test uses for scratch — and runs those copies with their dispatch falsified | concurrently, `check:docs:selftest` reported an `X4` probe uncaught and another tripping `[X1,X4]`, and `check:spec:selftest` reported *the mutant did not run: this is a crash, not a detection* |
 
 **The second one is the finding, and it was not predicted by anything.** A staged `check-docs.mjs`
@@ -227,11 +227,11 @@ its analogue for costing 8.4.** Its argument is *a clause is worth its cost in p
 quiet its absence is*, and here it comes out the other way: an unconditional dispatch prints a
 self-test report where a check report belongs and is loud; **a runner that plans seven entries and
 runs six is `npm run gate` at exit 0 with a self-test that did not run**, which is
-[Q149](../open-questions.md) one level out — in the item after the one that closed it — and is the
+[Q149](../questions/q149.md) one level out — in the item after the one that closed it — and is the
 quietest failure this repository has measured.
 
 **6. The cost measure is stated before the change and does not move afterwards.** Wall time here is
-not reproducible ([Q179](../open-questions.md)): two whole passes over one unchanged tree differ by
+not reproducible ([Q179](../questions/q179.md)): two whole passes over one unchanged tree differ by
 **13.0%**, and three back-to-back runs of `check:markdown:selftest` alone spread **127.8 to
 169.2 s — 32%**. So every claim in the Consequences below says which side of that band it falls on,
 and the reproducible half — **process starts** — is reported beside it.
@@ -269,7 +269,7 @@ findings the two readers made between them cost **75 s** of it — 38% of the 19
 had bought, every second of it inside
 `check:wiring:selftest`, which WAS one of the two exclusive entries (ADR 0072 retired its marker; `check:scheduler:selftest` is now the only one) and therefore **entirely on the
 critical path**. That entry has gone **65.5 s → 96.7 s → ~200 s**, and **502 → 765 → 2264 process
-starts**, to buy `G4` and then `G5`; the clause itself costs 1.3 s. **[Q176](../open-questions.md) at
+starts**, to buy `G4` and then `G5`; the clause itself costs 1.3 s. **[Q176](../questions/q176.md) at
 a factor of 150**, inside the decision that cites it: *a check's price is what it costs to run
 multiplied by how often the thing around it is re-run* — and, new here, **multiplied again by whether
 it can share the machine**.
@@ -298,7 +298,7 @@ comparison mixes a fix to the instrument with a change to the tree, and says so.
   binding constraint** because `check:wiring:selftest` runs alone for ~200 s and the exclusive prefix
   dominates. **That half is WITHDRAWN — see the measurement below.** The prefix and the group are the
   same size and which leads is not a property of the tree; the floor was right and what it missed is a second term
-  beside it. P11's retro.)* That is [Q182](../open-questions.md) with a price on it: the two
+  beside it. P11's retro.)* That is [Q182](../questions/q182.md) with a price on it: the two
   entries that must run alone do so because `dev-dist/` holds **fixed paths** — `check-docs.mjs` wipes
   `dev-dist/docs` on every run, and a staged `check-spec.mjs` deletes `dev-dist/spec-selftest` — and
   moving where `check-wiring-selftest` stages would not help, because the copies it runs are the real
@@ -314,9 +314,9 @@ comparison mixes a fix to the instrument with a change to the tree, and says so.
 
   ***So "the exclusive prefix now dominates" is WITHDRAWN as a claim inside the band.*** The prefix
   exceeds the group in the first run and the group exceeds the prefix in the second and the third; the
-  two are the same size to within [Q179](../open-questions.md)'s own noise, and the reproducible
+  two are the same size to within [Q179](../questions/q179.md)'s own noise, and the reproducible
   statement is that **the two entries which must run alone are roughly half the self-test half**. That is
-  [Q182](../open-questions.md)'s price. *P11's retro, which adopted `a measured number is re-taken on
+  [Q182](../questions/q182.md)'s price. *P11's retro, which adopted `a measured number is re-taken on
   the tree the item ships` and then had it fire on its own first draft.*
 
   ***And one thing reproduces far better: the wall clock of the whole entry.*** **355.7 to 371.1 s over
@@ -332,8 +332,8 @@ comparison mixes a fix to the instrument with a change to the tree, and says so.
 files — that is `G3`, unchanged. **What is new is that a self-test which touches anything outside its
 own `dev-dist/` subtree owes that marker**, and nothing can check that for you:
 `G4` binds the runner to the marker, and **the marker to nothing**. Its absence is a flake with no
-obvious cause, which is precisely what [Q148](../open-questions.md) predicted and what this ADR
-measured twice. [Q181](../open-questions.md), and [Q182](../open-questions.md) for the other half —
+obvious cause, which is precisely what [Q148](../questions/q148.md) predicted and what this ADR
+measured twice. [Q181](../questions/q181.md), and [Q182](../questions/q182.md) for the other half —
 `dev-dist/` held fixed paths (`dev-dist/docs`, and `.self-NN.mjs` written by **two** self-tests
 under one name until this item renamed them) and nothing derived a per-check namespace.
 
@@ -346,5 +346,5 @@ a path construction that does not carry the pid is refused, with its exceptions 
 both ways. What is still unbound is the sentence as written: a self-test that touches something
 **outside `dev-dist/` altogether**, which is `check:scheduler:selftest` and `node_modules`, still
 declares that in prose and nothing checks it. The flake this paragraph predicts was MEASURED there —
-a `check:docs` loop beside that entry is 4 of 5 green. [Q181](../open-questions.md) stays open on that
+a `check:docs` loop beside that entry is 4 of 5 green. [Q181](../questions/q181.md) stays open on that
 residue.)*

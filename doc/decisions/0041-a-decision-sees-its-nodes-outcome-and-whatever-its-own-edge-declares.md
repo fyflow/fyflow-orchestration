@@ -12,13 +12,13 @@ resolves: ""
 
 # ADR 0041 — A decision sees its node's outcome and whatever its own edge declares
 
-**Raised by:** [Q8](../open-questions.md), decided by
+**Raised by:** [Q8](../questions/q8.md), decided by
 [W42](../work-items/w42-what-a-decision-sees.md) under
 [P12](../plans/p12-what-a-node-receives-and-what-a-decision-sees.md)
 
 ## Context
 
-**[Q8](../open-questions.md) has been open since P1 and `src/driver/routing.ts` has carried it in a
+**[Q8](../questions/q8.md) has been open since P1 and `src/driver/routing.ts` has carried it in a
 comment for the whole of that time**: *"What a predicate receives. P1 populates exactly one field;
 Q8 is whether it grows."* `spec/flow-definition.md` section 3's routing rule 4 names it by id and
 adds *"adding a field later is additive rather than a signature change."*
@@ -67,7 +67,7 @@ whole decision.**
 
 Handing a predicate *what its node received* — the obvious reading of "the same mechanism" — is
 either **new retention** (a payload kept per dispatched node, which is
-[Q19](../open-questions.md)'s own subject and which
+[Q19](../questions/q19.md)'s own subject and which
 [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
 rule 2 refuses in the same words) or **impossible** — the entry node's payload is in no record —
 or a **second source**, because reconstructing it means re-implementing `compose`, `JP-R11` and
@@ -109,9 +109,9 @@ alternative: not a second grammar, not a second resolver, and not a payload the 
    two different things to a worker and to a predicate. **No rule id is added for the aiming and none
    is changed**; `FD-V26` gains one clause.
 
-## What this does to [Q8](../open-questions.md) and to P12's prediction 3
+## What this does to [Q8](../questions/q8.md) and to P12's prediction 3
 
-**[Q8](../open-questions.md) is ANSWERED, and its own framing was the fork it presents.** The row
+**[Q8](../questions/q8.md) is ANSWERED, and its own framing was the fork it presents.** The row
 asks *"does a decision see only its node's output, or accumulated run state?"* — and the answer is
 **neither, and both**: it sees its node's output always, and as much accumulated state as its own
 edge names, which is none by default. *Node-output-only keeps predicates trivially pure and cheap to
@@ -157,12 +157,12 @@ not available where the field is filled in.
   declare, so a predicate would see what a sibling edge asked for.
 - **A predicate can now stop a run.** An edge's reference that resolves to nothing is `FD-R3`, so a
   decision has a run-time refusal where before it had only `FD-R1`. It is the same class and the same
-  rule as a node's, and [Q187](../open-questions.md)'s reachability-not-dominance cost applies to it
+  rule as a node's, and [Q187](../questions/q187.md)'s reachability-not-dominance cost applies to it
   identically. **The MESSAGE differs by design** — `edge needs["f"]` rather than `needs["f"]`, so a
   reader is sent to the edge and not to the node — and both halves are asserted, after this ADR read
   *"the same message"* while the code and its own test made it different. W42's conformity reader,
   and the node half was unbound until its adequacy reader swapped the label for **0**.
-- **[Q9](../open-questions.md) is untouched and is very slightly larger.** A predicate now reads two
+- **[Q9](../questions/q9.md) is untouched and is very slightly larger.** A predicate now reads two
   fields instead of one, and both are copies; purity is still unenforced and P12 declares it out.
   Nothing here makes a predicate more or less enforceable, which is what P10 measured when it
   declined Q9.

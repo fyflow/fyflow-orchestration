@@ -20,7 +20,7 @@
  * |---|---|
  * | `branch.suspended`'s `regionPath` | **0** — the only map that parks a branch (`map-fanout`) opens at top level, where `rpathOf` is `'-'` anyway |
  * | `branch.resumed`'s `regionPath` | **0**, for the same reason |
- * | `firedAdd` at the `unsatisfiable` exit | **0** — [Q95](../../doc/open-questions.md)'s precondition one key deeper |
+ * | `firedAdd` at the `unsatisfiable` exit | **0** — [Q95](../../doc/questions/q95.md)'s precondition one key deeper |
  * | `releaseArrivals` at the `unsatisfiable` exit | **0**, same precondition |
  * | `firedAdd` at the `satisfied` exit | **0**, same precondition |
  * | `JP-R10`'s `branch.lost` at **N = 0**, the ENCLOSING region's path | **0** — the only N=0 nesting in the tree has a top-level enclosing map |
@@ -151,7 +151,7 @@ const joinSettlements = (inputs: readonly FoldInput[]): string[] =>
  * A policy that behaves as `live-token` everywhere EXCEPT one named opener, where it
  * answers `verdict` the moment that region instance sees its first terminal event.
  *
- * **Why a policy rather than a shape.** [Q95](../../doc/open-questions.md)'s
+ * **Why a policy rather than a shape.** [Q95](../../doc/questions/q95.md)'s
  * precondition is *a policy that settles a join before every branch is terminal*, and
  * no shipped policy does — which is why the `at most once` latch's TOO-WEAK direction
  * was bound by nothing at instance granularity. It is built here rather than shipped,
@@ -532,7 +532,7 @@ suite('L2 — W85: the three branch-exit paths, under a region nested in a map',
     // W85's adequacy reader, finding 1. Parked in instance 0 both events are caught
     // against `'-'` and cost **ZERO** when filed under the opener's FIRST OPENED
     // instance, because instance 0 *is* `values()[0]`: the wrong answer and the right
-    // one are the same string. That is [Q349](../../doc/open-questions.md) exactly,
+    // one are the same string. That is [Q349](../../doc/questions/q349.md) exactly,
     // reproduced by the item written to discharge it, in the two sites it exists to
     // drive. `branch.lost` above escaped it only because its loss is in instance 1.
     //
@@ -894,7 +894,7 @@ suite('L2 — W85: N = 0 inside a map, at the depths the lift made reachable', (
 
 suite('L2 — W85: the at-most-once latch is per INSTANCE — Q95`s precondition one key deeper', (test) => {
   /**
-   * **[Q95](../../doc/open-questions.md)'s precondition at instance granularity, and
+   * **[Q95](../../doc/questions/q95.md)'s precondition at instance granularity, and
    * W84's Record hands it here by name**: the latch's TOO-STRONG direction is bound at
    * 3, and its TOO-WEAK direction — `firedAdd` writing a key no `firedHas` will look
    * for — is bound by nothing, *because no shipped policy settles a join before every
@@ -943,7 +943,7 @@ suite('L2 — W85: the at-most-once latch is per INSTANCE — Q95`s precondition
    * `ID-R1` stops the run naming the id. *The same mis-keyed latch is silent or loud
    * depending on what the join's successor is*, which is why this is a second document
    * rather than another settlement order on the first — and it is
-   * [Q13](../../doc/open-questions.md)'s routing case at instance granularity, which
+   * [Q13](../../doc/questions/q13.md)'s routing case at instance granularity, which
    * W18 could only reach at depth 1.
    */
   test('and what it COSTS when the join`s successor is a TASK: one id, dispatched twice', () => {
@@ -1133,7 +1133,7 @@ suite('L2 — W85: every case this file declares actually RAN', (test) => {
    * | re-sourced + a case DELETED | **caught, by the count alone** |
    * | re-sourced + a case RENAMED | **0 — the declared CEILING** |
    *
-   * **The ceiling is re-source-plus-rename, and it is [Q217](../../doc/open-questions.md)'s
+   * **The ceiling is re-source-plus-rename, and it is [Q217](../../doc/questions/q217.md)'s
    * regress rather than a hole in this list**: a rename keeps the count, so only a
    * comparison against written-down NAMES can see it, and no expression inside one
    * process can check that those names were written down before the run. What it costs

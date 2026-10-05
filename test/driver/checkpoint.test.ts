@@ -136,7 +136,7 @@ const RICH = () => ({ m: new Map<unknown, unknown>([['k', new Date(7)]]), s: new
  * **One run per fold-input KIND, keyed by `FoldInput['kind']` — the list is bound to the union BOTH
  * ways at L0**: a `Record` over the union's key type refuses a missing kind AND an unknown one under
  * `typecheck:tests`, the one lane whose config includes `test/**` (the other four do not — W88's
- * conformity reader, finding 5) (a type alone closes one direction — [Q196](../../doc/open-questions.md) —
+ * conformity reader, finding 5) (a type alone closes one direction — [Q196](../../doc/questions/q196.md) —
  * and a `Record` literal is the shape that closes both). Each entry drives a run whose events carry
  * that kind; the case asserts it does, so an entry that stopped producing its kind fails naming it.
  */

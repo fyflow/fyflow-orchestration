@@ -31,7 +31,7 @@ Reserves:   Q156-Q159, ADR 0036
 
 **In**
 
-1. **ADR 0036 — [Q12](../open-questions.md)'s answer.** One primitive or two, with the evidence
+1. **ADR 0036 — [Q12](../questions/q12.md)'s answer.** One primitive or two, with the evidence
    P10 section 2 measured on both sides: a map needs **no id-scheme change** and **no change to two
    of three policies** (argues *one*); it breaks `branchPath`-as-a-property-of-the-node, makes
    `FD-V9`'s arity floor meaningless, reaches an N=0 the static feature cannot, and hands
@@ -58,10 +58,10 @@ Reserves:   Q156-Q159, ADR 0036
 - **The driver.** Nothing here dispatches anything. Opening N branches, the region event stream and
   the policies are **W33**, which is why `src/driver/driver.ts` is not in this `Owns` and
   `src/driver/ids.ts` is.
-- **What a branch receives and what the join carries.** [Q11](../open-questions.md),
-  [Q36](../open-questions.md) and [Q154](../open-questions.md) are **W34**, deliberately after the
+- **What a branch receives and what the join carries.** [Q11](../questions/q11.md),
+  [Q36](../questions/q36.md) and [Q154](../questions/q154.md) are **W34**, deliberately after the
   map runs — P10's decision 2.
-- **[Q27](../open-questions.md)** — convergent branches. **Not answered**, and ADR 0036 **owes it a
+- **[Q27](../questions/q27.md)** — convergent branches. **Not answered**, and ADR 0036 **owes it a
   sentence** because `FD-V19` is the rule both questions turn on.
 - **A map inside a map.** Whether a map's branch entry may itself fan out. Named in P10's
   *"not taken"* and gets a Q id from this block only if the shape forces one here.
@@ -76,14 +76,14 @@ the plan's Record, `doc/README.md`, `CLAUDE.md`, `README.md`, `doc/open-question
 
 | file | why | when it was declared |
 |---|---|---|
-| `scripts/build-browser-tests.mjs` | **A SECOND late exception, and it is a defect this item introduced and its own gate caught.** The two-way corpus check reads `spec/flow-definition.md` at module scope, and the browser bundle inlines **only** `spec/examples/**/*.json` — *"every fixture L4 reads"*, which L4 had not read before. A top-level `await readText` of a file that is not inlined **throws while the bundle is loading**, so **all twenty suites die** and the runner reports *"the suite never reported: page.waitForFunction Timeout"* at **0 files / 1 assertion** in **all three** browsers. The fix widens the inlined set by one file and changes no check's semantics. `scripts/**` is in nobody's `Owns` — [Q158](../open-questions.md)'s neighbour, and P8's shape again | **late** — after `npm run test:browser:all` measured it red |
+| `scripts/build-browser-tests.mjs` | **A SECOND late exception, and it is a defect this item introduced and its own gate caught.** The two-way corpus check reads `spec/flow-definition.md` at module scope, and the browser bundle inlines **only** `spec/examples/**/*.json` — *"every fixture L4 reads"*, which L4 had not read before. A top-level `await readText` of a file that is not inlined **throws while the bundle is loading**, so **all twenty suites die** and the runner reports *"the suite never reported: page.waitForFunction Timeout"* at **0 files / 1 assertion** in **all three** browsers. The fix widens the inlined set by one file and changes no check's semantics. `scripts/**` is in nobody's `Owns` — [Q158](../questions/q158.md)'s neighbour, and P8's shape again | **late** — after `npm run test:browser:all` measured it red |
 | `src/driver/driver.ts` | **A THIRD late exception, and it closes the sharpest thing either reader found.** `enter()`'s `switch (node.kind)` has arms for `task`, `fanout`, `join` and `end`, **no `map` arm and no `default`** — and no exhaustiveness assertion, so `npm run typecheck` is green. **W32 is what made a `map` definition valid**, so from this item until W33 a valid document routed into a map node and the driver did *nothing*: no dispatch, no `branch.opened`, no `pathEnded`, no `RunFailure`. Reproduced independently before acting on it: `map-fanout.flow.json` dispatches `r1:ingest:-:0` and stops, and the conformity reader measured the settled version reporting **`completed`** — *"character-for-character the false statement [ADR 0015](../decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) exists to remove"*, and the silent stop `spec/flow-definition.md` section 3 refuses **by name**. The fix is a **`default` arm** rather than a `map` arm — the hole is the missing exhaustiveness, not the missing kind — and it reports through the existing `OR-R10` path with an **existing** error class, so [P10](../plans/p10-is-fan-out-one-feature-or-two.md) decision 4's *"no new error class"* holds. **W33 replaces it with the real arm** | **late** — after the conformity reader measured it and W32 reproduced it |
-| `spec/join-policy.md` | **A FOURTH late exception, for a sentence that is FALSE rather than merely absent.** Section 1's `branches` row says *"a branch's index in this array is its `branchPath` segment"*, and `toRegion` hands a policy `branches: ['score']` for a map region where the segment is the run-time item index and `branchIndexOf` answers `null`. [Q159](../open-questions.md) records the *capability* question — whether a policy should be able to tell the kinds apart, which is W33's — and a deferred field is a scope call while a **false normative sentence is not**. `doc/workflow.md` v0.7 change 3's own argument: *a gap that blocks a fix is worse than one that hides an edit*, which is why `doc/decisions/**` was added to the record step after W17 could not correct ADR 0015 | **late** — after the conformity reader measured it |
+| `spec/join-policy.md` | **A FOURTH late exception, for a sentence that is FALSE rather than merely absent.** Section 1's `branches` row says *"a branch's index in this array is its `branchPath` segment"*, and `toRegion` hands a policy `branches: ['score']` for a map region where the segment is the run-time item index and `branchIndexOf` answers `null`. [Q159](../questions/q159.md) records the *capability* question — whether a policy should be able to tell the kinds apart, which is W33's — and a deferred field is a scope call while a **false normative sentence is not**. `doc/workflow.md` v0.7 change 3's own argument: *a gap that blocks a fix is worse than one that hides an edit*, which is why `doc/decisions/**` was added to the record step after W17 could not correct ADR 0015 | **late** — after the conformity reader measured it |
 | `test/driver/driver.test.ts` | **A FIFTH late exception, and it exists because the fourth one needs a test.** `doc/workflow.md` section 1 rule 2 — *tests are part of the work item, never follow-up* — and rule 8 — *break the fix and watch the gate go red*. The `default` arm above is a **driver** behaviour and belongs in the **driver** suite; putting it in `test/definition/map.test.ts` to keep the exception count down would be wrong-layered bookkeeping, and P7's lesson was that exceptions come from a badly written `Owns` block rather than that exceptions are bad — W5 took **seven** and was right to | **late** — with the fix it tests |
-| `AGENTS.md` | **One LATE exception, and it was predicted before it fired rather than discovered by the gate.** `index.ts` re-exports `src/definition/regions.ts` with `export *`, so the new `UnresolvedBranchPath` class (`ID-R6`) reaches the package root **without this item editing `index.ts`**, and section 9's executed snippet enumerates every `Error` subclass the root exports and throws on one it does not name ([Q101](../open-questions.md)). **Measured**: `check:docs` exits 1 at `X4`, `AGENTS.md:750`, before the edit. That is the check working exactly as its own paragraph says it should — *"what makes adding a refusal class in `src/` and not mentioning it here a failure rather than an omission nobody can observe"*. The edit is the minimum that is not a lie: the import, the list entry, and one sentence saying the class belongs to a feature **no driver dispatches yet** | **late** — after the design was fixed and before the edit was made |
+| `AGENTS.md` | **One LATE exception, and it was predicted before it fired rather than discovered by the gate.** `index.ts` re-exports `src/definition/regions.ts` with `export *`, so the new `UnresolvedBranchPath` class (`ID-R6`) reaches the package root **without this item editing `index.ts`**, and section 9's executed snippet enumerates every `Error` subclass the root exports and throws on one it does not name ([Q101](../questions/q101.md)). **Measured**: `check:docs` exits 1 at `X4`, `AGENTS.md:750`, before the edit. That is the check working exactly as its own paragraph says it should — *"what makes adding a refusal class in `src/` and not mentioning it here a failure rather than an omission nobody can observe"*. The edit is the minimum that is not a lie: the import, the list entry, and one sentence saying the class belongs to a feature **no driver dispatches yet** | **late** — after the design was fixed and before the edit was made |
 
 **`scripts/check-markdown.mjs` is NOT an exception here**, and that was predicted rather than
-assumed — see [Q142](../open-questions.md) in the Record.
+assumed — see [Q142](../questions/q142.md) in the Record.
 
 ## Verification
 
@@ -98,12 +98,12 @@ Node 24 is not on the PATH by default; `eval "$(fnm env --shell bash)" && fnm us
 | **adequacy** | mutation, walking the rule ids, **in a copy off the shared tree**. Scan for symlinks and reparse points before removing it (ADR 0029) |
 
 **Routing cases this item covers, and the ones it does not** (`doc/workflow.md` section 5 rule 6):
-a **nested fan-out** ([Q6](../open-questions.md)) is covered — a map must not break what
+a **nested fan-out** ([Q6](../questions/q6.md)) is covered — a map must not break what
 [ADR 0030](../decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
 settled, and `test/definition/nesting.test.ts` is where that is asserted. A **duplicate task id**
-([Q13](../open-questions.md)) is covered at the id layer and **not** at the dispatch layer, which is
-W33's. A branch **routed away from its join** ([Q4](../open-questions.md)), **`user_action`**
-([Q17](../open-questions.md)) and **no matching decision edge** ([Q10](../open-questions.md)) are
+([Q13](../questions/q13.md)) is covered at the id layer and **not** at the dispatch layer, which is
+W33's. A branch **routed away from its join** ([Q4](../questions/q4.md)), **`user_action`**
+([Q17](../questions/q17.md)) and **no matching decision edge** ([Q10](../questions/q10.md)) are
 **not applicable here** — none is reachable without a driver.
 
 **Rule 8 applies to every fix this item makes for a reader's finding**, all five obligations, and the
@@ -147,7 +147,7 @@ counting files.)*
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| **ADR 0036 — Q12's answer, one feature or two** | **yes** — [0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md), *two features over one region* | **Nothing mechanical reads its content, and that is the honest cell.** Probe `b7` renamed its `## Decision` heading and **noticed 0**: no check opens an ADR. What would fail is `check-markdown`'s `M1` if the file were gone — [Q12](../open-questions.md)'s Resolved row links to it, and it is one of the 73 documents |
+| **ADR 0036 — Q12's answer, one feature or two** | **yes** — [0036](../decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md), *two features over one region* | **Nothing mechanical reads its content, and that is the honest cell.** Probe `b7` renamed its `## Decision` heading and **noticed 0**: no check opens an ADR. What would fail is `check-markdown`'s `M1` if the file were gone — [Q12](../questions/q12.md)'s Resolved row links to it, and it is one of the 73 documents |
 | **A definition shape a map is expressible in** | **yes** — `MapNode` in `src/definition/types.ts`, `kind: "map"` with `over` and `branch` | `test/definition/map.test.ts` *"a map flow is VALID"*; and probe `e5` (dropping `MapNode` from the `FlowNode` union) is caught at **L0** by both `tsc` and `deno check` — five errors in `regions.ts`, `TS2367` and `TS2339` |
 | **The validator rules for it** | **yes** — `FD-V25`, plus `FD-V2`/`FD-V6`/`FD-V12`/`FD-V24` widened | probes `a1`-`a4`, `a8`, `a9`, `d2`, `e3` — eight, each naming its clause. `check-spec`'s `C2`+`C3`+`C4` fail if `FD-V25` is renamed (probe `b6`, exactly the declared set) |
 | **`branchPathOf`'s contract for a node whose index is not a property of the node** | **yes** — the optional per-region `itemIndices`, `UnresolvedBranchPath`, `ID-R6` | probes `a5`, `a6`, `a7`, `c2`, `c3`, `c4`, `e4` — seven. `a5` (guess the declared index instead of refusing) costs 3 named cases; `e4` (make the arm unreachable while the refusal still reads correctly) costs 6 |
@@ -163,7 +163,7 @@ the package root without this item touching `index.ts`, and `AGENTS.md` section 
 enumerates every `Error` subclass the root exports. **`X4` at `AGENTS.md:750`, exit 1** — the check
 working exactly as its own paragraph says it should. Fixed with the minimum edit that is not a lie:
 the import, the list entry, and one paragraph saying the class belongs to a feature **no `Driver`
-dispatches yet**. [Q157](../open-questions.md) is the gap behind it — **no P10 item owns
+dispatches yet**. [Q157](../questions/q157.md) is the gap behind it — **no P10 item owns
 `AGENTS.md`**.
 
 **2. Two of this item's own L1 fixtures made a CYCLE, so the region rules never ran and the tests
@@ -181,7 +181,7 @@ discriminates. **Rule 7 (c)'s set equality is what caught it**, on the author's 
 use P3's retro predicted for it.
 
 **4. The census caught a row this item had written ten minutes earlier.**
-[Q156](../open-questions.md)'s status cell read `open - deferred by W32`; a classifier testing
+[Q156](../questions/q156.md)'s status cell read `open - deferred by W32`; a classifier testing
 `deferred` before `open` reads that as **deferred**, and the totals still summed — *"81 open, 3
 deferred"* with **no abort**. The cell was rewritten to a bare `open` rather than the parser widened,
 because the register's own header declares three status values and a cell that narrates instead of
@@ -233,7 +233,7 @@ in this item's own paths, all three named in the item file **before** the set wa
 | | the wiring | what happened |
 |---|---|---|
 | **a corpus flow no walk picks up** | `map-fanout.flow.json` renamed out of the `.flow.json` glob | **noticed 0** before, **CLOSED** now. The only bound was `validNames.length > 0` and `check-spec`'s `C4` never opens a file. Replaced by a **set equality both ways** against `spec/flow-definition.md` section 7's own table |
-| **a whole test file no runner globs** | `map.test.ts` renamed to `map.notatest.ts` — **26 cases gone** | **noticed 0, and still open.** `test/runner.ts`'s only bound is *"no test files found"*, a floor of one, and no `S` check counts the suite set. `test/runner.ts` and `scripts/**` are in nobody's `Owns` — [Q158](../open-questions.md) |
+| **a whole test file no runner globs** | `map.test.ts` renamed to `map.notatest.ts` — **26 cases gone** | **noticed 0, and still open.** `test/runner.ts`'s only bound is *"no test files found"*, a floor of one, and no `S` check counts the suite set. `test/runner.ts` and `scripts/**` are in nobody's `Owns` — [Q158](../questions/q158.md) |
 | **a rule present, correct and unreachable** | `FD-V25`'s arm and `ID-R6`'s arm each made unreachable with the rule text untouched | **CAUGHT**, 2 and 6 cases. So obligation (e) is not only about a thing nothing runs; it is also about a thing that runs and cannot reach its subject |
 
 **And the corpus equality had a LIVE case the day it was written, which is the half P9's retro asks
@@ -252,7 +252,7 @@ primitive or two"* from an argument into a measurement. What the two features sh
 what differs is the whole of the **fan-out**.
 
 **And it corrected the framing this item was handed.** P10's declaration and
-[Q27](../open-questions.md)'s row both say *"a map is `FD-V19`'s condition on purpose"*. **That is
+[Q27](../questions/q27.md)'s row both say *"a map is `FD-V19`'s condition on purpose"*. **That is
 true of the ENCODING and false of a `map` node**: one branch means *"two distinct branch entries"* has
 no instance, so a map does not lift, weaken or reach `FD-V19`, and **Q27 is untouched** rather than
 entangled with Q12. Both rows are corrected in place.
@@ -272,7 +272,7 @@ than on the one that had to move.
 **Nothing in `spec/` looked wrong or unimplementable**, so nothing was reported under
 `spec/README.md` rule 2.
 
-**[Q142](../open-questions.md) was predicted NOT to fire, it did not, and the three counts were taken
+**[Q142](../questions/q142.md) was predicted NOT to fire, it did not, and the three counts were taken
 before any file was added.** `check:markdown` and `check:markdown:selftest` are both green in the full
 gate run above. Whole tree **72 / 2212 / 108** (the hand-off's baseline said 2211 links; 2212
 measured), `doc/decisions` removed **56**, `doc/decisions` + `doc/plans` removed **45 / 1565** —
@@ -302,7 +302,7 @@ which is why the edits are transcribed below rather than only referenced.
   satisfied by any ceiling at all; the boundary is now a **named pair** rather than two entries in
   two loops.
 - **(e) wiring — 5.** Three caught, one closed during the item, **one still open**
-  ([Q158](../open-questions.md)).
+  ([Q158](../questions/q158.md)).
 - **the fix for `What broke` 5 — 1**, run by hand in a browser rather than in the harness, and
   caught. `doc/workflow.md` section 5 rule 8's founding case: *when you act on a finding, break the
   fix and watch the gate go red.*
@@ -427,7 +427,7 @@ provenance probes were in `regions.ts`; not one touched the check it had just wr
 | **C-F5** | **`spec/join-policy.md` section 1 states something false about a map region**, and `toRegion` hands a policy exactly that value today | W22's reader's finding one plan later. Corrected under a fourth late exception: *a deferred field is a scope call and a false normative sentence is not* |
 | **C-F6** | **`AGENTS.md` §3 carried three false claims** — *"Four node kinds"*, no `map` row, and *"22 refusals over `FD-V1` … `FD-V24`"* **contradicting `spec/README.md`'s 23 in the same change**. The exception row said *"the minimum that is not a lie"*; the file contained three | not documenting a feature and leaving a count that says it does not exist are different things |
 | **A-S2** | **The corpus equality binds NAMES and nothing bound CONTENT.** Both map flows could be rewritten with **no `map` node in them at all**, stay valid, and leave every check green — and `map.test.ts` hand-copies them, so corpus and tests could drift in exactly that direction | `check-spec`'s `C4` never opens a file; the new equality did not either |
-| **A-S4** | **The INVALID corpus walk still had only a floor of one — in the file W32 rewrote to remove exactly that shape.** `invalidNames.slice(1)` dropped **21 of 23** cases and the suite reported `all passed`. `C4` bounds the DISK and nothing bounded the WALK | [Q102](../open-questions.md)'s `RUN_FLOOR` shape, on the sibling directory |
+| **A-S4** | **The INVALID corpus walk still had only a floor of one — in the file W32 rewrote to remove exactly that shape.** `invalidNames.slice(1)` dropped **21 of 23** cases and the suite reported `all passed`. `C4` bounds the DISK and nothing bounded the WALK | [Q102](../questions/q102.md)'s `RUN_FLOOR` shape, on the sibling directory |
 | **A-S3 / A-S5** | the two overlap subjects above — a guard with a five-line justification and no test, and a *"this rule is deliberately absent for a map"* claim with no test, where the analogous `FD-V14` claim has a dedicated one | |
 
 **Every one is acted on.** `C-F7` (`branchIndexOf` returning a `null` that already meant *"no
@@ -436,7 +436,7 @@ making it **refuse**, which is ADR 0036 rule 5 unqualified by which derivation. 
 `C-F10`, `C-F11` and `C-F12` are corrections in place with the correction left visible. `A-S6` and
 `A-S7` gained tests. **`A-S8`/`A-S9` are RECORDED rather than closed** — two defensive narrowings the
 corpus cannot falsify, which is rule 8's *"where the corpus cannot express one, record that"*.
-**`A-S10` went into [Q158](../open-questions.md)'s row and sharpened it**: a **suite body** can
+**`A-S10` went into [Q158](../questions/q158.md)'s row and sharpened it**: a **suite body** can
 `return` before registering a case, so counting `*.test.ts` **files** — the obvious fix — would not
 catch it.
 
@@ -474,18 +474,18 @@ literal is right to change"* on a fix rather than on a magic number. Repointed.
 
 **Questions raised.**
 
-- **[Q156](../open-questions.md)** — may a `map`'s branch itself open a region (a map inside a map)?
+- **[Q156](../questions/q156.md)** — may a `map`'s branch itself open a region (a map inside a map)?
   **Left expressible and undecided**, where P10's *"not taken"* left it. `branchPathOf`'s index is
   keyed **per region** rather than being a single number precisely so that neither answer costs a
   signature change.
-- **[Q157](../open-questions.md)** — **no P10 item owns `AGENTS.md`**, so the plan as declared ships
+- **[Q157](../questions/q157.md)** — **no P10 item owns `AGENTS.md`**, so the plan as declared ships
   a node kind the consumer reference never describes. P8's *"paths in nobody's `Owns`"* on a product
   plan rather than a gate one. W35 is the natural owner.
-- **[Q158](../open-questions.md)** — **a whole test file leaving the glob is noticed by nothing.**
-  26 cases removed, three checks at exit 0, no line printed. [Q102](../open-questions.md)'s
+- **[Q158](../questions/q158.md)** — **a whole test file leaving the glob is noticed by nothing.**
+  26 cases removed, three checks at exit 0, no line printed. [Q102](../questions/q102.md)'s
   `RUN_FLOOR` shape one layer out, and the shape of the fix is known because this item built it for
   the corpus.
-- **[Q159](../open-questions.md)** — **a join policy cannot tell a `map` region from a `fanout`
+- **[Q159](../questions/q159.md)** — **a join policy cannot tell a `map` region from a `fanout`
   one.** `opensWith` is on the internal `RegionSets` and deliberately not on what `toRegion` hands a
   policy, because `spec/join-policy.md` is W33's document. Owner **W33**.
 

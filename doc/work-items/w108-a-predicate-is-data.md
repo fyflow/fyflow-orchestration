@@ -35,7 +35,7 @@ Reserves: W108, Q444-Q450, ADR 0074
 
 **A flow document cannot say what a branch depends on.** `when` names a predicate registered in
 code, so the reference is data and the logic is not — and that is the last thing in this library
-that a flow document cannot say for itself. [Q444](../open-questions.md) is the row; P26 is the
+that a flow document cannot say for itself. [Q444](../questions/q444.md) is the row; P26 is the
 plan; `doc/concept.md` section 5's invariant is what makes the answer safe, because a predicate
 that is data cannot reach a clock, a random source or the network.
 
@@ -68,7 +68,7 @@ Measured on `59e4ad6` (the declaration committed and gated — `npm run gate` **
 lines**, L1-L5 **54 / 1446** in three runtimes, L6 **2176 / 154**, `check:spec` **7 / 65 / 126**,
 `C4` at **37**). Spawn health taken first: `node -e ""` through `spawnSync` is a **52.8 ms** median
 over twelve, against the ~54 ms a healthy machine gives — so every figure below is about the change
-and not about the machine ([Q179](../open-questions.md)'s own precondition).
+and not about the machine ([Q179](../questions/q179.md)'s own precondition).
 
 ### Fact 1 re-takes STRONGER than it is written
 
@@ -287,7 +287,7 @@ an `Owns` pre-declaration rule has been refused for thirteen plans.*
 implicit: *the evaluator goes where routing is PURE — an evaluator that touches anything but its
 argument has broken [ADR 0014](../decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)*.
 **It falsified the auditable half and not the behavioural one**, which is finding 10 below and
-[Q450](../open-questions.md).
+[Q450](../questions/q450.md).
 
 **Obligation (f) — break the ORDER — has nothing to break here, and that is measured rather than
 assumed.** This item adds no L6 row and no worker; all ten `when` sites in `examples/flows/**` are
@@ -318,7 +318,7 @@ functions. Confirmed by the adequacy reader (13).
 | (1) a `when` may be a NAME or a declared PREDICATE, and the name road is BYTE-UNCHANGED, asserted as an identical dispatch comparison | **yes, and the claim is NARROWER than declared** — the name road's SPELLING moved, by the maintainer's answer to stop-and-ask (b); what is byte-unchanged is the DISPATCH | probes `b1` (the comparison made a tautology — caught by the identity control the adequacy reader forced) and `R-adq4b` |
 | (2) the subset covers all the shapes fact 2 measures and REFUSES outside itself BY NAME, the enumeration CLOSED and flat `all`/`any` only | yes | probes `a8` (an eighth operator admitted), `b2`/`d2` (the non-member list emptied), `d3` (the member loop narrowed), `a12`/`R-adq3a` (nesting accepted) |
 | (3) every refusal is at CONSTRUCTION with its position, never at routing time | yes — and **its position and its message had NO observer until the adequacy reader (9)** | probes `b3`, `w3`, `R-adq9a`, `R-adq9b` |
-| (4) a declared predicate CANNOT be impure, strictly stronger than Q9 and **asserted rather than argued** | **the guarantee yes, the ASSERTION no** — it is a property of the SOURCE and no rung reads the source | probe `R-adq10` is the declared ceiling and `R-adq10b` its pair; [Q450](../open-questions.md) |
+| (4) a declared predicate CANNOT be impure, strictly stronger than Q9 and **asserted rather than argued** | **the guarantee yes, the ASSERTION no** — it is a property of the SOURCE and no rung reads the source | probe `R-adq10` is the declared ceiling and `R-adq10b` its pair; [Q450](../questions/q450.md) |
 
 **Rule 8 — FOUR passes, the last two with the readers nineteen exact edits checked in.**
 Final pass: **72 probes — 58 CAUGHT, 10 declared ceilings, 1 declared CRASH, 1 control clean, ZERO
@@ -361,7 +361,7 @@ readers found **eight more blocking**, every one of which is now a probe that fi
    was two lines, and was in the file this item had already edited.*
 6. **The byte-identical dispatch comparison was a tautology one token away, and v0.21's own answer
    was unavailable**: both sides were STRINGS, and identity cannot exist over equal strings. Closed
-   by returning the arrays — [Q447](../open-questions.md).
+   by returning the arrays — [Q447](../questions/q447.md).
 7. **Three of the four rows in the L1 suite's own SELECTION table described fixtures that are not in
    the file** — a two-segment path that is three segments, an `ORDER_SENSITIVE` identifier that does
    not exist, and *no fixture uses `eq` as its only operator* when the file's own helper defaults to
@@ -371,11 +371,11 @@ readers found **eight more blocking**, every one of which is now a probe that fi
    into the item. Written now, as the section above.
 9. **The `workerType` correction was made at one site and the identical defect shipped twice more in
    the same document**, 150 lines either side of the note recording the correction — section 1 rule
-   5's withdrawn-claim clause, broken by the item that was quoting it. [Q449](../open-questions.md).
+   5's withdrawn-claim clause, broken by the item that was quoting it. [Q449](../questions/q449.md).
 10. **Output (4)'s *asserted rather than argued* is false.** An `evalLeaf` reading `Date.now()`,
     `Math.random()`, a module-level cell and the predicate registry passes **every rung at exit 0**;
     only one whose state MOVES an answer is caught. The guarantee is the source's and no rung reads
-    the source — [Q450](../open-questions.md).
+    the source — [Q450](../questions/q450.md).
 11. **My own purity test was FLAKY and five runs is what found it.** It compared two runs' fold
     inputs including real clock reads, passed on its first sample and failed on its second by one
     millisecond — section 5 rule 5's class, in this item's own test. Both the driver's `now` and the
@@ -423,17 +423,17 @@ readers found **eight more blocking**, every one of which is now a probe that fi
   it names did not fire and the prediction is false anyway, because the maintainer's answer to
   stop-and-ask (b) retired the string form. P15's *a reversal clause DIRECTS an item*, inverted.
 - **A claim whose two sides are primitives has no identity control available** — v0.21's answer to
-  the vacuity class assumes the sides are values that can be distinct. [Q447](../open-questions.md).
+  the vacuity class assumes the sides are values that can be distinct. [Q447](../questions/q447.md).
 - **`doc/` is refused for a check for the twenty-fifth time, and this item supplies a class that is
   NOT `doc/`**: `spec/**`'s own snippets and its own claims about its own rules, which
-  `check:docs` does not reach and `check:spec` does not read. [Q449](../open-questions.md).
+  `check:docs` does not reach and `check:spec` does not read. [Q449](../questions/q449.md).
 
-**Questions raised.** [Q447](../open-questions.md) (a two-run equality has no identity control when
-its sides are strings), [Q448](../open-questions.md) (a module-scope fixture turns a product break
-into a runner CRASH, so rule 8 cannot grade it), [Q449](../open-questions.md) (nothing compares a
+**Questions raised.** [Q447](../questions/q447.md) (a two-run equality has no identity control when
+its sides are strings), [Q448](../questions/q448.md) (a module-scope fixture turns a product break
+into a runner CRASH, so rule 8 cannot grade it), [Q449](../questions/q449.md) (nothing compares a
 `spec/**` snippet or claim to the grammar the same document declares),
-[Q450](../open-questions.md) (a declared predicate's purity is a property of the SOURCE and no rung
-reads it). **[Q444](../open-questions.md) RESOLVED** by ADR 0074.
+[Q450](../questions/q450.md) (a declared predicate's purity is a property of the SOURCE and no rung
+reads it). **[Q444](../questions/q444.md) RESOLVED** by ADR 0074.
 
 **Census CONFIRMED 342 / 267 / 1 / 74, derived TWO ways** — and the parser that derived it was wrong
 TWICE first, in the two directions this register has already recorded. Stripping CODE SPANS before
@@ -446,7 +446,7 @@ reproduces the committed baseline **exactly** (338 / 264 / 1 / 73) and this tree
 count**, not the live rows marked resolved — 74 against 69 — and *questions* is the live rows plus
 the five ids that appear only in that table.)*
 
-**And it measured the live population of [Q131](../open-questions.md)'s own class: TWELVE rows carry
+**And it measured the live population of [Q131](../questions/q131.md)'s own class: TWELVE rows carry
 an unescaped pipe inside a code span and so split where the renderer splits them too** — Q119, Q71,
 Q123, Q131, Q135, Q204, Q215, Q301, Q343, Q411, Q415 and **Q445**, which P26's declaration added two
 days ago. The register declares **two** of them as exemptions. None of W108's four is among them.

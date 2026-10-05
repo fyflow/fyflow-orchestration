@@ -119,7 +119,7 @@ occurrences in code).
    > sentence separately said. **So `inline` and `groups` are reachable by NO road a consumer can
    > write** — and the only other road, declaring their own worker-less type, is `WorkerMissing` by
    > rule 2, deliberately. A transform-only node runs in the scheduler's default realm and holds no
-   > resource group, and nothing a consumer writes changes that. [Q457](../open-questions.md).
+   > resource group, and nothing a consumer writes changes that. [Q457](../questions/q457.md).
 
    **`FD-V46`** refuses a node of such a type that declares no `transform`, because the alternative is
    an expensive identity — P26 decision 5 (b), and its own id rather than a clause of `FD-V37` on
@@ -178,7 +178,7 @@ occurrences in code).
 
    **Per item: +1 dispatch, +4 CLONES, +2 log records.** The four clones are named —
    `listener.ts` `normalizeEvent` (`OR-R2`'s own), `driver.ts` `freezeInput` (the clone `runtime.start`
-   installs on every run, which is [Q320](../open-questions.md)'s and is paid again), `driver.ts`
+   installs on every run, which is [Q320](../questions/q320.md)'s and is paid again), `driver.ts`
    `advance` (the edge hop) and `driver.ts` `dispatch` (the extra envelope's `settings`).
 
    | pool mode | N = 4 | N = 32 | N = 128 |
@@ -211,7 +211,7 @@ occurrences in code).
    before construction, after it, after a run and after shutdown; `createRuntime` ~3 ms). It is not in
    `ResolvedRegistry` (rule 5), so a consumer reading a resolved registry sees their own types alone —
    but anything enumerating POOLS sees it, which is why the order is defined.
-2. **[Q446](../open-questions.md) is NOT closed, and rule 6 is built so that it cannot be read as
+2. **[Q446](../questions/q446.md) is NOT closed, and rule 6 is built so that it cannot be read as
    closed.** Every arc leaving a transform-only node is `unchecked`; `sampledOutput` returns those
    verdicts beside the sampled shape so a caller reads the residue off the same value as the answer.
    P26 prediction 4 says this item does not remove it, and it does not.

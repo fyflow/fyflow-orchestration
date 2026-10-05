@@ -293,8 +293,8 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // traverses with no change at all, which is P22 prediction 2 (*`JP-R12`, ADR 0044 and
     // `checkWiring` need zero changes*) as a number rather than as a sentence.
     // **+3 fits, +1 no and +1 flow at W94 — `tv-ingest.flow.json`**, P24's exit artifact (a declared exception
-    // of W94's, [Q342](../../doc/open-questions.md)'s literal a sixth time). Its two `beside` branch arcs and `publish`'s
-    // record FIT — **and its fourth arc was a FALSE `no` until W99** ([Q391](../../doc/open-questions.md)): the check
+    // of W94's, [Q342](../../doc/questions/q342.md)'s literal a sixth time). Its two `beside` branch arcs and `publish`'s
+    // record FIT — **and its fourth arc was a FALSE `no` until W99** ([Q391](../../doc/questions/q391.md)): the check
     // read the gate as a flat pass-through, so the per-series worker, which requires `series`, was judged against
     // `identify`, which does not guarantee it, while `distinct` routes `first` only where `series.id` RESOLVED.
     // **+1 fit and —1 no at W99** ([ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)):
@@ -303,7 +303,7 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // directions — it carried the false `no` as a number for one plan and it carries the fix as one now.*
     // **+2 fits, +6 unchecked and +2 flows at W110** — P26's exit artifact, `ui-emitted.flow.json` and its
     // paired `ui-emitted-named.flow.json`, each **1 fit and 3 unchecked**. **The six unchecked are
-    // [Q446](../../doc/open-questions.md)'s residue as a NUMBER**, which is the one thing this census is
+    // [Q446](../../doc/questions/q446.md)'s residue as a NUMBER**, which is the one thing this census is
     // for: a transform-only node declares neither schema, so the arc INTO it and both arcs LEAVING it are
     // unchecked in every flow that has one — and the ONE fit per flow is `intake -> rate`, the only arc
     // neither end of which is that node, which is what says the residue is LOCAL to it rather than general.
@@ -948,7 +948,7 @@ suite('W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no
   });
 
   test('only a KEY-RESOLVED route`s arc is refused — the route the run actually takes keeps its own verdict', async () => {
-    // **The anti-false-alarm claim, and it is [Q391](../../doc/open-questions.md)`s class.** A key path that
+    // **The anti-false-alarm claim, and it is [Q391](../../doc/questions/q391.md)`s class.** A key path that
     // resolves nowhere makes `distinct` route every branch `nokey`, so THAT arc is the one that carries a
     // value — and a refusal there would be a `no` on the only road the run takes.
     const r = await checkWiring(reg(producer), flow('distinct', DISTINCT_EDGES, { key: 'sereis.id' }));
@@ -1035,7 +1035,7 @@ suite('W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no
 
   test('the corpus: the three wrong keys of P25 fact 7 are each NAMED, where none of them was before', async () => {
     // **The item`s headline, over the REAL registry and the REAL flow.** Before W100 the three read: two `no`
-    // carrying [Q391](../../doc/open-questions.md)`s own string (`consumer requires "series", producer does not
+    // carrying [Q391](../../doc/questions/q391.md)`s own string (`consumer requires "series", producer does not
     // guarantee it`) and one — `series.slug`, the worst, because `identify``s `series` is CLOSED — reading
     // **`fits`**. The correct key is the control and W73`s census holds it at 73 fits / 1 `no`.
     const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];

@@ -83,7 +83,7 @@ fact before writing its header block.
 - **Describing `arrival-count` as a choice a consumer should weigh.** ADR 0003 decided it;
   the reference says which to pass and why the other is still exported, and does not re-run the
   comparison in prose.
-- **[Q53](../open-questions.md)'s contradiction.** `Driver`'s surface says many runs, `ID-R3` says
+- **[Q53](../questions/q53.md)'s contradiction.** `Driver`'s surface says many runs, `ID-R3` says
   one. The reference states `ID-R3`'s rule, cites Q53, and does not resolve it.
 
 ## Verification
@@ -107,7 +107,7 @@ flow; its snippets exercise the same paths `examples/` already gates. Stated rat
 | L0 | **RAN** — pass | Node, Deno | `check-spec` (8), `check-source` (10), `check-scheduler` (5), **`check-docs` (4, new)**, `deno lint`, `tsc` × **6** configs (`tsconfig.docs.json` is new), `deno check`, `deno publish --dry-run` |
 | **`check:docs`** | **RAN** — pass | Node | **15 snippets: 11 `run`, 4 `check`, 0 untagged** — was 14/7/7 before the readers. Every one typechecks against the real `index.ts`; every `run` one executes and asserts |
 | **`check:docs:selftest`** | **RAN** — **12 probes, 12 caught** | Node | new, and the point is that it is **checked in**: W9's five probes were run once by hand in a scratch directory, which the adequacy reader measured the cost of |
-| **X5 — the DOM lib pass** | **RAN** — reported | Node | **1 of 15 snippets**, `AGENTS.md:687`, the §12 wiring snippet. [Q71](../open-questions.md) pinned at a number instead of a caveat |
+| **X5 — the DOM lib pass** | **RAN** — reported | Node | **1 of 15 snippets**, `AGENTS.md:687`, the §12 wiring snippet. [Q71](../questions/q71.md) pinned at a number instead of a caveat |
 | L1-L6 | **RAN** — pass | all five; L6 in two | 288 assertions and 219 at L6, both unchanged. This item touched no `src/` file |
 | **conformity reader** | **RAN** — **5 blocking, 9 defects, 6 notes** | n/a | re-derived §§3-12 from `spec/` before opening the reference; disagreed with its own derivation on six sections and **measured** most findings against the real `index.ts` rather than arguing them |
 | **adequacy reader** | **RAN** — **110 mutations, 90 survivors**; 12 blocking classes | n/a | mutations chosen by walking the rule ids, in an isolated copy. **Restricted to claim-mutations: 75 applied, 70 survived (93%)** |
@@ -120,7 +120,7 @@ flow; its snippets exercise the same paths `examples/` already gates. Stated rat
 | `AGENTS.md`, the eleven sections P3 listed | **yes**, twelve — section 12 was added for wiring a real scheduler, which is where the item's one real finding came from | `check:docs` X1: a reference with no snippets fails rather than passing vacuously |
 | `scripts/check-docs.mjs` | **yes** | itself — and each of its four checks is negative-tested, which is the only reason to believe the other rows in this table |
 | a new gate clause | **yes** | `npm run gate` runs it third, before lint |
-| **whatever writing the surface down from outside exposes** | **yes — [Q71](../open-questions.md)** | nothing, and that is honest: a question is not a testable output. See *What broke* 1 |
+| **whatever writing the surface down from outside exposes** | **yes — [Q71](../questions/q71.md)** | nothing, and that is honest: a question is not a testable output. See *What broke* 1 |
 
 ## What broke
 
@@ -134,7 +134,7 @@ picks up `addEventListener(type, EventListenerOrEventListenerObject | null, opti
 narrower `(type, (e: { detail: unknown }) => void)` is not compatible with.
 
 **The workaround is a cast, and a documented cast in a reference is a defect with an apology
-attached.** `AGENTS.md` section 12 documents it and cites [Q71](../open-questions.md). **Not fixed**:
+attached.** `AGENTS.md` section 12 documents it and cites [Q71](../questions/q71.md). **Not fixed**:
 `SchedulerLike` is W3's, its two-method shape is what makes ladder L2 possible, and widening it to
 the DOM signature would let anything with an `addEventListener` through. W9's declaration put exactly
 this out of scope in advance.
@@ -217,8 +217,8 @@ than reading, and both raised rather than patched:
 
 | | |
 |---|---|
-| [**Q72**](../open-questions.md) | **Two `Driver`s on one scheduler cross-route.** `ID-R3` refuses a second run on one driver; nothing refuses a second driver on one scheduler. Each receives the other's settlements, a task id is dispatched twice, and a `run-9:` event on a `run-1` driver dispatches `run-9:publish:-:0`. `MultipleRuns`' own message says *"construct a second Driver"* — **the reference's advice, followed literally, produces the defect** |
-| [**Q73**](../open-questions.md) | **`onRegionEvent` hands out the driver's own live object**, while `snapshot()`, `foldInputs()` and `onFoldInput` all return frozen copies. §10's *"anything the driver gives you is safe"* now carries an exception, which is the sentence a consumer will remember |
+| [**Q72**](../questions/q72.md) | **Two `Driver`s on one scheduler cross-route.** `ID-R3` refuses a second run on one driver; nothing refuses a second driver on one scheduler. Each receives the other's settlements, a task id is dispatched twice, and a `run-9:` event on a `run-1` driver dispatches `run-9:publish:-:0`. `MultipleRuns`' own message says *"construct a second Driver"* — **the reference's advice, followed literally, produces the defect** |
+| [**Q73**](../questions/q73.md) | **`onRegionEvent` hands out the driver's own live object**, while `snapshot()`, `foldInputs()` and `onFoldInput` all return frozen copies. §10's *"anything the driver gives you is safe"* now carries an exception, which is the sentence a consumer will remember |
 
 **7. One Record row was wrong and one reader was wrong.** This Record said the gate runs `check:docs`
 *third*; it runs fourth. And the adequacy reader listed *"24 refusals"* among count claims that are
@@ -270,5 +270,5 @@ to the rule they enforce**, and the disagreement is why two of them are worth th
 - **`AGENTS.md` is not run in Deno.** The snippets execute under Node only. L6 already covers both
   runtimes for real flows.
 - **X5 reports and does not fail at 1.** The DOM configuration is the one most consumers have and one
-  snippet fails under it. Fixing that is [Q71](../open-questions.md), and this item was declared
+  snippet fails under it. Fixing that is [Q71](../questions/q71.md), and this item was declared
   without the right to touch `SchedulerLike`.

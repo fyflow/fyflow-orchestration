@@ -60,11 +60,11 @@ Reserves:   Q223-Q228, no ADR (P14 reserved 0044-0045; 0044 is W49's and
 **Out** — named rather than left implicit, with where it goes instead
 
 - **Any `spec/` rule.** An exit artifact writes no rule — W43's and W47's own stated result.
-- **[Q219](../open-questions.md)** — the collection as a reference target. It RELAXES `FD-V27`, which
+- **[Q219](../questions/q219.md)** — the collection as a reference target. It RELAXES `FD-V27`, which
   P14's stop-and-ask list makes the maintainer's call.
-- **[Q222](../open-questions.md)** — `FD-V28`'s biconditional having no observer. It is a question
+- **[Q222](../questions/q222.md)** — `FD-V28`'s biconditional having no observer. It is a question
   about a static binding and L6 is further from it than L1 is.
-- **[Q220](../open-questions.md), [Q221](../open-questions.md)** — raised by W49; this item owns
+- **[Q220](../questions/q220.md), [Q221](../questions/q221.md)** — raised by W49; this item owns
   neither.
 - **A self-test for L6.** Proposed and refused three times — P11's for the gate, P12's for L6 itself,
   P13's again.
@@ -118,7 +118,7 @@ prefix-comparable anyway. Re-taken on the tree this item ships:
 | every entry made visible — **too permissive** | **0** L6 failures | **2** |
 
 **Two directions, because a wrong predicate can be wrong in two**, and one row could only ever have
-shown one. *[Q214](../open-questions.md)'s shape in a second mechanism* — W47's was *a document the
+shown one. *[Q214](../questions/q214.md)'s shape in a second mechanism* — W47's was *a document the
 validator refuses never starts*; this was *a filter no run exercises* — and it is **prediction 4's
 subject, measured rather than argued**.
 
@@ -173,7 +173,7 @@ of names beside itself:
 `score` settles and the three are genuinely in flight, so the declared list was the settle order of a
 fan-out: measured **25/25 identical at `threaded: false` in both runtimes and 12/12 REVERSED at
 `threaded: true`** — a knob this file records as held down by nothing
-([Q99](../open-questions.md)). *The row was green on a property of the inline pool's timer FIFO.*
+([Q99](../questions/q99.md)). *The row was green on a property of the inline pool's timer FIFO.*
 Closed by `Expectation.unorderedDispatch`, which compares the named ids as a SET and leaves every
 other row's order exactly as it was — `sortedSettled`'s finding one field across — **and the
 justification is asserted rather than stated**: a row may only weaken the comparison where its

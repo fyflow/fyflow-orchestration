@@ -62,18 +62,18 @@ repository's own compound-probe discipline turned on its own tooling.*
 ## What to be careful of
 
 1. **A crash must not read as a detection.** `X4` today distinguishes a snippet that throws (a
-   detection) from one that is killed (`exit null`, [Q425](../open-questions.md)) from one that
+   detection) from one that is killed (`exit null`, [Q425](../questions/q425.md)) from one that
    crashes. Concurrency puts several children in flight, so the mapping from child to snippet must
    stay exact — and rule 8's requirement on the SET is that a probe fires FOR THE REASON IT NAMES.
 2. **The 30 s cap is per snippet and load-sensitive.** Running 8–16 at once makes each slower in wall
-   terms. [Q425](../open-questions.md) is the row: under load a sub-second snippet was killed at
+   terms. [Q425](../questions/q425.md) is the row: under load a sub-second snippet was killed at
    30 s and reported as *the snippet does not run*. Pick the width against that, and consider whether
    the cap should scale with the width — the cheapest fix Q425 names is the MESSAGE, one branch.
 3. **Output interleaving.** `check-docs` reports per snippet with a line number; concurrent children
    must not interleave into an unreadable report, and `X4`'s detail lines are what the self-test's
    gradings match on.
 4. **Determinism.** Snippets that bind a port, write a fixed path under `dev-dist/`, or share a
-   scheduler will collide when run at once. This is [Q182](../open-questions.md)'s class and
+   scheduler will collide when run at once. This is [Q182](../questions/q182.md)'s class and
    **W105 is the item for it** — if a collision appears here, record it and narrow the width rather
    than fixing the namespace in this item.
 5. **~50 probes are anchored on this file's text.** Rule 7 (b) aborts are expected, not a surprise;
@@ -99,8 +99,8 @@ turned out to be wrong every time.*
 ### The spawn health, first, because every number below is inside it
 
 Measured the way a self-test actually spawns — `spawnSync` from node, n=20: **`node -e ""` median
-49.1 ms** (min 45.8, max 87.2) against [Q180](../open-questions.md)'s 54 ms baseline, and
-**`cmd /c exit` median 19.2 ms** against the 27 ms-to-8 649 ms range [Q427](../open-questions.md)
+49.1 ms** (min 45.8, max 87.2) against [Q180](../questions/q180.md)'s 54 ms baseline, and
+**`cmd /c exit` median 19.2 ms** against the 27 ms-to-8 649 ms range [Q427](../questions/q427.md)
 records for this machine. Twenty cores, node v24.20.0. **The machine is at the good end** — the
 conformity reader independently read 57 ms and the adequacy reader 48.7 ms in the same regime, so all
 three sessions are comparable.
@@ -119,7 +119,7 @@ three sessions are comparable.
 **And one claim inside correction 3 is WITHDRAWN.** *20 and 32 are measurably WORSE than 16* rested on
 1048 / 1082 / 1129 ms — gaps of 3-7%. The adequacy reader re-ran the sweep and read **2223 / 2140 /
 1929**, monotonically DECREASING. Those gaps sit inside the spread this Record states elsewhere (8%
-before, 38% after) and the table named no sample, which is [Q179](../open-questions.md)'s own
+before, 38% after) and the table named no sample, which is [Q179](../questions/q179.md)'s own
 sentence. *The width decision does not rest on it* — the under-load measurement does — so the claim
 goes rather than the choice.
 
@@ -142,7 +142,7 @@ with a warm cache reads 4911 ms and the check's own loop reads **6283 / 6471 ms*
 **So the loop is ~64% of the check and not 53%** — and the in-check figure is what RECONCILES the
 measured 2.04x ratio, which 4911 did not. *The Amdahl conclusion survived and the term under it was
 wrong, which only an instrument inside the subject could show.* The two `tsc` runs are now **52% of a
-4.6 s check** and are its dominant term: [Q429](../open-questions.md), raised and deliberately not
+4.6 s check** and are its dominant term: [Q429](../questions/q429.md), raised and deliberately not
 taken, because overlapping them is a second variable.
 
 ### The width, and the measurement that decides it — confirmed on a BETTER approximation
@@ -176,7 +176,7 @@ reader at ~10.5 s on its own machine.
 | `check:docs:selftest` | **1096 s**, 50/50, 28/28 | **624 s**, 51/51, 28/28 | **1.76x, -43.1%** |
 | `npm run gate` (the ladder) | — | **EXIT 0, 174 s, zero FAIL lines** | |
 
-**The bands do not overlap, which is how [Q179](../open-questions.md) is answered rather than
+**The bands do not overlap, which is how [Q179](../questions/q179.md) is answered rather than
 ignored**: the WORST after-reading (5125 ms) beats the BEST before-reading (8725 ms) by 1.70x. The
 after spread is 38% against 8% before, because a concurrent pool is sensitive to scheduling where a
 serial loop is not — stated rather than averaged away.
@@ -202,7 +202,7 @@ NEXT halving, worth ~1.3x on the wall rather than another 2x. *The conformity re
 missing entirely: the Record did the Amdahl arithmetic for the CHECK and not for the LANE, which is
 the number ADR 0070 and `doc/workflow.md` section 8 are about.*
 
-### [Q425](../open-questions.md)'s fix, measured on the same mutation
+### [Q425](../questions/q425.md)'s fix, measured on the same mutation
 
 ```
 X4: AGENTS.md:946 — the snippet does not run: exit null
@@ -228,7 +228,7 @@ independently: zero of the 32 extracted `run` snippets contains `writeFileSync`,
 `appendFile`, `listen(`, `localhost:`, `tmpdir`, a `process.cwd` write, `child_process`, `spawn` or
 `fork`; the imports are `index.ts` x35, `src/scheduler/index.ts` x17, `fyflow-scheduler` x2,
 `src/jsonata/index.ts` x2 and two `examples/getting-started/*` registries, which write nothing either.
-Run at widths 4, 8, 16, 20 and 32: **0 non-zero at every width.** So [Q182](../open-questions.md)'s
+Run at widths 4, 8, 16, 20 and 32: **0 non-zero at every width.** So [Q182](../questions/q182.md)'s
 class does not reach this loop's children — `dev-dist/docs` is written ONCE by the parent before the
 pool starts. *It is also what holds back the one unbounded-wait mode this change adds*: `close` fires
 only after the stdio pipes close, so a grandchild inheriting stderr would defer it past the kill with
@@ -286,11 +286,11 @@ before reading the code, then measured each against both the shipped check and `
     `check:docs:selftest` read **19 probes, 10 gradings** and **17 clauses** — W46-era figures, stale
     through W69, W70, W86, W96 and W104 — against the real **51 / 28 / 58**. Corrected. *Three stale
     censuses in one item, in three files, none of them compared to the file it is about*
-    ([Q430](../open-questions.md)).
+    ([Q430](../questions/q430.md)).
 13. **Its parser found that the twelve wide register rows are SIX.** Six have every pipe escaped and
     render as four cells; only Q119, Q71, Q343, Q411 and Q415 are wrong, plus Q87's multi-line row. *A
     parser that splits on every pipe is LESS careful than the renderer* — W30's finding inverted, and
-    [Q131](../open-questions.md)'s row carries the correction. **And this item then broke Q131's own
+    [Q131](../questions/q131.md)'s row carries the correction. **And this item then broke Q131's own
     row while writing that correction**, with an unescaped pipe inside a code span; caught by re-running
     the parser, fixed, and every row W104 touches re-verified at four cells.
 14. **One finding REFUTED.** It reported the ten-row list as W88's; the register's W86 note names all
@@ -320,7 +320,7 @@ digest `73db0796bddd1991` identical at both ends and a control clean before and 
     restructure split one `for` that both ran and reported into two, and all five new clauses read
     `seats` rather than what was emitted from it — *this item's own argument for the membership clause
     applying verbatim to the half it was not applied to*. Closed by a RELATION between the halves: the
-    failures emitted against the failing seats. **And it is why [Q431](../open-questions.md) is
+    failures emitted against the failing seats. **And it is why [Q431](../questions/q431.md) is
     raised**: since ADR 0070 `npm run gate` carries no `:selftest` entry, so a clause whose only
     observer is a probe has none on the local ladder at all.
 18. **BLOCKING — a claim in shipped source that this Record contradicted.** The deadline probe's
@@ -330,7 +330,7 @@ digest `73db0796bddd1991` identical at both ends and a control clean before and 
     26 s actually buys is that the DEADLINE EXISTS** — delete `timeout: X4_DEADLINE_MS` and that
     probe's document never exits (no exit in 75 s), a clause with no other observer anywhere. The
     comment now says so.
-19. Non-blocking and acted on: the stderr accumulator is observed by nothing ([Q100](../open-questions.md)'s
+19. Non-blocking and acted on: the stderr accumulator is observed by nothing ([Q100](../questions/q100.md)'s
     class, declared) and `+= d` on Buffers mojibakes a multi-byte character straddling a chunk — now
     **`setEncoding('utf8')`**; `spawnSync`'s implicit **1 MiB `maxBuffer`** went with the restructure
     undeclared and is recorded; the branch ORDER is asserted by nothing, so with the spawn arm disabled
@@ -394,7 +394,7 @@ bound that reads `X4_WIDTH` and `X4_WIDTH_FLOOR` and is the THIRD edit a width r
 the header census corrected to **55 sites across eleven ids** with the scope of what was re-taken
 stated.
 
-**[Q180](../open-questions.md) is NOT touched by this item**: concurrency changes WHEN children start,
+**[Q180](../questions/q180.md) is NOT touched by this item**: concurrency changes WHEN children start,
 not HOW MANY — 34 per `check-docs` body either way, and the lane makes ~3638 such starts before and
 after.
 
@@ -420,13 +420,13 @@ moved, and it is at least as likely to have driven them together as apart. *An o
 shared SUBJECT and the two findings on it need not agree*: on `settledHere` they reached opposite
 conclusions, and a measurement settled it against the more confident one.
 
-**Questions.** [Q428](../open-questions.md) (Q180's start count is stale — it records 2531/2583 for
-all SEVEN self-tests and this ONE lane now makes ~3638), [Q429](../open-questions.md) (the two `tsc`
-runs are 52% of the check W104 leaves behind, unpriced), [Q430](../open-questions.md) (a `scripts/`
+**Questions.** [Q428](../questions/q428.md) (Q180's start count is stale — it records 2531/2583 for
+all SEVEN self-tests and this ONE lane now makes ~3638), [Q429](../questions/q429.md) (the two `tsc`
+runs are 52% of the check W104 leaves behind, unpriced), [Q430](../questions/q430.md) (a `scripts/`
 file's census of another was stale by 33 and nothing compares them) and
-**[Q431](../open-questions.md)** (since ADR 0070 a clause whose only observer is a PROBE has none on
+**[Q431](../questions/q431.md)** (since ADR 0070 a clause whose only observer is a PROBE has none on
 the local ladder — raised by the adequacy reader, out of the hole in this item's own report loop).
-**[Q425](../open-questions.md) HALF-ANSWERED and extended**: the message is fixed, the cap is not, and
-the pool makes that row more likely to fire. [Q427](../open-questions.md) and
-[Q131](../open-questions.md) extended. **Q432 unused and SPENT. ADR 0071 SKIPPED and not reused.**
+**[Q425](../questions/q425.md) HALF-ANSWERED and extended**: the message is fixed, the cap is not, and
+the pool makes that row more likely to fire. [Q427](../questions/q427.md) and
+[Q131](../questions/q131.md) extended. **Q432 unused and SPENT. ADR 0071 SKIPPED and not reused.**
 Census **324 / 251 / 1 / 72**, 324 of 324 in exactly one cluster cell.

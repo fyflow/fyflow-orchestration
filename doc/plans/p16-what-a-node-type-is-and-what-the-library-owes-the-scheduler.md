@@ -46,7 +46,7 @@ blocks are free.*
    carried since 0.2.1 and the driver never sets it: `dispatch` hands `createTask` exactly four
    fields — `id`, `workerType`, `payload`, `optional` (`src/driver/driver.ts:1839`). `optional` is
    the one scheduler task field a node *can* set, and it is the precedent this plan generalises.
-   [Q16](../open-questions.md) has asked who owns retry since P1 and has no owner.
+   [Q16](../questions/q16.md) has asked who owns retry since P1 and has no owner.
 2. **A node cannot carry configuration.** A `task` node has six keys and `FD-V17` refuses a seventh.
    The only per-task channel to a worker is `payload`, so today "one worker, two configurations" is
    spelled as two `workerType`s with two pool `config`s — which is exactly how `examples/` runs nine
@@ -96,7 +96,7 @@ depends on P15's answer, and two of its results are inputs: a result crosses the
 as a **value** (`OR-R11`), which is what a typed node's declared shapes will range over, and a
 region's collection is **released when its join becomes terminal** (ADR 0046 rule 3), which is why
 a transform on a join's successor is the last thing that sees the collection whole. One thing P15
-names as its own follow-on — [Q219](../open-questions.md), making a region's collection referenceable
+names as its own follow-on — [Q219](../questions/q219.md), making a region's collection referenceable
 — is untouched by this plan.
 
 ## What was measured before this plan was drafted
@@ -132,7 +132,7 @@ rule 3 already prescribes for exactly this shape of error. *(The scheduler's own
 `workerGroups` is "added to the pool's groups"; it does not say what an unknown id does. Now it is
 measured.)*
 
-**3. [Q71](../open-questions.md) reproduces at 0.5.2, and it is the DOM lib alone.** *(The closing
+**3. [Q71](../questions/q71.md) reproduces at 0.5.2, and it is the DOM lib alone.** *(The closing
 sentence of this fact — *an `import type` closes it by construction* — was measured FALSE by W57: the
 import alone changes nothing about assignability, and what closes Q71 is `SchedulerLike`'s listener
 parameter, `object`; the type import survives as an L0 assertion. ADR 0048's Q71 table.)* `const x:
@@ -200,19 +200,19 @@ occurrences, not sites.
   that makes strict compatibility livable without a reshaping task node. **What this plan owes it
   is one wording**: W59's `FD-C5` defines the envelope's `input` as *the value this node receives*
   and names no expression, so a transform slots in between composition and the envelope without
-  rewording the rule. [Q251](../open-questions.md).
+  rewording the rule. [Q251](../questions/q251.md).
 - **Run-time validation of a result against a declared schema.** The strict-mode plan's, priced there.
 - **`limitKey`.** Per workload, so a `needs`-shaped reference and not configuration — fact 1. A row
   in the register, no owner.
 - **Flow-level retry** — Q16's other half, and the task id's fourth segment
-  ([Q111](../open-questions.md)). Untouched: scheduler retries happen inside one task id and are
+  ([Q111](../questions/q111.md)). Untouched: scheduler retries happen inside one task id and are
   reported on the outcome record's `attempts`, which is the field this plan's exit artifact makes
   non-zero at L6 for the first time.
-- **[Q19](../open-questions.md) and [Q22](../open-questions.md)** — RESOLVED by P15 (ADR 0046 and
-  W54's `OR-R11`); this plan cites them and reopens neither. **[Q219](../open-questions.md)** — named
+- **[Q19](../questions/q19.md) and [Q22](../questions/q22.md)** — RESOLVED by P15 (ADR 0046 and
+  W54's `OR-R11`); this plan cites them and reopens neither. **[Q219](../questions/q219.md)** — named
   by P15 as its own follow-on.
 - **Per-join policy choice, cancellation, durability** — `AGENTS.md` section 11's list, unmoved.
-- **`fyflow-react-components`' event envelope** ([Q21](../open-questions.md)). A node type registry
+- **`fyflow-react-components`' event envelope** ([Q21](../questions/q21.md)). A node type registry
   with schemas is what a visual editor would consume, and `doc/concept.md` section 7 names a visual
   editor a non-goal. This plan builds the registry and says nothing about a UI.
 
@@ -240,7 +240,7 @@ measure them.*
    pool per distinct settings variant, settings delivered as pool `config` — is recorded in ADR 0049
    as the road not taken, with its cost: pool capacity per variant rather than per type. **That
    `FD-C` rule defines `input` as *the value this node receives* and not as *what `needs`
-   composed*** — so a later transform ([Q251](../open-questions.md)) sits between the two without
+   composed*** — so a later transform ([Q251](../questions/q251.md)) sits between the two without
    rewording the rule, and W59 is refused a wording that would close that door.
 3. **Task configuration is DECLARED KEYS, not an opaque bag.** A `task: {...}` object forwarded to
    `createTask` untouched would be a hole where a typo lives until run time, which is ADR 0002
@@ -292,7 +292,7 @@ and a plan whose first two items ship nothing observable is P11's shape.
 | Q | | Owner |
 |---|---|---|
 | Q248 | **`limitKey` is a per-workload task field with no home.** It is not configuration and not a reference to a node; the nearest grammar is `needs`, which names a node and never a value inside one. Raised here so it is not folded into W58 by analogy with `workerGroups` | no owner |
-| Q249 | **Does a node type have a VERSION, and what does a definition's `version` field mean against it?** `FlowDefinition.version` is *"author-managed; the driver does not interpret it"*. A definition valid against registry v1 may be invalid against v2, and a persisted run ([Q15](../open-questions.md)) would need the registry version in the log | W59 raises; not decided by this plan |
+| Q249 | **Does a node type have a VERSION, and what does a definition's `version` field mean against it?** `FlowDefinition.version` is *"author-managed; the driver does not interpret it"*. A definition valid against registry v1 may be invalid against v2, and a persisted run ([Q15](../questions/q15.md)) would need the registry version in the log | W59 raises; not decided by this plan |
 | Q250 | **Per-variant pools versus the envelope: does pool capacity per settings-variant ever matter?** The road ADR 0049 does not take, recorded with its cost so the next plan that wants per-variant concurrency can price it | W59 |
 | Q251 | **A per-node INPUT TRANSFORM, declared in the flow and applied in the TYPE's worker wrapper.** Not in the driver: `driver.ts` dispatches inside a listener with no `await` and `jsonata` 2.x returns a Promise, and a worker's `run()` is async by contract. The language registered by name, the core carrying no engine; a syntax error refused at construction because compilation is sync; an evaluation failure a **task failure**, with the `user_action` consequence on a non-optional node stated; **no clock, no random**, because `$now`, `$millis` and `$random` exist. Compatibility across a transform is checked by an async **pre-flight** on schema-derived samples, evidence and not proof. Not this plan's, and it reaches Q165's reducer from the successor's side | no owner — *Slices beyond this plan* item 1 |
 | Q252-Q262 | *reserved for the items* | |
@@ -326,19 +326,19 @@ and a plan whose first two items ship nothing observable is P11's shape.
    only a typed node may carry a transform**, and ladder L2 cannot see it — L2 asserts on what
    `createTask` received, which is the untransformed envelope; the transform is proved in a unit
    test of the wrapper and at L6. **Exit artifact: a node consuming a join's collection through a
-   transform with no reshaping task node**, which reaches [Q165](../open-questions.md)'s refused
+   transform with no reshaping task node**, which reaches [Q165](../questions/q165.md)'s refused
    reducer by a route ADR 0037 rule 5 did not close — the transform sits on the join's SUCCESSOR and
    receives `JP-R12`'s collection, so nothing about the collection's shape is decided by it. **And
    since ADR 0046 rule 3 the successor is the LAST thing that sees that collection whole**: the
    region releases it the moment the join is routed out of, after `collectArrivals` has built the
    successor's payload, so a transform there costs no retention and a later `needs` cannot reach
-   what it reshaped — which is [Q219](../open-questions.md)'s subject and stays P15's follow-on.
+   what it reshaped — which is [Q219](../questions/q219.md)'s subject and stays P15's follow-on.
    **One constraint survives the placement: `$now()`, `$millis()` and `$random()` are unbound**,
    or a worker's input stops being a function of what the run produced. `doc/concept.md` section 7
    names *an expression language for decisions* a non-goal; a transform is not a decision and the
    plan says so, and a consumer who wants an expression predicate registers one by name through the
    same adapter with no library change. Cost per instance measured as
-   [Q186](../open-questions.md)'s was, in the wrapper. **JSONata is the first and only adapter, decided
+   [Q186](../questions/q186.md)'s was, in the wrapper. **JSONata is the first and only adapter, decided
    by the maintainer 2026-09-11 with the alternative priced**: CEL is the one mature expression
    language with a static type checker, but the battle-tested checker is cel-go, reachable from
    JavaScript only through a Go-to-WASM build, and every JavaScript port that carries a checker
@@ -382,7 +382,7 @@ and a plan whose first two items ship nothing observable is P11's shape.
    boundary, where `OR-R2` already clones it, and a transform's declared output against what the
    transform produced; a mismatch as a runtime refusal in `FD-R2`'s family (*the definition is valid
    and the worker is wrong*); a driver option, its cost measured the way
-   [Q186](../open-questions.md)'s was. Only after P18, because it validates against something P18
+   [Q186](../questions/q186.md)'s was. Only after P18, because it validates against something P18
    declares.
 4. **Q16's flow half**, if anything ever asks for it: re-dispatching a node under a new attempt,
    which is the task id's fourth segment and the composition Q16 warns about.
@@ -434,14 +434,14 @@ selftests   - 7/7 completed, 7 ok, 550.5 s wall, 5 lanes; check-markdown 37/37 c
 **The five-runtime claim is measured, not inherited**: `npm run gate` runs `test:browser`, which is
 chromium only, so `npm run test:browser:all` was run for firefox and webkit — exit 0, 27 / 703 in
 each, `dev-dist/p16/browser-all-8550978.log`. **703 counts `test()` cases and 1061 counts individual
-assertions ([Q98](../open-questions.md)) — they are never added.**
+assertions ([Q98](../questions/q98.md)) — they are never added.**
 
 **The census parser is P15's, unchanged** (`dev-dist/p15/census.mjs`), and it reproduced the
 standing line exactly before this declaration's rows were written — **191 / 139 / 2 / 50, 44 ids in
 both tables, 191 of 191 in exactly one cluster cell, 0 aborts**. The re-run after the four rows is
 recorded in the register's own note beside them.
 
-**[Q142](../open-questions.md) was checked rather than assumed.** This declaration adds four
+**[Q142](../questions/q142.md) was checked rather than assumed.** This declaration adds four
 documents under `doc/work-items/`, which neither `removes` probe cuts, so `M3`'s one-directory
 fixture and `M4`'s two-directory one both rise; P15's declaration retuned them to **90** and
 **3490** against fixtures of 78 and 3109, and the gate over `8550978` — with this plan file already
@@ -462,7 +462,7 @@ selftests   - 7/7 completed, 7 ok, 439.5 s wall, 5 lanes (550.5 s over the draft
 check-markdown self-test - 37/37 probes caught, 7/7 bounded
 ```
 
-**The last line is [Q142](../open-questions.md)'s verification**: four documents under
+**The last line is [Q142](../questions/q142.md)'s verification**: four documents under
 `doc/work-items/` took the tree from 103 to 107 and both `removes` probes still trip exactly the set
 they declare, so P15's retune of `M3` to 90 and `M4` to 3490 holds with this declaration in. **No
 floor was moved and no file outside section 1 rule 5's record step was edited** — the declaration's
@@ -511,21 +511,21 @@ type is, is a registry entry named by `type`, whose worker receives `{ settings,
 | W57 | ADR 0048's supersession argument was a claim about ADR 0013 that ADR 0013 does not make | **none** — conformity reader, reading the two ADRs together |
 | W57 | fields ADJACENT to the ones a check reads — `peerDependenciesMeta`, `scopes`, `"0.5.2"` in double quotes — every one green | **none** — adequacy reader; obligation (a)'s kind is *a field* |
 | W57 | `createTask` ignored outright cost **0 of 705 and 0 of 1138**; a default injecting W58's two fields, green everywhere | **none** — until the item added two observers |
-| W57 | a green `deno publish --dry-run` was the wrong answer | **none**, and none can be built from it ([Q252](../open-questions.md)) |
-| W57 | the declaration's facts harness read fact 1 wrong at exit 0 — and W58 found it wrong two more ways | **none** — it is untracked ([Q253](../open-questions.md)) |
+| W57 | a green `deno publish --dry-run` was the wrong answer | **none**, and none can be built from it ([Q252](../questions/q252.md)) |
+| W57 | the declaration's facts harness read fact 1 wrong at exit 0 — and W58 found it wrong two more ways | **none** — it is untracked ([Q253](../questions/q253.md)) |
 | W58 | the rule 8 harness applied only the LAST edit per file — seven probes measured that instead of the tree | **none** — reading the failure LINES against what each probe claimed |
 | W58 | the same harness kept an applied edit when a later anchor failed; thirteen later probes crashed on it | **none** — `git status` cannot see a file modified either way |
 | W58 | the three SHAPES were a list bound to nothing but the printed case count | **none** — adequacy reader; the item's headline claim unfalsifiable by its own suite |
 | W58 | `defaultRetryPolicy` validated nowhere while a comment said the driver read it | **none** — a probe the mutations could not reach |
 | W58 | a THIRD present-tense copy of W54's corpus count | **none** — conformity reader grepping the NUMBER where the author grepped the phrase |
-| W58 | `M4`'s fixture rose past its floor in the item's final gate | **the gate's self-test — IT FIRED, and it was READ correctly** ([Q142](../open-questions.md)) |
+| W58 | `M4`'s fixture rose past its floor in the item's final gate | **the gate's self-test — IT FIRED, and it was READ correctly** ([Q142](../questions/q142.md)) |
 | W59 | a probe dropping `nodeTypes` took ladder L6 down with ZERO FAIL lines | **L6 — it fired as a CRASH**, which section 4 says is not a detection; the reading caught it and the row loop was fixed |
 | W59 | two probes re-tagged a snippet instead of deleting it — caught by `X2`, not by the floor they named | **none** — failure lines, P9's *for the reason it names* |
 | W59 | the helper's group check had no fixture whose map key differed from the group's own name — a helper checking the inert NAME survived L1 AND L6 | **none** — adequacy reader; a fact measured, written, and unobserved |
 | W59 | `FD-C5` names FOUR kinds of `input` and the suites instantiated three | **none** — adequacy reader; the shapes clause's fourth iteration |
 | W59 | the construction loop over types bounded by single-entry fixtures; the pure entry's non-export bound by nothing | **none** — adequacy reader, two loop-bound and wiring holes |
 | W59 | `AGENTS.md` section 3's refusal count twelve lines below a table the item rewrote; `examples/README.md` an hour early | **none** — conformity reader |
-| W59 | [Q262](../open-questions.md) attributed a doubled acquisition to RETRY; it is ADMISSION | **none** — the reader flipped one pool to threaded and measured |
+| W59 | [Q262](../questions/q262.md) attributed a doubled acquisition to RETRY; it is ADMISSION | **none** — the reader flipped one pool to threaded and measured |
 
 **Eighteen defects; TWO had a rung; both rungs FIRED and both were READ correctly** — Q142 as a red
 self-test in W58's final gate, and W59's crash as *exit 1 with zero FAIL lines*, which section 4's
@@ -584,16 +584,16 @@ P11 found all seven of its own.
   predicted from W58's too, did not. *What predicted W59's exceptions was the PREVIOUS ITEM's
   exceptions table, not a file list.* Recorded as a procedure worth trying (an item seeds its table
   from the item before it) and not adopted: one occurrence, and it is a claim about a plan's
-  SECOND and THIRD items only ([Q157](../open-questions.md)).
+  SECOND and THIRD items only ([Q157](../questions/q157.md)).
 - **Tracking the declaration's facts harness, or making its facts L1 assertions.** `dev-dist/p16/facts.mjs`
   was wrong five ways across two items at exit 0 and the plan re-ran it three times; every earlier
   plan's was in the same ignored directory. Refused as a rule: a declaration instrument is the plan's
   and not the workflow's, and *make fact 1 an L1 assertion* is a per-fact call the next plan makes
-  ([Q253](../open-questions.md) stays open with that choice named).
+  ([Q253](../questions/q253.md) stays open with that choice named).
 - **A rung for `deno publish --dry-run`.** It PASSES in this repository for the wrong reason —
   `devDependencies` resolves the bare specifier to the npm build — so a rung reading its exit code
   would be green on the shape ADR 0029 refused. W59's L6 clause (2c) binds the two manifests' exports
-  instead, from the files. [Q252](../open-questions.md) stays.
+  instead, from the files. [Q252](../questions/q252.md) stays.
 - **A rule about a harness's per-row catch.** W59 closed the L6 row loop's crash shape that W23 and
   W58 had recorded; it is a fix in a file, not a rule, and section 4's *a crash is not a detection*
   is the rule that already covers it.
@@ -641,7 +641,7 @@ observer, a validator nowhere, a fixture, a fourth shape, a loop, an export).
 survivors, 0 against declaration on every final pass, 1 abort — on the re-run, re-anchored and then
 caught.** Five instrument defects in three items, every one found by reading failure LINES: W58's two
 harness defects, W59's L6 crash with zero FAIL lines and two wrong-reason probes. **Late exceptions
-1, 5, 0 — six, zero undeclared.** [Q142](../open-questions.md) fired once (W58's final gate, retuned
+1, 5, 0 — six, zero undeclared.** [Q142](../questions/q142.md) fired once (W58's final gate, retuned
 3490 → 3960) and was checked three times more without firing (this declaration; W59, margin 369; this retro, **3610
 against 3960** on the two-directory fixture built from the tree it ships, margin 350). **Census CONFIRMED for the SIXTEENTH plan running — 204 / 151 / 2 / 51**, 0 aborts,
 204 of 204 in one cluster cell; this retro raises no question.
@@ -652,8 +652,8 @@ against 3960** on the two-directory fixture built from the tree it ships, margin
   measurement**: an unknown group id is ignored at the task AND the pool level; `addTask` duck-types
   its task and runs a plain object; `resource.*` is emitted only once something listens; a group
   resolves by the scheduler's map KEY and its own name is inert; a group is acquired once per
-  ADMISSION. None is a defect and none is documented upstream; they are [Q258](../open-questions.md)
-  and [Q262](../open-questions.md) and the ADRs' fact tables, and a row in
+  ADMISSION. None is a defect and none is documented upstream; they are [Q258](../questions/q258.md)
+  and [Q262](../questions/q262.md) and the ADRs' fact tables, and a row in
   `doc/scheduler-upstream.md` is the next plan's call if it ever costs a consumer something.
 - **A fact measured for a decision is not a test until a fixture depends on it.** Fact 2 (key, not
   name) was measured at W59's declaration, written into ADR 0049 and the spec, and every fixture in

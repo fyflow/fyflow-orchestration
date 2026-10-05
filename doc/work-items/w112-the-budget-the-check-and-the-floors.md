@@ -319,7 +319,7 @@ what it took when it exited at its first bound. A duration read off a red lane m
 | (3) `check-budget-selftest.mjs` | yes | its own floors, the coverage bound derived from `check-budget.mjs`'s `fail('BN'` sites, and 7 `SOURCE` clauses for what no tree can reach |
 | (4) ADR 0076 | yes | `X11` compares `doc/decisions/README.md` against disk both ways |
 | (5) `M4` re-pointed, verified post-cut | yes | **`M6`** — and nothing else did, which was the adequacy reader's central finding |
-| (6) `stray()` widened — Q459 | yes | nothing on a green tree. Measured both ways with a constructed leftover; recorded as [Q464](../open-questions.md) rather than guarded |
+| (6) `stray()` widened — Q459 | yes | nothing on a green tree. Measured both ways with a constructed leftover; recorded as [Q464](../questions/q464.md) rather than guarded |
 | (7) W113's measured obligation | yes | nothing — it is prose by construction, and that is what an item which cuts nothing can deliver |
 
 **What broke.** Twenty-one defects, and the shape of the list is the finding: **the two largest were
@@ -329,7 +329,7 @@ invisible to every rung and were found by the two readers, from opposite ends of
 
 1. **`S12`** refused `check:budget` until `GATE_CHAIN` declared it.
 2. **`G6`** refused the digest walk's `dev-dist` skip; then refused the leak-watching clause added
-   for a reader's finding **on the very next run** — [Q178](../open-questions.md)'s shape, which that
+   for a reader's finding **on the very next run** — [Q178](../questions/q178.md)'s shape, which that
    file has recorded twice about itself.
 3. **`check-wiring`'s `CHECKS`** comparison refused the new `:selftest` entry, and its two `SELF`
    entries, pinned to the `CHECKS` literal, went stale with it — `check-markdown`'s *a mutation
@@ -373,7 +373,7 @@ invisible to every rung and were found by the two readers, from opposite ends of
     nobody enumerated*, in a shape that is not a count.
 14. **`440 = 301 + 150` does not add up** (conformity): 301 is raw, **290** is after `blankCode`.
 15. **"cheapest" was unsupported** (conformity): `0.1` is not cheaper than `0.09`, and measured the
-    three are inside [Q179](../open-questions.md)'s band. Premise withdrawn, argument intact.
+    three are inside [Q179](../questions/q179.md)'s band. Premise withdrawn, argument intact.
 16. **"five" where everything else says seven** (conformity).
 17. **A dead link** to an unnamed `w113-*.md` in a shipped comment (both readers) — invisible because
     `check:markdown` does not scan `scripts/**`.
@@ -415,21 +415,21 @@ heredoc became a real newline in a JS regex literal, three times.
   general form — *every SOURCE clause asserts it found as many subjects as the declaration names* —
   is one line and is now in the clause.
 - **`SELF` entries that REMOVE a grader clause measure the absence of a case**, which is
-  [Q462](../open-questions.md) and was found seven times in this file before it had a name. The
+  [Q462](../questions/q462.md) and was found seven times in this file before it had a name. The
   counter-measure is to plant the case.
 - **`gate:full` earned itself a second time, on the item that cites it.** The `G6` race is invisible
   to `npm run gate` by construction, and it was found by the lane v0.26 made an item's confirming
   gate.
 
-**Questions raised.** [Q459](../open-questions.md) RESOLVED (`stray()`'s glob);
-[Q460](../open-questions.md) (`markdownIn` throws on a missing directory);
-[Q461](../open-questions.md) (a ceiling goes stale toward WEAKNESS, and nothing enforces that it only
-moves down); [Q462](../open-questions.md) (a `SELF` entry that removes a grader clause measures the
-absence of a case); [Q463](../open-questions.md) (a mutant must sit exactly one level below the root,
-in tension with ADR 0072); [Q464](../open-questions.md) (a diagnostic on a failure path is bound by
-nothing on a green tree); [Q465](../open-questions.md) (the always-read set is three paths bound to
+**Questions raised.** [Q459](../questions/q459.md) RESOLVED (`stray()`'s glob);
+[Q460](../questions/q460.md) (`markdownIn` throws on a missing directory);
+[Q461](../questions/q461.md) (a ceiling goes stale toward WEAKNESS, and nothing enforces that it only
+moves down); [Q462](../questions/q462.md) (a `SELF` entry that removes a grader clause measures the
+absence of a case); [Q463](../questions/q463.md) (a mutant must sit exactly one level below the root,
+in tension with ADR 0072); [Q464](../questions/q464.md) (a diagnostic on a failure path is bound by
+nothing on a green tree); [Q465](../questions/q465.md) (the always-read set is three paths bound to
 three paths, and a FOURTH always-read document is already instructed in `CLAUDE.md`).
-[Q131](../open-questions.md) extended with **eleven** measured rows where it named two; Q102, Q142,
+[Q131](../questions/q131.md) extended with **eleven** measured rows where it named two; Q102, Q142,
 Q178, Q179, Q182, Q426, Q452 cited. **Census CONFIRMED 356 / 279 / 1 / 76**, all ids in exactly one
 cluster cell, 0 aborts, from a parser written from scratch that was wrong in **four** directions
 first.

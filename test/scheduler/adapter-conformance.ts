@@ -47,7 +47,7 @@ export interface AdapterProbes {
   /**
    * **The worker half, handed directly — for a runtime that cannot `import()` the adapter's URL.**
    * W62, the maintainer's answer: inside a browser BUNDLE `import.meta.url` is the bundle's own
-   * URL ([Q261](../../doc/open-questions.md)), so an adapter whose worker half is its own module
+   * URL ([Q261](../../doc/questions/q261.md)), so an adapter whose worker half is its own module
    * — the JSONata adapter, and any adapter that imports an engine — names a module with no
    * default export there, and every clause below that reaches the worker half failed in all three
    * browsers. Where the URL CAN be imported (Node, Deno) the suite still imports it and asserts its

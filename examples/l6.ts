@@ -63,23 +63,23 @@
  * | **W6 — `suspend / resolve / resume`** | the human-in-the-loop half, and the only inbound API the library has. `user_action` → `awaiting_action` → `Driver.resolve()` → the branch arrives |
  * | **W6 — `suspend / nobody comes`** | the row that separates **waiting on a person** from **stuck**. Same flow, no human: the join has not fired and the run is `awaiting_action`, not `stuck`. It is the only row that ends with a node still `suspended`, and it is expected NOT to finish |
  * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `stopped` |
- * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/open-questions.md)) |
+ * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/questions/q90.md)) |
  * | **W17 — `all-exit` × all three policies** | **P5's exit artifact, and the row L6 has never had**: every branch reaches an `end` and nothing arrives at the join. It is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost and the one [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) turns on. One flow, one payload, three policies, three answers — `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached |
  * | **W19 - the second pair row** | **P6's exit artifact**: the same topology as the row above with **one variable changed** - the scheduler also carries a task this library did not mint. Its settlement lands FIRST, while both runs are live, and both runs still complete. [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) and `ID-R5`, on real workers; under the ADR 0023 rule 2 it supersedes, one such settlement stopped **every** driver on the scheduler. The control row beside it is what makes `onUnmintedTask`'s empty array an assertion rather than a decoration |
  * | **W58 — `retry`** | **P16's first observable, and the first non-zero `attempts` a scheduler has ever set at any rung**: a `map` of three whose branch task declares `retryPolicy: { maxRetries: 1, backoffMs: 0 }` on a pool whose role fails every task id's FIRST attempt. Each instance is retried inside its own id and settles `done` with `attempts: 1` on two observers — the outcome record and the live task — and the per-instance policy is what a single-task row could not show (`doc/workflow.md` rule 8 obligation (a), v0.16) |
  * | **W58 — `group`** | **`workerGroups` on real workers, and P16 fact 2 answered where it shows**: a linear flow whose middle node names a `ConcurrentLimitGroup(1)` this harness holds when the run starts. The task is `resource.blocked` on dispatch, the harness lets go on that very event, and the task runs — the scheduler's own four resource events in order with `task.running` after the acquisition. Its pool declares no group, so nothing but the node's key put it there |
  * | **W59 — `typed`** | **P16's EXIT ARTIFACT, half one**: two nodes of ONE type (`Scorer`) with DIFFERENT settings — `factor` 10 against 100 — each receiving the envelope `{ settings, input }` (`FD-C5`) and computing a different answer from it (9 against 90 from one input); `high` retries ONCE under the TYPE's `retryPolicy` (the node declares none) and reports `attempts: 1` on both observers; both hold `scorer`, the group the type declares, registered through the bootstrap helper and read back by id. The pool is the helper's, keyed by the type's name |
  * | **W59 — `typed-regions`** | **half two, and obligation (a)'s shapes**: a typed task at path `1` inside a fanout branch feeding a typed `map` branch at `1.0`, `1.1`, `1.2` — arity three from a worker's return, each instance's envelope wrapping its OWN item (`JP-R11`) so three confidences give three scores from one settings object; branch 0 is a bare `ScoreWorker`, and the outer join carries the bare result beside the typed region's collection. Every typed id held `scorer`; no bare id did |
- * | **W63 — `transformed` at arity TWO, ONE and ZERO** | **P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as three rows.** One flow: a typed `map` branch whose declared `transform` RESHAPES its own item with the map's settings read through `$settings`, then a fanout of two typed scorers into a join whose typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }` and NO reshaping node — its worker receiving the reduced value as `input` (`FD-C6`), echoed from the run: **990** when both branches arrive, **400** when one is routed away (P1's own case under `live-token`), **0** — the NUMBER, not `undefined` — when the join is reached by nothing and `live-token` fires it. Every value is what the worker RECEIVED, read off the outcome record and never a literal the row alone carries; the `Echo` pool that evaluates the expression is a real THREAD in both runtimes, loading the adapter by its module URL, and every result it returns reports the fresh realm it ran in. **What these rows observe is the VALUE the successor received and not the record's shape**: JP-R12's key set is observed by `transform-fails`' untyped `publish`, and its `{}` by W17's `all-exit` row — the reduction is key-blind and sums `null` to 0 as it sums `{}` (the adequacy reader, M2 and M6) |
+ * | **W63 — `transformed` at arity TWO, ONE and ZERO** | **P17's EXIT ARTIFACT, and it is [Q263](../doc/questions/q263.md) as three rows.** One flow: a typed `map` branch whose declared `transform` RESHAPES its own item with the map's settings read through `$settings`, then a fanout of two typed scorers into a join whose typed successor declares `transform: { lang: "jsonata", expr: "$sum([*.score])" }` and NO reshaping node — its worker receiving the reduced value as `input` (`FD-C6`), echoed from the run: **990** when both branches arrive, **400** when one is routed away (P1's own case under `live-token`), **0** — the NUMBER, not `undefined` — when the join is reached by nothing and `live-token` fires it. Every value is what the worker RECEIVED, read off the outcome record and never a literal the row alone carries; the `Echo` pool that evaluates the expression is a real THREAD in both runtimes, loading the adapter by its module URL, and every result it returns reports the fresh realm it ran in. **What these rows observe is the VALUE the successor received and not the record's shape**: JP-R12's key set is observed by `transform-fails`' untyped `publish`, and its `{}` by W17's `all-exit` row — the reduction is key-blind and sums `null` to 0 as it sums `{}` (the adequacy reader, M2 and M6) |
  * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
  * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — sixteen worker modules (fourteen when W67 wrote this; W82's `gauge` and `stamp` are the other two), five resource groups, seventeen node types (fifteen then), one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
  * | **W73 — `FD-R4` on three existing rows** | **P19 decision 5 on real workers, with no new run.** `map / live-token` and `nested-map / live-token` try a payload FIRST that the entry's worker `inputSchema` refuses — a TASK entry naming `ingest`, a FAN-OUT entry naming `scoreA` (every branch held to its own schema over the same value, the first named) — and assert a `BoundaryRefused` at the caller with the scheduler holding nothing, then run on the real payload; W63's `transform-fails` tries its two resolutions FIRST with the values the transforms did not supply, which `echo`'s `outputSchema` refuses with the task still suspended, and then resolves each with the worker's declared example. Both refusal sets are held to the rows that declare them both ways, with their controls as subjects |
- * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/open-questions.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `stopped` carrying `stoppedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
+ * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/questions/q297.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `stopped` carrying `stoppedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
  * | **W82 — `nonconforming` at eleven words and at two** | **P21's EXIT ARTIFACT, and the first rows here whose WORKERS are wrong on purpose.** Four task nodes, two of which return values their own `outputSchema` refuses and are reported BY NAME through `onNonconformingResult` — `gauge`'s `$.load above maximum 1`, a bound its code does not keep past its declared example (`check:workers` runs that example and is GREEN), and `stamp`'s `$.label required`, a key that is present on what `run()` returned and absent from what `OR-R2`'s clone wrote. **Three observers of that second one and the middle is the RECORD**: the scheduler's live `detail.result` still has the key at the harness's own listener, the record does not, and the finding says so — which is why `StampWorker` is INLINE, because a thread hides the attribution and not the finding. The two conforming nodes beside them are EXISTING corpus workers and are reported on not at all, and `attest` reports the key set it RECEIVED, so the value flowing downstream unaltered is an assertion rather than ADR 0060's sentence. **The two-word row is the control** — same flow, same workers, only the payload's word count different, and `gauge` goes silent while `stamp` does not, which separates the two legs from each other |
- * | **W82 — the check-OFF pair** | **ADR 0060 decision 3, and no row could be it**: the row above run AGAIN with the one option removed and the SAME run id, held identical record for record. Dispatched ids, the log with only the clocks zeroed, the folded outcome and every settled result all agree; **the reports are the one thing the two runs differ in**, two against zero. *You cannot audit a behaviour with an instrument that alters it*, which is the sentence P21 tells an adequacy reader to falsify first, and this is the only place it has ever been run on real workers. What it COSTS is asserted as a COUNT and printed as a ratio: a check whose answer is discarded has one observable, and a ratio of two clocks is still two clocks ([Q179](../doc/open-questions.md)) |
+ * | **W82 — the check-OFF pair** | **ADR 0060 decision 3, and no row could be it**: the row above run AGAIN with the one option removed and the SAME run id, held identical record for record. Dispatched ids, the log with only the clocks zeroed, the folded outcome and every settled result all agree; **the reports are the one thing the two runs differ in**, two against zero. *You cannot audit a behaviour with an instrument that alters it*, which is the sentence P21 tells an adequacy reader to falsify first, and this is the only place it has ever been run on real workers. What it COSTS is asserted as a COUNT and printed as a ratio: a check whose answer is discarded has one observable, and a ratio of two clocks is still two clocks ([Q179](../doc/questions/q179.md)) |
  * | **W90 — block (2g), KILLED and RESUMED** | **P23's EXIT ARTIFACT: a run killed mid-run on real workers and resumed on a FRESH runtime from a store the consumer built by appending events** — the header from the handle, every `onFoldInput` element at its POSITION. At EVERY kill point of `fan-out-per-item` and `triage`, the store frozen mid-step at a settlement and the runtime shut down, then `runtime.resume` on a fresh one: identical to a run nobody killed on outcome AND every node, the re-dispatched ids equal to a derivation from the KILLED process and to what the fresh scheduler holds when `resume` returns. **`shutdown()` DRAINS** (W90's declaration, measured), so the kill is the store and not the shutdown — and every re-dispatched task visibly ran twice. Beside the sweep: THREE processes appending to ONE positional store, with the same events keyed by arrival refused `diverged`; one killed run cut MID-STEP and QUIESCENT, re-dispatching the same set; and a PARKED kill that re-dispatches nothing and is resolved on the resumed driver |
- * | **W94 — `tv-ingest` arranged LAST-first, FIRST-first, and threaded** | **P24's EXIT ARTIFACT: a TV library's files through a `map` whose branch fetches each file and fans out BESIDE — a thumbnail for every file, and `identify` then a `distinct` GATE keyed on `series.id`.** The FIRST file of each series to ARRIVE opens the per-series work and every other file ends at an `end` (`duplicate`, or `nokey` for a file whose name carries no series); both joins fire and the run completes. **No assertion names which file won** (P24 decision 7): the gate clause reads the run's own `gated` elements — one `first` per series, the first of its series to arrive, the per-series task for exactly those branches, what reached the gate handed on. The sizes ARRANGE the order ([Q379](../doc/open-questions.md)): LAST-first makes first-to-arrive differ from the lowest index and the first dispatched, FIRST-first is its pair (a different file opens each multi-file series, the same series once each), and the threaded row at equal work names no order at all. **The per-series road ends at its own `end`**, so every `beside` instance ends the same way whatever wins |
- * | **W94 — block (2h), the TV ingest KILLED and RESUMED** | **P24's exit artifact, its second half**: block (2g)'s kill — the consumer's store frozen mid-step, the runtime shut down (it DRAINS) — at EVERY one of the run's 25 kill points, resumed on a fresh runtime and IDENTICAL to a run nobody killed on outcome, every node, every branch's decision and the gate's MEMORY, which the replay rebuilt (`RN-R26`). Fifteen kill points lie BEFORE the first decision — [Q386](../doc/open-questions.md)'s case — and the sweep is shown to DISCRIMINATE the rebuilt memory from a fresh one and from the killed process's, both derived from the killed run |
+ * | **W94 — `tv-ingest` arranged LAST-first, FIRST-first, and threaded** | **P24's EXIT ARTIFACT: a TV library's files through a `map` whose branch fetches each file and fans out BESIDE — a thumbnail for every file, and `identify` then a `distinct` GATE keyed on `series.id`.** The FIRST file of each series to ARRIVE opens the per-series work and every other file ends at an `end` (`duplicate`, or `nokey` for a file whose name carries no series); both joins fire and the run completes. **No assertion names which file won** (P24 decision 7): the gate clause reads the run's own `gated` elements — one `first` per series, the first of its series to arrive, the per-series task for exactly those branches, what reached the gate handed on. The sizes ARRANGE the order ([Q379](../doc/questions/q379.md)): LAST-first makes first-to-arrive differ from the lowest index and the first dispatched, FIRST-first is its pair (a different file opens each multi-file series, the same series once each), and the threaded row at equal work names no order at all. **The per-series road ends at its own `end`**, so every `beside` instance ends the same way whatever wins |
+ * | **W94 — block (2h), the TV ingest KILLED and RESUMED** | **P24's exit artifact, its second half**: block (2g)'s kill — the consumer's store frozen mid-step, the runtime shut down (it DRAINS) — at EVERY one of the run's 25 kill points, resumed on a fresh runtime and IDENTICAL to a run nobody killed on outcome, every node, every branch's decision and the gate's MEMORY, which the replay rebuilt (`RN-R26`). Fifteen kill points lie BEFORE the first decision — [Q386](../doc/questions/q386.md)'s case — and the sweep is shown to DISCRIMINATE the rebuilt memory from a fresh one and from the killed process's, both derived from the killed run |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -93,7 +93,7 @@ import {
   // shipped derivation rather than from a list of node names beside itself, so a
   // flow that stops being a sibling pair moves the clause with it.
   // *(That these three are on the package surface at all is
-  // [Q221](../doc/open-questions.md) — an `export *` made them public the moment
+  // [Q221](../doc/questions/q221.md) — an `export *` made them public the moment
   // they were declared, and nobody chose it.)*
   allRegions,
   branchIndices,
@@ -175,19 +175,19 @@ import type { Predicate } from '../index.ts';
 import { transformLanguagesByType, type RunHandle } from '../src/scheduler/index.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
-// **Local to `examples/`, and that is [Q44](../doc/open-questions.md) again.** The
+// **Local to `examples/`, and that is [Q44](../doc/questions/q44.md) again.** The
 // corpus cannot express an `optional` branch node with no `on: ["failed"]` edge —
 // the only shape that reaches `branch.lost` by SETTLING — so W4 defined one in
 // `test/matrix/` and W5 defines one here. Second occurrence; the register row says
 // a gap re-found by every later item is the signal, and this is that.
 import optionalLoss from './flows/optional-loss.flow.json' with { type: 'json' };
-// W6's two, and the same [Q44](../doc/open-questions.md) reasoning: the corpus has
+// W6's two, and the same [Q44](../doc/questions/q44.md) reasoning: the corpus has
 // no flow whose branch is a NON-optional task that fails (the only road to
 // `user_action`), and none whose task returns a value `structuredClone` refuses.
 import suspendResume from './flows/suspend-resume.flow.json' with { type: 'json' };
 import uncloneable from './flows/uncloneable.flow.json' with { type: 'json' };
 import exitLast from './flows/exit-last.flow.json' with { type: 'json' };
-// **W17's, and the same [Q44](../doc/open-questions.md) reasoning a third time.**
+// **W17's, and the same [Q44](../doc/questions/q44.md) reasoning a third time.**
 // The corpus's `fanout-failure` is the all-exit SHAPE and is not usable here: it
 // reaches the second exit through a `user_action` and a human, which would add a
 // resolution race to a row whose point is elsewhere. This one takes the two roads
@@ -196,7 +196,7 @@ import exitLast from './flows/exit-last.flow.json' with { type: 'json' };
 import allExit from './flows/all-exit.flow.json' with { type: 'json' };
 import nested from './flows/nested.flow.json' with { type: 'json' };
 import nestedSuspend from './flows/nested-suspend.flow.json' with { type: 'json' };
-// **W35's three, and [Q44](../doc/open-questions.md) a FOURTH time — but the reason
+// **W35's three, and [Q44](../doc/questions/q44.md) a FOURTH time — but the reason
 // is narrower than the three above and worth stating exactly.**
 //
 // `spec/examples/valid/map-fanout.flow.json` is usable here in every respect but
@@ -231,7 +231,7 @@ import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 // corpus's for one reason each.** `spec/examples/valid/` holds all three under the
 // corresponding `flowId`, and those are the normative documents; these are the same
 // SHAPE with the `workerType` names this file's pools register, which is the split
-// [Q44](../doc/open-questions.md) has recorded since W5.
+// [Q44](../doc/questions/q44.md) has recorded since W5.
 //
 // **"The same GRAPH with the workerType names changed" is what this said, and it is
 // true of two of the three** — W43's conformity reader.
@@ -247,17 +247,17 @@ import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 // `map.flow.json`: *"the `flowId` every flow here must own"*. Nothing enforces it,
 // so the reader found it by reading — same conformity reader.
 //
-//   - `map-with-context` — [Q166](../doc/open-questions.md)'s *score each item
+//   - `map-with-context` — [Q166](../doc/questions/q166.md)'s *score each item
 //     against the run's config*. The corpus points its map-feeding node at
 //     `IngestWorker`, which returns no array, so the corpus document run verbatim
 //     here stops at `FD-R2` — measured at W43's declaration. It points at
 //     `SplitWorker`, and its branch entry at **`WeighWorker`**, the role W43 adds
 //     because no shipped role reads a declared key.
-//   - `map-over-region-output` — [Q165](../doc/open-questions.md)'s *score, then
+//   - `map-over-region-output` — [Q165](../doc/questions/q165.md)'s *score, then
 //     fan out over the scores*, with **no `over: "0"` anywhere**, which is the
 //     brittleness that row names rather than a workaround for it. Same
 //     `SplitWorker` substitution and nothing else.
-//   - `decision-on-an-earlier-step` — [Q8](../doc/open-questions.md)'s own
+//   - `decision-on-an-earlier-step` — [Q8](../doc/questions/q8.md)'s own
 //     sentence since P1, and the row W42 has no other coverage at. Its middle node
 //     is **`TallyWorker`**, not the corpus's `ScoreWorker`, and that is the whole
 //     of what makes it discriminating: `tally` returns `{seen, word}` and carries
@@ -272,7 +272,7 @@ import referenceIfItRan from './flows/reference-if-it-ran.flow.json' with { type
 import mapPastADecision from './flows/map-past-a-decision.flow.json' with { type: 'json' };
 import siblingFanouts from './flows/sibling-fanouts.flow.json' with { type: 'json' };
 import siblingMapFanout from './flows/sibling-map-fanout.flow.json' with { type: 'json' };
-// **W58's two, and [Q44](../doc/open-questions.md)'s reason a further time, narrower still**:
+// **W58's two, and [Q44](../doc/questions/q44.md)'s reason a further time, narrower still**:
 // `spec/examples/valid/task-config.flow.json` carries both keys in all three shapes and is
 // validated at L4 and never run, because its `MergeWorker` is the corpus's and every pool it
 // names runs a role that would break a row. What a real retry and a real block look like are
@@ -519,7 +519,7 @@ interface Expectation {
    * coincidence — there is one fanout and `Number('1')` is 1. On a nested flow the
    * first fanout is the OUTER one and `Number('1.0')` is **1**, so the expected id
    * named `scoreB` — the outer branch entry — for a branch that parked at
-   * `reviewC` two levels in. It is [Q117](../doc/open-questions.md)'s defect a
+   * `reviewC` two levels in. It is [Q117](../doc/questions/q117.md)'s defect a
    * second time, on the **expected** side of the assertion that was supposed to
    * catch it.
    *
@@ -568,7 +568,7 @@ interface Expectation {
    * says nothing about its lifetime; the fold clears it on the branch's terminal
    * event, so it is *current*. Asserted here as the code behaves, and the gap is
    * reported rather than patched — it is W1's and W2's document. Raised as
-   * [Q62](../doc/open-questions.md).
+   * [Q62](../doc/questions/q62.md).
    */
   regionSuspended?: string[];
   /** `stoppedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
@@ -584,7 +584,7 @@ interface Expectation {
    * A dispatched node's folded `result`. Used to pin **`JP-R12`** — a satisfied
    * join carries the arrived branches' results keyed by `branchPath`
    * ([ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
-   * answering [Q36](../doc/open-questions.md)). The matrix asserts it at L5; these
+   * answering [Q36](../doc/questions/q36.md)). The matrix asserts it at L5; these
    * two rows are the same claim **on real workers**, which is the only place the
    * value has crossed a worker boundary. *(This read *"a satisfied join carries
    * `null` downstream, which `spec/` does not fix"* — both halves false since v0.13,
@@ -776,7 +776,7 @@ interface Expectation {
    * are asserted here instead, derived from the run), and that what reached the gate is what left it. `keys` and
    * `routes` are the PAYLOAD's — written from the file names, never read off the run.
    *
-   * `arranged` is the row's ARRANGEMENT, and it is asserted beside the claim ([Q379](../doc/open-questions.md), and
+   * `arranged` is the row's ARRANGEMENT, and it is asserted beside the claim ([Q379](../doc/questions/q379.md), and
    * `doc/workflow.md` rule 8 obligation (a)'s selection clause): `last-first` says the first to arrive is NOT the
    * lowest index of any multi-file series and not the first `from` dispatched; `first-first` is the pair's other half,
    * where the order IS the index order. A row with no `arranged` (the threaded one) asserts no order at all.
@@ -872,7 +872,7 @@ const TRI = triageFlow as unknown as FlowDefinition;
  * **This is the row that makes reverting ADR 0044 cost something at L6.** W50
  * measured that revert at **6 L1-L5 failures and ZERO here**, because all eleven
  * aimed references in both corpora had a shared region depth of zero and paths
- * that were prefix-comparable anyway ([Q214](../doc/open-questions.md)).
+ * that were prefix-comparable anyway ([Q214](../doc/questions/q214.md)).
  */
 const SMF = siblingMapFanout as unknown as FlowDefinition;
 const RT = retryFlow as unknown as FlowDefinition;
@@ -885,7 +885,7 @@ const GR = groupFlow as unknown as FlowDefinition;
  *
  * | node | worker | what the check says |
  * |---|---|---|
- * | `gauge` | `gauge` | **`$.load above maximum 1`** — a bound the producer's own code does not keep past its declared domain, which is [Q302](../doc/open-questions.md)'s shape reconstructed |
+ * | `gauge` | `gauge` | **`$.load above maximum 1`** — a bound the producer's own code does not keep past its declared domain, which is [Q302](../doc/questions/q302.md)'s shape reconstructed |
  * | `stamp` | `stamp` | **`$.label required`** — a value that CONFORMS as `run()` returned it and does not survive `OR-R2`'s clone |
  * | `attest` | `attest` | nothing — and it reports the key set it RECEIVED, which is `['words']`, so the key the record lost is missing downstream too |
  * | `publish` | `publish` | nothing |
@@ -944,7 +944,7 @@ const NC = nonconformingFlow as unknown as FlowDefinition;
  * holding a collection. `ADR 0046` rule 3 releases a region's collection the moment its join becomes
  * terminal, so without an overlap a driver that keyed `arrivals` by the opener alone would give the
  * RIGHT answer — the window would never contain two instances at once
- * ([Q349](../doc/open-questions.md), [Q353](../doc/open-questions.md)).
+ * ([Q349](../doc/questions/q349.md), [Q353](../doc/questions/q353.md)).
  *
  * **A real pool does not arrange that for you**, which is the plan's own *it must try what no fact
  * here measured*: the overlap below is DERIVED from the run's own fold-input sequence and asserted,
@@ -995,7 +995,7 @@ const ONE_THEN_TWO = { confidence: 0.9, text: 'ja' };
  * by calling it: a fixture from the code under test proves the code agrees with itself (`doc/workflow.md` section 5
  * rule 4).
  *
- * **The SIZES are the ARRANGEMENT** ([Q379](../doc/open-questions.md)). `identify` waits in proportion to a file's
+ * **The SIZES are the ARRANGEMENT** ([Q379](../doc/questions/q379.md)). `identify` waits in proportion to a file's
  * size and its pool is as wide as the map — W94's declaration measured a SERIAL pool running identify in dispatch order
  * whatever the delays — so a row decides the ORDER the branches reach the gate by the sizes it declares. LAST-first
  * falls with the index, so the LAST file of each series arrives first, and neither the lowest index nor the first
@@ -1103,7 +1103,7 @@ const NO_WORDS = { confidence: 0.9, text: '' };
  * `gauge` returns `words / 10` against a declared `maximum: 1`, so the bound holds at every arity
  * its own declared example reaches and breaks at eleven. That is `memoisedItems`' pre-W73
  * arithmetic — `word.length / 10` at an eleven-LETTER word — moved one noun across, which is
- * [Q302](../doc/open-questions.md)'s shape and is why this payload is a count rather than a value.
+ * [Q302](../doc/questions/q302.md)'s shape and is why this payload is a count rather than a value.
  *
  * **Its pair is `TWO_WORDS` above, unchanged and already in the file** — two words is `0.2`, inside
  * the bound, so the control row reports `stamp` and NOT `gauge`. That is what makes the first
@@ -1263,7 +1263,7 @@ const SCORED = (confidence: number, factor: number) => ({
  * carries* is not a comparison and neither is any arithmetic. W110's declaration step measured all
  * four spellings of a path-as-value — two refused by `FD-V44`, one refused for its KIND, and
  * `{ op: "eq", value: "needs.cfg.threshold" }` **ACCEPTED as a literal string**
- * ([Q456](../doc/open-questions.md)). The route around it is data: `rollup` computes `weak` and the
+ * ([Q456](../doc/questions/q456.md)). The route around it is data: `rollup` computes `weak` and the
  * `when` reads `outcome.result.weak`.
  */
 const UI = uiEmitted as unknown as FlowDefinition;
@@ -1290,7 +1290,7 @@ const NO_PREDICATES: ReadonlyMap<string, Predicate> = new Map();
  * `test/definition/node-type.test.ts`'s W109 suite holds the same literal to `BUILT_IN_NODE_TYPES`
  * itself, so a built-in added without these clauses moving is red there — **checked rather than
  * cited** at W110's declaration step, because W109's finding 6 was five files naming an observer
- * that did not exist ([Q453](../doc/open-questions.md)).
+ * that did not exist ([Q453](../doc/questions/q453.md)).
  *
  * **It was declared INSIDE the (2b) block until W110**, where the pools clause could see it and the
  * `documentTypes` clause three hundred lines up could not — which is why that clause went red the
@@ -1433,7 +1433,7 @@ const EXPECTED: Expectation[] = [
     // says the arrangement took. **Which mechanism produces the order is a
     // separate question and the answer is not the one that comment used to give**:
     // emptying the set or dropping the 4x to 1x changes nothing, because the
-    // inline pools settle in dispatch order anyway ([Q99](../doc/open-questions.md)).
+    // inline pools settle in dispatch order anyway ([Q99](../doc/questions/q99.md)).
     joinSettledBy: 'branch.lost',
     outcome: 'failed',
     dispatched: ['r7:ingest:-:0', 'r7:scoreA:0:0', 'r7:flaky:1:0', 'r7:publish:-:0'],
@@ -1541,7 +1541,7 @@ const EXPECTED: Expectation[] = [
     // W6; nothing held it down, and reversing `SETTLES_LAST` dropped this row from
     // four failures to none against a deleted `settleJoin` on the exited path
     // (W17). The *delay* is not what produces the order — dispatch order is — so
-    // this pins the effect and not the stated mechanism ([Q99](../doc/open-questions.md)).
+    // this pins the effect and not the stated mechanism ([Q99](../doc/questions/q99.md)).
     joinSettledBy: 'branch.exited',
     why: 'W6 row 5, added by the adequacy reader. `spec/join-policy.md` section 4 says status is asked ' +
       'after EVERY terminal event because a join can become satisfiable when the last live branch was ' +
@@ -1872,7 +1872,7 @@ const EXPECTED: Expectation[] = [
       'unsatisfiable join dispatches nothing at all',
   },
   {
-    // **The row that makes [Q117](../doc/open-questions.md)'s fix able to fail**,
+    // **The row that makes [Q117](../doc/questions/q117.md)'s fix able to fail**,
     // and it exists because reverting that fix cost **0 assertions** across the
     // three rows above — `doc/workflow.md` rule 8's founding case, in this item's
     // own declared output.
@@ -1904,7 +1904,7 @@ const EXPECTED: Expectation[] = [
       // reverses, because `reviewC` is dispatched first and the whole
       // suspend/resolve/resume chain completes between two timer callbacks.
       //
-      // **That 4x was measured INERT by W17's adequacy reader** ([Q99](../doc/open-questions.md)):
+      // **That 4x was measured INERT by W17's adequacy reader** ([Q99](../doc/questions/q99.md)):
       // reducing it to 1x left all 342 assertions green. This row would have made
       // it load-bearing for the first time — silently, and with the effect
       // attributed to something else. `sortedSettled` removes the dependency
@@ -1935,7 +1935,7 @@ const EXPECTED: Expectation[] = [
   // array a worker returned**, the ids are minted into a real `FyflowScheduler`'s
   // task map — which `spec/task-id.md` section 2 says **overwrites silently** on a
   // collision, the whole reason the id scheme is a correctness rule
-  // ([Q13](../doc/open-questions.md)) — and the three instances of one node run
+  // ([Q13](../doc/questions/q13.md)) — and the three instances of one node run
   // concurrently in one pool.
   //
   // **Read `dispatched` first on every one of them.** Not one of those ids is
@@ -2066,7 +2066,7 @@ const EXPECTED: Expectation[] = [
     // **`satisfied`** at `0 >= 0`. What holds this row up is therefore its policy
     // and not a universal: under `live-token` no verdict is available, so `joined`
     // is `null` and the run is stuck **with the reason not reported**, which is
-    // [Q97](../doc/open-questions.md) exactly where section 5 leaves it. *(The first
+    // [Q97](../doc/questions/q97.md) exactly where section 5 leaves it. *(The first
     // version of this comment and of the `why` below said "no policy can" and "section
     // 5 says none can" — the unscoped form, in a row whose declared Input is W34, the
     // item that scoped it. W35's conformity reader.)*
@@ -2276,7 +2276,7 @@ const EXPECTED: Expectation[] = [
   // in the comments rather than left as numbers to take on trust.
   {
     /**
-     * **[Q166](../doc/open-questions.md) on real workers, and the row is about what
+     * **[Q166](../doc/questions/q166.md) on real workers, and the row is about what
      * a node RECEIVES rather than about what it produces.**
      *
      * A map instance receives its own item — ADR 0037 rule 3, *map* means `f(x_i)` —
@@ -2358,7 +2358,7 @@ const EXPECTED: Expectation[] = [
   },
   {
     /**
-     * **[Q165](../doc/open-questions.md) on real workers — *score, then fan out over
+     * **[Q165](../doc/questions/q165.md) on real workers — *score, then fan out over
      * the scores* — and the point is what is NOT in the document.**
      *
      * That row's affordance was `{"kind": "map", "over": "0"}` after a join, which
@@ -2422,7 +2422,7 @@ const EXPECTED: Expectation[] = [
   },
   {
     /**
-     * **[Q8](../doc/open-questions.md)'s own sentence since P1, on real workers** —
+     * **[Q8](../doc/questions/q8.md)'s own sentence since P1, on real workers** —
      * *route to review if an earlier step flagged low confidence* — and the row
      * [W42](../doc/work-items/w42-what-a-decision-sees.md) has no other coverage at.
      *
@@ -2550,7 +2550,7 @@ const EXPECTED: Expectation[] = [
      * `FD-C4`.
      *
      * **Written UNCONDITIONALLY the same document does not start** — `FD-V29`
-     * refuses it, which is [Q187](../doc/open-questions.md)'s whole point. So this
+     * refuses it, which is [Q187](../doc/questions/q187.md)'s whole point. So this
      * row is the accepted half of a decision whose refused half is an
      * `spec/examples/invalid/` case rather than a row here.
      *
@@ -2747,7 +2747,7 @@ const EXPECTED: Expectation[] = [
      * `validateDefinition` accepts with **zero findings** and whose target `FD-V29`
      * correctly calls certain.
      *
-     * **No arity anywhere in it**, which is the half [Q206](../doc/open-questions.md)'s
+     * **No arity anywhere in it**, which is the half [Q206](../doc/questions/q206.md)'s
      * row and P14's own facts did not have: every sibling pair in both corpora was
      * `map`/`map`, so the shape that shows the defect is not about arity existed
      * nowhere until W49 built it.
@@ -2815,12 +2815,12 @@ const EXPECTED: Expectation[] = [
      * **Both branches receive all THREE scores.** Under the prefix rule `pubA` at
      * path `0` received `score@0` and `pubB` at path `1` received `score@1`, and
      * the third output was reachable from nowhere — the shape
-     * [Q206](../doc/open-questions.md) measured, on real workers.
+     * [Q206](../doc/questions/q206.md) measured, on real workers.
      *
      * **This is the row that makes reverting ADR 0044 cost something at L6.** W50
      * measured that revert at 6 L1-L5 failures and ZERO here, because all eleven
      * aimed references in both corpora had a shared region depth of zero
-     * ([Q214](../doc/open-questions.md)).
+     * ([Q214](../doc/questions/q214.md)).
      */
     key: 'sibling-map-fanout / ADR 0044 — three items, two branches, all three seen',
     definition: SMF, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
@@ -3080,7 +3080,7 @@ const EXPECTED: Expectation[] = [
       'OWN item (three confidences, three scores from one settings object). The outer join carries ' +
       'a bare branch beside the typed region`s collection. Every typed id held `scorer`; no bare id did',
   },
-  // **W63 — P17's EXIT ARTIFACT, and it is [Q263](../doc/open-questions.md) as THREE rows on ONE
+  // **W63 — P17's EXIT ARTIFACT, and it is [Q263](../doc/questions/q263.md) as THREE rows on ONE
   // flow.** `transformed.flow.json`: `ingest` (a `SplitWorker`, three items from `'a bb ccc'`), a
   // `map` whose typed branch `reshape` (`Echo`, `settings: { scale: 100 }`) declares a transform
   // that RESHAPES its own item — `{ word, score: $round(confidence * $settings.scale), fields:
@@ -3578,7 +3578,7 @@ const EXPECTED: Expectation[] = [
      * arrival; `perShard@1` then opens, runs three fast branches and **fires its join while
      * instance 0 is still holding**; and `perShard@0`'s join comes last, behind `recheck`'s
      * second pass. *The non-first instance closes first, and instance 0 is also `values()[0]`*
-     * ([Q353](../doc/open-questions.md)) — which is the whole reason the order is a claim here and
+     * ([Q353](../doc/questions/q353.md)) — which is the whole reason the order is a claim here and
      * not a detail.
      *
      * **`joinPayload` is `JP-R12` at TWO LEVELS on real workers**: the outer collection's `0` and
@@ -3597,7 +3597,7 @@ const EXPECTED: Expectation[] = [
     // `shard:1` and this row's ordered list went red in both runtimes while every clause that NAMES the arrangement stayed
     // green. So `recheck` ALONE leaves the ordered list — W97's adequacy reader measured the three `grade:1.x` loosened for
     // nothing — and the other nine keep their order. **The overlap asserted beside it cannot fail on this row**: `shard:0`
-    // and `shard:1` always overlap, so W51's justification says nothing about `recheck` in particular ([Q400](../doc/open-questions.md)).
+    // and `shard:1` always overlap, so W51's justification says nothing about `recheck` in particular ([Q400](../doc/questions/q400.md)).
     regionId: 'perWord',
     joined: true,
     settled: { '0': 'arrived', '1': 'arrived' },
@@ -3748,7 +3748,7 @@ const EXPECTED: Expectation[] = [
   {
     /**
      * **The pair: the same seven files, the sizes in the OPPOSITE order** — so the order the gate sees IS the index
-     * order, the default position [Q379](../doc/open-questions.md) warns about, taken deliberately as the other half.
+     * order, the default position [Q379](../doc/questions/q379.md) warns about, taken deliberately as the other half.
      * A DIFFERENT file opens `dark` and `lost` than in the row above and the count per series is the same, which the
      * cross-row block asserts: *exactly one per series whatever order the files arrive in* (P24's exit sentence).
      */
@@ -4173,7 +4173,7 @@ const arrivedIn = (settled: Record<string, string> | undefined): number =>
  * corpus *recorded* and *arrived* are the same number, and a driver that recorded a
  * late arrival would be one entry over. **That equality is the assertion**; a policy
  * that settled a join early would make the two differ, and there is none here
- * ([Q95](../doc/open-questions.md) is the row that records why not).
+ * ([Q95](../doc/questions/q95.md) is the row that records why not).
  *
  * A branch that was routed away, lost, or is still suspended has no entry — which is
  * `JP-R12`'s own sentence, and it is why this counts `arrived` rather than the
@@ -4286,7 +4286,7 @@ const reports: RunReport[] = [];
 const rowCosts: [string, string, number, number][] = [];
 
 /**
- * **What order a RUN fixes over its own dispatches — W98, and [Q400](../doc/open-questions.md).**
+ * **What order a RUN fixes over its own dispatches — W98, and [Q400](../doc/questions/q400.md).**
  *
  * A dispatch happens in the TURN a settlement opens: the driver hears a task settle, routes, and
  * dispatches synchronously. So the settlement that opened the turn is that dispatch's **TRIGGER**
@@ -4475,7 +4475,7 @@ for (const [i, e] of EXPECTED.entries()) {
   // **The SET, and the ORDER THE RUN FIXES — nothing else. W98, `RN-R27`.** A row's `dispatched` list is its
   // documentation of what ran and in what order it reads; what is ASSERTED about the order is `dispatchOrder`'s three
   // relations (above), derived from this run's own sequence. A pair the run does not fix is a completion order, and
-  // [Q401](../doc/open-questions.md)'s sweep could only find the ones a delay happened to move.
+  // [Q401](../doc/questions/q401.md)'s sweep could only find the ones a delay happened to move.
   {
     // **W94: a row with a GATE leaves the per-series task's ids to the gate clause**, which derives them from the run's
     // own `gated` elements — P24 decision 7: which file opens a series varies between runs, so no literal may name it.
@@ -5178,10 +5178,10 @@ for (const [i, e] of EXPECTED.entries()) {
   // The two numbers are derived from the row's own `joined`, `settled` and
   // `stoppedBy` and from the decision's rules; **nothing here reads a byte count**,
   // because a footprint is a property of one run on one machine
-  // ([Q179](../doc/open-questions.md)) and the rule is about *which structures hold a
+  // ([Q179](../doc/questions/q179.md)) and the rule is about *which structures hold a
   // result, and for how long*. The bytes are printed by `examples/retention.ts`.
   //
-  // **This is the rung [Q214](../doc/open-questions.md) said could not exist.** Before
+  // **This is the rung [Q214](../doc/questions/q214.md) said could not exist.** Before
   // this item, reverting ADR 0046 rule 3 — the two `releaseArrivals` calls — cost
   // **0** L6 failures and 8 at L1-L5, measured on the tree this item started from:
   // a whole structure leaving the driver was invisible to a rung made of runs,
@@ -5291,7 +5291,7 @@ for (const [i, e] of EXPECTED.entries()) {
  * Emptying the loop above (`for (const [i, e] of [].entries())`) used to reach the
  * cross-row block with `reports` empty and die inside `settledOf` with
  * *"Cannot read properties of undefined (reading 'state')"* — loud, at exit 1, and
- * naming a helper rather than the wiring. [Q138](../doc/open-questions.md): a crash
+ * naming a helper rather than the wiring. [Q138](../doc/questions/q138.md): a crash
  * is not a detection, because it cannot tell a fired clause from a broken harness.
  * The assertion-count floors further down would have caught it and never ran.
  *
@@ -5504,7 +5504,7 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
  * were nearly the eighth through the twelfth. *(This read "twelve", counting these
  * five as if they had stayed below the check, in the paragraph explaining that they
  * were moved above it. W35's conformity reader.)*
- * [Q170](../doc/open-questions.md).
+ * [Q170](../doc/questions/q170.md).
  */
 {
   const mapRegionsOf = (d: FlowDefinition) => d.nodes.filter((n) => n.kind === 'map').map((n) => n.id);
@@ -5557,7 +5557,7 @@ check('cross-row', 'and on every join verdict spec/join-policy.md section 3 lets
  * is now an edit that says in the diff which artifact left.
  *
  * **It is deliberately not derived from `EXPECTED`.** A list derived from the thing
- * it bounds is [Q102](../doc/open-questions.md)'s shape and W30's `GRADED_IDS`
+ * it bounds is [Q102](../doc/questions/q102.md)'s shape and W30's `GRADED_IDS`
  * finding: *the authority was the artefact and the scope was a literal with nothing
  * beyond it.* This IS the literal, and the clause below it is what stands outside.
  */
@@ -5640,9 +5640,9 @@ const ROW_KEYS: readonly string[] = [
  *
  * **The residual regress is stated rather than hidden**: this list is a literal, so
  * deleting a block AND its subject is two edits in one diff — which is exactly what
- * `ROW_KEYS`' own header says of itself, and is [Q102](../doc/open-questions.md)'s
+ * `ROW_KEYS`' own header says of itself, and is [Q102](../doc/questions/q102.md)'s
  * shape. What it removes is the *silent* case, where an integer edit leaves no name
- * behind. [Q217](../doc/open-questions.md).
+ * behind. [Q217](../doc/questions/q217.md).
  *
  * **A substring rather than the whole label**, because a label is prose that gets
  * re-worded and a subject is what the block is about — the same reason `ROW_KEYS`
@@ -5660,8 +5660,8 @@ const ROW_KEYS: readonly string[] = [
  * it.
  *
  * **Its limit is theirs**: the list is a literal, so deleting a clause AND its subject
- * is two edits in one diff — [Q102](../doc/open-questions.md)'s shape,
- * [Q217](../doc/open-questions.md). What it removes is the silent case, where three
+ * is two edits in one diff — [Q102](../doc/questions/q102.md)'s shape,
+ * [Q217](../doc/questions/q217.md). What it removes is the silent case, where three
  * integer edits leave no name behind.
  *
  * **Scoped to W55's own assertions, deliberately.** Every other per-row assertion in
@@ -6058,7 +6058,7 @@ const REFERENCE_SPELLINGS_IN_SPEC = await referenceSpellingsInSpecAsync();
  * file's `switch` — three copies of one fact in two files, and the measurement W47 recorded was that
  * *all three pairs agree in both directions and no defect is live*. W43 had closed one direction
  * with a TYPE (`pool`'s parameter was `Role`, so an invented role was `TS2345` at ladder L0) and
- * [Q196](../doc/open-questions.md) is the finding that **a type closes one direction only** — a role
+ * [Q196](../doc/questions/q196.md) is the finding that **a type closes one direction only** — a role
  * declared and used by nothing cost zero.
  *
  * **A registry document removes the copies rather than binding them.** A node type names a worker
@@ -6240,10 +6240,10 @@ function registryOf(d: FlowDefinition) {
  * by a reader. **This one is the author's**, which is a datum P13's retro is owed.
  *
  * **It lives here rather than in `scripts/check-source.mjs`** because `scripts/**` is
- * in nobody's `Owns` — [Q121](../doc/open-questions.md)'s and
- * [Q126](../doc/open-questions.md)'s standing problem, and P8's own reason for
+ * in nobody's `Owns` — [Q121](../doc/questions/q121.md)'s and
+ * [Q126](../doc/questions/q126.md)'s standing problem, and P8's own reason for
  * declining two checks — and because the claim is about `examples/**`, which is this
- * item's block. The regress it leaves is [Q213](../doc/open-questions.md): a check
+ * item's block. The regress it leaves is [Q213](../doc/questions/q213.md): a check
  * inside the thing it checks is deletable with it, and what stands against that here
  * is `D6` (both rungs run THIS file) plus `DECLARED_TOTAL`.
  */
@@ -6306,7 +6306,7 @@ const REACH_CASES: [string, boolean][] = [
  * **And since W81 the clause is an EQUALITY against what the files DECLARE rather than against
  * `[]`** — [W81](../doc/work-items/w81-what-a-settlement-costs.md). That item's whole subject is
  * what `runtime.start`'s always-on completion handle costs a consumer who never asked for it
- * ([Q320](../doc/open-questions.md)), and the ONLY road that declines it is building the `Driver`
+ * ([Q320](../doc/questions/q320.md)), and the ONLY road that declines it is building the `Driver`
  * yourself from `runtime.registry` — which is
  * [P18](../doc/plans/p18-a-flow-and-its-runtime-from-documents-alone.md) decision 14's own
  * sentence, and which this clause forbade. *(This cited ADR 0055, which has five numbered decisions
@@ -6359,7 +6359,7 @@ const declaresConstruction = (text: string): boolean => text.includes(CONSTRUCTO
  * plan did not happen* (`doc/workflow.md` section 1 rule 3) and an assertion's own comment is not
  * one of the three.
  *
- * It is [Q217](../doc/open-questions.md)'s shape deliberately: a member and its name are two edits
+ * It is [Q217](../doc/questions/q217.md)'s shape deliberately: a member and its name are two edits
  * in one diff. **Here that IS the mechanism** rather than its limit — the two edits are the point,
  * and they are in different files.
  */
@@ -6379,7 +6379,7 @@ const CONSTRUCTION_PRICED: readonly string[] = ['./settlement-cost.ts'];
  * the case, RECORD it*): it binds the two DETECTORS and not the sweep's choice of which to call.
  * Re-sourcing `declared.push` to the regex leaves both lists equal, because this tree has exactly
  * ONE file in either — and a corpus of one declarer cannot tell two source expressions apart, which
- * is [Q216](../doc/open-questions.md)'s recorded limit (*a both-ways comparison is worth having and
+ * is [Q216](../doc/questions/q216.md)'s recorded limit (*a both-ways comparison is worth having and
  * is not a second observer*). What DOES bind the sweep is the pair of mutations in W81's own set:
  * the marker deleted from the file that constructs, and the marker added to a file that does not.
  */
@@ -6551,7 +6551,7 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
 // `onUnmintedTask` a negative control: row 1 must report **nothing**, row 2 must
 // report the foreign settlement, and neither is assertable without the other.
 //
-// **Row 1 — P4's exit artifact**, unchanged. [Q72](../doc/open-questions.md):
+// **Row 1 — P4's exit artifact**, unchanged. [Q72](../doc/questions/q72.md):
 // before W13 this corrupted both runs SILENTLY — each driver received the other's
 // settlements and dispatched the other's successors, so `pa:publish:-:0` was
 // dispatched twice under two outcomes (`spec/task-id.md` section 2's collision)
@@ -6574,7 +6574,7 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
 // scheduler verbatim, so `pc:notanode:-:0` would reach tier 2 and the marginal
 // cost is the string. It stays out because widening a scope the plan settled is
 // not this item's call (`doc/workflow.md` section 1 rule 3);
-// [Q90](../doc/open-questions.md) is the row, and W19's Record recommends it be
+// [Q90](../doc/questions/q90.md) is the row, and W19's Record recommends it be
 // updated to say the instrument now exists.
 //
 // **Row 2 — a task this library did not mint, on a real scheduler.**
@@ -6619,7 +6619,7 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
 
 /**
  * **Six ids over the five refusals `parseTaskId` makes** — one each, plus
- * [Q107](../doc/open-questions.md)'s `weekly-report`, which repeats the arity
+ * [Q107](../doc/questions/q107.md)'s `weekly-report`, which repeats the arity
  * refusal down a different scheduler event. **That is the point of the
  * table rather than of any one row.**
  *
@@ -6675,7 +6675,7 @@ const UNMINTED: {
     reason: 'task id "nightly-cleanup" has 1 segments, expected exactly 4',
   },
   {
-    // **[Q107](../doc/open-questions.md), closed by W23.** The five entries around
+    // **[Q107](../doc/questions/q107.md), closed by W23.** The five entries around
     // this one all run `IngestWorker`, whose worker RETURNS — so `ID-R5` at L6 had
     // only ever been reached from `task.completed`, which both of W19's readers
     // found independently and neither could fix without this field.
@@ -6708,7 +6708,7 @@ const UNMINTED: {
     // under any order that compared a run id before parsing, driver `pd` would drop
     // this in silence and its report array would be short.
     //
-    // **It is one character from [Q90](../doc/open-questions.md) and deliberately
+    // **It is one character from [Q90](../doc/questions/q90.md) and deliberately
     // not it.** `pc:notanode:-:0` would PARSE, reach `ID-R4` tier 2, and be
     // `UndispatchedTask` — a different rule and a different outcome. Q90 stays out
     // (P6's Scope/Out, `doc/workflow.md` section 1 rule 3); that the instrument now
@@ -6776,7 +6776,7 @@ const PAIR_ROWS: PairRow[] = [
     // cross-pool comparison rather than queue discipline** — W23's conformity
     // reader. This read *"All on `IngestWorker`, which is where the ordering comes
     // from: one slot, inline, so they are dispatched in this order"*, and
-    // [Q107](../doc/open-questions.md)'s sixth task falsified it in this item.
+    // [Q107](../doc/questions/q107.md)'s sixth task falsified it in this item.
     //
     // What still holds: every foreign settlement lands ahead of either run's own
     // first one. **How it holds has changed.** The five `IngestWorker` ids
@@ -6795,7 +6795,7 @@ const PAIR_ROWS: PairRow[] = [
     // settlement order, which `spec/` does not fix and `doc/workflow.md` section 5
     // rule 5 forbids asserting; every field is still pinned.
     //
-    // **`event` takes TWO values here since [Q107](../doc/open-questions.md), and
+    // **`event` takes TWO values here since [Q107](../doc/questions/q107.md), and
     // that is what W19's two readers independently asked for.** It used to read
     // *"`task.completed` for all five because all five SUCCEED — the `event` field
     // therefore takes one value at L6"*, which was true and which W23's own change
@@ -6854,7 +6854,7 @@ const pairTaskIds = (who: string): string[] =>
  * grammar accepts.
  *
  * *(The name is `AGENTS.md` section 9's, deliberately. That snippet is written
- * WITHOUT the rethrow — [Q104](../doc/open-questions.md): `check-docs`' `X4a` is
+ * WITHOUT the rethrow — [Q104](../doc/questions/q104.md): `check-docs`' `X4a` is
  * satisfied by any `throw` in a `run` snippet, so a helper's own rethrow answered
  * for the assertions. This file is not a doc snippet and the rethrow is right
  * here, which is why the two spellings differ.)*
@@ -6970,7 +6970,7 @@ for (const row of PAIR_ROWS) {
   // **Both sides SORTED — W23, and the dependency was accidental.** This compared
   // `settlementIds` (settlement order) against `row.foreign` (declaration order)
   // and passed because every foreign task ran the SAME pool with the same delay,
-  // so the two orders coincided. [Q107](../doc/open-questions.md)'s sixth task
+  // so the two orders coincided. [Q107](../doc/questions/q107.md)'s sixth task
   // runs `ReviewWorker` instead — a different pool, a different settling time —
   // and the assertion failed on an order `spec/` does not fix, which is exactly
   // what `doc/workflow.md` section 5 rule 5 forbids depending on. **The claim was
@@ -7156,7 +7156,7 @@ if (shimReport !== null) {
  *
  * **What the two runs are for, and they are a DISCRIMINATING PAIR.** Run A is a fan-out that
  * completes: `onRegionEvent` counted through `StartOptions` ([W76](../doc/work-items/w76-what-start-accepts.md),
- * [Q297](../doc/open-questions.md)) and the end awaited in one line
+ * [Q297](../doc/questions/q297.md)) and the end awaited in one line
  * ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)).
  * Run B's driver REFUSES — `uncloneable` returns a value `structuredClone` cannot copy — and `done`
  * **RESOLVES** with `outcome: 'stopped'` carrying `stoppedBy`, which is ADR 0058 rules 3 and 4 and
@@ -7169,14 +7169,14 @@ if (shimReport !== null) {
  * library deadline and `Promise.race([done, …])` is the consumer's one line; so racing is what a
  * consumer writes, it is what this block writes, and **which side won is asserted** — the analogue
  * of `runFlow`'s `finishedBy`, and the second observer P20 stop-and-ask (e)'s answer promised to put
- * beside that field rather than instead of it. It is also [Q323](../doc/open-questions.md)'s
+ * beside that field rather than instead of it. It is also [Q323](../doc/questions/q323.md)'s
  * counter-measure in the file that needs it: an unbounded `await` on a real scheduler produces no
  * verdict at all, because a scheduler never shut down keeps the process alive.
  */
 const CONSUMER_ROAD_DEADLINE_MS = 30_000;
 /**
  * **Every `await` on a `done` here is BOUNDED, and the scheduler is shut down in a `finally`** —
- * [Q323](../doc/open-questions.md), and this file is where that row was earned. W77's final rule 8
+ * [Q323](../doc/questions/q323.md), and this file is where that row was earned. W77's final rule 8
  * pass ran for two and a half hours on one probe because a real-pool case awaited `done` unbounded:
  * `CLAUDE.md` records that a scheduler never shut down keeps the process alive, so a probe that
  * stops `done` settling produces **no verdict at all** rather than a failure. *Bounding it is also
@@ -7300,7 +7300,7 @@ try {
   // never attaches to its handle, so Node fatally reports the unhandled rejection with **exit 1 and
   // zero FAIL lines**. Narrowed to this block's own runs the guard does fire and names it. *So the
   // guard works and the road that matters never reaches it* — which is
-  // [Q321](../doc/open-questions.md) at L6, and it is ADR 0058's own decisive measurement (the
+  // [Q321](../doc/questions/q321.md) at L6, and it is ADR 0058's own decisive measurement (the
   // reject road kills the consumer's process) reproduced at this rung.
   failures.push(`consumer road\n      the block THREW before any assertion could run — a crash is not a detection: ` +
     `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
@@ -7392,12 +7392,12 @@ if (consumerRoad !== null) {
  * runtime and therefore its own scheduler, so two drivers minting one id set never meet (`ID-R3`
  * is about two drivers on ONE scheduler, and these are on two).
  *
- * **What it costs, ON and OFF, is a COUNT and not a clock**, which is [Q179](../doc/open-questions.md)
+ * **What it costs, ON and OFF, is a COUNT and not a clock**, which is [Q179](../doc/questions/q179.md)
  * and P21 decision 5. A check whose answer is discarded has exactly one observable — *how many
  * answers it produced* — so that is what is asserted: 2 against 0 over four settlements whose
  * workers all declare an `outputSchema`. The RATIO of the two costs over every result this rung
  * settles is PRINTED beside it and asserted nowhere, because a ratio of two clocks is still two
- * clocks ([Q335](../doc/open-questions.md), W81).
+ * clocks ([Q335](../doc/questions/q335.md), W81).
  */
 type CheckOffRun = {
   onKey: string;
@@ -7648,7 +7648,7 @@ if (checkOff !== null) {
  * rule 3 releases a region's collection the moment its join becomes terminal, so a driver that
  * filed `arrivals` under the opener ALONE would fill, read and empty one entry per instance in turn
  * and report exactly the right collections. **The mis-keying is observable only where two instances
- * are alive together** — [Q349](../doc/open-questions.md), and
+ * are alive together** — [Q349](../doc/questions/q349.md), and
  * [W85](../doc/work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) had to ARRANGE that
  * by hand at L2 because a fake scheduler settles what you tell it to.
  *
@@ -7858,7 +7858,7 @@ if (checkOff !== null) {
   const runsWithTwoTogether = EXPECTED.filter((_, i) => { rowsWalked++; return walksHere[i]!.maxTogether > 1; }).map((e) => e.key);
   // **Four since W94, and the three it adds are DERIVED from the rows that declare a gate**: the TV ingest opens a `beside`
   // fan-out per file, all seven at once, and each holds its thumbnail's arrival until the gate road exits. **That is an
-  // ARRANGEMENT and not construction** — [Q394](../doc/open-questions.md), found by P24's retro applying `doc/workflow.md`
+  // ARRANGEMENT and not construction** — [Q394](../doc/questions/q394.md), found by P24's retro applying `doc/workflow.md`
   // rule 8 obligation (f): `Thumbnail` waits 5 ms and `identify` 30 ms per MB, so the thumbnail arrives first; delayed to
   // 300 ms, this clause was RED in both runtimes with the TV rows gone from `only`. This comment said *by construction*
   // until W96. So the arrangement's own EFFECT is asserted beside the claim, W17's `joinSettledBy`: in every gated row,
@@ -8010,7 +8010,7 @@ if (checkOff !== null) {
  * **Why it is a block and not an `EXPECTED` row** — W78's finding C: a row runs through `runFlow`,
  * which installs its own `onFoldInput` and keeps its own sequence; this block's whole subject is a
  * consumer's store. Every `await` on a `done` is BOUNDED and every runtime is shut down in a
- * `finally` ([Q323](../doc/open-questions.md)), and a throw is a FAIL line, never a crash.
+ * `finally` ([Q323](../doc/questions/q323.md)), and a throw is a FAIL line, never a crash.
  *
  * **What it SELECTS, and the fixture where each well-formed wrong selection DIFFERS** (`doc/workflow.md`
  * rule 8 obligation (a), v0.23):
@@ -8455,7 +8455,7 @@ if (killResume !== null) {
   // quiescent store held a THIRD stimulus and the two cuts resumed at 13 and 21. `shard@0`'s two characters against
   // `shard@1`'s three at 60 ms each is the arrangement; its effect — the quiescent store holds exactly TWO stimuli — is
   // asserted here, so that delay now names it. Found by a SPEED-UP, which obligation (f)'s *delayed past its peers* never
-  // tries ([Q401](../doc/open-questions.md)).
+  // tries ([Q401](../doc/questions/q401.md)).
   check(key, 'a MID-STEP cut and a QUIESCENT cut of ONE killed run: the quiescent store is longer, `resumed` lands at the same ' +
     'position after both, and both re-dispatch the SAME tasks — the set is the replay`s, not the store`s; and the arrangement holds, the quiescent store two stimuli',
     u === null ? null : [u.midStored < u.quietStored, u.midAt, u.quietAt, u.midIds, u.bothCompleted, u.refused, u.quietStimuli],
@@ -8501,15 +8501,15 @@ if (killResume !== null) {
  * rule 2 and `RN-R26`: the gate's memory is a DRIVER field created empty and REBUILT by replay, never written down.
  *
  * **Block (2g)'s kill, one flow on**: the consumer's store keyed by POSITION and FROZEN mid-step at the K-th stimulus
- * (inside `onFoldInput`), then `runtime.shutdown()` — which DRAINS ([Q376](../doc/open-questions.md)), so the killed
+ * (inside `onFoldInput`), then `runtime.shutdown()` — which DRAINS ([Q376](../doc/questions/q376.md)), so the killed
  * process runs to completion and its driver's memory ends holding EVERY key — and `runtime.resume` on a fresh runtime
- * from the store. Every `done` is BOUNDED and every runtime shut down in a `finally` ([Q323](../doc/open-questions.md));
+ * from the store. Every `done` is BOUNDED and every runtime shut down in a `finally` ([Q323](../doc/questions/q323.md));
  * a refused resume is a FINDING carried in the point, never a crash of this block.
  *
  * **What it SELECTS, and where each well-formed wrong selection DIFFERS** (`doc/workflow.md` rule 8 obligation (a)):
  *
  *   - **the kill point** — EVERY stimulus of the run, 25 of them: BEFORE the first decision (fifteen at W94's
- *     declaration — [Q386](../doc/open-questions.md)'s case, where a memory kept by the PROCESS resumed WRONG in
+ *     declaration — [Q386](../doc/questions/q386.md)'s case, where a memory kept by the PROCESS resumed WRONG in
  *     silence at W93's), BETWEEN decisions, and AFTER the last;
  *   - **the resumed memory** — the one the replay rebuilds, against a FRESH one (which would route `first` again a key
  *     decided before the cut) and the KILLED process's (which drained to every key, so would route every later
@@ -8564,7 +8564,7 @@ const SIZE_ORDER_BY_SERIES: Record<string, number[]> = TV_IDENTIFIED.reduce((acc
  * RED 1 run in 6 on node (`K=4`): a resume re-dispatches what was in flight, and two files of DIFFERENT series 30 ms
  * apart in `identify` time can swap without changing any winner. What the identity rests on is each series' own arrivals
  * being ordered, so that is what this asserts — a flake this item's conformity reader found in a PUSHED commit, which
- * is [Q401](../doc/open-questions.md)'s *each GREEN is one sample* inside the file W97 owned.
+ * is [Q401](../doc/questions/q401.md)'s *each GREEN is one sample* inside the file W97 owned.
  */
 const inSizeOrder = (arrivals: readonly { key: string; file: number }[]): boolean =>
   Object.entries(SIZE_ORDER_BY_SERIES).every(([key, want]) => {
@@ -8779,13 +8779,13 @@ if (gateKill !== null) {
  * the same settlements — PRINTED, and asserted by nothing** — W82, P21 decision 5.
  *
  * **Nothing here is an assertion and that is the decision rather than an omission.**
- * [Q179](../doc/open-questions.md) says wall time here is not reproducible, and W81 measured how
+ * [Q179](../doc/questions/q179.md) says wall time here is not reproducible, and W81 measured how
  * badly: the same two values over eight readings of one row read between 58% and 95%, a spread as
- * wide as the effect. *A ratio of two clocks is still two clocks* ([Q335](../doc/open-questions.md)),
+ * wide as the effect. *A ratio of two clocks is still two clocks* ([Q335](../doc/questions/q335.md)),
  * so a rung that asserted a magnitude would be a ratchet on hardware. What IS asserted is the
  * COUNT, in the check-OFF block above — the only observable a check whose answer is discarded has.
  *
- * **It is PRINTED rather than left to a document for [Q171](../doc/open-questions.md)'s reason**:
+ * **It is PRINTED rather than left to a document for [Q171](../doc/questions/q171.md)'s reason**:
  * this is the one place that holds every result the rung settled, so the number is re-taken on every
  * run instead of transcribed into prose nothing compares. The two sides are timed on the SAME values
  * and in BOTH orders, because W46 measured that run ORDER costs nothing here and ACCUMULATION in one
@@ -8826,7 +8826,7 @@ if (gateKill !== null) {
 // them — W82's conformity reader, finding 15.)*
 //
 // **W78's two are DERIVED from the block having run rather than written as a literal**, which is
-// [Q217](../doc/open-questions.md)'s regress paid down by one edit: with a literal, deleting the
+// [Q217](../doc/questions/q217.md)'s regress paid down by one edit: with a literal, deleting the
 // block leaves this line claiming two runs nobody made, and the printed count — the thing a human
 // reads at L7 — becomes the false half of `l6.ts`'s own output. Probes `d4` and `d4b` are the
 // measurement. *The regress does not close: deleting the block, its twelve subjects and the two
@@ -8843,7 +8843,7 @@ console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyf
  * table **a person reads**, was not. All four nested rows printed `-` for join
  * and branches, which is this renderer's spelling for *"the run entered no
  * region"* — so P7's exit artifact rendered as a region-free run in the one
- * artifact L7 exists for. That is [Q100](../doc/open-questions.md)'s open
+ * artifact L7 exists for. That is [Q100](../doc/questions/q100.md)'s open
  * question — *whether a formatting bug can make the table say something FALSE
  * rather than merely ugly* — answered **yes**, by the item that introduced it.
  *
@@ -8856,7 +8856,7 @@ console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyf
  *
  * It read every declared region through `soleRegion` and then **filtered out** whatever came back
  * `undefined` — so a region with two instances vanished from the table a person reads, silently,
- * which is [Q100](../doc/open-questions.md)'s *a formatting bug can make the table say something
+ * which is [Q100](../doc/questions/q100.md)'s *a formatting bug can make the table say something
  * FALSE rather than merely ugly* one shape further on. It now walks `regions[id]` whole and prints
  * one row per INSTANCE, labelling each `opener@path` when there is more than one — so the two
  * instances of `perShard` are visible as two, and a region that is missing prints nothing because
@@ -8991,7 +8991,7 @@ const PER_PLAIN_ROW = 22;
  *
  * *(This paragraph read "18 since W35, from 13" for two plans while the constant
  * below went to 39 and then to 57, three lines above the number it described —
- * [Q202](../doc/open-questions.md)'s shape in the file that carries the count.
+ * [Q202](../doc/questions/q202.md)'s shape in the file that carries the count.
  * W47's conformity reader; it is now a SEQUENCE rather than a latest value, so the
  * next item appends rather than rewriting.)*
  *
@@ -9333,7 +9333,7 @@ if (rowCosts.length !== EXPECTED.length) {
    * `src/definition/validate.ts` cost ZERO L6 failures.** `806 assertions, 0 failed,
    * exit 0`, against a clean control before and after. So
    * [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md)
-   * rule 2 — the half [Q187](../doc/open-questions.md) was asked for — was
+   * rule 2 — the half [Q187](../doc/questions/q187.md) was asked for — was
    * unobserved on real workers, while `FD-C4` cost 5 and the suffix going unparsed
    * stopped the run from reporting at all.
    *
@@ -9494,13 +9494,13 @@ if (rowCosts.length !== EXPECTED.length) {
    * same for `poolTypes` sourced from `documentTypes`.
    *
    * **So each of the three facts has exactly ONE observer, and that is a declared
-   * limit rather than a repaired one** ([Q216](../doc/open-questions.md)). The second
+   * limit rather than a repaired one** ([Q216](../doc/questions/q216.md)). The second
    * observer v0.13 asks for would have to be a second DERIVATION of the same fact, and
    * the only one available is a second regex over the same text — *a sensor
    * corroborating itself*, which is what obligation (c)'s LIMIT names. What the block
    * does buy is measured and is not nothing: `'zzz'` in `ROLES` costs **2**, an arm
    * for a role nothing declares costs **1**, a pool no document names costs **1**, and
-   * all three were **0** before it. [Q212](../doc/open-questions.md)'s shape — a proxy
+   * all three were **0** before it. [Q212](../doc/questions/q212.md)'s shape — a proxy
    * bounded in one direction, recorded rather than dressed up.
    */
   {
@@ -9809,7 +9809,7 @@ if (rowCosts.length !== EXPECTED.length) {
       // class-form `GpuModel`, so triage's arcs get verdicts here that the document alone cannot give (the L1
       // census reads three unchecked there); and the one `no` the corpus holds is `map-no-array`'s `FD-R2`,
       // predicted before the run that this file then measures as `UnresolvedMapArity`.
-      // **The three TV rows carried a FALSE `no` at the per-series task from W94 until W99** ([Q391](../doc/open-questions.md)),
+      // **The three TV rows carried a FALSE `no` at the per-series task from W94 until W99** ([Q391](../doc/questions/q391.md)),
       // because `checkWiring` read a gate as a flat PASS-THROUGH: the arc `identify` → `setupSeries` was judged as if the
       // gate were not there, `series` is not required of what `identify` returns (a trailer has none) and IS required of
       // what the per-series worker receives. W94 asserted that `no` rather than hiding it and wrote the condition for its
@@ -10275,7 +10275,7 @@ if (rowCosts.length !== EXPECTED.length) {
  * AND paths that were prefix-comparable anyway, so `outputIsVisible` returned true
  * without entering its loop for everything L6 ran, and reverting the resolver to the
  * prefix rule cost **0** L6 failures against 6 at L1-L5.
- * [Q214](../doc/open-questions.md)'s shape in a second mechanism — W47's was *a
+ * [Q214](../doc/questions/q214.md)'s shape in a second mechanism — W47's was *a
  * document the validator refuses never starts*, this is *a filter no run exercises*.
  *
  * **So the bound is over the two DIRECTIONS a wrong predicate can be wrong in**, and
@@ -10685,7 +10685,7 @@ if (rowCosts.length !== EXPECTED.length) {
  * observed side is exactly as true after a re-source as before. **They pass v0.22's test and fail
  * v0.21's** — there IS a tree on which each control fails and its claim passes, and neither fails
  * where its claim is VACUOUS. **Identity is not available here**: every operand is freshly built and
- * the values are equal STRINGS ([Q447](../doc/open-questions.md)), which is
+ * the values are equal STRINGS ([Q447](../doc/questions/q447.md)), which is
  * [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md)'s own situation — and its answer is
  * the one taken here, *a LITERAL for each arm*. A re-sourced list cannot equal a literal that names
  * the other arm's value.
@@ -10929,7 +10929,7 @@ check('cross-row', 'and at least one row declares a SECOND region, so a nested j
  */
 /**
  * **The rendered table names every region of a nested run** — W23's adequacy
- * reader, and [Q100](../doc/open-questions.md) in a fifth file.
+ * reader, and [Q100](../doc/questions/q100.md) in a fifth file.
  *
  * The conformity reader found this table printing `-` for all four nested rows —
  * its spelling for *"entered no region"* — so P7's exit artifact rendered as a
@@ -10952,7 +10952,7 @@ check('cross-row', 'and at least one row declares a SECOND region, so a nested j
 // — W86, and W84 dated the repair to this item there by name. `regionsOf` read every declared
 // region through `soleRegion` and FILTERED OUT whatever came back `undefined`, so a region with two
 // instances vanished from the table entirely. A by-product nothing reads is a by-product that can
-// LIE, which is [Q100](../doc/open-questions.md) answered *yes* by the item that introduced it — so
+// LIE, which is [Q100](../doc/questions/q100.md) answered *yes* by the item that introduced it — so
 // the repair is asserted rather than merely made. **The clause above covers a NESTED row** (two
 // openers, one instance each); this covers an INSTANCED one, which is the shape that used to
 // disappear, and the two are different mechanisms in `regionsOf` rather than one written twice.
@@ -11008,7 +11008,7 @@ check('cross-row', 'every PER-ROW subject this file declares was asked, on exact
 /**
  * **And BOTH WAYS, which is what stops a subject being deleted alongside the clause it
  * names** — W55's adequacy reader, and it is `CROSS_ROW_SUBJECTS`' own recorded limit
- * ([Q217](../doc/open-questions.md)) closed on this side of it.
+ * ([Q217](../doc/questions/q217.md)) closed on this side of it.
  *
  * The clause above maps over the LIST, so removing an entry removes it from both
  * halves and costs nothing. This maps over the LABELS: every per-row assertion whose
@@ -11100,7 +11100,7 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 const DECLARED_TOTAL = 2435;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
-// BOTH declarations and holds each current copy to them ([Q171](../doc/open-questions.md), named by P20's retro and built
+// BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).

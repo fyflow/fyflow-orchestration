@@ -498,7 +498,7 @@ function collectArrivals(arrived: ReadonlyMap<string, unknown> | undefined): Rec
  * is the SPECIAL CASE of `outputIsVisible`'s *do the two paths agree on the regions
  * their chains share*: where the chains nest the shared regions are the shorter
  * chain entire and the two pick out the same entries. Where they do not nest it was
- * wrong, and only its reflexive case ever fired ([Q206](../../doc/open-questions.md)).
+ * wrong, and only its reflexive case ever fired ([Q206](../../doc/questions/q206.md)).
  *
  * **Keeping both would be two sources that can disagree**, which ADR 0040 rule 2
  * refuses by name — and `deno lint` said so first: with the resolver re-pointed,
@@ -756,7 +756,7 @@ export interface NonconformingResult {
 /**
  * What the driver needs from a scheduler. Structural, so W3 is testable without one — and
  * satisfied by a real `FyflowScheduler` under EVERY lib configuration, which is what closed
- * [Q71](../../doc/open-questions.md) ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
+ * [Q71](../../doc/questions/q71.md) ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
  *
  * **The listener takes `object`, not `{ detail: unknown }`, and that is the whole of Q71's fix.**
  * `FyflowScheduler extends EventTarget`, and with the DOM lib in scope its `addEventListener`
@@ -828,7 +828,7 @@ export interface DriverOptions {
    * [ADR 0022](../../doc/decisions/0022-a-driver-takes-its-run-at-construction.md)
    * rule 1. `ID-R3` always said a driver serves exactly one run; until W13 the
    * surface said otherwise, and the next reader believed the surface
-   * ([Q53](../../doc/open-questions.md)).
+   * ([Q53](../../doc/questions/q53.md)).
    *
    * `ID-R2`'s charset refusal happens here, in the constructor, before the
    * definition is validated and before anything is queued: a run id is
@@ -923,7 +923,7 @@ export interface DriverOptions {
   /**
    * Called when a policy reports a join can never fire. **The driver does not
    * invent a run-level outcome** — that vocabulary is run state's
-   * ([Q25](../../doc/open-questions.md)) and neither pinned policy returns
+   * ([Q25](../../doc/questions/q25.md)) and neither pinned policy returns
    * `unsatisfiable` at all, which is itself Q7's finding rather than a gap.
    */
   onUnsatisfiableJoin?: (info: UnsatisfiableJoin) => void;
@@ -1034,7 +1034,7 @@ export class Driver {
    * **ADR 0014 — the fold's input sequence, and the only ordered thing here.**
    *
    * `spec/run-state.md` section 6 recorded that `FoldInput` interleaves six kinds
-   * into one ordered value and **nothing produced it** ([Q41](../../doc/open-questions.md)):
+   * into one ordered value and **nothing produced it** ([Q41](../../doc/questions/q41.md)):
    * records left through `snapshot()`, region events through `onRegionEvent`,
    * dispatches through nothing at all, and a refusal through `onRunFailure` — four
    * channels with no shared order, so `RN-R3`'s *"read in append order"* was about
@@ -1099,7 +1099,7 @@ export class Driver {
    * *(Until W84 the key was the opener's NODE ID alone, which is total only because
    * a region opener is entered at most once per run — a property W33 held by
    * REFUSING a region inside a map region at construction
-   * ([Q160](../../doc/open-questions.md)). The refusal is lifted and the key is the
+   * ([Q160](../../doc/questions/q160.md)). The refusal is lifted and the key is the
    * pair, so instance 2 collects into its own map instead of into instance 1's.
    * **This is the structure a mis-keying would corrupt SILENTLY**: a wrong key here
    * hands a join somebody else's collection, and `JP-R12` is a `Record<string,
@@ -1114,7 +1114,7 @@ export class Driver {
    * result for the life of the driver, which P15 fact 3 measured at **49.8%** of
    * what a region-bearing run holds at map arities 4, 16 and 64 over 64 KiB
    * results, and which no rung of `doc/workflow.md` section 4 could see removed
-   * ([Q214](../../doc/open-questions.md)).
+   * ([Q214](../../doc/questions/q214.md)).
    *
    * **It is a SECOND COPY and that is measured rather than assumed**: the stored
    * value is the arriving branch's own edge-hop clone, and an identity check says
@@ -1135,7 +1135,7 @@ export class Driver {
    * Until W13 this was `startedRun: string | null`, set by the first `start`,
    * beside a `failedRuns` **set** and a `hasFailed(runId)` taking an argument —
    * three shapes that only made sense if a driver served many runs. They were
-   * redundant rather than wrong, and [Q53](../../doc/open-questions.md) recorded
+   * redundant rather than wrong, and [Q53](../../doc/questions/q53.md) recorded
    * that a redundant surface is read as a permissive one.
    */
   /**
@@ -1322,7 +1322,7 @@ export class Driver {
     // **A region opener inside a `map` region RUNS, and until W84 it was refused at
     // this exact point** -
     // [ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
-    // [Q160](../../doc/open-questions.md) and [Q156](../../doc/open-questions.md).
+    // [Q160](../../doc/questions/q160.md) and [Q156](../../doc/questions/q156.md).
     //
     // **What the refusal was for.** A `map` is the first construct in this library
     // that enters one opener node more than once in a run, and every per-region
@@ -1395,7 +1395,7 @@ export class Driver {
         `MultipleRuns: this driver already started run "${runId}" and cannot start it again. ` +
           'ID-R3: a Driver serves exactly one run — its input sequence, its fired joins and its ' +
           'policy state carry no run id, so a second run would silently merge into the first. ' +
-          // **[Q87](../../doc/open-questions.md) — this sentence recommended the violation.** It
+          // **[Q87](../../doc/questions/q87.md) — this sentence recommended the violation.** It
           // ended at *"on the same scheduler"*, and the obvious second `Driver` for a caller
           // re-running a workload is one carrying the run id they already have. Two drivers on one
           // run id mint the SAME task ids, so `dispatched.has()` is true in both, `ID-R4` cannot
@@ -1485,7 +1485,7 @@ export class Driver {
    *
    * **At-least-once, and that is the contract rather than a defect** (P23 decision 6): a task named in
    * `resumed` may have finished in the process that is gone, and runs again here with a FRESH retry
-   * budget ([Q365](../../doc/open-questions.md) — measured: a budget of two attempts ran three times
+   * budget ([Q365](../../doc/questions/q365.md) — measured: a budget of two attempts ran three times
    * across one kill). A task parked at `user_action` has SETTLED and is not in flight: it stays parked,
    * and `resolve()` works on it.
    *
@@ -1854,7 +1854,7 @@ export class Driver {
     // supersedes it and retires the precondition — `buildTaskId` emits only
     // four-segment ids in the `ID-R2`/`FD-V16` charsets, so an id that fails
     // `parseTaskId` was minted by **no** driver and cannot be this run's.
-    // [Q86](../../doc/open-questions.md), `ID-R5`.
+    // [Q86](../../doc/questions/q86.md), `ID-R5`.
     //
     // **Reported rather than merely dropped, and that half is not decoration.**
     // Tier 1 is silent because the driver that owns that run will report it; an
@@ -2083,7 +2083,7 @@ export class Driver {
     // field — so that node has no derivation at all, and for every other node a
     // derivation re-implements `compose`, `JP-R11` and `JP-R12` at a second site, which
     // ADR 0040 rule 2 refuses by name. Keeping it instead would be a payload retained
-    // per dispatched node — [Q19](../../doc/open-questions.md)'s own subject.
+    // per dispatched node — [Q19](../../doc/questions/q19.md)'s own subject.
     // **The references are derivable; the payload is not.**
     //
     // *(This comment cited a DIAMOND — a node reachable from two predecessors that both
@@ -2227,7 +2227,7 @@ export class Driver {
         // **Each branch gets its OWN COPY** — [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
         // rule 2, `JP-R11`. This was one object handed to every branch, so
         // `a.payload === b.payload` was `true` and a branch mutating what it was
-        // given mutated its siblings' input ([Q154](../../doc/open-questions.md)).
+        // given mutated its siblings' input ([Q154](../../doc/questions/q154.md)).
         // The payload IS cloned once at the edge hop, which protects the log; that
         // single clone was then shared N ways.
         //
@@ -2326,7 +2326,7 @@ export class Driver {
         // rule 3, `JP-R11`. [W33](../../doc/work-items/w33-a-map-at-run-time-arity.md)
         // shipped this handing every instance the WHOLE value the map node received
         // — arity-correct and payload-unchanged — deliberately, so that deciding
-        // [Q11](../../doc/open-questions.md) at the fan-out edge would be a visible
+        // [Q11](../../doc/questions/q11.md) at the fan-out edge would be a visible
         // edit rather than a silent one. This is that edit.
         //
         // **It is what makes `over` mean something.** Handed the whole value, an
@@ -2367,7 +2367,7 @@ export class Driver {
         // failures** — so it was a line that claimed to do something and could not.
         // A guard with no reachable effect is not defence in depth; it is a reader
         // being told the driver consults a policy here when the answer is fixed.
-        // If [Q97](../../doc/open-questions.md) is ever answered with a signal that
+        // If [Q97](../../doc/questions/q97.md) is ever answered with a signal that
         // lets a policy tell the two apart, this is where the call goes back.
         //
         // **But a region that opened NOTHING still ends the branch it sits in** —
@@ -2394,7 +2394,7 @@ export class Driver {
         // gives `joined: false` the meaning *"a policy reported it unsatisfiable"*,
         // and none did. So this region stays `joined: null` and the run is `stuck`
         // by `RN-R10` — reported, without its REASON, which is
-        // [Q97](../../doc/open-questions.md) exactly where section 5 leaves it.
+        // [Q97](../../doc/questions/q97.md) exactly where section 5 leaves it.
         const enclosing = this.regionOf(region.fanoutId);
         if (items.length === 0 && enclosing) {
           this.emit({
@@ -2443,7 +2443,7 @@ export class Driver {
         // fire when the last live branch goes terminal, so all three settle the join
         // only once nothing is left to arrive. A policy that settles a join **before
         // every branch is terminal** is exactly the precondition
-        // [Q95](../../doc/open-questions.md) records for the `at most once` latch
+        // [Q95](../../doc/questions/q95.md) records for the `at most once` latch
         // twenty lines down in `settleJoin` — the same hypothetical policy, reaching
         // the same region through a second door.
         //
@@ -2676,7 +2676,7 @@ export class Driver {
    * `private readonly log: LogRecord[]` with exactly one `push` and no `splice`,
    * `shift` or reassignment, `OutcomeRecord.result` is on every settled task, and
    * `snapshot()` already returns the whole of it publicly. So
-   * [Q19](../../doc/open-questions.md)'s *"if Q8 or Q11 retains every node output"*
+   * [Q19](../../doc/questions/q19.md)'s *"if Q8 or Q11 retains every node output"*
    * described **today** before this method existed, and this adds **no retention**.
    * *(Q19 is RESOLVED since W53 —
    * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
@@ -2697,7 +2697,7 @@ export class Driver {
    *
    * **Computed on demand rather than maintained**, and the cost is why: it is
    * `O(log)` per call, so maintaining it would be a second source that could
-   * disagree with the log — the defect [Q43](../../doc/open-questions.md) and
+   * disagree with the log — the defect [Q43](../../doc/questions/q43.md) and
    * `arrival-count`'s re-sourcing are each an instance of. **A node that declares no
    * `needs` never reaches this method**, which is what keeps ADR 0040 rule 1's *the
    * default is unchanged* true of the cost as well as of the value.
@@ -2735,7 +2735,7 @@ export class Driver {
     // memo changes no observable: all 606 L1-L5 cases pass with the line replaced by
     // a comment, which is the measurement rather than an assumption. A timing
     // assertion would be a check whose verdict is not reproducible
-    // ([Q179](../../doc/open-questions.md)), so what stands in for one is the pair of
+    // ([Q179](../../doc/questions/q179.md)), so what stands in for one is the pair of
     // numbers above.
     if (this.outputsCache && this.outputsCache.at === this.log.length) return this.outputsCache.byNode;
     const byNode = new Map<string, { path: string; result: unknown }[]>();
@@ -2752,7 +2752,7 @@ export class Driver {
     // task's records is an input it is already total on — which means the settlement/
     // resolution/`user_action` rules stay in ONE place. Rewriting them here would be
     // a second source that could disagree with the log, which is the defect
-    // [Q43](../../doc/open-questions.md) and `arrival-count`'s re-sourcing are each
+    // [Q43](../../doc/questions/q43.md) and `arrival-count`'s re-sourcing are each
     // an instance of, and it is what ADR 0040 rule 2 refuses.
     const groups = new Map<string, LogRecord[]>();
     for (const r of this.log) {
@@ -2772,7 +2772,7 @@ export class Driver {
       // while one is parked and no reader downstream of it is ever entered. It is
       // the same absence `JP-R12`'s row records for its own suspended road, and it
       // becomes live the moment a policy fires over a parked branch
-      // ([Q97](../../doc/open-questions.md)).
+      // ([Q97](../../doc/questions/q97.md)).
       //
       // **What the L2 case named for it DOES test is the resumed node**, which is
       // reachable and is asserted; its title over-claimed and is corrected there.
@@ -2895,7 +2895,7 @@ export class Driver {
     // region against an index minted in another and reported *visible* when the two
     // strings happened to match: `isPathPrefix('0','2')` and `isPathPrefix('2','0')`
     // are both false, so only the reflexive case ever fired.
-    // [Q206](../../doc/open-questions.md).
+    // [Q206](../../doc/questions/q206.md).
     //
     // **Two predicates would be two sources that can disagree**, which is ADR 0040
     // rule 2's own refusal, so the old one is gone rather than kept beside it.
@@ -2971,7 +2971,7 @@ export class Driver {
     // THREW when its edge declared nothing and succeeded silently when it declared
     // something — and with the freeze gone, a write to the shared instance would be
     // read by the NEXT predicate. `ADR 0002` rule 4 asks a predicate to be pure and
-    // nothing enforces it ([Q9](../../doc/open-questions.md)); this does not enforce
+    // nothing enforces it ([Q9](../../doc/questions/q9.md)); this does not enforce
     // purity either, it makes the ONE observable consequence uniform. `OR-R7`'s idiom.
     return Object.freeze(out);
   }
@@ -3027,7 +3027,7 @@ export class Driver {
     //     would have been handed whole, which is `payload` as it arrives here from `compose`, a
     //     branch's copy, or a map instance's own item. **`input` is defined as the value received
     //     and never as what `needs` composed** (spec section 3, `FD-C5`), which is what leaves
-    //     [Q251](../../doc/open-questions.md)'s transform a place to sit;
+    //     [Q251](../../doc/questions/q251.md)'s transform a place to sit;
     //   - the retry MERGE gains a middle level: the node's own policy, whole; else the type's; else
     //     the driver's default. `workerGroups` merges nothing — a type's groups are the pool's, and
     //     the scheduler unions those with the task's own (W58's measurement).
@@ -3321,7 +3321,7 @@ export class Driver {
       this.joinStateSet(e.regionId, e.regionPath, policy.step(this.joinStateGet(e.regionId, e.regionPath), e));
     }
     // **`OR-R7` and ADR 0014 — every value the driver hands outward is a frozen
-    // copy, and `onRegionEvent` was the one path that was not** ([Q73](../../doc/open-questions.md)).
+    // copy, and `onRegionEvent` was the one path that was not** ([Q73](../../doc/questions/q73.md)).
     // It received `e` itself: the object `append` was about to store, so a
     // listener writing `e.branchPath` rewrote the driver's own `inputs` and the
     // folded `regions` with it. Measured, not read — `snapshot()`, `foldInputs()`
@@ -3429,7 +3429,7 @@ export class Driver {
       // At depth 1 there was nothing to emit: the region's `fanout` is in no
       // region, `regionOf` returns `undefined`, and this block does not run. So
       // the gap was **unobservable rather than absent** — the same shape as
-      // [Q114](../../doc/open-questions.md) one item earlier, where the join's
+      // [Q114](../../doc/questions/q114.md) one item earlier, where the join's
       // successor carried no path and depth 1 could not tell.
       //
       // **What it cost, measured on a nested flow before the fix:** the outer
@@ -3479,7 +3479,7 @@ export class Driver {
     // **ADR 0015.** Appended before the routing it authorises, so a fold that
     // reads the sequence sees the join fire and *then* sees what it dispatched.
     //
-    // This is what [Q43](../../doc/open-questions.md) needed and what its register
+    // This is what [Q43](../../doc/questions/q43.md) needed and what its register
     // entry said was already there: on `p1-routed-away` **both policies produce
     // the same `regions` value** — every branch settles under both — and the only
     // difference is whether this line was reached. Without it a permanently stuck
@@ -3534,7 +3534,7 @@ export class Driver {
     const edge = join.edges?.[0];
     // **The join carries the arrived branches' results, keyed by `branchPath`** —
     // `JP-R12`, [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
-    // rule 4, answering [Q36](../../doc/open-questions.md).
+    // rule 4, answering [Q36](../../doc/questions/q36.md).
     //
     // **This paragraph read *"the join passes `null`, deliberately"* and the reason
     // it gave was correct**: `settleJoin` is reached from three sites with three
@@ -3561,7 +3561,7 @@ export class Driver {
     //
     // A join nothing arrived at carries `{}`. `live-token` fires over an all-exited
     // region, so that case is live rather than defensive.
-    // **The join's exit carries the path its REGION sits at — [Q114](../../doc/open-questions.md),
+    // **The join's exit carries the path its REGION sits at — [Q114](../../doc/questions/q114.md),
     // closed by W21.** This was `this.enter(runId, edge.to, null)`, with no
     // `fromBranch` at all. That is right at depth 1, where a join's successor is
     // outside every region and `'-'` is the answer; **inside a nested region it is
@@ -3574,7 +3574,7 @@ export class Driver {
     // the arm of W21's fork this item took. `pathOf('inner')` is `'1'`; at depth 1
     // `pathOf` of a top-level fanout is `'-'`, so every existing run is unchanged.
     // **The PAYLOAD was a different question when W21 wrote this, and it is
-    // answered now** — [Q36](../../doc/open-questions.md), `JP-R12`, and the
+    // answered now** — [Q36](../../doc/questions/q36.md), `JP-R12`, and the
     // `collectArrivals` call below. This comment read *"The `null` PAYLOAD is
     // untouched"*, which stopped being true twenty lines up. W34's conformity
     // reader. What W21's paragraph is still about is unchanged: it fixes which
@@ -3610,7 +3610,7 @@ export class Driver {
   }
 
   /**
-   * **The fold's input sequence — ADR 0014, and [Q41](../../doc/open-questions.md)'s
+   * **The fold's input sequence — ADR 0014, and [Q41](../../doc/questions/q41.md)'s
    * answer.** A frozen copy, in append order, of everything the fold consumes:
    * the two record kinds, region events, dispatches, path ends, join settlements
    * and a stop.
@@ -3685,7 +3685,7 @@ export class Driver {
    * `spec/join-policy.md` section 4 assigns W3 *"how it detects a stuck one when
    * no policy says so"* — and neither pinned policy ever returns `unsatisfiable`,
    * so this accessor is the whole of that detection today. Anything more is
-   * [Q7](../../doc/open-questions.md), which is W4's.
+   * [Q7](../../doc/questions/q7.md), which is W4's.
    */
   /**
    * **`regionPath` is OPTIONAL and its absence means THE SOLE INSTANCE** - W84.

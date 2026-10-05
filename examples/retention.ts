@@ -28,12 +28,12 @@
  * peak/end entry counts this file prints are the same `Retention` value forty-four L6
  * runs assert against ADR 0046, in both runtimes. *A number nobody can re-take is not
  * evidence* (P15 decision 3), which is why it is checked in;
- * [Q242](../doc/open-questions.md) is the row that says W54's was not.
+ * [Q242](../doc/questions/q242.md) is the row that says W54's was not.
  *
  * ## What is REPORTED here and what is ASSERTED elsewhere
  *
  * Everything this file prints is a **footprint**, and a footprint is a property of
- * one run on one machine ([Q179](../doc/open-questions.md)). What is asserted is the
+ * one run on one machine ([Q179](../doc/questions/q179.md)). What is asserted is the
  * **RELATION** — that a region's collection is non-empty before its join becomes
  * terminal and empty after, that a region whose join never becomes terminal still
  * holds it, and that neither the run's outcome nor any task id moves — and that lives
@@ -48,7 +48,7 @@
  *      call, so an object reachable twice is counted once. Deterministic and
  *      clock-free. It is in **two** of the five runtimes — node and deno, through
  *      `node:v8`, and in none of the three browsers — and ladder L6 runs in exactly
- *      those two ([Q233](../doc/open-questions.md)).
+ *      those two ([Q233](../doc/questions/q233.md)).
  *   2. **`process.memoryUsage().heapUsed` after a forced `gc()`** — the real thing,
  *      and it needs `--expose-gc` (`--v8-flags=--expose-gc` under Deno). **It is
  *      called only from the `scale` mode**, and the reason is measured rather than

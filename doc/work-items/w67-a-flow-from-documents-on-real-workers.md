@@ -75,7 +75,7 @@ Reserves:   Q289-Q292
 | `scripts/build-browser-tests.mjs` | predicted NOT to fire: it walks `examples/flows/*.json` itself and picks up migrated documents; a registry document beside them is JSON too — checked |
 | `spec/flow-definition.md` §3 | **LATE, one sentence.** The registry subsection said *the runtime entry (W66) folds this into `createRuntime`* of `bootstrap`'s both-ways group refusal — true when W66 wrote it, false the moment stop-and-ask 1 shipped, and a reader implementing a runtime from that paragraph would have built the over-refusal this item removed. **No rule moved and none was added**; `check:spec` is 7 / 55 / 106 with `C4` at 34, unchanged. Section 1 rule 5's third direction, found by the conformity reader |
 | `src/scheduler/runtime.ts`, `test/scheduler/runtime.test.ts` | **declared at the declaration step, stop-and-ask 1**: a registry document cannot declare a group only NODES name, measured. `createRuntime` passes only pool-named groups to `bootstrap` and registers every declared group with the scheduler. No rule, no refusal — an over-refusal removed in one path |
-| `package.json`, `deno.json` | **declared at the declaration step, stop-and-ask 2**: [Q279](../open-questions.md), `0.1.0` to `0.2.0` at this item's close, the breaking grammar change named |
+| `package.json`, `deno.json` | **declared at the declaration step, stop-and-ask 2**: [Q279](../questions/q279.md), `0.1.0` to `0.2.0` at this item's close, the breaking grammar change named |
 | `AGENTS.md` (beyond §13), `README.md` | `README.md` carries the version and the breaking change, and is a record-step file already. **`AGENTS.md` beyond §13 is three EXECUTED snippets** in §11, §12 and §13, which named `examples/workers/flow-worker.ts` and its `role` config: one worker file became fourteen modules, so `check:docs`' `X4` is red until they are rewritten. *(The reason first written here was the version, which `AGENTS.md` does not carry — W67's conformity reader, finding 13. The path was declared either way; the reason was not.)* |
 
 ## Verification
@@ -172,7 +172,7 @@ two types that declare none.
 **Measured, because a claim about a knob with no assertion is worth a number:** forcing every such
 type inline — `inline: t.inline ?? true`, one expression, the `threaded: true` rows then running on
 the main loop — costs **ZERO**: `1502 assertions, 0 failed`, exit 0. That is
-[Q99](../open-questions.md)'s *a knob held down by no assertion* with a figure, and it is why the
+[Q99](../questions/q99.md)'s *a knob held down by no assertion* with a figure, and it is why the
 knob is KEPT rather than dropped: what it buys is that the fan-out pool is a real thread on the rows
 that ask for one, which is where a dispatch race or an id collision would show, and W51 measured
 that it changes dispatch order 12/12. Dropping it would change what L6 EXERCISES without changing
@@ -191,7 +191,7 @@ and before a line of the artifact was written.*
    the item's *an exit artifact writes no rule* holds. Declared exception on
    `src/scheduler/runtime.ts` and `test/scheduler/runtime.test.ts` — the file the suite is
    actually in, which the Exceptions table names correctly (W67's conformity reader, finding 12).
-2. **[Q279](../open-questions.md): BUMP to `0.2.0` HERE**, in this item's record step, with the
+2. **[Q279](../questions/q279.md): BUMP to `0.2.0` HERE**, in this item's record step, with the
    breaking change named. The plan's own sentence, taken at the item it names. Declared exception on
    `package.json` and `deno.json`.
 3. **The sample's workers are REAL, deterministic modules** — `callModel` is not a thing this
@@ -288,10 +288,10 @@ own two additions — `extraKeys` on the sixteen typed and echoed results, and t
 have.** W66 recorded three (the sub-path, the signature, the missing `flows`); the fourth is new and
 was found by trying to LOAD it: the sample's `DailyBudgetGroup` uses a constructor **parameter
 property**, which Node 24 refuses at load — `RT-R9`, the rule `S4` enforces over `src/` and which
-reaches no plan document ([Q292](../open-questions.md)). **The blocker**: a registry document cannot
+reaches no plan document ([Q292](../questions/q292.md)). **The blocker**: a registry document cannot
 declare a group that only NODES name, because `createRuntime` hands every declared group to
 `bootstrap`, whose direction-two refusal is right for the helper and wrong for a document. Measured,
-put to the maintainer, fixed in `createRuntime` ([Q291](../open-questions.md)).
+put to the maintainer, fixed in `createRuntime` ([Q291](../questions/q291.md)).
 
 **Five things this item wrote down were false and the readers found each.** The conformity reader
 (14 findings, 7 blocking) re-derived every expected value of both rows on paper and came back with
@@ -337,13 +337,13 @@ run dispatched.
 **A sample in a plan is code that is read as a specification and executed by nothing.** Three items
 were built against P18's, and it was wrong in four ways; three were found by an item trying to BUILD
 from it and one by trying to LOAD it. `check-docs` executes every snippet in `AGENTS.md` and nothing
-executes a plan's — [Q292](../open-questions.md).
+executes a plan's — [Q292](../questions/q292.md).
 
 **A refusal that is right for one caller is wrong for another, and the argument for it reads the
 same.** `bootstrap`'s *a group registered and used by nothing is the silent kind* is correct when a
 consumer passes group OBJECTS in and wrong when a DOCUMENT declares the SET a node's `workerGroups`
 may name. Nothing distinguished the two callers, and the message told a runtime consumer to do a
-thing only a helper consumer can do — [Q291](../open-questions.md).
+thing only a helper consumer can do — [Q291](../questions/q291.md).
 
 **And a crash is not a detection, in the two blocks added AFTER the guard that says so.** W59 closed
 that shape for the row loop; this item's own rule 8 re-run found it twice in what W67 added — the
@@ -379,12 +379,12 @@ and was not re-taken.*
 
 ### Questions raised
 
-[Q289](../open-questions.md) — `runtime.start` starts the run INSIDE the call, so a harness observing
-per fold input has a window before it holds the driver. [Q290](../open-questions.md) — a per-run knob
-has no document spelling, and the one this rung has is inert at L6 ([Q99](../open-questions.md) with a
-figure). [Q291](../open-questions.md) — `bootstrap`'s `groups` argument now means two different things
-depending on the caller. [Q292](../open-questions.md) — a plan's sample is executed by nothing.
-**[Q279](../open-questions.md) is RESOLVED**: both manifests read `0.2.0` and `README.md` names the
+[Q289](../questions/q289.md) — `runtime.start` starts the run INSIDE the call, so a harness observing
+per fold input has a window before it holds the driver. [Q290](../questions/q290.md) — a per-run knob
+has no document spelling, and the one this rung has is inert at L6 ([Q99](../questions/q99.md) with a
+figure). [Q291](../questions/q291.md) — `bootstrap`'s `groups` argument now means two different things
+depending on the caller. [Q292](../questions/q292.md) — a plan's sample is executed by nothing.
+**[Q279](../questions/q279.md) is RESOLVED**: both manifests read `0.2.0` and `README.md` names the
 breaking change. **Census 230 / 176 / 2 / 52**, 0 aborts on a parser written from scratch — and it was
 wrong once before it was right, adding its three declared exempt rows to the three counts and not to
 the TOTAL; it says so and exits 1 rather than printing a plausible sum, which is what an aborting

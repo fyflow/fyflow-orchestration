@@ -36,7 +36,7 @@ export function matrixRows() {
  *
  * **They are rendered**, and that is the point of the function existing at all.
  * A deliverable no script prints is the defect `render.ts` was reduced to two
- * lines over ([Q100](../../doc/open-questions.md)), and four rows asserted but
+ * lines over ([Q100](../../doc/questions/q100.md)), and four rows asserted but
  * never shown would be the same thing with the halves swapped.
  */
 export function nestedRows() {
@@ -54,7 +54,7 @@ export function nestedRows() {
  *
  * **They are RENDERED, and that is the point of the function existing.** A
  * deliverable no script prints is the defect `render.ts` was reduced to two lines
- * over ([Q100](../../doc/open-questions.md)), and five rows asserted but never
+ * over ([Q100](../../doc/questions/q100.md)), and five rows asserted but never
  * shown would be the same thing with the halves swapped — which is the argument
  * `nestedRows` already makes, applied to the rows this item added.
  */

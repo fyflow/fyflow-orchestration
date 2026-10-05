@@ -13,7 +13,7 @@ resolves: ""
 # ADR 0015 — A run whose join can no longer fire is `stuck`, the fold is what decides it, and `regions` did not already hold the data
 
 **Status:** accepted — **one clause corrected in place, 2026-08-30**, see *Correction*
-**Raised by:** [Q43](../open-questions.md) and [Q42](../open-questions.md), taken by
+**Raised by:** [Q43](../questions/q43.md) and [Q42](../questions/q42.md), taken by
 [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md) under
 [P1](../plans/p1-what-satisfies-a-join.md)
 
@@ -33,7 +33,7 @@ and became output.
 
 ### `regions` did not already hold the data, and finding that out is most of this decision
 
-[Q43](../open-questions.md) reads: *"`regions` already records `{0: arrived, 1: exited}`, so the
+[Q43](../questions/q43.md) reads: *"`regions` already records `{0: arrived, 1: exited}`, so the
 information is present and the precedence in section 3 does not look at it."*
 
 **That is wrong, and it was found by trying to act on it.** On `p1-routed-away`, `regions.split` is
@@ -53,7 +53,7 @@ So the fix costs **one new fact**, not a precedence tweak. This is the fourth in
 section exists because W2's code resolved three of them by narrowing itself until the claim was
 unobservable. This one is recorded and paid for instead.
 
-### Where the predicate lives — [Q42](../open-questions.md), and it is answered by where the data is
+### Where the predicate lives — [Q42](../questions/q42.md), and it is answered by where the data is
 
 Q42 asks where the stuck-join predicate belongs. W4 computed it in a test, from the driver's public
 surface: every dispatched task has an outcome, nothing is suspended, the join has not fired. The
@@ -86,14 +86,14 @@ not three lines a consumer writes — it is the outcome the fold already compute
    `branch.suspended` exists (ADR 0004). Above `failed`, because `failed` is a flow outcome an author
    asked for (*a path ended with no eligible edge*) and this is a defect nobody asked for: reporting
    `failed` would name a cause and hide that the run is not going to terminate.
-5. **The stuck-join predicate lives in the fold, as a run outcome — [Q42](../open-questions.md)
+5. **The stuck-join predicate lives in the fold, as a run outcome — [Q42](../questions/q42.md)
    answered.** Not on `Driver`, which would grow the copy of run truth W3's scope caps; not in a
    test, which is where W4 had to leave it; not re-derived per consumer. `isTerminal(state)` is the
    one-line form a caller wants and it is the fold's.
 6. **Nothing in `src/` polls it and nothing times out.** Detection needs no clock — it is decidable
    from the sequence, which is what ADR 0003's *Consequences* already recorded — and
-   [Q7](../open-questions.md) keeps only its *should a join time out for some other reason* half.
-   **Who watches a live run is still [Q37](../open-questions.md)** and is untouched.
+   [Q7](../questions/q7.md) keeps only its *should a join time out for some other reason* half.
+   **Who watches a live run is still [Q37](../questions/q37.md)** and is untouched.
 
 ## Consequences
 
@@ -111,7 +111,7 @@ the stuck run folded to `completed`, which is a worse failure than hanging.
    reader may now reasonably ask why a policy that yields `stuck` on six of nine rows is exported at
    all. The answer is unchanged and it is a testing answer, not a recommendation.
 2. **`RunOutcome` grew, and it is a closed vocabulary consumers switch on.** Q25 settled the
-   vocabulary at five two work items ago. Six is not obviously the end: [Q7](../open-questions.md)'s
+   vocabulary at five two work items ago. Six is not obviously the end: [Q7](../questions/q7.md)'s
    timed-out join, if it ever lands, is the seventh candidate and `RN-R7`'s note already predicts it
    reuses this shape.
 3. **`joined` is a field a policy's behaviour writes into run state**, one indirection removed from
@@ -133,12 +133,12 @@ the stuck run folded to `completed`, which is a worse failure than hanging.
 first thing the word suggests and it is the opposite of what this is: a clock would turn a decidable
 property into a wall-clock guess, and would report a slow run as a broken one. It also forbids
 tightening `completed` instead of adding an outcome — *"`completed` requires every region joined"*,
-the second option [Q43](../open-questions.md) offers — because that leaves the stuck run falling
+the second option [Q43](../questions/q43.md) offers — because that leaves the stuck run falling
 through to `failed` or to nothing, and says the run is over without saying it can never finish.
 
-**What it does not decide.** Whether a stuck run is *recoverable* — [Q38](../open-questions.md) asks
+**What it does not decide.** Whether a stuck run is *recoverable* — [Q38](../questions/q38.md) asks
 the same of a `stopped` one and neither is answered here. Nor what a consumer should **do** about a
-`stuck` run: there is no cancel ([Q18](../open-questions.md), [S2](../scheduler-upstream.md)), so
+`stuck` run: there is no cancel ([Q18](../questions/q18.md), [S2](../scheduler-upstream.md)), so
 today the honest answer is that it can be reported and abandoned.
 
 ## Alternatives rejected
@@ -146,8 +146,8 @@ today the honest answer is that it can be reported and abandoned.
 | | why not |
 |---|---|
 | **Leave it — record Q43 again and let P2 fix it** | The false statement would ship in the same commit as a real run that demonstrates it, which is the position ADR 0003 was already corrected once for being in. W5 is also the only work item that will ever produce the evidence, since it is the only one with a real scheduler |
-| **Tighten `completed` to require every region joined, and add no outcome** | [Q43](../open-questions.md)'s own second option. The run then falls through to `failed` — naming a cause that did not happen — or to nothing, and a `RunOutcome` with a hole is worse than one with a sixth value. It also loses the distinction rule 4 spends its length on |
-| **Compute the predicate on `Driver` — `isJoinStuck(fanoutId)`** | W4's shape, promoted. Rejected on W3's scope: the driver holding the only copy of run truth is a cost [ADR 0001](0001-routing-executes-in-the-driver-outside-the-scheduler.md) *accepted* rather than chose, and every question it answers about a run is a reason it can never be dropped ([Q15](../open-questions.md)). It also splits the answer — *"is the run stuck"* on the driver, *"what is the run"* in the fold |
+| **Tighten `completed` to require every region joined, and add no outcome** | [Q43](../questions/q43.md)'s own second option. The run then falls through to `failed` — naming a cause that did not happen — or to nothing, and a `RunOutcome` with a hole is worse than one with a sixth value. It also loses the distinction rule 4 spends its length on |
+| **Compute the predicate on `Driver` — `isJoinStuck(fanoutId)`** | W4's shape, promoted. Rejected on W3's scope: the driver holding the only copy of run truth is a cost [ADR 0001](0001-routing-executes-in-the-driver-outside-the-scheduler.md) *accepted* rather than chose, and every question it answers about a run is a reason it can never be dropped ([Q15](../questions/q15.md)). It also splits the answer — *"is the run stuck"* on the driver, *"what is the run"* in the fold |
 | **Infer it from `nodes` — the join's successor was never dispatched** | Needs the definition, which the fold does not have and `RN-R4` says it must not acquire. It is also the reading `RN-R6` suggests and it is why that sentence is now qualified |
 | **A seventh region event, `join.settled`** | It would be forwarded to `policy.step()` by `JP-R4`, where a policy would be told its own conclusion. `spec/join-policy.md`'s six events are the vocabulary a **policy** consumes; this fact is for the fold |
 | **Detect it with a timeout** | A wall-clock guess on top of an already-certain answer, and ADR 0003 already recorded that detection needs no clock. It would also make a slow run indistinguishable from a broken one, which is the failure the timeout was supposed to prevent |
@@ -168,7 +168,7 @@ field a policy's behaviour reaches"*, and that is over-broad: the two policies a
 `nodes` (the join's successor is dispatched or is not), different `pathEnds`, and therefore different
 `outcome`. **Third occurrence of an over-broad enumeration inside an otherwise-correct claim** — the
 others are [ADR 0003](0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)'s dated
-correction and [Q43](../open-questions.md), which is what this ADR was written to fix.
+correction and [Q43](../questions/q43.md), which is what this ADR was written to fix.
 `spec/run-state.md` `RN-R11` now says *the only one decidable without the definition*, which is the
 true statement and is the one the conclusion actually needs.
 
@@ -179,7 +179,7 @@ the two-driver form, which is what both tests already did.
 
 **Two of `RN-R10`'s own cases had no test**, and both are reachable: a run with **more than one
 region** (`some` versus `every` — they differ only when one join fired and another did not, which is
-the two-sequential-fan-outs shape of [Q45](../open-questions.md)), and a **fan-out entry**, which
+the two-sequential-fan-outs shape of [Q45](../questions/q45.md)), and a **fan-out entry**, which
 `FD-V3` permits — it opens a region before anything is dispatched, and without section 3's
 nothing-dispatched clause that state is `stuck` and `isTerminal`, so a harness would declare such a
 run finished before it started. Both are tested now.

@@ -55,7 +55,7 @@ Reserves:   Q320-Q329, ADR 0058-0059 (0059 expected unused)
 1. **`runtime.start` returns `RunHandle` — `{ driver, done }`.** The BREAKING road, the maintainer's
    answer to P20 stop-and-ask (a), taken on the plan's own lean and on the price re-measured here.
    `0.2.0` → `0.3.0` in both manifests, on [ADR 0048](../decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)/[W67](w67-a-flow-from-documents-on-real-workers.md)'s
-   precedent — [Q279](../open-questions.md)'s answer is the procedure.
+   precedent — [Q279](../questions/q279.md)'s answer is the procedure.
 2. **`done` resolves with the terminal `RunState` and never rejects.** The maintainer's answer to
    stop-and-ask (c), and it **reversed the plan's lean on a measurement** — see finding B.
 3. **The mechanism is one `RunState` stepped per input**, not the inputs kept and not `fold`
@@ -79,9 +79,9 @@ Reserves:   Q320-Q329, ADR 0058-0059 (0059 expected unused)
 - **`src/driver/driver.ts`.** P20's Scope Out makes editing it for more than a type export a
   tripwire. This item does not edit it at all: ADR 0014 rule 3's `onFoldInput` is the push half a
   caller was given, and the runtime is a caller.
-- **[Q289](../open-questions.md).** Fact 4C shows a promise is immune to that window; the row is
+- **[Q289](../questions/q289.md).** Fact 4C shows a promise is immune to that window; the row is
   about a CLOSURE that needs the driver binding and `done` gives such a closure nothing. Untouched.
-- **[Q19](../open-questions.md)/[Q22](../open-questions.md).** Not reopened — but P20's Scope Out
+- **[Q19](../questions/q19.md)/[Q22](../questions/q22.md).** Not reopened — but P20's Scope Out
   obliges this item to PRICE what it retains, and finding D is that price.
 
 ## What this declaration step MEASURED, and what it corrects
@@ -100,7 +100,7 @@ files**, identical before the first probe and after the last, `git status` clean
 
 **Five findings. A corrects the number the plan's stop-and-ask is priced on; B REVERSES the plan's
 lean on stop-and-ask (c); C is a departure from decision 2's letter; D is the price P20's Scope Out
-demands; E is a third instance of [Q253](../open-questions.md).**
+demands; E is a third instance of [Q253](../questions/q253.md).**
 
 ### Finding A — **fact 5c is 31, not 30, and the shape matters more than the count**
 
@@ -129,7 +129,7 @@ lanes.* (`README.md`'s three snippets do not bind the result, so `X8`'s pairs ne
 not assumed.) The same paragraph also read *24 `start` call sites*: 24 is a grep count, and one of
 them is a string literal and one is a `Driver.start`.
 
-*This is [Q317](../open-questions.md)'s shape one level up — a measured PRICE whose inputs a later
+*This is [Q317](../questions/q317.md)'s shape one level up — a measured PRICE whose inputs a later
 item moved — and nothing in rule 8 names it, because a price is not a probe.*
 
 ### Finding B — **stop-and-ask (c) REVERSES: a driver refusal is ALREADY terminal, and the reject road KILLS THE CONSUMER'S PROCESS**
@@ -271,9 +271,9 @@ N `RunState`s. The honest residue is stated rather than hidden: a consumer who u
 machinery at all now pays one copy they did not before, **and one `structuredClone` per settlement
 they did not either**, because `start` installs an `onFoldInput` unconditionally and `freezeInput`
 clones only when one is present (the conformity reader's finding 8 — the CPU half, which the first
-version of this finding named nowhere). [Q320](../open-questions.md).
+version of this finding named nowhere). [Q320](../questions/q320.md).
 
-### Finding E — **P20 fact 6A's printed line is now FALSE, and it is the third instance of [Q253](../open-questions.md)**
+### Finding E — **P20 fact 6A's printed line is now FALSE, and it is the third instance of [Q253](../questions/q253.md)**
 
 `fact6-forward.ts` prints `the same run via runtime.start() would see: 0 — StartOptions has no
 onRegionEvent entry (fact 1)`. W76's finding C established that this is a SENTENCE and not a
@@ -290,14 +290,14 @@ falsifies.*
 |---|---|---|
 | `package.json`, `deno.json` | CONDITIONAL on stop-and-ask (a) | **CONFIRMED and they are in `Owns`** — the maintainer chose BREAKING, so the version moves in both, `0.2.0` → `0.3.0`. Grepped: the version literal occurs in exactly those two files plus `doc/**` history, so no third manifest is involved |
 | `examples/run-flow.ts` | predicted UNNEEDED — *L6 and run-flow.ts are W78's* | **WRONG, and forced by the maintainer's answer**: the breaking road makes 12 typecheck errors there, so `npm run typecheck` is RED until they are fixed and this item cannot ship green without editing it. **Declared here, before the work starts.** The edit is the MINIMAL destructure at one `const driver =` and nothing else — converting that harness to `done` is W78's, and P20 stop-and-ask (e) warns that a `done` absorbing its `finishedBy` claim would delete the assertion ADR 0014 was corrected to carry |
-| `test/definition/l4-corpus.test.ts` | **NOT SEEDED — W76 took it LATE** | the suite CENSUS is a standing obligation on any item adding a suite ([Q102](../open-questions.md)'s shape). **Declared UP FRONT here** rather than found by a reader, which is W76's own lesson |
+| `test/definition/l4-corpus.test.ts` | **NOT SEEDED — W76 took it LATE** | the suite CENSUS is a standing obligation on any item adding a suite ([Q102](../questions/q102.md)'s shape). **Declared UP FRONT here** rather than found by a reader, which is W76's own lesson |
 | `scripts/build-browser-tests.mjs` | **NOT SEEDED — W76 took it LATE** and it now inlines `src/scheduler/runtime.ts` and `src/driver/driver.ts` as TEXT | **PREDICTED ZERO EDITS AND THE PREDICTION WAS WRONG — a FOURTH late exception, and the gate is what said so.** The type-export binding reads `src/scheduler/index.ts`, `bootstrap.ts` and `envelope-worker.ts`, none of which the bundle carried; all three are inlined now and it goes **92 -> 95 fixtures**. *The row above claimed the browsers were green at parity and cited that as "the measurement rather than the assumption" — it was neither: the browser rung had exited **1** and its count line was read instead of its exit code.* The SIXTH time a suite reading a file outside `spec/examples/` has reached this list |
 | `scripts/check-docs.mjs` and its self-test | predicted UNNEEDED — no snippet added or removed | **CONFIRMED, and `RUN_FLOOR` MEASURED rather than left**: `check:docs` reports **33 snippets — 27 run, 6 check — UNMOVED**, because this item edits three snippets and adds none. *`check:docs` went RED in between, at `X3`/`X4`/`X5`, which is the sixth lane and not a floor* |
 | `scripts/check-source.mjs` | predicted UNNEEDED — no new gate entry, no new published module | **CONFIRMED, MEASURED** — green throughout, including after `src/scheduler/index.ts` gained two type re-exports, which adds no `src/**` file for `S6` and no construction for `S16` |
 | `src/driver/driver.ts` | predicted UNNEEDED, and a SCOPE TRIPWIRE | **ZERO edits — the tripwire is clean**, confirmed by the conformity reader's own `git status`. ADR 0014 rule 3's `onFoldInput` is the push half a CALLER was given, and the runtime is a caller, so nothing here needed the driver to change |
 | `src/scheduler/index.ts` | **NOT SEEDED — LATE** | the sub-path's type export is an explicit ALLOWLIST, and `RunHandle` — this item's headline type — shipped declared and unexported through the whole author pass. Found by the conformity reader; writing the both-ways binding then found `RuntimeRegistry` missing too |
 | `AGENTS.md` | W78's | **WRONG, and it is this item's ONE LATE exception.** The breaking road broke three `AGENTS.md` snippets that BIND the result, so `check:docs` went red at `X3`, `X4` and `X5` and this item cannot ship green without them — the sixth lane finding A now records. Three minimal destructures, plus the two prose claims this item FALSIFIED (§2's *"`start` hands back a `Driver`"* and §12's *"`start` returns a `Driver`, already started"*, the latter one line from a destructure this item wrote). **The thirteen-copy rewrite is still W78's.** *Undeclared until the conformity reader ran `git diff --name-only` by hand — the fourth consecutive item on which that is how it was found, and this item's declaration positively assigned the file to W78* |
-| `README.md` | W78's, *"the record step's one prose claim"* | **TAKEN, and for THREE claims rather than one.** §2's snippet comment, which `X8` holds byte-equal to `AGENTS.md`'s (so it is edited identically in both or the check goes red — the tripwire working); the *"hands back a `Driver` per run"* sentence in the opening; and the version banner, which said **`0.2.0`** while the manifests now read `0.3.0`. The last is [Q279](../open-questions.md)'s procedure and is where a consumer reads a breaking change first |
+| `README.md` | W78's, *"the record step's one prose claim"* | **TAKEN, and for THREE claims rather than one.** §2's snippet comment, which `X8` holds byte-equal to `AGENTS.md`'s (so it is edited identically in both or the check goes red — the tripwire working); the *"hands back a `Driver` per run"* sentence in the opening; and the version banner, which said **`0.2.0`** while the manifests now read `0.3.0`. The last is [Q279](../questions/q279.md)'s procedure and is where a consumer reads a breaking change first |
 | `scripts/check-markdown.mjs` | predicted UNNEEDED — Q142's window re-measured before the record step | measured at this declaration: **`M3` = 107 against a fixture of 102, margin 5**; `M4` = 4450 against 4279, margin 171. This item adds ONE work-item file (in `doc/work-items`, which the `doc/decisions` probe does NOT cut, so that fixture goes 102 → 103, **margin 4**) and ONE ADR (in `doc/decisions`, which it DOES cut). **Predicted NOT to fire**; re-measured before the record step |
 
 ## Verification
@@ -316,7 +316,7 @@ piped, and read by `$?`** (`doc/workflow.md` section 4). Node 24 is asserted in 
 | L6, both runtimes | `npm run test:l6` and `npm run test:l6:deno` — **expected UNMOVED at 1627 / 53** |
 | whole gate | `npm run gate > … 2>&1; echo "GATE EXIT=$?"`, tree held STILL, content digest at both ends |
 | rule 8 | `node dev-dist/w77/rule8.mjs`, twice — the author pass and a re-run with the readers' exact edits checked back in |
-| **W76's 25 declared probes** | **RE-RUN here**, because this item edits both files their anchors live in — `doc/workflow.md` rule 8's dated-ceiling clause, and [Q317](../open-questions.md) is read before any DECLARED verdict from them is trusted |
+| **W76's 25 declared probes** | **RE-RUN here**, because this item edits both files their anchors live in — `doc/workflow.md` rule 8's dated-ceiling clause, and [Q317](../questions/q317.md) is read before any DECLARED verdict from them is trusted |
 | both readers | conformity and adequacy per section 6, adequacy in an isolated copy, both reading P20, ADR 0014 and Q293 before the artifact |
 
 *This item touches routing not at all. A branch routed away from its join (Q4), `user_action` (Q17),
@@ -348,9 +348,9 @@ Node 24.20.0 asserted in every shell.
 | rule 8, author pass | **RAN, and it EARNED its place** | first run: 25 probes, **4 CRASHES and 3 UNDECLARED survivors**. The crashes were unbounded awaits hanging the runner (exit 13, zero FAIL lines); closing them made `done`'s non-settlement a NAMED failure. Two of the three survivors were the invariant and the `RN-R2` comparison re-sourceable to THEMSELVES. Final author pass: **25 probes, 18 caught, 6 declared ceilings, 0 undeclared, 0 crashes, 0 aborts** |
 | rule 8, RE-RUN with the readers' exact edits checked back in | **RAN** | **34 probes: 1 control green, 28 caught, 5 declared ceilings RUN, 0 UNDECLARED survivors, 0 crashes, 0 aborts, 0 against declaration.** All NINE of the readers' edits FIRE. Digest identical at both ends of every pass. *Run BEFORE the browser-bundle fix in What broke (11), and unaffected by it: no probe here runs the browser rung — the five they use are `lint`, `typecheck:tests`, `typecheck:examples`, `npm test` and `check:docs`, plus `check:source` for one ceiling* |
 | **W76's 25 probes, re-run HERE** | **RAN — 23 caught, 1 declared ceiling, ZERO catches** | `doc/workflow.md` rule 8's dated-ceiling clause, in the item that edits both files their anchors live in. W76's set holds entirely on this tree |
-| [Q142](../open-questions.md) | **measured, does NOT fire** | `M3 = 107` against a fixture of **103** (margin 4), `M4 = 4450` against **4309** (margin 141). Predicted at the declaration step as 102 -> 103 — this item adds one file to `doc/work-items`, which neither probe cuts, and one to `doc/decisions`, which one does |
+| [Q142](../questions/q142.md) | **measured, does NOT fire** | `M3 = 107` against a fixture of **103** (margin 4), `M4 = 4450` against **4309** (margin 141). Predicted at the declaration step as 102 -> 103 — this item adds one file to `doc/work-items`, which neither probe cuts, and one to `doc/decisions`, which one does |
 | `Owns` audit | **THREE LATE exceptions, all declared before the Record** | `git status --porcelain` by hand. `Owns` (4) + `examples/run-flow.ts` and `test/definition/l4-corpus.test.ts` (declared UP FRONT — W76's lesson taken) + **`AGENTS.md`, `README.md` and `src/scheduler/index.ts` LATE** + the six record-step files + this file and its ADR. `src/driver/driver.ts` **ZERO edits** and `scripts/**` untouched, so P20's scope tripwire is clean |
-| census | **248 / 191 / 2 / 55**, 248 of 248 in exactly one cluster cell, **0 aborts** | from 244 / 187 / 2 / 55, by `dev-dist/p15/census.mjs` unchanged: Q320-Q323 raised and placed. The register's headline was stale at 241 / 185 through the whole of W76 and is corrected here — [Q253](../open-questions.md), fourth plan running |
+| census | **248 / 191 / 2 / 55**, 248 of 248 in exactly one cluster cell, **0 aborts** | from 244 / 187 / 2 / 55, by `dev-dist/p15/census.mjs` unchanged: Q320-Q323 raised and placed. The register's headline was stale at 241 / 185 through the whole of W76 and is corrected here — [Q253](../questions/q253.md), fourth plan running |
 | `npm run gate`, CONFIRMING (first run) | **GATE EXIT=1, ONE FAIL line** | `check:markdown` 136 / 5903 / 290, `check:docs` 33 / 27 / 6, L1-L5 1269 in node, deno and chromium — and **chromium RED**: `fixture not inlined in the browser bundle: src/scheduler/index.ts`. Digest `4026ddaf2d716c19` over 364 files, IDENTICAL before and after, so the tree did not move while it ran. **The gate caught what a grep had reported green** |
 | `npm run gate`, CONFIRMING (over the final tree) | **GATE EXIT=0, ZERO lines beginning `FAIL` at any indent**, `selftests` **8/8 completed, 8 ok, 888.5 s wall over 6 lanes** | `check:spec` **7 / 61 / 107 — UNMOVED**; `check:docs` **33 snippets: 27 run, 6 check — UNMOVED**, `X8` still comparing its three README pairs byte for byte; `check:source` **23 published files, 16 gate entries**; `check:markdown` **136 / 5904 / 290**; L1-L5 **44 files / 1269 assertions in node 24.20.0, deno 2.9.6 and chromium**; **L6 1627 assertions, 0 failed, 53 real runs on `fyflow-scheduler` 0.5.2 in BOTH runtimes — UNMOVED**. Digest **`062f53a072581136` over 364 files, IDENTICAL before and after**, with no edit made while it ran; **this row is the ONE edit after it**, and `check:markdown` — the only rung that reads `doc/work-items/**` — was re-run over it |
 
@@ -358,10 +358,10 @@ Node 24.20.0 asserted in every shell.
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| (1) `start` returns `{ driver, done }`, version moved in both manifests | **yes** — ADR 0058, the BREAKING road | `a6` (the whole revert): red at `typecheck:tests`, `typecheck:examples`, `npm test` and `check:docs`. `b1` (the interface narrowed alone): 41 + 2 typecheck errors and `X3`/`X5`. **The version itself is bound by NOTHING — `e3` and `e4` are declared ceilings and [Q322](../open-questions.md)** |
+| (1) `start` returns `{ driver, done }`, version moved in both manifests | **yes** — ADR 0058, the BREAKING road | `a6` (the whole revert): red at `typecheck:tests`, `typecheck:examples`, `npm test` and `check:docs`. `b1` (the interface narrowed alone): 41 + 2 typecheck errors and `X3`/`X5`. **The version itself is bound by NOTHING — `e3` and `e4` are declared ceilings and [Q322](../questions/q322.md)** |
 | (2) `done` resolves with the terminal state and NEVER rejects | **yes** | `b2` (made to reject): a **DECLARED CRASH** — it kills the runner rather than failing it, because most cases never attach to their handle. `a3`/`r-a1`/`r-a4` (the predicate weakened three ways): caught by the six-outcome enumeration |
 | (3) ONE `RunState`, `step`ped per input, predicate at a microtask | **yes** | `a1`, `a2` (the scheduling or the step deleted): 13 and 10 failures. `a5` (the microtask removed): **7** — ADR 0058 rule 6's quiescence is genuinely load-bearing. `b3`/`r-a3` (the two alternative mechanisms): caught by the source binding, since what separates them is retention and time, which no rung weighs |
-| (4) `onFoldInput` COMPOSED, the binding at THREE roads | **yes** | `b4` (the hand-on deleted): 12 failures. `d1`, `d2`, `d3` (the road dropped, neutered, compounded). `e2`/`r-a9` (the ORDER reversed): the discriminating pair. **`d4` is a declared ceiling — a PIN has one observer by construction, [Q217](../open-questions.md)** |
+| (4) `onFoldInput` COMPOSED, the binding at THREE roads | **yes** | `b4` (the hand-on deleted): 12 failures. `d1`, `d2`, `d3` (the road dropped, neutered, compounded). `e2`/`r-a9` (the ORDER reversed): the discriminating pair. **`d4` is a declared ceiling — a PIN has one observer by construction, [Q217](../questions/q217.md)** |
 | (5) `done` and a caller's own fold are the same expression, neither downstream | **yes** | `b5`, `c1`, `c2` (the invariant re-sourced, alone and compounded). **`r-a3` is the reader's version of the same claim from the SUBJECT side** — the runtime computing `done` from `foldInputs()` made it one route compared with itself, at zero, until the source binding |
 | (6) `RN-R1`/`RN-R2` at L3 | **yes** — every prefix, not only the end | `b6` (the prefix comparison re-sourced to itself). `r-a4`: **P20 decision 2's own named failure**, `isTerminal` reimplemented in the runtime for ZERO, caught by the source binding |
 
@@ -394,7 +394,7 @@ Node 24.20.0 asserted in every shell.
    keeps the process alive — so on a real scheduler the defect closed in (4) costs **no verdict at
    all** rather than exit 13. *The fix for a reader's finding reintroduced the defect the author pass
    had just closed, one case over*, which is rule 8's founding observation and exactly what v0.8's
-   *re-run the set after acting on the readers* is for. [Q323](../open-questions.md).
+   *re-run the set after acting on the readers* is for. [Q323](../questions/q323.md).
 6. **Killing that harness left the tree MUTATED.** v0.17 requires an abort to undo what it applied
    and a content digest at both ends, and both are about a probe that RETURNS: a harness killed
    between apply and restore satisfies neither. `queueMicrotask(settleIfTerminal);` was still deleted
@@ -404,7 +404,7 @@ Node 24.20.0 asserted in every shell.
    `foldInputs()`, and the machinery's comment quotes `foldInputs()` while explaining why it does
    not — W25's *a comment that quotes the code it explains makes that code unmutatable*, in the
    mirror direction: it made correct code unreadable. Comment lines are stripped now.
-8. **A shell heredoc ate `\n` escapes three times** ([Q272](../open-questions.md), the rule
+8. **A shell heredoc ate `\n` escapes three times** ([Q272](../questions/q272.md), the rule
    `CLAUDE.md` carries and which P19 broke eight times and W76 twice). Once it wrote a real newline
    into a string literal and the test file stopped parsing. Written as files thereafter, and the two
    literals that keep being mangled are now module-scope constants.
@@ -449,7 +449,7 @@ breaking road at 30 typecheck errors; W76 then added three suites to one of the 
 and the number this item's stop-and-ask was to be decided on was stale before the item began. It went
 to **31**, so the conclusion held — but the sharper half is *why* it barely moved: **the price is a
 count of USES of the returned value, not of `start` call sites**, and one file's twelve errors
-collapsed to a single edit. That is [Q317](../open-questions.md)'s shape one level up — a dated
+collapsed to a single edit. That is [Q317](../questions/q317.md)'s shape one level up — a dated
 ceiling is a claim with an expiry date, and so is a dated measurement — except that a ceiling has a
 harness that can re-run it and a price has nothing.
 
@@ -483,10 +483,10 @@ claim carries both numbers or neither. **One occurrence, and it is offered as an
 than a proposal**, because the clause is right and it was the reading that failed; P20's retro is
 where it belongs.
 
-**Questions raised.** [Q320](../open-questions.md) (what an always-on handle retains and clones, and
+**Questions raised.** [Q320](../questions/q320.md) (what an always-on handle retains and clones, and
 the lazy road refused because the breaking road hands `done` to everyone),
-[Q321](../open-questions.md) (a promise a library makes for every call cannot be bounded by a test
-helper), [Q322](../open-questions.md) (nothing binds the version to the API's shape, and the two
-manifests can disagree for zero), [Q323](../open-questions.md) (an unsettled await on a real
+[Q321](../questions/q321.md) (a promise a library makes for every call cannot be bounded by a test
+helper), [Q322](../questions/q322.md) (nothing binds the version to the API's shape, and the two
+manifests can disagree for zero), [Q323](../questions/q323.md) (an unsettled await on a real
 scheduler hangs rather than fails, and a harness killed mid-probe leaves the tree mutated).
 **Q324-Q329 remain for W78.**

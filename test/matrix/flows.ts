@@ -133,7 +133,7 @@ export const sixEvents: FlowDefinition = {
  * that edge the ambiguity does not exist and the flow proves nothing.
  *
  * Whether `spec/` should refuse this shape, support it explicitly, or leave it as
- * it is, is [Q45](../../doc/open-questions.md).
+ * it is, is [Q45](../../doc/questions/q45.md).
  */
 export const twoRegions: FlowDefinition = {
   flowId: 'matrix-two-regions',

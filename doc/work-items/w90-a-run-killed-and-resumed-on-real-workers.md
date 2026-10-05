@@ -80,7 +80,7 @@ taken — so this item takes none. W91 stays reserved and expected unused.*
 
 - **`src/**`, `spec/**`, `test/**`** — a defect found there is a stop-and-ask; L1-L5 must be UNMOVED.
 - **Storage and serializers, redaction, any memory option** — P23 decisions 1 and 8.
-- **Exactly-once, a retry budget carried across a resume ([Q365](../open-questions.md)), a scheduler
+- **Exactly-once, a retry budget carried across a resume ([Q365](../questions/q365.md)), a scheduler
   that persists its own queue** — P23 decision 6 and Out.
 - **A killed PROCESS.** The artifact kills a RUNTIME inside one process; what a real crash loses that
   this does not — module-level state an inline worker keeps — is recorded, not simulated.
@@ -167,7 +167,7 @@ and deno 2.9.6, from 1833 / 60 — exactly the +20 assertions and +40 runs the d
 | `check:docs:selftest` | **34 / 34 probes caught** — after one red run the item caused and fixed (What broke 3) |
 | `check:spec` | **7 / 61 / 120** — unmoved |
 | `check:markdown` | **153 documents, 6980 links, 374 anchored** before the record step, from 152 / 6955 / 374 — see the gate row for the tree that ships |
-| `npm run gate` | **`GATE EXIT=0`, zero `FAIL` lines**, 1354 s; `selftests` 8 / 8 in 1240.6 s wall ([Q373](../open-questions.md)); spec 7 / 61 / 120, markdown **153 / 7011 / 378**, docs 36 / 30 / 6, L1-L5 51 / 1376 in node, deno and chromium, L6 1853 / 100 in node and deno; content digest `3d1249b7317910ed` over 397 files identical at both ends — taken on the tree with this Record written but for this cell. Baseline, on `3635789` plus the declaration: `GATE EXIT=0`, 1448 s, `selftests` 1346.5 s, digest `f2677fd204e846a4` identical at both ends |
+| `npm run gate` | **`GATE EXIT=0`, zero `FAIL` lines**, 1354 s; `selftests` 8 / 8 in 1240.6 s wall ([Q373](../questions/q373.md)); spec 7 / 61 / 120, markdown **153 / 7011 / 378**, docs 36 / 30 / 6, L1-L5 51 / 1376 in node, deno and chromium, L6 1853 / 100 in node and deno; content digest `3d1249b7317910ed` over 397 files identical at both ends — taken on the tree with this Record written but for this cell. Baseline, on `3635789` plus the declaration: `GATE EXIT=0`, 1448 s, `selftests` 1346.5 s, digest `f2677fd204e846a4` identical at both ends |
 | Q142, measured BEFORE the record step | probe 1 (`doc/decisions` cut) **116 files against `M3`'s 123 — margin 7**, as P23's declaration predicted; probe 2 (`doc/decisions` + `doc/plans` cut) **5166 links against `M4`'s 5270 — margin 104**, from 129; **re-measured AFTER the record step: `M3` 7, `M4` 78** *(**77 on the tree this item ships** — P23's
 retro, pass 3 rule 6, by W88's `q142.py` unchanged: the gate cell above was filled after this
 measurement and carries one more link)* — Q142 does not fire, and the next item that adds a document outside `doc/decisions` takes `M3` to 6 |
@@ -180,14 +180,14 @@ measurement and carries one more link)* — Q142 does not fire, and the next ite
 | 2 | the re-dispatch as a count and by id, three ways | claims (2) and (3) — `a1`-`a3`, `a5`, `c2`, `r1`-`r5`; control K = 1 — `c1` |
 | 3 | the selections, each where the wrong one differs | the cut — claim (13)-(14), `r7`; the store's keys — `a6`; the header — `a7`; the parked task — `a4`; completed identically — `a8b`, `r5` |
 | 4 | `AGENTS.md` section 18 and `README.md`'s sixth fence | `X8` — `b6`, `b7`; `X4` — `e3`, `e4`; the snippet's own guards are ceilings `b8`-`b10` with L6 as second observer |
-| 5 | `0.5.0`, and six breaking changes named | `X9` — `b3`-`b5`; the three sites together are a CEILING, `r9` ([Q377](../open-questions.md)) |
+| 5 | `0.5.0`, and six breaking changes named | `X9` — `b3`-`b5`; the three sites together are a CEILING, `r9` ([Q377](../questions/q377.md)) |
 | 6 | the L6 counts moved together | `DECLARED_TOTAL`, `CROSS_ROW`, `CROSS_ROW_SUBJECTS`, and control 4's `runs 40` — `d4` (ceiling, Q217), `d5`, `r8` |
 
 ### What broke, and the rung that caught it
 
 | | what | rung |
 |---|---|---|
-| 1 | **P23's exit artifact assumed a shutdown kills a run, and `shutdown()` DRAINS** — in both runtimes a run one settlement in completed inside it; a pending retry never ran | none; the declaration step's re-take 2, measured before it was relied on ([Q376](../open-questions.md)) |
+| 1 | **P23's exit artifact assumed a shutdown kills a run, and `shutdown()` DRAINS** — in both runtimes a run one settlement in completed inside it; a pending retry never ran | none; the declaration step's re-take 2, measured before it was relied on ([Q376](../questions/q376.md)) |
 | 2 | `typecheck:examples` red twice on the block's own types — an untyped listener parameter, and a `LogRecord` union read without narrowing; and a `let` initialised to `null` narrowed to `null` at every later read | L0 `typecheck:examples`, each run separately |
 | 3 | **`check:docs:selftest` RED at 33 / 34**: its *assertions deleted* probe deleted section 18's two narrowing `throw` guards, and the snippet stopped TYPECHECKING — `[X3,X4,X5,X8]` against a declared `[X4,X8]`. The guards were rewritten so the snippet is type-correct with every assertion gone | the self-test, rule 7 (c) discriminating exactly as designed |
 | 4 | the three-process chain expected process two's `resumed` TWICE — process three's sequence holds the fed one as well as its own | L6, the block's first run |
@@ -209,10 +209,10 @@ measurement and carries one more link)* — Q142 does not fire, and the next ite
 - **P23 prediction 3, the REACH — CONFIRMED for the store, with its exceptions named.** A consumer holding nothing
   but the handle's header and every `onFoldInput` element at its position resumes on a fresh runtime, THREE processes
   deep, through nothing but `runtime.resume` — section 18 executes it and block (2g) asserts it. The exceptions are the
-  reversal column's first entry, a retry budget half spent ([Q365](../open-questions.md), W89's measurement, stated in
+  reversal column's first entry, a retry budget half spent ([Q365](../questions/q365.md), W89's measurement, stated in
   section 18); and one the column did not name: **the consumer's own `shutdown()` is not a kill** — it runs the work in
   flight AND what that work dispatches, so a process that shuts down cleanly has run more than its store says, and
-  every re-dispatched task here demonstrably ran twice ([Q376](../open-questions.md)).
+  every re-dispatched task here demonstrably ran twice ([Q376](../questions/q376.md)).
 
 ### Rule 8
 
@@ -229,14 +229,14 @@ for.* **Pass 3, final, on the tree this item ships: 46 probes — 2 clean, 35 ca
 0 crashes, 0 aborts, 0 against declaration**, digest `f9922c00beddcee0` identical at both ends — after one abort, `a6`,
 whose anchor the pass-2 guard re-indented: rule 7 (b) firing rather than passing, re-anchored and caught. `r6` now fires
 **13** named clauses where it crashed the block. **The nine ceilings**, each with the tree or the second observer named:
-`b8`-`b10`, section 18's guards made tautologies, second observer L6 claims (2), (7), (10), (11) ([Q310](../open-questions.md));
+`b8`-`b10`, section 18's guards made tautologies, second observer L6 claims (2), (7), (10), (11) ([Q310](../questions/q310.md));
 `c3` = `r10`, the lost tail compared with itself, claims (2) and (4); `c4`, the drain's half of claim (8) re-sourced to the
-resumed run, its other half standing; `d4`, a claim, its subject and both counts deleted together ([Q217](../open-questions.md));
-`e1`, the PRINTED run count ([Q100](../open-questions.md)) — control 4 now asserts the block's forty runs, which the
-readers found asserted by nothing; `r9`, the three version sites moved together ([Q377](../open-questions.md)). Harness
+resumed run, its other half standing; `d4`, a claim, its subject and both counts deleted together ([Q217](../questions/q217.md));
+`e1`, the PRINTED run count ([Q100](../questions/q100.md)) — control 4 now asserts the block's forty runs, which the
+readers found asserted by nothing; `r9`, the three version sites moved together ([Q377](../questions/q377.md)). Harness
 `dev-dist/w90/rule8.py`: environment pinned by install directory and asserted for node and deno, control, anchors exactly
 once against current bytes, undo on abort, byte-asserted restore, digest over tracked and untracked-unignored files, and
-**a timeout on every rung** ([Q323](../open-questions.md)) — new here.
+**a timeout on every rung** ([Q323](../questions/q323.md)) — new here.
 
 ### Readers
 
@@ -270,8 +270,8 @@ at digest `3220c50ecca34639` until both had reported; nothing was acted on befor
 
 ### Questions raised
 
-[Q376](../open-questions.md) (`shutdown()` drains, so a clean shutdown is not a kill), [Q377](../open-questions.md)
-(the manifest version is anchored by nothing absolute), [Q378](../open-questions.md) (the artifact kills a RUNTIME,
+[Q376](../questions/q376.md) (`shutdown()` drains, so a clean shutdown is not a kill), [Q377](../questions/q377.md)
+(the manifest version is anchored by nothing absolute), [Q378](../questions/q378.md) (the artifact kills a RUNTIME,
 not a process). No question resolved. Census **295 / 230 / 1 / 64**, by W88's parser unchanged, every id in exactly one cluster cell.
 
 ### What P23's retro inherits

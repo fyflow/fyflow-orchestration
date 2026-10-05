@@ -149,7 +149,7 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
     // conformity reader found live.** `spec/flow-definition.md` section 4: `FD-V22`
     // is what makes `innermost(n)` unique, and `end` nodes are EXEMPT from it — so
     // one `end` may be shared by two sibling regions that are nested in neither.
-    // [Q45](../../doc/open-questions.md)'s shape, and `validateDefinition` accepts
+    // [Q45](../../doc/questions/q45.md)'s shape, and `validateDefinition` accepts
     // it.
     //
     // **Measured before the fix**: a resolver that fell through to the first
@@ -159,9 +159,9 @@ suite('nested fan-out — which region a node is in when it is in two (FD-V15 re
     //
     // **Inline rather than in `spec/examples/valid/`** — deliberately. Putting it
     // in the corpus would assert that this shape SHOULD be legal, and whether it
-    // should is [Q45](../../doc/open-questions.md), which is open and is not
+    // should is [Q45](../../doc/questions/q45.md), which is open and is not
     // W20's. The same reasoning `test/matrix/` uses for shapes the corpus cannot
-    // express ([Q44](../../doc/open-questions.md)).
+    // express ([Q44](../../doc/questions/q44.md)).
     const nodes = [
       { id: 'f1', kind: 'fanout', branches: ['a1', 'a2'] },
       { id: 'a1', kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to: 'j1' }] },

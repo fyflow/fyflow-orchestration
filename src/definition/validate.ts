@@ -1314,7 +1314,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // what keeps map-inside-map expressible only through that task's edges — the same
   // road nesting a fanout already takes.
   //
-  // **[Q156](../../doc/open-questions.md) is DECIDED and this rule did not move for it**
+  // **[Q156](../../doc/questions/q156.md) is DECIDED and this rule did not move for it**
   // ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
   // [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)): a map's branch may reach a region and
   // the driver RUNS it. *(This read "so P10's `not taken` stays not taken rather than being decided in
@@ -1481,7 +1481,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         }
         // **`FD-V29` — an UNCONDITIONAL reference names a node that must have run**,
         // and it is `FD-V27`'s missing half rather than a clause of it:
-        // [Q187](../../doc/open-questions.md), decided as
+        // [Q187](../../doc/questions/q187.md), decided as
         // [ADR 0042](../../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md).
         //
         // **Its own id, on `FD-V28`'s own stated precedent** — *because an author

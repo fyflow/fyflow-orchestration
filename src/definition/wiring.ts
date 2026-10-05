@@ -52,9 +52,9 @@
  * write. A consumer naming a property that is not a branch path never meets it.
  *
  * **A transformed arc is verified on a SAMPLE, and the verdict says which sample** (ADR 0056 rule
- * 3, [Q301](../../doc/open-questions.md)): the producer's first declared example, else the
+ * 3, [Q301](../../doc/questions/q301.md)): the producer's first declared example, else the
  * generator's witness, and — where the producer is a region — the ARITY the sample had, because a
- * transform's result changes type with the arity ([Q263](../../doc/open-questions.md): `*.score`
+ * transform's result changes type with the arity ([Q263](../../doc/questions/q263.md): `*.score`
  * is an array at two, a scalar at one, absent at zero). The expression is evaluated by the adapter's
  * WORKER half, imported here by its module URL — a URL, never the engine's bare specifier, so
  * `RT-R12` holds and this module loads no engine of its own. A witness is not a proof, and a
@@ -478,7 +478,7 @@ class Wiring {
       const props = (s.properties ?? {}) as Record<string, unknown>;
       // **`own`, never a bare read** — `FD-V16`'s charset admits `toString` and `__proto__` as key-path
       // segments, so a bare `here in props` would call a prototype key DESCRIBED and walk into a native
-      // function ([Q411](../../doc/open-questions.md), W99's conformity reader, F1 — its third and fourth site).
+      // function ([Q411](../../doc/questions/q411.md), W99's conformity reader, F1 — its third and fourth site).
       if (!own(props, here)) {
         if (s.additionalProperties === false) {
           const named = Object.keys(props);
@@ -517,7 +517,7 @@ class Wiring {
     // Measured at W109's declaration step: without this clause the arc reads *worker "<envelope>" of
     // type "Transform" is not in the registry*, which sends an author to the registry to add a worker
     // the type is defined not to have. The schemas are the WORKER's, so such a type declares none —
-    // which is why every arc leaving one is `unchecked` ([Q446](../../doc/open-questions.md)) and why
+    // which is why every arc leaving one is `unchecked` ([Q446](../../doc/questions/q446.md)) and why
     // `sampledOutput` in `assist.ts` exists.
     if (t.worker === undefined) return { why: `"${nodeId}" is of type "${n.type}", which only TRANSFORMS — it names no worker, so it declares no ${kind}` };
     const w = this.workers.get(t.worker);
@@ -745,7 +745,7 @@ export interface WiringOptions {
   /**
    * **A worker half handed in, by language name, for a runtime that cannot import the adapter's
    * URL** — ADR 0052 rule 8's road, W62's `workerHalf`: inside a browser bundle `import.meta.url`
-   * is the bundle ([Q261](../../doc/open-questions.md)), so `import(adapter.worker)` yields no
+   * is the bundle ([Q261](../../doc/questions/q261.md)), so `import(adapter.worker)` yields no
    * compile function there. Read ONLY when the URL's default export is not a function; where the
    * URL imports, the URL wins, and the suite asserts the two are the same function.
    */

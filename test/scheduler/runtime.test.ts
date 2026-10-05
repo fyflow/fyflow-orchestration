@@ -1093,7 +1093,7 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
    * **The second clause is a PIN and not a derivation, and it is deliberate.** Moving a member
    * between the roads — `now` written `startOptions.now ?? (() => Date.now())`, which is the
    * driver's own default and is behaviourally identical — fails here and must be done
-   * deliberately. That is [Q102](../../doc/open-questions.md)'s ratchet shape, and it is what
+   * deliberately. That is [Q102](../../doc/questions/q102.md)'s ratchet shape, and it is what
    * catches a behaviour-preserving move that nothing else in the suite can see. *An earlier
    * version of this comment claimed such a move "still passes, which is right"; W76's adequacy
    * reader measured it FALSE and its conformity reader derived the same thing by reading — the
@@ -1323,7 +1323,7 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
         // by NO road at all, so `types` came back empty on the one topology that produces region
         // events. The expected values are W76's declaration-step measurement of the same two-branch
         // fanout on a hand-built driver (`dev-dist/w76/decl-before.txt`): two opens and two
-        // arrivals, every one FROZEN — `OR-R7` and [Q73](../../doc/open-questions.md) at the seam,
+        // arrivals, every one FROZEN — `OR-R7` and [Q73](../../doc/questions/q73.md) at the seam,
         // which this item inherits rather than re-establishes because the driver already does it.
         option: { onRegionEvent: (e) => { types.push(e.type); frozen.push(Object.isFrozen(e)); } },
         flow: FANOUT, drive: () => {},
@@ -1589,7 +1589,7 @@ suite('W76 — the forwarded stream IS the driver`s region stream, at every vari
  * **W77 — what `start` RETURNS: `done`, and the invariant that makes the claim total.**
  * [ADR 0058](../../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md),
  * [P20](../../doc/plans/p20-what-the-runtime-owes-a-consumer.md) decisions 1 and 2,
- * [Q293](../../doc/open-questions.md).
+ * [Q293](../../doc/questions/q293.md).
  *
  * **The invariant, and why it is asserted before the enumeration.** `done` quantifies over six run
  * outcomes, over a run already terminal when a handler is attached and one that is not, over both

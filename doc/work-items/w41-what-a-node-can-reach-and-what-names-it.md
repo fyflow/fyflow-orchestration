@@ -45,35 +45,35 @@ Reserves:   Q184-Q189, ADR 0040
 
 **In**
 
-1. **[Q11](../open-questions.md) in general.** Its two remaining candidates — a run-scoped
+1. **[Q11](../questions/q11.md) in general.** Its two remaining candidates — a run-scoped
    accumulator and a declared per-edge mapping — decided as **ADR 0040**, from the three blocked
    flows rather than from a mechanism (P12's *why this plan*).
 2. **What NAMES an output.** P12 decision 2: the key is the decision. Three candidates named there
    with none preferred — the node id, the task id, and the pair `(node id, branchPath)` — and the
    evidence must include a **map** region.
-3. **[Q164](../open-questions.md)** — where a rule about what a run *carries* lives, and whether
+3. **[Q164](../questions/q164.md)** — where a rule about what a run *carries* lives, and whether
    `RULE_ID` grows by a prefix. Forced by 1 and 2.
-4. **[Q166](../open-questions.md) and [Q165](../open-questions.md) as CASES**: each becomes a corpus
+4. **[Q166](../questions/q166.md) and [Q165](../questions/q165.md) as CASES**: each becomes a corpus
    flow that validates and runs, or the item records explicitly that it does not and why.
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q8](../open-questions.md) — what a decision sees.** **W42**'s, deliberately and by P12
+- **[Q8](../questions/q8.md) — what a decision sees.** **W42**'s, deliberately and by P12
   decision 1: the payload half has three real cases and the predicate half has one sentence, and
   answering Q8 first would let *what is cheap to hand a predicate* decide what a worker receives.
   This item may not touch `DecisionContext`'s shape.
-- **A reducer on a join node.** [Q165](../open-questions.md)'s own row, ADR 0037 rule 5's narrow
+- **A reducer on a join node.** [Q165](../questions/q165.md)'s own row, ADR 0037 rule 5's narrow
   refusal, and P12 decision 3: nothing in `spec/join-policy.md` section 4 is reopened. This item
   takes Q165's **flow** as a case, not the reducer as a feature.
 - **A sixth node kind.** P12 decision 4. Every candidate here is a property of an edge, of a node's
   declaration, or of what the driver hands `enter`.
-- **[Q19](../open-questions.md)'s actual question** — whether retained state is BOUNDED. P12
+- **[Q19](../questions/q19.md)'s actual question** — whether retained state is BOUNDED. P12
   declares it out; fact 1 corrects its premise and does not answer it.
-- **[Q160](../open-questions.md)** — a map inside a map, refused at construction by W33. This item
+- **[Q160](../questions/q160.md)** — a map inside a map, refused at construction by W33. This item
   says whether fact 3 is one defect or a convention and does **not** lift the refusal.
-- **[Q22](../open-questions.md)'s constraint decision**, and **[Q9](../open-questions.md)**. Both
+- **[Q22](../questions/q22.md)'s constraint decision**, and **[Q9](../questions/q9.md)**. Both
   named in P12's `Out`.
-- **The gate.** [Q181](../open-questions.md)-[Q183](../open-questions.md) are live and unowned.
+- **The gate.** [Q181](../questions/q181.md)-[Q183](../questions/q183.md) are live and unowned.
 
 ## Verification
 
@@ -94,11 +94,11 @@ How each clause of `Gate:` is run. Named commands.
 
 | case | |
 |---|---|
-| a branch routed away from its join ([Q4](../open-questions.md)) | **covered as a regression** — `p1-routed-away.flow.json` stays in the corpus and its L5 cells must not move |
-| `user_action` ([Q17](../open-questions.md)) | **not applicable** — a suspended node produces no edge hop, so nothing this item changes is on that road. The resumed node's hop IS covered, because `advance` is one of the six `enter` sites |
-| no matching decision edge ([Q10](../open-questions.md)) | **not applicable** — `FD-R1` is about *which* edge, and this item is about what the edge carries |
-| a duplicate task id ([Q13](../open-questions.md)) | **not applicable** — no id is minted differently. `ID-R6` and `branchPathOf` are unchanged |
-| a nested fan-out ([Q6](../open-questions.md)) | **covered, and required** — P12 decision 2 makes a map region mandatory evidence, and `map-in-fanout.flow.json` is the depth-2 shape where a node id collapses |
+| a branch routed away from its join ([Q4](../questions/q4.md)) | **covered as a regression** — `p1-routed-away.flow.json` stays in the corpus and its L5 cells must not move |
+| `user_action` ([Q17](../questions/q17.md)) | **not applicable** — a suspended node produces no edge hop, so nothing this item changes is on that road. The resumed node's hop IS covered, because `advance` is one of the six `enter` sites |
+| no matching decision edge ([Q10](../questions/q10.md)) | **not applicable** — `FD-R1` is about *which* edge, and this item is about what the edge carries |
+| a duplicate task id ([Q13](../questions/q13.md)) | **not applicable** — no id is minted differently. `ID-R6` and `branchPathOf` are unchanged |
+| a nested fan-out ([Q6](../questions/q6.md)) | **covered, and required** — P12 decision 2 makes a map region mandatory evidence, and `map-in-fanout.flow.json` is the depth-2 shape where a node id collapses |
 
 ## Record
 
@@ -144,7 +144,7 @@ session and the file was rebuilt; nothing else was lost. **The harness's rule wa
 did not cover the author**, which is `doc/workflow.md` section 6 pass 3 rule 3's sharpest shape.
 
 **And `String.prototype.replace` corrupted two mutations and one register row, three times, in three
-different files** — [Q184](../open-questions.md). Probe 36's replacement ended `$');`, `$'` means
+different files** — [Q184](../questions/q184.md). Probe 36's replacement ended `$');`, `$'` means
 *the portion after the match*, and the harness wrote a truncated statement: the child failed to
 **parse** and the grading reported **SURVIVED**, because `green` was *no failure line AND
 `all passed`* and `all passed` came from a sibling child. Two fixes: a function replacement, which
@@ -152,7 +152,7 @@ disables the `$` vocabulary, and a `green` that requires every child at exit 0 w
 **The same defect then reproduced in the script that inserted Q184's own row**, whose text names those
 tokens.
 
-**Python's text-mode write converted six files entirely to CRLF** — [Q123](../open-questions.md)'s
+**Python's text-mode write converted six files entirely to CRLF** — [Q123](../questions/q123.md)'s
 second occurrence, four plans on, same tool, same cause. A 3834-line diff for a 458-line change, and
 **`check-wiring`'s `G2` is what noticed** — it derives a dispatch block's end from the layout, and
 there is no `\n}\n` in a CRLF file. That row's *"invisible to every check"* is corrected: it is
@@ -169,7 +169,7 @@ visible to one check, which reports it as a dispatch-block failure. Every file n
    `fanout` half was unreachable from the set. *A probe set written against the cases the feature was
    built for cannot see a rule that is wrong about the cases it was not.*
 2. **A discriminating fixture at the right ARITY can fail to discriminate on the ORDER it settles**
-   — [Q185](../open-questions.md). The two-digit fixture exists so `String.startsWith` visibility can
+   — [Q185](../questions/q185.md). The two-digit fixture exists so `String.startsWith` visibility can
    be caught, and settled **descending** the probe still survived, because a node composes when it is
    entered and the earlier instance is not in the log yet. `JP-R12`'s own note prescribes *descending*
    for the key-order clause and this needs *ascending* for the visibility clause — same file, same
@@ -183,7 +183,7 @@ visible to one check, which reports it as a dispatch-block failure. Every file n
    [ADR 0037](../decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)'s
    **refused** quadratic at the author's request — **546.6 ms against 6.5** at N = 1000. v0.12
    change 2's *re-take the number on the tree the item ships* is what found both, and both changed
-   what shipped: the projection is grouped in one pass and memoised, and [Q186](../open-questions.md)
+   what shipped: the projection is grouped in one pass and memoised, and [Q186](../questions/q186.md)
    records the cost the decision makes reachable.
 
 **Obligation (e)'s second question, on a product item — the verdict P12's Record asks for.**
@@ -242,7 +242,7 @@ restating `ID-R1`. Both are recorded with what replaced them rather than dropped
 the subject's weakness.** Probe 52 — the `RULE_PREFIXES` binding removed — came back **SURVIVED**,
 because `measure()` ran `check-spec.mjs` and the clause's only binding is `check-spec.mjs --self-test`.
 It is caught. The harness gained a `via: 'selftest'` field for the probes that need it, rather than
-making all 54 pay twelve seconds for it. *[Q138](../open-questions.md)'s shape one layer out from the
+making all 54 pay twelve seconds for it. *[Q138](../questions/q138.md)'s shape one layer out from the
 probes, in the harness's own scope rather than in its grading.*
 
 **`Owns` audit — `git diff --name-only` plus untracked, 21 paths, ZERO undeclared, FIVE late
@@ -252,23 +252,23 @@ exceptions.**
 |---|---|
 | `AGENTS.md` | §3 gains `needs`, §9 gains `UnresolvedReference`, and three counts were stale. `Q157` again: no P12 item owns this file, and every item that changes the public surface needs it |
 | `spec/README.md` | `C8`'s version row is a consequence of any `spec/**` bump — W16's finding, and section 1 rule 5 deliberately does not list it |
-| `scripts/check-docs.mjs` | `RUN_FLOOR` 15 → 16, because §3's `needs` snippet is a new `run` block. **[Q102](../open-questions.md)'s obligation for the fourth recorded time, and by the same mechanism as the third**: the obligation is created by the CONTENT of the change, not by a file set |
+| `scripts/check-docs.mjs` | `RUN_FLOOR` 15 → 16, because §3's `needs` snippet is a new `run` block. **[Q102](../questions/q102.md)'s obligation for the fourth recorded time, and by the same mechanism as the third**: the obligation is created by the CONTENT of the change, not by a file set |
 | `scripts/check-spec-selftest.mjs` | the conformity reader's finding 7 — the two new `C2` clauses had no probe. The `Owns` block names `scripts/check-spec.mjs` exactly, and a clause added to a check needs its self-test in the same commit |
-| `doc/plans/p12-*.md` | fact 2's *six* `enter` call sites, corrected to **five** — [Q189](../open-questions.md). Beyond the plan's Record, which section 1 rule 5 grants |
+| `doc/plans/p12-*.md` | fact 2's *six* `enter` call sites, corrected to **five** — [Q189](../questions/q189.md). Beyond the plan's Record, which section 1 rule 5 grants |
 
 **`src/driver/routing.ts` is in `Owns` and was NOT edited**, which is the declared result: it is
 W42's, and P12 decision 1 forbids this item touching `DecisionContext`.
 
-**Questions raised.** [Q184](../open-questions.md) `String.replace`'s `$` vocabulary silently
+**Questions raised.** [Q184](../questions/q184.md) `String.replace`'s `$` vocabulary silently
 rewrites a mutation harness's replacement, and a crash then reads as a survivor.
-[Q185](../open-questions.md) a discriminating fixture's SETTLE ORDER is a load-bearing input that
-nothing asserts. [Q186](../open-questions.md) a `needs` reference to a large value inside a map region
-is ADR 0037's refused quadratic, made available per key. [Q187](../open-questions.md) `FD-V27`
-requires reachability and not dominance. [Q188](../open-questions.md) the suite census cannot bind
-itself. [Q189](../open-questions.md) a count from a `grep` can be a count of the file's own prose.
+[Q185](../questions/q185.md) a discriminating fixture's SETTLE ORDER is a load-bearing input that
+nothing asserts. [Q186](../questions/q186.md) a `needs` reference to a large value inside a map region
+is ADR 0037's refused quadratic, made available per key. [Q187](../questions/q187.md) `FD-V27`
+requires reachability and not dominance. [Q188](../questions/q188.md) the suite census cannot bind
+itself. [Q189](../questions/q189.md) a count from a `grep` can be a count of the file's own prose.
 
-**Resolved:** [Q11](../open-questions.md) in general, [Q164](../open-questions.md),
-[Q166](../open-questions.md), and [Q158](../open-questions.md) — the last of which had been open for
+**Resolved:** [Q11](../questions/q11.md) in general, [Q164](../questions/q164.md),
+[Q166](../questions/q166.md), and [Q158](../questions/q158.md) — the last of which had been open for
 three plans because its own row named a fix in files nobody owns.
 
 **Census re-derived: 146 questions — 99 open, 2 deferred, 45 resolved**, both halves at 146 of 146 in

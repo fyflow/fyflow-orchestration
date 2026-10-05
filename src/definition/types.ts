@@ -134,7 +134,7 @@ export interface PredicateLeaf {
  * **A FLAT group — `all` or `any`, and its members are LEAVES.** Nesting is refused by name
  * (`FD-V45`), and so is a `{ predicate }` member: a group holding a registered name could be
  * impure, which would falsify the one thing a declared predicate guarantees over a function
- * ([Q9](../../doc/open-questions.md)).
+ * ([Q9](../../doc/questions/q9.md)).
  *
  * **A two-member UNION rather than one interface with two optional keys, so that `{}` and
  * `{ all, any }` fail at L0** — W108's conformity reader (16) measured that
@@ -143,7 +143,7 @@ export interface PredicateLeaf {
  * validator and not the typechecker. The union costs **ZERO** on all five typecheck lanes. **Its
  * limit, stated**: a union admits a property declared by ANY member, so
  * `{ predicate, path, op, value }` — two shapes at once — still compiles and is caught only by
- * `FD-V42`. A type closes one direction ([Q196](../../doc/open-questions.md), W43).
+ * `FD-V42`. A type closes one direction ([Q196](../../doc/questions/q196.md), W43).
  */
 export type PredicateGroup =
   | { all: readonly PredicateLeaf[]; any?: never }
@@ -179,7 +179,7 @@ export interface Edge {
   /**
    * **What this edge's PREDICATE sees, beyond its node's outcome** — `FD-C3`, and
    * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md),
-   * answering [Q8](../../doc/open-questions.md).
+   * answering [Q8](../../doc/questions/q8.md).
    *
    * Same grammar as a node's, same aiming rules (`FD-V26`-`FD-V28`), **minus the
    * `"."` form** — *what this predicate would have received anyway* is
@@ -204,14 +204,14 @@ export interface Edge {
 /**
  * **How a task node's attempts are retried by the SCHEDULER** — `spec/flow-definition.md`
  * section 2, v0.16 ([W58](../../doc/work-items/w58-what-a-node-says-about-its-own-task.md),
- * [Q16](../../doc/open-questions.md)'s task half). Exactly the scheduler's own shape at 0.5.2,
+ * [Q16](../../doc/questions/q16.md)'s task half). Exactly the scheduler's own shape at 0.5.2,
  * `{ maxRetries: number; backoffMs: number }`, with the ranges `FD-V30` refuses outside of: the
  * scheduler coerces (`maxRetries: "1"` retries, `1.5` retries, `{}` silently means *no
  * retries*), and a definition is data that arrives from anywhere, so the shape is pinned here.
  *
  * A retry happens INSIDE one task id and is reported on the outcome record's `attempts`
  * (`OR-R2`); the id's fourth segment is for a flow-level retry, which this library does not
- * mint ([Q111](../../doc/open-questions.md)).
+ * mint ([Q111](../../doc/questions/q111.md)).
  */
 export interface RetryPolicy {
   /** How many times the scheduler re-dispatches a failed attempt. An integer >= 0. */
@@ -270,7 +270,7 @@ export interface Transform {
  *   absent — the conformance suite asserts the field may be present and never that it is.
  *
  * **The two halves can disagree** — one module compiled twice is the same language; two modules,
- * or two versions on the two sides of a thread, are two ([Q264](../../doc/open-questions.md)).
+ * or two versions on the two sides of a thread, are two ([Q264](../../doc/questions/q264.md)).
  * The conformance suite in `test/scheduler/adapter-conformance.ts` asserts, for an adapter it is
  * handed, that the worker half refuses exactly what the registry half refuses.
  */
@@ -568,7 +568,7 @@ export interface FanoutNode {
  * **A region whose arity is not in the document** — `spec/flow-definition.md`
  * section 2, added at v0.8 by
  * [ADR 0036](../../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md),
- * answering [Q12](../../doc/open-questions.md): **fan-out is two features over one
+ * answering [Q12](../../doc/questions/q12.md): **fan-out is two features over one
  * region.**
  *
  * A `fanout` declares N branches known at authoring time. A `map` declares **one**
@@ -584,7 +584,7 @@ export interface MapNode {
    * A **key** on the value this node receives, matching `FD-V16`'s charset
    * (`FD-V25`). A declared reference and never a callback — ADR 0002 rule 1, which
    * is why *"how many items"* cannot be a function. **What it is a key ON is
-   * [Q11](../../doc/open-questions.md) and belongs to W34**; this type is stated
+   * [Q11](../../doc/questions/q11.md) and belongs to W34**; this type is stated
    * against whatever that resolves to.
    */
   over: string;
@@ -595,7 +595,7 @@ export interface MapNode {
    * `FD-C1`. A `map` carries it for the same reason a `task` does, and it is what
    * makes *fan out over what a region produced* expressible: `needs: {"scores":
    * ["score"]}` with `over: "scores"` maps over an array the previous node never
-   * produced ([Q165](../../doc/open-questions.md)).
+   * produced ([Q165](../../doc/questions/q165.md)).
    */
   needs?: Needs;
 }

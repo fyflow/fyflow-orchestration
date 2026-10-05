@@ -410,7 +410,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
   });
 
   /**
-   * **[Q95](../../doc/open-questions.md) — the `unsatisfiable` exit's `at most
+   * **[Q95](../../doc/questions/q95.md) — the `unsatisfiable` exit's `at most
    * once` latch, made load-bearing.**
    *
    * `spec/join-policy.md` section 4 fixes both exits: a **satisfied** join is
@@ -435,7 +435,7 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
    *
    * **Shipping an early-settling policy is a feature question and this is not
    * one.** Whether a join may fire on anything short of every branch is
-   * [Q5](../../doc/open-questions.md)/[Q7](../../doc/open-questions.md), which
+   * [Q5](../../doc/questions/q5.md)/[Q7](../../doc/questions/q7.md), which
    * [P6](../../doc/plans/p6-what-may-share-a-scheduler-with-a-driver.md) does not
    * take. These policies are test instruments and live here rather than in
    * `src/fold/policies.ts` for that reason.

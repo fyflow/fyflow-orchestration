@@ -83,7 +83,7 @@ the highest ADR is 0064, so **0065**, which P23 reserved for this item.*
 - **Storage, serializers, redaction, any memory option** — P23 decisions 1 and 8.
 - **Migrating a checkpoint across flow versions, versioning the registry, resuming a stopped run,
   exactly-once** — P23 decisions 6, 7 and 10.
-- **A retry budget carried across a resume** ([Q365](../open-questions.md)) — measured and stated as
+- **A retry budget carried across a resume** ([Q365](../questions/q365.md)) — measured and stated as
   decision 6's consequence, not fixed.
 
 ## What the declaration step must re-take before anything is edited
@@ -93,7 +93,7 @@ the highest ADR is 0064, so **0065**, which P23 reserved for this item.*
 | 1 | the replay still reproduces L6's own drivers — W88's corrected fact 1 (57 of 61, 324 prefixes, 261 / 261 payloads) | `dev-dist/w88/replay-fixed.ts`, on the starting tree |
 | 2 | the kill-and-resume harness is free of Q366's shape (a wrapper capturing its own calls), and then its 14 of 14 kill points | `dev-dist/p23/kill-resume.ts`, READ first, then re-run |
 | 3 | how many tasks each kill point re-dispatches, and whether any SETTLED task is re-dispatched — P23 prediction 2 | the same run, per kill point |
-| 4 | what state lives OUTSIDE the log at a kill — attempts spent ([Q365](../open-questions.md)), a held resource-group slot, a transform's compiled cache — P23 prediction 3 | a spike on real schedulers |
+| 4 | what state lives OUTSIDE the log at a kill — attempts spent ([Q365](../questions/q365.md)), a held resource-group slot, a transform's compiled cache — P23 prediction 3 | a spike on real schedulers |
 | 5 | which exhaustive walks over `FoldInput['kind']` and which enumerations of the root's `Error` subclasses a new kind and new classes reach — the seeded rows below | grep, then the rungs |
 
 ### What the re-takes found
@@ -103,9 +103,9 @@ the highest ADR is 0064, so **0065**, which P23 reserved for this item.*
 | # | re-take | measured | what it corrects |
 |---|---|---|---|
 | 1 | `dev-dist/w88/replay-fixed.ts`, re-run unchanged | **62 starts, 61 captured over 30 flows, 57 reproduce exactly, 324 prefixes, 261 / 261 dispatched payloads, 998 events all clone exactly** — W88's corrected fact 1 to the unit; the four that do not are the two `FD-R4` refusals and the two `OR-R6` stops | nothing |
-| 2 | `dev-dist/p23/kill-resume.ts` — **read first for [Q366](../open-questions.md)'s shape** | it wraps NO prototype: each driver is built by hand and the replay emits into listeners it registered itself, so it cannot capture its own calls. Re-run: **14 of 14 kill points complete IDENTICALLY**, re-dispatching 1-4 tasks each, every stored log a prefix of its replay by 1-7 events — fact 4 reproduces | nothing about the numbers; **its re-dispatch set is `held − settled` BY CONSTRUCTION**, so it cannot report a settled task re-dispatched — the sensor answers its own question, which is re-take 3's reason |
+| 2 | `dev-dist/p23/kill-resume.ts` — **read first for [Q366](../questions/q366.md)'s shape** | it wraps NO prototype: each driver is built by hand and the replay emits into listeners it registered itself, so it cannot capture its own calls. Re-run: **14 of 14 kill points complete IDENTICALLY**, re-dispatching 1-4 tasks each, every stored log a prefix of its replay by 1-7 events — fact 4 reproduces | nothing about the numbers; **its re-dispatch set is `held − settled` BY CONSTRUCTION**, so it cannot report a settled task re-dispatched — the sensor answers its own question, which is re-take 3's reason |
 | 3 | per kill point, from an INDEPENDENT reading (`dev-dist/w89/kill-resume-count.ts`): which re-dispatched tasks the STORED prefix had seen dispatched | **29 re-dispatched over 14 kill points, 0 of them settled in the stored events — and 14 of the 29 were dispatched ONLY in the regenerated tail**, never stored, at **8 of 14** kill points (fan-out K=1: 2 of 2; triage K=1: 3 of 3) | **P23 prediction 2's wording is FALSE and its substance holds**: the at-least-once set is the in-flight set at the end of the REPLAY, not *at the stored prefix* — a checkpoint taken inside `onFoldInput` ends before the dispatches its last settlement causes. This is also the fixture: *held dispatches after the prefix* and *in flight per the stored events* are two well-formed wrong selections, each right at some kill points |
-| 4 | what lives OUTSIDE the log at a kill — a spike on real schedulers, inline pools (`dev-dist/w89/outside-log.ts`), resume by hand as re-take 2 does it | **(a) attempts**: a task declaring `maxRetries: 1` — a budget of TWO attempts — killed after its first attempt failed ran **THREE times** (1 before, 2 after; shutdown ran no retry). **(b) a group slot**: a task holding a `ConcurrentLimitGroup(1)` slot, killed mid-run — the re-dispatch ACQUIRED the fresh runtime's slot with no `resource.blocked`, and the task ran twice in all. **(c) a person**: a run parked at `user_action`, killed and resumed, re-dispatches `[]`, stays `awaiting_action`, and `resolve()` on the resumed driver completes it. **(d) a transform's compiled cache**: triage's `report`, which carries a JSONata transform, was re-dispatched at kill point 5 and completed identically (re-take 2) | **[Q365](../open-questions.md) is MEASURED** where P23 derived it: a fresh budget, 3 attempts against 2. P23 prediction 3's reversal list: the retry budget is REAL state outside the log; a group slot and a compiled transform are per-process state a fresh runtime rebuilds, so they differ from a run nobody killed in COST, not in result |
+| 4 | what lives OUTSIDE the log at a kill — a spike on real schedulers, inline pools (`dev-dist/w89/outside-log.ts`), resume by hand as re-take 2 does it | **(a) attempts**: a task declaring `maxRetries: 1` — a budget of TWO attempts — killed after its first attempt failed ran **THREE times** (1 before, 2 after; shutdown ran no retry). **(b) a group slot**: a task holding a `ConcurrentLimitGroup(1)` slot, killed mid-run — the re-dispatch ACQUIRED the fresh runtime's slot with no `resource.blocked`, and the task ran twice in all. **(c) a person**: a run parked at `user_action`, killed and resumed, re-dispatches `[]`, stays `awaiting_action`, and `resolve()` on the resumed driver completes it. **(d) a transform's compiled cache**: triage's `report`, which carries a JSONata transform, was re-dispatched at kill point 5 and completed identically (re-take 2) | **[Q365](../questions/q365.md) is MEASURED** where P23 derived it: a fresh budget, 3 attempts against 2. P23 prediction 3's reversal list: the retry budget is REAL state outside the log; a group slot and a compiled transform are per-process state a fresh runtime rebuilds, so they differ from a run nobody killed in COST, not in result |
 | 5 | exhaustive walks over `FoldInput['kind']` outside `Owns`; enumerations of the root's `Error` subclasses | `examples/**` has NO exhaustive walk over the kind — every read is a filter or an `if` chain; the one `Record<FoldInput['kind'], …>` is W88's, in `test/driver/checkpoint.test.ts` (owned). `AGENTS.md` §9's executed snippet enumerates the root's classes (Q101); `src/scheduler/index.ts`'s export list is an ALLOWLIST (owned) | the seeded `examples/l6.ts` row fires for W88's reason (a driver field), not P23's (a kind) — marked below |
 
 **Baseline, re-taken** by a full `npm run gate` on `3fe0558` plus this declaration — **`GATE EXIT=0`,
@@ -179,7 +179,7 @@ declared result.
 | `check:docs` | **35 snippets: 29 run, 6 check** — unmoved |
 | `check:markdown` | **152 documents, 6955 links, 374 anchored**, from 151 / 6873 / 366 — ADR 0065 and this file |
 | L6 node 24.20.0 and deno 2.9.6 | **1833 / 60** in both — UNMOVED |
-| `npm run gate` | **`GATE EXIT=0`, zero `FAIL` lines**, `selftests` 8 / 8 in 958.7 s wall ([Q373](../open-questions.md)), content digest `0e9cccb55b340ef5` over 396 files identical at both ends — taken on the tree with this Record written but for these three cells, which were filled after it |
+| `npm run gate` | **`GATE EXIT=0`, zero `FAIL` lines**, `selftests` 8 / 8 in 958.7 s wall ([Q373](../questions/q373.md)), content digest `0e9cccb55b340ef5` over 396 files identical at both ends — taken on the tree with this Record written but for these three cells, which were filled after it |
 | Q142, measured BEFORE the record step | probe 1 (`doc/decisions` cut) **115 files against `M3`'s 123 — margin 8**, as the declaration predicted; probe 2 (`doc/decisions` + `doc/plans` cut) **5093 links against `M4`'s 5270 — margin 177**, from 201; **re-measured AFTER the record step: `M3` 8, `M4` 129** — Q142 does not fire |
 
 ### Outputs
@@ -223,7 +223,7 @@ declared result.
   Through the shipped `runtime.resume` on real schedulers a store of the header and every `onFoldInput`
   element by position resumes at all 14 kill points identically. The exception is the one its reversal
   column named first: **a retry budget half spent** — measured, three attempts against a budget of two
-  ([Q365](../open-questions.md)). A group slot and a compiled transform differ from a run nobody killed in
+  ([Q365](../questions/q365.md)). A group slot and a compiled transform differ from a run nobody killed in
   cost and not in result. W90 measures it again on real workers.
 - **4 — already REVERSED at W88 and not re-litigated. What W89 adds, measured**: ONE `FoldInput` kind and
   ONE cell of run state, both allowed by the prediction's first half; and the TEXT of two existing rules
@@ -270,18 +270,18 @@ nothing was acted on before the second report arrived.
   the two wrong answers are the right one. *Every number a refusal reports is a selection.*
 - **An inert-by-construction claim is a claim.** *A refused resume leaves the driver spent* was true of
   its doors and false of its SUBSCRIPTION, which nothing in the driver can undo — the fix is that a spent
-  driver hears nothing, and the residue is [Q371](../open-questions.md).
+  driver hears nothing, and the residue is [Q371](../questions/q371.md).
 - **The fed half of a replay is trusted, and every observer of it was blind to the trust.** Both clocks
-  at 0 and every attempt at 0 made *appended as stored* unfalsifiable; [Q374](../open-questions.md) is the
+  at 0 and every attempt at 0 made *appended as stored* unfalsifiable; [Q374](../questions/q374.md) is the
   same trust from the store's side.
 
 ### Questions raised
 
-[Q371](../open-questions.md) (a runtime spends an id for every driver it built — a driver cannot be
-detached), [Q372](../open-questions.md) (the prefix check's blind tail), [Q373](../open-questions.md)
-(`selftests` at 1114 s wall), [Q374](../open-questions.md) (the store trusted for every fed element).
-**Q375 unused and not reused. ADR 0065 taken.** **[Q15](../open-questions.md), [Q364](../open-questions.md)
-and [Q366](../open-questions.md) RESOLVED**; [Q365](../open-questions.md) MEASURED and left open. Census
+[Q371](../questions/q371.md) (a runtime spends an id for every driver it built — a driver cannot be
+detached), [Q372](../questions/q372.md) (the prefix check's blind tail), [Q373](../questions/q373.md)
+(`selftests` at 1114 s wall), [Q374](../questions/q374.md) (the store trusted for every fed element).
+**Q375 unused and not reused. ADR 0065 taken.** **[Q15](../questions/q15.md), [Q364](../questions/q364.md)
+and [Q366](../questions/q366.md) RESOLVED**; [Q365](../questions/q365.md) MEASURED and left open. Census
 **292 / 227 / 1 / 64**, by W88's parser unchanged.
 
 ### What W90 inherits
@@ -291,8 +291,8 @@ and [Q366](../open-questions.md) RESOLVED**; [Q365](../open-questions.md) MEASUR
   both L6 runtimes, with the re-dispatch COUNT asserted — 29 over those 14 points, 1-4 each.
 - **The reference has no executed snippet for `resume`**: `AGENTS.md` names it in a table and an
   enumeration only. W90 teaches append-then-resume, and must say three things in words: at-least-once and a
-  fresh retry budget ([Q365](../open-questions.md)); the prefix check's blind tail ([Q372](../open-questions.md));
-  and that a refused resume spends its run id on that runtime ([Q371](../open-questions.md)).
+  fresh retry budget ([Q365](../questions/q365.md)); the prefix check's blind tail ([Q372](../questions/q372.md));
+  and that a refused resume spends its run id on that runtime ([Q371](../questions/q371.md)).
 - **The `resumed` kind and `RunState.resumes` are BREAKING** for a consumer switching on `kind`
   exhaustively; the package moves to `0.5.0` at W90's close (stop-and-ask (a)).
 - `examples/l6.ts`'s `DRIVER_FIELDS` carries `replay`; `examples/run-flow.ts` walks by exclusion and did not

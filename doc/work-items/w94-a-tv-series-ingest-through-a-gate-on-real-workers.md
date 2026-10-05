@@ -82,7 +82,7 @@ exit artifact writes no rule. **W95 stays reserved and expected unused.***
 
 - **`src/**`, `spec/**` rules, `test/**` beyond the two seeded census files** — a defect found there is a
   stop-and-ask; L1-L5 must be UNMOVED.
-- **An entry gate** — the TV flow's entry is a `map`, so [Q387](../open-questions.md) (an entry gate's type asked
+- **An entry gate** — the TV flow's entry is a `map`, so [Q387](../questions/q387.md) (an entry gate's type asked
   twice) is not reached by the artifact; it is OBSERVED on real workers at this declaration (row 5) and left open.
 - **Memory per region instance, a second built-in type, memory across runs** — P24 Scope/Out.
 - **P24's retro** — a separate step after this item.
@@ -103,7 +103,7 @@ work, ten runs per mode (`f-order-*.log`):
 | inline, `maxThreads` 3 | **30 of 30** | 30 of 30 | ONE, both |
 | threaded, `maxThreads` 3 | **23 of 30**, four winner sets | **28 of 30**, two winner sets | ten in node, six in deno |
 
-**[Q379](../open-questions.md) is the inline pool exactly, and Deno's threaded pool is nearly the same trap**: a
+**[Q379](../questions/q379.md) is the inline pool exactly, and Deno's threaded pool is nearly the same trap**: a
 threaded row at equal work separates *first to arrive* from *lowest index* on 7 of 30 keys in node and 2 of 30 in
 deno — so a threaded row ALONE does not discriminate the two selections there, and the arrangement has to be made.
 **And an arrangement can be defeated by the POOL'S WIDTH**, which nobody had measured. With identify's delay made
@@ -152,7 +152,7 @@ points: the store frozen inside `onFoldInput`, the runtime shut down, then `runt
 | where the KILLED process's memory would (it drained — Q376 — so it holds every key) | **19** | 19 |
 
 **The driver-owned memory resumes identically at every point, the fifteen before the first decision included** —
-[Q386](../open-questions.md)'s case, which is the one where a process-kept memory completed WRONG in silence at
+[Q386](../questions/q386.md)'s case, which is the one where a process-kept memory completed WRONG in silence at
 W93's declaration. And the three memories DIFFER at the points the selection table below needs, so the block's
 right answer is discriminated from both wrong ones on the run's own data. *An earlier cut of this spike read
 **0 / 25** — it compared the `gated` sequence IN ORDER against a reference whose tail arrived in a different
@@ -168,18 +168,18 @@ order at two different keys; the instrument, not the product, and corrected befo
 | `examples/l6.ts` the seventeen-worker schema clause | twenty-one worker entries | yes |
 | `examples/l6.ts` `Expectation.payload` | a `files` list | yes |
 | `DRIVER_FIELDS`, `NOT_RUN_STATE` | **nothing** — the driver gains no field | — |
-| `scripts/check-workers-selftest.mjs` `CONTROL_LINES` | *17 worker(s) … 17 ran* → 21 ([Q342](../open-questions.md)) | **no — seeded** |
+| `scripts/check-workers-selftest.mjs` `CONTROL_LINES` | *17 worker(s) … 17 ran* → 21 ([Q342](../questions/q342.md)) | **no — seeded** |
 | `scripts/check-docs.mjs` | `RUN_FLOOR` 30 → 31, `README_SNIPPET_FLOOR` 6 → 7, a seventh `README_SNIPPETS` pair | **no — seeded** |
 | `scripts/check-docs-selftest.mjs` | the `X9` probe's anchor `` `0.5.0` `` → `` `0.6.0` ``, which rule 7 (b) would abort | **no — seeded** |
-| `test/definition/wiring.test.ts` | its L4 census literal, 27 flows → 28 and the verdict counts — **and a FALSE `no` asserted where it is** ([Q391](../open-questions.md)): the check reads the gate as a pass-through | **no — seeded** (Q342) |
+| `test/definition/wiring.test.ts` | its L4 census literal, 27 flows → 28 and the verdict counts — **and a FALSE `no` asserted where it is** ([Q391](../questions/q391.md)): the check reads the gate as a pass-through | **no — seeded** (Q342) |
 | `spec/outcome-record.md` section 4 | *16 of 188* corpus task nodes → 16 of 193 (five task nodes, no `needs`), DERIVED by `test/fold/result-value.test.ts` | **no — seeded** (Q360) |
 | `examples/README.md`, `README.md` | the L6 counts, the worker census | yes (Q171) |
 
-**Row 5 — [Q387](../open-questions.md) on real workers (`f-q387-*.log`)**: an entry gate whose type COUNTS its
+**Row 5 — [Q387](../questions/q387.md) on real workers (`f-q387-*.log`)**: an entry gate whose type COUNTS its
 calls, one branch — **`fn` called TWICE**, in both runtimes, the run `completed`. OBSERVED, not ruled out; the TV
 flow's entry is a `map`, so the artifact does not reach it, and the row stays open with no owner.
 
-**Row 6 — [Q142](../open-questions.md)** (`q142-declaration.log`): probe 1 (`doc/decisions` removed) **119 files,
+**Row 6 — [Q142](../questions/q142.md)** (`q142-declaration.log`): probe 1 (`doc/decisions` removed) **119 files,
 `M3` margin 4**; probe 2 **5330 links, `M4` margin 895**. This item adds ONE document outside `doc/decisions`
 (this file), so `M3` is predicted to read **120, margin 3 — does NOT fire**; `M4` safe.
 
@@ -236,8 +236,8 @@ four count copies went on reading 2059 until the conformity reader's finding 1. 
 |---|---|---|
 | `scripts/check-docs.mjs` | `RUN_FLOOR` 30 → 31, `README_SNIPPET_FLOOR` 6 → 7, a seventh `README_SNIPPETS` pair | P24 seed |
 | `scripts/check-docs-selftest.mjs` | the `X9` probe's anchor `` `0.5.0` `` → `` `0.6.0` ``; the unclosed-fence probe's comment naming the last section | P24 seed |
-| `test/definition/wiring.test.ts` | the L4 census literal ([Q342](../open-questions.md)) | P24 seed |
-| `spec/outcome-record.md` section 4 | the corpus task-node split ([Q360](../open-questions.md)) — a census sentence, no version move, W86's precedent | P24 seed |
+| `test/definition/wiring.test.ts` | the L4 census literal ([Q342](../questions/q342.md)) | P24 seed |
+| `spec/outcome-record.md` section 4 | the corpus task-node split ([Q360](../questions/q360.md)) — a census sentence, no version move, W86's precedent | P24 seed |
 | `scripts/check-workers-selftest.mjs` | `CONTROL_LINES`' *17 worker(s)* | P24 seed |
 | `doc/plans/p24-what-a-node-may-remember-across-a-runs-branches.md` | the W94 row, P24 COMPLETE pending its retro, the seeded W94 rows marked, prediction 3's verdict | W90's precedent — outside the plan's Record |
 
@@ -301,7 +301,7 @@ assertions over 154 real runs** in node 24.20.0 and deno 2.9.6, from 1853 / 100.
 | revert | cost |
 |---|---|
 | **W93** (`src/` from `fb2a981`) | **ONE named failure** — the first TV row: *the run THREW … a gate is a valid definition and this driver cannot run one yet* (ADR 0066 rule 7) — and the row loop stops there |
-| **W92 and W93** (`src/` from `03190d0`) | **a CRASH at module link, ZERO failure lines** — `does not provide an export named 'distinct'` ([Q392](../open-questions.md)); with that import neutralised, **one named failure**, `FD-V24` on the first TV row |
+| **W92 and W93** (`src/` from `03190d0`) | **a CRASH at module link, ZERO failure lines** — `does not provide an export named 'distinct'` ([Q392](../questions/q392.md)); with that import neutralised, **one named failure**, `FD-V24` on the first TV row |
 | each gate clause | rule 8's `a`-probes: `distinct` without memory **10**, inverted **9**, memory per map item **10**, the key handed on **3**, the settings **3**, the default edge **9**, a fresh memory on replay **4**, the process's memory **2**, `gated` fed **4**, the fold recording nothing **3**, the key path to one segment **16** — and the decision appended after its target **0** at L6 (L1 is its second road) |
 
 ### Rule 8 — three passes, v0.24's grader controls on all three
@@ -322,7 +322,7 @@ tautology together with the product defect it guards, so a catch names the claim
 **The three ceilings, each run against the rung its reason names**: `rc2` — file 0's two `beside` ids moved back into the
 ORDERED comparison survives on this tree, because the inline downloads DO settle in index order; they are compared as a set
 because `spec/` does not fix the order, not because it varies here; `r5` — the realm subject deleted from
-`PER_ROW_SUBJECTS`, a membership entry derived from the rows ([Q217](../open-questions.md)); `r7` — the realm claim made a
+`PER_ROW_SUBJECTS`, a membership entry derived from the rows ([Q217](../questions/q217.md)); `r7` — the realm claim made a
 tautology while the threaded row runs inline: ONE observer of threadedness at L6.
 
 ### What broke, and which rung caught it
@@ -331,7 +331,7 @@ tautology while the threaded row runs inline: ONE observer of threadedness at L6
 |---|---|---|
 | 1 | a serial pool DEFEATS an arrangement, and Deno's threaded pool nearly repeats Q379's trap (28 of 30) | a RUN at the declaration step — no rung |
 | 2 | with the per-series road joining the per-file join, every row field naming `beside`'s record would have named the winner | READING at the declaration step — the design changed before a row was written |
-| 3 | `checkWiring` reads the natural wiring `no` through the gate ([Q391](../open-questions.md)) | `check`-by-hand at the build, then L6's wiring clause and the L4 census, by name |
+| 3 | `checkWiring` reads the natural wiring `no` through the gate ([Q391](../questions/q391.md)) | `check`-by-hand at the build, then L6's wiring clause and the L4 census, by name |
 | 4 | my `X9` probe edit wrote `9.9.9-never`, which `X9`'s digit regex does not match — the probe tripped the *sentence not found* clause and the META grading read it STILL CAUGHT with the comparison disabled | `check:docs:selftest`, **20 / 21** — a provocation firing for another reason (v0.10), in a GATE ENTRY |
 | 5 | two L6 TYPE clauses read a GATE's `type` (`distinct`) as a registry node type; ADR 0062 rule 4's and CONTROL 2's literals; the schema literals; the missing subjects of my own cross-row claims | L6, BY NAME, on the rows' first run — a node-kind site W92's census (`kind ===`) could not list, because its read is `.type` |
 | 6 | `nokey` exercised by nothing at L6 if the file table lost the trailer — every derived count agreeing | rule 8 PLANNING, before a probe ran; closed by a control reading the TYPE's routes |
@@ -376,13 +376,13 @@ end-of-run term, the replay-end clear) — each reached from opposite ends.
 exactly one per-series branch per series whatever the arrival order (two arranged orders, one pool-chosen order, a different
 file opening each multi-file series), thumbnails for every file, the run `completed`, and identical after a kill at every kill
 point in both runtimes. No shape the flow needed was one a gate could not express; **what could not follow it is the WIRING
-CHECK**, which reads the gate as a pass-through and calls the per-series arc `no` ([Q391](../open-questions.md)) — an
+CHECK**, which reads the gate as a pass-through and calls the per-series arc `no` ([Q391](../questions/q391.md)) — an
 authoring tool's conservatism, not the run's.
 
 ### Questions
 
-**Resolved: [Q379](../open-questions.md)** (arranged, asserted, and a serial pool shown to defeat any arrangement) and
-**[Q381](../open-questions.md)** (the list is README's, and it has four breaks). **Raised: [Q391](../open-questions.md)** and
-**[Q392](../open-questions.md)**; [Q387](../open-questions.md) extended with its real-worker measurement. **Q393 unused and not
+**Resolved: [Q379](../questions/q379.md)** (arranged, asserted, and a serial pool shown to defeat any arrangement) and
+**[Q381](../questions/q381.md)** (the list is README's, and it has four breaks). **Raised: [Q391](../questions/q391.md)** and
+**[Q392](../questions/q392.md)**; [Q387](../questions/q387.md) extended with its real-worker measurement. **Q393 unused and not
 reused.** Census **303 / 235 / 1 / 67**, by W92's parser, which first reproduced **301 / 235 / 1 / 65**; every id in exactly one
 cluster cell. W95 stays reserved, unused, for P24's retro to close.

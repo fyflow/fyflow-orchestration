@@ -13,7 +13,7 @@
  *     driver that wrapped a third key is red rather than invisible;
  *   - `inputType` is a second, independent expression over the same value (obligation (c)'s LIMIT):
  *     a reduction over an empty record is the NUMBER 0 where the other spelling is `undefined` —
- *     [Q263](../../doc/open-questions.md)'s third arity, told apart by TYPE rather than by equality
+ *     [Q263](../../doc/questions/q263.md)'s third arity, told apart by TYPE rather than by equality
  *     against zero;
  *   - `markedKeys` walks the input and lists, at every depth, any own key on an ARRAY that is not an
  *     index. JSONata marks the arrays it builds and the adapter hands out plain values (ADR 0052

@@ -53,12 +53,12 @@ Reserves:   Q213-Q217, no ADR (P13 reserved 0042-0043 and both are spent -
 
 - **Any `spec/` rule.** An exit artifact writes no rule — W43's own stated result, and section 5 and
   section 6 are W45's.
-- **[Q206](../open-questions.md)** — the sibling-region visibility finding. It is a correctness
+- **[Q206](../questions/q206.md)** — the sibling-region visibility finding. It is a correctness
   question about `FD-C1`'s prefix predicate and P13 decision 1 forbids reopening the KEY.
-- **[Q212](../open-questions.md)** — whether a test can count the copies a driver makes. W46 recorded
+- **[Q212](../questions/q212.md)** — whether a test can count the copies a driver makes. W46 recorded
   that it cannot, and L6 is further from that than L2 is.
-- **[Q186](../open-questions.md)'s cost at L6.** Wall time here is not reproducible
-  ([Q179](../open-questions.md)) and W46 measured what a one-process table costs; an L6 timing row
+- **[Q186](../questions/q186.md)'s cost at L6.** Wall time here is not reproducible
+  ([Q179](../questions/q179.md)) and W46 measured what a one-process table costs; an L6 timing row
   would be the same defect on a slower rung.
 - **A self-test for L6.** Proposed and refused twice — P11's for the gate and P12's for L6 itself.
 
@@ -89,7 +89,7 @@ Reserves:   Q213-Q217, no ADR (P13 reserved 0042-0043 and both are spent -
 | rule 8 | **RAN TWICE** | author pass **31 / 24 caught**; after the readers **43 provocations, 33 CAUGHT, 7 declared survivors (all measured), 2 BOUND, 0 undeclared, 0 aborts, 0 wrong-reason** |
 | census | **RAN** | **174 / 125 / 2 / 47**, 42 in both tables, 174 of 174 in one cluster cell, **0 aborts** on the final run |
 | gate | **RAN**, green first time | `npm run gate` — **`GATE EXIT=0`, zero lines beginning `FAIL`**, 15 chain entries, `selftests` **521.3 s wall / 1032.1 s serial-equivalent over 5 lanes**. **The control is `W46`'s own clean run on the committed tree**, taken before any of this item's edits |
-| [Q142](../open-questions.md) | **RE-MEASURED and it does NOT fire** | On a scratch copy OUTSIDE the repository: whole tree **91 / 3842 / 197**, `doc/decisions` removed **69 / 3508 / 197**, both removed **55 / 2804 / 197**. So the windows are **`M3` `(69, 91]`** and **`M4` `(2804, 3508]`**, and the floors W46 retuned to **80** and **3080** sit inside both with 11 files and 276 links of headroom below. **W46 re-centred them deliberately so this plan's last item would not pay the same window twice, and that is what happened** — the first time in six retunes that the prediction *it will fire* has been checked and come back no |
+| [Q142](../questions/q142.md) | **RE-MEASURED and it does NOT fire** | On a scratch copy OUTSIDE the repository: whole tree **91 / 3842 / 197**, `doc/decisions` removed **69 / 3508 / 197**, both removed **55 / 2804 / 197**. So the windows are **`M3` `(69, 91]`** and **`M4` `(2804, 3508]`**, and the floors W46 retuned to **80** and **3080** sit inside both with 11 files and 276 links of headroom below. **W46 re-centred them deliberately so this plan's last item would not pay the same window twice, and that is what happened** — the first time in six retunes that the prediction *it will fire* has been checked and come back no |
 
 ## Record
 
@@ -109,7 +109,7 @@ any L6 row runs is either `"."`, certain, or written with a `?`, because a row I
 document `FD-V29` refuses does not start.** A row for the refused document would be a row with no
 run, no dispatch and no worker. *A rule whose whole effect is that a run never happens is invisible
 to a rung made of runs* — [W35](w35-a-map-on-real-workers.md)'s *`N` too small completes and is
-silent* one rule along, from the other direction. [Q214](../open-questions.md).
+silent* one rule along, from the other direction. [Q214](../questions/q214.md).
 
 **The scope is stated rather than generalised** (`doc/workflow.md` section 1 rule 5's writing
 clause): **L6 was the only blind rung.** With `FD-V29` disabled, L1-L5 reports **7 failures** and
@@ -157,7 +157,7 @@ three.**
 
 | change | what it found here |
 |---|---|
-| **(e)'s THIRD SHAPE — a LIST is a claim about another list** | Instantiated on four lists: the pool registry in `examples/run-flow.ts`, `ROLES`, `run()`'s switch arms, and the workerTypes the 18 L6 documents name. **Measured first: all three pairs agree in both directions and no defect is live** — a bound with no live case, taken because `examples/workers/flow-worker.ts`'s own header records the `ROLES` → switch comparison as costing **zero**, which is [Q196](../open-questions.md)'s *a type closes one direction only* in the direction W43's `Role` type cannot reach. `'zzz'` in `ROLES` now costs **2**, an arm nothing declares **1**, a pool no document names **1**. **And its stated defence was FALSE** — see below |
+| **(e)'s THIRD SHAPE — a LIST is a claim about another list** | Instantiated on four lists: the pool registry in `examples/run-flow.ts`, `ROLES`, `run()`'s switch arms, and the workerTypes the 18 L6 documents name. **Measured first: all three pairs agree in both directions and no defect is live** — a bound with no live case, taken because `examples/workers/flow-worker.ts`'s own header records the `ROLES` → switch comparison as costing **zero**, which is [Q196](../questions/q196.md)'s *a type closes one direction only* in the direction W43's `Role` type cannot reach. `'zzz'` in `ROLES` now costs **2**, an arm nothing declares **1**, a pool no document names **1**. **And its stated defence was FALSE** — see below |
 | **(c)'s LIMIT — count the observers** | Two instances, and both were needed. The `FD-V29` refusal has **two** observers, the finding's `rule` and its `detail`: stripping `"review?"` from the message leaves the rule id firing and costs **1** on the second observer alone. And `spellingOf` is shared by both sides of the spelling comparison, so the **count** clause is the second observer over the normaliser — collapsing it costs **2**. **Then the adequacy reader found the limit unmet in three more places**, which is the verdict |
 | **the fourth requirement on the SET — a PAIR's difference is a claim** | Three pairs. `(RIR, bare)` differ in one character and the difference is asserted by restoring it and comparing byte for byte (`1` and `2` failures); the LOW/HIGH `reference-if-it-ran` pair is W45's and costs **5**; the new `map-past-a-decision` pair is asserted by its payloads and its two outcomes |
 
@@ -168,7 +168,7 @@ the refusal set to `["FD-V29","FD-V5"]` and the control from 0 to 1 — and the 
 because the literal it substituted was **set-equal to the derived value**, which is W17's vacuous
 probe verbatim. (2) **The harness ran NOTHING for its five `SURVIVOR (declared)` rows**: with
 `red: []` the command list was empty and the verdict restated the declaration, in 0.26 s against
-3.4 s for a real probe — [Q151](../open-questions.md)'s shape one obligation across, and **it is what
+3.4 s for a real probe — [Q151](../questions/q151.md)'s shape one obligation across, and **it is what
 hid (1)**. Ceilings are now MEASURED and the measurement is printed beside them, **and closing that
 found five more defects in the same pass** — three stale `says` substrings, one ceiling that was
 really a catch, and one whose measurement belonged to a different command.
@@ -201,8 +201,8 @@ no analogue for the CROSS-ROW layer**, which is where three consecutive items ha
 output. **`CROSS_ROW_SUBJECTS` is that analogue** — one substring per cross-row block, required to
 have been emitted, so the same deletion now costs 1 and **says which subject left**. The regress
 moves rather than closing, and that is stated: the list is a literal, so a block and its subject are
-two edits in one diff, which is `ROW_KEYS`' own limit and [Q102](../open-questions.md)'s shape.
-[Q217](../open-questions.md).
+two edits in one diff, which is `ROW_KEYS`' own limit and [Q102](../questions/q102.md)'s shape.
+[Q217](../questions/q217.md).
 
 **Two more of its blocking findings are obligation (c)'s LIMIT unmet in the block that names it by
 id.** The three-list block's header claimed *"each clause is also the OTHER two's evidence that the
@@ -211,8 +211,8 @@ declared with an arm and no pool, the one direction those clauses exist for — 
 where the real source costs 1. The claim is true only of an extraction returning NOTHING, which the
 `nonEmpty` guards throw on. **It is recorded as a limit rather than repaired**, because the second
 observer would have to be a second DERIVATION and the only one available is a second regex over the
-same text — *a sensor corroborating itself*. [Q216](../open-questions.md), and it is
-[Q212](../open-questions.md)'s shape one item on.
+same text — *a sensor corroborating itself*. [Q216](../questions/q216.md), and it is
+[Q212](../questions/q212.md)'s shape one item on.
 
 **Its fourth was a DETECTOR with one observer and no case that made it fire.** Neutralising the
 reach-past-`index.ts` regex — `src` to `zzz` — cost **zero**, and the compound came back green in
@@ -247,13 +247,13 @@ bearing line* as *a line that STARTS with a pipe*, where Q87's status and owner 
 starts with prose; corrected to *contains a pipe*, with the width check restricted to a row whose
 first line both opens and closes with one, which is the resolution Q87's row states.
 
-**And it found a real defect in the file: [Q204](../open-questions.md)'s row rendered wrong.** Its
+**And it found a real defect in the file: [Q204](../questions/q204.md)'s row rendered wrong.** Its
 text carried `` `\| Cluster \| Q \| Why it is grouped \|` `` with four **unescaped pipes inside a
-code span**, so GFM cut the row into eight cells. [Q131](../open-questions.md)'s two rows are
-**outside** code spans and [Q135](../open-questions.md) records Q87's as a different mechanism
+code span**, so GFM cut the row into eight cells. [Q131](../questions/q131.md)'s two rows are
+**outside** code spans and [Q135](../questions/q135.md) records Q87's as a different mechanism
 entirely, so this is the **fourth** row and the **third distinct cause**. The row is W45's, one item
 old, and it is *about a census parser*. **Fixed in place** — and
-**[Q215](../open-questions.md), the row raised to record it, REPRODUCED THE DEFECT ON ITS FIRST
+**[Q215](../questions/q215.md), the row raised to record it, REPRODUCED THE DEFECT ON ITS FIRST
 WRITE**, aborting the parser at 9 columns before it was ever rendered. *A row describing a defect
 carrying it, for the third time in this repository.*
 
@@ -282,19 +282,19 @@ pre-declares none of `AGENTS.md`, `spec/README.md` or `scripts/check-docs.mjs` a
 so over the plan the tally is `AGENTS.md` **yes / yes / no**, `spec/README.md` **yes / yes / yes**,
 `scripts/check-docs.mjs` **no / yes / no**. **Only `spec/README.md` was taken by all three**, and an
 `Owns` pre-declaration rule would have predicted the other two wrong twice each.
-[Q157](../open-questions.md), for the retro.
+[Q157](../questions/q157.md), for the retro.
 
-**Questions raised.** [Q213](../open-questions.md)-[Q217](../open-questions.md), five of the five
+**Questions raised.** [Q213](../questions/q213.md)-[Q217](../questions/q217.md), five of the five
 reserved. **No ADR** — 0042 is W45's and 0043 was skipped by W46; both are spent and neither is
 reused.
 
 | Q | |
 |---|---|
-| [Q213](../open-questions.md) | a check that lives inside the thing it checks, because `scripts/**` is in nobody's `Owns` |
-| [Q214](../open-questions.md) | a rule whose whole effect is that a run never happens is invisible to a rung made of runs |
-| [Q215](../open-questions.md) | a fourth register row rendering wrong — unescaped pipes INSIDE a code span, and the row raised for it carried the defect |
-| [Q216](../open-questions.md) | three lists compared pairwise both ways still have one observer per pair, and a source swap defeats all three |
-| [Q217](../open-questions.md) | `ROW_KEYS` has no analogue in the cross-row layer, and the analogue this item built is a literal |
+| [Q213](../questions/q213.md) | a check that lives inside the thing it checks, because `scripts/**` is in nobody's `Owns` |
+| [Q214](../questions/q214.md) | a rule whose whole effect is that a run never happens is invisible to a rung made of runs |
+| [Q215](../questions/q215.md) | a fourth register row rendering wrong — unescaped pipes INSIDE a code span, and the row raised for it carried the defect |
+| [Q216](../questions/q216.md) | three lists compared pairwise both ways still have one observer per pair, and a source swap defeats all three |
+| [Q217](../questions/q217.md) | `ROW_KEYS` has no analogue in the cross-row layer, and the analogue this item built is a literal |
 
 **Reader overlap: 2, and it is the TWENTY-FIFTH measurement** — derived by counting
 `doc/workflow.md` section 6's own list (W4 … W43 = 22) and adding W45 and W46. Inside the settled 0-4

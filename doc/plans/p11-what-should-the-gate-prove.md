@@ -3,9 +3,9 @@
 **Status:** **COMPLETE and RETRO'D**, 2026-09-09. Declared the same day, after
 [P10](p10-is-fan-out-one-feature-or-two.md) closed and `doc/workflow.md` reached v0.11; it now stands
 at **[v0.12](../workflow.md)**, which is this plan's retro.
-**[W38](../work-items/w38-the-dispatch-nothing-binds.md) is DONE** — [Q149](../open-questions.md)
+**[W38](../work-items/w38-the-dispatch-nothing-binds.md) is DONE** — [Q149](../questions/q149.md)
 closed in seven checks by three clauses, two of which came from its readers.
-**[W39](../work-items/w39-what-the-gate-proves-and-what-it-costs.md) is DONE** - the gate is **393.1 s from 516.1**, in ladder order, with the seven self-tests run concurrently by one entry and **nothing deleted**. [ADR 0039](../decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md); [Q133](../open-questions.md) and [Q148](../open-questions.md) RESOLVED.
+**[W39](../work-items/w39-what-the-gate-proves-and-what-it-costs.md) is DONE** - the gate is **393.1 s from 516.1**, in ladder order, with the seven self-tests run concurrently by one entry and **nothing deleted**. [ADR 0039](../decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md); [Q133](../questions/q133.md) and [Q148](../questions/q148.md) RESOLVED.
 **W40 is CLOSED as reserved and never issued.**
 *Read every status from the item's own file.*
 
@@ -38,7 +38,7 @@ runtimes, including both real-scheduler rungs — costs **20.5 s**. *Nobody deci
 accumulated result of [P8](p8-what-can-be-deleted-with-the-gate-green.md) and
 [P9](p9-when-a-check-stops-checking-what-notices.md) each doing exactly what they were declared to do.
 
-**And the whole of it can be deleted by hand, silently.** [Q149](../open-questions.md) is confirmed
+**And the whole of it can be deleted by hand, silently.** [Q149](../questions/q149.md) is confirmed
 below in **all six** checks: remove the four-line `--self-test` dispatch and the gate entry runs the
 plain check, exits **0**, and the self-test does not run. 151 to 373 bytes, and 404 seconds of
 evidence stops existing with the gate green.
@@ -54,7 +54,7 @@ ones with a decision at the end rather than a check to build.
 **Four facts. Two of them correct the register rows this plan is built on, which is the thirteenth
 time a plan has found one wrong by trying to act on it.**
 
-### 1. The gate is 433.7 s and 93.2% of it is self-test — [Q133](../open-questions.md)'s own number is wrong
+### 1. The gate is 433.7 s and 93.2% of it is self-test — [Q133](../questions/q133.md)'s own number is wrong
 
 One pass, clean tree, every entry timed individually rather than subtracted across two runs:
 
@@ -87,7 +87,7 @@ it measures gets worse is why this plan quotes both numbers.*
 **Two files are 61% of the whole gate.** `check:markdown:selftest` (141.7) and `check:docs:selftest`
 (123.0) are 264.7 s together — against the 1.1 s and 5.1 s the checks they grade cost.
 
-### 2. [Q149](../open-questions.md) is live in ALL SIX, at exit 0
+### 2. [Q149](../questions/q149.md) is live in ALL SIX, at exit 0
 
 The dispatch is the same four lines in each — `if (process.argv.includes('--self-test'))` and a
 dynamic import. Cut by brace-matching from the `if`, so the file stays valid:
@@ -111,7 +111,7 @@ produced **exit 1 in all six** — a crash reading as a detection. The control h
 held, so the red was mine and not the tree's. *v0.11 was adopted three commits ago and earned its
 keep before this plan was written.*
 
-### 3. [Q148](../open-questions.md)'s hazard is REAL, WIDER than its row, and its stated mechanism is wrong
+### 3. [Q148](../questions/q148.md)'s hazard is REAL, WIDER than its row, and its stated mechanism is wrong
 
 The row says `check:scheduler:selftest` moves `node_modules/fyflow-scheduler` aside *"while an
 `AGENTS.md` snippet imports it"*. Measured by moving the package aside — **never a link** — and
@@ -147,11 +147,11 @@ proved**. It is recorded so the decision has a number to reject rather than an i
 
 **In**
 
-1. **[Q149](../open-questions.md) closed in all six.** The dispatch is bound, and the binding is
+1. **[Q149](../questions/q149.md) closed in all six.** The dispatch is bound, and the binding is
    provoked in all six rather than in the one that motivated it.
 2. **A decision on what the gate proves**, taken as an ADR and argued from fact 1's table — with the
    same table re-measured after, so the plan's own exit artifact is the pair.
-3. **[Q133](../open-questions.md) and [Q148](../open-questions.md) corrected in the register**, from
+3. **[Q133](../questions/q133.md) and [Q148](../questions/q148.md) corrected in the register**, from
    facts 1 and 3, whether or not the decision changes anything.
 
 **Out** — named rather than left implicit
@@ -177,8 +177,8 @@ cheap and independent. Serial, W38 then W39.
 
 | id | | owns |
 |---|---|---|
-| **[W38]** | **DONE.** *The dispatch nothing binds.* [Q149](../open-questions.md) is closed in all **seven** checks — six plus the one this item adds, which covers itself. **Three clauses, not one: `G1` runs each script and requires the sentinel; `G2` reads the DEFAULT target the gate actually loads, which `G1` structurally cannot see; `G3` derives the manifest's entries from DISK both ways.** Two of the three came from the readers. **This row's own instruction was falsified by measurement**: inside `check-source.mjs` the clause cost **+236 s**, because that file is re-run **461** times by its own self-test, so it moved to `scripts/check-wiring.mjs` under an amendment put to the maintainer. [Q176](../open-questions.md)-[Q178](../open-questions.md) | `scripts/check-wiring.mjs` and `scripts/check-wiring-selftest.mjs` (**both NEW**), `scripts/check-source.mjs`, `package.json`'s two new entries, and the `--self-test` dispatch in the six `scripts/check-*.mjs` |
-| **[W39](../work-items/w39-what-the-gate-proves-and-what-it-costs.md)** | **DONE — [ADR 0039](../decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md), and the answer is ORDER and CONCURRENCY: the two properties of the chain nobody had ever chosen.** 516.1 s to **393.1 s** (318.2 at code-complete; the readers' twelve blocking findings cost 75 s, all of it on the critical path), nothing deleted and no bound lowered; (a), (c), (d) and (e) all refused with a measurement each. **The chain now climbs the ladder** — it ran 488.9 s of self-test ahead of `lint`, in a chain whose own `S12` asserts order *because* `&&` is the only implementation that ladder has. **Two of the seven cannot share the tree and only one of the two was predicted**: `check-wiring-selftest.mjs` stages every check flat into `dev-dist/` and runs it, which destroyed two neighbours' fixtures and produced three findings that were facts about another process. **`G4` replaces the three clauses the seven lost by leaving the chain.** [Q133](../open-questions.md) and [Q148](../open-questions.md) RESOLVED; [Q181](../open-questions.md)-[Q182](../open-questions.md) raised, which is why the block was extended. *(The row below is the declaration.)* **DECLARED.** *What the gate proves, and what it costs — the decision.* Re-measure fact 1's table, take **ADR 0039**, implement it, and re-measure. The four candidates, none preferred: (a) keep it as it is and record that the cost is deliberate; (b) parallelise within fact 3's constraint; (c) move some or all self-tests to a separate entry the gate does not run, with something else requiring them; (d) reduce what the two 120-second self-tests prove. **Its declaration adds a fifth — (e) stop paying for a process per probe — and finds that (c) is two changes rather than one**, because there is no CI, no workflow and no git hook, so there is no *something else* to move them to. [Q179](../open-questions.md)-[Q180](../open-questions.md) | `package.json`, `scripts/**`, `doc/decisions/0039-*.md` |
+| **[W38]** | **DONE.** *The dispatch nothing binds.* [Q149](../questions/q149.md) is closed in all **seven** checks — six plus the one this item adds, which covers itself. **Three clauses, not one: `G1` runs each script and requires the sentinel; `G2` reads the DEFAULT target the gate actually loads, which `G1` structurally cannot see; `G3` derives the manifest's entries from DISK both ways.** Two of the three came from the readers. **This row's own instruction was falsified by measurement**: inside `check-source.mjs` the clause cost **+236 s**, because that file is re-run **461** times by its own self-test, so it moved to `scripts/check-wiring.mjs` under an amendment put to the maintainer. [Q176](../questions/q176.md)-[Q178](../questions/q178.md) | `scripts/check-wiring.mjs` and `scripts/check-wiring-selftest.mjs` (**both NEW**), `scripts/check-source.mjs`, `package.json`'s two new entries, and the `--self-test` dispatch in the six `scripts/check-*.mjs` |
+| **[W39](../work-items/w39-what-the-gate-proves-and-what-it-costs.md)** | **DONE — [ADR 0039](../decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md), and the answer is ORDER and CONCURRENCY: the two properties of the chain nobody had ever chosen.** 516.1 s to **393.1 s** (318.2 at code-complete; the readers' twelve blocking findings cost 75 s, all of it on the critical path), nothing deleted and no bound lowered; (a), (c), (d) and (e) all refused with a measurement each. **The chain now climbs the ladder** — it ran 488.9 s of self-test ahead of `lint`, in a chain whose own `S12` asserts order *because* `&&` is the only implementation that ladder has. **Two of the seven cannot share the tree and only one of the two was predicted**: `check-wiring-selftest.mjs` stages every check flat into `dev-dist/` and runs it, which destroyed two neighbours' fixtures and produced three findings that were facts about another process. **`G4` replaces the three clauses the seven lost by leaving the chain.** [Q133](../questions/q133.md) and [Q148](../questions/q148.md) RESOLVED; [Q181](../questions/q181.md)-[Q182](../questions/q182.md) raised, which is why the block was extended. *(The row below is the declaration.)* **DECLARED.** *What the gate proves, and what it costs — the decision.* Re-measure fact 1's table, take **ADR 0039**, implement it, and re-measure. The four candidates, none preferred: (a) keep it as it is and record that the cost is deliberate; (b) parallelise within fact 3's constraint; (c) move some or all self-tests to a separate entry the gate does not run, with something else requiring them; (d) reduce what the two 120-second self-tests prove. **Its declaration adds a fifth — (e) stop paying for a process per probe — and finds that (c) is two changes rather than one**, because there is no CI, no workflow and no git hook, so there is no *something else* to move them to. [Q179](../questions/q179.md)-[Q180](../questions/q180.md) | `package.json`, `scripts/**`, `doc/decisions/0039-*.md` |
 | **[W40]** | **reserved and expected unused**, on P9's precedent. If W39's decision needs a second item to implement it, this is the id | — |
 
 ## Predictions, written down before the items that test them
@@ -191,17 +191,17 @@ checks the reasoning, and only a prediction about a mechanism's reach can revers
 | 1 | **CONFIRMED, and half of it was reversed.** `S11` and `S12` do not catch the dispatch, exactly as derived. But *"read the SCRIPT rather than the manifest"* is **wrong about the manifest**: `G3` exists because both new entries were repointable at another script, and deletable outright, for **zero** — `S12` binds entry NAMES and nothing bound an entry's ARGUMENT. The new clause reads the script AND the manifest AND the directory listing, and it needs all three | W38 | either check already covering it, which would make Q149 a documentation error rather than a hole |
 | 2 | **CONFIRMED, and it checked the reasoning rather than the world** — P10's retro's distinction, and this is the derived kind. Nothing was deleted, no probe dropped and no bound lowered; ADR 0039 moves ORDER and CONCURRENCY instead. **What could have reversed it did not arise**: no self-test was found to grade something its check's own probes already cover | W39 | a measurement that some self-test grades nothing its check's own probes do not |
 | 3 | **CONFIRMED, five times, and once in the direction that matters most.** Three relocation defects and two stub defects each wore the verdict of a finding until the control separated them; and in the item's own provocation set, *`G1`'s spawn timeout is one millisecond* was **caught BY the control** — one named line instead of eight misleading verdicts. It is a fact about provocation harnesses | W38 | the set running clean, which would make v0.11 a fact about ad-hoc harnesses rather than about provocation harnesses |
-| 4 | **CONFIRMED, from ONE arrangement, and the floor is where it said.** Measured: **393.1 s**, of which **365.0 is `selftests`**, and `check:markdown:selftest`'s ~170 s floor is where that prediction named it. *(This row went on to say the floor was **no longer the binding constraint** because `check:wiring:selftest` runs alone for ~200 s and *the exclusive prefix dominates*. **P11's retro measured both over three gates and withdrew that half**: the prefix reads 180.4 / 174.0 / 173.1 s and the group — which IS `check:markdown:selftest` — reads 176.2 / 183.7 / 185.0, so the two are the same size to within [Q179](../open-questions.md)'s band and which one leads is not a property of the tree. The prediction was right about the floor **and** about the reason; what is new is a **second term of the same size**, so the wall is roughly twice the named floor.)* **Contention is now measured and it is the half fact 4 could not see**: the serial-equivalent SUM rises 5-20% under concurrency, so the saving is waiting rather than work. *One arrangement is one arrangement* — this is the kind of prediction that could have reversed, and it did not | W39 | a measured arrangement below it, which would mean the serial cost was scheduling rather than work |
+| 4 | **CONFIRMED, from ONE arrangement, and the floor is where it said.** Measured: **393.1 s**, of which **365.0 is `selftests`**, and `check:markdown:selftest`'s ~170 s floor is where that prediction named it. *(This row went on to say the floor was **no longer the binding constraint** because `check:wiring:selftest` runs alone for ~200 s and *the exclusive prefix dominates*. **P11's retro measured both over three gates and withdrew that half**: the prefix reads 180.4 / 174.0 / 173.1 s and the group — which IS `check:markdown:selftest` — reads 176.2 / 183.7 / 185.0, so the two are the same size to within [Q179](../questions/q179.md)'s band and which one leads is not a property of the tree. The prediction was right about the floor **and** about the reason; what is new is a **second term of the same size**, so the wall is roughly twice the named floor.)* **Contention is now measured and it is the half fact 4 could not see**: the serial-equivalent SUM rises 5-20% under concurrency, so the saving is waiting rather than work. *One arrangement is one arrangement* — this is the kind of prediction that could have reversed, and it did not | W39 | a measured arrangement below it, which would mean the serial cost was scheduling rather than work |
 
 ## Open questions this plan carries
 
 | Q | | Owner |
 |---|---|---|
-| [Q133](../open-questions.md) | what the gate should cost — **the plan's question** | **W39**, by ADR 0039 |
-| [Q149](../open-questions.md) | the `--self-test` dispatch nothing binds — **RESOLVED by W38**, in all seven | **W38** |
-| [Q148](../open-questions.md) | a META entry is two check runs, and the two self-tests cannot run concurrently — **its row is corrected by fact 3 before any item starts** | **W39** if the decision is (b); otherwise corrected and left open |
-| [Q138](../open-questions.md) | which probe gets the credit is an artefact of `PROBES`' order | no owner — named because W39's option (d) would touch it |
-| [Q158](../open-questions.md) | a whole `*.test.ts` file renamed out of the runner's glob is noticed by nothing | no owner — the same class as Q149 one directory across, and **explicitly not this plan's** |
+| [Q133](../questions/q133.md) | what the gate should cost — **the plan's question** | **W39**, by ADR 0039 |
+| [Q149](../questions/q149.md) | the `--self-test` dispatch nothing binds — **RESOLVED by W38**, in all seven | **W38** |
+| [Q148](../questions/q148.md) | a META entry is two check runs, and the two self-tests cannot run concurrently — **its row is corrected by fact 3 before any item starts** | **W39** if the decision is (b); otherwise corrected and left open |
+| [Q138](../questions/q138.md) | which probe gets the credit is an artefact of `PROBES`' order | no owner — named because W39's option (d) would touch it |
+| [Q158](../questions/q158.md) | a whole `*.test.ts` file renamed out of the runner's glob is noticed by nothing | no owner — the same class as Q149 one directory across, and **explicitly not this plan's** |
 
 ## A note on ids
 
@@ -210,7 +210,7 @@ reserved it and skipped it, and the precedent is P9 reserving 0034-0035, skippin
 0036-0037. `doc/workflow.md` section 3: ids are never reused and never renumbered, and a reserved id
 that was not spent is still not free.
 
-**[Q168](../open-questions.md) and [Q169](../open-questions.md) are a gap, and gaps ARE free** — W36
+**Q168 and Q169 are a gap, and gaps ARE free** — W36
 reserved Q167-Q169 and used only Q167. This plan starts at **Q176** anyway, because a block that
 starts inside an old reservation is the collision four consecutive items had.
 
@@ -228,7 +228,7 @@ register — 132 questions, 92 open, 2 deferred, 38 resolved
 ```
 
 **Three things about those numbers.** `npm run gate` runs `test:browser`, which is **chromium only**.
-**574 counts `test()` cases and 638 counts individual assertions ([Q98](../open-questions.md)) — they
+**574 counts `test()` cases and 638 counts individual assertions ([Q98](../questions/q98.md)) — they
 are never added.** And the 433.7 s is a **fourth** reading beside P9's 366, 438 and P10's 9m40; the
 spread is real, which is why fact 1 times the entries within one pass rather than comparing two runs.
 
@@ -240,8 +240,8 @@ proving?* — is answered by
 [ADR 0039](../decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md):
 **everything it proved before, in ladder ORDER, with the seven `:selftest` entries run
 CONCURRENTLY.** Nothing deleted, no probe dropped, no bound lowered.
-[Q133](../open-questions.md), [Q148](../open-questions.md) and [Q149](../open-questions.md) are all
-**RESOLVED**; [Q176](../open-questions.md)-[Q183](../open-questions.md) are raised and **all eight are open**. `doc/workflow.md` is **[v0.12](../workflow.md)** — three changes adopted, three proposals
+[Q133](../questions/q133.md), [Q148](../questions/q148.md) and [Q149](../questions/q149.md) are all
+**RESOLVED**; [Q176](../questions/q176.md)-[Q183](../questions/q183.md) are raised and **all eight are open**. `doc/workflow.md` is **[v0.12](../workflow.md)** — three changes adopted, three proposals
 refused.
 
 **Every one of its defects is in the INSTRUMENT rather than in the product**, which is what a process
@@ -269,14 +269,14 @@ chain entries                          21             15
 ```
 
 **Every number states which side of the band it falls on, and the band was declared BEFORE the
-change** — [Q179](../open-questions.md), which measured two whole passes over one unchanged tree at
+change** — [Q179](../questions/q179.md), which measured two whole passes over one unchanged tree at
 **+13.0%** and three back-to-back runs of one entry at **32%**. That is the half of the exit artifact
 the plan did not ask for and needed: *P11's own `Exit:` line asked for two single passes, and a pair
 of single passes cannot argue a change smaller than 13%.*
 
 **And the second half is SEVEN checks rather than six.**
 [W38](../work-items/w38-the-dispatch-nothing-binds.md) added `scripts/check-wiring.mjs`, which covers
-itself, and closed [Q149](../open-questions.md) with **three** clauses where the plan predicted one:
+itself, and closed [Q149](../questions/q149.md) with **three** clauses where the plan predicted one:
 `G1` runs each `:selftest` script and requires a sentinel; `G2` reads the DEFAULT that dispatch loads
 when nothing sets the override; `G3` derives the manifest's entries from the disk both ways. **Two of
 the three came from the readers.**
@@ -305,13 +305,13 @@ selftests wall              356.7 s   357.6 s   358.1 s    retro's edits; C and 
 that is the whole of what can be claimed.** *This paragraph first said they **cost more than the other
 five together**, from run A alone, where the prefix is 180.4 against a group of 176.2. **Run C reverses
 it and run D reverses it again** — 174.0 against 183.7, and 173.1 against 185.0. The two terms are the
-same size to within [Q179](../open-questions.md)'s band and which of them leads is not a property of
+same size to within [Q179](../questions/q179.md)'s band and which of them leads is not a property of
 the tree, so* **the exclusive prefix is the binding constraint** *is a claim inside the noise and is
 withdrawn — here, in [ADR 0039](../decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md),
-in [Q182](../open-questions.md)'s row and in the prediction-4 verdict, all four of which said it.*
+in [Q182](../questions/q182.md)'s row and in the prediction-4 verdict, all four of which said it.*
 **Change 2 fired on the retro that adopted it, in the paragraph that adopted it**, and what caught it
 was re-taking the number on the tree that ships rather than on the tree the work started from. *One
-run is one run, which is this plan's own `Exit:` line and its own [Q179](../open-questions.md), and
+run is one run, which is this plan's own `Exit:` line and its own [Q179](../questions/q179.md), and
 knowing that is not the same as not doing it.*
 
 **The retro's own gate**: `GATE EXIT=0`, **zero lines beginning `FAIL`**, 15 chain entries, and
@@ -330,12 +330,12 @@ three drafts ago.)*
 **What reproduces far better is the wall clock of the whole entry**: **355.7 to 371.1 s over seven
 runs — a spread of at most 4.3%**, against a per-entry band of 13% and a single-entry spread of 32%. *Concurrency averages the
 variance the serial chain exposed*, which is a consequence of ADR 0039 nobody predicted.
-[Q182](../open-questions.md) had a direction and now has a price: **roughly half of ~358 s**, taken
+[Q182](../questions/q182.md) had a direction and now has a price: **roughly half of ~358 s**, taken
 from the runner's own output.
 
 **And this retro made FOUR successive claims about that spread and the next run falsified each** —
 ±0.3% over three runs, ±0.2% over four, 0.7% over five, then a sixth at 362.0, then *under 2% over six*
-and a seventh at 371.1. **[Q179](../open-questions.md) firing FOUR times inside the retro that cites
+and a seventh at 371.1. **[Q179](../questions/q179.md) firing FOUR times inside the retro that cites
 it.** The form that survives is the one v0.10's writing clause already prescribes: **state the scope,
 and state it as a bound a further sample can only widen.** *At most 4.3% across seven runs* is a fact
 about seven runs; *±0.2%* was a claim about the machine, and it was falsified within the hour. **A
@@ -356,7 +356,7 @@ distinction, two of each, and it produced a sharper result than a clean four-for
 | 1 | **both, in one row** | `S11` and `S12` do not catch the dispatch — **derived**, from clauses read out of `check-source.mjs`, confirmed. *"So read the SCRIPT rather than the manifest"* — **reach**, and it **reversed**: both of W38's new entries were repointable at another script, and deletable outright, for **zero**, because `S12` binds entry NAMES. The shipped clause reads the script AND the manifest AND the directory listing and needs all three |
 | 2 | derived | Nothing deleted, no probe dropped, no bound lowered. **The weakest of the four, and the reason is stated**: P11's own `Out` section put *deleting or weakening any check* out of scope, so most of what could have reversed it was ruled out before the item started. What remained — candidate (d), *reduce what the two 120-second self-tests prove* — was refused on a **measurement** and not on the scope: those two now run **at the same time as each other**, so reducing either buys at most the difference between them |
 | 3 | **reach** | v0.11's harness requirement generalises past its founding cases: **five instances inside W38 alone**. The one that matters most is *`G1`'s spawn timeout is one millisecond* being **caught BY the control** — one named line instead of eight misleading verdicts. **The strongest prediction of the four, and the only one that was about the world rather than about this repository's own tables** |
-| 4 | **reach** | No arrangement reached ~170 s without changing what is proved; **393.1 s measured**, of which 365.0 is `selftests`. **Right about the number AND about the reason, and W39 then over-read its own measurement.** `check:markdown:selftest` is the concurrent group and it reads **176.2 / 183.7** — the floor the prediction named. What W39 did not see is a **second term of the same size**: the exclusive prefix at **180.4 / 174.0**, one of whose two entries nothing had predicted. W39's Record and ADR 0039 called that prefix *the binding constraint*, from one run; **this retro measured two and withdrew it** — the two terms are the same size to within [Q179](../open-questions.md)'s band and which leads flips. **And it is confirmed from ONE arrangement**, which is not the same as established: a second lane assignment, a different machine, or [Q182](../open-questions.md) closed would each move it |
+| 4 | **reach** | No arrangement reached ~170 s without changing what is proved; **393.1 s measured**, of which 365.0 is `selftests`. **Right about the number AND about the reason, and W39 then over-read its own measurement.** `check:markdown:selftest` is the concurrent group and it reads **176.2 / 183.7** — the floor the prediction named. What W39 did not see is a **second term of the same size**: the exclusive prefix at **180.4 / 174.0**, one of whose two entries nothing had predicted. W39's Record and ADR 0039 called that prefix *the binding constraint*, from one run; **this retro measured two and withdrew it** — the two terms are the same size to within [Q179](../questions/q179.md)'s band and which leads flips. **And it is confirmed from ONE arrangement**, which is not the same as established: a second lane assignment, a different machine, or [Q182](../questions/q182.md) closed would each move it |
 
 **So the corrected reading of P10's rule, from this plan's evidence.** A derived prediction can be
 confirmed and say nothing (2). A reach prediction can be confirmed *and still be wrong about its own
@@ -390,7 +390,7 @@ PROCESS**. A control is per-harness; the hazard was cross-process, because
 the real `check-docs` body and deletes a fixed path another self-test is driving. **The requirement
 was written for a harness that destroys its own subject and this is a harness that destroys its
 neighbour's.** Isolated by measurement rather than by reasoning — green beside `check:wiring`, red
-beside `check:wiring:selftest` — and it is [Q182](../open-questions.md) rather than a rule change,
+beside `check:wiring:selftest` — and it is [Q182](../questions/q182.md) rather than a rule change,
 because the fix is a derived scratch path in nine files and not a sentence.
 
 **Verdict: KEEP, unchanged.** One occurrence of a limit is a question, not an amendment.
@@ -514,7 +514,7 @@ runs structurally cannot take**.
 
 ## What the plan answered
 
-**[Q133](../open-questions.md) — RESOLVED. What the gate should prove does not change; WHEN and IN
+**[Q133](../questions/q133.md) — RESOLVED. What the gate should prove does not change; WHEN and IN
 WHAT ORDER it proves it does.** The answer is the two properties of the chain nobody had ever chosen.
 **ORDER**: the chain ran 488.9 s of self-test ahead of `lint`, in a chain whose own `S12` asserts
 order *because* `&&` in sequence is the only implementation section 4's ladder has — a rule stated
@@ -530,14 +530,14 @@ two 120-second self-tests prove* — refused because those two now run **at the 
 other**, so it buys less than concurrency does. *(e) stop paying for a process per probe* — refused
 **for this item and not on the merits**: 137-158 s of real interpreter boot that `NODE_COMPILE_CACHE`
 does not touch (128 ms against 129), costing seven self-tests rewritten to load a check by `import`
-rather than by `spawnSync`. [Q180](../open-questions.md) keeps the number.
+rather than by `spawnSync`. [Q180](../questions/q180.md) keeps the number.
 
-**[Q148](../open-questions.md) — RESOLVED, and its last sentence was false.** *"The saving is not in
+**[Q148](../questions/q148.md) — RESOLVED, and its last sentence was false.** *"The saving is not in
 parallelism"*: the measurement is **488.9 s to 365.0**. And only one of the two exclusive entries was
-predicted — [Q148](../open-questions.md) named `check:scheduler:selftest`; **nothing had ever said
+predicted — [Q148](../questions/q148.md) named `check:scheduler:selftest`; **nothing had ever said
 `check:wiring:selftest` cannot share the tree either.**
 
-**[Q149](../open-questions.md) — RESOLVED in seven checks, by three clauses.** [W38](../work-items/w38-the-dispatch-nothing-binds.md).
+**[Q149](../questions/q149.md) — RESOLVED in seven checks, by three clauses.** [W38](../work-items/w38-the-dispatch-nothing-binds.md).
 
 **And the honest correction to the plan's own headline.** P11 was declared on *the gate is 93.2%
 self-test and nobody decided that*, and it argued the point against `doc/workflow.md` section 8's 90 s
@@ -559,14 +559,14 @@ reserved and skipped it); the next plan starts at **ADR 0040**.
 **Q176-Q183: all eight used, and the block was extended TWICE** — the first plan to spend a reserved
 block before its second item raised a question, and the second consecutive plan to spend the whole of
 it. Three by W38, two by W39's declaration, two more by W39's Record and one after its readers
-reported. **[Q133](../open-questions.md), [Q148](../open-questions.md) and
-[Q149](../open-questions.md) resolved.** The next plan starts at **Q184**, and
-[Q168](../open-questions.md)-[Q169](../open-questions.md) remain a gap, which is free.
+reported. **[Q133](../questions/q133.md), [Q148](../questions/q148.md) and
+[Q149](../questions/q149.md) resolved.** The next plan starts at **Q184**, and
+Q168-Q169 remain a gap, which is free.
 
 **This retro raises no question and resolves none**, which is deliberate:
-[Q181](../open-questions.md) (the marker is bound to nothing — removing it alone costs **zero**),
-[Q182](../open-questions.md) (now priced at 180.4 s of critical path) and
-[Q183](../open-questions.md) are live, unowned and the next plan's raw material.
+[Q181](../questions/q181.md) (the marker is bound to nothing — removing it alone costs **zero**),
+[Q182](../questions/q182.md) (now priced at 180.4 s of critical path) and
+[Q183](../questions/q183.md) are live, unowned and the next plan's raw material.
 
 ## Census — CONFIRMED for the eighth plan running, and the parser aborted ZERO times
 
@@ -587,7 +587,7 @@ is the mechanism, and after seven plans it worked.*
 **And it found the standing line right and the note beside it wrong.** The register's summary reads
 140 / 97 / 2 / 41 and W39's re-derivation, two lines below it, reads **139 / 96** — with *"140 of 140
 in exactly one cluster cell"* in the same sentence, because the cluster half was re-run after
-[Q183](../open-questions.md) landed and the population half was not. **The provenance clause says read
+[Q183](../questions/q183.md) landed and the population half was not. **The provenance clause says read
 the item's own file rather than an index; here the index was right and the derivation was stale**, and
 the reason is change 2's: the count was taken before the last thing the item did.
 

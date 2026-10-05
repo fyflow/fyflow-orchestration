@@ -3,7 +3,7 @@
  * **`OR-R12`**: an uncloneable RESOLUTION value throws to its caller.
  * [W54](../../doc/work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md)
  * under [P15](../../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md),
- * answering [Q22](../../doc/open-questions.md).
+ * answering [Q22](../../doc/questions/q22.md).
  *
  * **Every expected value here is derived from `spec/outcome-record.md` section 4 and
  * never from output**, and the boundary table below is **read out of that document**
@@ -567,7 +567,7 @@ suite('OR-R11 — a result is a VALUE, and each shape asserts what does NOT cros
 suite('OR-R11 — the corpus half of what bounding a result would cost', (test) => {
   /**
    * **`14 of 124` and `110 (89%)` are stated in `spec/outcome-record.md` section 4 and
-   * in [Q239](../../doc/open-questions.md), and nothing computed them** — measured,
+   * in [Q239](../../doc/questions/q239.md), and nothing computed them** — measured,
    * both could be changed to any value for zero failures. W54's adequacy reader.
    * They are decidable from the corpus this suite already has, so they are derived
    * here and the document's own numbers are compared to what the corpus says.

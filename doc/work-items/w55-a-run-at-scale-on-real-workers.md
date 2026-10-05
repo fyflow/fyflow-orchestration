@@ -44,7 +44,7 @@ Reserves:   Q243-Q247, no ADR
    item is where that matters most, because the number is the deliverable.
 4. **The revert cost, in two units.** What reverting W53 costs in **MiB** (the point of the change)
    and in **L6 failures** (the rung). P15 fact 3 says the second is **0** before this item —
-   [Q214](../open-questions.md)'s shape from the removal side, and prediction 4's subject.
+   [Q214](../questions/q214.md)'s shape from the removal side, and prediction 4's subject.
    **If this item can move that number above zero, it has written the rung nobody had**; if it cannot,
    it says so, which is what Q214's row asks a second instance to establish.
 
@@ -74,11 +74,11 @@ How each clause of `Gate:` is actually run. Name the commands.
 | conformity reader | spec first, code second. **Its copy is taken with the author's tree HELD STILL** (section 6, v0.15): W51's reader caught `examples/l6.ts` at six digests and one live rule-8 probe, one snapshot RED on correct code |
 | adequacy reader | **in an isolated copy**, and its central question here is [W23](w23-a-nested-flow-on-real-workers.md)'s at its fifth iteration — **what does deleting this item's rows cost**. A row whose property is carried by a literal is W51's four survivors; a cross-row clause is **computed from the row definitions and from the folded run**, never declared as a fourth list |
 
-**Routing coverage**: a branch routed away from its join ([Q4](../open-questions.md)) and a nested
-fan-out ([Q6](../open-questions.md)) are both covered, because W53's never-fires case is exactly a
+**Routing coverage**: a branch routed away from its join ([Q4](../questions/q4.md)) and a nested
+fan-out ([Q6](../questions/q6.md)) are both covered, because W53's never-fires case is exactly a
 region that holds arrivals forever and both shapes produce one. `user_action`
-([Q17](../open-questions.md)) is covered by an existing L6 row this item must not break. A duplicate
-task id ([Q13](../open-questions.md)) and no matching decision edge ([Q10](../open-questions.md)) are
+([Q17](../questions/q17.md)) is covered by an existing L6 row this item must not break. A duplicate
+task id ([Q13](../questions/q13.md)) and no matching decision edge ([Q10](../questions/q10.md)) are
 **not applicable**.
 
 **Before this item is done it greps the tree for `W55`** outside `doc/` — section 1 rule 5's third
@@ -163,13 +163,13 @@ either way, all in `test/driver/retention.test.ts`. `examples/retention.ts` exit
 **What broke.**
 
 **THE PREDICTION REVERSED, AND THE REASON IS NARROWER THAN THE PREDICTION.** P15 prediction 4 says
-this plan supplies [Q214](../open-questions.md)'s third instance from the removal side: *fact 3's
+this plan supplies [Q214](../questions/q214.md)'s third instance from the removal side: *fact 3's
 clear costs 0 at L1-L5 and 0 at L6, so a rung made of runs cannot see a whole structure leave.* Its
 stated reversal was *W55's exit artifact finding a rung that DOES see it — most likely by asserting
 the footprint itself*. **A rung does see it, 0 → 29, and NOT by asserting the footprint.** The bytes
-are reported and never asserted ([Q179](../open-questions.md)); what moved the number is the
+are reported and never asserted ([Q179](../questions/q179.md)); what moved the number is the
 RELATION, and what makes the relation observable is a **reach past the reported surface** into the
-driver's own `arrivals` — [Q233](../open-questions.md)'s subject. **The half of Q214 that survives is
+driver's own `arrivals` — [Q233](../questions/q233.md)'s subject. **The half of Q214 that survives is
 the half that matters to a consumer**: the outcome, every task id, the log, the fold and every
 callback are byte-identical with the release and without it, which is exactly why the release was
 safe to make. *A rung made of runs cannot see this through anything a run REPORTS; it can see it by
@@ -217,7 +217,7 @@ assertion. `PER_ROW_SUBJECTS` is the analogue — **a literal subject with a DER
 is bound **both ways**, because every per-row assertion W55 adds begins with the rule it is about, so
 a subject deleted with its clause leaves its own labels uncovered. **The cross-row layer's own
 version of that hole is a declared ceiling and could not be closed the same way**, because cross-row
-labels are prose continuations of each other and share no such handle ([Q217](../open-questions.md)).
+labels are prose continuations of each other and share no such handle ([Q217](../questions/q217.md)).
 
 **THE CLAUSE RECORDING THE TWO RELEASE MOMENTS THIS RUNG CANNOT REACH WAS RIGHT BY ACCIDENT, AND BOTH
 READERS FOUND IT.** `Expectation.regionId` is **optional** and most rows leave it out, so
@@ -251,13 +251,13 @@ and labels *"of the pair"* — and the derived sentence in ADR 0046, in P15's fa
 in `doc/README.md` reads *"exceeds `bytes(inputs)` by 49.8%"*, which is **+99.2 to +99.4%**. Wrong by
 a factor of two, and wrong in the direction that **understates** the saving. The headline — *half of
 what a region-bearing run holds is a second copy* — is the share-of-the-pair reading and is right, as
-are `JP-R12`, W53's own file and [Q19](../open-questions.md)'s resolved row. **It was found by
+are `JP-R12`, W53's own file and [Q19](../questions/q19.md)'s resolved row. **It was found by
 re-running fact 3's own harness with the release reverted rather than transcribing its number**, which
 is the `Inputs:` line doing the job it has now done in every item of this plan.
-[Q243](../open-questions.md), which also records the second half: **neither ratio is a constant**,
+[Q243](../questions/q243.md), which also records the second half: **neither ratio is a constant**,
 because the divisor is *one copy per settled result* and is therefore a property of the FLOW as well
 as of the payload — **+97.5%** with no node after the join, **+49.3%** with one that echoes the
-collection, **+33.0%** on the flow this rung measures. That is [Q240](../open-questions.md)'s lesson
+collection, **+33.0%** on the flow this rung measures. That is [Q240](../questions/q240.md)'s lesson
 with a second variable in it.
 
 **THE SCALE TARGET RUNS ON REAL WORKERS, AND THE TOPOLOGY THE REFERENCE RECOMMENDS IS THE EXPENSIVE
@@ -268,13 +268,13 @@ so the super-linearity is the topology's and not `RN-R13`'s. The mechanism is no
 settlement on a shared scheduler reaches **every** driver's listener and `ID-R4` tier 1 drops the ones
 that are not that run's — [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
 working exactly as written, N times per settlement. **P15 fact 5's table cannot see it**, because it
-gives each of its ten thousand drivers its own stub. [Q244](../open-questions.md).
+gives each of its ten thousand drivers its own stub. [Q244](../questions/q244.md).
 
 **AND A RUN'S FOOTPRINT IS NOT ONLY THE DRIVER'S.** `scheduler.tasks` holds **six tasks a run** beside
 everything `RN-R13` names, and **`v8.serialize` REFUSES a `FyflowTask`** — so this repository's own
 observer cannot price the other holder. That is `OR-R11`'s sentence arriving from the far side, *a
 result is a VALUE, not an OBJECT*, applied to the scheduler's own objects rather than to a worker's
-return. [Q245](../open-questions.md).
+return. [Q245](../questions/q245.md).
 
 **A PER-UNIT COST IS QUOTING THE UNIT ITS HARNESS USED.** P15 decision 3 refuses a rung on the ground
 that L6 is *~101 ms per real run*. Re-measured, 4286 / 42 = 102 ms — and the divisor is a **ROW**:
@@ -282,17 +282,17 @@ each `EXPECTED` entry builds a ten-pool scheduler, runs one flow at `delayMs: 5`
 A hundred real runs at `delayMs: 0` take **115 ms**. **The refusal stands and this item does not
 revisit it** — adding a rung is on the plan's stop-and-ask list, and a rung whose cost is a property
 of how the harness is written would be a worse argument than one that does not need the number.
-[Q246](../open-questions.md).
+[Q246](../questions/q246.md).
 
 **Questions raised.** **Q243-Q246 used; Q247 reserved and unused; NO ADR, as declared.**
 
-- **[Q243](../open-questions.md)** — the 49.8% is a share of the pair, four documents state it as an
+- **[Q243](../questions/q243.md)** — the 49.8% is a share of the pair, four documents state it as an
   excess, and neither ratio is a constant.
-- **[Q244](../open-questions.md)** — N runs on one shared scheduler is O(N²); on their own it is
+- **[Q244](../questions/q244.md)** — N runs on one shared scheduler is O(N²); on their own it is
   linear, and the shared topology is the one `AGENTS.md` recommends.
-- **[Q245](../open-questions.md)** — the scheduler's own map is retention beside `RN-R13`'s, and the
+- **[Q245](../questions/q245.md)** — the scheduler's own map is retention beside `RN-R13`'s, and the
   serializer refuses to measure it.
-- **[Q246](../open-questions.md)** — P15 decision 3's per-run figure is a per-ROW figure; the
+- **[Q246](../questions/q246.md)** — P15 decision 3's per-run figure is a per-ROW figure; the
   conclusion survives on other grounds.
 
 **Readers 13 / 3 blocking and 41 mutations / 19 survivors / 6 blocking, OVERLAP 2** — the **thirty-first**

@@ -225,8 +225,8 @@ function chainsNest(ca: string[], cb: string[]): boolean {
  * itself and a row added without a key fails too.
  *
  * **Its limit, stated**: this is a literal, so a row and its key are two edits in
- * one diff — [Q217](../../doc/open-questions.md)'s own recorded limit, and
- * [Q102](../../doc/open-questions.md)'s shape.
+ * one diff — [Q217](../../doc/questions/q217.md)'s own recorded limit, and
+ * [Q102](../../doc/questions/q102.md)'s shape.
  */
 const CASE_KEYS = [
   'reference-past-a-map-arity:publish/score',
@@ -356,7 +356,7 @@ suite('L1 — outputIsVisible: the prefix rule is the SPECIAL CASE', (test) => {
    *
    * Compared both ways, and every member is required to CONTRIBUTE below, so no
    * one document can carry the list. *The limit is `CASE_KEYS`' own*
-   * ([Q217](../../doc/open-questions.md)): a member and its key are two edits in
+   * ([Q217](../../doc/questions/q217.md)): a member and its key are two edits in
    * one diff.
    */
   const DOC_KEYS = [
@@ -425,7 +425,7 @@ suite('L1 — outputIsVisible: the prefix rule is the SPECIAL CASE', (test) => {
     }
     // **An EQUALITY and not a floor**, for `S12`'s reason one file across: a floor
     // answers *are there at least N* and goes stale toward weakness
-    // ([Q102](../../doc/open-questions.md)), while an equality fails when the
+    // ([Q102](../../doc/questions/q102.md)), while an equality fails when the
     // iteration shrinks AND when a document is added without anyone looking. The
     // value is measured on this tree and is deliberately pinned; the previous
     // version said *"the documents yield this many"* of a floor 41% below what they

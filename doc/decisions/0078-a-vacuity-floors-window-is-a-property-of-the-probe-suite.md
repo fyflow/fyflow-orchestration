@@ -97,12 +97,12 @@ too — both edges are invalid. Its conformity reader found it.)*
 
    | | refuses | whose case it is |
    |---|---|---|
-   | `M7` | a row whose cell count differs from its header's; a row that does not open AND close with a pipe; a row being read as a HEADER because the table above it ended; an unclosed code, bold or italic run | [Q131](../open-questions.md) (three mechanisms, seven rows), [Q135](../open-questions.md) (table termination), [Q215](../open-questions.md) (pipes inside a code span), [Q442](../open-questions.md) (a blank line), and the inline-markup class nobody had named |
+   | `M7` | a row whose cell count differs from its header's; a row that does not open AND close with a pipe; a row being read as a HEADER because the table above it ended; an unclosed code, bold or italic run | [Q131](../questions/q131.md) (three mechanisms, seven rows), [Q135](../questions/q135.md) (table termination), [Q215](../questions/q215.md) (pipes inside a code span), [Q442](../questions/q442.md) (a blank line), and the inline-markup class nobody had named |
    | `M8` | two rows for one id; fewer rows than `REGISTER_ROW_FLOOR`; either heading missing | that a register IS one line per question; the RE-BALLOON; and the two headings every anchored link into the file resolves to |
 
    **The single subject is a REDUCTION in scope and is recorded as one**, on `X10`'s precedent after
    [ADR 0073](0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) decision 5. Widening
-   it to the corpus is [Q407](../open-questions.md), which now carries the 49-in-22 figure; what
+   it to the corpus is [Q407](../questions/q407.md), which now carries the 49-in-22 figure; what
    stops it is twenty rows nobody has fixed, not the clause.
 
 5. **The register gets no SIZE bound, and `M8`'s duplicate clause is what sees a re-balloon
@@ -117,7 +117,7 @@ too — both edges are invalid. Its conformity reader found it.)*
 ## Consequences
 
 1. **`REGISTER_ROW_FLOOR` is a ratchet that never needs lowering, which is the opposite of
-   [Q102](../open-questions.md)'s hazard.** A register row is never deleted, because an id is never
+   [Q102](../questions/q102.md)'s hazard.** A register row is never deleted, because an id is never
    reused (`doc/workflow.md` section 3), so the count is monotonically non-decreasing and a floor
    below today's is valid for ever. It moves UP by choice, never down by obligation. **The first cut
    was 200 and the reader's edit deleting ONE HUNDRED rows survived it** — 257 is still above 200 —
@@ -150,9 +150,9 @@ too — both edges are invalid. Its conformity reader found it.)*
    restoring HEAD fires it eight times.
 
 5. **What is NOT fixed.** The twenty content-dropping rows in ten documents stay broken, and
-   `M7`'s single subject is why the gate is green over them ([Q407](../open-questions.md)). The
+   `M7`'s single subject is why the gate is green over them ([Q407](../questions/q407.md)). The
    twenty-eight rows that render with a column EMPTY rather than discarded stay too, for the same
    reason. Nothing bounds the register's SIZE, by decision 5. And `check:budget`'s own membership is
    still three paths bound to three more paths in a self-test
-   ([Q465](../open-questions.md)'s surviving half) — what W113 closed is the other half, the
+   ([Q465](../questions/q465.md)'s surviving half) — what W113 closed is the other half, the
    instruction that made a fourth document always-read.

@@ -57,7 +57,7 @@ the item, on 2026-09-11, before any of them was touched.**
 
 | file | why this item reaches it |
 |---|---|
-| `scripts/check-docs.mjs` | **`X5` carries an allowance for exactly ONE snippet failing under the DOM lib, and names Q71 as the one.** Output (3) removes that snippet's failure, so `hit.size > 1` becomes a hole one snippet wide — section 1 rule 5's third direction, a withdrawn claim searched for. And `RUN_FLOOR` is [Q102](../open-questions.md)'s ratchet: this item makes section 12's snippet a `run` one, so the floor moves 18 -> 19, which is the obligation Q102's row says the item adding a snippet owes |
+| `scripts/check-docs.mjs` | **`X5` carries an allowance for exactly ONE snippet failing under the DOM lib, and names Q71 as the one.** Output (3) removes that snippet's failure, so `hit.size > 1` becomes a hole one snippet wide — section 1 rule 5's third direction, a withdrawn claim searched for. And `RUN_FLOOR` is [Q102](../questions/q102.md)'s ratchet: this item makes section 12's snippet a `run` one, so the floor moves 18 -> 19, which is the obligation Q102's row says the item adding a snippet owes |
 | `scripts/check-docs-selftest.mjs` | the `META` entry for `X5` anchors on `if (hit.size > 1)` and is named *"so Q71 can get worse unnoticed"*; both follow the clause, or rule 7 (b) reports *the mutation matched nothing* |
 | `examples/run-flow.ts` | the L6 harness is the ONE place a real `FyflowScheduler` is driven, and its `createTask: (config) => new FyflowTask(config)` is what output (4) makes the default. **Rule 8 obligation (e) — was what it RAN what SHIPS** — is answered by L6 running with the option OMITTED, which the Verification section above declares and which is in this file. Its header comment also states ADR 0013 rule 1 as current |
 | `examples/README.md` | states *"the published library depends on the scheduler not at all"* as current, in the document L6's reader opens first |
@@ -128,9 +128,9 @@ How each clause of `Gate:` is actually run. Name the commands.
 | adequacy reader | **in an isolated copy**, and the AUTHOR's tree holds still while it reads (section 6, v0.15); rule 8's set is not run during the review |
 
 **Routing coverage.** This item touches no routing. A branch routed away from its join
-([Q4](../open-questions.md)), `user_action` ([Q17](../open-questions.md)), no matching decision edge
-([Q10](../open-questions.md)), a duplicate task id ([Q13](../open-questions.md)) and a nested fan-out
-([Q6](../open-questions.md)) are all **not applicable**: the default `createTask` builds the same
+([Q4](../questions/q4.md)), `user_action` ([Q17](../questions/q17.md)), no matching decision edge
+([Q10](../questions/q10.md)), a duplicate task id ([Q13](../questions/q13.md)) and a nested fan-out
+([Q6](../questions/q6.md)) are all **not applicable**: the default `createTask` builds the same
 object the L6 harness has built by hand since W5, and reverting to the hand-built one is the control.
 
 **Rule 8 obligation (e) has a named target here.** The default factory is a value that ships and a
@@ -228,7 +228,7 @@ direction. At this declaration that returns **1** hit, in `CLAUDE.md`.
 7. **P16's facts harness went silently vacuous on this item's first edit to the line it reads.**
    `lineOf(/this\.opts\.createTask\(\{/)` returned 0 once the call site became
    `(this.opts.createTask ?? defaultCreateTask)({`, and `facts.mjs` printed an empty field list and
-   all eight constructor fields as unreachable at exit 0. Widened; [Q253](../open-questions.md).
+   all eight constructor fields as unreachable at exit 0. Widened; [Q253](../questions/q253.md).
 8. **Two of the author's own probes were mis-declared and the harness said so.** `b6` renamed
    `RT-R11` to a non-grammatical id and tripped `check-spec` `C2` (*cited but never declared in a
    rules table*) — so the spec row IS bound, by the citations in `S7`'s and `S8`'s messages, and the
@@ -251,7 +251,7 @@ direction. At this declaration that returns **1** hit, in `CLAUDE.md`.
   `deno publish --dry-run` passes in this repository with a bare import and no `deno.json` mapping,
   because `package.json`'s `devDependencies` resolves the specifier through `node_modules` to the
   npm build. The refusal in a clean copy is what a JSR consumer would have hit; the pass here is
-  what a publish from this tree would have shipped. [Q252](../open-questions.md).
+  what a publish from this tree would have shipped. [Q252](../questions/q252.md).
 - **Two decisions the plan handed this item as forks were priced and turned out to be one-sided.**
   Exact against caret differ on no version that exists (both `ERESOLVE` at 0.4.0 and 0.5.1, both
   install at 0.5.2, both auto-install when the consumer lists nothing); the difference is entirely
@@ -273,7 +273,7 @@ direction. At this declaration that returns **1** hit, in `CLAUDE.md`.
   `PER_PLAIN_ROW` by two moved 38 rows and left 4 pair runs unmoved, which is how the `+77` was
   derived rather than assumed (42 × 2 would have been 85).
 
-**Questions raised.** [Q252](../open-questions.md) (no `deno publish --dry-run` rung, and its verdict
-depends on `package.json` in a way `S8` cannot see) and [Q253](../open-questions.md) (P16's facts
-harness is untracked and went vacuous at exit 0). Q254-Q255 reserved and unused. [Q71](../open-questions.md)
+**Questions raised.** [Q252](../questions/q252.md) (no `deno publish --dry-run` rung, and its verdict
+depends on `package.json` in a way `S8` cannot see) and [Q253](../questions/q253.md) (P16's facts
+harness is untracked and went vacuous at exit 0). Q254-Q255 reserved and unused. [Q71](../questions/q71.md)
 RESOLVED. ADR 0048 taken; W60 not issued; ADR 0050 not taken.

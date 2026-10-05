@@ -58,7 +58,7 @@ the practice was not.
    ids and that the grammar needed no change. **L6 is the only rung that can show one being
    dispatched to a scheduler that would silently overwrite on a collision** — `spec/task-id.md`'s
    whole reason for being a correctness rule rather than a convention
-   ([Q13](../open-questions.md)).
+   ([Q13](../questions/q13.md)).
 3. **The join firing over branches it never opened**, and its successor carrying W34's answer. This
    is the half a fixture cannot prove: the branches settle in an order nothing controls, and
    `doc/concept.md` section 5 says that order is genuinely non-deterministic.
@@ -94,9 +94,9 @@ the practice was not.
 
 **Routing cases** (`doc/workflow.md` section 5 rule 6): **all of them are in scope at L6 and this
 item says which it actually ran.** A branch **routed away from its join**
-([Q4](../open-questions.md)), **`user_action`** ([Q17](../open-questions.md)), **optional-null**, a
-**duplicate task id** ([Q13](../open-questions.md)) and a **nested fan-out**
-([Q6](../open-questions.md)) each either has an L6 row here or is named as not run. Silence is not an
+([Q4](../questions/q4.md)), **`user_action`** ([Q17](../questions/q17.md)), **optional-null**, a
+**duplicate task id** ([Q13](../questions/q13.md)) and a **nested fan-out**
+([Q6](../questions/q6.md)) each either has an L6 row here or is named as not run. Silence is not an
 answer.
 
 **Rule 8, all five obligations, re-run after the readers.** **This item's directory is where the
@@ -130,7 +130,7 @@ about rather than of the files `git status` shows.)*
 |---|---|---|
 | `doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md` | **W34's Record asserts something about THIS item that is false**, and correcting it is what W35's declaration step found: it says Q167-Q168 are *"the remainder of P10's block"* and that *"W35 has not reserved"*, when this file has read `Reserves: Q167-Q168` since P10's declaration. `doc/workflow.md` v0.7 change 3's own case — a gap that blocks a fix — one directory across: another item's file is on **nobody's** `Owns` once that item is done, so a false claim about you can only be corrected by an exception or not at all | the Q167 parenthetical, plus the mangled sentence a first pass at it left behind — found by the reader, not by the edit |
 | `scripts/check-scheduler.mjs` | **Rule 8's obligation (e), with a live case.** `S12` binds the gate chain's entry NAMES and `D6` binds the Deno rung's *runtime* and *resolution*; **nothing bound either rung's FILE**, and nothing at all bound `test:l6`. Measured: pointing either rung at `examples/run-flow.ts` — a module that exports functions and runs nothing — costs **zero** failures across `check:source`, `check:scheduler`, `check:spec` and `check:markdown`, so ladder L6 exits 0 having asserted nothing | `D6` gains three clauses: each rung exists, invokes its runtime, and names `examples/l6.ts` |
-| `scripts/check-scheduler-selftest.mjs` | The file's own convention is a probe and a `META` entry per `fail()` site; three new sites need them, or the clauses ship ungraded — which is the [Q149](../open-questions.md) shape the check was extended to close | +4 probes, +3 `META` entries, one `UNCITED` exemption; `MIN_PROBES` 22 → 26, `MIN_META` 24 → 27 |
+| `scripts/check-scheduler-selftest.mjs` | The file's own convention is a probe and a `META` entry per `fail()` site; three new sites need them, or the clauses ship ungraded — which is the [Q149](../questions/q149.md) shape the check was extended to close | +4 probes, +3 `META` entries, one `UNCITED` exemption; `MIN_PROBES` 22 → 26, `MIN_META` 24 → 27 |
 
 **Why fix rather than report.** [P7](../plans/p7-is-a-join-transitive-over-nested-fan-out.md) declined two checks
 because `scripts/**` was in nobody's `Owns`, and [P8](../plans/p8-what-can-be-deleted-with-the-gate-green.md)
@@ -183,11 +183,11 @@ tree, `src/` restored and the restore verified:
 
 | case | at L6 |
 |---|---|
-| a branch routed away from its join ([Q4](../open-questions.md)) | **run**, on **three of the five** `p1-routed-away` rows — the two `high` rows run the same flow with the predicate FALSE, so no branch is routed away there. *(This read "the four", which is neither the number of rows named that nor the number where a branch leaves. W35's conformity reader.)* — not by a map row, and no map flow here carries a decision edge |
-| `user_action` ([Q17](../open-questions.md)) | **run**, on the two suspend rows and the dotted-path resolve — **not by a map row**: a person resolving a map instance at a run-time index is a shape nothing here reaches |
+| a branch routed away from its join ([Q4](../questions/q4.md)) | **run**, on **three of the five** `p1-routed-away` rows — the two `high` rows run the same flow with the predicate FALSE, so no branch is routed away there. *(This read "the four", which is neither the number of rows named that nor the number where a branch leaves. W35's conformity reader.)* — not by a map row, and no map flow here carries a decision edge |
+| `user_action` ([Q17](../questions/q17.md)) | **run**, on the two suspend rows and the dotted-path resolve — **not by a map row**: a person resolving a map instance at a run-time index is a shape nothing here reaches |
 | optional-null | **run**, on the two `optional-loss` rows; no map branch is `optional` |
-| a duplicate task id ([Q13](../open-questions.md)) | **NOT run, and it cannot be** — `ID-R1` refuses a repeat before dispatch, so a row would assert the refusal rather than the collision. What a map adds is that the ids are minted from a run-time index, and probe `a1` is the evidence: collapse the index and the run mints `r22:score:0:0` three times, which is **46 failures** |
-| a nested fan-out ([Q6](../open-questions.md)) | **run**, on W23's four rows, and now with a **map** inside a fan-out branch on `nested-map / live-token` |
+| a duplicate task id ([Q13](../questions/q13.md)) | **NOT run, and it cannot be** — `ID-R1` refuses a repeat before dispatch, so a row would assert the refusal rather than the collision. What a map adds is that the ids are minted from a run-time index, and probe `a1` is the evidence: collapse the index and the run mints `r22:score:0:0` three times, which is **46 failures** |
+| a nested fan-out ([Q6](../questions/q6.md)) | **run**, on W23's four rows, and now with a **map** inside a fan-out branch on `nested-map / live-token` |
 
 **Rule 8 — 36 provocations, 34 caught, 2 declared ceilings, 0 survivors standing, 0 aborted**,
 graded on the failure LINES with each probe declaring the substring that must appear. The author's
@@ -216,11 +216,11 @@ emptied can, which is why `d3b` raises it instead and is caught at 1.
 `git checkout -- src/ examples/`, which is correct on a clean tree and catastrophic on a dirty one:
 every uncommitted edit in `examples/` — the five rows, three flows, the worker role, the pool, the
 `FD-V5` derivation — was gone, and the aborts that followed were the harness reporting that its own
-anchors no longer existed. **This is [Q151](../open-questions.md) one layer out**: P9 found a harness
+anchors no longer existed. **This is [Q151](../questions/q151.md) one layer out**: P9 found a harness
 writing mutants into a directory a child deletes and grading the deletion; this is a harness whose
 *restore* is the deletion. Recovered from the session transcript, verified at 605/0 in both runtimes,
 and the harness now snapshots each file's bytes and writes them back, asserting the restore.
-**[Q172](../open-questions.md).**
+**[Q172](../questions/q172.md).**
 
 **2. Two provocations were VACUOUS and the set said so.** `b4` added `outcome: 'completed'` before
 the row's own `outcome: 'stuck'` — in an object literal the last key wins, so the probe changed
@@ -272,8 +272,8 @@ what the join **carried** — one key where three were declared. `N` too large h
 too small completes and is silent, and the only thing in the repository that can see it is a value
 somebody wrote down before the run.
 
-**Questions raised.** [Q170](../open-questions.md), [Q171](../open-questions.md),
-[Q172](../open-questions.md).
+**Questions raised.** [Q170](../questions/q170.md), [Q171](../questions/q171.md),
+[Q172](../questions/q172.md).
 
 
 ## The adequacy reader — 67 mutations, 32 survivors, 7 blocking, all closed
@@ -346,7 +346,7 @@ and r9 as WRONG-REASON at one failure each; the cause was that a multi-edit prob
 `snapshot(p).replace(a, b)` **per edit**, so a second edit to the same file overwrote the first from
 the pristine snapshot and only the last was ever applied. **A harness defect that looks exactly like
 a finding** — the second time in this item, after the `git checkout` restore, that the instrument was
-the thing under test. [Q172](../open-questions.md) is about the first; this is its second occurrence.
+the thing under test. [Q172](../questions/q172.md) is about the first; this is its second occurrence.
 
 ## The conformity reader — 16 findings, 6 blocking, all acted on
 
@@ -361,7 +361,7 @@ exception table's own opening sentence counted the exceptions the author was thi
 than the files `git status` shows; and a first pass at that edit had **orphaned a sentence fragment
 across a blank line**, so W34's file rendered literal asterisks and read *"W35 had reserved / yet"*.
 
-**[Q171](../open-questions.md) is this item's own question and it fired on this item, twice.** The
+**[Q171](../questions/q171.md) is this item's own question and it fired on this item, twice.** The
 row was raised because `examples/README.md` carried a stale count; the reader then found the same
 class in `doc/README.md`'s current-state line, in the root `README.md`, and in the sentence of
 `examples/README.md` that this item had just rewritten — which called all three numbers *derived*

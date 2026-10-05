@@ -38,7 +38,7 @@ Reserves: W109, Q451-Q455, ADR 0075
 
 **A node whose whole job is to reshape data has to be written as code**, even though the envelope
 worker already does the reshaping — and the library ships no node type at all, where it ships
-three group types and one gate type. [Q445](../open-questions.md). With W108 this is the second
+three group types and one gate type. [Q445](../questions/q445.md). With W108 this is the second
 half of what a UI needs: a flow document that says both *which way* and *what shape*.
 
 ## What to be careful of
@@ -55,7 +55,7 @@ half of what a UI needs: a flow document that says both *which way* and *what sh
    and ADR 0052 rule 4 is untouched. **Nothing in this item may import `jsonata`.**
 4. **Output (4) is a SAMPLE and the verdict stays `unchecked`.** A sample is evidence about one
    input; `fits` is a claim about every input. Saying otherwise would be the strongest claim in
-   this item and the easiest to make falsely — [Q446](../open-questions.md) records the residue,
+   this item and the easiest to make falsely — [Q446](../questions/q446.md) records the residue,
    and P26 prediction 4 says this item does not remove it.
 5. **`EnvelopeWorker.inner` is ALREADY nullable, which makes the arm small and the probes
    necessary.** A new arm in a shipped file is exactly where rule 8 obligation (e) belongs: what
@@ -70,7 +70,7 @@ half of what a UI needs: a flow document that says both *which way* and *what sh
 Measured on `b7141b7` (W108 committed and gated; the tree clean, so the `Owns` audit is exact).
 **Spawn health first**: `node -e ""` through `spawnSync` is a **57.6 ms** median over twelve
 (52.6 … 82.8), against the ~54 ms a healthy machine gives — so every figure below is about the
-change and not about the machine ([Q179](../open-questions.md)'s precondition).
+change and not about the machine ([Q179](../questions/q179.md)'s precondition).
 
 **Baseline RE-TAKEN rather than transcribed, and it confirms exactly**: L1-L5 **56 files / 1479
 assertions** in node 24.20.0; `check:spec` **7 documents / 70 examples / 131 rules** with `C4` at
@@ -201,7 +201,7 @@ named rather than guessed — `dev-dist/w109/clones.ts` buckets every `structure
 | site | per extra task | what it is |
 |---|---|---|
 | `src/driver/listener.ts:81` `normalizeEvent` | 1 | **`OR-R2`'s clone** — the one the item names |
-| `src/driver/driver.ts:611` `freezeInput` | 1 | the clone `runtime.start` installs on EVERY run — **[Q320](../open-questions.md)'s, paid again** |
+| `src/driver/driver.ts:611` `freezeInput` | 1 | the clone `runtime.start` installs on EVERY run — **[Q320](../questions/q320.md)'s, paid again** |
 | `src/driver/driver.ts:2132` `advance` | 1 | the result cloned as it hops along the edge |
 | `src/driver/driver.ts:3046` `dispatch` | 1 | the extra dispatch's envelope `settings` |
 
@@ -339,7 +339,7 @@ confirming gate itself, on the tree this item was about to ship**:
    `Transform` task settles `failed` — the exact conflation ADR 0075 rule 4 says the marker exists to
    prevent, arriving from the other end. And skipping the built-in in the languages loop costs it its
    ENGINE for zero. *A marker is a PROTOCOL between two modules, and a cast hides it from the one thing
-   that could compare the two names* — [Q451](../open-questions.md).
+   that could compare the two names* — [Q451](../questions/q451.md).
 2. **BOTH READERS FOUND THE SAME DEFECT FROM OPPOSITE ENDS** — the pair's sharpest shared subject: the
    collision was refused on `resolveRegistry`'s two roads and NOT on the validator's, so a consumer
    handing a worker-backed `Transform` to `new Driver` got **zero findings and a driver that
@@ -375,7 +375,7 @@ confirming gate itself, on the tree this item was about to ship**:
    built-in cost **0** at `npm test`, because all five censuses derive their expectation from the thing
    under test. *A compensating binding cited in five places and present in none* — and it is the second
    occurrence in consecutive items of a citation resolving to nothing, after W108's five files citing a
-   stop-and-ask list that existed nowhere. [Q453](../open-questions.md).
+   stop-and-ask list that existed nowhere. [Q453](../questions/q453.md).
 7. **ONE OF MY OWN TESTS PASSED FOR THE WRONG REASON and I caught it before the readers.** The
    `unchecked` claim first ran against `spec/examples/registry.json`, where **nothing declares a
    schema** — so *every arc leaving a transform-only node is unchecked* was true of every arc in the
@@ -392,7 +392,7 @@ confirming gate itself, on the tree this item was about to ship**:
 9. **I EXECUTED the rule-8 harness by accident while both readers were reading.** Importing it to count
    its probes RAN it, because the driving code sat at module top level; the killed run left probe `e3`'s
    edit applied, which the harness's own undo could not reach because undo and digest are both about a
-   probe that RETURNS — [Q323](../open-questions.md)'s shape, W77's incident. Found by diffing the tree
+   probe that RETURNS — [Q323](../questions/q323.md)'s shape, W77's incident. Found by diffing the tree
    against a reader's byte copy, restored from it, digest back to its starting value exactly. The
    driving code sits behind a MAIN GUARD now and the declarations are in their own file. *A harness
    whose declarations cannot be read without running it is a harness that will be run by accident.*
@@ -404,7 +404,7 @@ confirming gate itself, on the tree this item was about to ship**:
     window by measuring it in the other direction (a four-line window grading 28 of 35 catches on a
     block that never ran); what this adds is that the window is not a LENGTH but an enumeration of the
     runner's output SHAPES, and a missing shape is indistinguishable in the report from a wrong `says`.*
-    [Q452](../open-questions.md).
+    [Q452](../questions/q452.md).
 11. **`nodeTypesOf`'s two claims were unobserved and my own comment over-claimed about one.** The
     adequacy reader's R1 — making the built-in LOSE the merge — survived at zero, and so did the
     author's own `d1`, which PREPENDS them. Measured: prepending is INERT, because `bootstrap` filters
@@ -425,7 +425,7 @@ confirming gate itself, on the tree this item was about to ship**:
     four more: it read *55 across eleven ids* with `X6` at 5, `X8` at 9 and `X10` at 4, where the tree
     holds **64** with 10, 11 and 6. Re-derived by the `grep` that sentence names. *A count in a comment
     beside the list it describes, which the paragraph above it records as having been wrong at W29, and
-    which nothing compares.* [Q454](../open-questions.md).
+    which nothing compares.* [Q454](../questions/q454.md).
 15. **The overlap list is stale by FOUR and W108's published ordinal is short by three.**
     `doc/workflow.md` section 6's list holds **65** entries and ends at W101; **W104, W105, W107 and
     W108** each took a measurement and none is in it, because only a RETRO appends and three of the four
@@ -467,7 +467,7 @@ confirming gate itself, on the tree this item was about to ship**:
     omitting a key rather than setting it `undefined`.
 23. **Two probes came back CRASH rather than CAUGHT, and neither is a defect**: widening `FD-V46`, and
     giving the built-in a worker, each make a MODULE-SCOPE fixture refuse, so the runner dies at import
-    with zero named failures — [Q448](../open-questions.md)'s class, W108's own finding. Declared as
+    with zero named failures — [Q448](../questions/q448.md)'s class, W108's own finding. Declared as
     crashes, with the clause each breaks covered by a probe that fails normally.
 24. **Two of my own probes were mis-declared and the pass said so**: `x7` named `check:spec` where `C4`
     only requires the fixture FILE to exist — what asserts it VIOLATES its named rule is the L4 corpus
@@ -511,12 +511,12 @@ confirming gate itself, on the tree this item was about to ship**:
   `as WorkerManagerOptions` — so renaming it is free at L0 and free at L1-L5, and the consuming side's
   own test probes the arm from a config a HUMAN typed. Obligation (e)'s third shape is *a list is a
   claim about another list*; this is one KEY NAME as a claim about another, with the typechecker
-  deliberately turned off between them. [Q451](../open-questions.md).
+  deliberately turned off between them. [Q451](../questions/q451.md).
 - **A GRADER's window is an enumeration of the runner's output shapes, not a length.** Twenty-two
   correct probes read WRONG-REASON because the grader could not see the section where this runner
   prints an assertion's message. v0.24's clause asks for a controlled grader and both my controls were
   right throughout — *a controlled grader proves the grader can say CRASH and WRONG-REASON, and says
-  nothing about whether it can FIND the reason.* [Q452](../open-questions.md).
+  nothing about whether it can FIND the reason.* [Q452](../questions/q452.md).
 - **The right design was the precedent the ADR already cited, and I had to break eighty tests to see
   it.** ADR 0075 rule 5 cites the gate types, and `ResolvedRegistry` has no `gateTypes` field at all;
   the first cut merged at read AND stored, which is half the precedent. *A decision that names its
@@ -536,11 +536,11 @@ confirming gate itself, on the tree this item was about to ship**:
   is a verdict on. *The content digest is the thing that can see it: a gate's verdict belongs to the
   digest it ran against, and this item's Record now names that digest at both ends.* Finding 28.
 
-**Questions raised.** [Q451](../open-questions.md) (a marker is a protocol between two modules and a
-cast hides it from the typechecker), [Q452](../open-questions.md) (a rule-8 grader's failure window is
+**Questions raised.** [Q451](../questions/q451.md) (a marker is a protocol between two modules and a
+cast hides it from the typechecker), [Q452](../questions/q452.md) (a rule-8 grader's failure window is
 an enumeration of output shapes, and a missing shape reads as a wrong `says`),
-[Q453](../open-questions.md) (a compensating binding cited in N files and present in none — the second
-occurrence in consecutive items), [Q454](../open-questions.md) (a check's self-test carries a count of
+[Q453](../questions/q453.md) (a compensating binding cited in N files and present in none — the second
+occurrence in consecutive items), [Q454](../questions/q454.md) (a check's self-test carries a count of
 its own subject's sites and nothing compares them). **Q455 reserved and UNUSED.**
 
 **Census CONFIRMED 346 / 270 / 1 / 75, derived TWO ways and validated against the COMMITTED
@@ -553,6 +553,6 @@ whole of the difference — so the baseline reproduces EXACTLY once that one row
 what says the +4 / +3 / 0 / +1 above is arithmetic rather than a coincidence. *(The register's
 convention, which no document states and W108 recorded: *resolved* is the Resolved TABLE's row count
 and not the live rows marked resolved — **75 against 69** here — and *questions* is the live rows plus
-the six ids that appear only in that table.)* [Q445](../open-questions.md)
-**RESOLVED** by ADR 0075; [Q446](../open-questions.md) deliberately NOT closed, and `sampledOutput`
+the six ids that appear only in that table.)* [Q445](../questions/q445.md)
+**RESOLVED** by ADR 0075; [Q446](../questions/q446.md) deliberately NOT closed, and `sampledOutput`
 returns the residue so it cannot be read as closed.

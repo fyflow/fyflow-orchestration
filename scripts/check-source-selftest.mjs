@@ -21,7 +21,7 @@
 // rather than rediscovered.
 //
 // ---------------------------------------------------------------------------
-// **W28: A META ENTRY NAMES THE PROBE IT MUST BREAK.** [Q138](../doc/open-questions.md).
+// **W28: A META ENTRY NAMES THE PROBE IT MUST BREAK.** [Q138](../doc/questions/q138.md).
 //
 // Until W28 a grading was `r.status !== 0` — re-run the whole probe suite against
 // the broken check and require a non-zero exit. That cannot tell *the clause I
@@ -52,7 +52,7 @@
 // nothing: its literal was not the same SHAPE as the expression it replaced, so the
 // mutant reported two spurious failures on **every** run and every probe went red
 // against it. `doc/workflow.md` v0.9 names this exactly — *a provenance probe
-// changes the SOURCE EXPRESSION and nothing else* — and it is [Q112](../doc/open-questions.md)'s
+// changes the SOURCE EXPRESSION and nothing else* — and it is [Q112](../doc/questions/q112.md)'s
 // fifth correction, the first caught by a machine rather than by a reader.
 //
 // **And the cost is the same defect from the other side.** A bare `check-source`
@@ -69,7 +69,7 @@
 // load-bearing or not. **Two of the four then passed VACUOUSLY** for a third
 // reason — their anchors quoted the guard's own source line, which appears in this
 // file **inside the `SELF` entry itself, hundreds of lines above the guard**, so
-// `String.replace` edited the entry rather than the guard. [Q143](../doc/open-questions.md).
+// `String.replace` edited the entry rather than the guard. [Q143](../doc/questions/q143.md).
 // ---------------------------------------------------------------------------
 //
 // **There was a FOURTH and it is gone rather than bounded**, which is the more
@@ -158,7 +158,7 @@
 // enforcement. **Measured before they were probed**: emptying `UNSTRIPPABLE`, making
 // `S4`'s clause inert, emptying the published half of `SCHEDULER_REACH` and making
 // `S7`'s clause inert were **all four inert on the clean tree and all four at 24/24
-// probes caught**. [Q132](../doc/open-questions.md).
+// probes caught**. [Q132](../doc/questions/q132.md).
 //
 // **What is NOT on that list, and the correction is the point.** This header
 // claimed a fifth survivor of W24's own — *"deleting the `lint` row from `COMPOSED`
@@ -173,7 +173,7 @@
 // route to confirm the clause was *unreachable*, and the second route here shows it
 // **refused**. It is now `META`'s entry *"the lint row deleted from COMPOSED"*.
 // **A row this file would have written into `doc/open-questions.md` as a measured
-// hole was a measurement that stopped one command early** — the [Q43](../doc/open-questions.md)
+// hole was a measurement that stopped one command early** — the [Q43](../doc/questions/q43.md)
 // class, in the file that exists to refuse exactly that.
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync } from 'node:fs';
@@ -463,7 +463,7 @@ const PROBES = [
       '"check:source:selftest": "node scripts/check-source.mjs"'),
   },
   // --- S4 and S7: the two clauses the ladder has no rung for ------------------
-  // **[Q132](../doc/open-questions.md)'s two, and W30 measured the hole before
+  // **[Q132](../doc/questions/q132.md)'s two, and W30 measured the hole before
   // writing a line of this.** Both loop over `published()`, so until
   // `CHECK_SOURCE_SRC` existed there was no way to hand this script a broken
   // published tree — and four clause-level mutations were **all inert on the clean
@@ -941,7 +941,7 @@ const META = [
   //
   // **`doc/workflow.md` v0.9's procedure names this exactly**: *a provenance probe
   // changes the SOURCE EXPRESSION and nothing else*, and the moment it also changes
-  // the projection it is a rewrite whose survival says nothing. [Q112](../doc/open-questions.md)
+  // the projection it is a rewrite whose survival says nothing. [Q112](../doc/questions/q112.md)
   // corrected that four times across three items; this is the fifth, and the first
   // caught by a machine rather than by a reader.
   //
@@ -1089,7 +1089,7 @@ const SELF = [
   // quotes the code it explains makes that code unmutatable* — with the comment
   // replaced by the mutation's own argument**, which is worse: a comment produces a
   // no-op the rule 7 (b) guard catches, and this produces an edit that lands
-  // somewhere real. [Q143](../doc/open-questions.md).
+  // somewhere real. [Q143](../doc/questions/q143.md).
   ['the probe name dropped from the child`s env, so the grading reads the whole suite again',
     // The cheapest demonstration that single-probe mode is load-bearing: without
     // `CHECK_SOURCE_PROBE` the child runs all 24 probes and never prints `ran:`, so
@@ -1165,7 +1165,7 @@ export async function selfTest(root) {
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
   // function deleted its parent's fixtures and two top-level runs did the same to each other
-  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // ([Q182](../doc/questions/q182.md)). The `rmSync` stays, and is now load-bearing for a different
   // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
   // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
   // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
@@ -1398,7 +1398,7 @@ export async function selfTest(root) {
 
   // **Single-probe mode.** The META pass names ONE probe and this runs that one, in
   // place of re-running all 24 against every broken check. Both halves of
-  // [Q138](../doc/open-questions.md) live in that re-run: the credit went to
+  // [Q138](../doc/questions/q138.md) live in that re-run: the credit went to
   // whichever probe reacted first, and the pass cost a `PROBES.length` multiplier.
   const only = process.env.CHECK_SOURCE_PROBE;
   if (only !== undefined) {

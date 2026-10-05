@@ -12,13 +12,13 @@ resolves: ""
 
 # ADR 0046 — A run retains what its tasks returned, and a region releases its collection when its join becomes terminal
 
-**Raised by:** [Q19](../open-questions.md), decided by
+**Raised by:** [Q19](../questions/q19.md), decided by
 [W53](../work-items/w53-what-a-run-retains-that-nothing-reads.md) under
 [P15](../plans/p15-what-a-run-retains-and-what-a-result-may-be.md)
 
 ## Context
 
-**[Q19](../open-questions.md) has asked *is per-run retained state bounded?* since P1, and its owner
+**[Q19](../questions/q19.md) has asked *is per-run retained state bounded?* since P1, and its owner
 cell said *no owner — needs a measured run* for fourteen plans.** `spec/run-state.md` section 6
 carried the same question as an unanswered bullet since v0.1, in the form *"a run's footprint is
 proportional to its dispatched-node count"*. **Both are wrong in the same half**, and
@@ -28,7 +28,7 @@ says so.
 **Nothing was broken.** Every measurement below is of a run that completes correctly, and the target
 scale runs. What the measurement found is that **half of what a region-bearing run holds is a second
 copy that nothing reads**, and that no rung of `doc/workflow.md` section 4 can see it removed —
-[Q214](../open-questions.md)'s shape from the removal side.
+[Q214](../questions/q214.md)'s shape from the removal side.
 
 ### What was measured, at the scope it was measured at
 
@@ -90,8 +90,8 @@ computes `(both - inp) / both` and prints *"of the pair"*; as an EXCESS over `by
 three runs read **+99.2 / +99.4 / +99.4%**. The error is by a factor of two and it **UNDERSTATES the
 saving**; the conclusion, the headline and every MiB figure below are unaffected, because they are
 measurements of the whole rather than of the ratio. Four documents carried the derived sentence and
-`spec/join-policy.md`'s `JP-R12`, W53's own file and [Q19](../open-questions.md)'s resolved row
-carried the correct one. [Q243](../open-questions.md), which also records that **neither ratio is a
+`spec/join-policy.md`'s `JP-R12`, W53's own file and [Q19](../questions/q19.md)'s resolved row
+carried the correct one. [Q243](../questions/q243.md), which also records that **neither ratio is a
 constant**: the divisor is one copy per SETTLED RESULT, so it is a property of the FLOW as well as of
 the payload — +97.5% with no node after the join, +49.3% with one that echoes the collection, +33.0%
 on the flow ladder L6 measures.)*
@@ -191,7 +191,7 @@ the exception stated rather than left to the clear site.**
    store a payload nothing can ever read — once per late arrival, for the life of the run. **No
    shipped policy produces that arrival and a third-party one may**: all three settle a join only
    once nothing is left to arrive, and a policy that settles one **before every branch is terminal**
-   is exactly the precondition [Q95](../open-questions.md) records for `settleJoin`'s own *at most
+   is exactly the precondition [Q95](../questions/q95.md) records for `settleJoin`'s own *at most
    once* latch. **The same hypothetical policy, reaching the same region through a second door**, and
    it is guarded rather than commented for that reason.
 
@@ -215,7 +215,7 @@ the exception stated rather than left to the clear site.**
    flow the fold calls `stuck`.
 
 6. **`maxCompletedTasks` is a candidate MEASURED AND REFUSED, not an open option.**
-   [Q19](../open-questions.md)'s row said *"we would inherit the answer and its sharp edge (eviction
+   [Q19](../questions/q19.md)'s row said *"we would inherit the answer and its sharp edge (eviction
    is silent)"*. Measured: it caps `scheduler.tasks`, which is the scheduler's own map, and reaches
    nothing this layer holds. **There is no answer to inherit, only a shape**, and rule 2 is what
    applying the shape here costs. Recorded so the next reader does not go looking for it.
@@ -230,18 +230,18 @@ the exception stated rather than left to the clear site.**
   forbids taking the second on the strength of the first**;
   [W54](../work-items/w54-what-a-result-may-be-and-what-bounding-it-would-cost.md) prices it and the
   maintainer takes it.
-- **What a result may BE** — [Q22](../open-questions.md), `OR-R2` and `OR-R6`. **W54's.**
-- **Durability** — [Q15](../open-questions.md), deferred, and this ADR sharpens it rather than
+- **What a result may BE** — [Q22](../questions/q22.md), `OR-R2` and `OR-R6`. **W54's.**
+- **Durability** — [Q15](../questions/q15.md), deferred, and this ADR sharpens it rather than
   answering it. **A join's collection is in no `FoldInput` at all**: `dispatched` carries a `taskId`
   and nothing else, so a run resumed from a persisted sequence cannot be handed what a join collected
   and cannot recompute it. That was true before this decision; giving the collection a stated
   lifetime is what makes it visible.
-- **A region's collection being REFERENCEABLE** — [Q219](../open-questions.md), whose whole cost is
+- **A region's collection being REFERENCEABLE** — [Q219](../questions/q219.md), whose whole cost is
   retaining the collection or recomputing `JP-R12` at a second site. **Rule 3 moves that cost**: the
   collection is now gone by the time any later node could name it, so Q219's price is *retain it
   again* rather than *it is already there*. P15 declares it the follow-on and it relaxes an existing
   rule, which is the maintainer's call.
-- **[Q186](../open-questions.md)'s threshold** — *how large is too large*.
+- **[Q186](../questions/q186.md)'s threshold** — *how large is too large*.
   [W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) decided **nothing
   warns** and left it open deliberately. **Not reopened.** The numbers above are the first that could
   answer it, and saying so is as far as this goes.
@@ -262,7 +262,7 @@ P15 measured, **3174.8 MiB → 1610.9 MiB**.
 **What it costs a consumer: nothing observable, and that is also the problem.** No rung of section 4
 saw a whole structure leave — at this decision the release cost 0 at L1-L5 and 0 at L6, and the only
 thing distinguishing it from doing nothing at all was the L2 pair this item added. **That is
-[Q214](../open-questions.md)'s third instance and the first from the REMOVAL side**, which is P15
+[Q214](../questions/q214.md)'s third instance and the first from the REMOVAL side**, which is P15
 prediction 4.
 
 **And [W55](../work-items/w55-a-run-at-scale-on-real-workers.md) REVERSED that prediction, which
@@ -272,18 +272,18 @@ asserting the RELATION on every row: the collection non-empty before its join be
 after, with the run's outcome and every task id unchanged. **What stays true is the sentence that
 matters to a consumer**: nothing a run *reports* moves. The outcome, the ids, the log, the fold and
 every callback are byte-identical either way, which is why the release was safe to make, and the only
-observer is a reach past that surface into the driver's own state — [Q233](../open-questions.md)'s
+observer is a reach past that surface into the driver's own state — [Q233](../questions/q233.md)'s
 subject. *A rung made of runs cannot see this through anything a run reports; it can see it by not
 being made only of what a run reports.*
 
-**And it moves a cost onto [Q219](../open-questions.md) rather than off it**, which is recorded
+**And it moves a cost onto [Q219](../questions/q219.md) rather than off it**, which is recorded
 above rather than discovered later: a decision that makes a region's collection unreachable sooner
 makes referencing it dearer, and the two are the same plan's subjects.
 
 **[ADR 0037](0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
 rule 1 is still stated wider than the code holds it, and this decision BOUNDS that rather than
 closing it.** That rule says *a node's payload is reachable from nothing else the run holds*;
-[Q19](../open-questions.md)'s row recorded that the join's successor payload **is** reachable from
+[Q19](../questions/q19.md)'s row recorded that the join's successor payload **is** reachable from
 `arrivals`, and it still is — **inside `JP-R12`'s window**. What changes is that the window now has
 an end. The sub-finding is carried here because resolving Q19 retires the row it was written in and
 it would otherwise reach no owner: W53's conformity reader.

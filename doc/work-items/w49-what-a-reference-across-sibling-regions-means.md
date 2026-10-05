@@ -56,7 +56,7 @@ Reserves:   Q218-Q224, ADR 0044
 
 **In**
 
-1. **[Q206](../open-questions.md)**, decided as **ADR 0044**. P14's scope names three candidates and
+1. **[Q206](../questions/q206.md)**, decided as **ADR 0044**. P14's scope names three candidates and
    prefers none: **(a)** a fourth refusal, **(b)** a change to the visibility predicate, **(c)**
    making a region's collection referenceable by relaxing `FD-V27`.
 2. **P14 decision 3's evidence clause.** The evidence must include a sibling `fanout` pair, because
@@ -69,10 +69,10 @@ Reserves:   Q218-Q224, ADR 0044
 - **The driver half.** `src/driver/**` and ladder L2 are **W50's**, by P14's index row. This item
   reads `isPathPrefix` and `resolveReference` and edits neither.
 - **The exit artifact.** `examples/**` is **W51's**.
-- **[Q19](../open-questions.md), [Q22](../open-questions.md), [Q186](../open-questions.md)'s
-  threshold, the gate, [Q165](../open-questions.md)'s reducer** — P14's `Out` list, unchanged.
+- **[Q19](../questions/q19.md), [Q22](../questions/q22.md), [Q186](../questions/q186.md)'s
+  threshold, the gate, [Q165](../questions/q165.md)'s reducer** — P14's `Out` list, unchanged.
 - **A sixth node kind** — P14 decision 4. Every candidate here is a property of a reference.
-- **[Q216](../open-questions.md) and [Q217](../open-questions.md)** — this item RUNS their clauses
+- **[Q216](../questions/q216.md) and [Q217](../questions/q217.md)** — this item RUNS their clauses
   and does not judge them.
 
 ## Verification
@@ -116,7 +116,7 @@ audited the tree and found `spec/README.md` edited with no exceptions table in t
 ## Record
 
 **W49 is DONE and [ADR 0044](../decisions/0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
-answers [Q206](../open-questions.md): an output is visible to a reader when their two branch paths
+answers [Q206](../questions/q206.md): an output is visible to a reader when their two branch paths
 AGREE ON THE REGIONS THEIR TWO CHAINS SHARE, and *one path is a prefix of the other* is that rule's
 SPECIAL CASE.** `spec/flow-definition.md` is **v0.15** — section 3's visibility paragraph, `FD-C1`'s
 row and `FD-R3`'s row; `spec/` is **7 documents, 43 examples, 89 rules**, unmoved, because no rule id
@@ -124,7 +124,7 @@ is added or retired. L1-L5 is **25 files / 674 cases in five runtimes**, from 24
 **L6 is unmoved at 879 assertions over 40 real runs** in both runtimes, which is the declared result.
 
 **The defect was never about a `map` and never about arity, and that is the finding to carry.**
-[Q206](../open-questions.md)'s row, P14's facts and `spec/flow-definition.md`'s own note all frame it
+[Q206](../questions/q206.md)'s row, P14's facts and `spec/flow-definition.md`'s own note all frame it
 as a map-arity question, because **every sibling pair in both corpora is `map`/`map`**. Constructed —
 the corpora contain none, which is why nothing had seen it — a reference from branch **1** of a second
 `fanout` region to branch **0** of the first **validates with zero findings**, is `FD-V29`-certain,
@@ -163,7 +163,7 @@ on (`doc/workflow.md` section 1 rule 5's WHEN clause).
 | rule 8, author pass | **RAN** | 19 probes: control OK, 18 caught, 1 declared ceiling **measured**, 0 survivors standing, 0 aborts — after its own set found and closed **four** real holes |
 | rule 8, re-run | **RAN** | **27 probes: control OK, 26 caught, 1 declared ceiling (measured), 0 survivors standing, 0 aborts** — with **all eight of the readers' exact edits checked back in**, every one now costing failures |
 | census | **RAN** | **178 / 128 / 2 / 48**, 42 in both tables, 178 of 178 in one cluster cell, 0 aborts on the final run |
-| gate | **RAN**, green | `npm run gate` — **`GATE EXIT=0`, zero lines beginning `FAIL`**, 22 chain entries, `selftests` **7/7 completed, 7 ok, 551.3 s wall / 1069.9 s serial-equivalent over 5 lanes**, against the control run at `2fe5421` (`GATE EXIT=0`, zero FAIL lines, 7/7 ok, 457.3 s / 854.1 s). **No claim is made about the difference**: wall time here is not reproducible ([Q179](../open-questions.md), measured at a 32% spread on one entry alone), and every self-test re-walks a tree that grew by three files |
+| gate | **RAN**, green | `npm run gate` — **`GATE EXIT=0`, zero lines beginning `FAIL`**, 22 chain entries, `selftests` **7/7 completed, 7 ok, 551.3 s wall / 1069.9 s serial-equivalent over 5 lanes**, against the control run at `2fe5421` (`GATE EXIT=0`, zero FAIL lines, 7/7 ok, 457.3 s / 854.1 s). **No claim is made about the difference**: wall time here is not reproducible ([Q179](../questions/q179.md), measured at a 32% spread on one entry alone), and every self-test re-walks a tree that grew by three files |
 
 **Outputs — what was actually built.**
 
@@ -255,13 +255,13 @@ what a reference MEANS rather than what it may SAY, and reached it anyway, by `C
 the datum the reading does not cover** — it was reached not by a check but by a reader noticing a
 sentence, which is the half no rule can predict. `scripts/check-docs.mjs` was **not** needed. So the
 tally over four items is `AGENTS.md` yes / yes / no / **yes**, `spec/README.md` yes / yes / yes /
-**yes**, `scripts/check-docs.mjs` no / yes / no / **no**. [Q157](../open-questions.md).
+**yes**, `scripts/check-docs.mjs` no / yes / no / **no**. [Q157](../questions/q157.md).
 
 **Census re-derived, CONFIRMED for the FOURTEENTH plan running.** 174 / 125 / 2 / 47 before this
 item's rows and **178 / 128 / 2 / 48** after; 42 ids in both tables, 178 of 178 in exactly one cluster
 cell. **The parser was written from scratch from the register's own note and was wrong in ONE
 direction — the eleventh, and it is a CLAUSE ORDER rather than a clause.** It aborted on
-[Q119](../open-questions.md) and [Q71](../open-questions.md), the file's two **declared exemptions**,
+[Q119](../questions/q119.md) and [Q71](../questions/q71.md), the file's two **declared exemptions**,
 which are exemptions precisely because they render their columns wrong — so applying clause 8 after
 the width check aborts on exactly the two rows the note tells it how to read. *A parser can carry
 every clause and still be wrong about the order it applies them in.*
@@ -283,15 +283,15 @@ including the author's own set, which found four holes and neither of these. P14
 of the two in advance and that is why the `fanout` half was covered; **nothing named the depth half**,
 and only mutation found it.
 
-**Questions raised.** [Q218](../open-questions.md)-[Q221](../open-questions.md), four of the seven
-reserved. **[Q206](../open-questions.md) is RESOLVED.**
+**Questions raised.** [Q218](../questions/q218.md)-[Q221](../questions/q221.md), four of the seven
+reserved. **[Q206](../questions/q206.md) is RESOLVED.**
 
 | Q | |
 |---|---|
-| [Q218](../open-questions.md) | `FD-R3` has one road left and it needs a policy `validateDefinition` is not given |
-| [Q219](../open-questions.md) | a region's COLLECTION is unreachable by any reference, and the fix RELAXES a rule |
-| [Q220](../open-questions.md) | the visibility predicate now needs the region SETS and not only two strings |
-| [Q221](../open-questions.md) | three functions joined the published package surface and nothing asked |
+| [Q218](../questions/q218.md) | `FD-R3` has one road left and it needs a policy `validateDefinition` is not given |
+| [Q219](../questions/q219.md) | a region's COLLECTION is unreachable by any reference, and the fix RELAXES a rule |
+| [Q220](../questions/q220.md) | the visibility predicate now needs the region SETS and not only two strings |
+| [Q221](../questions/q221.md) | three functions joined the published package surface and nothing asked |
 
 **Reader overlap: 2, and it is the TWENTY-SIXTH measurement** — derived by counting
 `doc/workflow.md` section 6's own list, which runs W4 … W47 and holds **25** entries. Inside the

@@ -2,7 +2,7 @@
 
 **Status:** **done** — [ADR 0027](../decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) accepted, both readers run and every finding acted on, gate green
 **Plan:** [P6](../plans/p6-what-may-share-a-scheduler-with-a-driver.md) — the item that answers
-[Q86](../open-questions.md). **It is entitled to reach "stop the run, and the precondition stands"**,
+[Q86](../questions/q86.md). **It is entitled to reach "stop the run, and the precondition stands"**,
 and the plan says so in as many words: the third option the plan names is written there as a
 candidate, and **this item does not inherit it**.
 
@@ -119,7 +119,7 @@ starts*; neither of these could have been, and saying so is the point of writing
 
 | File | Owner | Why it was edited, and why the declaration could not come first |
 |---|---|---|
-| `scripts/check-docs.mjs` | **nobody's declared `Owns`** — created by W9, `RUN_FLOOR` added by W16 | **The check's own comment obliges the edit**: *"raise it when the reference gains a snippet, never lower it to make a deletion pass."* W18 added a ` ```ts run ` snippet to `AGENTS.md`, and at a stale floor of 13 the self-test probe *"a whole `run` snippet deleted"* went **green** at 14 - 1. So the file had to move and the declaration could not have known — the obligation is created by an edit to a *different* file, which is `spec/README.md`'s `C8` shape one directory across. **[Q102](../open-questions.md)** |
+| `scripts/check-docs.mjs` | **nobody's declared `Owns`** — created by W9, `RUN_FLOOR` added by W16 | **The check's own comment obliges the edit**: *"raise it when the reference gains a snippet, never lower it to make a deletion pass."* W18 added a ` ```ts run ` snippet to `AGENTS.md`, and at a stale floor of 13 the self-test probe *"a whole `run` snippet deleted"* went **green** at 14 - 1. So the file had to move and the declaration could not have known — the obligation is created by an edit to a *different* file, which is `spec/README.md`'s `C8` shape one directory across. **[Q102](../questions/q102.md)** |
 | `spec/join-policy.md` | **W1's**, and not in this item's `Owns` | **Found by the spec-conformity reader, and it is the sharper of the two.** Q95's stub asserts two things about section 4's `unsatisfiable` exit — that it settles **once per region**, and that it is **terminal for the region** even when the policy later answers `satisfied`. Section 4 stated **neither**: *"at most once … however many events follow"* sits on the `satisfied` row, and the unsatisfiable row said only *"reports it … and routes nowhere"*. The driver has always enforced both with one latch; Q95 is the measurement that the second was enforced untested. Leaving it would have shipped a rule asserted twice and written nowhere, which section 1 rule 3 refuses outright. **This is `doc/workflow.md` v0.7 change 3's shape in `spec/**` rather than in `doc/decisions/**`** — a gap that blocks a *fix* — and the item could not have foreseen it, because which clause a stub makes load-bearing is not knowable until the stub exists |
 
 ## What the declaration step changed, and it is three things
@@ -188,11 +188,11 @@ contains. **It is a closed list of the library's refusal classes, it is executed
 it omits one, and it passes** — because the list is compared against itself. `InvalidRunId`, from the
 same file, IS in it, so this is not `ids.ts` being excluded wholesale.
 
-That is [Q84](../open-questions.md)'s shape with a gate behind it, which is worse: P3's conformity
+That is [Q84](../questions/q84.md)'s shape with a gate behind it, which is worse: P3's conformity
 reader called an omission *"a claim by omission it does not defend"*, and here the omission is inside
 the one document the gate keeps true. **`doc/workflow.md`'s standing lesson — rot is what the gate
 prevents, absorption is what it cannot see — has a third form: a list the gate executes against
-itself is not a list the gate checks.** Raised as [Q101](../open-questions.md).
+itself is not a list the gate checks.** Raised as [Q101](../questions/q101.md).
 
 ## Scope
 
@@ -204,11 +204,11 @@ itself is not a list the gate checks.** Raised as [Q101](../open-questions.md).
 2. **Whatever ADR 0027 ships** in `src/driver/driver.ts`, with `OR-R10` and `ID-R4`'s precondition
    sentence amended if it touches them. **Shipping no code is a complete outcome** and the Record
    states it as one rather than as a shortfall.
-3. **[Q95](../open-questions.md), closed with a stub.** An early-settling policy under
+3. **[Q95](../questions/q95.md), closed with a stub.** An early-settling policy under
    `test/driver/**` — the seam has two exits and only one is reachable from what we ship, which is
    this repository's own rule for the case, already applied twice
    (`test/driver/driver.test.ts:389`, `test/driver/fold-inputs.test.ts:176`).
-4. **[Q87](../open-questions.md)'s message sentence, and only that.** `MultipleRuns`' text reads
+4. **[Q87](../questions/q87.md)'s message sentence, and only that.** `MultipleRuns`' text reads
    *"Construct a second Driver; ADR 0023 makes that safe on the same scheduler."* — verified verbatim
    at `src/driver/driver.ts:350` — and omits *with a different run id*, so the library's own error
    recommends the violation.
@@ -222,17 +222,17 @@ itself is not a list the gate checks.** Raised as [Q101](../open-questions.md).
 - **Q87's enforcement half.** Stays a precondition, on P5's argument, which P6 adopts and this item
   does not re-derive: no driver can detect it (`SchedulerLike` is two methods, ADR 0013 rule 1) and
   the alternative is the first mutable module-level state in `src/`.
-- **[Q7](../open-questions.md) — whether a join may time out.** The stub in (3) is an *instrument*.
+- **[Q7](../questions/q7.md) — whether a join may time out.** The stub in (3) is an *instrument*.
   Shipping an early-settling policy is a feature question P6 does not take, and the Record must say
   so rather than letting the stub read as a proposal.
-- **[Q97](../open-questions.md)** — whether `stuck` should distinguish a reported dead join from a
+- **[Q97](../questions/q97.md)** — whether `stuck` should distinguish a reported dead join from a
   silent one. `spec/run-state.md` is **W2's** and is not in this item's `Owns`; **ADR 0026 stays
   held** for it and is not reissued here.
 - **W15's generalisation of Q95** — that making `emit` return early once a join has settled also
   survives everything, so *nothing in this repository exercises what happens to a region after its
   join is decided*. The stub in (3) makes **one** event follow a settlement; the general clause is
   larger than Q95 and is re-read at the Record rather than absorbed.
-- **[Q90](../open-questions.md)** — `ID-R4` tier 2's missing L6 coverage. Named in P6's Scope/Out and
+- **[Q90](../questions/q90.md)** — `ID-R4` tier 2's missing L6 coverage. Named in P6's Scope/Out and
   W19's declaration re-reads it, as the register asks.
 
 ## Verification
@@ -324,7 +324,7 @@ at"* — was verified and is true. But it argues from **sites**, and the decisio
 | `Owns` | `src/driver/driver.ts`, `test/driver/{driver,lifetime,fold-inputs}.test.ts`, `spec/outcome-record.md`, `spec/task-id.md`, `spec/README.md`, `AGENTS.md` |
 | record step (`doc/workflow.md` section 1 rule 5 — no exception needed) | `doc/plans/p6-*.md`, `doc/README.md`, `CLAUDE.md`, `README.md`, `doc/open-questions.md`, `doc/decisions/**` (ADR 0027 new, ADR 0023 corrected, `doc/decisions/README.md`'s row) |
 | declared exception, **unused** | `scripts/check-source.mjs` — ADR 0027 created no refusal `src/` must not make. **Rule 7 (c) unexercised for the fourth plan** |
-| declared **late** | `scripts/check-docs.mjs` ([Q102](../open-questions.md)), `spec/join-policy.md` (the conformity reader's finding 3) — both in the Exceptions table above, with why neither could have been declared first |
+| declared **late** | `scripts/check-docs.mjs` ([Q102](../questions/q102.md)), `spec/join-policy.md` (the conformity reader's finding 3) — both in the Exceptions table above, with why neither could have been declared first |
 | the item's own file | `doc/work-items/w18-*.md` |
 
 **19 files, and every one accounted for**: 8 `Owns` + 7 record-step + 2 late exceptions + this file
@@ -358,7 +358,7 @@ state but not falsify.**
 3. **`AGENTS.md`'s new `run` snippet could lose both its assertions with the gate green.** `X4a` asks
    whether a `run` snippet contains a `throw`; the demonstrated `mintedByADriver` helper's own
    **rethrow** answered yes on the assertions' behalf. Rewritten without a rethrow, so `X4a` sees only
-   assertions. The general weakness is [Q104](../open-questions.md).
+   assertions. The general weakness is [Q104](../questions/q104.md).
 
 **The conformity reader found sixteen and both of its BLOCKING findings were about this file.**
 
@@ -377,7 +377,7 @@ were in the guards I had just written to close the readers' earlier findings.**
 |---|---|
 | **BLOCKING** | **`ID-R5` is one guard over SIX refusals and five of them were never delivered.** Every fixture was `nightly-cleanup`, `not-a-task-id` or a missing `id` — all single-segment and colon-free, all reaching only `parseTaskId`'s **arity** refusal. So `if (taskId.includes(':')) throw e;` narrows tier 0 to colon-free ids **with all 402 green**, restoring ADR 0023 rule 2 for five of six shapes; and so does `taskId.startsWith(this.runId + ':')`, which is **character-for-character ADR 0027's own last rejected alternative**. `r1:ingest:x:0` — the *"corrupted id for a task that IS ours"* the whole decision argues about — was never once delivered. **Seven shapes now are**; the two edits cost **6** and **5** failures |
 | **BLOCKING** | **The precondition I added to `bothArrive` two hours earlier admitted a trailing event that never re-enters `settleJoin`.** One token — settling the second branch `user_action` instead of `done` — emits `branch.suspended`, which satisfies *"a region event follows"* and then **returns before `advance()`**. With that, deleting the `unsatisfiable` latch was green again at 402: **Q95 restored by the guard written to prevent it.** Now asserted on the three **terminal** region events, which are the ones `spec/join-policy.md` section 4 says status is asked after. The edit costs **2** failures |
-| **SHOULD FIX ×2** | ADR 0027 chose *"documented rather than guarded"* for a throwing `onUnmintedTask` and **nothing asserted the choice** — wrapping the call in `try {} catch {}` was green, silently reversing a stated ADR position and a bold `AGENTS.md` warning. Three observables flip; three are now asserted (**1** failure). And the `AGENTS.md` snippet compares its `documented` **array** against the exports, so *documented* means *"in this array"* — **deleting section 9's whole `InvalidTaskId` paragraph is green**. That half is recorded on [Q101](../open-questions.md) rather than fixed: nothing ties a prose paragraph to a snippet |
+| **SHOULD FIX ×2** | ADR 0027 chose *"documented rather than guarded"* for a throwing `onUnmintedTask` and **nothing asserted the choice** — wrapping the call in `try {} catch {}` was green, silently reversing a stated ADR position and a bold `AGENTS.md` warning. Three observables flip; three are now asserted (**1** failure). And the `AGENTS.md` snippet compares its `documented` **array** against the exports, so *documented* means *"in this array"* — **deleting section 9's whole `InvalidTaskId` paragraph is green**. That half is recorded on [Q101](../questions/q101.md) rather than fixed: nothing ties a prose paragraph to a snippet |
 | **NOTE ×6, four acted on** | The `describe`-before-latch comment claimed an unreachable difference — **the `instanceof` finding one function away and uncorrected**, so the comment is now a forward guard like its neighbour rather than a claim (it stays unfalsifiable, deliberately). The single-driver `runId` case used `run-a`, equal to the constant it was pinning, so replacing `this.runId` with `'run-a'` passed it; a run id no other case uses makes it independent (**1 → 2** failures). And **`spec/**` prose has no route to red**: three separate deletions survive, including section 4's new clause — the one artifact this item took a late `Owns` exception to write |
 | **CONFIRMED** | Everything else in the declared surface is load-bearing, with kill counts recorded: the tier-0 report (8), reinstating ADR 0023 rule 2 (8), a constant `event` (2), coercing `taskId` (1), each half of `reason` (1 each), gating tier 0 on `done` (2 — **so the three-state rows are real coverage, not one assertion three times**), moving `normalizeEvent` inside tier 0's `try` (3), reporting tier 1 (1), de-duplicating reports and breaking the ADR 0007 pair (1), appending a `FoldInput` at tier 0 (1), the `unsatisfiable` latch (2), section 4's *once* and *terminal* halves **separately** (1 each), `MultipleRuns`' advice (1), widening `SEGMENT` so `FD-V16` and `ID-R2` diverge (1). `RUN_FLOOR` is 14 against 14 — exact, not slack |
 
@@ -445,10 +445,10 @@ assertion.
 
 | Q | |
 |---|---|
-| [Q101](../open-questions.md) | `AGENTS.md`'s executed error-class snippet was a closed list compared against a copy of itself, so it omitted an exported class with the gate green — a third form of *the gate cannot see absorption*. **Instance fixed; the class is not surveyed** |
-| [Q102](../open-questions.md) | `check-docs.mjs`'s `RUN_FLOOR` is a ratchet an item is obliged to raise, in a file no item owns and that is not a record-step file. It went stale silently and the probe written to catch a deleted snippet **passed** |
-| [Q103](../open-questions.md) | `fold()` — a pure function — throws `InvalidTaskId`. ADR 0027 keeps it throwing on purpose and did **not** take the question of whether a pure fold over a log may throw at all. Interacts with durability ([Q15](../open-questions.md)) |
-| [Q104](../open-questions.md) | `check-docs`' `X4a` is satisfied by **any** `throw` in a `run` snippet, including one belonging to the code being demonstrated. Found on a snippet this item had just written |
+| [Q101](../questions/q101.md) | `AGENTS.md`'s executed error-class snippet was a closed list compared against a copy of itself, so it omitted an exported class with the gate green — a third form of *the gate cannot see absorption*. **Instance fixed; the class is not surveyed** |
+| [Q102](../questions/q102.md) | `check-docs.mjs`'s `RUN_FLOOR` is a ratchet an item is obliged to raise, in a file no item owns and that is not a record-step file. It went stale silently and the probe written to catch a deleted snippet **passed** |
+| [Q103](../questions/q103.md) | `fold()` — a pure function — throws `InvalidTaskId`. ADR 0027 keeps it throwing on purpose and did **not** take the question of whether a pure fold over a log may throw at all. Interacts with durability ([Q15](../questions/q15.md)) |
+| [Q104](../questions/q104.md) | `check-docs`' `X4a` is satisfied by **any** `throw` in a `run` snippet, including one belonging to the code being demonstrated. Found on a snippet this item had just written |
 
 **Q105 and Q106 are unused and are skipped, never reissued** (`doc/workflow.md` section 3).
 **ADR 0028 is unused and skipped** — ADR 0027 did not split; Q87's message turned out to be a

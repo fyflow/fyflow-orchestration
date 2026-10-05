@@ -14,10 +14,10 @@
 //           discriminate: a merely malformed probe trips two.
 //   META    break the CHECK. Each entry disables one clause and names the probe that
 //           must stop being caught. A clause nothing probes is a clause that can go
-//           inert in silence, which is [Q138](../doc/open-questions.md).
+//           inert in silence, which is [Q138](../doc/questions/q138.md).
 //   SELF    break THIS FILE. Each entry must change a verdict, because every bound
 //           above lives here and a list bounded by nothing is the regress
-//           [Q217](../doc/open-questions.md) names.
+//           [Q217](../doc/questions/q217.md) names.
 //
 // **This harness never writes inside the tree it measures.** A probe stages its own
 // copy of the three documents under `dev-dist/budget-selftest-<pid>/`, so the
@@ -89,7 +89,7 @@ const MIN_SOURCE = 10;   // AT the list's length. **It was 9 against 10 and the 
  * text-presence clause cannot see a line that is present and never reached.
  */
 let CONTROL_OUTPUT = '';
-// **A `corpus` grading is a PASS and that is [Q150](../doc/open-questions.md)** — W30
+// **A `corpus` grading is a PASS and that is [Q150](../doc/questions/q150.md)** — W30
 // measured it in `check-spec`, where dropping one relocation made 21 mutants non-inert
 // and the file exited 0 reporting *0 noticed by the named probe, 21 by the corpus*. A
 // mutant that fails on the untouched tree is noticed, but its probe verdict is noise.
@@ -155,7 +155,7 @@ const PROBES = [
   // **It is also the discriminating half of a PAIR**: the `B2` probe above stages the same member
   // one byte over its ceiling with its neighbours TINY and is `[B2]` alone, and this one stages
   // them AT their ceilings and is `[B2,B3]`. *The difference between the two is `B3`'s whole
-  // remaining subject, which is why both are here.* [Q479](../doc/open-questions.md).
+  // remaining subject, which is why both are here.* [Q479](../doc/questions/q479.md).
   {
     name: 'doc/workflow.md one byte over with the others AT their ceilings, so the SET exceeds its total too',
     check: 'B3', also: ['B2'],
@@ -213,7 +213,7 @@ const PROBES = [
     // target, so `B6` fires twice (one member missing, one duplicated) and `B7` once (that
     // slot's target is not the figure decided for `doc/concept.md`).
     // `[B1,B6,B7]` since W115's second round: the duplicate makes `sizes.size` 2 against a
-    // `SET.length` of 3, which the new `B1` clause reports. **[Q474](../doc/open-questions.md) a
+    // `SET.length` of 3, which the new `B1` clause reports. **[Q474](../doc/questions/q474.md) a
     // FIFTH time in one item** — a clause added to a check becomes a site of every probe that
     // stages its subject, and this item has now widened five declared sets of its own.
     name: 'CLAUDE.md replaced by a SECOND doc/concept.md — the duplicate that hid a missing member',
@@ -301,7 +301,7 @@ const PROBES = [
   },
   {
     // **`B7` turned this probe against its own declared set, which is
-    // [Q474](../doc/open-questions.md)'s SECOND occurrence** — *a clause added to a check becomes
+    // [Q474](../doc/questions/q474.md)'s SECOND occurrence** — *a clause added to a check becomes
     // a SITE of every probe that stages its subject.* W114 raised that row when `B5` did the same
     // to four probes here. Moving `17 * 1024` to `18 * 1024` moves the ALLOCATION, which is
     // precisely what `B7` pins, so the compound is correct and is declared.
@@ -316,7 +316,7 @@ const PROBES = [
 // verdict is CRASH and one whose right verdict is WRONG-REASON, both graded on every
 // pass, because the only two rung readings in P23 that were wrong were a grader's and
 // *a controlled grader proves the grader can SAY a verdict; it says nothing about
-// whether its COMPARISON of verdicts is right* ([Q452](../doc/open-questions.md), W110).
+// whether its COMPARISON of verdicts is right* ([Q452](../doc/questions/q452.md), W110).
 // They are a separate list so the probe floor cannot be satisfied by them.
 const GRADER_CONTROLS = [
   {
@@ -343,7 +343,7 @@ const GRADER_CONTROLS = [
     // nothing would have graded `crash`, and both controls were satisfied while the grader was
     // wrong. That is the brief's own question answered against the harness: *a controlled grader
     // proves the grader can SAY a verdict; it says nothing about whether its COMPARISON is right*
-    // ([Q452](../doc/open-questions.md)). This control exits 0 with no named failure and must grade
+    // ([Q452](../doc/questions/q452.md)). This control exits 0 with no named failure and must grade
     // `against-declaration`; under that mutation it grades `crash`.
     name: 'GRADER CONTROL — exits 0 reporting nothing while declaring B2: against-declaration, not a crash',
     expect: 'against-declaration', check: 'B2', sizes: 'real',
@@ -545,7 +545,7 @@ const SELF = [
 // **A ceiling's vacuity is not *too little to check* but *nothing to measure*, and two
 // of `check-budget.mjs`'s guards are about its own TEXT rather than about any tree.**
 // `MIN_MEMBERS` cannot be fired by a probe (emptying `SET` makes the check non-inert on
-// the untouched tree, which grades `corpus` and is a pass — [Q150](../doc/open-questions.md)),
+// the untouched tree, which grades `corpus` and is a pass — [Q150](../doc/questions/q150.md)),
 // and *the ceilings are LITERALS* cannot be fired at all: a ceiling derived from the
 // measurement it bounds would pass on every tree for ever, and that is the one way this
 // check can be made worthless without a clause going red.
@@ -609,7 +609,7 @@ const SOURCE = [
   // TEXT rather than running it** — obligation (e)'s *read the default declaration rather than
   // running it*. Without this, `DECLARED_PATHS` and `DECLARED_TARGETS` are literals two lines
   // from the `SET` they bind, and a member plus its declaration are two edits in one diff
-  // ([Q217](../doc/open-questions.md)). This file's own `SET_PATHS` is an independent copy of the
+  // ([Q217](../doc/questions/q217.md)). This file's own `SET_PATHS` is an independent copy of the
   // membership, so the two are compared BOTH WAYS; and the targets are asserted to be the
   // `N * 1024` figures P27 decision 1 decides, which is what makes moving allowance between
   // members a source change rather than a number change.
@@ -815,7 +815,7 @@ function runCheck(root, script, tree) {
  * Grade one probe. The outcomes are an ENUMERATION rather than a boolean, because the
  * exit code cannot tell a detection from a crash, from noise, or from a sibling
  * covering for the clause — section 4's two directions and
- * [Q138](../doc/open-questions.md).
+ * [Q138](../doc/questions/q138.md).
  */
 function verdict(probe, r, staged) {
   if (staged === null) { return { outcome: "abort", why: " — the staging changed nothing" }; }
@@ -882,7 +882,7 @@ export async function selfTest(root) {
    * draws **15** `G6` failures, every probe in that lane read `got [G1,G2,G6]` against its declared
    * `[G1,G2]`, and the lane's own control passed — the signature of a RACE rather than a defect,
    * since the same lane run alone was EXIT 0. **W108's incident, reproduced by this item's own
-   * residue** ([Q182](../doc/open-questions.md)), and found independently by W112's adequacy reader.
+   * residue** ([Q182](../doc/questions/q182.md)), and found independently by W112's adequacy reader.
    *
    * `G6`'s scan filters `!n.startsWith('.')` and the comment above it says why: *a leading dot is
    * this repository's own convention for a mutant (`.meta-*`, `.self-*`, `.probe-*`) and no file in
@@ -1196,7 +1196,7 @@ export async function selfTest(root) {
   // beside the leak, because the digest walk skips `dev-dist` by design. Measured from a cleared
   // directory: one run without them leaves **15 directories (~8.7 MB) and 40 mutant `.mjs`
   // modules** — which is ADR 0072's *removed on the way out including on the abort path* with
-  // nothing watching, i.e. [Q426](../doc/open-questions.md)'s defect re-introducible for free. And
+  // nothing watching, i.e. [Q426](../doc/questions/q426.md)'s defect re-introducible for free. And
   // it compounds: those 40 modules are exactly the residue that kills `check:wiring:selftest`'s
   // control. So this run's OWN residue is named here, by the one name it can predict — its pid.
   {

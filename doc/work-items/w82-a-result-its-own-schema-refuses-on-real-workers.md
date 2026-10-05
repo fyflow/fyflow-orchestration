@@ -61,8 +61,8 @@ Reserves:   Q340-Q344, ADR 0061 (expected UNUSED — the decision is ADR 0060's 
 - **Turning the check on by default, anywhere.** ADR 0060 decision 1.
 - **A second off-gate measurement file.** `examples/settlement-cost.ts` is W81's and prices ONE
   settlement; the rung's ratio is this item's Record and a line L6 PRINTS, never a rung (Q179).
-- **[Q171](../open-questions.md)'s `X7`-shaped clause over the L6 counts.** P21 declares it out.
-- **[Q302](../open-questions.md)'s bounds-generating road.** W74's territory, and P21 stop-and-ask
+- **[Q171](../questions/q171.md)'s `X7`-shaped clause over the L6 counts.** P21 declares it out.
+- **[Q302](../questions/q302.md)'s bounds-generating road.** W74's territory, and P21 stop-and-ask
   (d) refused the cheap half deliberately.
 
 ## The declaration step — six numbers re-taken, and two of them move the plan
@@ -127,7 +127,7 @@ rather than to the file.
 | L1-L5 | `npm test`, `npm run test:deno`, `npm run test:browser` — every rung REDIRECTED and read by `$?`, never piped |
 | L6 in BOTH runtimes | `npm run test:l6` and `npm run test:l6:deno`. **L6 MOVES and the Record says by how much**, which is this item's declared result |
 | `check:docs` | `npm run check:docs` AND `npm run check:docs:selftest` — the second because `RUN_FLOOR` moves and `X4`'s probe anchors on `AGENTS.md`'s text (the plan's seeded row, W78's finding) |
-| `check:markdown` | `npm run check:markdown` AND `npm run check:markdown:selftest`, which is the only rung `M3`/`M4` can fire in — [Q142](../open-questions.md), re-taken on the tree this item SHIPS |
+| `check:markdown` | `npm run check:markdown` AND `npm run check:markdown:selftest`, which is the only rung `M3`/`M4` can fire in — [Q142](../questions/q142.md), re-taken on the tree this item SHIPS |
 | `check:workers` | `npm run check:workers` — the two new workers run on their declared examples and must be GREEN, which is half of what makes the reach a reach |
 | the full gate | `npm run gate`, read by capturing `$?` into a variable in the SAME command before any reading tool runs |
 | rule 8 | `dev-dist/w82/rule8.mjs`, twice: the author pass, and again with the readers' exact edits checked in |
@@ -146,7 +146,7 @@ fan-out (Q6)** — not applicable; this item dispatches four tasks on one path.
 
 | path | verdict | why |
 |---|---|---|
-| `scripts/check-docs.mjs` | **NEEDED** | `RUN_FLOOR` is a ratchet an item that ADDS a `run` snippet must raise — [Q102](../open-questions.md), live for six plans. 27 → 28 |
+| `scripts/check-docs.mjs` | **NEEDED** | `RUN_FLOOR` is a ratchet an item that ADDS a `run` snippet must raise — [Q102](../questions/q102.md), live for six plans. 27 → 28 |
 | `scripts/check-docs-selftest.mjs` | **PREDICTED NEEDED, and measured UNNEEDED** | W78's reason was that `X4`'s probe anchors on a literal inside `AGENTS.md`. This item APPENDS section 16 and edits no earlier fence, so no anchor moved: `check:docs:selftest` is green at **33 / 33, 20 / 20** and the file is unmodified. *A prediction resolved in the other direction, recorded rather than quietly dropped* |
 | `scripts/check-workers-selftest.mjs` | **NEEDED, and UNPREDICTED — by this item and by the plan's seeded table** | its `CONTROL_LINES` pins the shipped document's header tally as a LITERAL REGEX — `14 worker(s) … 14 ran on a declared example` — so two new worker entries turn a GATE ENTRY red while `check:workers` itself stays green. **The count lives in the GRADING and not in the check**, which is why neither table reached it |
 | `test/definition/wiring.test.ts` | **NEEDED, and UNPREDICTED** | it pins the L6 corpus wiring census as a literal — `62 fit … over 25 flows` — and a new corpus FLOW moves it. The seeded table named `test/definition/l4-corpus.test.ts` (correctly unneeded, since this item adds no suite) and not this one. W82's conformity reader, finding 6 |
@@ -178,7 +178,7 @@ pending its retro**. **NO ADR — 0061 reserved and UNUSED.**
 | L1-L5 | **RAN, green** | **46 file(s) / 1295 assertions** in node 24.20.0, deno 2.9.6 and chromium — **UNMOVED**, which is the declared result for an item adding no suite |
 | L6 in BOTH runtimes | **RAN, green** | **1724 assertions, 0 failed, 58 real runs**, identical in node AND deno. From 1639 / 55; 50 `EXPECTED` rows from 48, **52 row labels** from 50 |
 | `check:docs` | **RAN, green** | **34 snippet(s): 28 run, 6 check** from 33 / 27 / 6. `RUN_FLOOR` 27 → 28; `X8` compares **4** README snippets from 3. `check:docs:selftest` **33 / 33, 20 / 20** and the file is UNMODIFIED — a seeded prediction resolved the other way |
-| `check:markdown` | **RAN, green** | **142 documents, 6205 relative links, 317 anchored**, and `check:markdown:selftest` **7 / 7 bounded**. **[Q142](../open-questions.md) did NOT fire**, re-taken on the tree this item SHIPS AFTER the record step — `M3`'s fixture margin 14 files and `M4`'s 951 links. *(This row read 143 / 6182 / 311 for the hour between the record step and the final gate: a number taken before the last six documents moved, in the row that says it was re-taken after them. Section 1 rule 5's WHEN clause, caught by reading the gate's own line.)* |
+| `check:markdown` | **RAN, green** | **142 documents, 6205 relative links, 317 anchored**, and `check:markdown:selftest` **7 / 7 bounded**. **[Q142](../questions/q142.md) did NOT fire**, re-taken on the tree this item SHIPS AFTER the record step — `M3`'s fixture margin 14 files and `M4`'s 951 links. *(This row read 143 / 6182 / 311 for the hour between the record step and the final gate: a number taken before the last six documents moved, in the row that says it was re-taken after them. Section 1 rule 5's WHEN clause, caught by reading the gate's own line.)* |
 | `check:workers` | **RAN, green** | **16 workers, 16 ran on a declared example, 2 not checked**, from 14 / 14 / 2 — **and both new workers are GREEN**, which is half the reach. `check:workers:selftest` 24 probes / 9 gradings |
 | the other checks | **RAN, green** | `check:spec` **7 / 61 / 108 UNMOVED**, `check:source`, `check:wiring`, `check:scheduler`, `check:policies` |
 | conformity reader | **RAN** | **16 findings, 6 blocking** — and **its central obligation came back with ZERO disagreements on the VALUES**: both rows' findings and their exact text, all eight dispatched ids, every `nodeResults` value, the `settledOwnKeys` pair, the check-OFF counts and the whole assertion arithmetic (`+15 / 1720 / 58`) derived on paper from the schemas and the payloads before any output was read, and every one matched. It also rebuilt finding 1 independently at both pool modes |
@@ -209,7 +209,7 @@ pending its retro**. **NO ADR — 0061 reserved and UNUSED.**
    out: the clause says at ONE observer add a second independent expression, and here there were three
    expressions over ONE value.* **What refuses it is a relation the LOG has and the report does not**
    — the walk reaches the CONFORMING settlements, which no report names — so the control is over the
-   walk's REACH rather than over an operand. [Q340](../open-questions.md).
+   walk's REACH rather than over an operand. [Q340](../questions/q340.md).
 2. **A BINDING THAT DID NOT BIND, found by the author's own pass.** The check-OFF pair kept FOUR
    strings — two zeroed logs and two raw ones — so re-sourcing the OFF arm's ZEROED log left the RAW
    control reading the real off-run, and the control passed. *A control over a SECOND projection of an
@@ -220,17 +220,17 @@ pending its retro**. **NO ADR — 0061 reserved and UNUSED.**
    detection**, and the reader's better break (`gauge` made to keep its bound, which leaves the report
    non-empty) is `check:docs` exit 0. So there is **no second route inside `check:docs`**, §16 says so
    now, and the route that exists is L6. Its guards no longer crash on an empty report.
-   [Q341](../open-questions.md).
+   [Q341](../questions/q341.md).
 4. **A corpus census pinned as a literal in three files that are not the corpus, and no seeded table
    has ever named one.** `scripts/check-workers-selftest.mjs`'s `CONTROL_LINES` regex took a GATE
    ENTRY red while `check:workers` itself stayed green — *the count lives in the GRADING and not in
    the check*; `test/definition/wiring.test.ts` pins the wiring census; and
    `spec/outcome-record.md`'s task-node split is **DERIVED on every run** by
    `test/fold/result-value.test.ts`, which is the only one of the three that announced itself.
-   [Q342](../open-questions.md).
+   [Q342](../questions/q342.md).
 5. **`X4` is stronger than this item declared and the declaration was CAUGHT AGAINST DECLARATION.**
    It refuses `if (false)` BY NAME (W16's adequacy reader's clause) and counts `throw` textually, so
-   [Q310](../open-questions.md)'s ceiling needs `x !== x` rather than `if (false)`.
+   [Q310](../questions/q310.md)'s ceiling needs `x !== x` rather than `if (false)`.
 6. **A compound that exercised nothing and survived.** `b1b`'s first version paired a vacuous clause
    with an ABSENT-SCHEMA mutation, and all four nodes of this flow declare one, so no extra report was
    ever produced. *A compound is evidence only when its second edit reaches the clause.*
@@ -238,15 +238,15 @@ pending its retro**. **NO ADR — 0061 reserved and UNUSED.**
    the match, so the rung's cost was re-taken on the OLD flow set and read identical. Every patch
    since asserts its match count.
 8. **A spike hung on a `done` that never settled**, because the corpus workers' relative URLs resolved
-   against the wrong `base`; Node reported *unsettled top-level await*, exit 13. [Q323](../open-questions.md)'s
+   against the wrong `base`; Node reported *unsettled top-level await*, exit 13. [Q323](../questions/q323.md)'s
    shape, and every await in a probe is bounded since.
 9. **The register's headline was stale at `256 / 199 / 2 / 55`** — W80's figure, through the whole of
-   W81, whose own note beside it reads 261 / 203. [Q253](../open-questions.md) for the fifth plan
+   W81, whose own note beside it reads 261 / 203. [Q253](../questions/q253.md) for the fifth plan
    running. Census re-derived from scratch: **265 / 207 / 2 / 56, 265 of 265 in exactly one cluster
    cell, 0 aborts** — and the parser was wrong in a **fourth** direction this register does not
-   record: [Q87](../open-questions.md)'s row spans five lines, so a filter requiring one line to open
+   record: [Q87](../questions/q87.md)'s row spans five lines, so a filter requiring one line to open
    AND close **dropped** it and the census read 260 with **zero aborts**. *A parser that aborts on
-   what it cannot classify does not abort on what it never SEES.* [Q343](../open-questions.md).
+   what it cannot classify does not abort on what it never SEES.* [Q343](../questions/q343.md).
 
 ### What this taught
 
@@ -257,22 +257,22 @@ clamped (`a5`) and green with `stamp`'s label made enumerable (`a6`); and both m
 
 **And the two legs are unreachable for DIFFERENT reasons**, which three documents conflated until the
 conformity reader separated them: `gauge`'s bound is reachable by a bounds-generating tool — that is
-[Q302](../open-questions.md)'s own open road, which P21 stop-and-ask (d) declines deliberately —
+[Q302](../questions/q302.md)'s own open road, which P21 stop-and-ask (d) declines deliberately —
 while `stamp`'s missing key is reachable by **none**, because none of them holds a record.
 
-**Nothing for `doc/workflow.md`.** The two candidate rules are [Q340](../open-questions.md)'s (whether
+**Nothing for `doc/workflow.md`.** The two candidate rules are [Q340](../questions/q340.md)'s (whether
 anything general can be said about corroborating a callback's own report) and
-[Q342](../open-questions.md)'s (a corpus census pinned outside the corpus), and both are at one
+[Q342](../questions/q342.md)'s (a corpus census pinned outside the corpus), and both are at one
 occurrence with a plan's retro next.
 
 ### Questions raised
 
 | | |
 |---|---|
-| [Q340](../open-questions.md) | every observer of a REPORT is downstream of the report, and a membership over the observers cannot see it |
-| [Q341](../open-questions.md) | `X4` refuses `if (false)` by name and nothing else, and the ceiling written to make that safe was bought by a CRASH |
-| [Q342](../open-questions.md) | a corpus census pinned as a LITERAL in three files that are not the corpus, none of them ever seeded |
-| [Q343](../open-questions.md) | a table row that spans several LINES is invisible to a parser that aborts, because it is never presented to the classifier |
+| [Q340](../questions/q340.md) | every observer of a REPORT is downstream of the report, and a membership over the observers cannot see it |
+| [Q341](../questions/q341.md) | `X4` refuses `if (false)` by name and nothing else, and the ceiling written to make that safe was bought by a CRASH |
+| [Q342](../questions/q342.md) | a corpus census pinned as a LITERAL in three files that are not the corpus, none of them ever seeded |
+| [Q343](../questions/q343.md) | a table row that spans several LINES is invisible to a parser that aborts, because it is never presented to the classifier |
 
 **Q344 reserved and UNUSED, so it is SPENT. ADR 0061 SKIPPED.** Census **265 / 207 / 2 / 56**.
 

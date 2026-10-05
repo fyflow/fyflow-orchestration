@@ -20,7 +20,7 @@ its rule that `npm run gate`'s last entry is the self-test runner no longer hold
 stands — the chain still climbs the ladder in order, the eight `:selftest` entries still run
 CONCURRENTLY through one runner derived from the manifest, and the two that cannot share the tree still
 run alone.
-**Answers** the cost half of [Q133](../open-questions.md), which that row has asked since P8 and which
+**Answers** the cost half of [Q133](../questions/q133.md), which that row has asked since P8 and which
 ADR 0039 explicitly did not decide.
 
 ## Context
@@ -68,7 +68,7 @@ ADR 0039 explicitly did not decide.
    catching its own author. It is recorded here because the next person to move an entry will find the
    same four and should not have to find them the same way.
 
-7. **What this does NOT fix is [Q180](../open-questions.md)**, and that row already names the answer:
+7. **What this does NOT fix is [Q180](../questions/q180.md)**, and that row already names the answer:
    ~2 531 process starts, one per probe, 137 s of pure interpreter boot at a healthy 54 ms and far worse
    when a machine's process creation degrades. Moving the cost off the local loop does not remove it.
 
@@ -102,7 +102,7 @@ ADR 0039 explicitly did not decide.
 ## Consequences
 
 1. **A human's loop is the ladder.** 245 s measured here, against 1571 s for both halves; on a machine
-   whose process spawns are at [Q180](../open-questions.md)'s recorded 54 ms rather than this one's 100 ms
+   whose process spawns are at [Q180](../questions/q180.md)'s recorded 54 ms rather than this one's 100 ms
    it is lower again, and the honest form is the RATIO — the self-tests were 84% of the wait.
 
 2. **Proving the checks can fail is now CI's, which makes CI load-bearing.** This is the cost, stated:

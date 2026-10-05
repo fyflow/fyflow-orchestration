@@ -10,13 +10,13 @@
  *
  * - [**ADR 0022**](../../doc/decisions/0022-a-driver-takes-its-run-at-construction.md)
  *   — the run id is a constructor option, `start()` takes the payload alone, and
- *   `hasFailed()` takes no argument. [Q53](../../doc/open-questions.md).
+ *   `hasFailed()` takes no argument. [Q53](../../doc/questions/q53.md).
  *   Its refusals are tested where their rules already lived: `ID-R2` in
  *   `driver.test.ts`, `ID-R3` in `fold-inputs.test.ts`.
  * - [**ADR 0023**](../../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
  *   — **`ID-R4`**, two tiers, because "another run's settlement" and "our run id
  *   on a task we never dispatched" are different failures and only one is ours.
- *   [Q72](../../doc/open-questions.md).
+ *   [Q72](../../doc/questions/q72.md).
  *
  * **Expected values come from `spec/task-id.md` sections 2-3.** A task id
  * identifies one `(run, node, branch, attempt)`, and two outcomes under one key is

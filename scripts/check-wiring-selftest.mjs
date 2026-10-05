@@ -25,7 +25,7 @@
 //           against twenty-six `fail()` sites — three `G1`, eight `G2`, four `G3`,
 //           ten `G4`, one `G5` — and the cap is stated rather than padded**: one entry
 //           per DISTINCT mechanism, plus the report block, which no set comparison can
-//           see ([Q100](../doc/open-questions.md)). `G5` reports one message for nine
+//           see ([Q100](../doc/questions/q100.md)). `G5` reports one message for nine
 //           declarations and a second entry there would grade STILL CAUGHT. The twelve
 //           not covered are the arms that
 //           report a variant of a covered arm's message under the same id, where a
@@ -60,7 +60,7 @@
 // [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md).**
 // The marker is one line in this comment and `run-selftests.mjs` reads it, `G4` derives the same set,
 // and nothing is written here about it in a form either of them can see — which is deliberate, because
-// a sentence that spells the token out re-arms the thing it is explaining ([Q178](../doc/open-questions.md)'s
+// a sentence that spells the token out re-arms the thing it is explaining ([Q178](../doc/questions/q178.md)'s
 // hazard, one file across).
 //
 // **What it was for.** `stage()` writes every `scripts/check-*.mjs` into `dev-dist/` FLAT — the one
@@ -76,7 +76,7 @@
 // **Why it is gone.** Both victims were FIXED PATHS, and W105 made every scratch path under `dev-dist/`
 // carry its process — `check-docs.mjs` writes `docs-<pid>`, `check-spec-selftest.mjs` writes
 // `spec-selftest-<pid>`, and `G6` in `check-wiring.mjs` refuses a new one that does not.
-// [Q182](../doc/open-questions.md) had already said relocating THIS file's staging would not have
+// [Q182](../doc/questions/q182.md) had already said relocating THIS file's staging would not have
 // helped, *because the copies it runs are the real checks and they write the real paths*; the real
 // paths are what moved.
 //
@@ -96,7 +96,7 @@
 // **`check:scheduler:selftest` keeps its marker, and that was measured too, not assumed**: it deletes
 // `node_modules/fyflow-scheduler`, which is process-wide whatever any scratch path is named, and a
 // `check:docs` loop beside it is **4 of 5** green — a one-in-five flake with no obvious cause, which is
-// precisely what [Q181](../doc/open-questions.md) says an absent marker produces.
+// precisely what [Q181](../doc/questions/q181.md) says an absent marker produces.
 
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join, sep } from 'node:path';
@@ -519,7 +519,7 @@ const G4_PROBES = [
  * there, so `G6` reads the mutated file exactly as it reads the real one.
  *
  * **Every literal below splits `dev-dist`, and the control went RED for want of it** —
- * [Q178](../doc/open-questions.md) for the third and fourth time in this item. `G6` reads source TEXT,
+ * [Q178](../doc/questions/q178.md) for the third and fourth time in this item. `G6` reads source TEXT,
  * so a probe that writes the text it searches for turns THIS file into a site: the control reported
  * `check-wiring-selftest.mjs builds a path under dev-dist/ that does not carry process.pid` against the
  * probe literal two lines down, and two more as duplicate NAMES. **And the vacuity is the sharper half**:
@@ -552,7 +552,7 @@ const G6_PROBES = [
       `const dir = join(root, '${DD}', 'spec-selftest');`),
   },
   {
-    // **Two files, one NAME — the defect [Q182](../doc/open-questions.md) was raised for.**
+    // **Two files, one NAME — the defect [Q182](../doc/questions/q182.md) was raised for.**
     // `check-source-selftest.mjs` and `check-policies-selftest.mjs` both wrote `dev-dist/.self-NN.mjs`;
     // it was found by READING, and ADR 0039's three concurrent passes never happened to collide on it.
     // A pid makes two PROCESSES safe and says nothing about two files inside one.
@@ -627,7 +627,7 @@ const MIN_META = 14;
 const MIN_SELF = 6;
 
 // **`G5` had to be added here as well as to the check, and forgetting it is
-// [Q43](../doc/open-questions.md)'s class** — a closed allowlist makes a new id's
+// [Q43](../doc/questions/q43.md)'s class** — a closed allowlist makes a new id's
 // failure lines invisible to the parse, so a probe declaring `[G4,G5]` reported
 // `got [G4]` while `G5` was failing in the same output. W36 hit this adding `D6`;
 // W39 hit it adding `G5`, one item later, in the file that records it.
@@ -642,7 +642,7 @@ const META = [
   ['G1`s routing clause disabled',
     'check-spec.mjs stops routing --self-test',
     (t) => t.replace("fail('G1', `${rel(script)} does not ROUTE", "[].push(`${rel(script)} does not ROUTE")],
-  // **The report block, which no set comparison can see** — [Q100](../doc/open-questions.md).
+  // **The report block, which no set comparison can see** — [Q100](../doc/questions/q100.md).
   // Forcing every row to `ok` leaves the failure ids unchanged, so only a second
   // projection of the same fact can discriminate: the `agree` check below.
   ['the report prints `ok` for every row, verdict and NOT RUN alike',
@@ -811,14 +811,14 @@ const verdict = (probe, r) => {
     ? rowOf(x) === 'notrun'
     : rowOf(x) === (tripped.includes(x) ? 'fail' : 'ok')));
   // **`fails` is the failure COUNT, and it is the projection an id SET cannot see** — W29,
-  // [Q146](../doc/open-questions.md). Two clauses can report one id, so disabling either leaves the set
+  // [Q146](../doc/questions/q146.md). Two clauses can report one id, so disabling either leaves the set
   // alone and moves only the count. The META pass below compares it against the control's.
   const fails = (out.match(/^ {2}G\d: /gm) ?? []).length;
   return { out, declared, tripped, refused, why, agree, fails };
 };
 
 export async function selfTest(root) {
-  // **The pid is in the name, and [Q151](../doc/open-questions.md) is why.** A
+  // **The pid is in the name, and [Q151](../doc/questions/q151.md) is why.** A
   // `SELF` child runs THIS function, whose first line deletes this directory — so a
   // fixed name has the child delete the parent's scratch space underneath it. W31
   // shipped that defect and reported `12/12 bounded` while measuring the deletion;
@@ -828,7 +828,7 @@ export async function selfTest(root) {
   mkdirSync(dir, { recursive: true });
   /**
    * **`done()` removes `dir` from every RETURN and nothing covered a THROW — W105.** This file already
-   * nests its scratch per process, which is the half [Q182](../doc/open-questions.md) asks for; what it
+   * nests its scratch per process, which is the half [Q182](../doc/questions/q182.md) asks for; what it
    * did not have is the abort path. `process.on('exit')` covers a throw and every `process.exit` road,
    * and it also reaps `stage()`'s FLAT files below, which are the ones that cannot nest.
    *
@@ -943,7 +943,7 @@ export async function selfTest(root) {
   /**
    * **Every non-mutant `dev-dist/*.mjs` this run did not stage — W103's finding 3, given a name.**
    * *(It read `check-*.mjs` until [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
-   * which is [Q459](../doc/open-questions.md); the paragraph below has the measurement.)*
+   * which is [Q459](../doc/questions/q459.md); the paragraph below has the measurement.)*
    *
    * `stage()` writes flat into `dev-dist/` because each staged script derives `ROOT` from its own
    * location and `check-spec.mjs` imports `./check-markdown.mjs`, so one directory below the repository
@@ -959,7 +959,7 @@ export async function selfTest(root) {
    * is a READING rather than a deletion.
    *
    * **Its SCOPE was `check-*.mjs` until [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md),
-   * and [Q459](../doc/open-questions.md) is what that cost** — handed to P27's declaration by P26's retro.
+   * and [Q459](../doc/questions/q459.md) is what that cost** — handed to P27's declaration by P26's retro.
    * W105's conformity reader recorded the gap and judged it harmless: *`G3` reads `check-*.mjs` too, so a
    * leftover non-check is not a check the manifest fails to declare.* That is true of `G3` and false of the
    * CONTROL, which is the clause this reading serves. **W108 left six `w108-*.mjs` harness modules in
@@ -980,7 +980,7 @@ export async function selfTest(root) {
   // `.meta-*`, `.self-*`, `.probe-*`, `.budget-*` — as though they were residue. `G6`'s own scan
   // filters `!n.startsWith('.')` for exactly that reason, and this reading exists to explain `G6`'s
   // refusals, so **its universe is now `G6`'s rather than `G3`'s**: every `.mjs` that is not a
-  // mutant. That is what [Q459](../doc/open-questions.md) wanted — `G6` could REFUSE a file this
+  // mutant. That is what [Q459](../doc/questions/q459.md) wanted — `G6` could REFUSE a file this
   // could not NAME.
   const stray = (staged) => readdirSync(join(root, 'dev-dist'))
     .filter((n) => /\.mjs$/.test(n) && !n.startsWith('.'))
@@ -1073,7 +1073,7 @@ export async function selfTest(root) {
   // `G4` probes are named by a `META` entry and cannot be re-pointed without an ABORT;
   // the other six could. `META` and `SELF` have asserted distinctness since W30 and
   // W31; this is the same bound on the list they grade, arriving two items later.
-  // [Q153](../doc/open-questions.md)'s shape in the newest file's `PROBES`.
+  // [Q153](../doc/questions/q153.md)'s shape in the newest file's `PROBES`.
   {
     const sig = PROBES.map((probe) => {
       if (!probe.file) {
@@ -1231,7 +1231,7 @@ export async function selfTest(root) {
     // with that fixed, TWO entries came back STILL CAUGHT — `G1 stops counting the entries it skipped`
     // and `G2 stops counting the entries it never read`. Both are MASKING in W29's sense: the probe's own
     // mutation trips the same id through the ROUTING clause, so disabling the COUNTING clause leaves the
-    // id set identical and moves only the number of failures. [Q146](../doc/open-questions.md)'s
+    // id set identical and moves only the number of failures. [Q146](../doc/questions/q146.md)'s
     // discriminator, which `check-scheduler-selftest.mjs` has carried since W29 and this file did not.
     const byCount = v.fails !== controlFails;
     const noticed = v.vacuous || !v.refused || !v.agree || byCount;
@@ -1283,7 +1283,7 @@ export async function selfTest(root) {
       env: { ...process.env, CHECK_WIRING_SELFTEST: copy, CHECK_WIRING_NESTED_SELF: '1' },
     });
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-    // **The child must have RUN.** [Q151](../doc/open-questions.md): a `SELF` pass
+    // **The child must have RUN.** [Q151](../doc/questions/q151.md): a `SELF` pass
     // whose children all crash reports every entry bounded while measuring the
     // crash. A child that reached a verdict printed one of these three lines.
     const ranChild = /probes caught\.|below their floors|FAIL  CHECKS|no probe (touches|declares)|the control /.test(out);

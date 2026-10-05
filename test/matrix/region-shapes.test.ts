@@ -22,7 +22,7 @@
  * is here because leaving a measured silent hang untested in the same commit that
  * publishes an ADR about attributing hangs is worse than a widened work item.
  * Whether `spec/` should refuse this shape, support it explicitly, or leave it as
- * it is, is [Q45](../../doc/open-questions.md).
+ * it is, is [Q45](../../doc/questions/q45.md).
  */
 import { equal, ok, suite } from '../harness.ts';
 import { arrivalCount, liveToken } from '../../src/fold/policies.ts';

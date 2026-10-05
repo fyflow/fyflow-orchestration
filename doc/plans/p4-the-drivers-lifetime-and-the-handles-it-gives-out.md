@@ -15,9 +15,9 @@ completing on real workers — the pairing that silently corrupts both runs toda
 
 | | |
 |---|---|
-| [**Q53**](../open-questions.md) | `Driver`'s public surface says it serves many runs and `ID-R3` says it serves one. `start(runId, payload)` takes the id per call, `failedRuns` is a `Set`, `hasFailed(runId)` is public. Three shapes that only make sense for many runs. Raised by **W5**'s conformity reader |
-| [**Q72**](../open-questions.md) | **Two `Driver`s on one scheduler cross-route.** `ID-R3` refuses a second run on one driver; **nothing refuses a second driver on one scheduler.** Each receives the other's settlements and a task id is dispatched twice — the two-outcomes-under-one-key corruption `spec/task-id.md` section 2 exists to describe. Measured by **W9**'s adequacy reader |
-| [**Q73**](../open-questions.md) | `onRegionEvent` hands out the driver's **own live object**, while `snapshot()`, `foldInputs()` and `onFoldInput` all return frozen copies. A listener that mutates it corrupts the fold. Measured, same reader |
+| [**Q53**](../questions/q53.md) | `Driver`'s public surface says it serves many runs and `ID-R3` says it serves one. `start(runId, payload)` takes the id per call, `failedRuns` is a `Set`, `hasFailed(runId)` is public. Three shapes that only make sense for many runs. Raised by **W5**'s conformity reader |
+| [**Q72**](../questions/q72.md) | **Two `Driver`s on one scheduler cross-route.** `ID-R3` refuses a second run on one driver; **nothing refuses a second driver on one scheduler.** Each receives the other's settlements and a task id is dispatched twice — the two-outcomes-under-one-key corruption `spec/task-id.md` section 2 exists to describe. Measured by **W9**'s adequacy reader |
+| [**Q73**](../questions/q73.md) | `onRegionEvent` hands out the driver's **own live object**, while `snapshot()`, `foldInputs()` and `onFoldInput` all return frozen copies. A listener that mutates it corrupts the fold. Measured, same reader |
 
 **Q72 is the sharp one, and the reason is not its severity.** `MultipleRuns`' own error message says
 *"construct a second Driver"* — so **a consumer following the library's own advice produces the
@@ -26,7 +26,7 @@ corruption.** `AGENTS.md` documents that hazard in **three places** (§2 line 11
 stated in the other direction: *the reference stayed true by describing a defect*, and a reference
 apologising for the code is a cost the gate cannot see.
 
-**Why this before [Q24](../open-questions.md).** Q24 is a deliberate non-decision — two one-line
+**Why this before [Q24](../questions/q24.md).** Q24 is a deliberate non-decision — two one-line
 policy refinements that [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
 names and declines. These three are **defects**. Q24 stays the live *feature* question and is
 explicitly not this plan.
@@ -38,7 +38,7 @@ spikes, P3's extraction spike, and this. In all five it changed what got written
 the answer itself.*
 
 **The register was verified against the code first** (`doc/workflow.md`: a register row you are about
-to act on is unverified until you have — W5 found [Q43](../open-questions.md) simply false).
+to act on is unverified until you have — W5 found [Q43](../questions/q43.md) simply false).
 
 | | measured |
 |---|---|
@@ -72,7 +72,7 @@ make for free, and three of the four holes it leaves have nothing to do with run
    [ADR 0014](../decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md) and `OR-R7`
    already say every outbound value is a frozen copy; `onRegionEvent` does not do what they say. There
    is nothing to decide, which is why it is the first and smallest item rather than part of the ADR.
-4. **[Q24](../open-questions.md) is not this plan**, and neither is [Q71](../open-questions.md) —
+4. **[Q24](../questions/q24.md) is not this plan**, and neither is [Q71](../questions/q71.md) —
    `SchedulerLike` under the DOM lib is a separate surface question with its own trade-off recorded.
 
 ## Which files this plan takes over, and why
@@ -107,12 +107,12 @@ to need a change, that is a finding for the Record and its own item.
 
 **Out** — named rather than left implicit
 
-- **[Q24](../open-questions.md)** — `JP-R7`/`JP-R8`. The live *feature* question, and a different
+- **[Q24](../questions/q24.md)** — `JP-R7`/`JP-R8`. The live *feature* question, and a different
   plan. This one fixes defects.
-- **[Q71](../open-questions.md)** — `SchedulerLike` under the DOM lib. It is a surface question, but
+- **[Q71](../questions/q71.md)** — `SchedulerLike` under the DOM lib. It is a surface question, but
   it is a *widening* with a recorded argument against it, not a defect with an obvious fix. `X5`
   reports it on every gate run and fails if it worsens.
-- **[Q20](../open-questions.md)** (is a run id global) and [Q15](../open-questions.md) (durability).
+- **[Q20](../questions/q20.md)** (is a run id global) and [Q15](../questions/q15.md) (durability).
   Both are adjacent — a driver's lifetime is where durability would become a persistence boundary —
   and neither is answered by fixing these three.
 - **`index.ts`'s 38 exports.** W9 named the omission; whether the other ~26 are public at all is a
@@ -137,10 +137,10 @@ hostage to the large one.
 
 | Q | | Owner |
 |---|---|---|
-| [Q53](../open-questions.md) | the many-run surface | **W13** — closed by ADR 0022 |
-| [Q72](../open-questions.md) | two drivers, one scheduler | **W13** — closed by ADR 0023. **Its "both runs report `stopped`" detail is corrected first** |
-| [Q73](../open-questions.md) | the unfrozen region event | **W12** — closed as a conformity fix, no ADR |
-| [Q20](../open-questions.md) | is a run id global | still open, and W13 will have an opinion it is not entitled to record as an answer |
+| [Q53](../questions/q53.md) | the many-run surface | **W13** — closed by ADR 0022 |
+| [Q72](../questions/q72.md) | two drivers, one scheduler | **W13** — closed by ADR 0023. **Its "both runs report `stopped`" detail is corrected first** |
+| [Q73](../questions/q73.md) | the unfrozen region event | **W12** — closed as a conformity fix, no ADR |
+| [Q20](../questions/q20.md) | is a run id global | still open, and W13 will have an opinion it is not entitled to record as an answer |
 
 ## A note on ids
 
@@ -162,12 +162,12 @@ completing on real workers, with the corruption stated as a thing that cannot ha
 settlement is this run's if and only if this driver dispatched its task id; and everything a driver
 hands out is a frozen copy.* [ADR 0022](../decisions/0022-a-driver-takes-its-run-at-construction.md),
 [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
-— **which carries a Correction** — and W12's one-line conformity fix. [Q53](../open-questions.md),
-[Q72](../open-questions.md), [Q73](../open-questions.md) and [Q84](../open-questions.md) are closed.
-`AGENTS.md`'s three apologies are down to one: §12's cast for [Q71](../open-questions.md), which was
+— **which carries a Correction** — and W12's one-line conformity fix. [Q53](../questions/q53.md),
+[Q72](../questions/q72.md), [Q73](../questions/q73.md) and [Q84](../questions/q84.md) are closed.
+`AGENTS.md`'s three apologies are down to one: §12's cast for [Q71](../questions/q71.md), which was
 out of scope by declaration.
 
-**The load-bearing fact changed the design, for the fifth consecutive plan.** [Q72](../open-questions.md)
+**The load-bearing fact changed the design, for the fifth consecutive plan.** [Q72](../questions/q72.md)
 proposed filtering `Driver.onEvent` by run id. Six inbound task ids were measured against the shipped
 driver before a line was written: **a run-id filter closes one of four holes.** Three of the four have
 nothing to do with run ids, and `dispatched.has(taskId)` closes all four with state the driver already
@@ -292,7 +292,7 @@ the register and to nothing else.
    it if P5 adds none either.
 3. **Does the `Owns` list stay correct now the register is named?** If an item miscounts again with
    the list right, `check-owns.mjs` comes back and finding 2 was wrong.
-4. **[Q86](../open-questions.md) and [Q87](../open-questions.md) are the two preconditions this plan
+4. **[Q86](../questions/q86.md) and [Q87](../questions/q87.md) are the two preconditions this plan
    documented rather than enforced**, and both are real defects of the topology P4 blessed. A plan
    that blesses a topology and ships two of its preconditions as prose is doing what P3's retro
    criticised — **and P4 did it knowingly, on the last day of the plan.** Whether that was right is

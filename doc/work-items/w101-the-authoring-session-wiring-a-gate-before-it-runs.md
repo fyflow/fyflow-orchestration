@@ -93,7 +93,7 @@ accepts.
    past `within` is **`fits`**; with the SAME type declaring none it is **`no`: `$: consumer requires
    "owner", producer does not guarantee it`**. So the session can show the guarantee doing visible
    work — *a consumer requiring what the route guarantees fits only because the route says so* — which
-   is [Q410](../open-questions.md)'s complaint answered in prose rather than in a field.
+   is [Q410](../questions/q410.md)'s complaint answered in prose rather than in a field.
 3. **P25 prediction 3 is CONFIRMED, and its stated REVERSAL ARM is one the session's own type exhibits.**
    The column names *a route that narrows a TYPE rather than asserting presence*, and `quota`'s `fn` returns
    `nokey` unless the key is a non-empty STRING — so `within` and `over` do in fact guarantee more than
@@ -116,7 +116,7 @@ accepts.
 
 1. `AGENTS.md` section 20, ONE executed `run` snippet, and its `README.md` twin under `X8`.
 2. `scripts/check-docs.mjs` — `RUN_FLOOR` and `README_SNIPPET_FLOOR` raised, and the `X8` pairing
-   entry, which is [Q102](../open-questions.md)'s ratchet and three edits in one diff.
+   entry, which is [Q102](../questions/q102.md)'s ratchet and three edits in one diff.
 3. The session's registry and workers under `examples/getting-started/`.
 4. Whether ladder **L6** moves, settled by measurement rather than by the plan's table.
 
@@ -240,7 +240,7 @@ comment. *Two of the four are the same defect approached from opposite ends.*
 **A worker whose url cannot resolve leaves its task PENDING for ever** — the run hangs rather than failing.
 It cost a diagnosis: the session passed `base: import.meta.url`, its own url, where the registry's worker
 urls are relative to the MODULE that declares them, so every worker resolved to a path in `dev-dist/`. That
-is [Q266](../open-questions.md)'s class, met while building, and the line now passes `QUOTA_BASE` with the
+is [Q266](../questions/q266.md)'s class, met while building, and the line now passes `QUOTA_BASE` with the
 reason beside it. *The isolating measurement was a two-file run timing out where five had worked, which is
 what said the problem was not the new file.*
 
@@ -266,7 +266,7 @@ identical at both ends.
 
 **Content digest `56c19a5b0d54eae5` before the gate and `56c19a5b0d54eae5` after — IDENTICAL.**
 
-**[Q142](../open-questions.md) measured BEFORE the record step and it does NOT fire**: `M3`'s margin is
+**[Q142](../questions/q142.md) measured BEFORE the record step and it does NOT fire**: `M3`'s margin is
 **15 files** and `M4`'s **531 links** on the tree this item ships. It adds one document (its own) and
 three modules, so the margin narrows rather than the floor moving.
 

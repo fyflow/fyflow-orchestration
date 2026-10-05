@@ -12,13 +12,13 @@ resolves: ""
 
 # ADR 0044 — A reference is visible when two paths agree on the regions that contain both of them
 
-**Raised by:** [Q206](../open-questions.md), decided by
+**Raised by:** [Q206](../questions/q206.md), decided by
 [W49](../work-items/w49-what-a-reference-across-sibling-regions-means.md) under
 [P14](../plans/p14-what-a-reference-means-when-two-regions-arities-are-independent.md)
 
 ## Context
 
-**[Q206](../open-questions.md) is
+**[Q206](../questions/q206.md) is
 [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
 rule 4's resolution predicate disagreeing with the rule that decides which form an author may
 write.** `spec/flow-definition.md` section 3 says a node produces more than one output for a reader
@@ -79,9 +79,9 @@ decision rather than an alternative to it, and it needs the join's collection **
 which the projection does not hold: `outputs()` is built from settled **task** records, and a join
 produces none. That is new retention or a recomputation of `JP-R12` at a second site — which
 [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
-rule 2 refuses by name, and whose cost is [Q19](../open-questions.md)'s own subject, declared out of
+rule 2 refuses by name, and whose cost is [Q19](../questions/q19.md)'s own subject, declared out of
 scope by P14. **P14's stop-and-ask list makes relaxing an existing rule the maintainer's call**, and
-it was put to them with these numbers before this decision was written. [Q219](../open-questions.md).
+it was put to them with these numbers before this decision was written. [Q219](../questions/q219.md).
 
 ## Decision
 
@@ -132,9 +132,9 @@ it was put to them with these numbers before this decision was written. [Q219](.
    resolution predicate**, one sentence, at one expression with two call sites. `FD-V26`, `FD-V27`,
    `FD-V28` and `FD-V29` are read and not edited; no node kind is added (P14 decision 4).
 
-## What this does to [Q206](../open-questions.md) and to P14's predictions
+## What this does to [Q206](../questions/q206.md) and to P14's predictions
 
-**[Q206](../open-questions.md) is RESOLVED.** Its row's *"there is no form an author can write from
+**[Q206](../questions/q206.md) is RESOLVED.** Its row's *"there is no form an author can write from
 inside `rank` that yields all of `score`'s outputs"* is answered by the form they were already
 writing: `["score"]` now means what section 3 says it means. Its stated cause — *the fix is either a
 fourth refusal or a change to the visibility predicate* — was a correct fork, and the second side
@@ -184,27 +184,27 @@ untouched here.
 - **Two functions join the published package surface.** `index.ts` re-exports
   `src/definition/regions.ts` with `export *`, so `sharedRegionDepth` and `outputIsVisible` — and
   `regionChainOf` — are exported from the package root the moment they are declared, with nothing
-  asking whether they should be. That is [Q101](../open-questions.md)'s shape, and W32 hit it the
+  asking whether they should be. That is [Q101](../questions/q101.md)'s shape, and W32 hit it the
   same way with `UnresolvedBranchPath`. Recorded here because this decision's cost list omitted it
-  until its conformity reader read `index.ts`. [Q221](../open-questions.md).
+  until its conformity reader read `index.ts`. [Q221](../questions/q221.md).
 - **A sibling-crossing array no longer depends on the reader, so all N instances receive the same N
   entries.** That is
   [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)'s
   arity × size cost at its worst, reachable in one line of a document — the cliff `spec/flow-definition.md`
   section 3 measures at ~70x on the showcase flow. **It is the same cost the same reference already
   had from outside the region**; what changes is that the reader can now be inside one. Nothing warns,
-  which is [Q186](../open-questions.md)'s decision, unchanged.
+  which is [Q186](../questions/q186.md)'s decision, unchanged.
 - **`FD-R3` loses its last road that needs no custom join policy.** Case (a) of its row — *a reader
   whose branch path is comparable with none of the target's* — was the sibling road, and this removes
   it; what remains is the policy road, which needs a policy `validateDefinition` is not given.
   `FD-V29` removed the decision case at v0.13 and this removes the arity case, each leaving the
   backstop narrower. **`reference-past-a-map-arity.flow.json` no longer keeps that rule reachable**,
-  which is the stated purpose W45 added it for. [Q218](../open-questions.md).
+  which is the stated purpose W45 added it for. [Q218](../questions/q218.md).
 - **The predicate now needs the REGION SETS and not only the two strings.** `isPathPrefix` was a pure
   function of two paths and could be read in isolation; `outputIsVisible` takes the regions, so the
   resolver depends on the definition layer where it depended on a string comparison. It is the same
   `RegionSets[]` the driver already holds for `pathOf`, so it is no new state — but a reader asking
-  *what decides visibility* now has two files to open. [Q220](../open-questions.md).
+  *what decides visibility* now has two files to open. [Q220](../questions/q220.md).
 - **One item ships the rule without the behaviour.** The derivation and its L1 cases are W49's and the
   resolver is **W50**'s, so between
   the two commits `spec/flow-definition.md` describes a predicate the driver does not yet apply. That

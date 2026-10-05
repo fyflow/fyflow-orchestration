@@ -343,7 +343,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
   });
 
   test('a join routes out of itself at the path its REGION sits at — Q114, closed by W21', async () => {
-    // **[Q114](../../doc/open-questions.md).** `settleJoin` entered a join's
+    // **[Q114](../../doc/questions/q114.md).** `settleJoin` entered a join's
     // successor with no `fromBranch` at all, which is right at depth 1 — a join's
     // successor is outside every region — and wrong inside a nested one. Measured
     // before the fix, this run's last event was `branch.arrived@outer` with path
@@ -430,7 +430,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
   });
 
   test('an inner join routing to an `end` TERMINATES the outer branch — W21`s conformity reader', () => {
-    // **A valid definition that hung**, and the half of [Q114](../../doc/open-questions.md)
+    // **A valid definition that hung**, and the half of [Q114](../../doc/questions/q114.md)
     // the first fix missed. `settleJoin` carried the path but passed `undefined`
     // for `fromRegion`, and the `end` arm attributes a `branch.exited` by
     // `fromRegion` alone — so an inner join routing to an `end` inside the
@@ -442,7 +442,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // suspended nor in flight has **exactly one** terminal event. That is the rule
     // this asserts, and the values come from it rather than from the run.
     //
-    // Inline for [Q44](../../doc/open-questions.md)'s reason: the corpus's nested
+    // Inline for [Q44](../../doc/questions/q44.md)'s reason: the corpus's nested
     // flow routes its inner join to the OUTER JOIN, which is the shape that
     // already worked.
     const nodes = [
@@ -489,7 +489,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // the adequacy reader found at zero cost. It needs a branch EXITING inside the
     // inner region, which the corpus flow has no road to — so the flow is inline,
     // for the reason `test/matrix/` uses inline shapes
-    // ([Q44](../../doc/open-questions.md)): putting it in `spec/examples/valid/`
+    // ([Q44](../../doc/questions/q44.md)): putting it in `spec/examples/valid/`
     // would add a corpus entry to reach one driver path.
     const nodes = [
       { id: 'outer', kind: 'fanout', branches: ['scoreA', 'scoreB'] },
@@ -531,7 +531,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
  * `settleJoin`'s `unsatisfiable` arm reported the join and returned, emitting
  * nothing. At depth 1 there is nothing to emit — a top-level fanout is in no
  * region — so the gap was **unobservable rather than absent**, which is
- * [Q114](../../doc/open-questions.md)'s shape one item earlier.
+ * [Q114](../../doc/questions/q114.md)'s shape one item earlier.
  *
  * Every expected value below comes from `spec/join-policy.md` sections 2, 3 and 4
  * and was derived before the run: `live-token-requiring-arrival` is *"satisfied

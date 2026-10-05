@@ -44,7 +44,7 @@ Reserves:   Q208-Q212, ADR 0043 (expected SKIPPED - prediction 3)
 
 **In**
 
-1. **[Q186](../open-questions.md)** — whether anything warns about a reference to a large value, or
+1. **[Q186](../questions/q186.md)** — whether anything warns about a reference to a large value, or
    whether the answer is that nothing should and the reason is written down.
 2. **P13 prediction 3's reversal condition, checked rather than assumed**: *a warning that needs no
    size judgement — most likely a static one about a reference into a map region, which the document
@@ -56,17 +56,17 @@ Reserves:   Q208-Q212, ADR 0043 (expected SKIPPED - prediction 3)
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q22](../open-questions.md)'s constraint decision** — *how large is too large*. P13's `Out` list
+- **[Q22](../questions/q22.md)'s constraint decision** — *how large is too large*. P13's `Out` list
   makes this a **stop and ask the maintainer** rather than a scope call. **This item's first job is
   to establish whether it needs that answer**, and to say so either way.
 - **A refusal.** `FD-V29` and `FD-C4` are W45's and section 5 is not reopened. A cost is not a
   refusal, and `FD-R2`'s precedent — *a run-time fact gets a run-time refusal* — is about a run that
   cannot proceed, which an expensive one can.
-- **[Q19](../open-questions.md)** — bounded retention. P13's `Out` list.
+- **[Q19](../questions/q19.md)** — bounded retention. P13's `Out` list.
 - **A path language.** ADR 0040 rule 5's *what it costs* names it as the most likely thing to be
   asked for next and refuses it: it would move this cost out of the document and into a selector.
   Nothing here reopens that.
-- **[Q206](../open-questions.md)** — W45's sibling-region finding. It is a correctness question about
+- **[Q206](../questions/q206.md)** — W45's sibling-region finding. It is a correctness question about
   `FD-C1`'s visibility predicate and P13 decision 1 forbids reopening the KEY.
 
 ## Verification
@@ -101,14 +101,14 @@ findings were acted on (`doc/workflow.md` section 1 rule 5's WHEN clause).
 | conformity reader | **RAN** | **16 findings, 8 blocking**, and its first finding is that this item's headline method claim **did not reproduce** |
 | adequacy reader | **RAN** | **22 graded mutations, 10 real survivors, 8 blocking**, and its first finding falsified the verdict's second reason. Isolated copy at `../w46-adequacy`, green before it started, restored after, scanned for links and reparse points before removal |
 | rule 8, author pass | **RAN** | 20 probes: control OK, 16 caught, 3 declared ceilings, **0 survivors standing, 0 aborts**. It found the pair's size clause comparing two constants nothing read |
-| rule 8, re-run | **RAN** | **22 probes: control OK, 16 caught, 5 declared ceilings, 0 survivors standing, 0 aborts** — the whole set rebuilt, because the suite the first set aimed at was replaced. It found one more real hole: see *what broke*. *(**The five ceilings were NOT RUN, and P13's retro measured them** — `doc/workflow.md` section 6 pass 3 rule 6, and the defect is the harness lineage this file shares with W45's and W47's: a row declared `red: []` executed no command and the verdict restated the declaration. Re-run, **all five come back clean at `l1=0/exit0` and every stated reason holds** — `a3-double-clone` ([Q212](../open-questions.md)), `b1-verdict-gone`, `b5-decision-unasserted`, `e2-x6-not-in-all-checks` ([Q209](../open-questions.md)) and `e3-x6-reads-a-path` ([Q210](../open-questions.md)). So this item's ceilings were right; **the practice of not running them was not**, and it hid a false one in W47.)* |
-| gate | **RAN**, and it went RED first | `npm run gate` — `GATE EXIT=0`, **zero lines beginning `FAIL`**, 15 chain entries. **The run before it was `GATE EXIT=1` with zero `FAIL` lines** — the exit code being the predicate for the third time in two plans, and the failing entry visible only as `selftests — 7/7 completed, **6 ok**`. **[Q142](../open-questions.md) fired**, exactly as P13's declaration predicted and on the floor it predicted: `M4`'s two-directory fixture had risen to **2738** against a floor of 2700, so probe 2 reported `wanted [M1,M3,M4], got [M1,M3]`. Retuned from a scratch copy OUTSIDE the repository — whole tree **91 / 3770 / 187**, `doc/decisions` removed **69 / 3437 / 187**, both removed **55 / 2738 / 187** — to **`M3` 74 → 80** and **`M4` 2700 → 3080**, near the middle of `(69, 91]` and `(2738, 3437]`. **`M3` did not fire and was retuned anyway**: at 74 it had five files of headroom and this plan's two remaining Records would have spent them, so re-centring both is what stops Q142 being paid twice in one plan, which P12 did. **Both META entries were already anchor-agnostic**, so nothing needed repointing — rule 7 (b)'s lesson having been learned at W33 and W42. `check:markdown:selftest` is **37/37 caught, 7/7 bounded** |
+| rule 8, re-run | **RAN** | **22 probes: control OK, 16 caught, 5 declared ceilings, 0 survivors standing, 0 aborts** — the whole set rebuilt, because the suite the first set aimed at was replaced. It found one more real hole: see *what broke*. *(**The five ceilings were NOT RUN, and P13's retro measured them** — `doc/workflow.md` section 6 pass 3 rule 6, and the defect is the harness lineage this file shares with W45's and W47's: a row declared `red: []` executed no command and the verdict restated the declaration. Re-run, **all five come back clean at `l1=0/exit0` and every stated reason holds** — `a3-double-clone` ([Q212](../questions/q212.md)), `b1-verdict-gone`, `b5-decision-unasserted`, `e2-x6-not-in-all-checks` ([Q209](../questions/q209.md)) and `e3-x6-reads-a-path` ([Q210](../questions/q210.md)). So this item's ceilings were right; **the practice of not running them was not**, and it hid a false one in W47.)* |
+| gate | **RAN**, and it went RED first | `npm run gate` — `GATE EXIT=0`, **zero lines beginning `FAIL`**, 15 chain entries. **The run before it was `GATE EXIT=1` with zero `FAIL` lines** — the exit code being the predicate for the third time in two plans, and the failing entry visible only as `selftests — 7/7 completed, **6 ok**`. **[Q142](../questions/q142.md) fired**, exactly as P13's declaration predicted and on the floor it predicted: `M4`'s two-directory fixture had risen to **2738** against a floor of 2700, so probe 2 reported `wanted [M1,M3,M4], got [M1,M3]`. Retuned from a scratch copy OUTSIDE the repository — whole tree **91 / 3770 / 187**, `doc/decisions` removed **69 / 3437 / 187**, both removed **55 / 2738 / 187** — to **`M3` 74 → 80** and **`M4` 2700 → 3080**, near the middle of `(69, 91]` and `(2738, 3437]`. **`M3` did not fire and was retuned anyway**: at 74 it had five files of headroom and this plan's two remaining Records would have spent them, so re-centring both is what stops Q142 being paid twice in one plan, which P12 did. **Both META entries were already anchor-agnostic**, so nothing needed repointing — rule 7 (b)'s lesson having been learned at W33 and W42. `check:markdown:selftest` is **37/37 caught, 7/7 bounded** |
 
 **Outputs — what was actually built.**
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| (1) EITHER a mechanism with ADR 0043, or a **recorded verdict with the reason** | the verdict. **ADR 0043 is SKIPPED** — P13 prediction 3's expected outcome, and its reversal condition was checked rather than assumed | 9 L1 failures if `map-with-context` stops validating with zero findings — the decision's own assertion, which is [Q190](../open-questions.md)'s bar. The prose is a declared ceiling |
+| (1) EITHER a mechanism with ADR 0043, or a **recorded verdict with the reason** | the verdict. **ADR 0043 is SKIPPED** — P13 prediction 3's expected outcome, and its reversal condition was checked rather than assumed | 9 L1 failures if `map-with-context` stops validating with zero findings — the decision's own assertion, which is [Q190](../questions/q190.md)'s bar. The prose is a declared ceiling |
 | (2) Q186's cliff re-measured, and what fact 4 means at v0.13 | yes — **5.5 / 7.7 / 8.7 / 613.6 / 617.4 ms** at arity 1000, one case per process; the `?` costs nothing | `check-docs`' **`X6`** (2 failures) if the spec's table and `AGENTS.md`'s disagree, both ways; `C8` if the version row does not follow |
 | (3) whatever reaches the driver, or a measurement saying why nothing does | **nothing reaches the driver**, and the measurement is why: the guard is affordable and there is no threshold to set it at | 8 L1 failures if the mechanism stops copying, 2 if N instances share one copy, 11 if the reference resolves once for all N |
 | (4) the cost stated in `spec/` at the scope it was measured at | yes — section 3 v0.14, with the METHOD beside it | 1 `spec` failure (`C8`), 2 `check-docs` failures (`X6`) |
@@ -134,7 +134,7 @@ dearer whatever the order*, so **the last row of a one-process table carries the
 measurement. Two further statements of the wrong version were internally false and both were caught
 by arithmetic rather than by measurement: *"swap their numbers exactly"* of two numbers that become
 1533.5 and 620.9, and ADR 0040's *"the three cheap rows move by 3-4x"* of ratios that are
-**2.76 / 1.95 / 1.85**. [Q208](../open-questions.md).
+**2.76 / 1.95 / 1.85**. [Q208](../questions/q208.md).
 
 **And the verdict's SECOND REASON was the opposite of the truth.** It said the size-free static
 predicate *warns about the feature*, on the ground that `map-with-context`'s reference is a false
@@ -147,7 +147,7 @@ definition rather than diagnosing anything — and the only remedy for the expen
 reshaping node ADR 0040 exists to remove. **And it is not the only such predicate**: *a reference
 naming the node the `over` array was read from* fires on the same 3, found independently by **both**
 readers. *A verdict can be right for a reason that is the negation of its own evidence, and only a
-reader re-deriving the evidence finds that* — which is [Q193](../open-questions.md)'s shape on a
+reader re-deriving the evidence finds that* — which is [Q193](../questions/q193.md)'s shape on a
 decision with no ADR.
 
 **The THIRD reason stated an absence where what exists is an unweighed choice.** It said *there is no
@@ -170,9 +170,9 @@ What reproduces is `JSON.stringify().length` at **0.140 ms** against a **0.482 m
 number that cannot be reproduced was replaced by one that can, and the argument got stronger.*
 
 **And the deferral named the wrong row.** The verdict deferred *how large is too large* to
-[Q22](../open-questions.md); that phrase occurs in **exactly one place in the register — Q186's own
+[Q22](../questions/q22.md); that phrase occurs in **exactly one place in the register — Q186's own
 row** — and Q22 asks whether a result must be structured-**cloneable**. So **Q186 is DECIDED and stays
-OPEN**, on [Q190](../open-questions.md)'s precedent: resolving it would delete the only place the
+OPEN**, on [Q190](../questions/q190.md)'s precedent: resolving it would delete the only place the
 threshold question is asked. Its status cell reads *decided as NOTHING WARNS, and the decision is
 written down*, with a forcing condition, which is the shape Q190's row already has and which this
 item's first draft did not give it. Conformity reader.
@@ -182,7 +182,7 @@ asserted *N instances, N distinct copies*:
 
 | | |
 |---|---|
-| it could not go ABOVE N | doubling the clones (`cloneValue(cloneValue(x))`) cost **0**, because a `Set` over what N receivers RECEIVED is bounded by N however many copies were discarded — **and that is still true and is now a declared ceiling** ([Q212](../open-questions.md)) |
+| it could not go ABOVE N | doubling the clones (`cloneValue(cloneValue(x))`) cost **0**, because a `Set` over what N receivers RECEIVED is bounded by N however many copies were discarded — **and that is still true and is now a declared ceiling** ([Q212](../questions/q212.md)) |
 | it was a FOURTH restatement | every mutation it caught was already caught by 2-7 assertions in W41's `JP-R11` suites and W42's edge-site suite. Deleting it changed 8 → 7 and 3 → 2 |
 | and it asserted the half that cannot go wrong for a SIZE reason | the document's claim is *and the cost is linear in the size of each, so the PRODUCT is what an author pays* |
 | its bounds were unbound | arity 1 for 0 (`N === N`), `Set` → `.length` for 0, the case loop short-circuitable after the first case for 0, and the 10x pair clause clearing only via an **aliased** array |
@@ -203,20 +203,20 @@ deliberately not compared. Four clauses, four provocations at birth, all four fi
 
 **And `X6` produced three findings of its own, each one a rule this repository already had.**
 `ALL_CHECKS` in `check-docs-selftest.mjs` was the literal `['X1'…'X5']`, so **`X6` shipped with four
-clauses and no probe and no grading at 14/14, 8/8, exit 0** — [Q43](../open-questions.md)'s class,
+clauses and no probe and no grading at 14/14, 8/8, exit 0** — [Q43](../questions/q43.md)'s class,
 which W36 closed in a different self-test and this file had not been. Derived from
 `check-docs.mjs`'s own report array, with a refusal if that array names no id
-([Q209](../open-questions.md)). `X6` then read **`AGENTS.md` by name** instead of the document the
+([Q209](../questions/q209.md)). `X6` then read **`AGENTS.md` by name** instead of the document the
 check is pointed at, so all three of its probes exited 0 — obligation (e)'s **second question** in a
 third shape, after W36's flags and W35's file, and **the first of the three caught by the author's
-own set** rather than by a reader ([Q210](../open-questions.md)). And its one META entry came back
+own set** rather than by a reader ([Q210](../questions/q210.md)). And its one META entry came back
 **STILL CAUGHT**, because changing a figure trips both directions of the comparison at once — W29's
 **co-firing**, closed by a probe per direction rather than by a better grading.
 
 **The cliff has three denominators and no document said which.** 613.6/8.7 is **71x**, 613.6/7.7 is
 **80x**, 613.6/5.5 is **112x** — and Q186's row says 85x, `CLAUDE.md` 64x and `spec/` 71x, on the
 third, second and first bases. All three are right and they answer three questions. All three bases
-are now in section 3. [Q211](../open-questions.md).
+are now in section 3. [Q211](../questions/q211.md).
 
 **And rule 8's re-run earned its place on a guard written to close a reader's finding.** The
 replacement suite asserts *the ratio RISES with the arity*, and `paid / baseline > lowPaid / lowBase`
@@ -242,7 +242,7 @@ against it.*
 **So the answer to the test P13 set at its `Owns` note is `AGENTS.md` YES, `spec/README.md` YES,
 `scripts/check-docs.mjs` YES** — all three, across the two items, exactly as P12's retro predicted
 and refused to act on. **W45 took the first two and W46 took all three.** That is
-[Q157](../open-questions.md)'s row with two data points, and it is the retro's to judge.
+[Q157](../questions/q157.md)'s row with two data points, and it is the retro's to judge.
 
 **Census re-derived, CONFIRMED for the TWELFTH plan running.** 164 / 115 / 2 / 47 before this item's
 rows and **169 / 120 / 2 / 47** after; 42 ids in both tables, unmoved; **169 of 169 in exactly one
@@ -256,25 +256,25 @@ reasons for *nothing warns* held; the second was inverted, and the measurement t
 two screens above it in the same document. *The showcase is expensive because a reference names a
 NODE* — which is P13 fact 4, stated at the declaration, and the reason the item wrote was that the
 showcase was cheap. **Only a reader re-deriving the evidence finds that**, and it is
-[Q193](../open-questions.md)'s finding for a decision that took no ADR.
+[Q193](../questions/q193.md)'s finding for a decision that took no ADR.
 
 **And a clock-free proxy for a cost has to be bounded in the direction the cost grows.** *N distinct
 values received* is bounded above by N receivers, so it could not see a mechanism that copies twice —
 the direction the whole item is about. The replacement is bounded by the fixture rather than by the
 receivers, and the honest limit is written down: **the number of copies a driver MAKES is observable
-to no test this repository can write.** [Q212](../open-questions.md).
+to no test this repository can write.** [Q212](../questions/q212.md).
 
-**Questions raised.** [Q208](../open-questions.md)-[Q212](../open-questions.md), five of the five
-reserved. **[Q186](../open-questions.md) is DECIDED and deliberately NOT closed**; **ADR 0043 is
+**Questions raised.** [Q208](../questions/q208.md)-[Q212](../questions/q212.md), five of the five
+reserved. **[Q186](../questions/q186.md) is DECIDED and deliberately NOT closed**; **ADR 0043 is
 SKIPPED and not reused**, on the P9/P11/P12 precedent for a reserved id.
 
 | Q | |
 |---|---|
-| [Q208](../open-questions.md) | a cost table taken in ONE process measures accumulation, not its own rows — and ordering costs nothing |
-| [Q209](../open-questions.md) | `ALL_CHECKS` was a closed allowlist, and a whole check id shipped ungraded behind it |
-| [Q210](../open-questions.md) | a check that reads a PATH instead of its subject — obligation (e)'s second question, caught by the author's own set for the first time |
-| [Q211](../open-questions.md) | the cliff has three denominators and no document said which |
-| [Q212](../open-questions.md) | a `Set` over what N receivers received cannot count the copies a mechanism made |
+| [Q208](../questions/q208.md) | a cost table taken in ONE process measures accumulation, not its own rows — and ordering costs nothing |
+| [Q209](../questions/q209.md) | `ALL_CHECKS` was a closed allowlist, and a whole check id shipped ungraded behind it |
+| [Q210](../questions/q210.md) | a check that reads a PATH instead of its subject — obligation (e)'s second question, caught by the author's own set for the first time |
+| [Q211](../questions/q211.md) | the cliff has three denominators and no document said which |
+| [Q212](../questions/q212.md) | a `Set` over what N receivers received cannot count the copies a mechanism made |
 
 **Reader overlap: 2, and it is the TWENTY-FOURTH measurement** — derived by counting
 `doc/workflow.md` section 6's own list (W4 … W43 = 22) and adding W45. Inside the settled 0-4 band,

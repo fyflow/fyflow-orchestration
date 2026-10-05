@@ -512,7 +512,7 @@ suite('OR-R13 — the REACH: what a static check and a boundary cannot see (P21 
   test('a producer whose DECLARED bound its own code does not keep: the wiring check FITS and the run reports', async () => {
     // `tight` declares `confidence` in 0..1; `reader` consumes exactly that. The two SCHEMAS agree,
     // so every static observer is green — and the code behind `tight` is the corpus's own shape
-    // ([Q302](../../doc/open-questions.md)): `text.length / 10`, unbounded above.
+    // ([Q302](../../doc/questions/q302.md)): `text.length / 10`, unbounded above.
     const REACH = flow([t('p', 'Tight', 'c'), t('c', 'Reader', 'done'), END]);
     const report = await checkWiring({ workers: WORKERS, nodeTypes: TYPES }, REACH);
     const arc = report.verdicts.find((v) => v.consumer === 'c');

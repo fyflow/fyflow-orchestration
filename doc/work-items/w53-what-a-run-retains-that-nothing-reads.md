@@ -34,7 +34,7 @@ Reserves:   Q233-Q237, ADR 0046
 
 **In**
 
-1. **[Q19](../open-questions.md), decided as ADR 0046.** What a run retains, what it may forget, and
+1. **[Q19](../questions/q19.md), decided as ADR 0046.** What a run retains, what it may forget, and
    when. The decision has to be falsifiable — `spec/run-state.md` section 6 has carried this as an
    unanswered bullet since v0.1, and a restatement is not an answer.
 2. **The measured-free half**: `arrivals` is a second copy of every branch result and is **49.8%** of
@@ -46,7 +46,7 @@ Reserves:   Q233-Q237, ADR 0046
    what happens to it rather than leave it to the clear site.
 4. **Correcting the variable.** Fact 2 measures the footprint as *(tasks settled) x (bytes each
    returned)*; `spec/run-state.md` section 6 says *"proportional to its dispatched-node count"* and
-   [Q19](../open-questions.md)'s row says *"proportional to its node count"*. Both name the smaller
+   [Q19](../questions/q19.md)'s row says *"proportional to its node count"*. Both name the smaller
    half. The corrected statement lands in the document this item owns.
 5. **Naming `inputs`.** Fact 1: the register names `log` and `arrivals`; `inputs` is what actually
    holds every result and is in no row. Whatever ADR 0046 says a run retains has to name the structure
@@ -65,10 +65,10 @@ Reserves:   Q233-Q237, ADR 0046
 - **`maxCompletedTasks`.** Fact 4: it caps `scheduler.tasks`, which is the scheduler's own map, and
   reaches nothing this driver holds. There is no answer to inherit. Recorded in the ADR as a candidate
   measured and refused, not as an open option.
-- **[Q22](../open-questions.md)** — what a result may be. **W54's.**
-- **[Q15](../open-questions.md)** — durability. Named in the ADR as what a resumed run cannot be
+- **[Q22](../questions/q22.md)** — what a result may be. **W54's.**
+- **[Q15](../questions/q15.md)** — durability. Named in the ADR as what a resumed run cannot be
   handed; not decided.
-- **[Q219](../open-questions.md)** — a region's collection. P15 declares it the follow-on.
+- **[Q219](../questions/q219.md)** — a region's collection. P15 declares it the follow-on.
 
 ## Verification
 
@@ -84,13 +84,13 @@ How each clause of `Gate:` is actually run. Name the commands.
 | adequacy reader | **in an isolated copy**, and the AUTHOR's tree holds still while it reads (section 6, v0.15). Scan for links and reparse points before removing the copy; `../fyflow-w16-adequacy` is on disk from earlier work and is **not** this item's to remove |
 
 **Routing coverage**, since this item touches the join exit: a branch routed away from its join
-([Q4](../open-questions.md)) is covered — it is the case where arrivals are held and never read; a
-nested fan-out ([Q6](../open-questions.md)) is covered — *(this read "because the clear is keyed by
+([Q4](../questions/q4.md)) is covered — it is the case where arrivals are held and never read; a
+nested fan-out ([Q6](../questions/q6.md)) is covered — *(this read "because the clear is keyed by
 region and a nested region has its own key", which is an ARGUMENT and was not a case: every fixture
 here was depth 1 until the adequacy reader made a nested region never release for ZERO. It is a case
-now)*; `user_action` ([Q17](../open-questions.md)) is covered by the
-never-fires case. A duplicate task id ([Q13](../open-questions.md)) and no matching decision edge
-([Q10](../open-questions.md)) are **not applicable** — neither reaches the join exit.
+now)*; `user_action` ([Q17](../questions/q17.md)) is covered by the
+never-fires case. A duplicate task id ([Q13](../questions/q13.md)) and no matching decision edge
+([Q10](../questions/q10.md)) are **not applicable** — neither reaches the join exit.
 
 **Before this item is done it greps the tree for `W53`** outside `doc/` — section 1 rule 5's third
 direction, with the procedure v0.15 adopted. **This declaration said it returns 1 hit and it
@@ -187,7 +187,7 @@ two booleans `failed` and `started` were invisible to it: thirteen where the ans
 
 **`git add -A` staged an embedded git repository** — a `p16-node-types` worktree under
 `.claude/worktrees/`, which is not in `.gitignore`. Unstaged by hand; every commit here is from
-explicit paths. [Q235](../open-questions.md).
+explicit paths. [Q235](../questions/q235.md).
 
 **What this taught.**
 
@@ -223,14 +223,14 @@ mechanisms worked; what failed is that the author instantiated them against one 
 
 **Questions raised.**
 
-- **[Q233](../open-questions.md)** — ADR 0046 rule 1 is a statement about what a run HOLDS and no
+- **[Q233](../questions/q233.md)** — ADR 0046 rule 1 is a statement about what a run HOLDS and no
   public surface can observe it, so its only test reaches into a private field. Both alternatives
   measured and refused.
-- **[Q234](../open-questions.md)** — emptying a test BODY costs zero and the runner's `assertions`
+- **[Q234](../questions/q234.md)** — emptying a test BODY costs zero and the runner's `assertions`
   figure cannot fall, because it counts `test()` **cases**. Measured in two files. **Not closed**:
   every available answer is a fourth list, and the case membership this item added catches deletion
   and not emptying — which is the count/membership distinction playing out exactly.
-- **[Q235](../open-questions.md)** — `.claude/worktrees/` is not in `.gitignore`, so `git add -A`
+- **[Q235](../questions/q235.md)** — `.claude/worktrees/` is not in `.gitignore`, so `git add -A`
   stages an embedded git repository.
 
 **Q236 and Q237 reserved and unused. ADR 0046 taken; no second ADR was reserved.**
@@ -240,17 +240,17 @@ mechanisms worked; what failed is that the author instantiated them against one 
 | file | why | declared |
 |---|---|---|
 | `spec/README.md` | `C8` compares its version row against each document's own header, so bumping `run-state.md` to v0.6 and `join-policy.md` to v0.16 forces it. **P15 predicted this half by name** | late |
-| `test/definition/l4-corpus.test.ts` | the suite census ([Q158](../open-questions.md)) is set equality over suite names both ways, so a new `.test.ts` file must be named there in the same commit. It fired on the first run, exactly as designed | late |
+| `test/definition/l4-corpus.test.ts` | the suite census ([Q158](../questions/q158.md)) is set equality over suite names both ways, so a new `.test.ts` file must be named there in the same commit. It fired on the first run, exactly as designed | late |
 | `spec/flow-definition.md` | one sentence this item made false — *"its real question, whether that retention should be bounded, is untouched"*. Section 1 rule 5's third direction obliges the SEARCH; the edit needs an exception | late |
 | `spec/outcome-record.md` | the same, one document across: *"The cost is real and is Q19's to measure"* | late |
-| `scripts/check-markdown.mjs` | **NOT taken.** [Q142](../open-questions.md) was measured on a scratch copy before the gate and does **not** fire — see below | — |
+| `scripts/check-markdown.mjs` | **NOT taken.** [Q142](../questions/q142.md) was measured on a scratch copy before the gate and does **not** fire — see below | — |
 
 **Four late exceptions, zero undeclared.** Three of the four were created by the CONTENT of the
 change rather than by a file set: `spec/README.md` follows from a version bump, and the two `spec/`
 sentences are ones this item's answer falsified. **P15's `Owns` prediction is answered
 `AGENTS.md` NO, `spec/README.md` YES, `scripts/check-docs.mjs` NO** — the first item of three.
 
-**[Q142](../open-questions.md) was re-measured BEFORE the gate and does NOT fire**, which is the
+**[Q142](../questions/q142.md) was re-measured BEFORE the gate and does NOT fire**, which is the
 second consecutive time it has been checked and come back no. On a scratch copy outside the
 repository, **on the tree this item ships** rather than mid-item — section 1 rule 5's WHEN clause,
 and the first reading was taken two commits early: whole tree **102 / 4364 / 221**, `doc/decisions`
@@ -269,6 +269,6 @@ under-counted by two, in the direction that matters**, on a clause one plan old.
 `CLAUDE.md` at the record step.
 
 **Census CONFIRMED for the FIFTEENTH plan running — 182 / 131 / 2 / 49**, from 179 / 129 / 2 / 48:
-three new ids and [Q19](../open-questions.md) moving from open to resolved. **43 ids in both
+three new ids and [Q19](../questions/q19.md) moving from open to resolved. **43 ids in both
 tables**, from 42, and both halves at **182 of 182 in exactly one cluster cell**, **0 aborts**. The
 parser was P15's declaration parser, unchanged, run before this item's rows and after.

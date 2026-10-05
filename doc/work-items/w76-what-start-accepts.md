@@ -83,10 +83,10 @@ Reserves:   Q315-Q319; no ADR — 0058 is W77's
 - **`src/driver/driver.ts`.** The driver already produces region events and already freezes them
   (fact 6B, re-run here). P20's Scope Out makes editing it for more than a type export a tripwire;
   this item does not edit it at all.
-- **[Q81](../open-questions.md)** — whether the join SEAM should see a frozen event too. It is
+- **[Q81](../questions/q81.md)** — whether the join SEAM should see a frozen event too. It is
   about `emit()` stepping the policy with the unfrozen `e` before handing a frozen copy out, which
   is inside the driver and one layer below the seam this item carries a handle across. Untouched.
-- **[Q310](../open-questions.md)** in general — a `check-docs` clause comparing a snippet's stdout
+- **[Q310](../questions/q310.md)** in general — a `check-docs` clause comparing a snippet's stdout
   to its output comments, or a per-snippet `throw` floor. Both are `check-docs`' and neither is
   this item's; what this item owes Q310 is the TAUTOLOGY pass over its own rewritten section, which
   is rule 8 obligation (b) at v0.20 and is in the set.
@@ -214,7 +214,7 @@ is onRegionEvent — the orphan the fact is about.
 `StartOptions` carries seven — and the partition is **clean**"* — describes 21 slots over 18
 members. Reading road (c) as the forwarding also makes it a real BINDING rather than a superset: a
 `DriverOptions` member added to `RuntimeOptions` and never spread would still be an orphan, and
-reading the declaration would have hidden it. [Q316](../open-questions.md).
+reading the declaration would have hidden it. [Q316](../questions/q316.md).
 
 ## Exceptions — seeded from P20's table, then MEASURED
 
@@ -229,7 +229,7 @@ reading the declaration would have hidden it. [Q316](../open-questions.md).
 | `src/driver/driver.ts` | predicted UNNEEDED, and a SCOPE TRIPWIRE | *to be measured at the build; the expectation is ZERO edits, not "a type export"* |
 | `examples/**` | predicted UNNEEDED — L6 is W78's | *to be measured at the build* |
 | `scripts/build-browser-tests.mjs` | **NOT SEEDED — LATE, and it is this item's one approved exception** | the binding reads two `src/**` files as TEXT and the browser bundle carries only what this script inlines. The maintainer chose this road over a `check-source` clause and over skipping the suite in three runtimes. **193.0 KB**, corpus 386.1 KB -> 579.1 KB, and `e1` measures the inline LOAD-BEARING: removed, fifteen named browser failures, all W76's |
-| `test/definition/l4-corpus.test.ts` | **NOT SEEDED — LATE** | the suite CENSUS (W41's) is a standing obligation on any item adding a suite, exactly `RUN_FLOOR`'s shape ([Q102](../open-questions.md)). It **fired on this item's first run**, which is how it was found; `Owns` is `test/scheduler/**` and the census lives one directory over. *Both of these were undeclared until W76's conformity reader ran `git diff --name-only` by hand — section 7 rule 2's own procedure, for the fourth time in this repository* |
+| `test/definition/l4-corpus.test.ts` | **NOT SEEDED — LATE** | the suite CENSUS (W41's) is a standing obligation on any item adding a suite, exactly `RUN_FLOOR`'s shape ([Q102](../questions/q102.md)). It **fired on this item's first run**, which is how it was found; `Owns` is `test/scheduler/**` and the census lives one directory over. *Both of these were undeclared until W76's conformity reader ran `git diff --name-only` by hand — section 7 rule 2's own procedure, for the fourth time in this repository* |
 | `scripts/check-markdown.mjs` | predicted UNNEEDED — Q142's window re-measured before the record step | measured at this declaration: `M3` window (101, 133], **margin below 6**; `M4` (4244, 5790], margin below 206. This item adds ONE markdown file, in `doc/work-items`, which **neither probe cuts** — so the `M3` fixture goes 101 → 102 and `M4`'s lower bound takes this file's links. **Predicted NOT to fire**; re-measured before the record step |
 
 ## Verification
@@ -279,7 +279,7 @@ Node 24.20.0 asserted in every shell.
 | rule 8, RE-RUN with the readers' exact edits checked back in | **RAN** | **25 probes: 1 control green, 23 caught, 1 declared ceiling RUN, 0 UNDECLARED survivors, 0 crashes, 0 against declaration, 3 aborts all re-anchored and then caught.** All NINE of the readers' edits FIRE. The content digest is identical at both ends of every pass |
 | **W71's dated ceilings `f3`/`f3b`, re-run HERE** | **RAN — one CATCH and one vacuous survivor** | `doc/workflow.md` rule 8's dated-ceiling clause, in the item that MOVES the value rather than at the retro. See *What broke* (5) |
 | `npm run gate`, CONFIRMING (over the final tree) | **GATE EXIT=0, ZERO lines beginning `FAIL` at any indent**, `selftests` 8/8 completed and 8 ok in 824.7 s over 6 lanes (`dev-dist/w76/gate.log`) | `check:spec` **7 / 61 / 107, C4 at 34 — UNMOVED**; `check:docs` **33 snippets: 27 run, 6 check — UNMOVED**; `check:workers` **14 / 14 ran / 0 refused — UNMOVED**; `check:source` 23 published files, 16 gate entries; `check:markdown` **134 / 5832 / 285**, from 133 / 5790; L1-L5 **44 files / 1251 assertions in node 24.20.0, deno 2.9.6 and chromium**; **L6 1627 / 0 failed / 53 real runs in BOTH runtimes — UNMOVED**. Digest **`fc7bf27dd0950bde` over 362 files, IDENTICAL before and after**, with no edit made while it ran; **these four Record rows are the ONE edit after it**, and `check:markdown` — the only rung that reads `doc/work-items/**` — was re-run over them and is green at 134 / 5833 / 285 |
-| [Q142](../open-questions.md) | **measured, does NOT fire** | re-taken on the final tree: `M3 = 107` against a fixture of **102** (margin 5), `M4 = 4450` against **4278** (margin 172), `M5 = 60` against 285 anchored. This item adds one markdown file, in `doc/work-items`, which neither `removes` probe cuts — predicted at the declaration step and confirmed here |
+| [Q142](../questions/q142.md) | **measured, does NOT fire** | re-taken on the final tree: `M3 = 107` against a fixture of **102** (margin 5), `M4 = 4450` against **4278** (margin 172), `M5 = 60` against 285 anchored. This item adds one markdown file, in `doc/work-items`, which neither `removes` probe cuts — predicted at the declaration step and confirmed here |
 | `Owns` audit | **CLEAN — 11 paths, ZERO undeclared** | `git status --porcelain` by hand: `Owns` (3) + the two LATE exceptions + the six record-step files + this file. **The two late ones were found by the conformity reader running the same command**, not by reading — section 7 rule 2's own procedure |
 | census | **244 / 187 / 2 / 55**, 244 of 244 in exactly one cluster cell, **0 aborts** | from 241 / 185 / 2 / 54, by `dev-dist/p15/census.mjs` unchanged: Q315-Q317 raised and placed, Q297 RESOLVED |
 
@@ -299,7 +299,7 @@ Node 24.20.0 asserted in every shell.
 1. **The item's own test found P20 fact 1's table is not a partition** (finding D). Four of
    `RuntimeOptions`' six members are not `DriverOptions` members, so `2 / 6 / 6 / 7` is 21 slots
    over eighteen. The harness prints four road sizes and never adds them up, which is why nobody
-   caught it and why the orphan count was right anyway. [Q316](../open-questions.md).
+   caught it and why the orphan count was right anyway. [Q316](../questions/q316.md).
 2. **Two files were edited outside `Owns` and outside the Exceptions table, and a reader found both
    by hand.** `scripts/build-browser-tests.mjs` (the approved inline) and
    `test/definition/l4-corpus.test.ts` (the suite census, which FIRED on the first run and was then
@@ -316,7 +316,7 @@ Node 24.20.0 asserted in every shell.
    visible to rule 7 (b).** This item SHIPPED the name `f3` adds and the line `f3b` adds, so both
    edits now append duplicates that mean nothing — the anchors still match, the files still change,
    no abort fires. `f3` reports DECLARED under a reason that is now false; `f3b` reports SURVIVED
-   **against its declaration**. [Q317](../open-questions.md).
+   **against its declaration**. [Q317](../questions/q317.md).
 6. **My own harness reported its CONTROL as an undeclared survivor** on its first run, because a
    probe with no edits fell through to the one verdict that means *a hole nobody declared*.
 7. **Two of my own probes fired for a reason they did not name.** `d3` and `d4` said *the count is
@@ -326,7 +326,7 @@ Node 24.20.0 asserted in every shell.
 8. **Three probes ABORTED on the re-run**, every one on the member-extraction anchor that this
    item's own fix for `r-m21` and `r-m22` had widened — rule 7 (b) firing correctly. Re-anchored
    agnostically and all three caught.
-9. **A shell heredoc ate a block of code twice** ([Q272](../open-questions.md), the rule
+9. **A shell heredoc ate a block of code twice** ([Q272](../questions/q272.md), the rule
    `CLAUDE.md` carries and which P19 broke eight times). Written as a file and concatenated both
    times.
 
@@ -355,9 +355,9 @@ over variant, kind and depth, and it closed four of the reader's survivors at on
 *When a claim is bound at one shape, look for the invariant the shapes are instances of before
 enumerating them.*
 
-**Questions raised.** [Q315](../open-questions.md) (a binding that must read source TEXT has no
-cheap home; three roads priced and the cost of the one taken), [Q316](../open-questions.md) (fact
+**Questions raised.** [Q315](../questions/q315.md) (a binding that must read source TEXT has no
+cheap home; three roads priced and the cost of the one taken), [Q316](../questions/q316.md) (fact
 1's table is not a partition, and the harness cannot see that because it never adds up),
-[Q317](../open-questions.md) (a dated ceiling whose site the expiring item CONSUMES still matches
+[Q317](../questions/q317.md) (a dated ceiling whose site the expiring item CONSUMES still matches
 its anchor, so rule 7 (b) cannot abort it). **Q318 and Q319 reserved and unused, so they are
 spent.**

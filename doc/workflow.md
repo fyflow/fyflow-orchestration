@@ -47,12 +47,12 @@ Five rules that make the loop worth having:
    not the record.
 4. **Say what you skipped.** A skipped check reported as passed makes the whole ladder worthless.
 5. **The record step's files are part of finishing an item, not exceptions to its `Owns`.** Those
-   **FOUR** and no others: the plan's Record, `README.md`, **`doc/open-questions.md`**, and
+   **FOUR** and no others: the plan's Record, `README.md`, **`doc/questions/**`**, and
    **`doc/decisions/**`**. **Anything else outside `Owns` is declared.**
 
    **`CLAUDE.md` left this list at W112 and `doc/README.md` at W115**, both by the maintainer —
    [ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) and
-   [Q466](open-questions.md). **An item does not write its status into either.** *The record step
+   [Q466](questions/q466.md). **An item does not write its status into either.** *The record step
    was filling `CLAUDE.md` faster than its whole budget, by a per-commit margin ADR 0077 records.*
    **And the entry was never the source** — the first row below has said since v0.9 that a status is
    read from the item's own file, so the rule obliged an item to write a copy and then told the next
@@ -88,7 +88,7 @@ it correct, and is declared in the plan before anyone starts. Use `doc/work-item
 |---|---|---|
 | Plan | `P1`, `P2`, ... | `doc/plans/p1-<slug>.md` |
 | Work item | `W1`, `W2`, ... - one sequence across all plans, never per plan | `doc/work-items/w1-<slug>.md` |
-| Open question | `Q1`, `Q2`, ... | `doc/open-questions.md` |
+| Open question | `Q1`, `Q2`, ... | `doc/questions/q1.md` |
 | Decision | `ADR 0001`, ... | `doc/decisions/0001-<slug>.md` |
 | Upstream want | `S1`, `S2`, ... | `doc/scheduler-upstream.md` |
 
@@ -136,7 +136,7 @@ path — do not skip it because 0-5 are green, since all of them run on our own 
 **The second dimension is the runtime.** This library targets **Deno, Node >= 24 and the browser
 from one source tree** (`spec/runtime-targets.md`), so a rung is not green until it is green where
 it must run: **L0-L5 in all three** — L0 alone catches a `node:` import before a Deno consumer does
-(`RT-R3`, `RT-R4`) — **L6 per [Q33](open-questions.md)**, the only rung costing per-runtime, and
+(`RT-R3`, `RT-R4`) — **L6 per [Q33](questions/q33.md)**, the only rung costing per-runtime, and
 **L7 once**. **A rung reported green without saying which runtimes it ran in ran in one.**
 
 **A rung reported GREEN means its command EXITED 0. A line of its output is never the predicate** —
@@ -149,7 +149,7 @@ checks print and `lint` does not.
 > **Both directions, because stating one cost three blocking findings.** For **GREEN** the exit
 > code is **NECESSARY** — a zero `FAIL` count is satisfied by a chain that stopped at entry one.
 > For a provocation **CAUGHT** it is **NOT SUFFICIENT** — it cannot tell a detection from a crash,
-> from noise, or from a sibling covering for the clause ([Q138](open-questions.md)).
+> from noise, or from a sibling covering for the clause ([Q138](questions/q138.md)).
 >
 > **So: a rung is RUN, never PIPED. Redirect it and read `$?` in the same command** (v0.16, P15,
 > because stating the predicate was not enough).
@@ -260,17 +260,17 @@ Rules:
    | | ***independent*** excludes the first's apparatus — *W55's second observer measured the first's instrument* | v0.16, P15 |
    | | where the instrument is INSIDE what it measures, ask what the first observer **RETAINS** and **drop it once read** | v0.16, P15 |
    | **(d)** | **break the LOOP BOUNDS** — one entry out, the whole list out, and does anything COUNT it from elsewhere | v0.9, P7 |
-   | | a **count is not a membership**; the layer names its MEMBERS — *one integer let the same deletion out three times* ([Q217](open-questions.md)) | v0.14, P13 |
+   | | a **count is not a membership**; the layer names its MEMBERS — *one integer let the same deletion out three times* ([Q217](questions/q217.md)) | v0.14, P13 |
    | | a membership names the **CONTROLS** beside its claims — *W63 left out its two and L6 compared `[]` to `[]`* | v0.18, P17 |
    | | a control must fail where its claim is **VACUOUS**, not only where its subject is ABSENT — *every one read the DECLARED side* | v0.21, P20 |
    | | and its **TEST**: **NAME THE TREE** where the control fails and its claim passes | v0.22, P21 |
    | **(e)** | **break the WIRING** — can it be skipped, unreferenced, or reached with nothing to do? *A deleted dispatch hid 128 s of gradings* | v0.10, P9 |
    | | **is what it ran what SHIPS?** — *read the default declaration rather than running it* | v0.12, P11 |
-   | | a **list is a claim about another list**: compare BOTH WAYS. **And *both ways* is a DIRECTION, not an observer count** — *W47's three fell to ONE swap* ([Q216](open-questions.md)) | v0.13, P12 |
+   | | a **list is a claim about another list**: compare BOTH WAYS. **And *both ways* is a DIRECTION, not an observer count** — *W47's three fell to ONE swap* ([Q216](questions/q216.md)) | v0.13, P12 |
    | **(f)** | **break the ORDER** — delay each worker the row does not ARRANGE past its peers, and run the other pool mode — *W94: 0 of 3 red sampled, **3 of 3 at 5 → 300 ms*** | v0.25, P24 |
    | | **on the SET:** a survivor is one only once a **second independent route** confirms the clause was reachable | v0.7, P5 |
    | | the set is **re-run after acting on the readers**, with their exact edits checked back in | v0.8, P6 |
-   | | a provocation is evidence only when it **fires for the reason it NAMES** ([Q138](open-questions.md)), and **each guard needs a case that makes it fire** | v0.10, P9 |
+   | | a provocation is evidence only when it **fires for the reason it NAMES** ([Q138](questions/q138.md)), and **each guard needs a case that makes it fire** | v0.10, P9 |
    | | whatever makes a **discriminating PAIR differ** is itself a claim — *equalise the halves and the mechanism under them is deletable for 0* | v0.13, P12 |
    | | **on the HARNESS:** a **control** that changes nothing comes back clean, and an **asserted restore**, bytes compared back | v0.11, P10 |
    | | **every declared survivor RUN** against the rung its reason names — *three harnesses had a path that ran NOTHING* | v0.14, P13 |
@@ -405,7 +405,7 @@ The loop has to be seconds or the discipline above stops being run.
 |---|---|---|
 | Single test file (watch) | < 2 s | one runtime - whichever you are editing in |
 | Work-item gate (L0-L3) | < 15 s | **one runtime.** The other two run at the join |
-| Plan gate (L0-L6) | < 90 s | **L0-L5 in all three**, L6 per [Q33](open-questions.md) |
+| Plan gate (L0-L6) | < 90 s | **L0-L5 in all three**, L6 per [Q33](questions/q33.md) |
 | **Proving the checks can fail** | **no budget has ever been set** | **not a rung**, and this table had no row for it until P11 |
 
 **The first two are MET and always have been; the fourth is what a person waits for.** What made
@@ -423,8 +423,8 @@ MANIFEST** — they see a `gate:full` composing both halves and cannot see wheth
 **And a per-lane wall measured in one arrangement does not predict the wall in another** — three
 derivations here have made that error, one from a lane that EXITED AT ITS CONTROL and still
 reported a wall clock. **Neither is reproducible** - the runner sizes its pool in LANES while each
-lane spawns a deep process tree, so it over-commits the machine ([Q433](open-questions.md)). **The
-*plan gate* row is UNMEASURED rather than met** ([Q427](open-questions.md)).
+lane spawns a deep process tree, so it over-commits the machine ([Q433](questions/q433.md)). **The
+*plan gate* row is UNMEASURED rather than met** ([Q427](questions/q427.md)).
 
 **The three-runtime requirement lands on the plan gate, not on the edit loop**: L0-L5 are pure
 logic over fixtures, so the second and third pass find configuration errors rather than logic
@@ -460,11 +460,11 @@ than restating it.** *The count is of REFUSALS, not of mentions.*
 
 | the proposal | refused | the standing ground |
 |---|---|---|
-| **A check over `doc/`** — prose held true by a script | **26 times**, P2-P27 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](open-questions.md)* |
+| **A check over `doc/`** — prose held true by a script | **26 times**, P2-P27 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](questions/q489.md)* |
 | **An `Owns` pre-declaration rule / `check-owns.mjs`** | **13 times**, P2-P26 | three miscounts were caused by the record-step list being WRONG, and naming the missing file fixed it with no script. It returns on a miscount with the list correct |
 | **A ladder LEVEL for the evidence** | 4 times, P11-P14 | answered from the other side by [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md): not a rung, and not on the local gate |
-| **The dated-ceiling HAND-OFF**, and **keeping the harness so the re-run has a subject** | **4 times**, P18-P20, P27 | the ground CHANGED: *the retro catches it in one command* needs a harness, and at P27 none survived — **0 of 28** declared ceilings re-runnable. It stands on the YIELD, **5 catches in 72** and falling (2/11, 2/23, 1/14, 0/24), with the in-item re-run doing the work ([Q486](open-questions.md)) |
-| **A fourth list below `CROSS_ROW_SUBJECTS`** | twice, P13-P14 | three iterations each closed one layer further out ([Q217](open-questions.md)) |
+| **The dated-ceiling HAND-OFF**, and **keeping the harness so the re-run has a subject** | **4 times**, P18-P20, P27 | the ground CHANGED: *the retro catches it in one command* needs a harness, and at P27 none survived — **0 of 28** declared ceilings re-runnable. It stands on the YIELD, **5 catches in 72** and falling (2/11, 2/23, 1/14, 0/24), with the in-item re-run doing the work ([Q486](questions/q486.md)) |
+| **A fourth list below `CROSS_ROW_SUBJECTS`** | twice, P13-P14 | three iterations each closed one layer further out ([Q217](questions/q217.md)) |
 | **A corpus census pinned as a LITERAL outside its corpus** | twice, P21-P22 | a second number a human writes is not a second floor |
 | **A LEVEL for the gate itself**; **a finished item's file having no owner** | once each, P10-P11 | the second was narrowed into pass 3 rule 6 — *the narrower of the two is taken* |
 | **A membership over CONTAINERS**; **a harness grading L6 in both runtimes** | once each, P22, P24 | one occurrence, no argument for generality — pass 3 rule 2's bar |

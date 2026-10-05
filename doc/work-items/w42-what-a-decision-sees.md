@@ -52,7 +52,7 @@ Reserves:   Q190-Q193, ADR 0041
 
 **In**
 
-1. **[Q8](../open-questions.md) — does a decision see only its node's output, or accumulated run
+1. **[Q8](../questions/q8.md) — does a decision see only its node's output, or accumulated run
    state?** Answered, with the answer in `spec/`, from the same mechanism ADR 0040 built rather than
    beside it (P12 decision 1's whole argument).
 2. **The third blocked flow.** *Route to review if any earlier step flagged low confidence* is the
@@ -61,7 +61,7 @@ Reserves:   Q190-Q193, ADR 0041
 
 **Out** — named rather than left implicit, with where it goes instead
 
-- **[Q9](../open-questions.md) — predicate purity.** [P10](../plans/p10-is-fan-out-one-feature-or-two.md)
+- **[Q9](../questions/q9.md) — predicate purity.** [P10](../plans/p10-is-fan-out-one-feature-or-two.md)
   declined it with a measurement and P12 declares it out: *nothing that widens `DecisionContext` makes
   a predicate more or less enforceable.* This item may not reach for it, and if widening the context
   turns out to change that, **that is a finding and a Q rather than a mechanism**.
@@ -71,8 +71,8 @@ Reserves:   Q190-Q193, ADR 0041
 - **`spec/join-policy.md` section 4.** P12 decision 3, unchanged: `JP-R11` and `JP-R12` are
   ADR 0037's.
 - **A sixth node kind.** P12 decision 4.
-- **The gate.** [Q181](../open-questions.md)-[Q183](../open-questions.md) are live and unowned.
-- **[Q19](../open-questions.md)'s actual question** — whether retained state is bounded.
+- **The gate.** [Q181](../questions/q181.md)-[Q183](../questions/q183.md) are live and unowned.
+- **[Q19](../questions/q19.md)'s actual question** — whether retained state is bounded.
 
 ## Verification
 
@@ -90,11 +90,11 @@ so every row is answered rather than deferred:
 
 | case | |
 |---|---|
-| no matching decision edge ([Q10](../open-questions.md)) | **covered, and it is the closest neighbour.** `FD-R1` is asserted against the routing function directly, and whatever `DecisionContext` becomes has to reach that assertion unchanged |
-| a branch routed away from its join ([Q4](../open-questions.md)) | **covered as a regression** — `p1-routed-away.flow.json`'s decision is the one this item's mechanism runs through, and its L5 cells must not move |
-| `user_action` ([Q17](../open-questions.md)) | **covered, and it is the sharp one.** A `user_action` settlement routes NOWHERE, and a resumed node's predicate sees the **effective** outcome (section 3 rule 4). Whatever the context gains must have one answer at both moments or say which |
-| a duplicate task id ([Q13](../open-questions.md)) | **not applicable** — no id is minted differently |
-| a nested fan-out ([Q6](../open-questions.md)) | **covered, and this row was FALSE when it was written.** It said *covered* on the strength of the mechanism rather than of a fixture: every fixture in `test/driver/decision-context.test.ts` routed at `-`, so `resolveNeeds`'s `pathOf(node.id, itemIndices)` was never reached with a real path and forcing `here = '-'` cost **0**. **Both readers found it, from opposite ends** — conformity from this row, adequacy from that mutation. It is covered now by a decision INSIDE a **map** region at three item paths, each predicate seeing its own instance's output; a decision inside a nested **`fanout`** region is still not exercised, and saying *a map region* is the scope this was measured at |
+| no matching decision edge ([Q10](../questions/q10.md)) | **covered, and it is the closest neighbour.** `FD-R1` is asserted against the routing function directly, and whatever `DecisionContext` becomes has to reach that assertion unchanged |
+| a branch routed away from its join ([Q4](../questions/q4.md)) | **covered as a regression** — `p1-routed-away.flow.json`'s decision is the one this item's mechanism runs through, and its L5 cells must not move |
+| `user_action` ([Q17](../questions/q17.md)) | **covered, and it is the sharp one.** A `user_action` settlement routes NOWHERE, and a resumed node's predicate sees the **effective** outcome (section 3 rule 4). Whatever the context gains must have one answer at both moments or say which |
+| a duplicate task id ([Q13](../questions/q13.md)) | **not applicable** — no id is minted differently |
+| a nested fan-out ([Q6](../questions/q6.md)) | **covered, and this row was FALSE when it was written.** It said *covered* on the strength of the mechanism rather than of a fixture: every fixture in `test/driver/decision-context.test.ts` routed at `-`, so `resolveNeeds`'s `pathOf(node.id, itemIndices)` was never reached with a real path and forcing `here = '-'` cost **0**. **Both readers found it, from opposite ends** — conformity from this row, adequacy from that mutation. It is covered now by a decision INSIDE a **map** region at three item paths, each predicate seeing its own instance's output; a decision inside a nested **`fanout`** region is still not exercised, and saying *a map region* is the scope this was measured at |
 
 ## Record
 
@@ -117,7 +117,7 @@ checked back in.
 | **overlap** | **2 of 61** | see below |
 | rule 8, author pass | **RAN** | 26 probes: 25 caught, 0 survivors, 0 aborted after three re-anchors |
 | rule 8, re-run after the readers | **RAN** | **40 probes: 38 caught, 1 classified REWRITE, 0 survived, 0 aborted, 0 crash** |
-| `npm run gate` | **RAN THREE TIMES — RED, RED, then GREEN** | run 1 `GATE EXIT=1` at entry **1** (`deno lint`, 23 lines of log); run 2 `GATE EXIT=1` at entry **15** (`selftests — 7/7 completed, 6 ok`, `check:markdown:selftest` EXIT 1, [Q142](../open-questions.md)); run 3 **`GATE EXIT=0`, zero `FAIL` lines, 15 chain entries, `selftests — 7/7 completed, 7 ok`, 382.5 s wall / 715.9 s serial-equivalent over 5 lanes.** **Both red runs had zero `FAIL` lines**, which is what makes the exit code the predicate; and they are this gate's own CONTROL — `npm run gate` is shown able to fail, twice, at two different entries, before its green run is quoted |
+| `npm run gate` | **RAN THREE TIMES — RED, RED, then GREEN** | run 1 `GATE EXIT=1` at entry **1** (`deno lint`, 23 lines of log); run 2 `GATE EXIT=1` at entry **15** (`selftests — 7/7 completed, 6 ok`, `check:markdown:selftest` EXIT 1, [Q142](../questions/q142.md)); run 3 **`GATE EXIT=0`, zero `FAIL` lines, 15 chain entries, `selftests — 7/7 completed, 7 ok`, 382.5 s wall / 715.9 s serial-equivalent over 5 lanes.** **Both red runs had zero `FAIL` lines**, which is what makes the exit code the predicate; and they are this gate's own CONTROL — `npm run gate` is shown able to fail, twice, at two different entries, before its green run is quoted |
 
 **Outputs — what was actually built.**
 
@@ -164,7 +164,7 @@ five are corrected.
 **What this taught.**
 
 1. **A reach prediction can reverse on the right conclusion and the wrong evidence, and only a reader
-   re-deriving the evidence finds that** — [Q193](../open-questions.md).
+   re-deriving the evidence finds that** — [Q193](../questions/q193.md).
    [P10](../plans/p10-is-fan-out-one-feature-or-two.md)'s retro settled that only a reach prediction
    can reverse; P11 found two that were right about the conclusion and wrong about the mechanism.
    **This is the third, and its mechanism was wrong in the DECISION rather than in the retro** — so it
@@ -182,9 +182,9 @@ five are corrected.
    **threw** when its edge declared nothing and succeeded silently when it declared something — and
    with the freeze deleted (which cost **0**), one predicate's write would be the next one's input, in
    the same process. Both are frozen now: one rule, and it does not enforce purity
-   ([Q9](../open-questions.md) stays declined) — it makes the one observable consequence uniform.
+   ([Q9](../questions/q9.md) stays declined) — it makes the one observable consequence uniform.
 4. **The edge caller contributes ONE independent bound to the expression it shares with the node
-   caller** — [Q192](../open-questions.md). Every clause of `resolveReference` is caught only by
+   caller** — [Q192](../questions/q192.md). Every clause of `resolveReference` is caught only by
    W41's node-site fixtures; the edge site's own coverage was one flat path, one key, one form, and
    the three that mattered (a multi-key loop, the `["n"]` form, the array's per-entry copy) were all
    live. *Extracting an expression to stop two callers drifting apart does not give the second caller
@@ -218,10 +218,10 @@ seven of its nine blocking findings on obligations (c) and (d).
 fabricated one projection in two lines and now has to fabricate **two in four**, because the loop
 records each finding's `at` and the table does not carry it. `doc/workflow.md` section 5 rule 8 — *the
 moment it also edits the projection, the expected literal, or a second line, it is a rewrite and its
-survival says nothing* — and [Q112](../open-questions.md) settles the general form. **What the fix
+survival says nothing* — and [Q112](../questions/q112.md) settles the general form. **What the fix
 bought is measurable and is the only claim made**: the reader's edit as written now ABORTS, and there
 is no source outside this file to bind a CLAUSE list to, because `FD-V26`'s row is prose.
-[Q191](../open-questions.md).
+[Q191](../questions/q191.md).
 
 **Four probes went stale during the item and all four were re-anchored AGNOSTICALLY** — rule 7 (b)
 firing rather than passing, three times on the author's own fixes and once on a reader's.
@@ -236,10 +236,10 @@ predicted one of them **by name** and got the prediction wrong:
 | `spec/flow-definition.md` sections 2, 5, 6, 7 and the status block | the block gives **section 3** only, and a rule cannot be added to section 3 without its `FD-V` row in section 5, its example row in section 7 and the Edge key table in section 2 |
 | `spec/README.md` | `C8`'s version row, a consequence of any `spec/**` bump — W16's finding |
 | `spec/examples/**` | the two corpus files. The plan row gives `spec/examples/**` to **W41** |
-| `AGENTS.md` | **`selectEdge`'s signature changed** and it is exported from the package root, so the consumer reference was wrong until it was edited. [Q157](../open-questions.md) again |
-| `scripts/check-docs.mjs` | `RUN_FLOOR` 16 → 17. **[Q102](../open-questions.md)'s obligation for the FIFTH recorded time**, and the second in this plan |
+| `AGENTS.md` | **`selectEdge`'s signature changed** and it is exported from the package root, so the consumer reference was wrong until it was edited. [Q157](../questions/q157.md) again |
+| `scripts/check-docs.mjs` | `RUN_FLOOR` 16 → 17. **[Q102](../questions/q102.md)'s obligation for the FIFTH recorded time**, and the second in this plan |
 | `test/definition/**` | the suite census and the `EDGE_KEYS` binding; the block gives `test/driver/**` |
-| `scripts/check-markdown.mjs` | **[Q142](../open-questions.md)'s obligation, the FIFTH retune** — and the first in which `M3` moved as well as `M4`. See below |
+| `scripts/check-markdown.mjs` | **[Q142](../questions/q142.md)'s obligation, the FIFTH retune** — and the first in which `M3` moved as well as `M4`. See below |
 | `scripts/check-markdown-selftest.mjs` | `M3`'s `META` entry was pinned to the literal `< 64` and reported *"the mutation matched nothing"* the moment that number was right to change. Made agnostic, as `M4`'s has been since W33 |
 
 **TEN, not seven and not eight** — the count above was written before the last three were taken, and
@@ -248,7 +248,7 @@ the table that records it**, which is the sharpest case for that clause this pla
 finished when its gate is green, and this item's gate went red twice after its `Owns` audit was
 written.
 
-**[Q142](../open-questions.md) fired, and BOTH floors moved for the first time.** `check-markdown`'s
+**[Q142](../questions/q142.md) fired, and BOTH floors moved for the first time.** `check-markdown`'s
 `M3`/`M4` floors are two-sided — the `removes` probes cut directories out of a copy of the tree, so a
 floor must sit **above the probe's fixture and below the whole tree** — and P12 added two work items,
 a plan file and **two ADRs**, which is the first plan in four to add documents to `doc/decisions`,
@@ -266,13 +266,13 @@ reported *"the mutation matched nothing"*, rule 7 (b) firing rather than passing
 agnostic too. *A reason given for one entry was general and was instantiated in one place for three
 plans, because the other place had no live case.*
 
-**Questions raised.** [Q190](../open-questions.md) an inert `needs` is accepted, and refusing it puts
-a kind rule inside a grammar rule. [Q191](../open-questions.md) a provocation that must invent two
+**Questions raised.** [Q190](../questions/q190.md) an inert `needs` is accepted, and refusing it puts
+a kind rule inside a grammar rule. [Q191](../questions/q191.md) a provocation that must invent two
 projections is a rewrite, and a clause list has no source outside its own file.
-[Q192](../open-questions.md) the edge caller contributes one independent bound to a shared expression.
-[Q193](../open-questions.md) a reach prediction can reverse on the wrong evidence.
+[Q192](../questions/q192.md) the edge caller contributes one independent bound to a shared expression.
+[Q193](../questions/q193.md) a reach prediction can reverse on the wrong evidence.
 
-**Resolved:** [Q8](../open-questions.md), open since P1, its own row's fork being the wrong shape.
+**Resolved:** [Q8](../questions/q8.md), open since P1, its own row's fork being the wrong shape.
 
 **Census re-derived: 150 questions — 102 open, 2 deferred, 46 resolved**, both halves at 150 of 150 in
 exactly one cluster cell, **CONFIRMED for the tenth plan running**. W41's parser, unchanged, aborting

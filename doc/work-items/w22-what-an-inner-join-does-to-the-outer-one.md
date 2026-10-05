@@ -48,7 +48,7 @@ Owns:       spec/join-policy.md          (W1)
             doc/decisions/0030-*.md      — a record-step file (workflow v0.7
                                          change 3), named here so the `Owns`
                                          audit is not surprised by it
-Inputs:     W20's `innermostRegionOf`, and [Q113](../open-questions.md)'s
+Inputs:     W20's `innermostRegionOf`, and [Q113](../questions/q113.md)'s
             measurement of what it is load-bearing FOR: `branch.exited` and
             `branch.lost` are the only two `regionOf`-sourced events any shipped
             policy acts on, so the transitivity claim rests on that resolver
@@ -56,7 +56,7 @@ Inputs:     W20's `innermostRegionOf`, and [Q113](../open-questions.md)'s
             W21's derived `branchPath`, and specifically `settleJoin`'s exit
             carrying `pathOf(region.fanoutId)` and `regionOf(region.fanoutId)` —
             which is the whole mechanism of transitivity and was built for
-            [Q114](../open-questions.md) rather than for this.
+            [Q114](../questions/q114.md) rather than for this.
             `spec/join-policy.md` section 3's three definitions, byte-unchanged
             by this item, and `test/matrix/variants.ts`' fourth column.
             The nine existing depth-1 rows and their hand-written `EXPECTED`
@@ -112,7 +112,7 @@ nine are spent** — W20 used Q112-Q114 and skipped Q115/Q116, W21 used Q117-Q11
 Q121 is taken on [ADR 0029](../decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s
 precedent for taking an id outside a plan's block, and skipped ids are **never reissued**
 (`doc/workflow.md` section 3). **ADR 0030 is P7's and is this item's**; 0031 was W20's reserve and is
-skipped; **0026 stays held for [Q97](../open-questions.md)**.
+skipped; **0026 stays held for [Q97](../questions/q97.md)**.
 
 ## The load-bearing fact, measured before this was declared — and it falsifies P7's own decision
 
@@ -123,11 +123,11 @@ corrects the paragraph P7 titled "what is settled before fan-out".*
 
 | | measured |
 |---|---|
-| **`arrival-count` is transitive, and P7's stated mechanism is not a mechanism** | P7: *"`N` is fixed at the outer branch list and an inner branch has no way to be counted."* An inner branch **does not need to be counted by the outer join**. `N` is per-region; an outer region's `branches` is `[scoreA, scoreB]` whatever nests inside it; and when the inner join fires, `settleJoin` enters the outer join carrying `pathOf('inner')` = `'1'` — **which is outer branch 1's arrival**. W21 built that for [Q114](../open-questions.md) and it is the whole of transitivity |
+| **`arrival-count` is transitive, and P7's stated mechanism is not a mechanism** | P7: *"`N` is fixed at the outer branch list and an inner branch has no way to be counted."* An inner branch **does not need to be counted by the outer join**. `N` is per-region; an outer region's `branches` is `[scoreA, scoreB]` whatever nests inside it; and when the inner join fires, `settleJoin` enters the outer join carrying `pathOf('inner')` = `'1'` — **which is outer branch 1's arrival**. W21 built that for [Q114](../questions/q114.md) and it is the whole of transitivity |
 | **Sixteen cells, and every one equals its depth-1 counterpart** | Four depth-2 rows × the four `MATRIX_COLUMNS`, against the checked-in `EXPECTED` at `test/matrix/matrix.test.ts:72`. `nested-all-arrive` ≡ `all-arrive` (all four **joined**); `nested-inner-exit` ≡ `routed-away`; `nested-inner-lost` ≡ `lost-settled`; `nested-inner-all-exit` ≡ `all-exit`. Statuses, `describe`s and verdicts all correspond. **So every depth-2 divergence is the matching depth-1 divergence one level down**, and there is no nesting-specific failure in any of the four |
 | **The refusal would forbid a shape the policy handles** | `arrival-count` reports `satisfied` at BOTH depths on `nested-all-arrive` and the run reaches `publish`. A construction refusal would reject that definition while leaving the same policy shipped for `lost-settled` at depth 1, where it hangs. [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) already made that trade the other way — *"`arrival-count` stays shipped, because the matrix is only meaningful while both columns can be run"* |
-| **The `unsatisfiable` exit emits NO event for the enclosing region, and depth 1 could not see it** | `settleJoin`'s `unsatisfiable` arm appends `joinSettled fired:false`, calls `onUnsatisfiableJoin`, and **returns** — it does not enter the join's successor, so nothing reaches the outer region. At depth 1 the region's `fanout` is in no region and there is nothing to emit; **at depth 2 there is.** Measured: on `nested-inner-all-exit` under `live-token-requiring-arrival`, `inner` is `unsatisfiable`, `onUnsatisfiableJoin` names `inner` **only**, and `outer` sits at `waiting {live:1, positive:true, arrived:1}` **with nothing reported about it**. This is [Q114](../open-questions.md)'s exact shape — a `settleJoin` exit that was right at depth 1 because its wrong value was unobservable |
-| **The refused variant's known defect LAUNDERS itself upward** | [Q91](../open-questions.md) / [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md): `arrival-count-decrementing` fires a join **zero branches reached**. At depth 2 that bogus firing produces a **real** `arrived(outer:1)`, the outer join fires legitimately, and the run reports **`completed`**. At depth 1 the defect is confined to one join; nesting turns it into a run-level verdict. **The refusal ADR 0025 already made is strengthened by a fact it did not have** |
+| **The `unsatisfiable` exit emits NO event for the enclosing region, and depth 1 could not see it** | `settleJoin`'s `unsatisfiable` arm appends `joinSettled fired:false`, calls `onUnsatisfiableJoin`, and **returns** — it does not enter the join's successor, so nothing reaches the outer region. At depth 1 the region's `fanout` is in no region and there is nothing to emit; **at depth 2 there is.** Measured: on `nested-inner-all-exit` under `live-token-requiring-arrival`, `inner` is `unsatisfiable`, `onUnsatisfiableJoin` names `inner` **only**, and `outer` sits at `waiting {live:1, positive:true, arrived:1}` **with nothing reported about it**. This is [Q114](../questions/q114.md)'s exact shape — a `settleJoin` exit that was right at depth 1 because its wrong value was unobservable |
+| **The refused variant's known defect LAUNDERS itself upward** | [Q91](../questions/q91.md) / [ADR 0025](../decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md): `arrival-count-decrementing` fires a join **zero branches reached**. At depth 2 that bogus firing produces a **real** `arrived(outer:1)`, the outer join fires legitimately, and the run reports **`completed`**. At depth 1 the defect is confined to one join; nesting turns it into a run-level verdict. **The refusal ADR 0025 already made is strengthened by a fact it did not have** |
 | **`runCell` runs a nested row today and reports only one of its two joins** | It needed no change to produce all sixteen cells — but `Cell.status`/`describe` are the row's declared `fanoutId`'s, and the **inner** join, which is what every depth-2 row is actually about, is reachable only by calling `driveScenario` and `joinStatusOf` by hand. **A depth-2 row asserted through a `Cell` alone asserts the outer join and calls it the row** |
 | **`AGENTS.md` section 11 states the join over nesting is UNDECIDED**, and this item decides it | Line 857: *"no policy has been ruled transitive over nesting … do not rely on an outer join's behaviour until this row says otherwise."* In nobody's `Owns`, and **found late by both W20 and W21**. Declared up front here. *(Its executed error-class snippet is **not** touched, because no error class is added — that snippet fails the gate on an undocumented export, so a construction refusal would have made `AGENTS.md` a hard dependency rather than a prose one.)* |
 
@@ -167,16 +167,16 @@ readers will check. It is the same discipline W21 applied to threading-versus-de
 
 - **`arrival-count` refusing nesting.** **Struck**, and the plan's correction block records why. There
   is no `JP-R*` refusal, no construction refusal, no new error class, and therefore **no
-  declared-empty matrix cell** — so [Q100](../open-questions.md) does not reach a third file. If a
+  declared-empty matrix cell** — so [Q100](../questions/q100.md) does not reach a third file. If a
   reader wants the refusal reopened it needs a new argument, because the one P7 gave is measured
   false.
-- **Real workers.** `examples/**` is W23's, and [Q117](../open-questions.md)'s wrong id in the L6
+- **Real workers.** `examples/**` is W23's, and [Q117](../questions/q117.md)'s wrong id in the L6
   harness is W23's with it.
-- **Depth 3.** The matrix runs at **depth 2**, which is P7's scope. [Q113](../open-questions.md)
+- **Depth 3.** The matrix runs at **depth 2**, which is P7's scope. [Q113](../questions/q113.md)
   records that `Driver.regionOf`'s fifth site — `driver.ts:1022`, the `fromRegion` a join's successor
   is entered with — **cannot discriminate at depth 2 and does at depth 3**, and that nothing tests it.
   An item claiming depth 3 works owes that row; this one does not claim it.
-- **Per-join policies** ([Q5](../open-questions.md)). Nesting makes *"one policy per run"* louder and
+- **Per-join policies** ([Q5](../questions/q5.md)). Nesting makes *"one policy per run"* louder and
   this item does not lift it.
 - **Changing any of the three shipped policies.** Section 3's definitions are byte-unchanged. If the
   fork's answer would need a policy clause, that is `JP-R7`/`JP-R8`'s *"a refinement is a new policy
@@ -197,7 +197,7 @@ readers will check. It is the same discipline W21 applied to threading-versus-de
 of every value an assertion reads** — and the third one has a named target here: the depth-2 rows'
 correspondence to the depth-1 rows is a claim about **two sources**, so a probe must check that the
 depth-1 side is read from `EXPECTED` and not re-derived from the same run that produced the depth-2
-side. [Q112](../open-questions.md) is the shape to instantiate it by — *a provenance probe changes the
+side. [Q112](../questions/q112.md) is the shape to instantiate it by — *a provenance probe changes the
 source expression and nothing else* — which W21's adequacy reader established and which P7's retro
 rules on. **Re-run the whole set after acting on the readers**, and check their exact edits back in as
 probes.
@@ -205,7 +205,7 @@ probes.
 *Per the template:* a branch routed away from its join (Q4) — **applicable and covered**, it is the
 `nested-inner-exit` row; `user_action` (Q17) — **applicable and NOT covered**, deliberately: the
 depth-1 `suspended`/`resumed`/`lost-resolved` rows already exercise it and all three shipped policies
-ignore both events ([Q113](../open-questions.md)), so a nested suspension row would add a run and no
+ignore both events ([Q113](../questions/q113.md)), so a nested suspension row would add a run and no
 discrimination — stated rather than left silent; no matching decision edge (Q10) — not applicable; a
 duplicate task id (Q13) — not applicable, W21 settled minting; a nested fan-out (Q6) — **this item is
 the join half of it, and the plan's question**.
@@ -299,7 +299,7 @@ advertised coverage the assertions no longer had. ADR 0030's evidence is *"sixte
 table"* reproduced in the depth-2 half.
 
 **3. Three of my own provenance probes were REWRITES, not source swaps — Q112's correction, made by
-the previous item's reader, did not survive one item.** [Q112](../open-questions.md) says *a
+the previous item's reader, did not survive one item.** [Q112](../questions/q112.md) says *a
 provenance probe changes the source expression and nothing else; once it edits the projection it is a
 rewrite, and its survival says nothing.* I edited the projection alongside the source three times and
 read three passes as findings. Rewritten as *"delete one of two writers"*, the same three cost 22, 1
@@ -308,7 +308,7 @@ and 24.
 **4. `python`'s text-mode write converted seven files entirely to CRLF**, where `HEAD` is LF
 throughout — turning small edits into whole-file rewrites in the diff. Every check stayed green:
 `deno lint`, `tsc`, all five `check-*.mjs`, 467 assertions. **Caught only because rule 7 (b) fired**
-on four `\n` anchors that no longer matched. Normalised; [Q123](../open-questions.md).
+on four `\n` anchors that no longer matched. Normalised; [Q123](../questions/q123.md).
 
 **5. My first `stuck` assertion was wrong, and the failure was the finding.** With the outer join now
 firing, `publish` is dispatched and the run reads `running` until it settles. That is a real cost of
@@ -318,7 +318,7 @@ a slip.
 **6. Five dead relative links, in two files, found by hand.** Two in this register (both pointing at
 renamed work items) and three in `AGENTS.md` (`](../doc/…)` from the repo root). All pre-existing;
 all fixed. `check-spec`'s **C5 does exactly this check for `spec/**`** and has since W1.
-[Q121](../open-questions.md).
+[Q121](../questions/q121.md).
 
 ## What this taught
 
@@ -351,17 +351,17 @@ section* question are different questions.
 
 ## Questions raised
 
-- **[Q121](../open-questions.md)** — dead relative links in `doc/**` and `AGENTS.md` are mechanically
+- **[Q121](../questions/q121.md)** — dead relative links in `doc/**` and `AGENTS.md` are mechanically
   checkable and nothing checks them, while `check-spec`'s C5 does exactly this for `spec/**`. Five
   found by hand. **The one sub-case of *`doc/` is checked by nothing* whose mechanism is already
   written.**
-- **[Q122](../open-questions.md)** — four of the matrix's *whole-matrix* claims still iterate the nine
+- **[Q122](../questions/q122.md)** — four of the matrix's *whole-matrix* claims still iterate the nine
   depth-1 rows only. W22 extended `JP-R2` and `JP-R3` to depth 2 and left `JP-R1`, `JP-R4`, the `null`
   payload and Q7's verdict list, because widening them would put the depth-2 rows into ADR 0003's and
   ADR 0025's arithmetic.
-- **[Q123](../open-questions.md)** — nothing fixes line endings and a whole-file CRLF conversion is
+- **[Q123](../questions/q123.md)** — nothing fixes line endings and a whole-file CRLF conversion is
   invisible to every check. No `.gitattributes`.
-- **[Q124](../open-questions.md)** — the correspondence's explicit rename map is discriminably better
+- **[Q124](../questions/q124.md)** — the correspondence's explicit rename map is discriminably better
   than a prefix strip (**12 failures vs 9**, measured by the adequacy reader) and no shipped row
   exercises the difference. A depth-3 row would.
 

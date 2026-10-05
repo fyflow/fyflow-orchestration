@@ -29,7 +29,7 @@
  * surface: `snapshot()` and `foldInputs()` both return the log, and `arrivals` is
  * reachable from neither, which is exactly `RN-R13`'s point. The alternatives were
  * both worse. A public accessor would enlarge the surface for a test's convenience,
- * which is [Q53](../../doc/open-questions.md)'s own finding (*a redundant surface is
+ * which is [Q53](../../doc/questions/q53.md)'s own finding (*a redundant surface is
  * read as a permissive one*); and a byte measurement would need `v8.serialize`,
  * which exists in only **two** of the five runtimes L1-L5 must be green in — node and
  * deno, through `node:v8`, and in none of the three browsers
@@ -40,7 +40,7 @@
  *
  * **So the reach is deliberate, it is one named helper rather than casts scattered
  * through the file, and it is recorded here as the cost of the rule being
- * unobservable from outside.** [Q233](../../doc/open-questions.md).
+ * unobservable from outside.** [Q233](../../doc/questions/q233.md).
  */
 import { collected, deepEqual, equal, ok, suite } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
@@ -138,7 +138,7 @@ const heldArrivals = (d: Driver): number => {
  *
  * *(The subject is handed here by [ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md)
  * consequence 7 and by [W84](../../doc/work-items/w84-what-a-regions-identity-is.md)'s
- * Scope-Out bullet, with [Q349](../../doc/open-questions.md) as the mechanism. This
+ * Scope-Out bullet, with [Q349](../../doc/questions/q349.md) as the mechanism. This
  * comment cited "W84's adequacy reader, finding 8" and **that finding does not exist
  * in the tree** — W84's file carries one numbered reader finding, its finding 7,
  * about a different subject. W85's conformity reader, finding 3.)*
@@ -246,7 +246,7 @@ const THREE = { items: ['a', 'b', 'c'], rows: ['x', 'y'] };
  * this is the list the walk's universe is checked against, and it is `RN-R13`'s
  * ratchet — a new field here is a candidate second copy and the rule has to be
  * re-measured for it. **Its limit is `ROW_KEYS`'** — it is a literal, so a field and
- * its name here are two edits in one diff ([Q102](../../doc/open-questions.md)).
+ * its name here are two edits in one diff ([Q102](../../doc/questions/q102.md)).
  */
 const DRIVER_FIELDS = [
   'arrivals', 'def', 'dispatched', 'failed', 'firedJoins', 'graph', 'inputs', 'joinState',
@@ -464,7 +464,7 @@ suite(SUITE, (test) => {
    * `fold()` return a plausible wrong answer. The release cannot, and the reason is
    * structural: no `FoldInput` kind carries a join's collection at all — `dispatched`
    * carries a `taskId` and nothing else, which is `spec/run-state.md` section 6's own
-   * sentence. **This is also the [Q15](../../doc/open-questions.md) finding**: a run
+   * sentence. **This is also the [Q15](../../doc/questions/q15.md) finding**: a run
    * resumed from a persisted log cannot be handed a collection no log carries.
    */
   test('nothing the fold reads moved — no FoldInput carries what a join collected', async () => {
@@ -576,7 +576,7 @@ suite(SUITE, (test) => {
    *
    * **Constructed, for the same reason as the row above** — no shipped policy fires a
    * join with branches still live, which is precisely the precondition
-   * [Q95](../../doc/open-questions.md) records for `settleJoin`'s own `at most once`
+   * [Q95](../../doc/questions/q95.md) records for `settleJoin`'s own `at most once`
    * latch. The same hypothetical policy, reaching the same region through a second
    * door.
    *
@@ -731,7 +731,7 @@ suite(SUITE, (test) => {
    * itself inside a region and measured **zero** failures at every rung.
    *
    * This falsifies a claim in the item's own Verification section: *a nested fan-out
-   * ([Q6](../../doc/open-questions.md)) is covered, because the clear is keyed by
+   * ([Q6](../../doc/questions/q6.md)) is covered, because the clear is keyed by
    * region and a nested region has its own key.* **Keyed-by-region was an argument and
    * not a case** — every fixture above is depth 1 — and a nested region is where the
    * arity multiplies, so it is the shape fact 3's 49.8% is largest on.
@@ -776,7 +776,7 @@ suite(SUITE, (test) => {
    * inner loop could be narrowed to each opener's first entry for **zero**.
    *
    * **The settlements are INTERLEAVED and the order is load-bearing**, which is
-   * W84's own finding one file over ([Q349](../../doc/open-questions.md)): with
+   * W84's own finding one file over ([Q349](../../doc/questions/q349.md)): with
    * instances settling in dispatch order there is never a second collection to
    * confuse the first with, so *release the instance being settled* and *release the
    * opener's whole entry* are the same expression. Instance **1** closes first here
@@ -1077,9 +1077,9 @@ suite(SUITE, (test) => {
    * ran, so a deleted case fails NAMING itself. **Its limit is stated rather than
    * hidden**, exactly as `ROW_KEYS`' and `CROSS_ROW_SUBJECTS`' are: this is a literal,
    * so deleting a case and its name is two edits in one diff
-   * ([Q102](../../doc/open-questions.md), [Q217](../../doc/open-questions.md)).
+   * ([Q102](../../doc/questions/q102.md), [Q217](../../doc/questions/q217.md)).
    *
-   * **What it does NOT catch is [Q234](../../doc/open-questions.md)**, and the two are
+   * **What it does NOT catch is [Q234](../../doc/questions/q234.md)**, and the two are
    * the count/membership distinction playing out: a case EMPTIED with an early return
    * is still present, still named, and still counted. A membership catches deletion;
    * nothing here catches an emptied body.

@@ -12,14 +12,14 @@ resolves: ""
 
 # ADR 0037 — What a branch receives is a property of the fan-out; what a satisfied join carries is a property of the region
 
-**Raised by:** [Q36](../open-questions.md), with [Q11](../open-questions.md) narrowed to the fan-out
-edge and [Q154](../open-questions.md), decided by
+**Raised by:** [Q36](../questions/q36.md), with [Q11](../questions/q11.md) narrowed to the fan-out
+edge and [Q154](../questions/q154.md), decided by
 [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under
 [P10](../plans/p10-is-fan-out-one-feature-or-two.md)
 
 ## Context
 
-**[Q36](../open-questions.md) has been open since P1 and its owner cell named an item that finished
+**[Q36](../questions/q36.md) has been open since P1 and its owner cell named an item that finished
 four plans ago.** The driver forwards **`null`** out of a satisfied join and `settleJoin` takes no
 payload parameter, so the choice cannot be quietly reintroduced. That is a placeholder and
 `spec/join-policy.md` section 4 says so in the sentence this ADR replaces.
@@ -44,7 +44,7 @@ are thrown away with `dev-dist/`.
 |---|---|
 | **the join's successor receives `null` in every cell that fires** | **22 of 36** depth-1 cells fire a join, derived by running `SCENARIOS` × `MATRIX_COLUMNS` (**9 × 4**, with 4 depth-2 rows making **52** cells in all). Every one of the 22 dispatches its downstream task with `null`, and an ordinary edge on the same row carries `{from: 'ingest'}` — so `null` is a decision the join makes and not something the harness reports for everything |
 | **a fan-out hands ONE object to every branch, at every arity** | `scoreA.payload === scoreB.payload` is **`true`** for a `fanout`; for a `map` **every pair** is `true` — `n(n-1)/2` aliased pairs, measured as 1, 3 and 21 at N = 2, 3 and 7. The payload **is** cloned once at the edge hop, so the log is protected and the siblings are not |
-| **and the aliasing is INVISIBLE in a thread pool** | The half P10 did not measure. On a real `FyflowScheduler`, same flow, same worker: **inline**, branch B's worker saw `["score:r1:scoreA:0:0"]` in its input **before it ran**, and branch A's own view of its input gained B's write **after A returned**; **threaded (`maxThreads: 2`)**, each worker saw `[]` and its own tag alone. **`a.payload === b.payload` is `true` in BOTH** — the aliasing is a driver-level fact and whether it is observable is a pool option the flow author does not control. That is [Q61](../open-questions.md)'s asymmetry in the opposite direction, and it is the second instance of that class |
+| **and the aliasing is INVISIBLE in a thread pool** | The half P10 did not measure. On a real `FyflowScheduler`, same flow, same worker: **inline**, branch B's worker saw `["score:r1:scoreA:0:0"]` in its input **before it ran**, and branch A's own view of its input gained B's write **after A returned**; **threaded (`maxThreads: 2`)**, each worker saw `[]` and its own tag alone. **`a.payload === b.payload` is `true` in BOTH** — the aliasing is a driver-level fact and whether it is observable is a pool option the flow author does not control. That is [Q61](../questions/q61.md)'s asymmetry in the opposite direction, and it is the second instance of that class |
 | **a clone per branch is unaffordable for the feature that needs it and affordable for the one that does not** | At N = 1000 over a 117 KiB payload: one shared clone **1.50 ms**; a clone per branch **2207.94 ms** — a factor of **~1470**, and it is **quadratic**, because for a map both the arity and the payload grow together. For a `fanout` over a 230 KiB payload the same fix is **linear in a document constant**: 9.3 / 14.2 / 23.0 / 44.3 ms at arity 2 / 3 / 5 / 10, against 4.5-4.8 ms for one clone |
 | **handing each map instance its own item costs nothing, and cloning that item costs 5x the edge hop** | Same run, N = 1000: each instance receiving `over`'s array at its own index **2.29 ms**; receiving a **clone** of it **7.99 ms**. Both **linear**. A join collecting N results with one clone each is **3.47 ms** |
 | **`structuredClone` preserves aliasing WITHIN one clone** | `{items: [x, x]}` survives the edge hop as an array holding **one object twice** — `after.items[0] === after.items[1]` is `true`, and mutating one shows in the other. **So "each instance receives `items[i]`" is not sufficient on its own**, which is why rule 3 below says *its own copy* rather than *its own item* |
@@ -110,7 +110,7 @@ two rest on.**
    **ascending `branchPath` order, compared segment-wise as numbers**, so the collection is
    byte-identical whatever order the branches settled in. A join nothing arrived at carries `{}`.
 
-5. **No reducer, and the refusal is narrow.** [Q36](../open-questions.md)'s second candidate — *a
+5. **No reducer, and the refusal is narrow.** [Q36](../questions/q36.md)'s second candidate — *a
    declared reducer on the join node* — is **not taken here**, and not because it is wrong:
    [ADR 0002](0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md) rule 3's
    registered-by-name mechanism would carry it exactly as it carries `when`. It is refused because
@@ -118,11 +118,11 @@ two rest on.**
    and building both at once would decide the shape of the collection from the convenience of the
    reducer. **Rule 4 is what a reducer would receive**, and adding one later is additive: a new
    optional key on a `join` node, a registry lookup, and a validator rule. Recorded as
-   [Q165](../open-questions.md).
+   [Q165](../questions/q165.md).
 
-## What this does to [Q11](../open-questions.md) and [Q154](../open-questions.md)
+## What this does to [Q11](../questions/q11.md) and [Q154](../questions/q154.md)
 
-**[Q11](../open-questions.md) is answered at the fan-out edge and stays open in general**, which is
+**[Q11](../questions/q11.md) is answered at the fan-out edge and stays open in general**, which is
 P10's scope and this ADR does not exceed it. Its row calls itself *"the API surface users touch most,
 so it is the one most expensive to change later"*, and its three candidates are *the previous node's
 output, a run-scoped accumulator, or a declared per-edge mapping*. **The first is still what ships
@@ -130,7 +130,7 @@ for every ordinary edge**; rules 2 and 3 say what the fan-out edge does with it,
 other two candidates is built. **A run-scoped accumulator is still the open question**, and it is the
 one that would answer *"what a map instance loses"* below.
 
-**[Q154](../open-questions.md) is closed, in two different ways for the two features, and the
+**[Q154](../questions/q154.md) is closed, in two different ways for the two features, and the
 asymmetry is the point.**
 
 | | how it is closed | what it cost |
@@ -146,13 +146,13 @@ did not**, and it is the same sentence ADR 0036 ends on: what differs is the fan
 **What it makes easy.**
 
 - **A map has an output.** N results reach the join's successor keyed by item index, which is the
-  plan's exit artifact and the reason [Q12](../open-questions.md) and Q36 are one plan.
+  plan's exit artifact and the reason [Q12](../questions/q12.md) and Q36 are one plan.
 - **A branch's payload key and its task id's third segment are the same string.** A log line, a
   region event and a payload key all say `1.0`, so a consumer correlating them writes no mapping.
 - **`settleJoin`'s signature is untouched**, so the guard that has kept Q36 a question rather than a
   convention is still in place and still means what it meant.
 - **A node may mutate what it was given.** Rule 1 makes that safe rather than forbidden, which is the
-  opposite of the answer [Q9](../open-questions.md) and `spec/outcome-record.md` section 4 have each
+  opposite of the answer [Q9](../questions/q9.md) and `spec/outcome-record.md` section 4 have each
   already rejected once — *"please write pure functions" is not a mechanism*.
 
 **What it costs, stated rather than discovered later.**
@@ -160,7 +160,7 @@ did not**, and it is the same sentence ADR 0036 ends on: what differs is the fan
 - **A clone per fan-out branch is a hot-path deep copy that
   [ADR 0007](0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) explicitly did
   not want.** It is taken on `OR-R2`'s precedent and on a measurement, and it is bounded by the
-  document rather than by the data. **The numbers are on [Q22](../open-questions.md)'s row** — that
+  document rather than by the data. **The numbers are on [Q22](../questions/q22.md)'s row** — that
   row has said *"needs a measured run"* since P1, and this is one. *(This sentence read
   *"[Q22] gains the numbers"* while that row was untouched: an ADR asserting an edit it had not made,
   in the file read before every work item. This item's conformity reader found it, and the row is
@@ -168,7 +168,7 @@ did not**, and it is the same sentence ADR 0036 ends on: what differs is the fan
 - **A map instance loses the context the map node had.** It receives its item and not the
   `{items, note, config}` around it. That is what *map* means in every language that has one, and a
   consumer who needs context puts it in the item — but it is a real loss and it is
-  [Q11](../open-questions.md)-in-general's to fix, not this ADR's. [Q166](../open-questions.md).
+  [Q11](../questions/q11.md)-in-general's to fix, not this ADR's. [Q166](../questions/q166.md).
 - **`join → map` becomes expressible over ONE BRANCH's result, and this ADR first claimed the
   opposite.** It read *"`join → map` is still not expressible … today the join carries `null` and it
   fails `FD-R2`; after this it carries an object and it fails `FD-R2` for a different reason."*
@@ -185,7 +185,7 @@ did not**, and it is the same sentence ADR 0036 ends on: what differs is the fan
   results as a list, and `over: "1"` fails `FD-R2` the moment branch 1's result is not itself an
   array. **The affordance is also brittle in a way worth naming**: `over: "0"` couples a flow to the
   fan-out's branch numbering, so inserting a branch silently re-points it. A reshaping `task` between
-  the join and the map is the workaround for the general case. [Q165](../open-questions.md).
+  the join and the map is the workaround for the general case. [Q165](../questions/q165.md).
 - **The key order is pinned by construction and cannot be asserted through `JSON.stringify`**,
   because a payload is structured-cloneable rather than JSON (`spec/outcome-record.md` section 4) and
   a cyclic payload makes `stringify` throw. `Object.keys` is the projection that checks it.

@@ -18,7 +18,7 @@ resolves: ""
 its Consequences say `checkWiring` treats a gate as a pass-through, and that is no longer the whole of it.
 Nothing else in 0066 moves — a gate is still a decision with memory naming a registered type, and every
 route is still wired exactly once.
-**Answers** [Q391](../open-questions.md).
+**Answers** [Q391](../questions/q391.md).
 
 ## Context
 

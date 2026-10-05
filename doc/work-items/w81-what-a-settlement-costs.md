@@ -38,9 +38,9 @@ Reserves:   Q335-Q339, ADR 0061 (expected unused)
 1. **The check's price**, re-taken with the check ON, on real workers, at L6's scale — as a ratio
    to the `structuredClone` `OR-R2` already pays on the same settlement, and on **both** axes,
    because W80 measured that the two costs are linear in different things.
-2. **[Q320](../open-questions.md)'s unconditional clone**, priced at a shape where it bites, and
+2. **[Q320](../questions/q320.md)'s unconditional clone**, priced at a shape where it bites, and
    **whether a consumer can decline it** — decided here or declared unreachable (the plan's W81 row).
-3. **A clock-free observer of both**, because [Q179](../open-questions.md) says wall time here is not
+3. **A clock-free observer of both**, because [Q179](../questions/q179.md) says wall time here is not
    reproducible and a cost a ceiling is dated to must be re-runnable by whoever inherits it.
 4. **`z1`, W80's ceiling DATED TO THIS RUNG**, re-run with its measurement printed beside it
    (`doc/workflow.md` rule 8, the harness clause, v0.17).
@@ -54,7 +54,7 @@ Reserves:   Q335-Q339, ADR 0061 (expected unused)
 - **The L6 row, the reference, and L6's counts.** W82's, whole. **L6 UNMOVED here.**
 - **A `spec/` rule or an ADR.** ADR 0061 is reserved and expected unused; the COST paragraph in
   `spec/outcome-record.md` section 4 is W80's and its figures are re-measured rather than restated.
-- **[Q244](../open-questions.md) and [Q245](../open-questions.md)** — the shared-scheduler topology's
+- **[Q244](../questions/q244.md) and [Q245](../questions/q245.md)** — the shared-scheduler topology's
   own super-linearity, and the scheduler's own map. Both are `examples/retention.ts`'s subject and
   neither is a settlement's price.
 
@@ -108,7 +108,7 @@ The same three passes, back to back, on the same tree:
 
 **The count is the same integer all three times and the time ratio spreads 1.02x to 1.35x on rows
 that differ by nothing** — the spread between three passes of ONE row (1.05 / 1.26 / 1.17) is as
-large as the effect being measured. That is [Q179](../open-questions.md) at 24.0 MiB of results,
+large as the effect being measured. That is [Q179](../questions/q179.md) at 24.0 MiB of results,
 which is where an effect this size was supposed to become visible.
 
 **So the honest statement of Q320's cost is not a percentage at all.** `OR-R2` clones every settled
@@ -118,7 +118,7 @@ cannot be read off a clock is that a run makes many other clones beside those tw
 
 ### Finding 3 — a consumer CAN decline it, and the road is a decision this repository already took
 
-[Q320](../open-questions.md) says *a consumer who wants none of this cannot opt out*. Measured:
+[Q320](../questions/q320.md) says *a consumer who wants none of this cannot opt out*. Measured:
 **`new Driver(flow, { ...runtime.registry, scheduler, runId, joinPolicy })` is the opt-out**, which
 is [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md) decision 14's own sentence executed — `runtime.registry` IS the object
 a runtime hands its own drivers, and a driver built that way has no `onFoldInput`, so `append` never
@@ -158,7 +158,7 @@ it reads it once more per checked settlement. `dev-dist/w81/decl-counter*.txt`.
 | the measurement | `node examples/settlement-cost.ts` and `deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env examples/settlement-cost.ts` — **a measurement, not a rung**: it is not in the gate chain, on `examples/retention.ts`'s precedent, and L0 is what keeps it compiling |
 | L6 UNMOVED | `npm run test:l6` — the declared result is **1639 / 55, unchanged** |
 | `z1` re-run | `dev-dist/w80/rule8.mjs --ids z1`, and the measurement against the rung its reason names |
-| [Q142](../open-questions.md) | `npm run check:markdown` AND **`npm run check:markdown:selftest`**, which is the only rung `M3`/`M4` can fire in — the conformity reader's, and the Verification table had no row for it |
+| [Q142](../questions/q142.md) | `npm run check:markdown` AND **`npm run check:markdown:selftest`**, which is the only rung `M3`/`M4` can fire in — the conformity reader's, and the Verification table had no row for it |
 | rule 8 | `dev-dist/w81/rule8.mjs`, twice: the author pass, and again with the readers' exact edits checked in |
 | both readers | conformity and adequacy, adequacy in an isolated copy, both reporting rather than fixing |
 
@@ -173,9 +173,9 @@ is `map-alias` or a fixture W80 already shipped, and its whole output is two cou
 |---|---|---|
 | `examples/**` for a worker that returns MEGABYTES | **SEEDED, and measured UNNEEDED** | stop-and-ask (c) granted it; finding 1 measures that `map-alias` settles **24.6 MiB of results** through its data alone. *A permission granted on a fact about three shapes, and the corpus was never the constraint.* |
 | `test/definition/l4-corpus.test.ts` | **inside `Owns`, not an exception — and declared here anyway** | `Owns` reads `test/** as the measurement needs` and this file is that, so the row is an over-declaration rather than a miss (W81's conformity reader). It is kept because the census is a standing obligation on any item adding a suite and the seeded table named it: the census is an equality over the suites that RAN, and this item adds one suite file |
-| `examples/README.md` | **NEEDED** | its file table names every top-level file in `examples/` and this item adds one — [Q171](../open-questions.md), and the paragraph W71, W72, W74 and W78 each took LATE. **Its L6 counts do NOT move** and this item asserts that they do not |
+| `examples/README.md` | **NEEDED** | its file table names every top-level file in `examples/` and this item adds one — [Q171](../questions/q171.md), and the paragraph W71, W72, W74 and W78 each took LATE. **Its L6 counts do NOT move** and this item asserts that they do not |
 | `scripts/build-browser-tests.mjs` | **PREDICTED NEEDED, and it is a deliberate prediction** | the browser bundle carries only what this script inlines, and **W76, W77 and W80 all predicted it unneeded and all three were wrong**. This item's suite reads no file outside `spec/examples/` *as designed* — to be measured at the build rather than asserted here |
-| `scripts/check-markdown.mjs` | **PREDICTED UNNEEDED** | [Q142](../open-questions.md), measured at this declaration: `M3` = 123 against a fixture of 106 and a tree of 140 (margins **17 / 17**), `M4` = 5270 against 4449 and 6092 (margins **821 / 822**) — W80's midpoint retune. One markdown file and one ordinary record step do not spend 821 links |
+| `scripts/check-markdown.mjs` | **PREDICTED UNNEEDED** | [Q142](../questions/q142.md), measured at this declaration: `M3` = 123 against a fixture of 106 and a tree of 140 (margins **17 / 17**), `M4` = 5270 against 4449 and 6092 (margins **821 / 822**) — W80's midpoint retune. One markdown file and one ordinary record step do not spend 821 links |
 | `doc/plans/p21-*.md`, outside its Record | **LATE, and it had nowhere else to go** | not the Record — **decision 8**, which is where *`examples/**` may hold a hand-built `Driver`* belongs once the maintainer has ruled on it. `doc/workflow.md` section 1 rule 5's record-step list names *the plan's Record* and this is the plan's DESIGN section, so it is declared rather than assumed. **W80 took this same file late for the same shape of reason** — its Scope carried a claim the plan's own commit had withdrawn — and v0.7 change 3's argument applies unchanged: *a gap that blocks a fix is worse than one that hides an edit* |
 | `src/**`, `spec/**`, `doc/decisions/**` | **PREDICTED UNNEEDED** | this item measures and changes nothing. ADR 0061 is reserved and expected unused; the spec's COST paragraph is W80's |
 | `package.json`, `deno.json` | **PREDICTED UNNEEDED** | nothing is exported and no version moves |
@@ -185,7 +185,7 @@ is `map-alias` or a fixture W80 already shipped, and its whole output is two cou
 
 ## Record
 
-**Status: DONE.** `examples/settlement-cost.ts` ships, [Q320](../open-questions.md) is **RESOLVED**,
+**Status: DONE.** `examples/settlement-cost.ts` ships, [Q320](../questions/q320.md) is **RESOLVED**,
 and **L6 is UNMOVED at 1639 assertions over 55 real runs in both runtimes**, which is this item's
 declared result.
 
@@ -199,7 +199,7 @@ declared result.
 | L6 UNMOVED | **RAN, green** | **1639 assertions, 0 failed, 55 real runs**, in node AND deno — unchanged, as declared |
 | the other eight checks | **RAN, green** | `check:source`, `:docs`, `:workers`, `:wiring`, `:spec` (**7 / 61 / 108**, unmoved), `:markdown`, `:scheduler`, `:policies` |
 | `z1` re-run | **RAN, and it is a CATCH** | `dev-dist/w80/rule8.mjs --ids z1` on the shipped tree: **`l1` exit 1 and `art` exit 1**, where W80 declared *nothing here can see it*. Its stated reason named this item's cost rung and the rung that moved it is **both** — the L2 suite as well as the artifact. W80's other TEN dated ceilings re-run here too, and all ten HOLD |
-| [Q142](../open-questions.md) | **RAN, did not fire** | `check:markdown` and `check:markdown:selftest` both green. **re-taken on the tree this item SHIPS** (section 1 rule 5's WHEN clause), after the Record and the six record-step files: `M3` = 123 against a `doc/decisions`-out fixture of **107** and `M4` = 5270 against a both-out fixture of **4501** — margins **16 / 18** and **769 / 877**, W80's midpoint retune paying for itself. *(It read 107 / 4459 and 16 / 811 before the record step, which spent 42 links against a margin of 811 — P21's declaration faced a margin of 26 on the same fixture and routed around it.)* |
+| [Q142](../questions/q142.md) | **RAN, did not fire** | `check:markdown` and `check:markdown:selftest` both green. **re-taken on the tree this item SHIPS** (section 1 rule 5's WHEN clause), after the Record and the six record-step files: `M3` = 123 against a `doc/decisions`-out fixture of **107** and `M4` = 5270 against a both-out fixture of **4501** — margins **16 / 18** and **769 / 877**, W80's midpoint retune paying for itself. *(It read 107 / 4459 and 16 / 811 before the record step, which spent 42 links against a margin of 811 — P21's declaration faced a margin of 26 on the same fixture and routed around it.)* |
 | conformity reader | **RAN** | **18 findings, 7 blocking** — and **its central obligation came back with ZERO disagreements on the VALUES**: it derived `findings`' three reads of `schema.type`, the 144 / 216 / 231 / 3.00 and 144 / 216 / 246 / 3.00 counts, the L2 suite's per-chain arithmetic and every rung's figure from the documents and `src/` before reading any output, and every one matched |
 | adequacy reader | **RAN** | **61 mutations, 39 survivors, 16 findings, 6 blocking**, in a plain COPY with `node_modules` copied, verified green on three rungs before mutating and scanned for links after |
 | overlap | **3** — the **FIFTY-FIRST** measurement | inside the 0-4 band, neither reader primed. The three shared subjects: the `snapshot()` clone counted as the run's, the closing prose's unmade measurement, and `ARITIES` |
@@ -211,7 +211,7 @@ declared result.
 
 | Declared output | Exists | What would fail without it |
 |---|---|---|
-| (1) `examples/settlement-cost.ts`, in both runtimes, NOT a gate entry | **yes** | **nothing, and that is measured rather than assumed** — `z1` deletes it whole and `lint`, `check:source`, `check:markdown`, L1 and L6 are all green ([Q338](../open-questions.md)). What binds its two COUNT claims is `test/driver/result-schema-cost.test.ts`; its TIMED claim has **no second observer anywhere**, recorded rather than argued |
+| (1) `examples/settlement-cost.ts`, in both runtimes, NOT a gate entry | **yes** | **nothing, and that is measured rather than assumed** — `z1` deletes it whole and `lint`, `check:source`, `check:markdown`, L1 and L6 are all green ([Q338](../questions/q338.md)). What binds its two COUNT claims is `test/driver/result-schema-cost.test.ts`; its TIMED claim has **no second observer anywhere**, recorded rather than argued |
 | (2) the check's price as a RATIO, on BOTH axes, direction asserted and no figure asserted | **yes** | `d1` (`SWEEP` to one row) and `d2` (`ENUMS` to the unmodified schema) each cost 1; `r-s3` (the grid run on ONE value twice) costs 1 against the pair's own byte difference; `r-a6b` (the row loop stopped after one) and `r-c14` (every value paired with the FIRST schema) cost 1 each; `r-a5` (the check ON deleted) costs 1 against the **control run**, whose `tally` schema refuses |
 | (3) Q320 priced where it bites, and the OPT-OUT measured | **yes** | `a4` (`freezeInput` made unconditional) costs 2 rungs and `a5` (never run) costs 2; `d3` (the MEGABYTE shape dropped) costs 1; `r-a6c` (the printed shape not the shape that ran) costs 1; and at L2 `b3`'s compound is what fires when the suite's own equality is made a tautology |
 | (4) `test/driver/result-schema-cost.test.ts` at L1-L2 — the clock-free observers | **yes** | `a1` — W80's `z1`, the check run for everyone — costs **both** rungs; `a2` (the check narrowed to one settlement per run) costs both; `r-a7` (the check narrowed to tasks outside a region) costs the MAP-REGION test, which is the shape this suite had to gain; `d6` and `r-a3` (each equality given two identical inputs) cost 1 each against the controls the adequacy reader forced |
@@ -280,10 +280,10 @@ declared result.
 13. **`examples/README.md` is walked by NO check** — `check-markdown` reads `doc/`, `spec/` and the
     three root `.md` files — so the row this item adds, its link and its figures are unchecked in
     every direction. Measured with a deliberately dead link at `check:markdown` **EXIT=0**, in the
-    file that has been a late exception on five items ([Q337](../open-questions.md)).
+    file that has been a late exception on five items ([Q337](../questions/q337.md)).
 14. **`examples/README.md` quoted two clock readings as if they were properties**, and the pair that
     maximises the gap: 15.9% against 40.4% out of readings that span 58-95% on one row. In a document
-    read before every work item, under a heading citing [Q179](../open-questions.md).
+    read before every work item, under a heading citing [Q179](../questions/q179.md).
 15. **A PREDICTED-NEEDED exception was NOT needed**: `scripts/build-browser-tests.mjs` is unmodified
     and chromium reports 46 / 1295 with parity. **W76, W77 and W80 all predicted it UNNEEDED and all
     three were wrong**; this item predicted it NEEDED on their precedent and was wrong the other way.
@@ -311,7 +311,7 @@ declared result.
 
 ### What this taught
 
-**P21 prediction 4 is NEITHER, and it is the SECOND occurrence of [Q326](../open-questions.md)'s
+**P21 prediction 4 is NEITHER, and it is the SECOND occurrence of [Q326](../questions/q326.md)'s
 class — a prediction ambiguous between two observables that disagree.** It says *Q320 does not bite
 at this library's own corpus and needs a shape built for it*, and both halves get different answers
 from different instruments:
@@ -339,13 +339,13 @@ consumer who does not ask the driver what happened*, which is a narrower answer 
 the one the measurement supports.
 
 **The Gate line says *both figures as RATIOS* and this item departs, and the departure is the
-finding.** Plan decision 5 is right about what it was written for — [Q179](../open-questions.md), and
+finding.** Plan decision 5 is right about what it was written for — [Q179](../questions/q179.md), and
 a millisecond is a machine. But **a ratio of two clocks is still two clocks**: measured on one tree
 over the same settled values, block 1's six-settlement row reads 58% to 95% across eight readings and
 its twelve-settlement row reads 15-25% in node against 27-40% in deno. So this item states the check's
 price as a RATIO with only its DIRECTION asserted, and states the handle's price as a **COUNT** —
 *one more copy of everything `OR-R2` already copies* — because that came back byte-identical in both
-runtimes at every shape. [Q335](../open-questions.md): decision 5 is necessary and not sufficient.
+runtimes at every shape. [Q335](../questions/q335.md): decision 5 is necessary and not sufficient.
 
 **And the one claim this item WIDENED was put to the maintainer and came back narrower than it shipped.** The Q320 opt-out is `new Driver(flow, { ...runtime.registry, … })`, so the file that prices the two roads has to build one — which `examples/l6.ts`'s *nothing under `examples/` constructs a pool, a scheduler, a `Driver` or a built-in group* forbade. Measured on the shipped tree: with a MARKER alone, W67's adequacy reader's own mutation is still RED when it declares nothing and **GREEN the moment one comment line is typed above it** — *the claim caught the careless and stopped catching the deliberate*, because a marker is permission a file grants itself. The equality is **THREE-way** now — the constructors, the files that declare it, and a literal list in `examples/l6.ts` — so an exemption costs an edit in the file that wants it AND in the file that makes the claim, and it is **P21 decision 8** rather than an assertion's own comment (`doc/workflow.md` section 1 rule 3). Still ONE assertion, so L6 stays at 1639.
 
@@ -353,7 +353,7 @@ runtimes at every shape. [Q335](../open-questions.md): decision 5 is necessary a
 apparatus.** Block 3 and the L2 SWITCH suite both count reads of a `get type()` accessor at the same
 depth on a worker's `outputSchema`, *deliberately, so the two count the same thing* — which is
 obligation (c)'s LIMIT from the side its wording admits and its argument does not.
-[Q339](../open-questions.md), recorded rather than closed: the alternatives were measured at P21's
+[Q339](../questions/q339.md), recorded rather than closed: the alternatives were measured at P21's
 declaration and refused (bytes cannot see a clone; identity is confounded by `foldInputs()`'s own
 clone), and a shared instrument present in BOTH arms cancels out of the difference.
 
@@ -378,6 +378,6 @@ unneeded and unneeded. The grep for this item's own id outside `doc/` returns ni
 this item's own** and two of them W80's forward references — *W81 owns the rung that can see it* — which
 this item makes true rather than false.
 
-**Resolved: [Q320](../open-questions.md)** — the cost is EXACT and the opt-out EXISTS. **Census
+**Resolved: [Q320](../questions/q320.md)** — the cost is EXACT and the opt-out EXISTS. **Census
 261 / 203 / 2 / 56**, 261 of 261 in exactly one cluster cell, 0 aborts. **Q340-Q344 remain for W82;
 ADR 0061 is reserved and UNUSED.**

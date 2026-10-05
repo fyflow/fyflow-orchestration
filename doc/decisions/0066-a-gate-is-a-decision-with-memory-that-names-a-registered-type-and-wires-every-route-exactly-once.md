@@ -26,7 +26,7 @@ decisions 5-8 and stop-and-asks (a) and (b) are what RUNNING a gate means, and a
 **Nothing in the library can route a branch by what its SIBLINGS have seen, and the reason is
 structural** (P24's *why*): [ADR 0044](0044-a-reference-is-visible-when-two-paths-agree-on-the-regions-that-contain-both-of-them.md)
 makes two instances of one `map` invisible to each other, a join waits for all of them, a predicate is
-asked to be pure ([Q9](../open-questions.md)), and a worker loses its memory on idle teardown and per
+asked to be pure ([Q9](../questions/q9.md)), and a worker loses its memory on idle teardown and per
 thread (P24 fact 7). The maintainer's case — keep the FIRST file of each TV series and drop the rest,
 while thumbnails run for every file — needs memory the library holds.
 
@@ -136,7 +136,7 @@ driver's road together with the arm that reads `fn`.**
 
 P24 decision 4 and its *over*: a task's terminal states are a fixed list the library owns, so omitting
 `on: ["failed"]` is a statement about a closed set; a gate type's routes are the registry's, the registry
-carries no version ([Q249](../open-questions.md)), and a route added to a type later would be dropped in
+carries no version ([Q249](../questions/q249.md)), and a route added to a type later would be dropped in
 silence by every flow that omitted it. Exhaustiveness is the defence, and it costs an author one edge to
 an `end` per dropped route.
 
@@ -160,7 +160,7 @@ an `end` per dropped route.
   A gate still carries what reached it and the arc still exists, which is the half this consequence was written
   for; what is no longer true is *the arc INTO it, verdict and all* — where the type declares a route
   key-resolved, the value is refined with `required` along the gate's key path. The flat reading produced a `no`
-  on a CORRECT flow, P24's own exit artifact ([Q391](../open-questions.md)).)*
+  on a CORRECT flow, P24's own exit artifact ([Q391](../questions/q391.md)).)*
 - **What a gate's memory holds, when it is written, and what a resume replays are NOT decided here.**
   `GateContext.memory` is a `Map` a type reads and writes; its scope (one per gate per run) and its life
   are W93's to implement and may amend this ADR's rule 2 if running one finds `fn`'s shape wrong.

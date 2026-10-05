@@ -3,7 +3,7 @@
  *
  * **W3 defines the seam and ships no policy.** `JP-R1`'s pure state machines are
  * W2's, and which of them is right is W4's question. A driver that decided
- * satisfaction itself would answer [Q4](../../doc/open-questions.md) from inside
+ * satisfaction itself would answer [Q4](../../doc/questions/q4.md) from inside
  * W3, where nobody is looking for it.
  *
  * The types here are the shapes the spec fixes, so W2 implements against a

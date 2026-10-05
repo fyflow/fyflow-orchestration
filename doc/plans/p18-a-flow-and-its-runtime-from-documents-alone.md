@@ -120,7 +120,7 @@ was chosen over, so an item argues from the decision rather than re-deriving it.
 7. **What stays code, exactly.** Custom predicates, custom language adapters, custom group types,
    custom node type classes — supplied in one `code` argument. Worker URLs are strings. Relative
    worker URLs resolve against a `base` the consumer passes, because inside a bundle
-   `import.meta.url` is the bundle ([Q261](../open-questions.md)) and the runtime cannot guess.
+   `import.meta.url` is the bundle ([Q261](../questions/q261.md)) and the runtime cannot guess.
 8. **The schema validator is the RUNTIME sub-path's dependency, never the root's.** ADR 0052's
    question a third time, and the same answer's shape: the pure root loads no engine; the sub-path
    that constructs scheduler objects carries the validator. Whether it is a full-draft dependency or
@@ -133,7 +133,7 @@ was chosen over, so an item argues from the decision rather than re-deriving it.
    pool in today's harness uses 0 and the first contended resident group would hang.
 10. **Runs.** `runtime.start(flow, payload, { runId?, joinPolicy? })` returns a `Driver`; the join
     policy defaults to `live-token` (ADR 0003 rule 1); the runtime mints a run id when none is given,
-    which answers [Q20](../open-questions.md) and [Q85](../open-questions.md) in passing. Pools belong
+    which answers [Q20](../questions/q20.md) and [Q85](../questions/q85.md) in passing. Pools belong
     to the runtime and are shared across runs. **A flow references registry keys only, so a flow
     document is portable across runtimes that agree on keys** — one sentence in
     `spec/flow-definition.md`. A minted run id is `r<n>` from a counter the runtime holds — inside
@@ -165,7 +165,7 @@ was chosen over, so an item argues from the decision rather than re-deriving it.
 taken 2026-09-15 on `e6ea29a` with the draft file the one untracked addition, by
 `dev-dist/p18/facts.mjs` under Node 24.20.0 AND Deno 2.9.6 — the two outputs are IDENTICAL outside
 the timing-free rows — and by scratch installs OUTSIDE the repository for the validator candidates.
-The file is untracked ([Q253](../open-questions.md)'s shape, stated). Two of the nine changed this
+The file is untracked ([Q253](../questions/q253.md)'s shape, stated). Two of the nine changed this
 draft: fact 2 corrected decision 4 and the sample's custom group, and fact 1 confirmed prediction 4
 on the sample before the plan was declared.*
 
@@ -232,12 +232,12 @@ built as declared without reaching into anything private.
 
 **8. A worker URL built from a base loads in a real thread** in Node and Deno
 (`new URL('./workers/…', base)`, a task settling `done`). The browser half is not measured here and
-is not a mystery: inside a bundle `import.meta.url` is the bundle ([Q261](../open-questions.md)),
+is not a mystery: inside a bundle `import.meta.url` is the bundle ([Q261](../questions/q261.md)),
 which is why decision 7 takes a `base` from the consumer.
 
 **9. `M3`'s one-directory fixture reads 89 against a floor of 90 with this draft in** (88
 without it). The declaration adds four work-item files to the same fixture, so **it WILL trip `M3`
-and must retune `scripts/check-markdown.mjs` as a declared exception** — [Q142](../open-questions.md)'s
+and must retune `scripts/check-markdown.mjs` as a declared exception** — [Q142](../questions/q142.md)'s
 shape predicted from a count before any document is written.
 **CONFIRMED at the declaration**: with the four item files in, the fixture read **93** (whole tree
 121 / 5199 / 263, both directories removed 74 / 3808 / 263) and probe 1 reported `wanted [M1,M3],
@@ -272,9 +272,9 @@ untouched, and `check:markdown:selftest` reads 37 / 37 caught, 7 / 7 bounded at 
   needs it.
 - **A per-node or per-run choice of pool.** Routing, ADR 0001; a type builds pools and a node names
   one, at instantiation.
-- **Node-type versioning** ([Q249](../open-questions.md)), **`limitKey`** ([Q248](../open-questions.md)),
-  **a region's collection as a reference** ([Q219](../open-questions.md)), **a reducer on a join**
-  ([Q165](../open-questions.md)) — unmoved.
+- **Node-type versioning** ([Q249](../questions/q249.md)), **`limitKey`** ([Q248](../questions/q248.md)),
+  **a region's collection as a reference** ([Q219](../questions/q219.md)), **a reducer on a join**
+  ([Q165](../questions/q165.md)) — unmoved.
 - **Cancel, pause, durable runs** — `doc/concept.md` section 7, unmoved.
 
 ## The minimum sample
@@ -351,7 +351,7 @@ with `type` required and `pool?` added, nothing else changed:
 
 **The shim** — the only code the consumer writes, and every line of it is theirs.
 
-> **This sample was wrong in FOUR ways and three of them are in the block below** — [Q292](../open-questions.md),
+> **This sample was wrong in FOUR ways and three of them are in the block below** — [Q292](../questions/q292.md),
 > and the retro corrected only the fourth (the class above), because correcting the rest would rewrite
 > what the plan DECIDED rather than what it mis-spelled. **What the items measured**: the sub-path is
 > `fyflow-orchestration/scheduler` and there is no `/runtime` (W66 decision 3); `createRuntime` takes
@@ -375,7 +375,7 @@ const isLowConfidence = (ctx) => (ctx.outcome.result as { confidence?: number })
 // The constructor is written LONG-HAND on purpose: a TypeScript *parameter property*
 // (`constructor(readonly id: string, …)`) is what this sample carried until P18's retro, and
 // Node 24 refuses it at load in strip-only mode — `RT-R9`, `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`.
-// `tsc` accepts it, so nothing here caught it; W67 did, by trying to LOAD it ([Q292](../open-questions.md)).
+// `tsc` accepts it, so nothing here caught it; W67 did, by trying to LOAD it ([Q292](../questions/q292.md)).
 class DailyBudgetGroup extends EventTarget implements ResourceGroup {
   readonly type = 'DailyBudgetGroup';
   private spent = 0;
@@ -517,12 +517,12 @@ plan writes the seed at the declaration rather than leaving each item to discove
 | Q | | Owner |
 |---|---|---|
 | Q278 | **A keyword outside the built-in subset is IGNORED or REFUSED, and ignoring is the silent kind.** Fact 1 chose the subset; JSON Schema's own semantics ignore an unknown keyword, so a worker's `pattern` would silently constrain nothing. **Decided at the declaration: REFUSED at construction naming the keyword**, which is also what makes prediction 4's reversal legible | W65 |
-| Q279 | **A grammar change is BREAKING for every flow document and nothing signals it.** 146 of 166 corpus task nodes carry `workerType`; the package reads `0.1.0` in both manifests and a document's `version: 1` has no written meaning ([Q249](../open-questions.md) is the type half). The smallest honest move is `0.2.0` at W67's close with the change named | no owner — this plan's record step |
+| Q279 | **A grammar change is BREAKING for every flow document and nothing signals it.** 146 of 166 corpus task nodes carry `workerType`; the package reads `0.1.0` in both manifests and a document's `version: 1` has no written meaning ([Q249](../questions/q249.md) is the type half). The smallest honest move is `0.2.0` at W67's close with the change named | no owner — this plan's record step |
 | Q280-Q292 | *reserved for the items* | |
-| [Q64](../open-questions.md) | *Nothing tells a consumer how to use the library* — the runtime entry and `AGENTS.md` section 12 as a call are this plan's answer to it; the row is re-read at the declaration and closed or narrowed by W66 | W66 |
-| [Q20](../open-questions.md), [Q85](../open-questions.md) | *Is a run id global* — the runtime mints it; answered in passing, recorded by W66 | W66 |
-| [Q263](../open-questions.md) | the three arities as P19's sample shapes — carried, untouched | P19 |
-| [Q261](../open-questions.md) | a bundle's `import.meta.url` — decision 7's `base` is its consequence, not its closure | unchanged |
+| [Q64](../questions/q64.md) | *Nothing tells a consumer how to use the library* — the runtime entry and `AGENTS.md` section 12 as a call are this plan's answer to it; the row is re-read at the declaration and closed or narrowed by W66 | W66 |
+| [Q20](../questions/q20.md), [Q85](../questions/q85.md) | *Is a run id global* — the runtime mints it; answered in passing, recorded by W66 | W66 |
+| [Q263](../questions/q263.md) | the three arities as P19's sample shapes — carried, untouched | P19 |
+| [Q261](../questions/q261.md) | a bundle's `import.meta.url` — decision 7's `base` is its consequence, not its closure | unchanged |
 
 ## Slices beyond this plan, in order
 
@@ -530,7 +530,7 @@ plan writes the seed at the declaration rather than leaving each item to discove
    declared output against what it produced, and the sample-based pre-flight over a transformed
    edge — with this plan's declarations and Q263's three arities as its inputs.
 2. **Locking type config keys**, if a type ever needs it (decision 12).
-3. **Node-type versioning** ([Q249](../open-questions.md)), once a registry document exists to
+3. **Node-type versioning** ([Q249](../questions/q249.md)), once a registry document exists to
    version.
 
 ## Stop and ask a human
@@ -615,11 +615,11 @@ artifact's must be.
 did not have.** W66 recorded three; the fourth was measured here and is new — the sample's
 `DailyBudgetGroup` uses a constructor PARAMETER PROPERTY, which Node 24 refuses at load, so **the
 sample does not run** (`RT-R9`, the rule `S4` enforces over `src/` and which reaches no plan
-document; [Q292](../open-questions.md)). **The blocker**: a registry document could not declare a
+document; [Q292](../questions/q292.md)). **The blocker**: a registry document could not declare a
 group that only NODES name, because `createRuntime` handed every declared group to `bootstrap`, whose
 direction-two refusal is right for a helper taking OBJECTS and wrong for a document declaring the SET
 `FD-V31` reads — measured, put to the maintainer, and fixed in `createRuntime` with direction one
-untouched ([Q291](../open-questions.md)). **[Q279](../open-questions.md) is RESOLVED** here by the
+untouched ([Q291](../questions/q291.md)). **[Q279](../questions/q279.md) is RESOLVED** here by the
 maintainer's answer: both manifests read `0.2.0` and `README.md` names the breaking change.
 
 **The two `triage` rows carry every shape the exit artifact names, each read from the run**: a
@@ -742,7 +742,7 @@ the author who EXPIRES it.*
 | W65 | a worker's `settingsSchema` is the WORKER's, so §13's snippet needed two entries over one url | **`check:docs` `X4` — it FIRED** on the rewritten snippet |
 | W65 | a one-off migration script read the ORIGINAL bytes for two edits on one file — W37's and W58's defect verbatim, outside the rule-8 harness whose clause forbids it | **none** — an instrument |
 | W65 | a range edit cut two fields of a return type; four backtick apostrophes inside template literals | **L0 and L1 — they FIRED**, two each |
-| W65 | the Gate line named L0-L5 and `check:spec` and not L6, and L6 is the only rung that sees the cross-row layer | **none** — adequacy reader (`M11`, caught by `DECLARED_TOTAL` alone — [Q217](../open-questions.md)'s shape) |
+| W65 | the Gate line named L0-L5 and `check:spec` and not L6, and L6 is the only rung that sees the cross-row layer | **none** — adequacy reader (`M11`, caught by `DECLARED_TOTAL` alone — [Q217](../questions/q217.md)'s shape) |
 | W65 | **no class-form node type reached `new Driver` in any suite**, so a driver blind to a class's policy and defaults was green everywhere — the Gate line's own *both shapes* | **none** — adequacy reader |
 | W65 | the subset's size stated as the PROTOTYPE's (1.5 KB where the shipped module is 4 259); `FD-C5`'s row not moved to v0.19; `checkRegistry`'s reach overclaimed in three documents; `spec/` **104** where `check:spec` says 105 | **none** — conformity reader, four claims that were false |
 | W66 | **P18 decision 4's refusal list wrong in BOTH directions** — it refuses a group that works (no `getMetrics`) and accepts one that leaves every task naming it running for ever in silence (no `onFinish`) | **none** — the declaration step, one omission at a time on a real scheduler; [ADR 0055](../decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md) and [S10](../scheduler-upstream.md) |
@@ -751,12 +751,12 @@ the author who EXPIRES it.*
 | W66 | *both ways* was ONE way for predicates and languages — an adapter supplied and named by no document dropped in silence | **none** — conformity reader |
 | W66 | the Gate line promised *L1 on real pools* and every call went through a seam | **none** — the readers; the runtime was never built with a real `WorkerManager` in any suite |
 | W66 | `check-source`'s `scan()` — the fix for an apostrophe in a template literal — had the same blind spot one construct over, in a REGEX literal, and could make `S16` FALSELY fire | **none** — adequacy reader, in the instrument this item had just fixed |
-| W66 | a constructor PARAMETER PROPERTY took ladder L1 down with **zero FAIL lines** ([Q272](../open-questions.md)'s shape) | **`check:source` `S4` — it FIRED and named it in one line**, which is why the crash was legible |
+| W66 | a constructor PARAMETER PROPERTY took ladder L1 down with **zero FAIL lines** ([Q272](../questions/q272.md)'s shape) | **`check:source` `S4` — it FIRED and named it in one line**, which is why the crash was legible |
 | W66 | the first `npm run gate` over the final tree RED on one line: `check:docs`' self-test *wanted [X3,X5], got [X3,X4,X5]*, because §12's snippet now EXECUTES | **the gate's own self-test — it FIRED and was READ correctly**, rule 7 (c) working |
 | W66 | `d3` declared a catch by the author and re-declared a ceiling; `a5`'s member list declared a KIND with no fixture of the wrong kind; `a12`'s `live-token` default inert because every flow was LINEAR | **none** — the author's own set, three undeclared survivors it read itself |
 | W66 | the house style's backtick apostrophe broke a patch script four times; the tree moved under the conformity reader | **none** — instruments, and section 6's hold-still rule, which that reader paid for by pinning every measurement to a digest |
-| W67 | **the plan's own SAMPLE does not LOAD** — `DailyBudgetGroup`'s constructor is a parameter property, `RT-R9`, which `tsc` accepts and Node 24 refuses | **none** — the declaration step, by trying to load it; `S4`'s rule reaches no plan document ([Q292](../open-questions.md)) |
-| W67 | a registry DOCUMENT could not declare a group only NODES name, because `createRuntime` handed every declared group to `bootstrap`, whose direction-two refusal is right for a helper and wrong for a document | **none** — the declaration step, measured and put to the maintainer ([Q291](../open-questions.md)) |
+| W67 | **the plan's own SAMPLE does not LOAD** — `DailyBudgetGroup`'s constructor is a parameter property, `RT-R9`, which `tsc` accepts and Node 24 refuses | **none** — the declaration step, by trying to load it; `S4`'s rule reaches no plan document ([Q292](../questions/q292.md)) |
+| W67 | a registry DOCUMENT could not declare a group only NODES name, because `createRuntime` handed every declared group to `bootstrap`, whose direction-two refusal is right for a helper and wrong for a document | **none** — the declaration step, measured and put to the maintainer ([Q291](../questions/q291.md)) |
 | W67 | this item's own `Verification` row carried **1501**, W63's number, where L6 has been 1502 since W65 | **none** — the declaration step re-taking a handed number, section 1 rule 5's provenance clause |
 | W67 | the L6 count stale by two in the two documents a reader opens first; *thirteen node types* where the document declares fifteen; a `heldGroups` comment arguing to exclude the two tasks the literal below it declares | **none** — conformity reader |
 | W67 | `spec/flow-definition.md` §3 still said the runtime FOLDS the helper's both-ways refusal in — true when W66 wrote it, false the moment stop-and-ask 1 shipped | **none** — conformity reader, section 1 rule 5's third direction |
@@ -773,7 +773,7 @@ the author who EXPIRES it.*
 | W67 | the census parser wrong once — its three exempt rows added to the three counts and not to the TOTAL | **none, and it is the parser working**: it said so and exited 1 rather than printing a plausible sum |
 | the retro | **W65's `e7` ceiling is a CATCH on the tree the plan ships**, dated to W67 by name and not re-run there | **v0.17's dated-ceiling clause — it did NOT fire in the item; this retro's re-run found it** |
 | the retro | **Q289-Q292 in NO cluster cell** — W65's five and W66's four all reached one, W67's four reached none — and **Q206 resolved with no Resolved-table row**, alone among 47, since W49 in P14 | **none** — this retro's own census; P18's three item parsers carry no cluster check |
-| the retro | the register's headline stale by THIRTEEN through the whole plan — 217 / 164 / 2 / 51 while the items recorded 222, 226 and 230 in their own files | **none** — P17's retro's finding one plan later, on the one count here a machine can compare ([Q253](../open-questions.md)) |
+| the retro | the register's headline stale by THIRTEEN through the whole plan — 217 / 164 / 2 / 51 while the items recorded 222, 226 and 230 in their own files | **none** — P17's retro's finding one plan later, on the one count here a machine can compare ([Q253](../questions/q253.md)) |
 | the retro | **W65's `c5` ceiling's SITE was DELETED** by W67's migration — `registryFor`, `NODE_TYPES`, `POOLS` and `WORKERS` are gone as code, so the two readings of one literal it named collapsed into the document | **none, and no clause says what to do**: a ceiling whose subject is deleted is neither confirmed nor falsified |
 
 **Forty-six defects. NINE rows name a rung that FIRED and those nine name ELEVEN firings** — two
@@ -823,11 +823,11 @@ since W5, measured by `git log -S` over that file — and it still cost four pro
   the REGISTER's: its headline against the census parser's own sum (stale by thirteen through the whole
   plan), a question in no cluster cell, and a resolved row with no Resolved-table row. **The one thing
   that can compare all three is the census parser, and it is untracked in `dev-dist/`** —
-  [Q253](../open-questions.md)'s shape for the third plan running, and the third plan to write a parser
+  [Q253](../questions/q253.md)'s shape for the third plan running, and the third plan to write a parser
   from scratch rather than keep one. The rest are sentences — *the runtime FOLDS this in*, *the root
   loads no validator*, *every non-threaded row runs the document as it is on disk* — and a check would
   have to read English.
-- **A check over a plan's SAMPLE — [Q292](../open-questions.md), four defects across three items.** The
+- **A check over a plan's SAMPLE — [Q292](../questions/q292.md), four defects across three items.** The
   sharpest single instance in the plan, and the check does not exist. **A sample cannot be EXECUTED**:
   P18's calls `callModel`, which is not a thing this repository has and could not be, since L6 runs
   offline and deterministically in two runtimes. **And a typecheck would not have caught the one that
@@ -875,7 +875,7 @@ since W5, measured by `git log -S` over that file — and it still cost four pro
   from a file SET** — each was created by the CONTENT of the change (a comment naming a type that no
   longer exists, an amended ADR's pointer, a suite census that is an equality, a `private readonly` a
   minting runtime leaves unreadable, one clause in `doc/concept.md`). That is P10's retro's finding for
-  the fourth plan running. **Kept as a PROCEDURE, refused as a rule** ([Q157](../open-questions.md)); the
+  the fourth plan running. **Kept as a PROCEDURE, refused as a rule** ([Q157](../questions/q157.md)); the
   declaration-time seed is its third datum and its first taken at a plan's own declaration.
 
 ### The predictions: FOUR of FOUR CONFIRMED
@@ -883,7 +883,7 @@ since W5, measured by `git log -S` over that file — and it still cost four pro
 | # | kind | verdict |
 |---|---|---|
 | 1 | derived | **CONFIRMED, and measured in both halves.** No routing or fold assertion moved at L1-L5 — only payload reads did, 50 lines in 11 files — and what a bare node's worker receives changed on every corpus flow: **reverting W65 at L6 cost 114 when W65 measured it and 309 on the tree that ships** — two different edits on two different corpora, W65 putting the bare road back and W67 deleting the unwrap every worker now depends on |
-| 2 | derived | **CONFIRMED, and NARROWED by its own item rather than claimed.** The identity derivation reproduces fact 5's captured `WorkerManagerOptions` with `groups` ABSENT where none is declared, and the typed rows of P16 and P17 are unmoved at 1502 / 50. *Byte for byte* is met as **CANONICAL JSON**, because the key order fact 5 captured is today's object literal's and not a rule's — an options bag has no order the scheduler reads, so *reordered* in the prediction's own reversal column is **not an observable** ([Q284](../open-questions.md)). A prediction whose wording was stronger than anything that could be measured, narrowed in the item instead of being reported as met |
+| 2 | derived | **CONFIRMED, and NARROWED by its own item rather than claimed.** The identity derivation reproduces fact 5's captured `WorkerManagerOptions` with `groups` ABSENT where none is declared, and the typed rows of P16 and P17 are unmoved at 1502 / 50. *Byte for byte* is met as **CANONICAL JSON**, because the key order fact 5 captured is today's object literal's and not a rule's — an options bag has no order the scheduler reads, so *reordered* in the prediction's own reversal column is **not an observable** ([Q284](../questions/q284.md)). A prediction whose wording was stronger than anything that could be measured, narrowed in the item instead of being reported as met |
 | 3 | derived | **CONFIRMED.** Every refusal this plan adds is an `FD-V` or a construction error naming a registry key: `FD-V38`, eleven `RegistryError` classes, three `RuntimeError` classes and `RT-R13` — **no `FD-R`, no new node kind** — and `FD-V5` and `FD-V34` retire with their ids held |
 | 4 | **reach** | **CONFIRMED WITHIN ITS STATED SCOPE, which is the whole of what it claims.** The subset validates fact 1's fourteen cases as fixtures and the corpus registry resolves with nothing refused; `@cfworker/json-schema` at 42 KB was never reached for. **And the row is honest about what that does not say**: its scope column reads *over the sample's and the corpus's schemas, NOT over what a consumer might write*, and fact 1 had already confirmed it on the sample **before the plan was declared** |
 
@@ -901,7 +901,7 @@ observable**, narrowed by the item that met it rather than by a reader.
 
 | v0.18 change | What would show it was wrong | **P18's verdict** |
 |---|---|---|
-| **Obligation (d): a membership names the CONTROLS beside its claims** | a new cross-row block ships with its claims named and its controls not, and a validator accepting everything is green with the counts lowered | **CONFIRMED, FOLLOWED at the first opportunity, and MEASURED — the cleanest confirmation of any change this document has adopted.** W67's block in `examples/l6.ts` names FIVE controls beside its claims, citing the clause in the code twice, and its `d3` probe is the measurement of what that buys: deleting a control now takes **four edits, one of them a NAME a reader sees in the diff**, where before the clause it took two integers and left nothing behind. **The limit is the one the clause already states**: `CROSS_ROW_SUBJECTS` is a literal, so a member and its name are two edits in one diff ([Q217](../open-questions.md)), and a layer with NO membership is invisible — W67's adequacy reader took the whole per-row `poolOfTask` layer out for three edits and an integer, which is v0.14's *a count is not a membership* at a THIRD layer, closed by adding to W55's `PER_ROW_SUBJECTS` |
+| **Obligation (d): a membership names the CONTROLS beside its claims** | a new cross-row block ships with its claims named and its controls not, and a validator accepting everything is green with the counts lowered | **CONFIRMED, FOLLOWED at the first opportunity, and MEASURED — the cleanest confirmation of any change this document has adopted.** W67's block in `examples/l6.ts` names FIVE controls beside its claims, citing the clause in the code twice, and its `d3` probe is the measurement of what that buys: deleting a control now takes **four edits, one of them a NAME a reader sees in the diff**, where before the clause it took two integers and left nothing behind. **The limit is the one the clause already states**: `CROSS_ROW_SUBJECTS` is a literal, so a member and its name are two edits in one diff ([Q217](../questions/q217.md)), and a layer with NO membership is invisible — W67's adequacy reader took the whole per-row `poolOfTask` layer out for three edits and an integer, which is v0.14's *a count is not a membership* at a THIRD layer, closed by adding to W55's `PER_ROW_SUBJECTS` |
 | **Obligation (a): every member is instantiated under the SAME claim** | an author enumerates a rule's values and one of them is a value of the kind rather than an instance of the claim | **CONFIRMED, and FOLLOWED-AND-SHORT a FOURTH time, in the direction the clause predicts.** W65's Gate line enumerated **both shapes of a node type**, document and class, which is the enumeration — and the class shape was instantiated in the RESOLVER's suite and in NO driver suite, so *the driver handles both shapes* was never an instance of the claim, and a driver blind to a class's policy and defaults was green everywhere. Its adequacy reader found the member by asking what the CLAIM said of it, which is how W58's, W59's and W63's were found. **No extension taken**: the clause as written says exactly what would have caught it, and this is v0.13's recorded asymmetry — an obligation run as a step in a set passes, and the same obligation asked as a question of one artefact fires |
 
 **The ceiling re-run: all FOURTEEN declared ceilings re-run on the tree the plan ships, through each
@@ -939,7 +939,7 @@ declaration, 1 abort re-anchored and then caught.** The author passes ran **159 
 FOURTEEN undeclared survivors themselves** — one at W65, three at W66, ten at W67 — every one closed
 before a reader saw the tree, and seven of W67's closed in the product rather than declared.
 **Late exceptions 10, 10, 1 — twenty-one, zero undeclared** — and **TWENTY-TWO**, because
-[Q142](../open-questions.md) **FIRED, in this retro's own confirming gate, on a tree to which the retro
+[Q142](../questions/q142.md) **FIRED, in this retro's own confirming gate, on a tree to which the retro
 had added NO DOCUMENT AT ALL.** That is the window from its other side, and it is the ninth retune of
 `scripts/check-markdown.mjs` and the second consecutive one found by the GATE rather than predicted.
 **The plan paid the FILE half and left the LINK half alone**: fact 9 predicted `M3` from a count taken
@@ -962,7 +962,7 @@ about `M3` and silent about `M4`. **Census CONFIRMED for the EIGHTEENTH plan
 running — 230 / 176 / 2 / 52, 230 of 230 in exactly one cluster cell, 52 ids in the Resolved table** —
 by a parser written from scratch that was wrong in three directions before it was right and whose two
 clean findings are corrected above. This retro raises **no question** and extends
-[Q253](../open-questions.md).
+[Q253](../questions/q253.md).
 
 **The retro's one declared exception is `scripts/check-markdown.mjs`**, for the `M4` retune above —
 the record step's six files are section 1 rule 5's and are not exceptions, and nothing else outside
@@ -1003,7 +1003,7 @@ says so is the last of twenty-nine.*
   built against P18's and it was wrong in four ways — a sub-path that does not exist, a signature short
   by an argument, a missing `flows`, and a constructor Node refuses to load. `check-docs` executes every
   snippet in `AGENTS.md` and nothing executes a plan's; what found three of the four is an item trying
-  to build from it, and the fourth an item trying to load it. [Q292](../open-questions.md).
+  to build from it, and the fourth an item trying to load it. [Q292](../questions/q292.md).
 - **An interface's REQUIRED set is not the set its implementation CALLS**, and only one omission at a
   time on a real scheduler tells you which. The plan read the `.d.ts` faithfully and its refusal list
   was wrong in both directions — refusing a group that works and accepting one that hangs every task
@@ -1014,7 +1014,7 @@ says so is the last of twenty-nine.*
   same.** `bootstrap`'s *a group registered and used by nothing is the silent kind* is correct when a
   consumer passes group OBJECTS in and wrong when a DOCUMENT declares the SET a node's `workerGroups`
   may name — and its message told a runtime consumer to do a thing only a helper consumer can do.
-  [Q291](../open-questions.md).
+  [Q291](../questions/q291.md).
 - **Retiring a distinction moves every clause that discriminated on it.** *Typed* against *bare* was the
   discriminator of three L6 clauses and a membership list, and all four went wrong at once on the
   migration's first run. *A migration is not done when the corpus validates.*
@@ -1025,14 +1025,14 @@ says so is the last of twenty-nine.*
 - **A fix for a blind spot is a new instrument and needs its own probes.** `check-source`'s `scan()`
   closed an apostrophe in a template literal that had blinded `S2`, `S3` and `S4` over 16 137 characters
   of `driver.ts`, and left the same hole open one construct over in a regex literal — with its own
-  header claiming the class ([Q288](../open-questions.md)).
+  header claiming the class ([Q288](../questions/q288.md)).
 
 ### Ids
 
 W65, W66 and W67 used; **W68 CLOSED as reserved and never issued** — the plan's three items answered its
 question and the fourth was never needed. **Q278-Q292 all USED, none spent** — two at the declaration,
 five at W65, four at W66 and four at W67 — which is the first block since P13's to be used to its last
-id, four plans having spent between one and ten each; [Q279](../open-questions.md) RESOLVED by the
+id, four plans having spent between one and ten each; [Q279](../questions/q279.md) RESOLVED by the
 version bump, and it is the only one of the fifteen that closed.
 **ADR 0053, 0054 and 0055 all taken** — every ADR this plan reserved, as P12's two and P17's two were,
 and it is the first plan to reserve THREE and take three. **0055 was taken for neither of the two
@@ -1042,5 +1042,5 @@ directions. Ids are never reused
 (`doc/workflow.md` section 3), so **the next plan starts at **W72, Q300** and ADR 0056. *(This read **W71, Q297** until W71 took the id on 2026-09-17 — the third consecutive falsification of this sentence by the item that expired it.)*** *(This read **W69, Q293** until 2026-09-17, when [W69](../work-items/w69-a-getting-started-example-a-consumer-can-copy.md) — an item belonging to no plan — took both ids: a claim with an expiry date, falsified by the item that expired it and corrected by that item, found by grepping the tree for its own id.)* *(And **W70, Q294** until 2026-09-17 too, when [W70](../work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md) took W70 and reserved Q294-Q296 without using them — the same sentence falsified on two consecutive days by two items outside any plan, corrected both times by the grep section 1 rule 5 prescribes.)* Its subject is
 written down: **P19, strict mode** — `inputSchema` and `outputSchema` enforced at run time, a
 transform's declared output against what it produced, and the sample-based pre-flight over a
-transformed edge, with this plan's declarations and [Q263](../open-questions.md)'s three arities as its
+transformed edge, with this plan's declarations and [Q263](../questions/q263.md)'s three arities as its
 inputs.

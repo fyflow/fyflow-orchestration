@@ -29,7 +29,7 @@ Exit:       a MEASURED NUMBER rather than a flow - `doc/workflow.md` section 2
 
 ## Why this plan, and why now
 
-**[Q19](../open-questions.md) and [Q22](../open-questions.md) are the two oldest rows in the register
+**[Q19](../questions/q19.md) and [Q22](../questions/q22.md) are the two oldest rows in the register
 whose owner cell says the same thing: *no owner — needs a measured run*.** Both have said it since
 P1. Q19 asks whether per-run retained state is bounded; Q22 asks whether a node result must be
 structured-cloneable, and its own text says *"Q19 is what would price it"*. **Neither can be answered
@@ -66,7 +66,7 @@ structures in **one** call, so an object reachable twice is counted once; the sc
 **second observer**, `process.memoryUsage().heapUsed` after a forced `gc()`, because a sensor cannot
 corroborate itself (v0.13 obligation (c)'s limit).
 
-**1. The driver retains FOUR structures that grow with the run, and [Q19](../open-questions.md)'s row
+**1. The driver retains FOUR structures that grow with the run, and [Q19](../questions/q19.md)'s row
 names TWO of them.** Measured by enumerating the `Driver`'s own properties after a completed run:
 
 | | | grows with | what it holds |
@@ -112,7 +112,7 @@ the pair"*, so the harness was right and the sentence derived from it was wrong 
 re-running that harness with the release reverted rather than transcribing its number; corrected in
 [ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md),
 `CLAUDE.md` and `doc/README.md` at that item's record step, and **here by this plan's own retro**,
-which is the only pass that may write to a declaration. [Q243](../open-questions.md).)*
+which is the only pass that may write to a declaration. [Q243](../questions/q243.md).)*
 
 | probe | L1-L5 | L6 |
 |---|---|---|
@@ -122,7 +122,7 @@ which is the only pass that may write to a declaration. [Q243](../open-questions
 **A control ran and the restore is asserted** (v0.11's requirement on the harness): the tree's
 `src/driver/driver.ts` digest was taken before the first probe and verified byte-identical after the
 last. **At the top of the target range the saving is 3174.8 MiB -> 1610.9 MiB, −49.3%** (fact 5), and
-**no rung of section 4 can see it** — which is [Q214](../open-questions.md)'s shape a third time, from
+**no rung of section 4 can see it** — which is [Q214](../questions/q214.md)'s shape a third time, from
 the removal side rather than the addition side.
 
 **And it does not apply to the run whose footprint matters most.** A clear at the join exit never runs
@@ -229,12 +229,12 @@ an agent who goes to check the number finds nothing.
 
 **In**
 
-1. **[Q19](../open-questions.md)** — is per-run retained state bounded? Decided as **ADR 0046**, with
+1. **[Q19](../questions/q19.md)** — is per-run retained state bounded? Decided as **ADR 0046**, with
    fact 3's measured-free half taken and fact 7's not-free half priced rather than guessed. The
    decision must say what a run retains, what it may forget and when, and it must be a statement
    somebody can falsify — `spec/run-state.md` section 5 has carried this as an unanswered bullet since
    v0.1.
-2. **[Q22](../open-questions.md)** — must a node result be structured-cloneable, and is that a
+2. **[Q22](../questions/q22.md)** — must a node result be structured-cloneable, and is that a
    constraint on workers or on the driver? Its row says *"what it now needs is a decision about the
    CONSTRAINT rather than a measurement"*; facts 6 and 7 supply the price and a failure mode the row
    does not name. Possibly **ADR 0047**, and possibly no ADR if the answer is that `OR-R2` and `OR-R6`
@@ -244,31 +244,31 @@ an agent who goes to check the number finds nothing.
 
 **Out** — named rather than left implicit, with where each goes instead
 
-- **[Q219](../open-questions.md)** — making a region's COLLECTION referenceable by relaxing `FD-V27`.
+- **[Q219](../questions/q219.md)** — making a region's COLLECTION referenceable by relaxing `FD-V27`.
   It is **DOWNSTREAM of this plan and is named as the follow-on**: its whole cost is retaining the
   collection or recomputing `JP-R12` at a second site, which
   [ADR 0040](../decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
   rule 2 refuses by name and which is exactly Q19's subject. **It also RELAXES an existing rule**,
   which this plan's stop-and-ask list makes the maintainer's call. *It becomes answerable once
   retention is priced, and fact 3 is half of that price.*
-- **[Q186](../open-questions.md)'s threshold** — *how large is too large*.
+- **[Q186](../questions/q186.md)'s threshold** — *how large is too large*.
   [W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md) decided **nothing
   warns** and left the threshold open deliberately, on the ground that a driver-side guard would have
   to guess. **Not reopened.** Fact 5 is the first number that could ever answer it, and if this plan
   produces a threshold that row becomes answerable — **say so rather than acting on it**, because
   reopening a row whose status reads *decided* is section 6 pass 3 rule 1's *measuring your own
   output*.
-- **[Q21](../open-questions.md)** — an event family for a UI. **[Q64](../open-questions.md)** — a
-  consumer guide. **[Q20](../open-questions.md)** and **[Q85](../open-questions.md)** — topology, and
+- **[Q21](../questions/q21.md)** — an event family for a UI. **[Q64](../questions/q64.md)** — a
+  consumer guide. **[Q20](../questions/q20.md)** and **[Q85](../questions/q85.md)** — topology, and
   whether a run id is global. All four are *Scale and interop* cluster rows that share a heading with
   Q19 and share nothing else: they are about what a run is SEEN by, not about what it HOLDS.
-- **[Q15](../open-questions.md)** — durability. It is the one out-of-scope row this plan's answer
+- **[Q15](../questions/q15.md)** — durability. It is the one out-of-scope row this plan's answer
   moves: a persisted run is a log read back from storage, so whatever ADR 0046 says a run may forget
   is what a resumed run cannot be handed. **Named in the ADR, not decided.**
-- **[Q26](../open-questions.md)** — whether the driver logs non-settlement events. Its own text cites
+- **[Q26](../questions/q26.md)** — whether the driver logs non-settlement events. Its own text cites
   Q19 as the argument against; this plan supplies the number and does not take the decision.
-- **[Q119](../open-questions.md)** — `branchPathOf`'s cost, whose owner cell reads *needs
-  [Q19](../open-questions.md)'s measurement*. **The measurement now exists and it is about SPACE, not
+- **[Q119](../questions/q119.md)** — `branchPathOf`'s cost, whose owner cell reads *needs
+  [Q19](../questions/q19.md)'s measurement*. **The measurement now exists and it is about SPACE, not
   TIME**; Q119 is a time question and this plan does not answer it. Its owner cell is corrected to say
   which.
 - **A rung, or a row in section 8's budget table.** Decision 3, on a measurement: L6 is **101 ms per
@@ -332,20 +332,20 @@ covers; it says nothing about whether it is true.*
 |---|---|---|---|---|---|
 | 1 | derived | **W53 ships the `arrivals` clear and it is the whole of the free saving** — nothing else the driver holds is a second copy, so there is no second 49.8% to find | W53 | fact 1, measured by enumerating the `Driver`'s **own enumerable properties** after a completed run on **one** generated flow family; it does not see state held in a closure, in a module-level cache, or by anything the driver hands out and a caller keeps | a second aliasing structure outside `Object.keys(driver)` — `outputsCache` is the named candidate and was `null` in every run measured here. **What would make fact 1 WRONG rather than narrow**: `log` and `inputs` NOT sharing, which was measured at 16 B and which would make the row's `log` the thing to drop |
 | 2 | **reach** | **The answer to Q19 is that retention is bounded by the RUN and by nothing else, and no eviction ships** — because decision 2's constraint cannot be met: fact 4 says a fold over a short log reports `completed` with zero nodes, and giving it a way to say otherwise means a new `FoldInput` kind, which is a change to the one value this repository's whole invariant hangs off | W53 | fact 4, measured by truncating **one** 37-input sequence from one flow at four lengths; it says nothing about a fold given a log evicted from the MIDDLE, and nothing about whether a completeness marker is cheap | a marker that costs one field rather than a kind — or the static candidate of fact 7 (*a result no `needs` names*) turning out to leave `RunState` unchanged, which would make a bound available without eviction at all |
-| 3 | derived | **W54 takes NO ADR: `OR-R2` and `OR-R6` stand as written, and the silent lossy case is recorded rather than refused** — on [W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s own precedent, *nothing warns*, and because a driver cannot tell a class instance from the plain object its author meant to return | W54 | facts 6 and 7, measured over **ten** hand-chosen value shapes and a re-run of W34's four timings on **this** machine on **one** day; the shapes are not a survey of what real workers return, and [Q179](../open-questions.md) says wall time here is not reproducible | the lossy case being reachable by a rule — a `workerType`-level declaration, or a cheap prototype check at the listener boundary. **What would make fact 7 WRONG**: `structuredClone` refusing a class instance in a runtime this library targets, which was measured in Node 24 alone |
-| 4 | **reach** | **This plan supplies [Q214](../open-questions.md)'s THIRD instance, from the REMOVAL side** — fact 3's clear costs 0 at L1-L5 and 0 at L6, so a rung made of runs cannot see a whole structure leave. W47's was *a document the validator refuses never starts*; W50's was *a filter no run exercises*; this is *a structure nothing reads* | W53, W55 | fact 3, measured on the shipped tree at **three arities** with a negative control that fires at 13 failures, and at L6 with the probe in place; it is one structure and one clear site | W55's exit artifact finding a rung that DOES see it — most likely by asserting the footprint itself, which would turn Q214 from *a rung cannot see this* into *a rung nobody had written* |
+| 3 | derived | **W54 takes NO ADR: `OR-R2` and `OR-R6` stand as written, and the silent lossy case is recorded rather than refused** — on [W46](../work-items/w46-what-a-reference-costs-and-whether-anything-says-so.md)'s own precedent, *nothing warns*, and because a driver cannot tell a class instance from the plain object its author meant to return | W54 | facts 6 and 7, measured over **ten** hand-chosen value shapes and a re-run of W34's four timings on **this** machine on **one** day; the shapes are not a survey of what real workers return, and [Q179](../questions/q179.md) says wall time here is not reproducible | the lossy case being reachable by a rule — a `workerType`-level declaration, or a cheap prototype check at the listener boundary. **What would make fact 7 WRONG**: `structuredClone` refusing a class instance in a runtime this library targets, which was measured in Node 24 alone |
+| 4 | **reach** | **This plan supplies [Q214](../questions/q214.md)'s THIRD instance, from the REMOVAL side** — fact 3's clear costs 0 at L1-L5 and 0 at L6, so a rung made of runs cannot see a whole structure leave. W47's was *a document the validator refuses never starts*; W50's was *a filter no run exercises*; this is *a structure nothing reads* | W53, W55 | fact 3, measured on the shipped tree at **three arities** with a negative control that fires at 13 failures, and at L6 with the probe in place; it is one structure and one clear site | W55's exit artifact finding a rung that DOES see it — most likely by asserting the footprint itself, which would turn Q214 from *a rung cannot see this* into *a rung nobody had written* |
 
 ## Open questions this plan carries
 
 | Q | | Owner |
 |---|---|---|
-| [Q19](../open-questions.md) | is per-run retained state bounded — **the plan's question**, first half | **W53**, by ADR 0046 |
-| [Q22](../open-questions.md) | must a result be structured-cloneable — **the plan's question**, second half | **W54** |
-| [Q219](../open-questions.md) | a region's collection is unreachable, and its cost is this plan's subject | read by W53; **declared OUT and named as the follow-on** |
-| [Q119](../open-questions.md) | `branchPathOf`'s cost, whose owner cell says it needs Q19's measurement | **corrected, not owned** — the measurement is about space and Q119 is about time |
-| [Q186](../open-questions.md) | *how large is too large*, decided as **nothing warns** and deliberately left open | read by W54; **not reopened** |
-| [Q214](../open-questions.md) | a change no rung made of runs can see | **W55**, as prediction 4 |
-| [Q15](../open-questions.md) | durability — what a resumed run is handed | named in ADR 0046; not decided |
+| [Q19](../questions/q19.md) | is per-run retained state bounded — **the plan's question**, first half | **W53**, by ADR 0046 |
+| [Q22](../questions/q22.md) | must a result be structured-cloneable — **the plan's question**, second half | **W54** |
+| [Q219](../questions/q219.md) | a region's collection is unreachable, and its cost is this plan's subject | read by W53; **declared OUT and named as the follow-on** |
+| [Q119](../questions/q119.md) | `branchPathOf`'s cost, whose owner cell says it needs Q19's measurement | **corrected, not owned** — the measurement is about space and Q119 is about time |
+| [Q186](../questions/q186.md) | *how large is too large*, decided as **nothing warns** and deliberately left open | read by W54; **not reopened** |
+| [Q214](../questions/q214.md) | a change no rung made of runs can see | **W55**, as prediction 4 |
+| [Q15](../questions/q15.md) | durability — what a resumed run is handed | named in ADR 0046; not decided |
 
 ## A note on ids
 
@@ -377,8 +377,8 @@ register    - 179 questions, 129 open, 2 deferred, 48 resolved
 
 **The five-runtime claim is measured, not inherited**: `npm run gate` runs `test:browser`, which is
 **chromium only**, so `npm run test:browser:all` was run for firefox and webkit. **681 counts `test()`
-cases and 942 counts individual assertions ([Q98](../open-questions.md)) — they are never added.** And
-wall time here is not reproducible ([Q179](../open-questions.md)); the 4236 ms L6 figure in decision 3
+cases and 942 counts individual assertions ([Q98](../questions/q98.md)) — they are never added.** And
+wall time here is not reproducible ([Q179](../questions/q179.md)); the 4236 ms L6 figure in decision 3
 is one reading, and the conclusion it supports needs only its order of magnitude.
 
 **The census parser was written FROM SCRATCH from `doc/open-questions.md`'s own note and from nothing
@@ -387,9 +387,9 @@ the note's nine clauses plus W49's ORDER correction (clause 8 before the width c
 counts, the both-tables figure (**42**), every status cell and both halves of the cluster check
 (**179 of 179 in exactly one cluster cell**) right first time.
 
-**The parser then ABORTED ONCE, correctly, on this declaration's own edit to [Q123](../open-questions.md)'s row** — the third-occurrence paragraph wrote `` `Get-Content | Set-Content` `` with an **unescaped pipe inside a code span**, which is [Q131](../open-questions.md)'s shape, and the parser read the row as **5 cells** and reported *178 / 128* with totals that still summed. *The four counts were internally consistent and wrong*, and an aborting parser is the only thing here that catches that. Escaped; the re-run exits 0.
+**The parser then ABORTED ONCE, correctly, on this declaration's own edit to [Q123](../questions/q123.md)'s row** — the third-occurrence paragraph wrote `` `Get-Content | Set-Content` `` with an **unescaped pipe inside a code span**, which is [Q131](../questions/q131.md)'s shape, and the parser read the row as **5 cells** and reported *178 / 128* with totals that still summed. *The four counts were internally consistent and wrong*, and an aborting parser is the only thing here that catches that. Escaped; the re-run exits 0.
 
-**[Q142](../open-questions.md) FIRES, and it was PREDICTED from the pre-edit counts rather than
+**[Q142](../questions/q142.md) FIRES, and it was PREDICTED from the pre-edit counts rather than
 discovered by the gate going red.** Measured on a scratch copy outside the repository **before any
 document was written**: whole tree **96 / 4127 / 206**, `doc/decisions` removed **73 / 3774 / 206**,
 both removed **58 / 3030 / 206**, against floors of `M3` **80**, `M4` **3080** and `M5` **60**. So
@@ -413,7 +413,7 @@ at 60 against 211 for the eighth plan running**, because no `removes` probe move
 
 **`scripts/check-markdown.mjs` is this declaration's ONE declared exception.** It is in nobody's
 `Owns` and is not on section 1 rule 5's record-step list, which is
-[Q102](../open-questions.md)'s own shape and the reason [Q142](../open-questions.md) exists. Both
+[Q102](../questions/q102.md)'s own shape and the reason [Q142](../questions/q142.md) exists. Both
 floors are **raised**, never lowered, and the counts are recorded beside them in the file.
 
 **And the declaration's own tree gates green, measured with the tree HELD STILL** — `doc/workflow.md`
@@ -431,11 +431,11 @@ selftests   - 7/7 completed, 7 ok, 5 lanes (396-398 s wall over two gates; Q179)
 check-markdown self-test - 37/37 probes caught, 7/7 bounded
 ```
 
-**The last line is [Q142](../open-questions.md)'s verification**: both `removes` probes report `ok`,
+**The last line is [Q142](../questions/q142.md)'s verification**: both `removes` probes report `ok`,
 so each still trips exactly the set it declares — `[M1, M3]` and `[M1, M3, M4]` — which is what the
 retune was for and is the thing a floor going silent takes away.
 
-**[Q123](../open-questions.md) reproduced for the THIRD time during this declaration, and the row
+**[Q123](../questions/q123.md) reproduced for the THIRD time during this declaration, and the row
 predicted every detail of it.** `pathlib.Path.write_text` converted **five files entirely to CRLF** —
 `CLAUDE.md`, `doc/README.md`, `doc/open-questions.md`, `scripts/check-markdown.mjs` and
 [ADR 0023](../decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md).
@@ -480,9 +480,9 @@ paying out in a direction nobody aimed it.
 
 | item | | |
 |---|---|---|
-| **W53** | **DONE** — [Q19](../open-questions.md) is RESOLVED by [ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md), open since P1. `spec/run-state.md` is **v0.6** with a new section 7 and **`RN-R13`**; `spec/join-policy.md` is **v0.16** with `JP-R11`/`JP-R12`'s LIFETIME and no new rule id. `spec/` is 7 / 44 / **90**; L1-L5 is **26 / 695** in five runtimes; **L6 unmoved at 942 / 42**. | **A region releases its collection when its join becomes TERMINAL** — at three moments, two per region and one per run. Measured: the `arrivals` share of a completed region-bearing run **49.8% → 0.0%**, and 10 000 concurrent runs **3174.8 → 1610.9 MiB**, which is the figure this plan's fact 3 predicted to the decimal. Releasing after the read costs **0** at both rungs; before it, **14** (13 on the pre-item suite). **Nothing is evicted from `inputs`**, refused on fact 4 rather than on taste — decision 2 holds and prediction 2's reversal did not occur. Readers **16 / 6 blocking** and **9 survivors / 6 blocking, overlap 2** (the 29th measurement, in band). Rule 8 **36 probes / 32 caught / 4 survivors / 0 aborts**, run twice with the readers' eight exact edits checked back in — and the re-run found this item's own re-entrancy test asserting the right thing **by the wrong route**, a throw that unwinds past the guard it was written for. **Q233-Q235 raised, Q236-Q237 unused; census 182 / 131 / 2 / 49, 0 aborts.** |
-| **W54** | **DONE** — [Q22](../open-questions.md) is RESOLVED by **`OR-R11`** in `spec/outcome-record.md` **v0.9**, open since P1. **NO ADR: 0047 is SKIPPED and not reused.** `spec/` is 7 / 44 / **92** (`OR-R11` and `OR-R12`); L1-L5 is **27 / 703** in five runtimes; **L6 unmoved at 942 / 42**. | **A result is a VALUE, not an OBJECT** — its fields cross `OR-R2`'s clone and its BEHAVIOUR does not, silently. **Q22's fork is the wrong shape**: it IS the driver's constraint, and the question an author hits is *what arrives*. **The document said `structuredClone` THROWS on a class instance and it clones it LOSSILY** — so the boundary has three answers where it named two, and the table is 27 rows now, 5 refused / 11 intact / 11 lossy, asserted in **all five runtimes**. **Prediction 3's CONCLUSION is confirmed and its stated REASON reverses**: a driver CAN tell, at 0.02-0.65% of a clone — it is blind to the NESTED case instead, and the walk that sees it is 23-60% ([Q238](../open-questions.md)). **`OR-R12` is new and is the sharpest finding**: `OR-R6` was stated of the whole boundary and holds only at the LISTENER ([Q241](../open-questions.md)). Readers **15 / 6 blocking** and **41 mutations / 17 survivors / 6 blocking, overlap 4** — the 30th measurement, at the top of the band. Rule 8 **30 probes / 21 caught / 9 ceilings / 0 aborts**, the readers' own edits in the set from the start. **And the gate was RED once, at `GATE EXIT=1` with ZERO `FAIL` lines**: the browser bundle inlined neither `spec/outcome-record.md` nor the second corpus, so three tests failed in every browser — one of them by running against HALF a corpus and reporting 6 where the document says 14. **I had reported the browsers green twice**, because the command was piped through a `grep` for the count line and that line prints BEFORE the failures. *`doc/workflow.md` section 4 v0.15, quoted in this item's own Verification table and broken while being quoted.* **SIX late exceptions, zero undeclared; Q238-Q242 raised, Q243-Q247 unused; census 187 / 135 / 2 / 50.** |
-| **W55** | **DONE** — **P15's EXIT ARTIFACT**, and it takes **NO ADR** and writes **no spec rule**, which is what an exit artifact looks like. `examples/retention.ts` is checked in and reports what ONE run holds on a real `FyflowScheduler`, byte-identically in **both** L6 runtimes; `RunReport` carries `Retention`; L6 is **1061 assertions over 42 real runs**, from 942 / 42, with the **run count unmoved** because the artifact is a measured NUMBER rather than a flow. `spec/` unmoved at 7 / 44 / 92; L1-L5 unmoved at 27 / 703 in five runtimes. | **PREDICTION 4 REVERSES.** Reverting ADR 0046 rule 3 cost **0** L6 failures before this item and costs **29 in both runtimes** after it, across **23 distinct rows** — a count of observations, not knock-ons. **And not by asserting the footprint**: the bytes are reported and never asserted, and what moved the number is the RELATION, observed by a reach past the reported surface. *Q214's surviving half is the one that matters to a consumer* — the outcome, every id, the log and the fold are byte-identical either way. **Fact 5 re-taken in BOTH directions, to the decimal**, and **fact 3's 49.8% is corrected**: it is the share OF THE PAIR, four documents state it as the excess over `bytes(inputs)`, and that is **+99.2 to +99.4%** — wrong by a factor of two and UNDERSTATING the saving ([Q243](../open-questions.md)). Readers **13 / 3 blocking** and **41 mutations / 19 survivors / 6 blocking, overlap 2** — the 31st measurement, in band — and the two shared subjects were reached from opposite ends. The sharpest is the conformity reader's: **the peak snapshot is reachable from `driver.opts`, which the byte walk skips by name, so observer 2 was measuring observer 1's instrument** — 141.9 → 129.4 MiB, one collection a run. The adequacy reader's is that **the byte observer was bound by nothing, three ways**, and that the headline check was removable for three integer edits — W23's finding at its FIFTH iteration, closed by `PER_ROW_SUBJECTS` bound both ways. Rule 8 **46 probes / 34 caught / 12 ceilings / 0 aborts / 0 against declaration**, run twice with the readers' sixteen exact edits in it. **ONE late exception, zero undeclared; Q243-Q246 raised, Q247 unused; census 191 / 139 / 2 / 50, 0 aborts; [Q142](../open-questions.md) measured on a scratch copy and does NOT fire.** |
+| **W53** | **DONE** — [Q19](../questions/q19.md) is RESOLVED by [ADR 0046](../decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md), open since P1. `spec/run-state.md` is **v0.6** with a new section 7 and **`RN-R13`**; `spec/join-policy.md` is **v0.16** with `JP-R11`/`JP-R12`'s LIFETIME and no new rule id. `spec/` is 7 / 44 / **90**; L1-L5 is **26 / 695** in five runtimes; **L6 unmoved at 942 / 42**. | **A region releases its collection when its join becomes TERMINAL** — at three moments, two per region and one per run. Measured: the `arrivals` share of a completed region-bearing run **49.8% → 0.0%**, and 10 000 concurrent runs **3174.8 → 1610.9 MiB**, which is the figure this plan's fact 3 predicted to the decimal. Releasing after the read costs **0** at both rungs; before it, **14** (13 on the pre-item suite). **Nothing is evicted from `inputs`**, refused on fact 4 rather than on taste — decision 2 holds and prediction 2's reversal did not occur. Readers **16 / 6 blocking** and **9 survivors / 6 blocking, overlap 2** (the 29th measurement, in band). Rule 8 **36 probes / 32 caught / 4 survivors / 0 aborts**, run twice with the readers' eight exact edits checked back in — and the re-run found this item's own re-entrancy test asserting the right thing **by the wrong route**, a throw that unwinds past the guard it was written for. **Q233-Q235 raised, Q236-Q237 unused; census 182 / 131 / 2 / 49, 0 aborts.** |
+| **W54** | **DONE** — [Q22](../questions/q22.md) is RESOLVED by **`OR-R11`** in `spec/outcome-record.md` **v0.9**, open since P1. **NO ADR: 0047 is SKIPPED and not reused.** `spec/` is 7 / 44 / **92** (`OR-R11` and `OR-R12`); L1-L5 is **27 / 703** in five runtimes; **L6 unmoved at 942 / 42**. | **A result is a VALUE, not an OBJECT** — its fields cross `OR-R2`'s clone and its BEHAVIOUR does not, silently. **Q22's fork is the wrong shape**: it IS the driver's constraint, and the question an author hits is *what arrives*. **The document said `structuredClone` THROWS on a class instance and it clones it LOSSILY** — so the boundary has three answers where it named two, and the table is 27 rows now, 5 refused / 11 intact / 11 lossy, asserted in **all five runtimes**. **Prediction 3's CONCLUSION is confirmed and its stated REASON reverses**: a driver CAN tell, at 0.02-0.65% of a clone — it is blind to the NESTED case instead, and the walk that sees it is 23-60% ([Q238](../questions/q238.md)). **`OR-R12` is new and is the sharpest finding**: `OR-R6` was stated of the whole boundary and holds only at the LISTENER ([Q241](../questions/q241.md)). Readers **15 / 6 blocking** and **41 mutations / 17 survivors / 6 blocking, overlap 4** — the 30th measurement, at the top of the band. Rule 8 **30 probes / 21 caught / 9 ceilings / 0 aborts**, the readers' own edits in the set from the start. **And the gate was RED once, at `GATE EXIT=1` with ZERO `FAIL` lines**: the browser bundle inlined neither `spec/outcome-record.md` nor the second corpus, so three tests failed in every browser — one of them by running against HALF a corpus and reporting 6 where the document says 14. **I had reported the browsers green twice**, because the command was piped through a `grep` for the count line and that line prints BEFORE the failures. *`doc/workflow.md` section 4 v0.15, quoted in this item's own Verification table and broken while being quoted.* **SIX late exceptions, zero undeclared; Q238-Q242 raised, Q243-Q247 unused; census 187 / 135 / 2 / 50.** |
+| **W55** | **DONE** — **P15's EXIT ARTIFACT**, and it takes **NO ADR** and writes **no spec rule**, which is what an exit artifact looks like. `examples/retention.ts` is checked in and reports what ONE run holds on a real `FyflowScheduler`, byte-identically in **both** L6 runtimes; `RunReport` carries `Retention`; L6 is **1061 assertions over 42 real runs**, from 942 / 42, with the **run count unmoved** because the artifact is a measured NUMBER rather than a flow. `spec/` unmoved at 7 / 44 / 92; L1-L5 unmoved at 27 / 703 in five runtimes. | **PREDICTION 4 REVERSES.** Reverting ADR 0046 rule 3 cost **0** L6 failures before this item and costs **29 in both runtimes** after it, across **23 distinct rows** — a count of observations, not knock-ons. **And not by asserting the footprint**: the bytes are reported and never asserted, and what moved the number is the RELATION, observed by a reach past the reported surface. *Q214's surviving half is the one that matters to a consumer* — the outcome, every id, the log and the fold are byte-identical either way. **Fact 5 re-taken in BOTH directions, to the decimal**, and **fact 3's 49.8% is corrected**: it is the share OF THE PAIR, four documents state it as the excess over `bytes(inputs)`, and that is **+99.2 to +99.4%** — wrong by a factor of two and UNDERSTATING the saving ([Q243](../questions/q243.md)). Readers **13 / 3 blocking** and **41 mutations / 19 survivors / 6 blocking, overlap 2** — the 31st measurement, in band — and the two shared subjects were reached from opposite ends. The sharpest is the conformity reader's: **the peak snapshot is reachable from `driver.opts`, which the byte walk skips by name, so observer 2 was measuring observer 1's instrument** — 141.9 → 129.4 MiB, one collection a run. The adequacy reader's is that **the byte observer was bound by nothing, three ways**, and that the headline check was removable for three integer edits — W23's finding at its FIFTH iteration, closed by `PER_ROW_SUBJECTS` bound both ways. Rule 8 **46 probes / 34 caught / 12 ceilings / 0 aborts / 0 against declaration**, run twice with the readers' sixteen exact edits in it. **ONE late exception, zero undeclared; Q243-Q246 raised, Q247 unused; census 191 / 139 / 2 / 50, 0 aborts; [Q142](../questions/q142.md) measured on a scratch copy and does NOT fire.** |
 | **W56** | reserved, expected unused | |
 
 **What W55 found wrong in this plan's own inputs, recorded here because the Record is where an item
@@ -496,13 +496,13 @@ may write.** Two, and both are about a number this plan states rather than about
    is a second copy* — is the share-of-the-pair reading and is right, and so are `JP-R12`, W53's own
    file and Q19's resolved row. Corrected in ADR 0046, `CLAUDE.md` and `doc/README.md`; **fact 3's
    own sentence at line 105 is this PLAN's**, on W53's precedent for the same boundary.
-   [Q243](../open-questions.md), which also records that neither ratio is a constant — the divisor is
+   [Q243](../questions/q243.md), which also records that neither ratio is a constant — the divisor is
    one copy per settled result, so it is a property of the FLOW as well as of the payload.
 2. **Decision 3's *~101 ms per real run* is a per-ROW figure.** Re-measured at 4286 / 42 = 102 ms,
    and the divisor is an `EXPECTED` entry — a ten-pool scheduler built and shut down per row, at
    `delayMs: 5`. A hundred real runs at `delayMs: 0` take **115 ms**. **The decision stands**: adding
    a rung is on this plan's stop-and-ask list and W55 does not revisit it.
-   [Q246](../open-questions.md).
+   [Q246](../questions/q246.md).
 
 **What W53 found wrong in this plan's own inputs, recorded here because the Record is where an item
 may write.** Four, and the first is the one prediction 1 named:
@@ -537,7 +537,7 @@ ones, at **0.02-0.65% of one clone**. What is true is narrower and is what `OR-R
 cheap check is **blind to more than half the lossy rows** — a nested instance, a non-enumerable
 property, a symbol-keyed one, a lost frozen-ness, an `Error`'s dropped fields — and the walk that
 sees them costs **23-60%** of the clone per settlement. *A prediction right about the conclusion and
-wrong about the mechanism*, which P12's retro recorded as [Q193](../open-questions.md) and P14's
+wrong about the mechanism*, which P12's retro recorded as [Q193](../questions/q193.md) and P14's
 retro made the sharpest kind. **Its stated way of being WRONG was also checked rather than assumed**:
 `structuredClone` accepts a class instance in all five runtimes, not only Node 24.
 
@@ -552,7 +552,7 @@ not), and it is derived from both corpora by W54's suite rather than left as a l
 **Prediction 1 is CONFIRMED with its scope corrected. Prediction 4 was CONFIRMED at W53 and is
 REVERSED at [W55](../work-items/w55-a-run-at-scale-on-real-workers.md), which is the reversal its own
 cell describes.** At W53 the release cost **0** at L1-L5 and **0** at L6, so no rung then made could
-see a whole structure leave — [Q214](../open-questions.md)'s third instance, from the REMOVAL side.
+see a whole structure leave — [Q214](../questions/q214.md)'s third instance, from the REMOVAL side.
 At W55 it costs **29 at L6 in both runtimes**, across 23 distinct rows. **The reversal is narrower
 than the prediction's own reversal clause**, which guessed *most likely by asserting the footprint
 itself*: the footprint is reported and never asserted, and what a rung can see is the RELATION —
@@ -566,8 +566,8 @@ found rather than shown impossible.
 **Run 2026-09-11, after W53, W54 and W55 were merged. `doc/workflow.md` section 6 pass 3, and it
 takes that document to [v0.16](../workflow.md) — THREE changes adopted, FIVE refused.**
 
-P15 asked *what does a run retain, and what may a result be?* — [Q19](../open-questions.md) and
-[Q22](../open-questions.md), the two oldest rows in the register, whose owner cells had both said
+P15 asked *what does a run retain, and what may a result be?* — [Q19](../questions/q19.md) and
+[Q22](../questions/q22.md), the two oldest rows in the register, whose owner cells had both said
 *no owner, needs a measured run* since P1. **Both are resolved, in one plan.** Three items, six
 reader passes, one ADR, and an exit artifact that is a **measured number** rather than a flow —
 the first time section 2's other option has been taken in fifteen plans.
@@ -586,7 +586,7 @@ L6 **942 assertions / 42 real runs**; register **179 / 129 / 2 / 48**. It closes
 | W53 | `OR-R10`'s re-entrant door, made SILENT rather than created | **none** — 0 at L1-L5 and 0 at L6 |
 | W54 | the suite's classifier WAS the predicate the document declines, so the two could not disagree | **none** — every row passed |
 | W54 | *faithful* never checked that the value crossed; four silent losses inside one label | **none** — adequacy reader, one inserted expression each |
-| W54 | two percentage bands false in both directions, from a single run | **none**, and [Q179](../open-questions.md) says why one cannot exist |
+| W54 | two percentage bands false in both directions, from a single run | **none**, and [Q179](../questions/q179.md) says why one cannot exist |
 | W54 | the browser bundle inlined neither document the new suite reads | **L1-L5, and IT FIRED** — `npm run test:browser:all` exited non-zero |
 | W55 | observer 2 was measuring observer 1's instrument | **none** — the contamination is in the control too |
 | W55 | the byte observer — the item's whole deliverable — bound by nothing, three ways | **none** — 0 failures, 1050 assertions, exit 0 |
@@ -631,16 +631,16 @@ not what failed; the reading of it was*, and that is the retro's first change.
   pattern — *if W53 and W54 reach `spec/README.md` and W55 does not* — and that is exactly what
   happened. It is still refused: the three files were taken no/yes/no, yes/yes/yes and no/no/no, so a
   rule naming them would have been wrong **twice on W53 and twice on W55**
-  ([Q157](../open-questions.md)). *A pattern predictable from an item's CONTENT is not a rule about
+  ([Q157](../questions/q157.md)). *A pattern predictable from an item's CONTENT is not a rule about
   its file list.*
-- **A fourth membership list**, as the general answer to [Q217](../open-questions.md)'s regress. W55
+- **A fourth membership list**, as the general answer to [Q217](../questions/q217.md)'s regress. W55
   closed the per-row layer **both ways** — the first binding of that kind here — and **could not
   close the cross-row layer at all**, because its labels are prose continuations sharing no handle.
   So the answer is a **handle**, not a list, and one occurrence of a handle is not a rule. Recorded
   rather than ruled, and it is news for Q217's row.
 - **A rung, or a row in section 8's budget table.** Decision 3 refused both before any item started;
   W55 then found the number that refusal rests on is a per-ROW figure rather than a per-run one
-  ([Q246](../open-questions.md)). **The refusal survives on its other grounds** and overturning it is
+  ([Q246](../questions/q246.md)). **The refusal survives on its other grounds** and overturning it is
   not a retro's call either.
 - **A rule obliging an item to re-take its own grep COUNT.** v0.15's grep procedure fired in all
   three items and **two of the three recorded the wrong number while the obligation still worked** —
@@ -666,7 +666,7 @@ verbatim: *if this item can move that number above zero, it has written the rung
 **So a reversal clause has a second function nobody wrote down: it DIRECTS an item.** P13's retro
 added the column to make predictions falsifiable; here it made one *actionable*. **And it was wrong
 about the mechanism** — it guessed *most likely by asserting the footprint itself*, and the footprint
-is reported and never asserted ([Q179](../open-questions.md)); what moved the number was the
+is reported and never asserted ([Q179](../questions/q179.md)); what moved the number was the
 RELATION, seen by reaching past the surface a run reports. *A reversal clause is good at saying what
 to attempt and says nothing reliable about how the attempt will succeed.* Recorded, not ruled: one
 occurrence.
@@ -686,7 +686,7 @@ W55's twelve, every one behaving as declared with its stated reason intact. **P1
 eleven and found one false and one stale**; this one found neither. *A clause adopted because two
 claims nobody ran turned out wrong, producing a plan where none did.* The one mismatch is
 bookkeeping in a gitignored harness: W53's `b5` still carries `expect: 'caught'` for a probe its own
-Record classifies as the pass's one undeclared survivor and raises [Q234](../open-questions.md) for.
+Record classifies as the pass's one undeclared survivor and raises [Q234](../questions/q234.md) for.
 
 ### The measurements
 
@@ -723,7 +723,7 @@ could not fail is this rule's founding case, and the last repair is the one most
 running — 191 / 139 / 2 / 50**, 44 ids in both tables, 191 of 191 in exactly one cluster cell, and
 **0 aborts at this retro**. The parser has been P15's declaration parser throughout, unchanged across
 five re-derivations, and the only thing it aborted on in the whole plan was an item's own insertion —
-twice. **[Q142](../open-questions.md) was measured on a scratch copy at every item and at this retro
+twice. **[Q142](../questions/q142.md) was measured on a scratch copy at every item and at this retro
 and does NOT fire**, the fourth consecutive plan to check it and the first to check it four times.
 **But the margin is closing, and the trend is the thing to hand on**: `M4`'s two-directory fixture
 went **3194 → 3282 → 3361 → 3393** across W53, W54, W55 and this retro, against a floor of **3490**

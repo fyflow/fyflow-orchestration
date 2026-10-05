@@ -25,7 +25,7 @@
 //
 // ---------------------------------------------------------------------------
 // **W29: THIS FILE GRADED NOTHING, AND NOW IT GRADES SEVEN CLAUSES.**
-// [Q132](../doc/open-questions.md).
+// [Q132](../doc/questions/q132.md).
 //
 // Fourteen probes, and until W29 **no META pass at all**: every probe here asserts
 // that the check refuses a broken **input**, and nothing asserted that the probes
@@ -42,7 +42,7 @@
 // run is **3.75 s**, and an entry is **two** of them (the inertness run and the named
 // probe), so **~7.0 s each**. `check-scheduler` costs **0.13 s** a run and gets every
 // clause; this file gets seven. Grading all seventeen would put this self-test at
-// ~170 s and the gate at ~325 s, which is [Q133](../doc/open-questions.md)'s trade
+// ~170 s and the gate at ~325 s, which is [Q133](../doc/questions/q133.md)'s trade
 // and not an item's to spend unremarked.
 //
 // **`check-docs.mjs` has 58 clauses: 55 `fail()` sites and 3 ways the report can
@@ -114,7 +114,7 @@
 // unprobed**: every probe writes its mutated reference to disk and points
 // `CHECK_DOCS_DOC` at it, so no probe can present a document that is not there.
 // Measured: made inert, **all 14 probes still pass at exit 0**. That is
-// [Q132](../doc/open-questions.md)'s *no probe at all* category, in a file
+// [Q132](../doc/questions/q132.md)'s *no probe at all* category, in a file
 // [W30](../doc/work-items/w30-the-clauses-nothing-probes.md) does not own.
 //
 // **And a finding from the survey that decided which seven to take.** Four of those
@@ -124,7 +124,7 @@
 // reported as `X4`**. The run still fails; it fails for the wrong reason. A
 // `r.status !== 0` grading calls that *noticed*; the named-probe grading calls it
 // `disappeared` on the id the entry declared, which is right. That is
-// [Q102](../doc/open-questions.md)'s ratchet holding up four clauses that are not
+// [Q102](../doc/questions/q102.md)'s ratchet holding up four clauses that are not
 // its own, and its row does not say so.
 //
 // **What this file does NOT reach**, measured against this file as shipped.
@@ -153,7 +153,7 @@
 //
 // **This file drops `fires` from W28's outcome set**, deliberately: that verdict is
 // for a probe whose declared set is EMPTY, and every probe here declares a check.
-// [Q147](../doc/open-questions.md)'s row said otherwise until W29's conformity
+// [Q147](../doc/questions/q147.md)'s row said otherwise until W29's conformity
 // reader measured it.
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
@@ -231,7 +231,7 @@ const PROBES = [
   // harness can mutate: it writes a modified AGENTS.md and points the check at it.
   // Both DIRECTIONS of the comparison are here — a figure that disagrees and a figure
   // that is missing — because a one-directional binding is what
-  // [Q196](../doc/open-questions.md) records as the thing a type cannot fix.
+  // [Q196](../doc/questions/q196.md) records as the thing a type cannot fix.
   {
     name: 'a cost figure in AGENTS.md that spec/flow-definition.md does not state',
     check: 'X6',
@@ -390,7 +390,7 @@ const PROBES = [
     // deadline KILLS (`status === null`, `signal` set) and one that cannot be spawned at all. The
     // first two have probes above; the fourth is reachable by nothing, because `spawn` failing means
     // `process.execPath` is gone. This is the third, and it is the branch W104 added a message for,
-    // on [Q425](../doc/open-questions.md): nine sub-second snippets were killed under load and
+    // on [Q425](../doc/questions/q425.md): nine sub-second snippets were killed under load and
     // reported as *the snippet does not run*, a sentence about the snippet that was about the clock.
     //
     // **It costs ~26 s, once, and WHAT IT BUYS IS NOT WHAT THIS COMMENT FIRST CLAIMED.** The snippet
@@ -659,7 +659,7 @@ const PROBES = [
 /** Every check `check-docs.mjs` reports under, in the order it reports them. */
 /**
  * **DERIVED from `check-docs.mjs`'s own report list, not written down here** — W46,
- * and it is [Q43](../doc/open-questions.md)'s class caught live in this file. It read
+ * and it is [Q43](../doc/questions/q43.md)'s class caught live in this file. It read
  * `['X1', 'X2', 'X3', 'X4', 'X5']`, and W46 shipped **`X6`** into `check-docs.mjs`
  * with four clauses, ran this self-test, and got **14/14 probes caught, 8/8 noticed,
  * exit 0** — a whole check id with no probe and no grading, invisible because the
@@ -859,7 +859,7 @@ const META = [
   // it was measured before it was written: with the verdict loop forced to `ok`,
   // every probe still reported `wanted [X2] got [X2] exit 1` and passed. A mutation
   // to how failures are DISPLAYED changes no failure id, so no set comparison can
-  // see one — [Q100](../doc/open-questions.md)'s class.
+  // see one — [Q100](../doc/questions/q100.md)'s class.
   ['the report prints `ok` for every row while the failures below it say otherwise',
     'an untagged block',
     (t) => t.replace(
@@ -895,7 +895,7 @@ export async function selfTest(root) {
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry: a META child runs this same
   // function, so a fixed name has the child delete the parent's fixtures underneath it, and two top-level
-  // runs do the same to each other ([Q182](../doc/open-questions.md)).
+  // runs do the same to each other ([Q182](../doc/questions/q182.md)).
   //
   // The `rmSync` stays and is now load-bearing for a DIFFERENT reason: Windows recycles pids, so a
   // directory left by a killed run can be inherited by a live one. Measured at W105 — nine leaked
@@ -906,7 +906,7 @@ export async function selfTest(root) {
   mkdirSync(dir, { recursive: true });
   // **`process.on('exit')` rather than a `finally`, because this function returns from fifteen places
   // and each one carries its own `rmSync(dir)` today.** An `exit` handler covers all fifteen plus the
-  // one road none of them covers — a throw — which is [Q323](../doc/open-questions.md)'s class and
+  // one road none of them covers — a throw — which is [Q323](../doc/questions/q323.md)'s class and
   // exactly how W103's finding 3 left its stub behind. `SIGKILL` leaks this one directory, which is the
   // stated limit: *one path per killed run, not one per probe*, and that is what nesting buys.
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
@@ -944,7 +944,7 @@ export async function selfTest(root) {
   // is why: it replaced the `X5` entry with a copy of the `X1` entry and the run
   // stayed at `7/7`, exit 0, floor satisfied — with `X5`'s only grading silently
   // gone. `X5` is the clause whose entire job is a number that must not drift
-  // ([Q71](../doc/open-questions.md)), so that is the worst one to lose quietly.
+  // ([Q71](../doc/questions/q71.md)), so that is the worst one to lose quietly.
   // **An entry can leave without the list getting shorter**, which is the gap in
   // `doc/workflow.md` rule 8's fourth obligation as it was being applied here.
   {
@@ -954,7 +954,7 @@ export async function selfTest(root) {
     // runs its `run` snippets through a pool and fails if the width is below the floor
     // it declares, which catches the width being lowered and **cannot catch the FLOOR
     // being lowered with it** — the two are literals in one file and so two edits in
-    // one diff ([Q217](../doc/open-questions.md)). This is the third edit, in another
+    // one diff ([Q217](../doc/questions/q217.md)). This is the third edit, in another
     // file: measured, `X4_WIDTH = 1` is `check:docs` EXIT 0 at the pre-W104 wall clock
     // with all 51 probes below still caught, because a serial pool computes the same
     // verdicts more slowly. `README_SNIPPET_FLOOR`'s recorded gap, closed for this one.
@@ -996,7 +996,7 @@ export async function selfTest(root) {
     // this whole lane was EXIT 0 at 47/47 and 28/28**, because no probe can reach it (every probe mutates
     // a DOCUMENT and this is a property of the check's own source) and no `META` entry anchored on it.
     // `MIN_META` counts entries and the coverage bound is per ID, where `X8` already had nine. So the
-    // item's central repair had no observer in the shipping lane at all — [Q431](../doc/open-questions.md)'s
+    // item's central repair had no observer in the shipping lane at all — [Q431](../doc/questions/q431.md)'s
     // shape, in the clause written to close a gate-visible hole.
     //
     // **And it binds the FIVE SITES, which the first draft declared as a ceiling and did not have to.**

@@ -18,7 +18,7 @@ the one number in that block that was never free.
 
 ## Why this plan, and why now
 
-[Q4](../open-questions.md) is the hard question in the repo and it was **deliberately not decided by
+[Q4](../questions/q4.md) is the hard question in the repo and it was **deliberately not decided by
 argument**. Both candidate answers are defensible on paper:
 
 - **Expected-arrival counting** — wait for N branches. Obvious to implement, obvious to display,
@@ -67,7 +67,7 @@ Q5-Q7 are one question or several.
 - **Performance at scale (Q19).** P1 measures a join at modest width to get a number, not to tune.
 - **Proving portability.** `spec/runtime-targets.md` binds every work item from now on — L0-L5 run in
   all three runtimes — but **P1 exists to answer Q4, not to demonstrate that the layer runs in a
-  browser.** Whether W5's real run happens once or three times is [Q33](../open-questions.md),
+  browser.** Whether W5's real run happens once or three times is [Q33](../questions/q33.md),
   answered at W5 rather than assumed here. The plan gate is budgeted at 90 s
   (`doc/workflow.md` section 8) and a three-runtime L6 does not fit in it.
 
@@ -98,7 +98,7 @@ policy, and an experiment whose null result has a second possible cause has not 
 **It is gone.** `fyflow-scheduler` 0.3.0 (`634e23a`) fails such a waiter terminally via
 `_failOrphanedTask` — `task.failed`, then `task.user_action` unless optional, a rejected promise, a
 `stats.failed` increment, and one `orphaned` unblocked exit per queue it sat in.
-[Q32](../open-questions.md) is resolved; [S7](../scheduler-upstream.md) is closed.
+[Q32](../questions/q32.md) is resolved; [S7](../scheduler-upstream.md) is closed.
 
 What survives, deliberately:
 
@@ -112,7 +112,7 @@ What survives, deliberately:
 **Detecting a stuck join is still entirely ours.** 0.3.0's `resource.blocked` and
 `getAdmissionQueue()` make a *scheduler-level* stall visible and legible. A stuck join has **nothing
 blocked and nothing queued** — no resource is short of anything — so neither fires.
-[Q7](../open-questions.md) is untouched by that work, and W4 needs its own detection or it can only
+[Q7](../questions/q7.md) is untouched by that work, and W4 needs its own detection or it can only
 report a hang as a timeout.
 
 ## Work items
@@ -123,7 +123,7 @@ report a hang as a timeout.
 | W2 | The fold: outcome log → run state, both policies behind W1's interface, **and `spec/run-state.md`** | `spec/run-state.md`, `src/fold/**`, `test/fold/**` | W1 (and W3 by sequencing) | L0-L3 in **all five runtimes** |
 | ~~W3~~ | The driver, the validator, the join seam, the toolchain | `src/driver/**`, `src/definition/**`, `test/{driver,definition}/**`, the toolchain | W1 | **done** — L0-L2 and L4 in **five runtimes**, 142 assertions, plus **three** spec-conformity passes |
 | ~~W4~~ | The join/failure matrix — every Q5 outcome × both policies, **and ADR 0003** | `test/matrix/**`, `doc/decisions/0003-*.md` | W2, W3 | **done** — L0-L5 in **all five runtimes**, 47 assertions, [ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) with one dated in-place correction, and **two** review passes: 4 blocking, 9 defects, 13 notes |
-| ~~W5~~ | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**`, `scripts/check-scheduler.mjs`, and six declared exceptions | W2, W3, **W4** | **built** — L0-L5 in **all five runtimes** (279 assertions), **L6 in Node 24 and Deno** (72 assertions, six real runs). [Q33](../open-questions.md) answered: **Node and Deno**, `RT-R10`. Three ADRs: **0013** (how the runtimes reach the scheduler), **0014** (the fold's input sequence), **0015** (`stuck`). Conformity pass outstanding |
+| ~~W5~~ | One real fan-out flow on a real scheduler, **plus the every-node-settles assertion** (Q32) | `examples/**`, `scripts/check-scheduler.mjs`, and six declared exceptions | W2, W3, **W4** | **built** — L0-L5 in **all five runtimes** (279 assertions), **L6 in Node 24 and Deno** (72 assertions, six real runs). [Q33](../questions/q33.md) answered: **Node and Deno**, `RT-R10`. Three ADRs: **0013** (how the runtimes reach the scheduler), **0014** (the fold's input sequence), **0015** (`stuck`). Conformity pass outstanding |
 
 **W1 grew, twice.** ADR 0007 made the outcome record a normative shape rather than an internal type:
 it is what rule 1's "declared fields" means, and it is what lets a reviewer tell a compliant copy
@@ -149,15 +149,15 @@ Each has its own file under `doc/work-items/`. This table is an index, not the d
 
 | Q | | Owner |
 |---|---|---|
-| [Q4](../open-questions.md) | What satisfies a join — arrivals or live tokens. **The plan's whole question, and it is answered: live tokens** ([ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)). **The result is bigger than the question** — arrival-counting hangs on six of the matrix's nine rows, and only one of them is the routed-away case this plan was built around; an ordinary `optional` failure is enough | ~~W4~~ **done** |
-| [Q5](../open-questions.md) | What a join does when a branch fails / is `user_action` / is optional-null / is routed away. The matrix's rows. **Narrowed by ADR 0004: the four cases are three region events, and two of the four are the same scheduler outcome** — `optional`-null *is* `terminalState: 'failed'`. `user_action` is not a loss at all; the branch suspends and the join keeps waiting | W4 |
-| [Q7](../open-questions.md) | Whether a join can time out. P1 must at least **detect** a stuck join, or W4 cannot report a failure as anything but a hang | W4 |
-| [Q10](../open-questions.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here. **Answered** — `FD-V7` at instantiation, `FD-R1` as the assertion | ~~W1~~ **done** |
-| [Q13](../open-questions.md) | The task id scheme. Fan-out forces it; a collision silently overwrites. **Answered** — and the source says worse than "overwrites": both tasks run and two records land under one key | ~~W1~~ **done** |
-| [Q14](../open-questions.md) | Is run state a fold, and of whose log. **Answered** - yes, and of *our* log, not the scheduler's: `spec/run-state.md` section 1. The last of `doc/concept.md` section 6's four leanings to land | ~~W2~~ **done** |
-| [Q25](../open-questions.md) | Where the flow-level outcome vocabulary lives. **Answered** - run state's, and `end.outcome` stays a label the driver never interprets. **Five outcomes when W2 answered it; six since [ADR 0015](../decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) added `stuck`** | ~~W2~~ **done** |
-| [Q17](../open-questions.md) | How `user_action` surfaces at flow level. **Detection** was answered by [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 and the **mechanism** by ADR 0004 rules 3-6 — it suspends, and an external resolution record resumes it. What is left for W4 is what a join does while a branch is suspended, and it is **`awaiting_action`** at run level (Q25, answered by `spec/run-state.md` section 3) - it outranks `running`, because the fact a human is needed is the thing a reader must not miss | W4 |
-| [Q32](../open-questions.md) | Telling a stuck join apart from a silently dropped task. **A threat to this plan's validity**, not a side question — see the section above | W5 |
+| [Q4](../questions/q4.md) | What satisfies a join — arrivals or live tokens. **The plan's whole question, and it is answered: live tokens** ([ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)). **The result is bigger than the question** — arrival-counting hangs on six of the matrix's nine rows, and only one of them is the routed-away case this plan was built around; an ordinary `optional` failure is enough | ~~W4~~ **done** |
+| [Q5](../questions/q5.md) | What a join does when a branch fails / is `user_action` / is optional-null / is routed away. The matrix's rows. **Narrowed by ADR 0004: the four cases are three region events, and two of the four are the same scheduler outcome** — `optional`-null *is* `terminalState: 'failed'`. `user_action` is not a loss at all; the branch suspends and the join keeps waiting | W4 |
+| [Q7](../questions/q7.md) | Whether a join can time out. P1 must at least **detect** a stuck join, or W4 cannot report a failure as anything but a hang | W4 |
+| [Q10](../questions/q10.md) | What happens when no decision edge matches. Reachable in P1's own flow, so it needs an answer here. **Answered** — `FD-V7` at instantiation, `FD-R1` as the assertion | ~~W1~~ **done** |
+| [Q13](../questions/q13.md) | The task id scheme. Fan-out forces it; a collision silently overwrites. **Answered** — and the source says worse than "overwrites": both tasks run and two records land under one key | ~~W1~~ **done** |
+| [Q14](../questions/q14.md) | Is run state a fold, and of whose log. **Answered** - yes, and of *our* log, not the scheduler's: `spec/run-state.md` section 1. The last of `doc/concept.md` section 6's four leanings to land | ~~W2~~ **done** |
+| [Q25](../questions/q25.md) | Where the flow-level outcome vocabulary lives. **Answered** - run state's, and `end.outcome` stays a label the driver never interprets. **Five outcomes when W2 answered it; six since [ADR 0015](../decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md) added `stuck`** | ~~W2~~ **done** |
+| [Q17](../questions/q17.md) | How `user_action` surfaces at flow level. **Detection** was answered by [ADR 0007](../decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md) rule 2 and the **mechanism** by ADR 0004 rules 3-6 — it suspends, and an external resolution record resumes it. What is left for W4 is what a join does while a branch is suspended, and it is **`awaiting_action`** at run level (Q25, answered by `spec/run-state.md` section 3) - it outranks `running`, because the fact a human is needed is the thing a reader must not miss | W4 |
+| [Q32](../questions/q32.md) | Telling a stuck join apart from a silently dropped task. **A threat to this plan's validity**, not a side question — see the section above | W5 |
 
 Q6, Q12, Q15, Q16, Q18-Q21 are **not** carried — see Scope/Out.
 
@@ -190,7 +190,7 @@ npm run test:l6:deno    # deno 2.9.6
 queued and nothing running. Every expected value was written from `spec/` before the first run and
 all six matched.
 
-**What the plan answered.** [Q4](../open-questions.md): **live tokens**
+**What the plan answered.** [Q4](../questions/q4.md): **live tokens**
 ([ADR 0003](../decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)), decided
 by W4's matrix rather than by the argument the plan refused as sufficient. *"Arrival-counting was
 fine"* was a real possible outcome and it lost on evidence — on **six of nine** matrix rows and on
@@ -198,12 +198,12 @@ the sixth row above, and for a reason the plan did not predict: an ordinary `opt
 enough, so the sharp edge is the common case rather than the exotic one.
 
 **Nine of the twelve questions this plan carried are closed**, and five of them by W5:
-[Q4](../open-questions.md), [Q10](../open-questions.md), [Q13](../open-questions.md),
-[Q14](../open-questions.md), [Q25](../open-questions.md), [Q17](../open-questions.md),
-[Q32](../open-questions.md), plus W5's [Q33](../open-questions.md), [Q41](../open-questions.md),
-[Q42](../open-questions.md), [Q43](../open-questions.md) and [Q51](../open-questions.md).
-[Q5](../open-questions.md) and [Q7](../open-questions.md) are half-answered and named as such;
-[Q24](../open-questions.md) is the live question the plan deliberately did not settle.
+[Q4](../questions/q4.md), [Q10](../questions/q10.md), [Q13](../questions/q13.md),
+[Q14](../questions/q14.md), [Q25](../questions/q25.md), [Q17](../questions/q17.md),
+[Q32](../questions/q32.md), plus W5's [Q33](../questions/q33.md), [Q41](../questions/q41.md),
+[Q42](../questions/q42.md), [Q43](../questions/q43.md) and [Q51](../questions/q51.md).
+[Q5](../questions/q5.md) and [Q7](../questions/q7.md) are half-answered and named as such;
+[Q24](../questions/q24.md) is the live question the plan deliberately did not settle.
 
 **What the plan cost, in the shape a later plan should budget for.** Five work items, six spec
 documents, **70 numbered rules**, eight ADRs, 279 assertions in five runtimes plus 72 at L6 in two,

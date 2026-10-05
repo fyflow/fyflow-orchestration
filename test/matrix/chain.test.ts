@@ -262,7 +262,7 @@ suite('L2 — `joined: false` and `joined: null` are the same outcome', (test) =
 suite('Q37 — what a consumer WITHOUT the callback can learn', (test) => {
   test('under a shipped policy there is nothing to learn from the callback at all', () => {
     // **Measured, recorded, and not fixed** — W15's fourth declared output, and
-    // [Q37](../../doc/open-questions.md). `onUnsatisfiableJoin` is optional
+    // [Q37](../../doc/questions/q37.md). `onUnsatisfiableJoin` is optional
     // (`DriverOptions`), so the whole seam is opt-in; but on this row it is worse
     // than optional under both shipped policies, because neither ever calls it.
     // `spec/join-policy.md` section 4 calls that a result rather than a gap.
@@ -300,7 +300,7 @@ suite('Q37 — what a consumer WITHOUT the callback can learn', (test) => {
  * They live in this file rather than in `matrix.test.ts` deliberately: this is
  * the file that goes to the **fold**, and W4 kept `Cell` on the driver's public
  * surface on purpose so a fold defect could not make a policy cell look right.
- * Whether a `Cell` should itself carry run state is [Q92](../../doc/open-questions.md)
+ * Whether a `Cell` should itself carry run state is [Q92](../../doc/questions/q92.md)
  * and stays open — these are assertions beside the matrix, not a widening of it.
  */
 suite('L2 — the whole matrix, checked against the fold and against the scheduler', (test) => {

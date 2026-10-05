@@ -99,7 +99,7 @@ from the storage and neither from the content:
    `M3`'s floor and both fixtures moved together: the fixtures now cut `doc/questions` as well, and
    the floor is the midpoint of the window that leaves. *The lane was already red before this item
    — P28's declaration had taken probe 1 to 146 files against a floor of 142* — which is
-   [Q142](../open-questions.md)'s window, met again.
+   [Q142](../questions/q142.md)'s window, met again.
 8. **What it makes hard**: a question can no longer be edited by appending a row; it is a file, with
    ten fields, and `R2` refuses a missing or misspelt one. That is the cost of decision 3, and the
    point of it.

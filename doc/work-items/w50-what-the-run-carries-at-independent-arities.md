@@ -66,12 +66,12 @@ Reserves:   Q222-Q228, ADR 0045 (expected SKIPPED - P14 says one decision is
 
 - **The RULE.** ADR 0044 and `FD-C1`'s wording are W49's and are read, not reopened.
 - **The exit artifact on real workers** — **W51's**, and `examples/**` is its `Owns`.
-- **[Q219](../open-questions.md)** — making a region's COLLECTION referenceable. It RELAXES `FD-V27`,
+- **[Q219](../questions/q219.md)** — making a region's COLLECTION referenceable. It RELAXES `FD-V27`,
   which P14's stop-and-ask list makes the maintainer's call, and it needs retention that is
-  [Q19](../open-questions.md)'s subject.
-- **[Q220](../open-questions.md), [Q221](../open-questions.md)** — the predicate's new dependency and
+  [Q19](../questions/q19.md)'s subject.
+- **[Q220](../questions/q220.md), [Q221](../questions/q221.md)** — the predicate's new dependency and
   the package surface. Raised by W49; this item may confirm or refute them and owns neither.
-- **[Q216](../open-questions.md), [Q217](../open-questions.md)** — this item RUNS their clauses and
+- **[Q216](../questions/q216.md), [Q217](../questions/q217.md)** — this item RUNS their clauses and
   does not judge them.
 
 ## Verification
@@ -112,7 +112,7 @@ count of FIVE; the audit is SIX and ZERO undeclared.)*
 | exception | why | forced? |
 |---|---|---|
 | `spec/examples/valid/sibling-fanouts.flow.json` | **Output 4.** W49 built the document and could not add it: a corpus flow is validated at L4 **and RUN** by the `FD-C2` census, and until the resolver followed it was a valid document whose run STOPPED. This item is when a run first resolves it | **yes** |
-| `test/definition/l4-corpus.test.ts` | the suite census is set equality both ways, so the new L2 suite must be named there or L1 goes red. [Q102](../open-questions.md)'s shape, and the ratchet working | **yes** |
+| `test/definition/l4-corpus.test.ts` | the suite census is set equality both ways, so the new L2 suite must be named there or L1 goes red. [Q102](../questions/q102.md)'s shape, and the ratchet working | **yes** |
 | `test/definition/sibling-regions.test.ts` | rule 8 graded a path-swap probe a SURVIVOR and it is VACUOUS — the predicate is symmetric in the two paths by construction, and the symmetry is asserted there beside the function it is a property of. **Then the conformity reader found the file's header stating as FACT that the flow is not in the corpus** — which this item's own Output 4 falsifies — and that the promoted flow is now a SECOND COPY with nothing comparing them | no, then **yes** |
 | `spec/README.md` | its flow-definition row said *the RESOLVER follows in W50, so at v0.15 a run still applies the prefix filter* — true when W49 wrote it and false the moment this item shipped. `C8` compares the version COLUMN and nothing compares the prose | **yes** — a withdrawn claim, found by the conformity reader |
 | `AGENTS.md` | the same sentence, in the copy a consumer reads first, and nothing in the gate compares it to `spec/` | **yes** — same |
@@ -205,7 +205,7 @@ permissive were caught only by W41-era and W42-era fixtures. **The shape that wo
 exist**: a narrowing case needs a target with two or more outputs, so the target is inside a `map`
 region — and the only two ways to share a region with it are a reader in a **sibling branch** of the
 fanout holding the map, which `FD-V27` refuses, and a **region nested inside a map region**, which the
-DRIVER refuses at construction ([Q156](../open-questions.md), W33's check). Both are asserted. *So the
+DRIVER refuses at construction ([Q156](../questions/q156.md), W33's check). Both are asserted. *So the
 one expressible narrowing shape is reader and target in the SAME map region, and that is W41's
 two-digit fixture* — recorded rather than argued.
 
@@ -227,7 +227,7 @@ the corpus.
 references in both corpora have `sharedRegionDepth == 0`** — every reader sits at `-` or reads a
 target at `-` — so `outputIsVisible` returns `true` without entering its loop for every reference L6
 runs, and L6 cannot tell the new rule from the old one or from `() => true`. That is why L6 is
-unmoved at 879 / 40, and it is **[Q214](../open-questions.md)'s shape in a second mechanism**: W47's
+unmoved at 879 / 40, and it is **[Q214](../questions/q214.md)'s shape in a second mechanism**: W47's
 was *a document the validator refuses never starts*; this is *a filter no run exercises*. **W51's exit
 artifact must add a flow with a shared depth above zero, or a sibling pair, or the plan's exit rung
 proves nothing about the plan's subject** — and the probe that must move is in this item's rule 8 set,
@@ -236,7 +236,7 @@ declared as a ceiling with its measurement.
 **And one claim of ADR 0044 has no observer at any rung**: *`FD-V28`'s biconditional becomes true*.
 Nothing compares `FD-V28`'s region predicate to `outputIsVisible`'s chain predicate; the conformity
 reader derived that it holds for every shape the region rules admit and could not find a mechanical
-binding. [Q222](../open-questions.md).
+binding. [Q222](../questions/q222.md).
 
 **`Owns` audit — 9 tracked files changed and 2 added, against a block of 3 paths plus section 1
 rule 5's six record-step files. SIX late exceptions, ZERO undeclared**, all six declared in this
@@ -257,10 +257,10 @@ that changes what a reference may say will reach `spec/README.md`* — W50 chang
 MEANS at run time and reached it anyway, by prose rather than by `C8`, which the reading does not
 cover. Over four items the tally is `AGENTS.md` yes / yes / no / yes / **yes**, `spec/README.md`
 yes / yes / yes / yes / **yes**, `scripts/check-docs.mjs` no / yes / no / no / **no**.
-[Q157](../open-questions.md).
+[Q157](../questions/q157.md).
 
 **Census re-derived: 178 / 128 / 2 / 48**, unmoved by this item — **which is what an item that
-raises one question looks like**, and [Q222](../open-questions.md) is that one.
+raises one question looks like**, and [Q222](../questions/q222.md) is that one.
 
 **What this taught.**
 
@@ -276,12 +276,12 @@ a gap in the row set: it is that eleven of eleven references in both corpora put
 target outside every region. *A rung is only as discriminating as the shapes its documents contain*,
 which is W41's finding about probe sets applied to an entire ladder level.
 
-**Questions raised.** [Q222](../open-questions.md), one of the seven reserved. **No ADR** — 0045 is
+**Questions raised.** [Q222](../questions/q222.md), one of the seven reserved. **No ADR** — 0045 is
 reserved and **SKIPPED**, exactly as P14 predicted: this item took no decision of its own.
 
 | Q | |
 |---|---|
-| [Q222](../open-questions.md) | ADR 0044's *`FD-V28`'s biconditional becomes true* has no observer at any rung |
+| [Q222](../questions/q222.md) | ADR 0044's *`FD-V28`'s biconditional becomes true* has no observer at any rung |
 
 **Reader overlap: 2, and it is the TWENTY-SEVENTH measurement** — derived by counting
 `doc/workflow.md` section 6's own list (W4 … W47 = 25) and adding W49. Inside the settled 0-4 band,

@@ -6,7 +6,7 @@
  * [W15](../../doc/work-items/w15-the-fourth-column-and-the-chain-nothing-runs.md)
  * moved both here verbatim out of `variants.test.ts` so the matrix could run them
  * as **columns**; [W16](../../doc/work-items/w16-the-decision-and-what-it-ships.md)
- * then answered [Q24](../../doc/open-questions.md) as
+ * then answered [Q24](../../doc/questions/q24.md) as
  * [ADR 0025](../../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md)
  * and the two rules got different answers:
  *
@@ -24,7 +24,7 @@
  */
 // **`Region` is no longer imported, and that is a RESULT rather than tidying.**
 // W33 re-sourced `arrival-count`'s `N` from `branch.opened` and recorded the
-// sharpest form of [Q159](../../doc/open-questions.md)'s answer as `deno lint`
+// sharpest form of [Q159](../../doc/questions/q159.md)'s answer as `deno lint`
 // reporting the `Region` import unused in `src/fold/policies.ts` — *not one
 // shipped policy reads its region*. This file was the last object satisfying
 // `JoinPolicy` that still did, and re-sourcing `JP-R7`'s variant to match the
@@ -132,7 +132,7 @@ export const MATRIX_COLUMNS: JoinPolicy[] = [
 export const SHIPPED_POLICY_IDS = ['arrival-count', 'live-token', 'live-token-requiring-arrival'];
 
 /**
- * **The two `spec/join-policy.md` section 3 pins to [Q4](../../doc/open-questions.md)'s
+ * **The two `spec/join-policy.md` section 3 pins to [Q4](../../doc/questions/q4.md)'s
  * own wording**, and after ADR 0025 that is no longer the same set as
  * `SHIPPED_POLICY_IDS`. *Pinned* is a claim about a definition — neither of these
  * two may gain a clause, which is what `JP-R7` and `JP-R8` forbid and what makes

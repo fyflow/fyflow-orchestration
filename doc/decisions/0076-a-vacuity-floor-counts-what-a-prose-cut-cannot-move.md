@@ -119,7 +119,7 @@ arriving at the item asked to find it.*
    **This is [ADR 0073](0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) decision
    4's criterion, and it is the only one this repository accepts for lowering a ratchet**: that
    decision took `README_SNIPPET_FLOOR` from 8 to 3 and said it is legitimate *"only because decision
-   1 changes what the floor COUNTS"*. [Q102](../open-questions.md) is the row this answers, at
+   1 changes what the floor COUNTS"*. [Q102](../questions/q102.md) is the row this answers, at
    whole-repository scale.
 
 2. **`M3` is measured and NOT moved — AGAINST A PROSE CUT, which is the only churn this decision
@@ -131,7 +131,7 @@ arriving at the item asked to find it.*
 
    **The scope matters and the first cut did not state it — W112's adequacy reader.** Document
    ADDITION is a different churn, and it is the one `M3` and `M4` have actually fired on: every
-   [Q142](../open-questions.md) firing in this repository's history is a `removes` fixture rising
+   [Q142](../questions/q142.md) firing in this repository's history is a `removes` fixture rising
    past a floor. Measured by adding link-bearing documents under `doc/work-items/`:
 
    | item documents added | probe 1's `files` | `M3` fires? |
@@ -219,7 +219,7 @@ arriving at the item asked to find it.*
    work**, which is why stop-and-ask (c)'s own answer says what it does: it *"refuses a commit that
    grows the required reading."* *(**The clause above — *each cut item lowers the ceiling to its own
    post-cut measurement* — is NOT satisfiable at the last member**, which is this plan's own *what it
-   taught* item 1 and [Q479](../open-questions.md). The ceilings ship AT the targets and `B5` is what
+   taught* item 1 and [Q479](../questions/q479.md). The ceilings ship AT the targets and `B5` is what
    holds them there. Struck here by P27's retro.)*
 
    | | measured | ceiling | target |
@@ -250,7 +250,7 @@ arriving at the item asked to find it.*
    member is un-met. **What a member has to spend is now target-minus-measurement** — 1,846, 264
    and 283 bytes — and `check:budget` prints those three figures in place of a distance that is
    permanently zero. *(The middle term was 264 at the moment it was written and the check is the only
-   honest home for it: P27 decision 4, which is why these figures left `check-budget.mjs`'s comments.)* [Q479](../open-questions.md), and W115's adequacy reader found the same
+   honest home for it: P27 decision 4, which is why these figures left `check-budget.mjs`'s comments.)* [Q479](../questions/q479.md), and W115's adequacy reader found the same
    claim still standing in `check-budget.mjs`'s own `SET` docstring.)*
 
 5. **A ceiling's vacuity is *nothing to measure*, not *too little to check*, so the guard is a
@@ -264,7 +264,7 @@ arriving at the item asked to find it.*
    [ADR 0073](0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) consequence 10 names.
 
    **And the distance to target is PRINTED on every run.** A ceiling that nobody lowers goes stale
-   toward WEAKNESS — the opposite direction from [Q102](../open-questions.md)'s floors, which go
+   toward WEAKNESS — the opposite direction from [Q102](../questions/q102.md)'s floors, which go
    stale toward strictness and fail loudly — so the only thing that makes the drift visible is a
    reader seeing it.
 
@@ -301,7 +301,7 @@ arriving at the item asked to find it.*
    is the one this consequence claimed the set was complete without.** `S12` refused `check:budget`
    until `GATE_CHAIN` declared it. `G6` refused the digest walk's `dev-dist` skip until it was
    declared in `SHARED_SCRATCH`, and then **refused the leak-watching clause added for consequence 11
-   on the very next run** — [Q178](../open-questions.md)'s shape, which `check-wiring.mjs` has
+   on the very next run** — [Q178](../questions/q178.md)'s shape, which `check-wiring.mjs` has
    recorded twice about itself. `S11` did not fire, correctly, because the entry is in the chain, and
    `G3` fires twice if the manifest entries go. `run-selftests.mjs` derives its nine entries from the
    manifest, so `check:budget:selftest` arrived with no edit and `G4` stayed green.
@@ -341,12 +341,12 @@ arriving at the item asked to find it.*
    conformity reader measured three runs each: `check:budget` **351 / 369 / 501 ms**,
    `check:scheduler` **441 / 460 / 531**, `check:policies` **372 / 446**. They are
    indistinguishable, with the within-check spread larger than the between-check difference, which is
-   [Q179](../open-questions.md)'s band. **The premise is withdrawn and the argument is untouched**:
+   [Q179](../questions/q179.md)'s band. **The premise is withdrawn and the argument is untouched**:
    the ordering holds on what this check can substitute for, not on what it costs.)*
 
 5. **The self-test found seven defects in itself, and SEVEN of them are one shape with the polarity
    the wrong way round.** *(This read *five* while its own next sentence, its own enumeration, the
-   harness's own comment and [Q462](../open-questions.md) all said seven — W112's conformity reader.)* Written as *remove the grader clause*, seven entries came back **exited 0:
+   harness's own comment and [Q462](../questions/q462.md) all said seven — W112's conformity reader.)* Written as *remove the grader clause*, seven entries came back **exited 0:
    the mutation costs nothing — correctly**: a weakened grader on a tree where every probe passes has
    nothing to be wrong about, so removing it costs exactly nothing and the entry measures the absence
    of a case rather than the presence of a guard. Each plants the case instead — a probe declaring the
@@ -385,7 +385,7 @@ arriving at the item asked to find it.*
    matches, so *the non-zero exit removed* read STILL CAUGHT. Section 4's two directions, inside a
    harness, three sentences after quoting them.
 
-9. **`stray()`'s glob is widened from `check-*.mjs` to every `.mjs`** — [Q459](../open-questions.md),
+9. **`stray()`'s glob is widened from `check-*.mjs` to every `.mjs`** — [Q459](../questions/q459.md),
    handed to P27's declaration by P26's retro. W105's conformity reader recorded the gap and judged
    it harmless on the ground that *`G3` reads `check-*.mjs` too*, which is true of `G3` and false of
    the CONTROL: W108's six `w108-*.mjs` modules killed that lane at 3.1 s against a 228 s wall and
@@ -433,14 +433,14 @@ arriving at the item asked to find it.*
 
 14. **What is NOT fixed.** `markdownIn` throws `ENOENT` on a missing directory, found while building
     the window fixtures; no probe removes `doc/` or `spec/` whole, so it is unreached rather than
-    latent-and-live ([Q460](../open-questions.md)). Decision 4's ceiling is a literal each cut item
-    must lower, which is [Q102](../open-questions.md)'s shape in the ceiling direction — a number
+    latent-and-live ([Q460](../questions/q460.md)). Decision 4's ceiling is a literal each cut item
+    must lower, which is [Q102](../questions/q102.md)'s shape in the ceiling direction — a number
     whose staleness permits rather than refuses, and **nothing enforces that it only moves DOWN**;
     the mitigation is consequence 13's printed distance and nothing more
-    ([Q461](../open-questions.md)). **`stray()`'s widened glob is narrowable straight back for
+    ([Q461](../questions/q461.md)). **`stray()`'s widened glob is narrowable straight back for
     zero**, because it has one call site inside the control's already-failing branch and is therefore
     never evaluated on a correct tree — measured in both directions, and recorded rather than guarded
-    ([Q464](../open-questions.md)). And **the always-read set is three paths bound only to three more
+    ([Q464](../questions/q464.md)). And **the always-read set is three paths bound only to three more
     paths in the self-test**, with no authority in any document: a commit adding a FOURTH always-read
     document is invisible to `B1`-`B4`. **The fourth document this named is no longer one**:
     [W113](../work-items/w113-the-register-is-a-reference.md) withdrew the instruction that
@@ -448,7 +448,7 @@ arriving at the item asked to find it.*
     `CLAUDE.md` at both sites that asserted it and in `doc/README.md`
     ([P27](../plans/p27-what-a-register-row-is.md) decision 1) — so the ~71 KB this budget does not
     count is a reference nobody is told to read. **The MEMBERSHIP half of
-    [Q465](../open-questions.md) stands**: `B1`-`B4` still bind three paths to three more paths in a
+    [Q465](../questions/q465.md) stands**: `B1`-`B4` still bind three paths to three more paths in a
     self-test, with no authority in any document, so a FIFTH always-read document would be invisible
     to them for exactly the same reason.
 

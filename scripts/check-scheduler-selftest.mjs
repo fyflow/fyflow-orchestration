@@ -17,7 +17,7 @@
 // say so: with the package absent there is no manifest to read a version out of.
 //
 // ---------------------------------------------------------------------------
-// **W29: THIS FILE GRADED NOTHING, AND NOW IT DOES.** [Q132](../doc/open-questions.md).
+// **W29: THIS FILE GRADED NOTHING, AND NOW IT DOES.** [Q132](../doc/questions/q132.md).
 //
 // Until W29 there were twelve probes and **no META pass at all**. Every probe here
 // asserts that the check refuses a broken **input**; nothing asserted that the
@@ -29,7 +29,7 @@
 //
 // **The yield of not having one was measured rather than assumed, and it is 1 in
 // 5.** Four clause-level mutations of this check were caught by the probes anyway;
-// **one was not**, and it is [Q141](../doc/open-questions.md) — `D5`'s empty-parse
+// **one was not**, and it is [Q141](../doc/questions/q141.md) — `D5`'s empty-parse
 // clause, inert on the clean tree with **12/12 probes green and exit 0**. A clause
 // no probe drives is invisible to every probe by construction, and only a META pass
 // asks the question.
@@ -65,20 +65,20 @@
 //      unprobed ones among them. They are unreachable for one shared reason — the
 //      `.d.ts`, the installed manifest and the import map could not be pointed
 //      somewhere else — so one input override (`CHECK_SCHEDULER_DTS`) plus two
-//      corrupt-file probes close all six. Taking [Q141](../doc/open-questions.md)
+//      corrupt-file probes close all six. Taking [Q141](../doc/questions/q141.md)
 //      alone would have built the mechanism and then declined to use it.
 //   2. **The report-row `agree` projection.** Measured before it was written: with
 //      the `checks` array's `D5` row deleted, or with the verdict loop forced to
 //      print `ok`, **every probe still passed** — `wanted [D3] got [D3] exit 1`.
 //      The set of failure ids is unchanged by a report mutation, so no set
 //      comparison can see one; a second, independent projection can.
-//      [Q100](../doc/open-questions.md)'s class, and here it also erases the
+//      [Q100](../doc/questions/q100.md)'s class, and here it also erases the
 //      **`NOT RUN`** state, which is W5's own finding and `doc/workflow.md` section
 //      1 rule 4's whole subject.
 //   3. **An anchor must match EXACTLY ONCE.** Rule 7 (b) asks that a mutation match
 //      something; `String.replace` silently takes the first of several. An ambiguous
 //      anchor is a mutation landing somewhere its entry did not name, which is
-//      [Q143](../doc/open-questions.md)'s damage arriving by a different road.
+//      [Q143](../doc/questions/q143.md)'s damage arriving by a different road.
 //
 // **What this file does NOT reach, measured against this file as shipped rather
 // than inherited from a sibling.** `scripts/check-policies-selftest.mjs:29-51`
@@ -101,7 +101,7 @@
 // expression* from the META one the list already named. The summary tallies are the
 // exit artifact itself — P9 asks *what notices*, the verdict asserts only *that*
 // something did, and the breakdown that answers the question is unasserted
-// ([Q100](../doc/open-questions.md)'s class, in the deliverable this item created).
+// ([Q100](../doc/questions/q100.md)'s class, in the deliverable this item created).
 // And the `maskedBy` string is free text: the grading now verifies **that** a
 // sibling stepped in — same id, same count, different message — and **cannot verify
 // WHICH**, so renaming it to *"a clause that does not exist anywhere"* still costs 0.
@@ -121,7 +121,7 @@
 // `check-source-selftest.mjs`, which has a `SELF` list whose children do not.
 //
 // **And one guard here is live in FIVE files and provoked in none** —
-// [Q144](../doc/open-questions.md), whose row says *three* because W29 added the
+// [Q144](../doc/questions/q144.md), whose row says *three* because W29 added the
 // fourth and fifth. The case `ran:` exists for is *inert on the clean tree, FATAL
 // under the probe*. W29 constructed one in `check-docs` and recorded it as a rule 8
 // provocation; the checked-in form is a `SELF` entry, which is out of that item's
@@ -132,7 +132,7 @@
 // does. [ADR 0039](../doc/decisions/0039-the-gate-climbs-the-ladder-and-the-self-tests-run-concurrently.md)
 // makes `scripts/run-selftests.mjs` read this marker and run this entry alone;
 // `G4` in `scripts/check-wiring.mjs` derives the same set from this same marker and
-// compares the two. **[Q148](../doc/open-questions.md) named ONE entry that would
+// compares the two. **[Q148](../doc/questions/q148.md) named ONE entry that would
 // contend and P11's declaration measured FOUR** — `check:docs` and `typecheck` on
 // `Cannot find module`, `check:scheduler` on its own `D1`, `test:l6` on
 // `ERR_MODULE_NOT_FOUND` — and its stated mechanism (a runtime import from an
@@ -460,7 +460,7 @@ const DTS_PROBES = [
     // Its provenance still is: `doc/workflow.md` section 5 rule 4 forbids a fixture
     // taken from the code under test, and reading this one from `node_modules`
     // instead costs **1** failure, measured.
-    // **[Q141](../doc/open-questions.md), and the one live defect this item closed.**
+    // **[Q141](../doc/questions/q141.md), and the one live defect this item closed.**
     // `D5`'s empty-parse clause fires only when the parse yields zero value exports,
     // and no probe could produce that: the installed package's declarations always
     // parse. Measured before this probe existed — the clause could be made inert
@@ -584,7 +584,7 @@ const INSTALL_PROBES = [
 // `exited 1, wanted [D6], got []` while the report rows plainly said `D6` — the two
 // projections disagreeing, which is the `agree` check W29 added doing its job on the
 // author who widened the check and forgot the allowlist. **An allowlist is a second
-// place the id vocabulary is written down**, which is [Q43](../doc/open-questions.md)'s
+// place the id vocabulary is written down**, which is [Q43](../doc/questions/q43.md)'s
 // class and exactly what W29's declaration killed as a hypothesis for three other
 // self-tests — here it is live.
 const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
@@ -627,7 +627,7 @@ const MIN_META = 36;
  * harness refuses that below.
  *
  * **ONE entry carries a fourth element, and it inverts the expected verdict.**
- * [Q146](../doc/open-questions.md). **Two** entries were written expecting
+ * [Q146](../doc/questions/q146.md). **Two** entries were written expecting
  * *disappeared*, both came back **STILL CAUGHT** on this list's first run, and the
  * author read the same mechanism into each: a sibling clause reporting the SAME id
  * firing in the disabled clause's place, invisible to a set-equality grading.
@@ -636,7 +636,7 @@ const MIN_META = 36;
  * what said so.** W29's conformity reader falsified the author's *"it goes red if
  * the guard is removed"* — deleting `D5`'s fallthrough guard left the whole file at
  * **18/18, 21/21, exit 0** — so the grading gained the discriminator
- * [Q146](../doc/open-questions.md)'s own row proposes, and it immediately
+ * [Q146](../doc/questions/q146.md)'s own row proposes, and it immediately
  * **separated the two cases**:
  *
  *   D2 unreadable  LIVE -> 2 failures under `D2`   INERT -> 1     count FELL
@@ -689,7 +689,7 @@ const META = [
   // so the id set is identical either way and set equality reads *STILL CAUGHT*;
   // the count goes **2 -> 1** and the clause is detected after all. W29's author
   // called this masking on the strength of the id set alone, and adding the
-  // discriminator its own [Q146](../doc/open-questions.md) row proposes is what
+  // discriminator its own [Q146](../doc/questions/q146.md) row proposes is what
   // falsified it. **Co-firing is not masking**, and only `D5` below is the real
   // thing.
   ['D2`s devDependency clause disabled — the pin the GATE installs (ADR 0029 rule 1; it was ADR 0013 rule 1`s half until W57)',
@@ -831,7 +831,7 @@ export async function selfTest(root) {
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
   // function deleted its parent's fixtures and two top-level runs did the same to each other
-  // ([Q182](../doc/open-questions.md)). The `rmSync` stays, and is now load-bearing for a different
+  // ([Q182](../doc/questions/q182.md)). The `rmSync` stays, and is now load-bearing for a different
   // reason: Windows recycles pids, so a directory a killed run left can be inherited by a live one.
   // **`process.on('exit')` rather than a `finally`**, because this function returns from many places and
   // the one road none of their `rmSync` calls covers is a THROW — which is how W103's finding 3 left its
@@ -898,7 +898,7 @@ export async function selfTest(root) {
   // that cost this project a sibling checkout) silently has no coverage anywhere.
   //
   // **A probe's NAME is prose and nothing can check that prose describes an edit**
-  // — [Q162](../doc/open-questions.md)'s class. What IS checkable is the one string
+  // — [Q162](../doc/questions/q162.md)'s class. What IS checkable is the one string
   // the edit must produce, so each exemption carries it.
   const UNCITED = [
     // `D1`'s link clause has a `META` entry of its own; this probe drives the same
@@ -1134,7 +1134,7 @@ export async function selfTest(root) {
       // claim that a masked entry *"goes red if the guard is removed"* was **false**
       // when it was written, because two clauses reporting one id look identical to
       // one clause reporting it. The count is the signal that does not —
-      // [Q146](../doc/open-questions.md) says so and this is the one place it is read.
+      // [Q146](../doc/questions/q146.md) says so and this is the one place it is read.
       failures: (out.match(/^ {2}D\d+: /gm) ?? []).length,
       // **A fingerprint of the failure MESSAGES**, so a masked entry can be made to
       // prove the sibling it names actually stepped in. W29's adequacy reader found
@@ -1399,14 +1399,14 @@ export async function selfTest(root) {
       // which is exactly what *masked* means: the sibling takes the clause's place
       // rather than reporting alongside it. Remove the guard and the baseline goes
       // to 2 against the mutant's 1, and the entry goes red for the right reason.
-      // **This is [Q146](../doc/open-questions.md)'s own proposed discriminator**,
+      // **This is [Q146](../doc/questions/q146.md)'s own proposed discriminator**,
       // taken here for the two entries that need it rather than for all 21.
       // **`caught` is no longer a terminal verdict — it asks one more question.**
       // The id SET being unchanged does not mean nothing changed: two clauses can
       // report one id, and then disabling either leaves the set alone and moves the
       // COUNT. W29's conformity reader found this the hard way — it removed `D5`'s
       // fallthrough guard and the whole file stayed at 18/18, 21/21, exit 0 — and
-      // the count is the discriminator [Q146](../doc/open-questions.md) names.
+      // the count is the discriminator [Q146](../doc/questions/q146.md) names.
       //
       // So a `caught` entry is re-run against the UNMUTATED check and the two counts
       // compared. The baseline costs one extra child, and only for entries that get

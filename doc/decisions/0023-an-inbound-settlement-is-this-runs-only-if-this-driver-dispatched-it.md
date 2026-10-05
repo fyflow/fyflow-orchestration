@@ -31,7 +31,7 @@ Measured against the code before this was written, on `spec/examples/valid/linea
 | driver B's log | holds driver A's outcome record |
 | a `run-9:` settlement delivered to a `run-1` driver | dispatches `run-9:publish:-:0` |
 
-**[Q72](../open-questions.md)'s own text proposed filtering `Driver.onEvent` by run id, and the
+**[Q72](../questions/q72.md)'s own text proposed filtering `Driver.onEvent` by run id, and the
 measurement rejected it.** Six inbound task ids were probed against the shipped driver:
 
 | inbound id | today | a run-id filter | **this ADR** |
@@ -107,7 +107,7 @@ not the scheduler's. A `user_action` task fires two events for one dispatched id
 
 **What a future reader will try.** Adding an `onForeignSettlement` callback so rule 3 is observable.
 Resist it until something needs it: it is a surface addition for a diagnostic, and
-[Q20](../open-questions.md) — whether a run id is global at all — is the question that decides
+[Q20](../questions/q20.md) — whether a run id is global at all — is the question that decides
 whether a driver should have an opinion about other runs. If it lands, that is where this belongs.
 
 > **This paragraph was tested on 2026-09-02 and it held.**
@@ -122,10 +122,10 @@ whether a driver should have an opinion about other runs. If it lands, that is w
 
 | | why not |
 |---|---|
-| **Filter by run id in `onEvent`**, which is what [Q72](../open-questions.md) proposed | **Measured: closes one of four holes.** Three of the four have nothing to do with run ids, and the run-id case is already covered by the dispatched-set check |
+| **Filter by run id in `onEvent`**, which is what [Q72](../questions/q72.md) proposed | **Measured: closes one of four holes.** Three of the four have nothing to do with run ids, and the run-id case is already covered by the dispatched-set check |
 | **Refuse a second `Driver` on one scheduler** — the "one driver per scheduler" rule `AGENTS.md` documents today | Unenforceable without the driver interrogating the scheduler, which `SchedulerLike`'s two methods deliberately do not allow ([ADR 0013](0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rule 1). It also forbids a topology there is no reason to forbid |
 | **Make rule 3 loud too** — report or throw on any settlement that is not ours | With two drivers on one scheduler every foreign settlement hits it. A refusal that fires on the normal case is noise, and noise gets suppressed |
-| **Make rule 4 silent too**, so the guard is one line | It would silently drop the three cases that are genuinely defects, which is the objection [Q72](../open-questions.md) raised against filtering — *"a driver that silently ignores an unknown run id drops a real defect"*. That objection is right about half the cases, and this rule is where it lands |
+| **Make rule 4 silent too**, so the guard is one line | It would silently drop the three cases that are genuinely defects, which is the objection [Q72](../questions/q72.md) raised against filtering — *"a driver that silently ignores an unknown run id drops a real defect"*. That objection is right about half the cases, and this rule is where it lands |
 | **Check `nodeId` against the definition instead of the dispatched set** | Catches the *not in the definition* case and misses the other two. The dispatched set is stricter and already exists |
 
 ---
@@ -182,14 +182,14 @@ than a per-state count.
 | precondition | what happens without it |
 |---|---|
 | ~~**Every task on a driver's scheduler carries a task id some driver minted.**~~ **RETIRED 2026-09-02** | ~~A plain non-flow task settling on a shared scheduler does not parse, so rule 2 stops **every driver on that scheduler**. Measured.~~ That was the precondition and it is now **the defect [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) removes.** Q86 is **answered**, in the direction this row raised: an unparseable id is treated as *not ours*, and reported so that the one case where it might be ours is not a silent hang. **The topology needs no such precondition any more** |
-| **Run ids are unique across the drivers sharing one scheduler.** | Two drivers constructed with the **same** run id mint the same task ids, so `dispatched.has()` is true in both and `ID-R4` is not violated. Measured: one settlement produces **two** dispatches of the successor, with nothing reported — [Q72](../open-questions.md)'s corruption verbatim, for the one case this ADR does not close. No driver can detect it: `SchedulerLike` has two methods and neither asks who else is subscribed. [Q87](../open-questions.md) |
+| **Run ids are unique across the drivers sharing one scheduler.** | Two drivers constructed with the **same** run id mint the same task ids, so `dispatched.has()` is true in both and `ID-R4` is not violated. Measured: one settlement produces **two** dispatches of the successor, with nothing reported — [Q72](../questions/q72.md)'s corruption verbatim, for the one case this ADR does not close. No driver can detect it: `SchedulerLike` has two methods and neither asks who else is subscribed. [Q87](../questions/q87.md) |
 
 **Rule 6's *"a second `Driver` on the same scheduler is now safe"* is therefore true of drivers with
 distinct run ids, ~~on a scheduler carrying only flow tasks~~ — **on any scheduler, since
 [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)**. `AGENTS.md`
 section 9 and `spec/task-id.md` `ID-R4` state the one **remaining** precondition rather than leaving
 it to a reader: run ids unique across the drivers sharing one scheduler, which no driver can detect
-([Q87](../open-questions.md)) and which `MultipleRuns`' own message now names.
+([Q87](../questions/q87.md)) and which `MultipleRuns`' own message now names.
 
 ### 3. The *Consequences* claim about `context.spawnTask()` was misleading
 
@@ -198,7 +198,7 @@ mistaken for a flow step."* `spawnConfig.id` is caller-supplied
 (`../fyflow-scheduler/core/FyflowScheduler.ts:1466`), so a spawned id will not parse — and the actual
 outcome is that the settlement **stops the run** under rule 2, not that it is harmlessly ignored.
 That is unchanged behaviour with a bad outcome, listed as a benefit. It is the same fact as
-precondition 1 and it is [Q86](../open-questions.md). **Since
+precondition 1 and it is [Q86](../questions/q86.md). **Since
 [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) the *Consequences*
 claim is true as written**: a spawned task's settlement no longer stops the run, it is reported and
 dropped. The sentence was not wrong about what should happen — it was wrong about what did.
