@@ -969,8 +969,8 @@ const README_OPENING = '(the opening, above the first ## heading)';
   // decision 4 names as this document's content — replaced its pairing with a copy of the first, and
   // measured `check:docs` EXIT 0, `check:markdown` EXIT 0 and **all forty-seven self-test probes still
   // caught**, because no probe anchors on the third pairing. *Nothing needed to lower the floor.*
-  // This is `X11`'s own `duplicated` clause one check along, bought by W96's adequacy reader for the
-  // same reason — three kept pairings get the bound forty-one ADR rows already have. The `agents` side
+  // This was `X11`'s own `duplicated` clause one check along, bought by W96's adequacy reader for the
+  // same reason — three kept pairings get the bound forty-one ADR rows had (`X11` retired at W119, ADR 0081). The `agents` side
   // is held too, because two pairings naming ONE snippet is caught today only by the byte comparison
   // happening to differ, which is a property of the documents rather than of the list.
   for (const [side, label] of [['readme', 'README.md heading'], ['agents', `${DOCS[0]} heading`]]) {
@@ -1259,39 +1259,13 @@ const L6_FILE = process.env.CHECK_DOCS_L6 || join('examples', 'l6.ts');
   }
 }
 
-// X11 — doc/decisions/README.md indexes EXACTLY the ADRs on disk, both ways
-//
-// **W96, and P23's retro measured the class**: 29 of the 46 commits that touched `doc/decisions/` shipped an index missing at
-// least one ADR, in five episodes, eight behind at its worst. A set compared to the directory it indexes — the criterion the
-// standing `doc/` refusal has named since P18 — so it is checked, both ways, each direction its own clause (obligation (e)'s
-// third shape). The directory is always the tree's own; the index is read through an override so a probe can reach both
-// directions by editing the index alone.
-const ADR_INDEX = process.env.CHECK_DOCS_ADR_INDEX || join('doc', 'decisions', 'README.md');
-{
-  const DIR = join(ROOT, 'doc', 'decisions');
-  const IDX = join(ROOT, ADR_INDEX);
-  if (!existsSync(DIR) || !existsSync(IDX)) {
-    fail('X11', 'doc/decisions or its README.md is missing, so the ADR index cannot be compared');
-  } else {
-    const disk = readdirSync(DIR).filter((f) => /^\d{4}-.+\.md$/.test(f)).sort();
-    const matched = [...readFileSync(IDX, 'utf8').matchAll(/^\| \[(\d{4})\]\((\d{4}-[^)]+\.md)\)/gm)];
-    const rows = matched.map((m) => m[2]).sort();
-    // **A row is its ADR's ONCE, under its own number** — W96's adequacy reader: an index carrying the 0067 row twice
-    // passed with a note printing 38 rows against 37 ADRs, and a row reading `[0065]` over `0066-...` passed too.
-    const duplicated = rows.filter((f, i) => rows.indexOf(f) !== i);
-    const misnumbered = matched.filter((m) => !m[2].startsWith(m[1] + '-')).map((m) => `[${m[1]}] over ${m[2]}`);
-    const unindexed = disk.filter((f) => !rows.includes(f));
-    const phantom = rows.filter((f) => !disk.includes(f));
-    if (disk.length === 0) fail('X11', 'doc/decisions holds no NNNN-*.md file where X11 looks for them');
-    if (unindexed.length) fail('X11', `doc/decisions holds ${unindexed.join(', ')}, which its README.md does not index`);
-    if (phantom.length) fail('X11', `doc/decisions/README.md indexes ${phantom.join(', ')}, which is not on disk`);
-    if (duplicated.length) fail('X11', `doc/decisions/README.md indexes ${[...new Set(duplicated)].join(', ')} more than once`);
-    if (misnumbered.length) fail('X11', `doc/decisions/README.md names a row by another ADR's number: ${misnumbered.join(', ')}`);
-    if (!unindexed.length && !phantom.length && !duplicated.length && !misnumbered.length && disk.length) {
-      console.log(`note: X11 compared doc/decisions/README.md's ${rows.length} rows against the ${disk.length} ADRs on disk, both ways.`);
-    }
-  }
-}
+// X11 — RETIRED at [W119](../doc/work-items/w119-the-lookup.md),
+// [ADR 0081](../doc/decisions/0081-the-adr-index-is-generated-and-x11-leaves-with-it.md). It compared
+// `doc/decisions/README.md`'s hand-kept index with the ADRs on disk, both ways, because that index
+// was a SECOND LIST typed by hand and 29 of the 46 commits that touched the directory had shipped it
+// short. The index is now generated — `npm run adr -- --index` — so there is no second list, and a
+// comparison of the folder with what it generates is the folder compared with itself. The id stays
+// retired, never reissued: `doc/workflow.md` section 3, one level in.
 
 const checks = [
   'X1 the reference exists and its fences parse',
@@ -1304,7 +1278,6 @@ const checks = [
   'X8 every ```ts fence in README.md IS the executed AGENTS.md snippet its section NAMES, byte for byte, both ways',
   'X9 the version README.md tells a consumer to expect IS the version both manifests carry',
   'X10 every current copy of the L6 counts in examples/README.md IS what examples/l6.ts declares',
-  'X11 doc/decisions/README.md indexes EXACTLY the ADRs on disk, both ways',
 ];
 const runCount = written.filter((x) => x.tag === 'run').length;
 console.log(`docs check — ${all.length} snippet(s): ${runCount} run, ` +

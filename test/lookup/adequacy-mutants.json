@@ -1,0 +1,902 @@
+[
+  {
+    "id": "F1",
+    "file": "scripts/lookup.mjs",
+    "from": "(w.op === '=' ? r[w.field] === w.value :",
+    "to": "(w.op === '=' ? r[w.field].toLowerCase() === w.value.toLowerCase() :",
+    "verdict": "SURVIVED",
+    "clause": "`=` is EXACT (made case-insensitive)",
+    "input": "BASE + doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --where status=OPEN | pristine exit 1 \"# no question matches --where status=OPEN\"; mutant exit 0 listing Q2, Q5, Q170"
+  },
+  {
+    "id": "F2",
+    "file": "scripts/lookup.mjs",
+    "from": "(w.op === '=' ? r[w.field] === w.value :",
+    "to": "(w.op === '=' ? r[w.field].includes(w.value) :",
+    "verdict": "SURVIVED",
+    "clause": "`=` is EXACT (made substring)",
+    "input": "BASE + doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --where title=Mixed | pristine exit 1; mutant exit 0 \"Q5\\topen\\tMixed Case Title\""
+  },
+  {
+    "id": "F3",
+    "file": "scripts/lookup.mjs",
+    "from": "r[w.field].toLowerCase().includes(w.value.toLowerCase())",
+    "to": "r[w.field].includes(w.value)",
+    "verdict": "CAUGHT",
+    "clause": "`~` is case-insensitive (made case-sensitive)",
+    "input": ""
+  },
+  {
+    "id": "F4",
+    "file": "scripts/lookup.mjs",
+    "from": "r[w.field].toLowerCase().includes(w.value.toLowerCase())",
+    "to": "r[w.field].toLowerCase() === w.value.toLowerCase()",
+    "verdict": "CAUGHT",
+    "clause": "`~` is a substring (made exact)",
+    "input": ""
+  },
+  {
+    "id": "F5",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const w of o.wheres) {\n    matched",
+    "to": "  for (const w of o.wheres.slice(0, 1)) {\n    matched",
+    "verdict": "CAUGHT",
+    "clause": "--where repeatable and ANDed (only the first applies)",
+    "input": ""
+  },
+  {
+    "id": "F6",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const w of o.wheres) {\n    matched",
+    "to": "  for (const w of o.wheres.slice(-1)) {\n    matched",
+    "verdict": "CAUGHT",
+    "clause": "--where repeatable and ANDed (only the last applies)",
+    "input": ""
+  },
+  {
+    "id": "F7",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const w of o.wheres) {\n    if (kind.derived",
+    "to": "  for (const w of o.wheres) {\n    if (w.field === 'shared') broken('`shared` unknown');\n    if (kind.derived",
+    "verdict": "SURVIVED",
+    "clause": "--where over ANY front-matter field (`shared` refused as unknown)",
+    "input": "BASE + doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --where shared~react | pristine exit 0 Q5; mutant exit 2"
+  },
+  {
+    "id": "F8",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const w of o.wheres) {\n    matched",
+    "to": "  for (const w of (kindName === 'adr' ? [] : o.wheres)) {\n    matched",
+    "verdict": "SURVIVED",
+    "clause": "--where over any field of EVERY record kind (adr ignores --where)",
+    "input": "BASE + doc/decisions/0004-amends-one.md: ADR 0004 status proposed, supersedes \"\", amends ADR 0002 rule 1 | adr --where status=proposed | pristine exit 0 ADR 0004 only; mutant exit 0 all four ADRs"
+  },
+  {
+    "id": "F9",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const w of o.wheres) {\n    matched",
+    "to": "  for (const w of o.wheres.filter((x) => x.field !== 'owner')) {\n    matched",
+    "verdict": "SURVIVED",
+    "clause": "--where field value is the record's own (owner~ matches prose; made: owner ignored)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\"; doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --where owner~W7 | pristine exit 0 Q5 only; mutant exit 0 every non-icebox question"
+  },
+  {
+    "id": "S1",
+    "file": "scripts/lookup.mjs",
+    "from": "    const s = o.search.toLowerCase();\n    matched = matched.filter((r) => kind.fields.some((f) => String(r[f]).toLowerCase().includes(s)));",
+    "to": "    const s = o.search;\n    matched = matched.filter((r) => kind.fields.some((f) => String(r[f]).includes(s)));",
+    "verdict": "SURVIVED",
+    "clause": "--search is case-insensitive (made case-sensitive)",
+    "input": "BASE + doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --search MIXED | pristine exit 0 Q5; mutant exit 1"
+  },
+  {
+    "id": "S2",
+    "file": "scripts/lookup.mjs",
+    "from": "matched.filter((r) => kind.fields.some((f) =>",
+    "to": "matched.filter((r) => ['title', 'term'].some((f) =>",
+    "verdict": "SURVIVED",
+    "clause": "--search over EVERY text field (narrowed to title)",
+    "input": "BASE + doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --search react-components | pristine exit 0 Q5 (matched in shared); mutant exit 1"
+  },
+  {
+    "id": "S3",
+    "file": "scripts/lookup.mjs",
+    "from": "matched.filter((r) => kind.fields.some((f) =>",
+    "to": "matched.filter((r) => kind.list.some((f) =>",
+    "verdict": "SURVIVED",
+    "clause": "--search over every text field (narrowed to the list fields id,status,title)",
+    "input": "BASE + doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --search W7 | pristine exit 0 Q5 (matched in owner); mutant exit 1"
+  },
+  {
+    "id": "S4",
+    "file": "scripts/lookup.mjs",
+    "from": "matched.filter((r) => kind.fields.some((f) =>",
+    "to": "matched.filter((r) => [...kind.fields, '$body'].some((f) =>",
+    "verdict": "SURVIVED",
+    "clause": "--search reads front matter only (W119 Record d6; widened to body)",
+    "input": "BASE | q --search \"line two\" | pristine exit 1; mutant exit 0 Q17 (matched in body). Violates W119 Record decision 6, not P28 text"
+  },
+  {
+    "id": "P1",
+    "file": "scripts/lookup.mjs",
+    "from": "    for (const r of shown) lines.push(fields.map(",
+    "to": "    for (const r of shown) lines.push([...fields].reverse().map(",
+    "verdict": "CAUGHT",
+    "clause": "--fields in the order named (reversed)",
+    "input": ""
+  },
+  {
+    "id": "P2",
+    "file": "scripts/lookup.mjs",
+    "from": "    doc.records = shown.map((r) => Object.fromEntries(fields.map(",
+    "to": "    doc.records = shown.map((r) => Object.fromEntries([...fields].sort().map(",
+    "verdict": "SURVIVED",
+    "clause": "--fields order in JSON (sorted keys)",
+    "input": "BASE | q Q17 --fields title,id --format json | pristine record keys title,id; mutant id,title"
+  },
+  {
+    "id": "P3",
+    "file": "scripts/lookup.mjs",
+    "from": "  const fields = o.fields ?? (byIdDefault ? kind.fields : kind.list);",
+    "to": "  const fields = o.fields ?? (byIdDefault && !asJson ? kind.fields : kind.list);",
+    "verdict": "SURVIVED",
+    "clause": "single record default = front matter (json by id drops to the list fields)",
+    "input": "BASE | q Q17 --format json | pristine all ten front-matter fields; mutant id,status,title only"
+  },
+  {
+    "id": "P4",
+    "file": "scripts/lookup.mjs",
+    "from": "      else lines.push(r.$raw);",
+    "to": "      else lines.push(kindName === 'adr' ? r.title : r.$raw);",
+    "verdict": "SURVIVED",
+    "clause": "single ADR by id prints its front matter (prints only the title)",
+    "input": "BASE | adr 0001 | pristine its nine front-matter lines; mutant \"Routing is in the driver\" only"
+  },
+  {
+    "id": "P5",
+    "file": "scripts/lookup.mjs",
+    "from": "derived: ['refs', 'refs-count', 'superseded-by', 'body'], list: ['id', 'status', 'title']",
+    "to": "derived: ['refs', 'refs-count', 'superseded-by', 'body'], list: ['id', 'title']",
+    "verdict": "SURVIVED",
+    "clause": "a list prints id,status,title (ADR list narrowed to id,title)",
+    "input": "BASE | adr --where status~acc | pristine id\\tstatus\\ttitle; mutant id\\ttitle"
+  },
+  {
+    "id": "P6",
+    "file": "scripts/lookup.mjs",
+    "from": "      else lines.push(r.$raw);",
+    "to": "      else lines.push(r.$raw + (r['superseded-by'] ? `superseded-by: ${r['superseded-by']}\\n` : ''));",
+    "verdict": "SURVIVED",
+    "clause": "derived never printed unless named (single record also prints superseded-by)",
+    "input": "BASE | adr 0001 | mutant appends \"superseded-by: ADR 0002 (rule 2); ADR 0003 (in part)\" to the default single-record output"
+  },
+  {
+    "id": "P7",
+    "file": "scripts/lookup.mjs",
+    "from": "derived: ['refs', 'refs-count', 'body'], list: ['id', 'status', 'title']",
+    "to": "derived: ['refs', 'refs-count', 'body'], list: ['id', 'title', 'status']",
+    "verdict": "CAUGHT",
+    "clause": "q list default id,status,title (order swapped)",
+    "input": ""
+  },
+  {
+    "id": "P8",
+    "file": "scripts/lookup.mjs",
+    "from": "      if (kindName === 'term') for (const f of TERM_FIELDS)",
+    "to": "      if (kindName === 'term') for (const f of TERM_FIELDS.filter((x) => x !== 'domain'))",
+    "verdict": "CAUGHT",
+    "clause": "single term by id: four fields (domain dropped)",
+    "input": ""
+  },
+  {
+    "id": "D1",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (field === 'refs-count') return asJson ? refs.length : String(refs.length);",
+    "to": "    if (field === 'refs-count') { const n = refs.reduce((s, r) => s + r.count, 0); return asJson ? n : String(n); }",
+    "verdict": "SURVIVED",
+    "clause": "refs-count is the number of FILES (made: number of citing lines)",
+    "input": "BASE + notes/g.md: \"Q17 first\\nQ17 second\\n\" | q Q17 --fields id,refs-count | pristine \"Q17\\t4\"; mutant \"Q17\\t5\""
+  },
+  {
+    "id": "D2",
+    "file": "scripts/lookup.mjs",
+    "from": "      const ids = new Set();",
+    "to": "      const ids = { a: [], add(x) { this.a.push(x); }, [Symbol.iterator]() { return this.a[Symbol.iterator](); } };",
+    "verdict": "CAUGHT",
+    "clause": "refs count = citing LINES, a line naming it twice is one (made: occurrences)",
+    "input": ""
+  },
+  {
+    "id": "D3",
+    "file": "scripts/lookup.mjs",
+    "from": "list.push(`${a.id}${m[2] ? ` (${m[2]})` : ''}`);",
+    "to": "list.push(`${a.id}`);",
+    "verdict": "CAUGHT",
+    "clause": "superseded-by carries the qualifier (dropped)",
+    "input": ""
+  },
+  {
+    "id": "D4",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (a.supersedes === '') continue;\n    for (const entry of a.supersedes.split('; ')) {",
+    "to": "    const src = [a.supersedes, a.amends].filter(Boolean).join('; ');\n    if (src === '') continue;\n    for (const entry of src.split('; ')) {",
+    "verdict": "SURVIVED",
+    "clause": "superseded-by derived from `supersedes` ONLY (also from amends)",
+    "input": "BASE + doc/decisions/0004-amends-one.md: ADR 0004 status proposed, supersedes \"\", amends ADR 0002 rule 1 | adr 0002 --fields id,superseded-by | pristine \"ADR 0002\\t\"; mutant \"ADR 0002\\tADR 0004 (rule 1)\""
+  },
+  {
+    "id": "D5",
+    "file": "scripts/lookup.mjs",
+    "from": "String(v).replace(/\\\\/g, '\\\\\\\\')",
+    "to": "String(v)",
+    "verdict": "SURVIVED",
+    "clause": "line format escapes `\\` (backslash escape removed)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q Q4 --fields id,body | pristine \"Q4\\tBack\\\\\\\\slash...\"; mutant the backslash unescaped"
+  },
+  {
+    "id": "D6",
+    "file": "scripts/lookup.mjs",
+    "from": ".replace(/\\r/g, '\\\\r')",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "line format escapes CR (CR escape removed)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q Q4 --fields id,body | pristine \"...and\\\\rCR...\"; mutant a raw CR in the line"
+  },
+  {
+    "id": "D7",
+    "file": "scripts/lookup.mjs",
+    "from": ".replace(/\\t/g, '\\\\t')",
+    "to": "",
+    "verdict": "CAUGHT",
+    "clause": "line format escapes tab",
+    "input": ""
+  },
+  {
+    "id": "D8",
+    "file": "scripts/lookup.mjs",
+    "from": "  if (field === 'body') return rec.$body;",
+    "to": "  if (field === 'body') return rec.$body.split('\\n')[0] + (rec.$body.includes('\\n') ? '\\n' : '');",
+    "verdict": "CAUGHT",
+    "clause": "body is the text after the front matter (made: empty for every record but Q17-like)",
+    "input": ""
+  },
+  {
+    "id": "I1",
+    "file": "scripts/lookup.mjs",
+    "from": "  const seeking = o.includeIcebox || o.wheres.some(",
+    "to": "  const seeking = o.includeIcebox || false && o.wheres.some(",
+    "verdict": "CAUGHT",
+    "clause": "icebox shown by --where status=icebox (only by --include-icebox)",
+    "input": ""
+  },
+  {
+    "id": "I2",
+    "file": "scripts/lookup.mjs",
+    "from": "w.field === 'status' && w.op === '=' && w.value === 'icebox'",
+    "to": "w.field === 'status' && w.value === 'icebox'",
+    "verdict": "SURVIVED",
+    "clause": "--where status~ice still hides (W119 d7; widened to `~`)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q --where status~icebox | pristine exit 1 with \"# 2 icebox question(s) ... hidden\"; mutant exit 0 listing Q3, Q4"
+  },
+  {
+    "id": "I3",
+    "file": "scripts/lookup.mjs",
+    "from": "w.field === 'status' && w.op === '=' && w.value === 'icebox'",
+    "to": "w.field === 'status' && w.op === '='",
+    "verdict": "EQUIVALENT",
+    "clause": "only status=icebox reveals (any `=` on status reveals)",
+    "input": "equivalent: an exact `=` on status with any value other than icebox already excludes icebox rows, so revealing them changes nothing"
+  },
+  {
+    "id": "I4",
+    "file": "scripts/lookup.mjs",
+    "from": "    hidden = matched.filter((r) => r.status === 'icebox').length;",
+    "to": "    hidden = matched.some((r) => r.status === 'icebox') ? 1 : 0;",
+    "verdict": "SURVIVED",
+    "clause": "the hidden note says HOW MANY (made: 1 whenever any)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q --search user_action | pristine \"# 2 icebox question(s)...\"; mutant \"# 1 icebox question(s)...\""
+  },
+  {
+    "id": "I5",
+    "file": "scripts/lookup.mjs",
+    "from": "kindName === 'q') o.includeIcebox = true;",
+    "to": "kindName === 'q') o.includeIcebox = false;",
+    "verdict": "CAUGHT",
+    "clause": "--include-icebox shows it (ignored)",
+    "input": ""
+  },
+  {
+    "id": "I6",
+    "file": "scripts/lookup.mjs",
+    "from": "    const doc = { kind: kindName, count: total, 'hidden-icebox': hidden };",
+    "to": "    const doc = { kind: kindName, count: total, 'hidden-icebox': 0 };",
+    "verdict": "SURVIVED",
+    "clause": "hidden count in json (always 0)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q --search user_action --format json | pristine \"hidden-icebox\": 2; mutant 0"
+  },
+  {
+    "id": "I7",
+    "file": "scripts/lookup.mjs",
+    "from": "      if (hiddenNote) console.log(hiddenNote);\n      if (sharedNote)",
+    "to": "      if (sharedNote)",
+    "verdict": "SURVIVED",
+    "clause": "hidden note with --count (dropped)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q --search user_action --count | pristine \"2\" + hidden note; mutant \"2\" only"
+  },
+  {
+    "id": "I8",
+    "file": "scripts/lookup.mjs",
+    "from": "      console.log(String(matched.length));",
+    "to": "      console.log(String(matched.length + hidden));",
+    "verdict": "SURVIVED",
+    "clause": "icebox left out of a --count (counted)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\" | q --search user_action --count | pristine \"2\"; mutant \"4\""
+  },
+  {
+    "id": "I9",
+    "file": "scripts/lookup.mjs",
+    "from": "  if (kindName === 'q' && !ids.length && !seeking) {",
+    "to": "  if (kindName === 'q' && !(ids.length && !o.wheres.length) && !seeking) {",
+    "verdict": "SURVIVED",
+    "clause": "by id icebox returned also when filters given with ids (sanity: mutate hidden to ignore ids)",
+    "input": "BASE | q Q3 --where cluster~join | pristine exit 0, Q3 front matter; mutant exit 1, Q3 hidden. Self-test went red ONLY because the edit removed two META anchors (CASES 34/34): behaviourally a survivor"
+  },
+  {
+    "id": "X1",
+    "file": "scripts/lookup.mjs",
+    "from": "    console.log(JSON.stringify(doc, null, 2));\n    return total ? 0 : 1;",
+    "to": "    console.log(JSON.stringify(doc, null, 2));\n    return 0;",
+    "verdict": "SURVIVED",
+    "clause": "json exit 1 on no match (made 0)",
+    "input": "BASE | q Q99 --format json | pristine exit 1; mutant exit 0"
+  },
+  {
+    "id": "X2",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (none) doc.none = none;\n    if (notFound.length",
+    "to": "    if (notFound.length",
+    "verdict": "SURVIVED",
+    "clause": "json `none` names what found nothing (dropped)",
+    "input": "BASE | q --where status=resolved --where \"cluster=The join\" --format json | pristine carries \"none\"; mutant does not"
+  },
+  {
+    "id": "X3",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (cut) doc['not-shown'] = cut;",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "json `not-shown` when --limit cut (dropped)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\"; doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --limit 1 --format json | pristine carries \"not-shown\": 4; mutant does not"
+  },
+  {
+    "id": "X4",
+    "file": "scripts/lookup.mjs",
+    "from": "    return matched.length ? 0 : 1;",
+    "to": "    return 0;",
+    "verdict": "SURVIVED",
+    "clause": "--count exit 1 when zero (made 0)",
+    "input": "BASE | q --where status=resolved --where \"cluster=The join\" --count | pristine exit 1; mutant exit 0"
+  },
+  {
+    "id": "X5",
+    "file": "scripts/lookup.mjs",
+    "from": "    hidden = matched.filter((r) => r.status === 'icebox').length;",
+    "to": "    if (o.limit) matched = matched.slice(0, o.limit + 2);\n    hidden = matched.filter((r) => r.status === 'icebox').length;",
+    "verdict": "CAUGHT",
+    "clause": "--limit N (applied before the icebox filter)",
+    "input": ""
+  },
+  {
+    "id": "X6",
+    "file": "scripts/lookup.mjs",
+    "from": "      console.log(String(matched.length));",
+    "to": "      console.log(String(o.limit ? Math.min(o.limit, matched.length) : matched.length));",
+    "verdict": "SURVIVED",
+    "clause": "--limit ignored by --count? (count made to honour limit)",
+    "input": "BASE + doc/questions/q4.md: Q4 status icebox, cluster \"The join\", title \"Another user_action what-if\", note \"second what-if\", body \"Back\\\\slash and\\rCR\\n\"; doc/questions/q5.md: Q5 status open, cluster \"Raised late\", title \"Mixed Case Title\", owner \"W7 (P2)\", shared \"fyflow-react-components Q16\" | q --limit 1 --count | pristine \"5\"; mutant \"1\". Spec is silent on --limit with --count"
+  },
+  {
+    "id": "X7",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (notFound.length && !none) doc['not-found'] = notFound;",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "json `not-found` beside a found id (dropped)",
+    "input": "BASE | q Q17 Q99 --format json --fields id | pristine carries \"not-found\": [\"Q99\"]; mutant does not"
+  },
+  {
+    "id": "E1",
+    "file": "scripts/lookup.mjs",
+    "from": "  if (out.length === 0) broken('doc/glossary.md holds no term row');",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "a kind that reads to zero records is 2 (glossary guard removed)",
+    "input": "BASE with doc/glossary.md = both headings and header rows, zero term rows | term --where term~x | pristine exit 2 \"holds no term row\"; mutant exit 1"
+  },
+  {
+    "id": "E2",
+    "file": "scripts/lookup.mjs",
+    "from": "      if (!cells || cells.length !== 3) broken(`doc/glossary.md line ${i + 1} is not a three-cell row`);",
+    "to": "      if (!cells || cells.length !== 3) continue;",
+    "verdict": "SURVIVED",
+    "clause": "unparseable record is 2 (glossary non-3-cell row skipped)",
+    "input": "BASE with the glossary join row cut to two cells (\"| join | the node kind that closes a region |\") | term gate | pristine exit 2 \"line 8 is not a three-cell row\"; mutant exit 0"
+  },
+  {
+    "id": "E3",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (got.fields.id !== want) broken(",
+    "to": "    if (false) broken(",
+    "verdict": "SURVIVED",
+    "clause": "unparseable record is 2 (id/name mismatch accepted)",
+    "input": "BASE with doc/questions/q2.md declaring \"id: Q20\" | q Q2 | pristine exit 2 \"declares id \\\"Q20\\\", not Q2\"; mutant exit 1"
+  },
+  {
+    "id": "E4",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (missing.length) broken(",
+    "to": "    if (false) broken(",
+    "verdict": "SURVIVED",
+    "clause": "unparseable record is 2 (missing field accepted)",
+    "input": "BASE with q2.md lacking the shared line | q --where status=open | pristine exit 2 \"lacks shared\"; mutant exit 0"
+  },
+  {
+    "id": "E5",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (extra.length) broken(",
+    "to": "    if (false) broken(",
+    "verdict": "SURVIVED",
+    "clause": "unparseable record is 2 (extra field accepted)",
+    "input": "BASE with q2.md carrying \"colour: red\" | q --where status=open | pristine exit 2; mutant exit 0"
+  },
+  {
+    "id": "E6",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (!m) broken(`${dirRel}/${n} is not a",
+    "to": "    if (!m) continue; broken(`${dirRel}/${n} is not a",
+    "verdict": "CAUGHT",
+    "clause": "unparseable record is 2 (non-record file name in folder skipped)",
+    "input": ""
+  },
+  {
+    "id": "E7",
+    "file": "scripts/lookup.mjs",
+    "from": "      if (!m) broken(`${a.$path}'s supersedes entry",
+    "to": "      if (!m) continue; broken(`${a.$path}'s supersedes entry",
+    "verdict": "CAUGHT",
+    "clause": "unparseable ADR supersedes entry is 2 (skipped)",
+    "input": ""
+  },
+  {
+    "id": "E8",
+    "file": "scripts/lookup.mjs",
+    "from": "  if (!existsSync(dir) || !statSync(dir).isDirectory()) broken(",
+    "to": "  if (!existsSync(dir)) return []; if (!statSync(dir).isDirectory()) broken(",
+    "verdict": "SURVIVED",
+    "clause": "missing folder is 2 (made: empty)",
+    "input": "BASE without doc/questions/ | q --where status=open | pristine exit 2 \"does not exist\"; mutant exit 1 (also adr without doc/decisions/)"
+  },
+  {
+    "id": "E9",
+    "file": "scripts/lookup.mjs",
+    "from": "  if ((o.table || o.index) && (",
+    "to": "  if ((o.table) && (",
+    "verdict": "SURVIVED",
+    "clause": "--index takes no other option (accepted)",
+    "input": "BASE | adr --index --where status=accepted | pristine exit 2; mutant exit 0 printing the index"
+  },
+  {
+    "id": "E10",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (lines[i] !== '| term | sense, in one line | defined at |' || lines[i + 1] !== '|---|---|---|') {",
+    "to": "    if (false) {",
+    "verdict": "SURVIVED",
+    "clause": "glossary header row must be exact (check removed)",
+    "input": "BASE with the PROCESS header row \"| term | meaning | defined at |\" | term gate | pristine exit 2; mutant exit 0"
+  },
+  {
+    "id": "E11",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (got.error) broken(`${dirRel}/${n} ${got.error}`);",
+    "to": "    if (got.error) continue;",
+    "verdict": "CAUGHT",
+    "clause": "unparseable record is 2 (q readRecord error ignored entirely)",
+    "input": ""
+  },
+  {
+    "id": "E12",
+    "file": "scripts/lookup.mjs",
+    "from": "      if (o.format !== 'line' && o.format !== 'json') broken(",
+    "to": "      if (false) broken(",
+    "verdict": "SURVIVED",
+    "clause": "--format other than line/json is 2 (accepted as line)",
+    "input": "BASE | q Q17 --format xml --fields id | pristine exit 2; mutant exit 0 \"Q17\""
+  },
+  {
+    "id": "R1",
+    "file": "scripts/lookup.mjs",
+    "from": " || name === 'node_modules' ||",
+    "to": " ||",
+    "verdict": "CAUGHT",
+    "clause": "refs excludes node_modules",
+    "input": ""
+  },
+  {
+    "id": "R2",
+    "file": "scripts/lookup.mjs",
+    "from": "name === '.git' ||",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "refs excludes .git",
+    "input": "BASE + .git/notes.md: \"Q17 in git\\n\" | refs Q17 | mutant adds \".git/notes.md\\t1\""
+  },
+  {
+    "id": "R3",
+    "file": "scripts/lookup.mjs",
+    "from": "      if (buf.includes(0)) continue;",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "refs skips NUL-byte files (W119 d5)",
+    "input": "BASE + notes/bin.dat: \"Q17\\u0000binary\" | refs Q17 | mutant adds \"notes/bin.dat\\t1\""
+  },
+  {
+    "id": "R4",
+    "file": "scripts/lookup.mjs",
+    "from": "(\\d{4}(?:(?:\\s*,\\s*(?:and\\s+|or\\s+)?|\\s+and\\s+|\\s+or\\s+|\\s*\\/\\s*)\\d{4})*)\\b/gi",
+    "to": "(\\d{4})\\b/gi",
+    "verdict": "SURVIVED",
+    "clause": "ADR list form `ADRs a, b and c` (only first counted)",
+    "input": "BASE + doc/decisions/0004-amends-one.md: ADR 0004 status proposed, supersedes \"\", amends ADR 0002 rule 1; notes/d.md: \"ADR-0003 is hyphenated.\\nadr 0002 lower.\\nSee ADRs 0002, 0003 and 0004.\\nThe gate and the gateway. GATE.\\n\" | refs 0004 | pristine exit 0 \"notes/d.md\\t1\"; mutant exit 1. Also refs 0002 loses notes/a.md"
+  },
+  {
+    "id": "R5",
+    "file": "scripts/lookup.mjs",
+    "from": "\\s*\\/\\s*)\\d{4})*)\\b/gi;",
+    "to": "\\s*\\/\\s*)\\d{4})*)\\b/g;",
+    "verdict": "SURVIVED",
+    "clause": "ADR cited in either case (case-sensitive)",
+    "input": "BASE + doc/decisions/0004-amends-one.md: ADR 0004 status proposed, supersedes \"\", amends ADR 0002 rule 1; notes/d.md: \"ADR-0003 is hyphenated.\\nadr 0002 lower.\\nSee ADRs 0002, 0003 and 0004.\\nThe gate and the gateway. GATE.\\n\" | refs 0002 | pristine notes/d.md 2; mutant notes/d.md 1"
+  },
+  {
+    "id": "R6",
+    "file": "scripts/lookup.mjs",
+    "from": "/\\bADRs?[\\s-]+(",
+    "to": "/\\bADRs?[\\s]+(",
+    "verdict": "SURVIVED",
+    "clause": "ADR-0007 hyphen form (dropped)",
+    "input": "BASE + notes/d.md: \"ADR-0003 is hyphenated.\\nadr 0002 lower.\\nSee ADRs 0002, 0003 and 0004.\\nThe gate and the gateway. GATE.\\n\" | refs 0003 | pristine notes/d.md 2; mutant 1"
+  },
+  {
+    "id": "R7",
+    "file": "scripts/lookup.mjs",
+    "from": "    if ((m = /^(?:ADR[ -]?)?(\\d{1,4})$/i.exec(s)) && Number(m[1]) > 0) return [`ADR ${m[1].padStart(4, '0')}`];\n    broken(`\\`refs\\`",
+    "to": "    if ((m = /^(\\d{1,4})$/i.exec(s)) && Number(m[1]) > 0) return [`ADR ${m[1].padStart(4, '0')}`];\n    broken(`\\`refs\\`",
+    "verdict": "SURVIVED",
+    "clause": "refs takes `ADR 0007` (word form refused)",
+    "input": "BASE | refs ADR 0001 (and refs ADR-0001) | pristine exit 0 five files; mutant exit 2"
+  },
+  {
+    "id": "R8",
+    "file": "scripts/lookup.mjs",
+    "from": "  const re = new RegExp(`(?<![A-Za-z0-9_])${esc}(?![A-Za-z0-9_])`, 'i');",
+    "to": "  const re = new RegExp(esc, 'i');",
+    "verdict": "SURVIVED",
+    "clause": "refs of a term: whole word (made substring)",
+    "input": "BASE + notes/d.md: \"ADR-0003 is hyphenated.\\nadr 0002 lower.\\nSee ADRs 0002, 0003 and 0004.\\nThe gate and the gateway. GATE.\\n\"; notes/h.md: \"gateway only\\n\"; notes/i.md: \"GATE upper only\\n\" | term gate --fields domain,refs | mutant adds notes/h.md (gateway only)"
+  },
+  {
+    "id": "R9",
+    "file": "scripts/lookup.mjs",
+    "from": "(?![A-Za-z0-9_])`, 'i');",
+    "to": "(?![A-Za-z0-9_])`);",
+    "verdict": "SURVIVED",
+    "clause": "refs of a term: case-insensitive (made sensitive)",
+    "input": "BASE + notes/d.md: \"ADR-0003 is hyphenated.\\nadr 0002 lower.\\nSee ADRs 0002, 0003 and 0004.\\nThe gate and the gateway. GATE.\\n\"; notes/h.md: \"gateway only\\n\"; notes/i.md: \"GATE upper only\\n\" | term gate --fields domain,refs | mutant loses notes/i.md (GATE only)"
+  },
+  {
+    "id": "R10",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (path === 'doc/glossary.md') continue;",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "refs of a term: the glossary is not its own ref",
+    "input": "BASE + notes/d.md: \"ADR-0003 is hyphenated.\\nadr 0002 lower.\\nSee ADRs 0002, 0003 and 0004.\\nThe gate and the gateway. GATE.\\n\" | term gate --fields domain,refs-count | pristine 2; mutant 3"
+  },
+  {
+    "id": "R11",
+    "file": "scripts/lookup.mjs",
+    "from": "  if ((m = /^W(\\d+)$/.exec(id))) return findIn(",
+    "to": "  if (false) return findIn(",
+    "verdict": "SURVIVED",
+    "clause": "own-file of a W id excluded (W own-file lookup removed)",
+    "input": "BASE + notes/e.md: \"W4 is cited. P1 too. W4 again W4.\\nW4 on a second line.\\n\"; doc/work-items/w4-the-item.md: \"# W4\\nW4 itself.\\n\" | refs W4 | mutant adds doc/work-items/w4-the-item.md"
+  },
+  {
+    "id": "R12",
+    "file": "scripts/lookup.mjs",
+    "from": "const ID_TOKEN = /(?<![A-Za-z0-9_])([QWPS])([1-9][0-9]*)(?![0-9])/g;",
+    "to": "const ID_TOKEN = /(?<![A-Za-z0-9_])([QWPSqwps])([1-9][0-9]*)(?![0-9])/g;",
+    "verdict": "EQUIVALENT",
+    "clause": "refs id token upper-case only (made case-insensitive)",
+    "input": "BASE + notes/j.md \"see q17 lowercase\" | refs Q17 | SAME output: the mutant records the token as key \"q17\", which no lookup queries"
+  },
+  {
+    "id": "R13",
+    "file": "scripts/lookup.mjs",
+    "from": ".sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))",
+    "to": ".sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))",
+    "verdict": "CAUGHT",
+    "clause": "refs prints paths in order (unsorted, reversed)",
+    "input": ""
+  },
+  {
+    "id": "R14",
+    "file": "scripts/lookup.mjs",
+    "from": "  const shown = o.limit ? matched.slice(0, o.limit) : matched;",
+    "to": "  const shown = o.limit && kindName !== 'refs' ? matched.slice(0, o.limit) : matched;",
+    "verdict": "SURVIVED",
+    "clause": "refs --limit applies to refs kind (made ignored for refs)",
+    "input": "BASE | refs 0001 --limit 2 | pristine two rows + \"# 3 more not shown\"; mutant all five rows"
+  },
+  {
+    "id": "T1",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (a.amends) decision += ` — amends ${a.amends}`;",
+    "to": "",
+    "verdict": "SURVIVED",
+    "clause": "--index renders amends (dropped)",
+    "input": "BASE + doc/decisions/0004-amends-one.md: ADR 0004 status proposed, supersedes \"\", amends ADR 0002 rule 1 | adr --index | pristine 0004 row has \" — amends ADR 0002 rule 1\"; mutant does not"
+  },
+  {
+    "id": "T2",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (a['superseded-by']) decision += ` — superseded by ${a['superseded-by']}`;",
+    "to": "",
+    "verdict": "CAUGHT",
+    "clause": "--index superseded-by rendered (dropped)",
+    "input": ""
+  },
+  {
+    "id": "T3",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const q of qs) if (!clusters.includes(q.cluster)) clusters.push(q.cluster);",
+    "to": "  for (const q of qs) if (!clusters.includes(q.cluster)) clusters.push(q.cluster);\n  clusters.sort();",
+    "verdict": "CAUGHT",
+    "clause": "--table cluster order from README (made alphabetical)",
+    "input": ""
+  },
+  {
+    "id": "B1",
+    "file": "scripts/lookup.mjs",
+    "from": "    if (kindName === 'adr' && (m = /^(?:ADR[ -]?)?(\\d{1,4})$/i.exec(s)) && Number(m[1]) > 0) return `ADR ${m[1].padStart(4, '0')}`;",
+    "to": "    if (kindName === 'adr' && (m = /^(?:ADR[ -]?)?(\\d{1,4})$/i.exec(s)) && Number(m[1]) > 0) return `ADR ${m[1]}`;",
+    "verdict": "CAUGHT",
+    "clause": "adr by id: `ADR 2` padded to 0002 (padding removed)",
+    "input": ""
+  },
+  {
+    "id": "B2",
+    "file": "scripts/lookup.mjs",
+    "from": "    matched = all.filter((r) => want.includes(key(r)));",
+    "to": "    matched = all.filter((r) => want.slice(0, 1).includes(key(r)));",
+    "verdict": "SURVIVED",
+    "clause": "q by id accepts `Q17` (only first id honoured)",
+    "input": "BASE | q Q1 Q17 --fields id | pristine \"Q1\\nQ17\"; mutant \"Q1\""
+  },
+  {
+    "id": "B3",
+    "file": "scripts/lookup.mjs",
+    "from": "    matched = all.filter((r) => want.includes(key(r)));",
+    "to": "    matched = all.filter((r) => want.some((w) => key(r).includes(w)));",
+    "verdict": "CAUGHT",
+    "clause": "term is matched whole (made substring)",
+    "input": ""
+  },
+  {
+    "id": "B4",
+    "file": "scripts/lookup.mjs",
+    "from": "  if (o.search !== null) parts.push(`--search ${JSON.stringify(o.search)}`);",
+    "to": "",
+    "verdict": "CAUGHT",
+    "clause": "exit-1 line names the filter (--search omitted from describe)",
+    "input": ""
+  },
+  {
+    "id": "H1",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (got.out !== c.out) return",
+    "to": "  if (false) return",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: grade() ignores stdout",
+    "input": "GRADER and 13 META entries went red"
+  },
+  {
+    "id": "H2",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (got.exit !== c.exit) return",
+    "to": "  if (false) return",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: grade() ignores the exit code",
+    "input": "META \"exit 1 on no match\" went red"
+  },
+  {
+    "id": "H2ba",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (got.exit !== c.exit) return",
+    "to": "  if (false) return",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: grade() ignores the exit code + lookup returns 0 on no match",
+    "input": "red ONLY because the paired bug removed META \"exit 1 on no match\"'s anchor (an artefact of the pairing)"
+  },
+  {
+    "id": "H2bb",
+    "file": "scripts/lookup.mjs",
+    "from": "  if (lines.length) console.log(lines.join('\\n'));\n  return total ? 0 : 1;",
+    "to": "  if (lines.length) console.log(lines.join('\\n'));\n  return 0;",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: grade() ignores the exit code + lookup returns 0 on no match",
+    "input": "red ONLY because the paired bug removed META \"exit 1 on no match\"'s anchor (an artefact of the pairing)"
+  },
+  {
+    "id": "H3",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (c.err && !got.err.includes(c.err)) return",
+    "to": "  if (false) return",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: grade() ignores stderr",
+    "input": "META derived-field guard went red"
+  },
+  {
+    "id": "H4",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "    if (!c || n !== 1) {\n      ok = false;",
+    "to": "    if (!c || n !== 1) {\n      noticed++;",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: META counts an anchor matching 0 or many places as noticed",
+    "input": "self-test EXIT 0 on the unmutated lookup"
+  },
+  {
+    "id": "H5",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "    else { ok = false; say(`  FAIL  META",
+    "to": "    else { say(`  FAIL  META",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: META survivors do not fail the run",
+    "input": "self-test EXIT 0"
+  },
+  {
+    "id": "H6",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "    const r = runCases(file, join(stage",
+    "to": "    const r = runCases(file + '.missing', join(stage",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: META runs its case against a path that does not exist",
+    "input": "self-test EXIT 0, \"META 21/21 noticed\": every case crashes and counts as noticed. META has no positive control"
+  },
+  {
+    "id": "H6ba",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "    const r = runCases(file, join(stage",
+    "to": "    const r = runCases(file + '.missing', join(stage",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: H6 + superseded-by never derived",
+    "input": "caught by CASES (the bug, not the weakened META)"
+  },
+  {
+    "id": "H6bb",
+    "file": "scripts/lookup.mjs",
+    "from": "  for (const a of adrs) a['superseded-by'] = (by.get(a.id) ?? []).join('; ');",
+    "to": "  for (const a of adrs) a['superseded-by'] = '';",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: H6 + superseded-by never derived",
+    "input": "caught by CASES (the bug, not the weakened META)"
+  },
+  {
+    "id": "H7",
+    "file": "scripts/lookup.mjs",
+    "from": "import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';",
+    "to": "import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';\nimport './check-lookup-selftest.mjs';",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: lookup.mjs gains a relative import, so the META copy under dev-dist/ cannot load",
+    "input": "self-test EXIT 0, META 21/21 although no META run executed lookup code"
+  },
+  {
+    "id": "H8",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "const differ = res.filter((x) => JSON.stringify(x.reg) !== JSON.stringify(x.look));",
+    "to": "const differ = res.filter((x) => !!x.reg.error !== !!x.look.error);",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: AGREE compares only refuse/read",
+    "input": "AGREE control"
+  },
+  {
+    "id": "H9",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "'const view = (r) => (r.error ? { error: true } : { fields: r.fields, order: r.order });'",
+    "to": "'const view = (r) => (r.error ? { error: true } : { fields: r.fields });'",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: AGREE ignores field order",
+    "input": "self-test EXIT 0"
+  },
+  {
+    "id": "H10",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (differ.length !== real.length + 1) { ok = false;",
+    "to": "  if (false) { ok = false;",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: AGREE control check removed",
+    "input": "self-test EXIT 0"
+  },
+  {
+    "id": "H11",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "look.readRecord(t.other ?? t.text)",
+    "to": "look.readRecord(t.text)",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: AGREE lookup side never reads the control's other",
+    "input": "AGREE control"
+  },
+  {
+    "id": "H12",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  return ok ? 0 : 1;\n}",
+    "to": "  return 0;\n}",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: final exit always 0",
+    "input": "self-test EXIT 0; nothing outside the self-test proves it can exit non-zero"
+  },
+  {
+    "id": "H12ba",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  return ok ? 0 : 1;\n}",
+    "to": "  return 0;\n}",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: final exit always 0 + YAML-typed reader guard removed",
+    "input": "EXIT 0 while printing CASES 33/34, META 20/21, AGREE 15 disagreements"
+  },
+  {
+    "id": "H12bb",
+    "file": "scripts/lookup.mjs",
+    "from": " || YAML_TYPED.test(v)) {",
+    "to": ") {",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: final exit always 0 + YAML-typed reader guard removed",
+    "input": "EXIT 0 while printing CASES 33/34, META 20/21, AGREE 15 disagreements"
+  },
+  {
+    "id": "H13",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (![0, 1, 2].every((e) => exits.has(e))) { ok = false;",
+    "to": "  if (false) { ok = false;",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: all-three-exit-codes check removed",
+    "input": "self-test EXIT 0"
+  },
+  {
+    "id": "H14",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "out: CASES[0].out.replace('Q17', 'Q18') }",
+    "to": "out: CASES[0].out.replace('Q17', 'Q17') }",
+    "verdict": "CAUGHT",
+    "clause": "HARNESS: GRADER perturbation made a no-op",
+    "input": "GRADER"
+  },
+  {
+    "id": "H15",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "  if (control.out === CASES[0].out || !graded.why) {",
+    "to": "  if (control.out === CASES[0].out) {",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: GRADER verdict ignored",
+    "input": "self-test EXIT 0"
+  },
+  {
+    "id": "H16",
+    "file": "scripts/check-lookup-selftest.mjs",
+    "from": "    for (const n of readdirSync(dir).filter((x) => re.test(x)).sort()) texts.push(",
+    "to": "    for (const n of [].filter((x) => re.test(x)).sort()) texts.push(",
+    "verdict": "SURVIVED",
+    "clause": "HARNESS: AGREE reads no tree file",
+    "input": "self-test EXIT 0, \"AGREE 52/52 ... 0 tree files\"; no floor on the corpus count"
+  }
+]
