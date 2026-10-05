@@ -18,7 +18,10 @@ Outputs:    (1) four commands over three record kinds, one grammar:
             (2) derived fields, printed only when named in --fields: refs, refs-count, body,
                 and for an ADR superseded-by
             (3) npm run q -- --table and npm run adr -- --index: the whole register and the
-                index doc/decisions/README.md carried, generated
+                index doc/decisions/README.md carried, generated. `--table` reproduces the
+                register AS IT WAS AT aa43cb3 and claims no more: ADR 0079 consequence 2 says the
+                status-cell encoding is reversible on that corpus only. `owner` is prose (Q494),
+                so `--where owner~W116` is the form that finds an item's questions
             (4) the `## Index` section of doc/decisions/README.md replaced by one line naming
                 `npm run adr -- --index`
 Depends on: W117, W120

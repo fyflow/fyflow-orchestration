@@ -6,10 +6,11 @@
 # real reduction in what CI guarantees — see the `on:` block below for what it
 # costs and what still holds.
 #
-# `npm run gate` is ONE step on purpose. It is a sixteen-entry `&&` chain that
+# `npm run gate` is ONE step on purpose. It is an `&&` chain — its length is
+# package.json's, and the count that stood here went stale at W116's seventeenth entry — that
 # climbs the ladder in order (ADR 0039), and `S12` in scripts/check-source.mjs
 # asserts that chain's membership AND its order against package.json, both ways.
-# Splitting it into sixteen CI steps would put a second copy of that list in a
+# Splitting it into one CI step per entry would put a second copy of that list in a
 # file `S12` cannot see — rule 8 obligation (e)'s third shape, a LIST that is a
 # claim about another list, bound to nothing. So the chain stays in the manifest
 # and this workflow runs it whole and reads its exit code.

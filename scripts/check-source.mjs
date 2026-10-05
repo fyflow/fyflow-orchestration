@@ -738,6 +738,12 @@ const GATE_CHAIN = [
   // *A cheapest-first rule over entries that can substitute for each other says nothing about
   // an entry that can substitute for none of them.*
   'check:budget',
+  // **[W116](../doc/work-items/w116-a-question-is-a-file.md): the SEVENTEENTH entry, placed after
+  // `check:budget` for that entry's reason** — it reads `doc/questions/`'s front matter and one
+  // `git ls-tree`, which no other clause reads, so it cannot fail for a reason an earlier entry would
+  // have caught, and a type error ahead of it is still the failure a reader can act on first.
+  // [ADR 0079](../doc/decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md).
+  'check:register',
   'test',
   'test:deno',
   'test:browser',

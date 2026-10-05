@@ -152,11 +152,16 @@ const PROBES = [
   },
   {
     name: 'a SAME-FILE anchor that resolves to no heading — the form C5`s pattern could not match',
-    file: 'doc/open-questions.md', check: 'M2',
+    file: UPSTREAM, check: 'M2',
     // `\]\(([^)#\s]+)(?:#[^)\s]*)?\)` requires at least one non-`#` character
     // before the hash, so `](#live)` never matched it at all. Every same-file
     // anchor in this repository was invisible to C5, not merely unchecked.
-    mutate: (t) => t.replace('](#live)', '](#the-live-table)'),
+    //
+    // **Re-pointed from `doc/open-questions.md` at [W116](../doc/work-items/w116-a-question-is-a-file.md)**,
+    // whose `](#live)` left with the table — rule 7 (b) would have aborted this probe on the first run.
+    // `doc/scheduler-upstream.md`'s S-id index links are same-file anchors too, and the probe below
+    // breaks S2's; this one breaks S1's, so the two do not share an anchor.
+    mutate: (t) => t.replace('](#s1---spawntaskconfigparents-is-declared-and-never-read)', '](#the-s1-section)'),
   },
   {
     name: 'an S-id anchor in doc/scheduler-upstream.md broken again',
@@ -171,6 +176,41 @@ const PROBES = [
     // The other direction: the links are untouched and the target moved. A check
     // that only ever sees edited links would miss this.
     mutate: (t) => t.replace('## S6 - Pause and resume', '## S6 - Pause, resume and cancel'),
+  },
+
+  // --- front matter: a field is data, and the body below it is still prose -------
+  // **[W116](../doc/work-items/w116-a-question-is-a-file.md)'s narrowing, provoked in both
+  // directions.** `blankFrontMatter` takes a question file's fields out of the walk because four of
+  // them carry a link written relative to the OLD register, verbatim. Too narrow and those four go
+  // red on the corpus; too WIDE and a body below the fence leaves the walk with them — which no
+  // migrated file can show, because the migration wrote no body.
+  // **W116's adequacy reader's two survivors, checked in.** K2 moved the fence to the LAST `---`
+  // line, so a body's thematic break swallowed the links above it; K4 blanked a file whose opening
+  // `---` never closes — 155 links gone. Both were green through the whole of this file.
+  {
+    name: 'a dead link ABOVE a thematic break in a question file`s body — the fence is the FIRST `---`',
+    file: 'doc/questions/q488.md', check: 'M1',
+    mutate: (t) => t.replace(/\n---\n$/, '\n---\n\nSee [a](no-such-a.md).\n\n---\n\nBelow the break.\n'),
+  },
+  {
+    name: 'a dead link BELOW a thematic break in a question file`s body',
+    file: 'doc/questions/q488.md', check: 'M1',
+    mutate: (t) => t.replace(/\n---\n$/, '\n---\n\nAbove the break.\n\n---\n\nSee [b](no-such-b.md).\n'),
+  },
+  {
+    name: 'an opening `---` that never CLOSES is not front matter — the dead link in the file still trips',
+    file: 'doc/questions/q488.md', check: 'M1',
+    mutate: (t) => t.replace(/\n---\n$/, '\n\nSee [c](no-such-c.md).\n'),
+  },
+  {
+    name: 'a dead link in the BODY below a question file`s front matter',
+    file: 'doc/questions/q490.md', check: 'M1',
+    mutate: (t) => t.replace(/\n---\n$/, '\n---\n\nSee [the plan](no-such-plan.md).\n'),
+  },
+  {
+    name: 'a dead link inside a question file`s FRONT MATTER — a field is data, must trip nothing',
+    file: 'doc/questions/q490.md', check: null,
+    mutate: (t) => t.replace('\ntitle: "', '\ntitle: "see [the plan](no-such-plan.md) — '),
   },
 
   // --- {} : the check must NOT fire ------------------------------------------
@@ -415,7 +455,11 @@ const PROBES = [
   // --- M3 / M4 / M5: the walk covers the tree --------------------------------
   {
     name: 'doc/decisions removed from the tree — the FILE floor, alone',
-    file: README, check: 'M1', also: ['M3'], removes: ['doc/decisions'],
+    file: README, check: 'M1', also: ['M3'], removes: ['doc/decisions', 'doc/questions'],
+    // **`doc/questions` joined both fixtures at [W116](../doc/work-items/w116-a-question-is-a-file.md)**:
+    // 384 files arrived in a directory neither probe cut, so this fixture read 530 against any floor
+    // a whole tree of 579 could pass. Cutting the register takes its growth out of the lower edge;
+    // `check-markdown.mjs` carries the measurement beside `M3`'s floor.
     // 66 -> 50 files, 1746 -> 1548 links, 86 anchored: RE-MEASURED at P9's declaration,
     // which is where the previous figures (62 -> 46 / 1577 -> 1379 / 78) stopped being
     // true and took this probe with them. Four new documents took the cut from 46 to
@@ -440,7 +484,7 @@ const PROBES = [
   {
     name: 'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
     file: README, check: 'M1', also: ['M3', 'M4', 'M5'],
-    removes: ['doc/decisions', 'doc/plans'],
+    removes: ['doc/decisions', 'doc/plans', 'doc/questions'],
     // **`M5` joined this set at [W113](../doc/work-items/w113-the-register-is-a-reference.md), and
     // the sentence below it — *the anchors are untouched, because all 78 live in `doc/`'s top
     // level* — stopped being true when the register's 440 self-links went.** Measured on the tree
@@ -547,9 +591,9 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 const SELF_RAN = (out) => /self-test — /.test(out);
 
-const MIN_PROBES = 37;
+const MIN_PROBES = 42;
 /** The same floor for `META`. */
-const MIN_META = 37;
+const MIN_META = 41;
 /** And for `SELF`. */
 const MIN_SELF = 7;
 
@@ -566,6 +610,23 @@ const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}([A-Z]\d+): /gm)].
  * about it at all.
  */
 const META = [
+  // W116: the front-matter narrowing, each direction against the probe that names it. The first is
+  // NOT inert on the corpus — four migrated fields carry a link relative to the old register — and
+  // is graded `corpus`, which this file counts as noticed: the gate itself refuses it.
+  ['front matter NOT blanked — a field read as a link',
+    'a dead link inside a question file`s FRONT MATTER — a field is data, must trip nothing',
+    (t) => t.replace("  if (!text.startsWith('---\\n')) return text;\n  const close",
+      "  return text;\n  const close")],
+  ['K2 — the fence moved to the LAST `---` line, so a thematic break swallows the links above it',
+    'a dead link ABOVE a thematic break in a question file`s body — the fence is the FIRST `---`',
+    (t) => t.replace("  const close = text.indexOf('\\n---\\n', 3);", "  const close = text.lastIndexOf('\\n---\\n');")],
+  ['K4 — an UNCLOSED opening `---` blanks the whole file',
+    'an opening `---` that never CLOSES is not front matter — the dead link in the file still trips',
+    (t) => t.replace('  if (end < 0) return text;\n  return text.slice(0, end)',
+      "  if (end < 0) return text.replace(/[^\\n]/g, ' ');\n  return text.slice(0, end)")],
+  ['front matter blanked to the END of the file — the body leaves the walk with it',
+    'a dead link in the BODY below a question file`s front matter',
+    (t) => t.replace('  const end = close >= 0 ? close + 4 :', '  const end = close >= 0 ? text.length :')],
   // (b) the Outputs table's rows, broken so they are PRESENT BUT INERT.
   ['M1 disabled',
     'a link to a file that does not exist', (t) => t.replace("for (const d of r.dead) fail('M1', d);", "for (const d of []) fail('M1', d);")],

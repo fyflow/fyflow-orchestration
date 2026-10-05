@@ -103,8 +103,9 @@ import { join, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 /**
- * The nine checks whose dispatch `G1` and `G2` test (seven until W72's `check-workers`, eight until
- * [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s `check-budget`) — **declared
+ * The ten checks whose dispatch `G1` and `G2` test (seven until W72's `check-workers`, eight until
+ * [W112](../doc/work-items/w112-the-budget-the-check-and-the-floors.md)'s `check-budget`, nine until
+ * [W116](../doc/work-items/w116-a-question-is-a-file.md)'s `check-register`) — **declared
  * here and compared to `package.json` inside the run, both ways and for distinctness.**
  *
  * W38's adequacy reader: with the list a bare literal, `['spec','source','spec',
@@ -115,7 +116,7 @@ import { spawnSync } from 'node:child_process';
  * after `S12`, `G6` and this one's own both-ways comparison: *a check added to the gate and not to
  * this list is a check nothing here probes.*
  */
-const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers', 'budget'];
+const CHECKS = ['spec', 'source', 'wiring', 'markdown', 'scheduler', 'policies', 'docs', 'workers', 'budget', 'register'];
 
 /** A literal newline, so the anchors below are not written as escapes in prose. */
 const NL = '\n';
@@ -758,8 +759,10 @@ const SELF = [
     // a JS regex and writing the class is how a real newline got into this literal once.
     (t) => t.replace(/const CHECKS = \['spec',.*\];/,
       "const CHECKS = ['spec', 'source', 'spec', 'source', 'spec', 'source', 'spec', 'source', 'spec'];")],
+  // Re-anchored at [W116](../doc/work-items/w116-a-question-is-a-file.md), whose `register` is the
+  // list's last name now — the same magic-LIST pin W112 moved, moved again by the next gate entry.
   ['CHECKS drops a check the manifest has an entry for',
-    (t) => t.replace(/, 'budget'\];/, '];')],
+    (t) => t.replace(/, 'register'\];/, '];')],
 ];
 
 // **What a `SELF` list buys nothing against here, stated rather than padded around.**
