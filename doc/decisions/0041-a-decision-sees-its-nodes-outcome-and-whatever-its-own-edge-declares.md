@@ -1,7 +1,17 @@
+---
+id: ADR 0041
+title: "A decision sees its node's outcome and whatever its own edge declares"
+status: accepted
+date: "2026-09-10"
+item: W42
+raised-by: Q8, P12
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0041 — A decision sees its node's outcome and whatever its own edge declares
 
-**Date:** 2026-09-10
-**Status:** accepted
 **Raised by:** [Q8](../open-questions.md), decided by
 [W42](../work-items/w42-what-a-decision-sees.md) under
 [P12](../plans/p12-what-a-node-receives-and-what-a-decision-sees.md)

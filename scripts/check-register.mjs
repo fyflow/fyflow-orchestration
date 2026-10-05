@@ -43,6 +43,37 @@
 //   R5  a vacuity floor on the file count — a ratchet that only moves UP, because a question is
 //       never deleted (`doc/workflow.md` section 3), so a floor set at a day's count is valid for
 //       ever. What it cannot see is a deletion matched by an addition; that is `R4`'s.
+//
+// **The second register is the ADRs** — [W117](../doc/work-items/w117-an-adr-header-is-data.md),
+// P28 decision 2: each ADR's bold-line header became front matter of nine fields, read by the SAME
+// reader as a question's, because W119's lookup reads both with one parser.
+//
+//   R6  every file in doc/decisions/ other than README.md and TEMPLATE.md is `NNNN-<slug>.md`, no
+//       two share a number, its `id` is `ADR NNNN`, all nine fields are present and no other, `id`,
+//       `title`, `status` and `date` are non-empty, `status` is `proposed` or `accepted` — nothing
+//       else, since *superseded by* is DERIVED from the newer ADR's `supersedes` — `date` is a real
+//       `YYYY-MM-DD`, and the line under the front matter is `# ADR NNNN — <title>`.
+//   R7  every id an ADR names in `item`, `raised-by`, `supersedes`, `amends` and `resolves` is in
+//       its field's FORM and EXISTS. A list is `, `-separated bare ids — `W` for `item`, `Q` for
+//       `resolves`, `Q`/`P`/`W`/`S`/`ADR NNNN` for `raised-by` — and `supersedes`/`amends` are
+//       `; `-separated `ADR NNNN` entries, each optionally qualified (`rules 1, 2 and 6`,
+//       `decision 3`, `in part`). An entry outside its form is refused, never skipped: a regex that
+//       FINDS ids would pass `ADR 79` by finding nothing in it. Since W117's readers: `supersedes` and
+//       `amends` name only an OLDER ADR (so no cycle can be written), no field names its own ADR or
+//       one id twice, and `item` holds one id.
+//
+// **What R6-R8 do NOT hold, accepted by the maintainer at W117 (Q500): an ADR's DELETION.** The
+// questions have `R4` and `R5`; the ADRs have neither. A deleted ADR is seen by `R3` and `R7` only if
+// something names it, and by `check-docs`' `X11` only while doc/decisions/README.md keeps its hand
+// index — which W119 deletes. After W119 an unnamed ADR can be deleted with every check green.
+//   R8  `resolves` and `resolved-by` name each other, BOTH WAYS (section 5 rule 8 (e)): an ADR that
+//       resolves `Q<N>` is named by q<N>.md's `resolved-by`, and a question whose `resolved-by`
+//       names an ADR is in that ADR's `resolves`. **A `resolved-by` is verbatim prose and can name
+//       an ADR that did not resolve it** — measured at W117: of seven such pairings one was not a
+//       resolution, and `NOT_A_RESOLUTION` excuses it BY ID, not by ADR or by question, and is
+//       itself checked against the tree both ways.
+//
+// R7 and R8 read the question folder, so they say NOT RUN where it cannot be read.
 
 import { readdirSync, readFileSync, statSync, existsSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -74,7 +105,7 @@ const README = 'README.md';
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which clauses executed — `NOT RUN` is a third state and it is not `ok` (W5). */
-const ran = { R1: false, R2: false, R3: false, R4: false, R5: false };
+const ran = { R1: false, R2: false, R3: false, R4: false, R5: false, R6: false, R7: false, R8: false };
 let r4Why = '';
 /** What R3 and R4 compared, printed so a reader can check the check against its own work. */
 let refsChecked = 0, atHeadCount = 0;
@@ -93,8 +124,16 @@ const NON_EMPTY = Object.freeze(['id', 'title', 'status', 'cluster']);
  */
 const QUESTION_FLOOR = 383;
 const NAME = /^q([1-9][0-9]*)\.md$/;
-/** YAML 1.1 and 1.2 core-schema scalars that a plain value would be TYPED as: null, booleans, numbers. */
-const YAML_TYPED = /^(?:~|null|Null|NULL|true|True|TRUE|false|False|FALSE|yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF|y|Y|n|N|[-+]?(?:\d[\d_]*(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|0x[0-9a-fA-F_]+|0o[0-7_]+|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$/;
+/**
+ * YAML 1.1 and 1.2 core-schema scalars that a plain value would be TYPED as: null, booleans,
+ * numbers — and YAML 1.1's TIMESTAMP, added at W117 when the ADRs brought the first `date` field:
+ * a plain `2026-10-04` is a Date to a YAML 1.1 reader, so it is written quoted and refused plain.
+ * **YAML 1.1 has TWO timestamp shapes**, and W117's adequacy reader proved every clause of the second
+ * unprovoked: a bare date is `YYYY-MM-DD` with two-digit month and day, a full timestamp takes one or
+ * two. Its constructed inputs added the SIGNED hex, octal and binary forms and the SEXAGESIMAL ones
+ * (`1:30`, `190:20:30.15`) — each a number to a YAML 1.1 reader, and a string here until then.
+ */
+const YAML_TYPED = /^(?:~|null|Null|NULL|true|True|TRUE|false|False|FALSE|yes|Yes|YES|no|No|NO|on|On|ON|off|Off|OFF|y|Y|n|N|[-+]?(?:\d[\d_]*(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|[-+]?0x[0-9a-fA-F_]+|[-+]?0o[0-7_]+|[-+]?0b[01_]+|[-+]?\d[\d_]*(?::[0-5]?\d)+(?:\.[\d_]*)?|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN)|\d{4}-\d\d-\d\d|\d{4}-\d\d?-\d\d?(?:[Tt]|[ \t]+)\d\d?:\d\d:\d\d(?:\.\d*)?(?:[ \t]*(?:Z|[-+]\d\d?(?::\d\d)?))?)$/;
 /**
  * Every ADR id a `resolved-by` names: `ADR 0003`, `ADR-0003`, and the list forms `ADRs 0003 and
  * 0004`, `ADRs 0003, 0004 and 0005`, `ADRs 0003/0004`. Each match's 4-digit ids are all read.
@@ -136,7 +175,14 @@ export function readFrontMatter(text) {
       if (raw !== raw.trim()) return { error: `\`${key}\`'s plain value carries leading or trailing space — quote it` };
       if (/^['[{|>&*!%@`#-]/.test(raw)) return { error: `\`${key}\`'s plain value opens with a YAML indicator — quote it` };
       if (/ #|: /.test(raw)) return { error: `\`${key}\`'s plain value carries a comment or a mapping — quote it` };
-      if (YAML_TYPED.test(raw)) return { error: `\`${key}\`'s plain value "${raw}" is a YAML null, boolean or number, not a string — quote it` };
+      // W117's adequacy reader, by construction: a comment led by a TAB, a value ENDING in a mapping
+      // colon (`W1:`), and the complex-key indicator `? ` — each read by YAML as something other than a
+      // string, and each a guard of its own so each has a probe of its own. (A leading `: ` is already
+      // the mapping guard's, and a lone `:` the colon guard's, so neither needs a third clause.)
+      if (/\t#/.test(raw)) return { error: `\`${key}\`'s plain value carries a tab-led comment — quote it` };
+      if (/:$/.test(raw)) return { error: `\`${key}\`'s plain value ends in a mapping colon — quote it` };
+      if (/^\?(?:[ \t]|$)/.test(raw)) return { error: `\`${key}\`'s plain value opens with the \`?\` complex-key indicator — quote it` };
+      if (YAML_TYPED.test(raw)) return { error: `\`${key}\`'s plain value "${raw}" is a YAML null, boolean, number or timestamp, not a string — quote it` };
       value = raw;
     }
     fields[key] = value;
@@ -161,6 +207,12 @@ function declaredClusters(text) {
   }
   return out;
 }
+
+/** What exists, by NAME — the ids `R3` and `R7` check a reference against. */
+const listing = (d) => { try { return readdirSync(join(MEASURE_ROOT, d)); } catch { return []; } };
+const adrs = new Set(listing('doc/decisions').map((f) => /^(\d{4})-.+\.md$/.exec(f)?.[1]).filter(Boolean));
+const plans = new Set(listing('doc/plans').map((f) => /^p(\d+)-.+\.md$/.exec(f)?.[1]).filter(Boolean));
+const items = new Set(listing('doc/work-items').map((f) => /^w(\d+)-.+\.md$/.exec(f)?.[1]).filter(Boolean));
 
 const dirAbs = join(MEASURE_ROOT, DIR);
 let names = null;
@@ -234,10 +286,6 @@ if (!names) {
 
   // --- R3: resolved iff resolved-by, and what it names exists --------------------
   ran.R3 = true;
-  const listing = (d) => { try { return readdirSync(join(MEASURE_ROOT, d)); } catch { return []; } };
-  const adrs = new Set(listing('doc/decisions').map((f) => /^(\d{4})-.+\.md$/.exec(f)?.[1]).filter(Boolean));
-  const plans = new Set(listing('doc/plans').map((f) => /^p(\d+)-.+\.md$/.exec(f)?.[1]).filter(Boolean));
-  const items = new Set(listing('doc/work-items').map((f) => /^w(\d+)-.+\.md$/.exec(f)?.[1]).filter(Boolean));
   for (const [n, { fields, order }] of parsed) {
     if (!order.includes('status') || !order.includes('resolved-by')) continue;   // R2's
     const by = fields['resolved-by'];
@@ -316,12 +364,249 @@ if (!names) {
   }
 }
 
+// =================================================================================================
+// R6-R8: the ADRs — W117, P28 decision 2
+// =================================================================================================
+const ADR_DIR = 'doc/decisions';
+/** The two files in doc/decisions that are not ADRs. */
+const ADR_NOT_ADRS = Object.freeze(['README.md', 'TEMPLATE.md']);
+const ADR_NAME = /^(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+/** P28 decision 2's fields, in its order. Every ADR carries all nine. */
+const ADR_FIELDS = Object.freeze(['id', 'title', 'status', 'date', 'item', 'raised-by', 'supersedes',
+  'amends', 'resolves']);
+/** P28 decision 2's two words. *Superseded* is not one: it is derived from the newer ADR. */
+const ADR_STATUSES = Object.freeze(['proposed', 'accepted']);
+const ADR_NON_EMPTY = Object.freeze(['id', 'title', 'status', 'date']);
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+/** The FORM of one entry in a `, `-separated id field. */
+const ID_FORM = Object.freeze({
+  item: /^W[1-9]\d*$/,
+  'raised-by': /^(?:[QPWS][1-9]\d*|ADR \d{4})$/,
+  resolves: /^Q[1-9]\d*$/,
+});
+/** The FORM of one entry in `supersedes` or `amends`, which are `; `-separated. */
+const RULED = /^ADR (\d{4})(?: (?:rule|rules|decision|decisions) \d+(?:(?:, \d+)* and \d+)?)?(?: in part)?$/;
+/**
+ * **The pairings `R8` must not demand, BY ID** — each a question whose `resolved-by` names an ADR
+ * that did not resolve it. Measured at W117 over every pairing on the tree, and excused by the
+ * maintainer's answer there rather than by narrowing the clause. An entry excuses ONE pair: another
+ * question naming the same ADR, or the same question naming another, is still compared — and an
+ * entry the tree no longer carries, or one an ADR's `resolves` contradicts, is itself a failure.
+ */
+const NOT_A_RESOLUTION = Object.freeze([
+  { q: 'Q466', adr: '0077', why: 'ADR 0077 consequence 4 RAISED it, and the maintainer answered it at W115' },
+]);
+
+/**
+ * Every ADR a `resolved-by` names: `R3`'s own pattern in EITHER case, and a link into
+ * `decisions/NNNN-` whatever its text — W117's conformity reader: a cell naming its ADR only as
+ * `[0072](../decisions/0072-…)` or `adr 0072` was compared by nothing, in either direction.
+ */
+const ADR_REF_ANY_CASE = new RegExp(ADR_REF.source, 'gi');
+const adrRefs = (by) => [...new Set([
+  ...[...by.matchAll(ADR_REF_ANY_CASE)].flatMap((m) => [...m[1].matchAll(/\d{4}/g)].map(([id]) => id)),
+  ...[...by.matchAll(/decisions\/(\d{4})-/g)].map((m) => m[1]),
+])];
+const upstream = (() => {
+  try {
+    return new Set([...readFileSync(join(MEASURE_ROOT, 'doc', 'scheduler-upstream.md'), 'utf8')
+      .matchAll(/^## S(\d+) /gm)].map((m) => m[1]));
+  } catch { return new Set(); }
+})();
+const qNumbers = new Set((names ?? []).map((n) => NAME.exec(n)?.[1]).filter(Boolean));
+/** Why an id that is in its FORM names nothing — or '' when it exists. */
+const missing = (id) => {
+  if (id.startsWith('ADR ')) return adrs.has(id.slice(4)) ? '' : `${ADR_DIR} has no ${id.slice(4)}-*.md`;
+  const n = id.slice(1);
+  switch (id[0]) {
+    case 'Q': return qNumbers.has(n) ? '' : `${DIR} has no q${n}.md`;
+    case 'P': return plans.has(n) ? '' : `doc/plans has no p${n}-*.md`;
+    case 'W': return items.has(n) ? '' : `doc/work-items has no w${n}-*.md`;
+    case 'S': return upstream.has(n) ? '' : `doc/scheduler-upstream.md has no \`## S${n} \` heading`;
+    default: return 'it is no kind of id';
+  }
+};
+
+let adrNames = null;
+try { adrNames = readdirSync(join(MEASURE_ROOT, ADR_DIR)).sort(); } catch { adrNames = null; }
+const adrParsed = new Map();   // NNNN -> { fields, order, file }
+let adrCount = 0, idsChecked = 0, pairings = 0;
+
+// --- R6: the names, the fields, the vocabulary, the H1 -----------------------------------------
+ran.R6 = true;
+if (!adrNames) {
+  fail('R6', `${ADR_DIR} is not a readable directory, so there are no ADRs to check`);
+} else {
+  const byNumber = new Map();
+  for (const n of adrNames) {
+    if (ADR_NOT_ADRS.includes(n)) continue;
+    const where = `${ADR_DIR}/${n}`;
+    const abs = join(MEASURE_ROOT, ADR_DIR, n);
+    const m = ADR_NAME.exec(n);
+    if (!m || !statSync(abs).isFile()) {
+      fail('R6', `${where} is not \`NNNN-<slug>.md\` — an ADR is named by its four-digit number and a ` +
+        'lower-case slug, and nothing else lives in this folder but README.md and TEMPLATE.md');
+      continue;
+    }
+    adrCount++;
+    if (byNumber.has(m[1])) {
+      fail('R6', `${where} and ${ADR_DIR}/${byNumber.get(m[1])} share the number ${m[1]} — an id is ` +
+        'never reused, and two files under one number are two decisions under one id');
+    } else byNumber.set(m[1], n);
+    const text = readFileSync(abs, 'utf8');
+    const got = readFrontMatter(text);
+    if (got.error) {
+      fail('R6', `${where}'s front matter ${got.error}, so none of its fields is present`);
+      continue;
+    }
+    const { fields, order } = got;
+    if (fields.id !== `ADR ${m[1]}`) {
+      fail('R6', `${where} declares \`id: ${fields.id ?? ''}\` and its name says ADR ${m[1]} — the ` +
+        'number is the id, so an id that disagrees with it is a second decision under one name');
+    }
+    const absent = ADR_FIELDS.filter((f) => !order.includes(f));
+    const extra = order.filter((f) => !ADR_FIELDS.includes(f));
+    if (absent.length) fail('R6', `${where} has no ${absent.map((f) => `\`${f}\``).join(', ')} — every ADR ` +
+      `carries all ${ADR_FIELDS.length} fields, empty as "" where there is nothing to say`);
+    if (extra.length) fail('R6', `${where} declares ${extra.map((f) => `\`${f}\``).join(', ')}, which P28 ` +
+      'decision 2 does not — and `superseded-by` is derived from the newer ADR, never declared');
+    for (const f of ADR_NON_EMPTY) {
+      if (order.includes(f) && fields[f].trim() === '') fail('R6', `${where}'s \`${f}\` is empty`);
+    }
+    if (order.includes('status') && !ADR_STATUSES.includes(fields.status)) {
+      fail('R6', `${where}'s status is "${fields.status}" and the vocabulary is ` +
+        `${ADR_STATUSES.join(' | ')} — a superseded ADR is still accepted, and says so in nothing`);
+    }
+    if (order.includes('date') && fields.date.trim() !== '') {
+      const d = ISO_DATE.exec(fields.date);
+      // `setUTCFullYear`, not `Date.UTC`, which reads years 0-99 as 1900-1999 and refused `0026-10-04`
+      // (W117's adequacy reader). A real day is one that formats back to the text it was read from.
+      const day = new Date(0);
+      if (d) day.setUTCFullYear(+d[1], +d[2] - 1, +d[3]);
+      const real = d !== null && day.toISOString().slice(0, 10) === fields.date;
+      if (!real) fail('R6', `${where}'s date "${fields.date}" is not a real YYYY-MM-DD`);
+    }
+    if (order.includes('title')) {
+      const close = text.indexOf('\n---\n', 3);
+      const body = close >= 0 ? text.slice(close + 5) : '';
+      const h1 = `# ADR ${m[1]} — ${fields.title}`;
+      if (!body.startsWith(`\n${h1}\n`)) {
+        fail('R6', `${where}'s first line under the front matter, after one blank line, is not ` +
+          `"${h1}" — the H1 and the title are one fact written twice, and this is what compares them`);
+      }
+    }
+    if (!adrParsed.has(m[1])) adrParsed.set(m[1], { fields, order, file: n });
+  }
+  if (adrCount === 0) fail('R6', `${ADR_DIR} holds no \`NNNN-<slug>.md\` file, so R6 to R8 are true of nothing`);
+}
+
+// --- R7: every id an ADR names is in its form and exists ----------------------------------------
+if (adrNames && names) {
+  ran.R7 = true;
+  for (const [nnnn, { fields, order, file }] of adrParsed) {
+    const where = `${ADR_DIR}/${file}`;
+    for (const key of ['item', 'raised-by', 'resolves', 'supersedes', 'amends']) {
+      if (!order.includes(key) || fields[key] === '') continue;
+      const ruled = key === 'supersedes' || key === 'amends';
+      const entries = fields[key].split(ruled ? '; ' : ', ');
+      // W117's conformity reader: `item` is THE work item that decided the ADR (Q498), so one id.
+      if (key === 'item' && entries.length > 1) {
+        fail('R7', `${where}'s item names ${entries.length} entries — an ADR is decided by one work item`);
+      }
+      const seen = new Set();
+      for (const entry of entries) {
+        idsChecked++;
+        if (ruled) {
+          const r = RULED.exec(entry);
+          if (!r) {
+            fail('R7', `${where}'s ${key} entry "${entry}" is not \`ADR NNNN\`, optionally qualified by ` +
+              '`rule(s) N`, `decision(s) N` or `in part`, and entries are separated by `; `');
+          } else if (r[1] === nnnn) {
+            fail('R7', `${where}'s ${key} names ADR ${nnnn}, which is itself`);
+          } else if (!adrs.has(r[1])) {
+            fail('R7', `${where}'s ${key} names ADR ${r[1]}, and ${ADR_DIR} has no ${r[1]}-*.md`);
+          } else if (r[1] > nnnn) {
+            // **Both readers, by construction**: P28 decision 2 says supersession is declared ONLY on the
+            // newer ADR, and nothing held it — an older ADR could name a newer one, and two ADRs could
+            // name each other. An ADR names only an OLDER one, which makes a cycle impossible as well.
+            fail('R7', `${where}'s ${key} names ADR ${r[1]}, which is NEWER — supersession and amendment ` +
+              'are declared on the newer ADR only, and *superseded by* is derived from it');
+          }
+          if (r) {
+            if (seen.has(r[1])) fail('R7', `${where}'s ${key} names ADR ${r[1]} twice`);
+            seen.add(r[1]);
+          }
+        } else if (!ID_FORM[key].test(entry)) {
+          fail('R7', `${where}'s ${key} entry "${entry}" is not a bare id of the form ${ID_FORM[key].source} — ` +
+            'ids are separated by `, `, and a link in front matter is checked by nothing');
+        } else {
+          if (entry === `ADR ${nnnn}`) fail('R7', `${where}'s ${key} names ADR ${nnnn}, which is itself`);
+          const why = missing(entry);
+          if (why) fail('R7', `${where}'s ${key} names ${entry}, and ${why}`);
+          if (seen.has(entry)) fail('R7', `${where}'s ${key} names ${entry} twice`);
+          seen.add(entry);
+        }
+      }
+    }
+  }
+}
+
+// --- R8: resolves and resolved-by, both ways ---------------------------------------------------
+if (adrNames && names) {
+  ran.R8 = true;
+  const excused = (q, adr) => NOT_A_RESOLUTION.some((x) => x.q === q && x.adr === adr);
+  // forward: an ADR's `resolves` is named back by the question it lists
+  for (const [nnnn, { fields, order, file }] of adrParsed) {
+    if (!order.includes('resolves') || fields.resolves === '') continue;
+    for (const q of fields.resolves.split(', ')) {
+      if (!ID_FORM.resolves.test(q)) continue;   // R7's
+      const qf = parsed.get(`q${q.slice(1)}.md`);
+      if (!qf || !qf.order.includes('resolved-by')) continue;   // R7's or R2's
+      pairings++;
+      if (excused(q, nnnn)) {
+        fail('R8', `${ADR_DIR}/${file} resolves ${q}, and NOT_A_RESOLUTION declares that pairing is not ` +
+          `one: ${NOT_A_RESOLUTION.find((x) => x.q === q && x.adr === nnnn).why}`);
+      } else if (!adrRefs(qf.fields['resolved-by']).includes(nnnn)) {
+        fail('R8', `${ADR_DIR}/${file} resolves ${q}, and ${DIR}/q${q.slice(1)}.md's resolved-by does not ` +
+          `name ADR ${nnnn} — a resolution is stated on both sides or it is a claim one side made`);
+      }
+    }
+  }
+  // reverse: a question's `resolved-by` naming an ADR is listed in that ADR's `resolves`
+  for (const [n, { fields, order }] of parsed) {
+    if (!order.includes('resolved-by')) continue;   // R2's
+    const q = `Q${NAME.exec(n)[1]}`;
+    for (const id of adrRefs(fields['resolved-by'])) {
+      const a = adrParsed.get(id);
+      if (!a || !a.order.includes('resolves')) continue;   // R3's or R6's
+      if (excused(q, id)) continue;
+      pairings++;
+      if (!a.fields.resolves.split(', ').includes(q)) {
+        fail('R8', `${DIR}/${n}'s resolved-by names ADR ${id}, and ${ADR_DIR}/${a.file}'s \`resolves\` ` +
+          `does not list ${q} — or, if that ADR did not resolve it, the pairing is excused by id in ` +
+          'NOT_A_RESOLUTION with its reason');
+      }
+    }
+  }
+  // the exceptions, each against the tree: one that matches nothing is a hole waiting for a pairing
+  for (const x of NOT_A_RESOLUTION) {
+    const qf = parsed.get(`q${x.q.slice(1)}.md`);
+    if (!qf || !adrRefs(qf.fields['resolved-by'] ?? '').includes(x.adr)) {
+      fail('R8', `NOT_A_RESOLUTION excuses ${x.q} -> ADR ${x.adr}, and ${x.q}'s resolved-by does not ` +
+        `name ADR ${x.adr} — an exception the tree does not carry excuses whatever arrives next`);
+    }
+  }
+}
+
 const CHECKS = [
   'R1 every question file is q<N>.md and declares its own id',
   'R2 every field is present, the status is one of four words, the cluster is declared',
   'R3 a question is resolved exactly when resolved-by says by what, and what it names exists',
   'R4 every question file at HEAD is in the tree',
   'R5 the folder holds at least the questions W116 migrated',
+  'R6 every ADR is NNNN-<slug>.md, declares its own id and title, and carries the nine fields',
+  'R7 every id an ADR names is in its field`s form and exists',
+  'R8 an ADR`s resolves and a question`s resolved-by name each other, both ways',
 ];
 const qCount = names ? names.filter((n) => NAME.test(n)).length : 0;
 console.log(`register check — ${qCount} question file(s) in ${DIR}, measured at ${MEASURE_ROOT}\n`);
@@ -333,6 +618,10 @@ for (const c of CHECKS) {
 }
 console.log(`\nnote: R3 checked ${refsChecked} ADR/P/W reference(s) in resolved-by; R4 ` +
   (ran.R4 ? `compared ${atHeadCount} question file(s) at HEAD` : `did not run — ${r4Why || 'the register is not readable'}`));
+console.log(`note: R6 read ${adrCount} ADR(s); R7 checked ${idsChecked} id(s); R8 compared ${pairings} ` +
+  `pairing(s) and excused ${NOT_A_RESOLUTION.length} by id: ` +
+  `${NOT_A_RESOLUTION.map((x) => `${x.q} -> ADR ${x.adr}`).join(', ') || 'none'}` +
+  (ran.R7 ? '' : ` — R7 and R8 did not run: ${adrNames ? DIR : ADR_DIR} is not readable`));
 if (failures.length) {
   console.log('\n' + failures.map((f) => '  ' + f).join('\n'));
   console.log(`\n${failures.length} failure(s).`);

@@ -1,7 +1,17 @@
+---
+id: ADR 0039
+title: "The gate climbs the ladder, and proving the checks can fail runs concurrently"
+status: accepted
+date: "2026-09-09"
+item: W39
+raised-by: P11
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0039 — The gate climbs the ladder, and proving the checks can fail runs concurrently
 
-**Status:** accepted
-**Date:** 2026-09-09
 **Item:** [W39](../work-items/w39-what-the-gate-proves-and-what-it-costs.md) —
 [P11](../plans/p11-what-should-the-gate-prove.md), *what should the gate prove, and what is it
 actually proving?*

@@ -1,3 +1,15 @@
+---
+id: ADR 0070
+title: "The local gate is the LADDER, and proving the checks can fail belongs to CI"
+status: accepted
+date: "2026-09-30"
+item: W103
+raised-by: ""
+supersedes: ADR 0039 in part
+amends: ""
+resolves: ""
+---
+
 # ADR 0070 — The local gate is the LADDER, and proving the checks can fail belongs to CI
 
 **Status:** accepted 2026-09-30 — [W103](../work-items/w103-the-local-gate-is-the-ladder.md), an item

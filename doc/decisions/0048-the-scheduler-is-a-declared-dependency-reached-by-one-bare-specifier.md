@@ -1,6 +1,17 @@
+---
+id: ADR 0048
+title: "The scheduler is a declared dependency, reached by one bare specifier"
+status: accepted
+date: "2026-09-11"
+item: W57
+raised-by: P16
+supersedes: ADR 0013 rules 1, 2 and 6
+amends: ""
+resolves: Q71
+---
+
 # ADR 0048 — The scheduler is a declared dependency, reached by one bare specifier
 
-**Date:** 2026-09-11
 **Status:** accepted — **supersedes [ADR 0013](0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
 rules 1, 2 and 6.** Rule 4 of that ADR stands and becomes normative as `RT-R11`; rules 3 and 5 were
 [ADR 0029](0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)'s

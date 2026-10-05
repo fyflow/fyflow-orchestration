@@ -1,7 +1,17 @@
+---
+id: ADR 0004
+title: "A non-success outcome routes only where an edge opts in, and `user_action` suspends"
+status: accepted
+date: "2026-08-30"
+item: W1
+raised-by: W1
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0004 — A non-success outcome routes only where an edge opts in, and `user_action` suspends
 
-**Date:** 2026-08-30
-**Status:** accepted
 **Raised by:** W1, via the spec-conformity pass finding **B1** — `spec/` did not say whether a
 non-`done` settlement routes at all, and two of its documents assumed opposite answers
 

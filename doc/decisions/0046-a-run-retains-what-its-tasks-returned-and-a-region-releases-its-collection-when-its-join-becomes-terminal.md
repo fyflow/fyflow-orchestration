@@ -1,7 +1,17 @@
+---
+id: ADR 0046
+title: "A run retains what its tasks returned, and a region releases its collection when its join becomes terminal"
+status: accepted
+date: "2026-09-11"
+item: W53
+raised-by: Q19, P15
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0046 — A run retains what its tasks returned, and a region releases its collection when its join becomes terminal
 
-**Date:** 2026-09-11
-**Status:** accepted
 **Raised by:** [Q19](../open-questions.md), decided by
 [W53](../work-items/w53-what-a-run-retains-that-nothing-reads.md) under
 [P15](../plans/p15-what-a-run-retains-and-what-a-result-may-be.md)

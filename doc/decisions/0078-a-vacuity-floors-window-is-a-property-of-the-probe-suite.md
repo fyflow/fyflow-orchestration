@@ -1,8 +1,17 @@
+---
+id: ADR 0078
+title: "A vacuity floor's window is a property of the probe SUITE, and an alternative refused before a cut is not refused after it"
+status: accepted
+date: "2026-10-03"
+item: W113
+raised-by: ""
+supersedes: ""
+amends: ADR 0076 decision 3
+resolves: ""
+---
+
 # ADR 0078 — A vacuity floor's window is a property of the probe SUITE, and an alternative refused before a cut is not refused after it
 
-**Status:** accepted
-**Date:** 2026-10-03
-**Item:** [W113](../work-items/w113-the-register-is-a-reference.md)
 **Supersedes:** nothing. **Amends:**
 [ADR 0076](0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md) decision 3 — its window
 `(13, 15]` and the fourth of the four alternatives it priced and refused. Adds `M7` and `M8` to

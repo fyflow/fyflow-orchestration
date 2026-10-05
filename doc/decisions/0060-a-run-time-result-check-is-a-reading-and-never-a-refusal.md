@@ -1,7 +1,17 @@
+---
+id: ADR 0060
+title: "A run-time result check is a READING and never a refusal, and the callback that receives it IS the switch"
+status: accepted
+date: "2026-09-22"
+item: W80
+raised-by: P21
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0060 — A run-time result check is a READING and never a refusal, and the callback that receives it IS the switch
 
-**Date:** 2026-09-22
-**Status:** accepted
 **Raised by:** [P21](../plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md), taken by
 [W80](../work-items/w80-what-a-run-time-result-check-is.md)
 

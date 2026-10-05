@@ -1,7 +1,17 @@
+---
+id: ADR 0058
+title: "`runtime.start` returns a completion handle the RUNTIME keeps, and it resolves rather than rejects"
+status: accepted
+date: "2026-09-19"
+item: W77
+raised-by: Q293, P20
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0058 — `runtime.start` returns a completion handle the RUNTIME keeps, and it resolves rather than rejects
 
-**Date:** 2026-09-19
-**Status:** accepted
 **Raised by:** [Q293](../open-questions.md), taken by [W77](../work-items/w77-what-start-returns.md)
 under [P20](../plans/p20-what-the-runtime-owes-a-consumer.md)
 

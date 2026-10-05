@@ -1,6 +1,17 @@
+---
+id: ADR 0029
+title: "The scheduler is a registry dependency, and nothing in this repository reaches a working tree"
+status: accepted
+date: "2026-08-31"
+item: ""
+raised-by: ""
+supersedes: ADR 0013 rules 3 and 5
+amends: ""
+resolves: ""
+---
+
 # ADR 0029 — The scheduler is a registry dependency, and nothing in this repository reaches a working tree
 
-**Date:** 2026-08-31
 **Status:** accepted — **supersedes [ADR 0013](0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rules 3 and 5.** Rules 1, 2 and 4 stand unchanged
 **Raised by:** the maintainer, after an incident — see *Context*. **Not a plan's decision**, which is why it takes an id outside every reserved block
 

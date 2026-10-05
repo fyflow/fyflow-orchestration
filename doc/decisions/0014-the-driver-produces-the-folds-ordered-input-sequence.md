@@ -1,6 +1,17 @@
+---
+id: ADR 0014
+title: "The driver produces the fold's ordered input sequence, and it is the log with the routing facts interleaved"
+status: accepted
+date: "2026-08-30"
+item: W5
+raised-by: Q41, P1
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0014 — The driver produces the fold's ordered input sequence, and it is the log with the routing facts interleaved
 
-**Date:** 2026-08-30
 **Status:** accepted — **one clause corrected in place, 2026-08-30**, see *Correction*
 **Raised by:** [Q41](../open-questions.md), taken by [W5](../work-items/w5-one-real-fan-out-flow-on-a-real-scheduler.md)
 under [P1](../plans/p1-what-satisfies-a-join.md)

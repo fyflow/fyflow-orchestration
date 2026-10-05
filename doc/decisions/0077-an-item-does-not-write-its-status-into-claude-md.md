@@ -1,7 +1,17 @@
+---
+id: ADR 0077
+title: "An item does not write its status into CLAUDE.md, and the record step's six become five"
+status: accepted
+date: "2026-10-03"
+item: W112
+raised-by: ""
+supersedes: ""
+amends: ADR 0073 decision 1
+resolves: ""
+---
+
 # ADR 0077 — An item does not write its status into CLAUDE.md, and the record step's six become five
 
-**Status:** accepted
-**Date:** 2026-10-03
 **Item:** [W112](../work-items/w112-the-budget-the-check-and-the-floors.md), by the maintainer's
 decision at that item's record step
 **Supersedes:** nothing. **Amends:**

@@ -1,8 +1,18 @@
+---
+id: ADR 0075
+title: "A node that only transforms is a built-in type with no inner worker"
+status: accepted
+date: "2026-10-02"
+item: W109
+raised-by: P26
+supersedes: ""
+amends: ""
+resolves: Q445
+---
+
 # ADR 0075 — A node that only transforms is a built-in type with no inner worker
 
 ```
-Status:   accepted
-Date:     2026-10-02
 Item:     W109 (doc/work-items/w109-a-node-that-only-transforms.md)
 Plan:     P26 (doc/plans/p26-what-a-flow-can-say-without-code.md) — decision 4 and decision 5
 Spec:     spec/flow-definition.md v0.28 — the built-in type, and FD-V46

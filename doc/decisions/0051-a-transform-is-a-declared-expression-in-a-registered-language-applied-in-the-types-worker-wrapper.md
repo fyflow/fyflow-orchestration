@@ -1,6 +1,17 @@
+---
+id: ADR 0051
+title: "A transform is a declared expression in a registered language, applied in the type's worker wrapper"
+status: accepted
+date: "2026-09-12"
+item: W61
+raised-by: P17
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0051 — A transform is a declared expression in a registered language, applied in the type's worker wrapper
 
-**Date:** 2026-09-12
 **Status:** accepted — amended by [ADR 0054](0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) at v0.19 (W65): `FD-V37`'s clause about a node with no `type` retired with the bare road, the rest standing; answers [P17](../plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s
 question, *what may a node DO to its input before its worker sees it?*, on that plan's decisions
 1-10. Amends nothing: [ADR 0049](0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)

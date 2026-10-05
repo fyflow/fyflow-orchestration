@@ -1,7 +1,17 @@
+---
+id: ADR 0042
+title: "A reference says whether it is conditional, and the bare form means the target certainly ran"
+status: accepted
+date: "2026-09-10"
+item: W45
+raised-by: Q187, P13
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0042 — A reference says whether it is conditional, and the bare form means the target certainly ran
 
-**Date:** 2026-09-10
-**Status:** accepted
 **Raised by:** [Q187](../open-questions.md), decided by
 [W45](../work-items/w45-what-a-reference-must-be-able-to-say.md) under
 [P13](../plans/p13-when-is-a-declared-reference-refused.md)

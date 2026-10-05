@@ -1,7 +1,17 @@
+---
+id: ADR 0074
+title: "A predicate is a registered NAME or a DECLARED comparison over the context"
+status: accepted
+date: "2026-10-02"
+item: W108
+raised-by: P26
+supersedes: ""
+amends: ""
+resolves: Q444
+---
+
 # ADR 0074 — A predicate is a registered NAME or a DECLARED comparison over the context
 
-**Status:** accepted, 2026-10-02
-**Item:** [W108](../work-items/w108-a-predicate-is-data.md)
 **Plan:** [P26](../plans/p26-what-a-flow-can-say-without-code.md)
 **Answers:** [Q444](../open-questions.md)
 **Spec:** [spec/flow-definition.md](../../spec/flow-definition.md) v0.27 — section 3's `when`

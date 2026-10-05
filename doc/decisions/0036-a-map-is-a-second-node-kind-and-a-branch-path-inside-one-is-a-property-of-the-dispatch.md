@@ -1,7 +1,17 @@
+---
+id: ADR 0036
+title: "Fan-out is two features over one region: a `map` is a second node kind, and a `branchPath` inside one is a property of the dispatch"
+status: accepted
+date: "2026-09-06"
+item: W32
+raised-by: Q12, P10
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0036 — Fan-out is two features over one region: a `map` is a second node kind, and a `branchPath` inside one is a property of the dispatch
 
-**Date:** 2026-09-06
-**Status:** accepted
 **Raised by:** [Q12](../open-questions.md), decided by
 [W32](../work-items/w32-what-a-map-fanout-is.md) under
 [P10](../plans/p10-is-fan-out-one-feature-or-two.md)

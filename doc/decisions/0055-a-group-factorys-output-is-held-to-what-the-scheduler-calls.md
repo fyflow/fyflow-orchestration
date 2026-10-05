@@ -1,6 +1,17 @@
+---
+id: ADR 0055
+title: "A group factory's output is held to what the scheduler CALLS, not to what its interface requires"
+status: accepted
+date: "2026-09-16"
+item: W66
+raised-by: W66, S10
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0055 — A group factory's output is held to what the scheduler CALLS, not to what its interface requires
 
-**Date:** 2026-09-16
 **Status:** accepted — taken at [W66](../work-items/w66-the-runtime-entry.md)'s declaration step by
 the maintainer, on a measurement that **corrects [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)
 decision 4 in both directions**. **Amends `spec/flow-definition.md`'s registry subsection**, whose

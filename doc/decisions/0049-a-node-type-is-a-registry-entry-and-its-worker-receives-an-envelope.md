@@ -1,6 +1,17 @@
+---
+id: ADR 0049
+title: "A node type is a registry entry, and its worker receives an envelope"
+status: accepted
+date: "2026-09-12"
+item: W59
+raised-by: P16
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0049 — A node type is a registry entry, and its worker receives an envelope
 
-**Date:** 2026-09-12
 **Status:** accepted — answers [P16](../plans/p16-what-a-node-type-is-and-what-the-library-owes-the-scheduler.md)'s
 question, *what is a node type?*, on that plan's decisions 2, 4, 5 and 6. **Amended by [ADR 0054](0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) at v0.19 (W65)**: rule 1's *instead of a `workerType`* is *names a `type`*, the settings VALIDATOR is the worker's `settingsSchema` (ADR 0053), and the *bare node unchanged to the byte* clause expired with the bare node; the envelope, the pool keyed by the type's name and *the definition stays data* stand and are universal. Amends nothing itself:
 [ADR 0040](0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)

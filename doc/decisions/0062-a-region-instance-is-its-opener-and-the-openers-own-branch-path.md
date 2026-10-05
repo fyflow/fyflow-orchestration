@@ -1,7 +1,17 @@
+---
+id: ADR 0062
+title: "A region INSTANCE is its opener and the opener's own branch path"
+status: accepted
+date: "2026-09-23"
+item: W84
+raised-by: P22
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0062 — A region INSTANCE is its opener and the opener's own branch path
 
-**Status:** accepted 2026-09-23
-**Item:** [W84](../work-items/w84-what-a-regions-identity-is.md)
 **Plan:** [P22](../plans/p22-what-a-regions-identity-is.md) — *what is a region's identity, and may a
 region open inside a `map` region?*
 **Supersedes:** nothing. It **removes a refusal**

@@ -1,7 +1,17 @@
+---
+id: ADR 0030
+title: "A join is transitive over nested fan-out, and a join that can never fire ends the branch it sits in"
+status: accepted
+date: "2026-09-02"
+item: W22
+raised-by: Q6, P7
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0030 — A join is transitive over nested fan-out, and a join that can never fire ends the branch it sits in
 
-**Date:** 2026-09-02
-**Status:** accepted
 **Raised by:** [Q6](../open-questions.md), decided by
 [W22](../work-items/w22-what-an-inner-join-does-to-the-outer-one.md) under
 [P7](../plans/p7-is-a-join-transitive-over-nested-fan-out.md)

@@ -1,7 +1,17 @@
+---
+id: ADR 0064
+title: "A checkpoint is the run's whole event sequence and a header of what it cannot regenerate, handed out as a COPY, and every event has a position"
+status: accepted
+date: "2026-09-24"
+item: W88
+raised-by: P23, Q15, Q21
+supersedes: ""
+amends: ""
+resolves: ""
+---
+
 # ADR 0064 — A checkpoint is the run's whole event sequence and a header of what it cannot regenerate, handed out as a COPY, and every event has a position
 
-**Date:** 2026-09-24
-**Status:** accepted
 **Raised by:** [P23](../plans/p23-what-a-run-needs-to-outlive-its-process.md) decisions 2-5, taken by
 [W88](../work-items/w88-what-a-checkpoint-is.md); [Q15](../open-questions.md)'s first half and
 [Q21](../open-questions.md)'s stream half

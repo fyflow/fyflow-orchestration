@@ -1,3 +1,15 @@
+---
+id: ADR 0068
+title: "A route guarantees what its TYPE declares, and the library derives it from the KEY PATH"
+status: accepted
+date: "2026-09-29"
+item: W99
+raised-by: P25
+supersedes: ADR 0066 in part
+amends: ""
+resolves: ""
+---
+
 # ADR 0068 — A route guarantees what its TYPE declares, and the library derives it from the KEY PATH
 
 **Status:** accepted 2026-09-29 — [W99](../work-items/w99-what-a-route-guarantees.md) under

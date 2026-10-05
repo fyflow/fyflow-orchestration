@@ -1,6 +1,17 @@
+---
+id: ADR 0056
+title: "An example is an ANNOTATION, validated against the schema it sits on"
+status: accepted
+date: "2026-09-18"
+item: W72
+raised-by: P19
+supersedes: ""
+amends: ADR 0053 rule 2
+resolves: ""
+---
+
 # ADR 0056 — An example is an ANNOTATION, validated against the schema it sits on
 
-**Date:** 2026-09-18
 **Status:** accepted — answers [P19](../plans/p19-what-a-schema-buys-an-author.md) decision 2 and
 the first half of decision 3, on that plan's facts 2, 5 and 6 and on the maintainer's answer to
 [W72](../work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)'s
