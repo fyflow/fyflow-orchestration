@@ -36,7 +36,10 @@ second copy of a definition is a claim about the first that nothing compares.
 2. **A row's target is a heading in `spec/`, an ADR or `doc/workflow.md`, and nothing else.** A term
    whose only definition is in a work item, a plan, `CLAUDE.md` or `doc/concept.md` is not a row: it
    is a question. *P28 decision 4 named `spec/` and the ADRs; W120's declaration added
-   `doc/workflow.md`, the only home the process vocabulary has.*
+   `doc/workflow.md`, the home most of the process vocabulary has — 18 of the 23 PROCESS rows point
+   there and 5 at ADRs.* *(Correction, 2026-10-05, W120's fix round — its conformity reader's D4: this
+   said* the only home the process vocabulary has*, which the table it describes contradicted. The
+   decision does not change.)*
 3. **Where the defining sentence sits in a list item, a table or a block quote, the link names the
    nearest heading enclosing it**, for every row alike. Those carry no anchor of their own; the
    alternative — every such term a question — would leave most of the process vocabulary unindexed
@@ -65,7 +68,11 @@ second copy of a definition is a claim about the first that nothing compares.
    defining sentence is in a block quote under it.
 4. **`M5`'s floor moves, by the glossary's own anchors.** Every row carries an anchored link in
    `doc/`'s top level, which no `removes` probe cuts, so the whole tree, probe 1, probe 2 and `M5`'s
-   own probe rise together and ADR 0078 decision 1's 28 leaves the window. The window and the new
+   own probe all rise — by **48, 41, 41 and 48**, because the 7 rows pointing at ADRs are dead links
+   in the two probes that cut `doc/decisions` — and ADR 0078 decision 1's 28 leaves the window.
+   *(Correction, 2026-10-05, W120's fix round — its conformity reader's D3: this said they* rise
+   together*, the prediction made before the measurement. The window and the floor were taken from
+   the measured figures and do not move.)* The window and the new
    floor are measured on W120's final tree and stated beside the floor in `check-markdown.mjs`; this
    is ADR 0078 decision 1's arithmetic re-run, not a change to what that decision decided.
 
