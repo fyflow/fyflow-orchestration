@@ -1,6 +1,6 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** planning — declared 2026-10-06 on `e61df81`; no item started
+**Status:** in progress — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06 (Record below), W131, W132 and W134 to come
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
@@ -155,7 +155,8 @@ learns reaches the next item's declaration.
 
 | Q | | Owner |
 |---|---|---|
-| — | *none raised at declaration* | |
+| [Q533](../questions/q533.md) | raised by W133: nine refusal classes still open their message with their own class name, which Q63 changed for one | no owner |
+| [Q534](../questions/q534.md) | raised by W133: `AGENTS.md` states the inline-only `OR-R6` behaviour generally | no owner |
 
 ## Out
 
@@ -169,3 +170,26 @@ learns reaches the next item's declaration.
   there a suite that fails to import is a bundle failure, not the runner's. W132 fixes the Node and
   Deno runner and states what Chromium does, measured.
 - **`CLAUDE.md` and `doc/workflow.md`**, by prediction 5.
+
+## Record
+
+**W133 — done 2026-10-06.** The item's own Record carries the gate, the measurement, both readers and the
+rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q61, Q62, Q63**, each `resolved-by` naming P30 W133 and the spec version: `OR-R6` v0.11
+  (`spec/outcome-record.md`), `RN-R6` v0.13 (`spec/run-state.md`) and decision 2's message. On W133's
+  tree `npm run q -- --where status=open --count` prints **21**: 22, less these three, plus the two W133
+  raised (Q533, Q534). The exit artifact's **9** therefore reads **11** if nothing else moves, by those two.
+- **Prediction 1 held on the measured half and was too narrow.** On 0.5.2 a thread pool still refuses the
+  value first and a non-optional task ends `user_action`, in Node and Deno. W133's conformity reader found
+  the `optional` half — the task ends `failed` — which neither P2 nor decision 2 named; the sentence now
+  states both, measured.
+- **Decision 2's Q62 gloss was imprecise**: *"leaves it on that branch's terminal event"*. A resolution's
+  `branch.resumed` takes a path out first. The spec sentence names both events; the code did not move.
+- **Prediction 4 held** (no ADR) and **prediction 5 held** (`CLAUDE.md`, `doc/workflow.md`,
+  `doc/concept.md` untouched). **Prediction 6 held** for W133: both readers found blocking or should-fix
+  defects. **Prediction 2** moved as allowed: L1-L5 +12 cases and L6 +30 assertions and +1 run, all W133's.
+- **Overlap**: two shared subjects, the eighty-third measurement — the count a retro carries forward.
+- **Six exceptions**, four declared before the first edit and two late (`spec/README.md`,
+  `test/definition/l4-corpus.test.ts`); W133's Record lists them and why. A spec bump and a new suite
+  each drag one of those two files, every time: the next item that does either can name them up front.
