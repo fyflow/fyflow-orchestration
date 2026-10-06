@@ -158,7 +158,8 @@
 // load-bearing. **And it cannot be a shipped entry**, because an entry that provokes
 // it is an entry whose child cannot run, which grades FAIL — so the file would ship
 // red. *Reachable, demonstrated, unshippable* is a third category, and this file now
-// has three of them: this, the `ran:` guard's own case, and the control run.
+// has four of them: this, the `ran:` guard's own case, the control run, and W131's
+// REASON check on a `SELF` entry (see the `SELF` loop).
 //
 //   the ABORT and STILL-CAUGHT branches -> `if (false)`         **and these two are
 //                                                               a different kind —
@@ -667,7 +668,12 @@ const SELF = [
   ['a META entry inert on the clean tree and FATAL under its probe — the `ran:` case',
     (t) => t.replace("  ['every failure swallowed',",
       "  ['srcPolicies` unread-block guard disabled, so the mutant THROWS', (t) => t.replace('if (!m) return null;', 'if (false) return null;'),\n" +
-      "    'the POLICIES block renamed, so the source half cannot be read'],\n  ['every failure swallowed',")],
+      "    'the POLICIES block renamed, so the source half cannot be read'],\n  ['every failure swallowed',"),
+    // **The REASON this entry must go red for, which a `SELF` grading did not read until W131.**
+    // `graded` asks only that the child ran and exited non-zero, so an injected entry that did NOT
+    // crash — one naming a probe its mutation leaves intact, graded STILL CAUGHT — went red too, and
+    // the entry passed for a reason it does not name. W131's rule 8 set found it (Q138's shape).
+    "srcPolicies` unread-block guard disabled, so the mutant THROWS — the mutant did not run"],
 
   // --- the three bounds W31 adds, made load-bearing rather than merely present ----
   //
@@ -1225,7 +1231,7 @@ export async function selfTest(root) {
 
   let bounded = 0;
   console.log(`\nand against a shortened list — ${SELF.length} mutations of this file\n`);
-  for (const [i, [name, mutate]] of SELF.entries()) {
+  for (const [i, [name, mutate, reason]] of SELF.entries()) {
     const broken = mutate(selfSource);
     if (broken === selfSource) {
       console.log(`  FAIL  ${name} — the mutation matched nothing`);
@@ -1238,6 +1244,15 @@ export async function selfTest(root) {
       const r = runSelfChild(path);
       ok = graded(r);
       if (r.status !== 0 && !ok) why = ' — the child never got as far as running: a broken file, not a fired floor';
+      // **An entry that names its REASON is graded on it** — W131. Red is not enough for the
+      // `ran:` case: its child must be red BECAUSE the injected entry did not run. Only that entry
+      // names one; the rest grade on the floor firing, and their reasons are on the ceiling list.
+      // *Reachable, demonstrated, unshippable*: no shipped entry provokes it, because one that did
+      // would ship red — W131's rule 8 probe p8 is its case.
+      else if (ok && reason !== undefined && !r.out.includes(reason)) {
+        ok = false;
+        why = ` — the child went red, but not for the reason this entry names ("${reason}")`;
+      }
     } finally { rmSync(path, { force: true }); }
     if (ok) bounded++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : (why || ' — the floor did not fire')}`);

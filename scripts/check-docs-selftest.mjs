@@ -45,35 +45,20 @@
 // ~170 s and the gate at ~325 s, which is [Q133](../doc/questions/q133.md)'s trade
 // and not an item's to spend unremarked.
 //
-// **`check-docs.mjs` has 58 clauses: 55 `fail()` sites and 3 ways the report can
-// lie** — and this headline said *"17 clauses: 14 `fail()` sites"* until
-// [W104](../doc/work-items/w104-the-snippet-loop-runs-concurrently.md) counted them.
-// **It was W29's count and the check has quadrupled since**: `X6` arrived at W46, `X7`
-// at W65, `X8` at W69 and W70, `X9` at W86, `X10` and `X11` at W96 — so the number was
-// stale by **33 sites**, in the paragraph whose own subject is a stated cap that
-// undercounts. *A census that narrates its own correctness and is never re-derived is
-// `doc/workflow.md` section 1 rule 5's writing clause in a `scripts/` file.* It had
-// already been wrong once, at W29, when it said *"six"* ungraded and omitted two, and
-// the same six were copied into four more documents.
+// **How many `fail()` sites `check-docs.mjs` has is NOT written here, and that is a
+// decision rather than an omission** — P30 decision 5, by P27 decision 4: *a fact the tree
+// COMPUTES is not written down.* The number is `grep -c "fail('X" scripts/check-docs.mjs`,
+// run on the tree you are reading. This header carried it as a census until W131, and the
+// census was found stale three times — W29's by W104, W104's own by its conformity reader,
+// and W104's again once later items moved the sites — each time in the paragraph whose own
+// subject was a stated count that undercounts (Q430, Q454). Nothing compared it to the
+// check, and a census printed for a reader is a second copy of `grep -c`.
 //
-// **The scope of what W104 re-took is stated rather than implied**: the SITE count, by
-// `grep -c "fail('X"`, is **64** across eleven ids (X1 4, X2 2, X3 2, **X4 13**, X5 1,
-// **X6 10**, X7 5, **X8 11**, X9 4, **X10 6**, X11 6 — and `X11`, with its six, RETIRED at W119 by ADR 0081). *(This read **55** with X6 at 5, X8 at 9
-// and X10 at 4 — W104's figures, and it was stale by FIVE before W109 added four X6 sites of its
-// own: a count in a comment beside the list it describes, which is the defect the paragraph above
-// records at W29 and which nothing here compares. Re-derived by the `grep` this sentence names.)* The `META` list below
-// is **28** entries and the coverage bound it carries is per **ID**, not per site, so
-// every id has at least one grading and *which sites* are graded is the question this
-// list answers — for the sites named below and for no others. Re-deriving that for all
-// 55 is an audit and W104 did not take it; what follows is the list as it stood plus
-// W104's own eight.
-//
-// *(**And this very paragraph shipped at 53 / X4 11 for the length of one reader pass**,
-// because W104 counted its own sites BEFORE adding the second-source clause and never
-// re-took the number — its conformity reader caught it at 54, and acting on both readers'
-// findings took it to 55. The same defect the paragraph is about, in the item correcting
-// it, twice: `doc/workflow.md` section 1 rule 5's WHEN clause is the answer and the
-// procedure is to run the grep on the tree that SHIPS.)*
+// What the paragraph was FOR still holds: the `META` list's coverage bound is per **ID**,
+// not per site, so every id has at least one grading, and *which sites* are graded is the
+// question the list below answers — for the sites named there and for no others.
+// Re-deriving that for every site is an audit and W104 did not take it; what follows is the
+// list as it stood plus W104's own eight.
 //
 //   X1  the unclosed-fence refusal           probe: an unclosed fence
 //   X1  the no-snippets-at-all vacuity guard probe: a reference with no snippets at all
@@ -957,7 +942,8 @@ export async function selfTest(root) {
     // one diff ([Q217](../doc/questions/q217.md)). This is the third edit, in another
     // file: measured, `X4_WIDTH = 1` is `check:docs` EXIT 0 at the pre-W104 wall clock
     // with all 51 probes below still caught, because a serial pool computes the same
-    // verdicts more slowly. `README_SNIPPET_FLOOR`'s recorded gap, closed for this one.
+    // verdicts more slowly. `README_SNIPPET_FLOOR`'s recorded gap, closed for this one
+    // first, and for that one at W131 (the block below).
     //
     // **The floor this holds is EIGHT and it shipped as TWO** — W104's adequacy reader,
     // BLOCKING: a floor of two against a width of eight passes here, passes in the check,
@@ -986,6 +972,25 @@ export async function selfTest(root) {
         console.log('  FAIL  the `run` snippets are not executed concurrently at the width W104 measured, ' +
           'or the floor that says so has been lowered with it. Half the saving goes at width 2 and all of ' +
           'it at width 1, and every clause inside check-docs.mjs passes at either.');
+        rmSync(dir, { recursive: true, force: true });
+        return 1;
+      }
+    }
+    // **`README_SNIPPET_FLOOR`, held here beside `X4_WIDTH`'s pair — W131, Q439.** The check
+    // compares `README_SNIPPETS.length` against the floor, so lowering the floor with the list is
+    // two edits in one diff ([Q217](../doc/questions/q217.md)), and W101's adequacy reader
+    // measured the lowering EXIT 0 through `check:docs` and this whole lane (W107 then lowered it,
+    // deliberately, by ADR 0073). This is the third edit, in another file: the value held is the
+    // floor ADR 0073 decided, 3, so a deliberate retune moves this literal in the same diff and
+    // says so. It reads the declaration, never the behaviour, as the block above does.
+    {
+      const rf = /^const README_SNIPPET_FLOOR = (\d+);$/m.exec(src);
+      if (!rf || Number(rf[1]) < 3) {
+        console.log('check-docs self-test — `X8`\'s README_SNIPPET_FLOOR, as check-docs.mjs declares it: ' +
+          `${rf ? rf[1] : 'not declared where this reads it'}.`);
+        console.log('  FAIL  the README snippet floor is below the 3 pairings ADR 0073 decided, or is not ' +
+          'where this reads it. A section and its pairing can leave together and every clause inside ' +
+          'check-docs.mjs passes, because the floor that would see it moved with them (Q439).');
         rmSync(dir, { recursive: true, force: true });
         return 1;
       }
