@@ -7,7 +7,7 @@ item: W107
 raised-by: ""
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q438
 ---
 
 # ADR 0073 — The README is for a person, the reference is for an agent, and CLAUDE.md is for an agent working on the library
