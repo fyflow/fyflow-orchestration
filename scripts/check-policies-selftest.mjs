@@ -1246,7 +1246,8 @@ export async function selfTest(root) {
       if (r.status !== 0 && !ok) why = ' — the child never got as far as running: a broken file, not a fired floor';
       // **An entry that names its REASON is graded on it** — W131. Red is not enough for the
       // `ran:` case: its child must be red BECAUSE the injected entry did not run. Only that entry
-      // names one; the rest grade on the floor firing, and their reasons are on the ceiling list.
+      // names one; every other entry grades on a red child alone and names no reason, which is
+      // W31's grading unchanged and is not on the header's ceiling list (W131's reader, finding 5).
       // *Reachable, demonstrated, unshippable*: no shipped entry provokes it, because one that did
       // would ship red — W131's rule 8 probe p8 is its case.
       else if (ok && reason !== undefined && !r.out.includes(reason)) {

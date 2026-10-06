@@ -52,7 +52,7 @@ const NODE_MAJOR = Number(process.versions.node.split('.')[0]);
 const MIN_NODE_MAJOR = 24;
 
 // --- the floors on this file's own lists ---------------------------------------
-const MIN_PROBES = 19;   // AT the list's length (19 since W131, Q490); W115's adequacy reader deleted one for zero
+const MIN_PROBES = 20;   // AT the list's length (20 since W131, Q490 and its reader); W115's adequacy reader deleted one for zero
 // **`MIN_META` and `MIN_SELF` sit AT their lists' lengths, not one below.** W112's adequacy reader
 // measured what the slack bought: one `META` entry deletable for zero (the `B1` isFile half — the
 // probe's own comment calls it *the LENIENT direction* — because the coverage bound only asks that
@@ -240,6 +240,16 @@ const PROBES = [
     check: 'B6', sizes: 'real',
     declare: (t) => t.replace("  'doc/concept.md': 17 * 1024,\n});", "  'doc/concept.md': 17 * 1024,\n  'README.md': 1 * 1024,\n});"),
     says: 'README.md has a DECLARED_TARGETS entry and is not in DECLARED_PATHS',
+  },
+  {
+    // **And a stray key UNDER `doc/`, because the direction SELECTS** — W131's conformity reader,
+    // finding 1, obligation (a)'s *a fixture where every WRONG selection differs*. With one root-level
+    // stray key, narrowing the call site to `&& !k.startsWith('doc/')` was EXIT 0 through this whole
+    // self-test while dropping exactly the keys that sit beside the set's own members.
+    name: 'a DECLARED_TARGETS key under doc/ for a path DECLARED_PATHS does not name',
+    check: 'B6', sizes: 'real',
+    declare: (t) => t.replace("  'doc/concept.md': 17 * 1024,\n});", "  'doc/concept.md': 17 * 1024,\n  'doc/glossary.md': 1 * 1024,\n});"),
+    says: 'doc/glossary.md has a DECLARED_TARGETS entry and is not in DECLARED_PATHS',
   },
 
   // --- B7: the ALLOCATION, not the sum —---------------------------------------------

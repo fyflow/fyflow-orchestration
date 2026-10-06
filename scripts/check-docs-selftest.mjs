@@ -86,8 +86,10 @@
 //   X4  the REPORT-against-RUN relation (the failures emitted match the failing seats)
 //   X4  the width FLOOR — held a third time by the bound in `selfTest` below, which reads
 //       `X4_WIDTH` and `X4_WIDTH_FLOOR` out of the check's source
+//   X8  README_SNIPPET_FLOOR — held a second time by the bound beside that one (W131, Q439),
+//       which carries its own two cases rather than a probe
 //
-// *(The second-source clause was missing from this list and from the count above, for the
+// *(The second-source clause was missing from this list and from the site census this header carried until W131, for the
 // one reason: it was added after both were written. W104's conformity reader, finding 1 —
 // one cause, both symptoms.)*
 //
@@ -983,14 +985,30 @@ export async function selfTest(root) {
     // deliberately, by ADR 0073). This is the third edit, in another file: the value held is the
     // floor ADR 0073 decided, 3, so a deliberate retune moves this literal in the same diff and
     // says so. It reads the declaration, never the behaviour, as the block above does.
+    //
+    // **Its own two cases are checked in HERE**, because no probe can reach a property of the
+    // check's source (the header's list names this bound for that reason) — W131's reader, finding
+    // 6: the bound is applied to the source with the floor LOWERED and with the floor declared in a
+    // form it cannot read, and must refuse both. That costs no run of the check.
     {
-      const rf = /^const README_SNIPPET_FLOOR = (\d+);$/m.exec(src);
-      if (!rf || Number(rf[1]) < 3) {
+      const FLOOR_LINE = /^const README_SNIPPET_FLOOR = (\d+);$/m;
+      const refuses = (text) => { const m = FLOOR_LINE.exec(text); return !m || Number(m[1]) < 3; };
+      const rf = FLOOR_LINE.exec(src);
+      if (refuses(src)) {
         console.log('check-docs self-test — `X8`\'s README_SNIPPET_FLOOR, as check-docs.mjs declares it: ' +
           `${rf ? rf[1] : 'not declared where this reads it'}.`);
         console.log('  FAIL  the README snippet floor is below the 3 pairings ADR 0073 decided, or is not ' +
           'where this reads it. A section and its pairing can leave together and every clause inside ' +
           'check-docs.mjs passes, because the floor that would see it moved with them (Q439).');
+        rmSync(dir, { recursive: true, force: true });
+        return 1;
+      }
+      const lowered = src.replace(FLOOR_LINE, 'const README_SNIPPET_FLOOR = 2;');
+      const unread = src.replace(FLOOR_LINE, 'const README_SNIPPET_FLOOR = Number(3);');
+      if (lowered === src || unread === src || !refuses(lowered) || !refuses(unread)) {
+        console.log('check-docs self-test — the README_SNIPPET_FLOOR bound, applied to its own two cases.');
+        console.log('  FAIL  the bound does not refuse the floor LOWERED to 2, or declared in a form it ' +
+          'cannot read — so it would pass the lowering it exists to catch (Q439).');
         rmSync(dir, { recursive: true, force: true });
         return 1;
       }
