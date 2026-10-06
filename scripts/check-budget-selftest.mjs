@@ -127,17 +127,17 @@ const PROBES = [
   // that is what makes each of these `[B2]` alone rather than `[B2,B3]`.
   {
     name: 'CLAUDE.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
+    check: 'B2', sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 36_865, 'doc/concept.md': 100 },
     says: 'CLAUDE.md is 25601 bytes and its ceiling is 25600',
   },
   {
     name: 'doc/workflow.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
-    says: 'doc/workflow.md is 35841 bytes and its ceiling is 35840',
+    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 36_865, 'doc/concept.md': 100 },
+    says: 'doc/workflow.md is 36865 bytes and its ceiling is 36864',
   },
   {
     name: 'doc/concept.md one byte over its own ceiling, the others tiny',
-    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 35_841, 'doc/concept.md': 17_409 },
+    check: 'B2', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 36_865, 'doc/concept.md': 17_409 },
     says: 'doc/concept.md is 17409 bytes and its ceiling is 17408',
   },
 
@@ -147,7 +147,8 @@ const PROBES = [
   // all three members inside their targets `sumCeilings == TOTAL_CEILING == TOTAL_TARGET` — and
   // then `measured > TOTAL_CEILING` implies some member is over its own ceiling. Searched at
   // W115's declaration step over every staging of the three on an 8-byte grid: **no staging keeps
-  // all three inside their ceilings while the set exceeds 78,848.** That is the `SET` docstring's
+  // all three inside their ceilings while the set exceeds its total** (78,848 then; 79,872 since
+  // P29 stop-and-ask (n) raised `doc/workflow.md`'s target, 2026-10-06). That is the `SET` docstring's
   // own *clause with no instance of its own*, arriving from the other direction.
   //
   // So this probe declares the COMPOUND, and it is kept rather than deleted because `B3` regains
@@ -159,8 +160,8 @@ const PROBES = [
   {
     name: 'doc/workflow.md one byte over with the others AT their ceilings, so the SET exceeds its total too',
     check: 'B3', also: ['B2'],
-    sizes: { 'CLAUDE.md': 25_600, 'doc/workflow.md': 35_841, 'doc/concept.md': 17_408 },
-    says: 'the always-read set is 78849 bytes and TOTAL_CEILING is 78848',
+    sizes: { 'CLAUDE.md': 25_600, 'doc/workflow.md': 36_865, 'doc/concept.md': 17_408 },
+    says: 'the always-read set is 79873 bytes and TOTAL_CEILING is 79872',
   },
 
   // --- B5: a MET target bounds its own ceiling ---------------------------------
@@ -175,13 +176,13 @@ const PROBES = [
   // **A SIZE probe reached `B5` until W115 and cannot any more.** Every member's ceiling is now its
   // target, so `ceiling > target` is false for all three and no tree can make it true. The clause
   // is about the DECLARATION, so the probe mutates the declaration — which is where `B4`'s three
-  // probes already live. 40,960 is above the 35,840 target, and raising a ceiling only raises
+  // probes already live. 40,960 is above the 36,864 target, and raising a ceiling only raises
   // `sumCeilings`, so `B4` stays silent and this is `[B5]` alone.
   {
     name: 'doc/workflow.md staged INSIDE its target with its ceiling DECLARED above it',
     check: 'B5', sizes: { 'CLAUDE.md': 100, 'doc/workflow.md': 100, 'doc/concept.md': 100 },
-    declare: (t) => t.replace('    ceiling: 35_840,', '    ceiling: 40_960,'),
-    says: 'doc/workflow.md is 100 bytes and has MET its 35840-byte target, and its ceiling is 40960',
+    declare: (t) => t.replace('    ceiling: 36_864,', '    ceiling: 40_960,'),
+    says: 'doc/workflow.md is 100 bytes and has MET its 36864-byte target, and its ceiling is 40960',
   },
 
   // --- B6: the MEMBERSHIP, both ways —------------------------------------------
@@ -227,7 +228,7 @@ const PROBES = [
     // EXIT 0 before `B6` compares them, with `B7` dead for that member and nothing saying so.
     name: 'one DECLARED_TARGETS key dropped, so B7 would skip that member in silence',
     check: 'B6', sizes: 'real',
-    declare: (t) => t.replace("  'doc/workflow.md': 35 * 1024,\n", ''),
+    declare: (t) => t.replace("  'doc/workflow.md': 36 * 1024,\n", ''),
     says: 'has no DECLARED_TARGETS entry',
   },
 
@@ -277,7 +278,7 @@ const PROBES = [
   {
     name: 'CLAUDE.md over its ceiling AND the set over its total — the compound',
     check: 'B2', also: ['B3'],
-    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 35_840, 'doc/concept.md': 17_408 },
+    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 36_864, 'doc/concept.md': 17_408 },
     says: 'CLAUDE.md is 25601 bytes and its ceiling is 25600',
   },
 
@@ -291,13 +292,13 @@ const PROBES = [
     // Agnostic about the value, for the reason `check-markdown`'s META entries are: W113 moved
     // every ceiling here and a pinned literal would have reported *the mutation matched nothing*.
     declare: (t) => t.replace(/const TOTAL_CEILING = [\d_]+;/, 'const TOTAL_CEILING = 999_999;'),
-    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 78848',
+    says: 'TOTAL_CEILING is 999999 and the per-file ceilings sum to 79872',
   },
   {
     name: 'TOTAL_CEILING declared BELOW the total target — the budget already met',
     check: 'B4', also: ['B3'], sizes: 'real',
     declare: (t) => t.replace(/const TOTAL_CEILING = [\d_]+;/, 'const TOTAL_CEILING = 70_000;'),
-    says: 'TOTAL_CEILING is 70000 and TOTAL_TARGET is 78848',
+    says: 'TOTAL_CEILING is 70000 and TOTAL_TARGET is 79872',
   },
   {
     // **`B7` turned this probe against its own declared set, which is
@@ -308,7 +309,7 @@ const PROBES = [
     name: 'one per-file target moved, so the targets and TOTAL_TARGET are two budgets',
     check: 'B4', also: ['B7'], sizes: 'real',
     declare: (t) => t.replace('    target: 17 * 1024,', '    target: 18 * 1024,'),
-    says: 'the per-file targets sum to 79872 and TOTAL_TARGET is 78848',
+    says: 'the per-file targets sum to 80896 and TOTAL_TARGET is 79872',
   },
 ];
 
@@ -333,7 +334,7 @@ const GRADER_CONTROLS = [
     // and `wrong-reason` is the only verdict left.
     name: 'GRADER CONTROL — trips B2 as declared, with a reason the check never prints',
     expect: 'wrong-reason', check: 'B2',
-    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
+    sizes: { 'CLAUDE.md': 25_601, 'doc/workflow.md': 36_865, 'doc/concept.md': 100 },
     says: 'CLAUDE.md is 999999 bytes and its ceiling is 42',
   },
   {
@@ -356,7 +357,7 @@ const GRADER_CONTROLS = [
     // *the check did not run* from *the check crashed*.
     name: 'GRADER CONTROL — the banner removed, so the check runs and cannot be seen to: did-not-run',
     expect: 'did-not-run', check: 'B2',
-    sizes: { 'CLAUDE.md': 40_961, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },
+    sizes: { 'CLAUDE.md': 40_961, 'doc/workflow.md': 36_865, 'doc/concept.md': 100 },
     declare: (t) => t.replace('console.log(`budget check — the always-read set is', 'console.log(`BANNER REMOVED — the always-read set is'),
   },
 ];
@@ -512,7 +513,7 @@ const SELF = [
     // 999_999 rather than a figure near a ceiling: this must exceed CLAUDE.md's ceiling however
     // far W114 lowers it, and a number chosen just above today's goes stale with the next cut.
     (t) => t.replace("    check: null, sizes: 'real',",
-      "    check: null, sizes: { 'CLAUDE.md': 999_999, 'doc/workflow.md': 35_841, 'doc/concept.md': 100 },")],
+      "    check: null, sizes: { 'CLAUDE.md': 999_999, 'doc/workflow.md': 36_865, 'doc/concept.md': 100 },")],
   ['a GRADER control declaring the wrong expected verdict — what grading the grader catches',
     (t) => t.replace("    expect: 'crash', check: 'B2', sizes: 'real',", "    expect: 'caught', check: 'B2', sizes: 'real',")],
   ['a probe naming a reason the check never prints — what the reason check catches',
@@ -624,7 +625,7 @@ const SOURCE = [
         return `DECLARED_PATHS and this file's SET_PATHS disagree: missing ${missing.join(', ')}` +
           `; extra ${extra.join(', ')}`;
       }
-      const want = { 'CLAUDE.md': 25, 'doc/workflow.md': 35, 'doc/concept.md': 17 };
+      const want = { 'CLAUDE.md': 25, 'doc/workflow.md': 36, 'doc/concept.md': 17 };
       const bad = [];
       const tm = /const DECLARED_TARGETS = Object\.freeze\(\{([\s\S]*?)\}\)/.exec(src);
       if (!tm) return 'DECLARED_TARGETS is not declared where this reads it';

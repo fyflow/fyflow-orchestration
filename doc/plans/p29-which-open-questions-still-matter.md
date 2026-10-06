@@ -165,6 +165,7 @@ predecessor's Record is done, so that W121's calibration reaches the others.
 | **(k)** | ~~Are the two deferred questions in scope?~~ | **ANSWERED, 2026-10-05: yes for Q92**, which joins B1 by its cluster. Q499 stays out by (e) |
 | **(l)** | ~~Does (i) resolve Q494?~~ | **ANSWERED, 2026-10-05: yes, at W127, by ADR 0082.** It is the one exception to decision 3, because this declaration is the decision |
 | **(m)** | ~~`npm run state` has EXITed 1 since W123 (its `open` floor of 200), and `check:register:selftest` is RED since W121 (META: `MAX_CORPUS = 0` against 148+ iceboxed questions) and on fixtures anchored on live questions (Q488, Q490). Whose are the fixes?~~ | **ANSWERED by the maintainer, 2026-10-06: W127's.** *"W127 owns it"*: `scripts/state.mjs` joins W127's Owns, and **prediction 6 is reversed** by its own condition. *"Apply now, W127 fixes"*: W126 applies Q488's verdict, and W127 re-points every self-test fixture anchored on a live question, so `scripts/check-markdown-selftest.mjs` joins its Owns for those anchors only |
+| **(n)** | ~~When a plan's items do not run `gate:full`, which self-tests must they run? (Retro section 1), and where do its bytes come from, with `doc/workflow.md` at 66 bytes of headroom?~~ | **ANSWERED by the maintainer, 2026-10-06: option 1.** *"Each item runs, alone, every self-test whose check reads a file in its Owns"*, written into `doc/workflow.md` section 4 as v0.28. *"Is ok to expand the budget for this"*: `doc/workflow.md`'s target and ceiling go from 35 KiB to 36 KiB and the total from 77 KiB to 78 KiB, in `scripts/check-budget.mjs` and its self-test's literals |
 
 ## Open questions this plan carries
 
@@ -370,6 +371,9 @@ must they run?*
 2. Hold plans to v0.26 as written: `gate:full` once per item, about 40 min each, or 4 h over six.
 3. No change. W127's `gate:full` caught it, nothing wrong was applied, and the cost was one day of
    a red lane and W127's fix scope (stop-and-ask (m)).
+
+**Adopted by the maintainer after this retro, 2026-10-06: option 1, as `doc/workflow.md` v0.28**,
+with the budget raised to make room (stop-and-ask (n)).
 
 ### 2. Checks coupled to the corpus they measure: three shapes in four items
 
