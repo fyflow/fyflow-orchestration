@@ -3,8 +3,9 @@
  *
  * It reaches the driver only from an **inline** pool: across a worker-thread boundary the scheduler
  * refuses it first and the task ends `user_action` with no result at all
- * ([Q61](../../doc/questions/q61.md)). A function is the smallest such value, so the `MergeWorker`
- * type that names this worker declares `inline: true` and must.
+ * (`spec/outcome-record.md` `OR-R6` v0.11, [Q61](../../doc/questions/q61.md)). A function is the
+ * smallest such value. The `MergeWorker` type that names this worker leaves `inline` unsaid since
+ * W133, so `examples/l6.ts` runs it both ways: inline on the `OR-R6` row, on a thread on its pair.
  */
 import { type Envelope, FlowWorker } from './shared.ts';
 

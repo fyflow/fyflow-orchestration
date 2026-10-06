@@ -641,6 +641,9 @@ const LATE_SUITES = [
   // TAUTOLOGIES at `check:docs` EXIT 0, so the session's claims are asserted here as well, from the
   // declarations `examples/getting-started/quota-registry.ts` holds and the snippet imports.
   'W101 — the authoring session`s own verdicts, from the declarations the session imports',
+  // W133 — `RN-R6` v0.13's lifetime sentence (Q62) and Q63's message, both in `test/driver/driver.test.ts`.
+  'RN-R6 v0.13 — regions[*].suspended is CURRENT, not cumulative',
+  'OR-R6 and OR-R10 — stoppedBy and the reported failure name UncloneableResult exactly once',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {

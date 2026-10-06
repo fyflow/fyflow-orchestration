@@ -100,10 +100,31 @@ suite('OR-R2 and OR-R6 — result is deep-copied, and an uncloneable one fails t
   test('a non-cloneable result throws UncloneableResult naming the task', () => {
     throws(
       () => normalizeEvent('task.completed', liveTask({ result: () => 1 }), NOW),
-      'UncloneableResult',
+      'task "r7c1f:score:-:0"',
       'a function result cannot be logged, handed to a predicate, or persisted',
     );
     ok(new UncloneableResult('x') instanceof Error, 'UncloneableResult is an Error');
+  });
+
+  // **The message does not name its own class** — P30 decision 2 (Q63, W133). The CLASS is what names
+  // the refusal: `RunFailure.kind` is its constructor name and `stoppedBy` prefixes it, so a message
+  // that opened with the name too read it twice in both. The expected text is the decision's, verbatim.
+  test('Q63 — the refusal is the CLASS, and its message is exactly the decision`s text', () => {
+    let caught: unknown;
+    try {
+      normalizeEvent('task.completed', liveTask({ result: () => 1 }), NOW);
+    } catch (e) {
+      caught = e;
+    }
+    ok(caught instanceof UncloneableResult, 'OR-R6 throws the named class, not a bare DataCloneError');
+    equal((caught as Error).message, 'the result of task "r7c1f:score:-:0" is not structured-cloneable',
+      'P30 decision 2: the message drops its class name');
+    equal((caught as Error).message.includes('UncloneableResult'), false,
+      'and no part of it repeats the class name, which the reader already has from the class');
+    // **The error's own render names the class ONCE** — W133's conformity reader, finding 3: with the
+    // name gone from the message and no `name` set, `String(e)` read `Error: the result of task …`.
+    equal(String(caught), 'UncloneableResult: the result of task "r7c1f:score:-:0" is not structured-cloneable',
+      'String(e) is the class, then the message — so a cause logged as-is still says what refused it');
   });
 
   test('result is null unless the terminal state is done', () => {

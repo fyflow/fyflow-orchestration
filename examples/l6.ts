@@ -63,6 +63,7 @@
  * | **W6 — `suspend / resolve / resume`** | the human-in-the-loop half, and the only inbound API the library has. `user_action` → `awaiting_action` → `Driver.resolve()` → the branch arrives |
  * | **W6 — `suspend / nobody comes`** | the row that separates **waiting on a person** from **stuck**. Same flow, no human: the join has not fired and the run is `awaiting_action`, not `stuck`. It is the only row that ends with a node still `suspended`, and it is expected NOT to finish |
  * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `stopped` |
+ * | **W133 — `uncloneable`, threaded** | the same flow on a THREAD pool, where `OR-R6` is unreachable (`spec/outcome-record.md` v0.11): the scheduler's own clone refuses the value at the worker boundary, the task ends `user_action`, nothing is reported and the run is `awaiting_action` |
  * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/questions/q90.md)) |
  * | **W17 — `all-exit` × all three policies** | **P5's exit artifact, and the row L6 has never had**: every branch reaches an `end` and nothing arrives at the join. It is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost and the one [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) turns on. One flow, one payload, three policies, three answers — `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached |
  * | **W19 - the second pair row** | **P6's exit artifact**: the same topology as the row above with **one variable changed** - the scheduler also carries a task this library did not mint. Its settlement lands FIRST, while both runs are live, and both runs still complete. [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) and `ID-R5`, on real workers; under the ADR 0023 rule 2 it supersedes, one such settlement stopped **every** driver on the scheduler. The control row beside it is what makes `onUnmintedTask`'s empty array an assertion rather than a decoration |
@@ -563,16 +564,22 @@ interface Expectation {
   /**
    * `regions[*].suspended` — branch paths parked on a person **right now**.
    *
-   * **`spec/run-state.md` does not fix whether this array is cumulative or
-   * current.** `RN-R6` names it as one of the three fields `regions` carries and
-   * says nothing about its lifetime; the fold clears it on the branch's terminal
-   * event, so it is *current*. Asserted here as the code behaves, and the gap is
-   * reported rather than patched — it is W1's and W2's document. Raised as
-   * [Q62](../doc/questions/q62.md).
+   * **CURRENT, not cumulative — `spec/run-state.md` `RN-R6` v0.13** (W133): a path
+   * enters on its `branch.suspended` and leaves on its `branch.resumed` or its
+   * terminal event. *(Until v0.13 the spec said nothing about the lifetime, and
+   * this comment asserted it as the fold behaved and reported the gap as
+   * [Q62](../doc/questions/q62.md).)*
    */
   regionSuspended?: string[];
   /** `stoppedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
   stoppedBy?: string;
+  /**
+   * **`stoppedBy` names the refusal's class EXACTLY ONCE** — W133, P30 decision 2 ([Q63](../doc/questions/q63.md)).
+   * Declared only by the `uncloneable` row: `UnresolvedMapArity`'s message still opens with its own class name, as
+   * nine refusal classes' messages do ([Q533](../doc/questions/q533.md)), so the `FD-R2` row
+   * would be red on it for a reason no decision has taken.
+   */
+  stoppedByNamesItOnce?: true;
   /**
    * **What the reported failure's message must name — W35.** Every string here
    * must occur in it. Omitted, the row asserts its own `dispatched` ids, which is
@@ -695,9 +702,25 @@ interface Expectation {
    * engine's own code in brackets — is what the scheduler records as the task's error; the record
    * (`OR-R2`) and the live task at the harness's own listener (`RunReport.errorsSeen`) must both
    * carry it. Declared on the failing-transform row alone; the cross-row clause requires that a
-   * `transform failed` error occurs in exactly the rows that declare one.
+   * `transform failed` error occurs in exactly the rows that declare one. **W133 declares the second kind**: the
+   * scheduler's own clone error on the threaded `uncloneable` row, which is not a transform's, so that clause reads
+   * the rows whose declared substrings name a `transform failed` rather than every row declaring this field.
    */
   taskErrors?: Record<string, string[]>;
+  /**
+   * **The rule a row's `taskErrors` are about — W133.** Omitted, `ADR 0051 rule 5` (a failed transform), which is
+   * every row that declared `taskErrors` before W133. The threaded `uncloneable` row declares the scheduler's own
+   * clone error, which is `OR-R6` v0.11's, and its adequacy reader (finding 5) measured that row going red under a
+   * TRANSFORM's rule id — a provocation is evidence only when it fires for the reason it names.
+   */
+  taskErrorsRule?: string;
+  /**
+   * **Every record the LOG holds for a task, in order — W133**, as `<kind>:<terminalState>:<result|no result>`.
+   * One assertion per declared id. Its adequacy reader (finding 1, BLOCKING) made the listener write a SECOND
+   * `outcome` record for the threaded row's clone-error `user_action` and L6 stayed green: `OR-R3`'s drop of the
+   * first event of the pair is held at L2, but that settlement exists only on a real thread.
+   */
+  records?: Record<string, string[]>;
   /**
    * **Turn `OR-R13`'s result check ON for this row — W82, and the PRESENCE of the option is the
    * whole of the switch** ([ADR 0060](../doc/decisions/0060-a-run-time-result-check-is-a-reading-and-never-a-refusal.md)
@@ -1563,6 +1586,7 @@ const EXPECTED: Expectation[] = [
     unsettled: ['r13:merge:-:0'],
     runFailure: 'UncloneableResult',
     stoppedBy: 'UncloneableResult',
+    stoppedByNamesItOnce: true,
     why: 'W6 row 3 — a refusal that stops a run, on a real scheduler. The worker returns a ' +
       'function; from an INLINE pool it reaches the driver intact and our own structuredClone ' +
       'refuses it (Q61). OR-R6, caught at the listener boundary, reported through onRunFailure ' +
@@ -4006,6 +4030,45 @@ const EXPECTED: Expectation[] = [
       'a thread, which is the one road ADR 0075 rule 4`s marker exists for. Same payload and same values as the ' +
       'first row, so the realm is the only difference',
   },
+  {
+    /**
+     * **`OR-R6` v0.11 — the rule is reachable only from an INLINE pool, and this is the other pool** (W133, Q61).
+     *
+     * The `uncloneable / OR-R6` row's flow, worker and payload with `threaded: true`, which since W133 reaches
+     * `MergeWorker`: the document leaves its `inline` unsaid so the knob can set it. On a thread the worker's
+     * `{ fn: () => 1 }` has to cross the worker boundary before any listener sees it, and the scheduler's own
+     * structured clone refuses it there. So every expected value below is the spec sentence's and not `OR-R6`'s:
+     * the task ends `user_action` with the scheduler's clone error, it has no effective outcome (section 7), NO
+     * run failure is reported, and the run is `awaiting_action` (`RN-R7`) and never finishes — the backstop is the
+     * expected result, as on `suspend / nobody comes`. `could not be cloned` is the substring both runtimes'
+     * messages share: Node prints the function as `() => 1` and Deno as `()=>1`.
+     *
+     * **Appended LAST and not beside its pair**, because a row's run id is its position: inserting it at row 14
+     * would renumber every later row's `dispatched`.
+     */
+    key: 'uncloneable / OR-R6, threaded — the scheduler`s own clone refuses the value first, the task ends user_action and nothing reaches the listener',
+    definition: UC, policyId: 'live-token', payload: HIGH, threaded: true,
+    regionId: null,
+    outcome: 'awaiting_action',
+    dispatched: ['r63:merge:-:0'],
+    // A suspended node has no effective outcome (`spec/outcome-record.md` section 7), the same entry `OR-R6`'s
+    // row makes for the other reason: there no record is written, here the one record is `user_action`.
+    unsettled: ['r63:merge:-:0'],
+    outcomesSeen: ['awaiting_action'],
+    outcomesNotSeen: ['stopped', 'completed'],
+    pathEnds: [],
+    taskErrors: { 'r63:merge:-:0': ['could not be cloned'] },
+    taskErrorsRule: 'OR-R6 v0.11',
+    // ONE record, and it is the `user_action` one with no result: the `task.failed` that precedes `task.user_action`
+    // writes nothing (`OR-R3`), and the value never crossed the worker boundary.
+    records: { 'r63:merge:-:0': ['outcome:user_action:no result'] },
+    expectBackstop: true,
+    backstopMs: 400,
+    why: 'W133 — OR-R6 v0.11. The same worker bug on the other pool: the scheduler`s structured clone refuses ' +
+      'the function at the worker boundary, so the task ends user_action (task.failed then task.user_action) ' +
+      'and no result reaches the listener. Nothing is reported through onRunFailure and the run is ' +
+      'awaiting_action rather than stopped. Measured on 0.5.2 in node and deno before the sentence was written',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -4545,8 +4608,14 @@ for (const [i, e] of EXPECTED.entries()) {
       soleRegion(report.state, e.regionId ?? 'split')?.suspended, e.regionSuspended);
   }
   if (e.stoppedBy !== undefined) {
-    assertThat(e.key, 'OR-R10: stoppedBy names the refusal that terminated the run',
-      (report.state.stoppedBy ?? '').includes(e.stoppedBy), `stoppedBy: ${report.state.stoppedBy}`);
+    // **The class FIRST, then `: `** — the driver's `${constructor.name}: ${message}`. It read `includes` until
+    // W133, which a doubled name, or a message that merely mentioned the class, also satisfied.
+    assertThat(e.key, 'OR-R10: stoppedBy names the refusal that terminated the run, as its class and then its message',
+      (report.state.stoppedBy ?? '').startsWith(`${e.stoppedBy}: `), `stoppedBy: ${report.state.stoppedBy}`);
+  }
+  if (e.stoppedByNamesItOnce) {
+    assertThat(e.key, 'Q63: and the class name occurs in stoppedBy EXACTLY ONCE — the message does not repeat it',
+      (report.state.stoppedBy ?? '').split(e.stoppedBy ?? '\u0000').length === 2, `stoppedBy: ${report.state.stoppedBy}`);
   }
   for (const [id, want] of Object.entries(e.nodeResults ?? {})) {
     check(e.key, `Q36: what ${id.split(':')[1]} received`, report.state.nodes[id]?.result, want);
@@ -4605,10 +4674,17 @@ for (const [i, e] of EXPECTED.entries()) {
   for (const [id, wants] of Object.entries(e.taskErrors ?? {})) {
     const record = report.log.find((r) => r.kind === 'outcome' && r.taskId === id);
     const err = record?.kind === 'outcome' ? record.error : undefined;
-    assertThat(e.key, `ADR 0051 rule 5: the outcome record's error for ${id.split(':')[1]} names the failed transform — ${wants.join(' · ')}`,
-      typeof err === 'string' && wants.every((w) => err.includes(w)), `error: ${String(err)}`);
+    // **A declared substring must be NON-EMPTY, and there must be one** — W133's adequacy reader, finding 4: `['']`
+    // satisfied `includes` and left the row asserting nothing about WHICH error, at EXIT 0.
+    assertThat(e.key, `${e.taskErrorsRule ?? 'ADR 0051 rule 5'}: the outcome record's error for ${id.split(':')[1]} carries — ${wants.join(' · ')}`,
+      typeof err === 'string' && wants.length > 0 && wants.every((w) => w.length > 0 && err.includes(w)), `error: ${String(err)}`);
     check(e.key, `and the LIVE task the scheduler settled carried the same error string — the second observer`,
       report.errorsSeen[id], err);
+  }
+  for (const [id, want] of Object.entries(e.records ?? {})) {
+    check(e.key, `OR-R3 / OR-R6 v0.11: the log holds exactly these records for ${id.split(':')[1]} — kind, terminal state, and whether a result crossed`,
+      report.log.filter((r) => r.taskId === id).map((r) => `${r.kind}:${r.kind === 'outcome' ? r.terminalState : 'resolution'}:${r.result === null ? 'no result' : 'result'}`),
+      want);
   }
   // **W82 — `OR-R13`: the WHOLE report, as a set both ways and then per id.**
   //
@@ -4958,9 +5034,11 @@ for (const [i, e] of EXPECTED.entries()) {
 
   if (e.runFailure) {
     // **`kind` and `message` are checked separately**, because
-    // `UncloneableResult`'s message begins with its own class name — so a
-    // substring over `${kind}: ${message}` is satisfied by the message alone and
-    // `RunFailure.kind` was pinned by nothing anywhere in the repository. And
+    // `UncloneableResult`'s message began with its own class name until W133
+    // ([Q63](../doc/questions/q63.md)) — so a substring over `${kind}: ${message}`
+    // was satisfied by the message alone and `RunFailure.kind` was pinned by
+    // nothing anywhere in the repository. Nine other refusal classes' messages
+    // still begin with their own name ([Q533](../doc/questions/q533.md)). And
     // `OR-R6`'s wording is *"fails with UncloneableResult **naming the task
     // id**"*, so the id is the half worth asserting. Found by W6's adequacy
     // reader.
@@ -5217,6 +5295,8 @@ for (const [i, e] of EXPECTED.entries()) {
     // *(`unorderedDispatch` bought two here until W98 retired it: the dispatch comparison is THREE clauses on EVERY row
     // now — the set, the pairs the run FIXES, and the control that the run fixed one — and all three are in the base.)*
     + (e.stoppedBy !== undefined ? 1 : 0)
+    // W133: the exactly-once clause, on the row that declares it.
+    + (e.stoppedByNamesItOnce ? 1 : 0)
     // W58: two observers per declared `attempts`, and a sequence plus an ordering per
     // declared `resourceEvents` — derived from the expectation like every other extra here.
     + Object.keys(e.attempts ?? {}).length * 2
@@ -5227,6 +5307,8 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.poolOfTask ?? {}).length
     // W63: two observers per declared `taskErrors` id — the record's error and the live task's.
     + Object.keys(e.taskErrors ?? {}).length * 2
+    // W133: one per declared `records` id.
+    + Object.keys(e.records ?? {}).length
     // **W82: the report's id SET, plus two per declared finding — its text and the node/type/worker
     // it names.** Derived from the expectation like every other extra here, so declaring a finding
     // moves the floor with it.
@@ -5624,6 +5706,7 @@ const ROW_KEYS: readonly string[] = [
   'ui-emitted-named / the SAME flow with the group replaced by a REGISTERED NAME — one predicate registered, and the routing is identical to A',
   'ui-emitted-named / the name road at the lower confidence — the registered function answers FALSE where the group did',
   'ui-emitted / THREADED — the same payload as the first row, with the pool config crossing a clone into a real thread',
+  'uncloneable / OR-R6, threaded — the scheduler`s own clone refuses the value first, the task ends user_action and nothing reaches the listener',
 ];
 
 /**
@@ -5839,7 +5922,7 @@ const CROSS_ROW_SUBJECTS = [
   'a run started with NO options completes',
   'the runtime MINTED the run id',
   'it is the id this RUN dispatched under',
-  'the types whose `inline` the document leaves UNSAID are exactly the three this file expects',
+  'the types whose `inline` the document leaves UNSAID are exactly the four this file expects',
   'a node whose worker entry declares NO settingsSchema takes any settings at all',
   // W72 — the clause was rewritten from four entries to the rule's enumeration over fourteen, and the
   // corpus's examples gained a subject of their own: a membership names its claims (v0.14).
@@ -9791,8 +9874,12 @@ if (rowCosts.length !== EXPECTED.length) {
       const rowsFailing = EXPECTED
         .filter((_, i) => reports[i]!.log.some((r) => r.kind === 'outcome' && typeof r.error === 'string' && r.error.includes('transform failed')))
         .map((e) => e.key).sort();
-      const rowsDeclaringErrors = EXPECTED.filter((e) => e.taskErrors !== undefined).map((e) => e.key).sort();
-      check('cross-row', 'a `transform failed` error occurs in exactly the rows that declare taskErrors, both ways',
+      // **A row may declare `taskErrors` for an error that is NOT a transform's** — W133's threaded `uncloneable` row
+      // declares the scheduler's clone error — so the declared side is the rows whose substrings say `transform failed`.
+      const rowsDeclaringErrors = EXPECTED
+        .filter((e) => Object.values(e.taskErrors ?? {}).some((subs) => subs.some((x) => x.includes('transform failed'))))
+        .map((e) => e.key).sort();
+      check('cross-row', 'a `transform failed` error occurs in exactly the rows that declare one in taskErrors, both ways',
         rowsFailing, rowsDeclaringErrors);
       assertThat('cross-row', 'and that set is not empty — a transform really failed somewhere', rowsDeclaringErrors.length > 0, 'no row declares taskErrors');
       // **`FD-R4` occurs in exactly the rows that declare it, both ways, and each set is not empty** — W73,
@@ -9917,10 +10004,11 @@ if (rowCosts.length !== EXPECTED.length) {
       // BLOCKING: the diff clause computed its expected side FROM `THREADABLE_TYPES` and its actual
       // side from a derivation that also reads it, so both moved together and dropping a member cost
       // ZERO. `run-flow.ts`'s own header claimed this comparison existed; it did not. The literal is
-      // the three types `examples/registry.json` deliberately leaves `inline` unsaid on — `Identify` the third since W94.
-      check('cross-row', 'the types whose `inline` the document leaves UNSAID are exactly the three this file expects, both ways — ' +
+      // the four types `examples/registry.json` deliberately leaves `inline` unsaid on — `Identify` the third since W94, and
+      // `MergeWorker` the fourth since W133, so the `uncloneable` flow can be run on a thread pool (`OR-R6` v0.11).
+      check('cross-row', 'the types whose `inline` the document leaves UNSAID are exactly the four this file expects, both ways — ' +
         'the knob`s membership, where the diff clause below computes both of its sides from it',
-        [...THREADABLE_TYPES].sort(), ['Identify', 'ScoreWorker', 'WeighWorker']);
+        [...THREADABLE_TYPES].sort(), ['Identify', 'MergeWorker', 'ScoreWorker', 'WeighWorker']);
       const wantThreaded = THREADABLE_TYPES.map((t) => `nodeTypes.${t}.inline`).sort();
       // **The VALUE as well as the key set** — rule 8's `p4`: a derivation that wrote `inline: true`
       // whatever the row asked passed the diff clause, because the key it differs in is the same key
@@ -11097,14 +11185,20 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // its eleven declared extras (five `nodeResults`, two `branchEvents`, one `pathEnds`, two `poolOfTask`, one
 // `arrivedInRun`) is **35**, and `CROSS_ROW` 244 -> 246 is the other **2**. *(This read +36 and nine extras for the
 // hour between the row landing and the arithmetic being re-taken; 2398 + 35 + 2 = 2435 is what the run says.)* *Both readers' edits are checked in as rule-8 probes rather than described here.*
-const DECLARED_TOTAL = 2435;
+// **2465 / 162 since W133** — +30 and one run, DERIVED before the file was re-run: the threaded `uncloneable` row is a
+// PLAIN row (`regionId: null`) at `PER_PLAIN_ROW` (22) plus its six declared extras (one `outcomesSeen`, two
+// `outcomesNotSeen`, one `pathEnds`, two for its one `taskErrors` id), which is 28, and the existing `uncloneable` row's
+// `stoppedByNamesItOnce` clause is the 29th. `CROSS_ROW` does not move: the `inline` membership and the `taskErrors`
+// clause each changed what they compare, not how many times they assert. *(2464 until the adequacy reader's finding 1
+// bought the threaded row's one `records` clause, the 30th.)*
+const DECLARED_TOTAL = 2465;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 161;
+const DECLARED_RUNS = 162;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
