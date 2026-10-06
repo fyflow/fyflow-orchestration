@@ -7,7 +7,7 @@ item: W61
 raised-by: P17
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q251
 ---
 
 # ADR 0051 — A transform is a declared expression in a registered language, applied in the type's worker wrapper

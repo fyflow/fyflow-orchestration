@@ -7,7 +7,7 @@ item: W65
 raised-by: P18
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q278
 ---
 
 # ADR 0053 — The schema validator is a built-in subset, and a keyword outside it is refused
