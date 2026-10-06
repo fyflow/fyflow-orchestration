@@ -7,7 +7,7 @@ item: W45
 raised-by: Q187, P13
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q201
 ---
 
 # ADR 0042 — A reference says whether it is conditional, and the bare form means the target certainly ran
