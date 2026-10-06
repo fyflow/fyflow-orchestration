@@ -4,10 +4,11 @@
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
-"resolved-by~P30" --fields id,status,resolved-by` lists exactly the thirteen questions of decision 1,
+"resolved-by~P30" --fields id,status,resolved-by` lists exactly the fourteen questions of decision 1,
 each `resolved` and each naming the item that closed it; and `npm run q -- --where status=open
---count` prints **9**, down from 22 at `e61df81`, plus any question an item raises open, each
-named in that item's Record.*
+--count` prints **8**, down from 22 at `e61df81`, plus any question an item raises open, each
+named in that item's Record.* *(Read thirteen and **9** until Q534 joined at W133's record step,
+stop-and-ask (g).)*
 **Reserves:** W131-W138, Q533-Q547, ADR 0085-0086
 
 ```
@@ -15,7 +16,7 @@ Question: which open questions close by a fix their own closes-when already name
 Items:    W131 (the self-tests: Q144, Q430, Q439, Q454, Q490),
           W132 (the test harness: Q272, Q382),
           W133 (two spec sentences and one message: Q61, Q62, Q63),
-          W134 (the repository's own files: Q235, Q484)
+          W134 (the repository's own files: Q235, Q484, Q534)
 Reserves: W131-W138, Q533-Q547, ADR 0085-0086
 Baseline: plans to p29, work items to w127, ADRs to 0084, register to Q532 — `npm run state`
           on `e61df81`, where the tree and the ledger AGREE on W131 / Q533 / ADR 0085
@@ -46,7 +47,9 @@ Every claim below was **re-checked on `e61df81`**, not inherited from P29's note
 
 ## Decisions taken before fan-out
 
-**1. Thirteen questions are in. Nine are Out**, by the maintainer's choice on 2026-10-06 (*"A + B"*):
+**1. Thirteen questions are in. Nine are Out**, by the maintainer's choice on 2026-10-06 (*"A + B"*).
+**Q534 is the fourteenth**, raised by W133 and added to W134 by the maintainer on the same day
+(stop-and-ask (g)):
 
 | | questions | why |
 |---|---|---|
@@ -124,7 +127,7 @@ measurement (P29's retro, section 6).
 | W133 | **Two spec sentences and one message.** Q61: `OR-R6` gains the thread-pool sentence, re-measured at L6 on 0.5.2. Q62: `RN-R6` says `suspended` is current, with an L2 test. Q63: the message drops its class name, and a test asserts `stoppedBy` names the class exactly once | `spec/outcome-record.md`, `spec/run-state.md`, `src/driver/listener.ts`, `test/driver/log.test.ts`, the L2 suite that takes Q62's test, `examples/l6.ts` (the Q61 row and the comments at 564-571 and 4961-5016), `AGENTS.md` only if a snippet quotes the message | nothing | L0-L6 in every runtime that rung requires; both readers; `gate:full` EXIT 0 |
 | W131 | **The self-tests' stale and unpinned.** Q144: the success line stops dereferencing `names`, after a replacement `ran:` case exists (decision 4). Q430 + Q454: the header's site counts deleted (decision 5). Q439: `README_SNIPPET_FLOOR` read by the self-test's source-text bound beside `X4_WIDTH`'s. Q490: the META entry for `DECLARED_TARGETS_UNDECLARED` | `scripts/check-policies.mjs`, `scripts/check-policies-selftest.mjs`, `scripts/check-docs-selftest.mjs`, `scripts/check-budget-selftest.mjs`, plus comment-only edits to `scripts/check-markdown-selftest.mjs:871` and `scripts/check-scheduler-selftest.mjs:124` if their Q144 sentences become false | W133 | each new or moved clause provoked at birth (section 5 rule 7); conformity reader; `gate:full` EXIT 0 |
 | W132 | **The test harness.** Q272: `test/runner.ts` reports a suite it cannot import as one named `FAIL` and exits 1, and it still runs the other suites. Q382: the 17 cases in `test/definition/gate.test.ts` are named at the call site, as in `test/driver/gate.test.ts` | `test/runner.ts`, `test/definition/gate.test.ts`, and a checked-in provocation for Q272 (a suite that throws on import, outside the default glob) | W131 | L1-L5 in Node, Deno and Chromium, with the case count unchanged; Q272's provocation shows one named `FAIL` and EXIT 1; conformity reader; `gate:full` EXIT 0 |
-| W134 | **The repository's own files.** Q235: `.gitignore` gains `.claude/worktrees/`. Q484: every derived figure in `doc/README.md` deleted (decision 3) | `.gitignore`, `doc/README.md` | W132 | `git check-ignore .claude/worktrees/x` EXIT 0; `check:markdown` and `check:markdown:selftest` EXIT 0 on the final tree; conformity reader; `gate:full` EXIT 0 |
+| W134 | **The repository's own files.** Q235: `.gitignore` gains `.claude/worktrees/`. Q484: every derived figure in `doc/README.md` deleted (decision 3). Q534: `AGENTS.md`'s sentence on a result that cannot be cloned states the pool dependence, as `spec/outcome-record.md` `OR-R6` v0.11 does — a non-optional task ends `user_action` and an `optional` one `failed` on a thread pool | `.gitignore`, `doc/README.md`, `AGENTS.md` (that sentence only) | W132 | `git check-ignore .claude/worktrees/x` EXIT 0; `check:markdown` and `check:markdown:selftest` EXIT 0 on the final tree; `check:docs` EXIT 0 (it executes `AGENTS.md`); conformity reader; `gate:full` EXIT 0 |
 
 **Item files are written from these rows when each item starts**, as at P29, so that what one item
 learns reaches the next item's declaration.
@@ -145,18 +148,19 @@ learns reaches the next item's declaration.
 | | the question | answer |
 |---|---|---|
 | **(a)** | Q144: may W131 land the fix if no replacement `ran:` case can be built in `check-policies-selftest.mjs`? | *open — W131 asks before the fix if it gets there* |
-| **(b)** | Q61: if the 0.5.2 measurement differs from P2's, does the sentence state the new behaviour, or does Q61 stay open and gain a new question? | *open — W133 asks* |
+| **(b)** | Q61: if the 0.5.2 measurement differs from P2's, does the sentence state the new behaviour, or does Q61 stay open and gain a new question? | **did not fire**: W133's measurement matched P2's table in Node and Deno |
 | **(c)** | Q484: if W134's deletion crosses an `M3`-`M5` floor, are the floors retuned per ADR 0076 and ADR 0078, or does Q484 wait for Q142? | *open — W134 asks* |
 | **(d)** | ~~Scope~~ | **ANSWERED by the maintainer, 2026-10-06: tiers A and B**, thirteen questions (decision 1) |
 | **(e)** | ~~Q63's direction~~ | **ANSWERED, 2026-10-06: drop the class name** (decision 2) |
 | **(f)** | ~~Q508~~ | **ANSWERED, 2026-10-06: Out** |
+| **(g)** | ~~Q534, raised by W133 outside its `Owns`~~ | **ANSWERED by the maintainer, 2026-10-06: into W134**, which gains `AGENTS.md` for that sentence. And for the rest of the plan: *an item that finds a small fix outside its `Owns` may stop and ask to widen its scope*, rather than only raising a question |
 
 ## Open questions this plan carries
 
 | Q | | Owner |
 |---|---|---|
 | [Q533](../questions/q533.md) | raised by W133: nine refusal classes still open their message with their own class name, which Q63 changed for one | no owner |
-| [Q534](../questions/q534.md) | raised by W133: `AGENTS.md` states the inline-only `OR-R6` behaviour generally | no owner |
+| [Q534](../questions/q534.md) | raised by W133: `AGENTS.md` states the inline-only `OR-R6` behaviour generally | W134, by stop-and-ask (g) |
 
 ## Out
 
@@ -179,7 +183,8 @@ rule-8 passes; this section names what the PLAN needs from it.
 - **Closed: Q61, Q62, Q63**, each `resolved-by` naming P30 W133 and the spec version: `OR-R6` v0.11
   (`spec/outcome-record.md`), `RN-R6` v0.13 (`spec/run-state.md`) and decision 2's message. On W133's
   tree `npm run q -- --where status=open --count` prints **21**: 22, less these three, plus the two W133
-  raised (Q533, Q534). The exit artifact's **9** therefore reads **11** if nothing else moves, by those two.
+  raised (Q533, Q534). Q534 has since joined W134 (stop-and-ask (g)), so the exit artifact's figure is
+  **8**, and with Q533 still open the final count reads **9** if nothing else moves.
 - **Prediction 1 held on the measured half and was too narrow.** On 0.5.2 a thread pool still refuses the
   value first and a non-optional task ends `user_action`, in Node and Deno. W133's conformity reader found
   the `optional` half — the task ends `failed` — which neither P2 nor decision 2 named; the sentence now
