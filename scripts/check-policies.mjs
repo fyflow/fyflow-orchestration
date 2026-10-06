@@ -184,4 +184,8 @@ if (failures.length) {
   console.log(`\n${failures.length} failure(s).`);
   process.exit(1);
 }
-console.log(`\nAll checks passed — ${names.join(', ')}.`);
+// **`?? []`, so the success line cannot THROW** — W131, Q144. It read `names.join`, and only P3's
+// `names === null` clause guarantees `names`, so a mutant with that clause disabled crashed HERE
+// and the clause could have no META entry. The mutant now reaches this line and exits 0, which is
+// what its probe sees.
+console.log(`\nAll checks passed — ${(names ?? []).join(', ')}.`);

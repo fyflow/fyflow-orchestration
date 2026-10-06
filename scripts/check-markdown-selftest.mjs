@@ -865,10 +865,11 @@ const SELF = [
   //
   // The `ran:` guard stays as defence in depth for a mutant that is inert on the
   // clean tree and dies only on the probe's input. **That case is REAL and was
-  // measured** — `check-policies.mjs` ends with ``All checks passed — ${names.join(', ')}``,
-  // reachable with `names === null` exactly when P3's first clause is disabled — but
-  // no current entry in any of the three files produces one, so the guard is
-  // unprovoked and is on the ceiling list. [Q144](../doc/questions/q144.md).
+  // measured** — `check-policies.mjs`'s success line dereferenced `names` until W131
+  // closed [Q144](../doc/questions/q144.md), and `check-policies-selftest.mjs`'s `SELF`
+  // list carries the case, rebased by W131 on a mutant that throws before any report
+  // line — but no entry in this file produces one, so here the guard is unprovoked and
+  // is on the ceiling list.
   //
   // What this entry provokes instead is rule 7 (b) at the META layer.
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',

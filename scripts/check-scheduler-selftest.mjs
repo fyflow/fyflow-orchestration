@@ -120,12 +120,14 @@
 // returns from single-probe mode first. It is load-bearing in
 // `check-source-selftest.mjs`, which has a `SELF` list whose children do not.
 //
-// **And one guard here is live in FIVE files and provoked in none** —
-// [Q144](../doc/questions/q144.md), whose row says *three* because W29 added the
-// fourth and fifth. The case `ran:` exists for is *inert on the clean tree, FATAL
-// under the probe*. W29 constructed one in `check-docs` and recorded it as a rule 8
-// provocation; the checked-in form is a `SELF` entry, which is out of that item's
-// scope. The gap has an address rather than a fix.
+// **And one guard here is live in FIVE files and provoked in none of THIS file's
+// lists.** The case `ran:` exists for is *inert on the clean tree, FATAL under the
+// probe*. W29 constructed one in `check-docs` and recorded it as a rule 8
+// provocation; the checked-in form is a `SELF` entry, and only
+// `check-policies-selftest.mjs` has one (W31's, rebased by W131). It was
+// [Q144](../doc/questions/q144.md)'s to carry until W131 closed that question with
+// the fix to `check-policies.mjs`'s success line, which does not reach this file:
+// the gap here is on this ceiling list and has no address.
 
 // SELFTEST-EXCLUSIVE: this file's install probes DELETE `node_modules/fyflow-scheduler`
 // and restore it from a stash, so nothing that resolves that package may run while it
