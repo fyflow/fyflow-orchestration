@@ -946,10 +946,10 @@ const README_SNIPPETS = [
 // pairings were removed with their sections; the three that remain are the basic usage the README now
 // claims to carry. *A floor that falls needs a decision above it, not a comment beside it.*
 //
-// **The residue, measured and unfixed**: W101's adequacy reader (F12) lowered this floor to 7 and
-// `check:docs:selftest` was EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. So
-// nothing stops the next author lowering it again for a worse reason, and this item did not close that —
-// [Q439](../doc/questions/q439.md).
+// **The residue, measured, and closed at W131**: W101's adequacy reader (F12) lowered this floor to 7 and
+// `check:docs:selftest` was EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name.
+// Since W131 `check-docs-selftest.mjs`'s source-text bound holds this floor beside `X4_WIDTH`'s, so
+// lowering it is a third edit in another file — [Q439](../doc/questions/q439.md).
 const README_SNIPPET_FLOOR = 3;
 /** The README's text above its first `## ` heading, which is a section for X8's purposes. */
 const README_OPENING = '(the opening, above the first ## heading)';

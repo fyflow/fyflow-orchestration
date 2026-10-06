@@ -52,7 +52,7 @@ const NODE_MAJOR = Number(process.versions.node.split('.')[0]);
 const MIN_NODE_MAJOR = 24;
 
 // --- the floors on this file's own lists ---------------------------------------
-const MIN_PROBES = 18;   // AT the list's length; W115's adequacy reader deleted one for zero
+const MIN_PROBES = 19;   // AT the list's length (19 since W131, Q490); W115's adequacy reader deleted one for zero
 // **`MIN_META` and `MIN_SELF` sit AT their lists' lengths, not one below.** W112's adequacy reader
 // measured what the slack bought: one `META` entry deletable for zero (the `B1` isFile half — the
 // probe's own comment calls it *the LENIENT direction* — because the coverage bound only asks that
@@ -60,7 +60,7 @@ const MIN_PROBES = 18;   // AT the list's length; W115's adequacy reader deleted
 // deletable for zero which then **compounded**: that deletion plus `MAX_CORPUS = 99` was also EXIT 0,
 // so the single free slot bought a second weakening. *A floor one below its list is a permission to
 // delete the entry nobody has named.*
-const MIN_META = 18;   // AT the list's length; it carried TWO of slack, and had since W112
+const MIN_META = 19;   // AT the list's length (19 since W131, Q490); it carried TWO of slack, and had since W112
 const MIN_SELF = 15;   // AT the list's length, and W115 adds the SOURCE entry below
 // **`SOURCE` gets a floor for the same reason `PROBES` and `META` have one, and the
 // reason it was added LAST is the finding.** Emptying it removed five guards whose
@@ -230,6 +230,16 @@ const PROBES = [
     check: 'B6', sizes: 'real',
     declare: (t) => t.replace("  'doc/workflow.md': 36 * 1024,\n", ''),
     says: 'has no DECLARED_TARGETS entry',
+  },
+  {
+    // **The comparison's OTHER direction, which had no case — W131, Q490.** A target declared for a
+    // path `DECLARED_PATHS` does not name is the clause `DECLARED_TARGETS_UNDECLARED` was extracted
+    // for, and no probe reached it, so the META entry that pins the helper had nothing to name.
+    // `README.md` is outside the set, and `B7` loops over `SET`, so the extra key trips `B6` alone.
+    name: 'a DECLARED_TARGETS key for a path DECLARED_PATHS does not name',
+    check: 'B6', sizes: 'real',
+    declare: (t) => t.replace("  'doc/concept.md': 17 * 1024,\n});", "  'doc/concept.md': 17 * 1024,\n  'README.md': 1 * 1024,\n});"),
+    says: 'README.md has a DECLARED_TARGETS entry and is not in DECLARED_PATHS',
   },
 
   // --- B7: the ALLOCATION, not the sum —---------------------------------------------
@@ -422,6 +432,15 @@ const META = [
   ['B6`s cross-declaration clause disabled — the two lists stop being compared to each other',
     'one DECLARED_TARGETS key dropped, so B7 would skip that member in silence',
     (t) => t.replace('  if (!(p in DECLARED_TARGETS)) {', '  if (false) {')],
+  // **The helper extracted to be pinned, pinned — W131, Q490.** `B6`'s second direction reads
+  // `DECLARED_TARGETS_UNDECLARED`, and that helper exists so a mutation can land on it alone; until
+  // W131 nothing did, so making it answer *no* for every key was EXIT 0 here while the report printed
+  // `ok B6`. The mutation makes the comparison VACUOUS rather than deleting it, which is the case the
+  // question names.
+  ['B6`s declared-targets direction made VACUOUS — the helper answers no for every key',
+    'a DECLARED_TARGETS key for a path DECLARED_PATHS does not name',
+    (t) => t.replace('const DECLARED_TARGETS_UNDECLARED = (k) => DECLARED_PATHS.indexOf(k) < 0;',
+      'const DECLARED_TARGETS_UNDECLARED = (k) => false;')],
   ['B7`s loop narrowed to the first member — the LOOP BOUND, which had no entry of its own',
     'one KiB moved from CLAUDE.md`s target to doc/concept.md`s, so the SUM is unchanged',
     // **`slice(1, 2)`, the MIDDLE member, and not `slice(0, 1)`.** The named probe moves the
