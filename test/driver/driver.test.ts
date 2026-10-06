@@ -11,14 +11,14 @@
  * sequence is asserted against the vocabulary in `spec/join-policy.md` section 2 —
  * never against what the driver happened to emit.
  */
-import { equal, ok, suite, throws } from '../harness.ts';
+import { collected, equal, ok, suite, throws } from '../harness.ts';
 import { readText, ROOT } from '../harness.ts';
 import { Driver, DuplicateTaskId, InvalidDefinition, MissingJoinPolicy } from '../../src/driver/driver.ts';
 import type { JoinPolicy, Region } from '../../src/driver/policy.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import { selectEdge, type Predicate } from '../../src/driver/routing.ts';
-import { fold } from '../../src/fold/run-state.ts';
+import { fold, type FoldInput } from '../../src/fold/run-state.ts';
 
 const EX = `${ROOT}spec/examples`;
 const load = async (rel: string) => JSON.parse(await readText(`${EX}/${rel}`)) as FlowDefinition;
@@ -740,6 +740,145 @@ suite('ADR 0004 — user_action suspends, and a resolution resumes the path', (t
     const before = h.ids().filter((id) => id === susp).length;
     h.driver.resolve(susp, 'done', { result: {}, actor: 'a' });
     equal(h.ids().filter((id) => id === susp).length, before, 'the node is not re-run — that is Q16/Q28');
+  });
+});
+
+/**
+ * **`RN-R6` v0.13 — `regions[*].suspended` is CURRENT** (W133, Q62). Every expected value below is
+ * that sentence's: a path enters on its `branch.suspended` and leaves on its `branch.resumed` or its
+ * terminal event, whichever comes first. The prefix fold is what tells the two exits apart: on
+ * `fanout-failure`, a resolution emits `branch.resumed` and the terminal event in the same call, so
+ * only the sequence cut AT `branch.resumed` shows that the resumption alone takes the path out.
+ * Folding a prefix is lawful because run state is a fold of its ordered inputs (`RN-R4`, ADR 0014).
+ */
+suite('RN-R6 v0.13 — regions[*].suspended is CURRENT, not cumulative', (test) => {
+  const susp = 'r1:reviewB:1:0';
+  const suspendedOf = (inputs: readonly FoldInput[]) => fold(inputs).regions['split']?.['-']?.suspended;
+  const isRegion = (type: string) => (i: FoldInput) => i.kind === 'region' && i.event.type === type;
+
+  for (const as of ['done', 'failed'] as const) {
+    test(`a suspended branch is listed while suspended and not once it is resolved ${as}`, async () => {
+      const h = harness(await load('valid/fanout-failure.flow.json'));
+      h.driver.start({});
+      h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
+      equal(suspendedOf(h.driver.foldInputs()), [], 'before anything suspends, the region lists no path');
+      h.scheduler.settle(susp, 'user_action', { error: 'needs a human' });
+      equal(suspendedOf(h.driver.foldInputs()), ['1'], 'branch 1 is parked on a person NOW, so it is listed');
+
+      h.driver.resolve(susp, as, as === 'done' ? { result: {}, actor: 'a' } : { error: 'gave up', actor: 'a' });
+      const inputs = h.driver.foldInputs();
+      const resumedAt = inputs.findIndex(isRegion('branch.resumed'));
+      // The control: the cut below is only a claim about `branch.resumed` if the event is THERE and
+      // a terminal event for the same path FOLLOWS it — otherwise both prefixes would be one prefix.
+      const terminal = as === 'done' ? 'branch.arrived' : 'branch.exited';
+      ok(resumedAt >= 0 && inputs.findIndex(isRegion(terminal)) > resumedAt,
+        `the resolution emitted branch.resumed and then ${terminal}, in that order`);
+      equal(suspendedOf(inputs.slice(0, resumedAt)), ['1'], 'up to the resolution the path is still listed');
+      equal(suspendedOf(inputs.slice(0, resumedAt + 1)), [],
+        'branch.resumed alone takes the path out, before its terminal event');
+      equal(suspendedOf(inputs), [], 'and the whole run lists nothing: the field is CURRENT, not a history');
+    });
+  }
+
+  // **The sentence's other two clauses, which no driver run reaches** — every resolution emits
+  // `branch.resumed` BEFORE its terminal event, so a run cannot show a terminal event taking a path out on
+  // its own, nor (on this corpus) one path suspending twice. The fold is total over sequences, so these are
+  // hand-written ones (`doc/workflow.md` section 5 rule 4), each event in `spec/join-policy.md` section 2's
+  // vocabulary.
+  const ev = (type: string, branchPath: string, more: Record<string, unknown> = {}): FoldInput =>
+    ({ kind: 'region', event: { type, regionId: 'split', regionPath: '-', branchPath, ...more } } as FoldInput);
+  const opened: FoldInput[] = [
+    { kind: 'regionEntered', regionId: 'split', regionPath: '-' }, ev('branch.opened', '0'), ev('branch.opened', '1'),
+  ];
+
+  for (const [terminal, more] of [
+    ['branch.arrived', {}], ['branch.exited', { at: 'droppedB' }], ['branch.lost', { reason: 'failed' }],
+  ] as const) {
+    test(`a terminal event takes a suspended path out with no branch.resumed before it — ${terminal}`, () => {
+      const seq = [...opened, ev('branch.suspended', '1', { at: 'reviewB' })];
+      equal(suspendedOf(seq), ['1'], 'suspended, and not yet resumed');
+      equal(suspendedOf([...seq, ev(terminal, '1', more)]), [], `${terminal} alone leaves the path in no list of current suspensions`);
+    });
+  }
+
+  test('a path that suspends AGAIN re-enters it, and another path is untouched', () => {
+    const resumed = ev('branch.resumed', '1', { at: 'reviewB', resolvedAs: 'done' });
+    const seq = [...opened, ev('branch.suspended', '0', { at: 'scoreA' }), ev('branch.suspended', '1', { at: 'reviewB' }), resumed];
+    equal(suspendedOf(seq), ['0'], 'branch 1 resumed and left; branch 0 is still parked');
+    equal(suspendedOf([...seq, ev('branch.suspended', '1', { at: 'reviewC' })]), ['0', '1'],
+      'branch 1 parked a second time is listed a second time — current, so a past resumption does not bar it');
+  });
+
+  // **"the branch paths OF THAT INSTANCE"** — W133's adequacy reader, finding 2, BLOCKING: every case above
+  // uses instance `-`, so a fold whose `branch.resumed` emptied EVERY instance of the opener survived. Two
+  // instances of one opener (`inner`, entered on outer paths `0` and `1`, `RN-R6` v0.7), one path parked in
+  // each; one path leaves, by each road, and the other instance must still list its own.
+  for (const [leave, more] of [
+    ['branch.resumed', { at: 'p', resolvedAs: 'done' }], ['branch.arrived', {}], ['branch.lost', { reason: 'failed' }],
+  ] as const) {
+    test(`per INSTANCE — ${leave} in one instance leaves the other instance's suspension listed`, () => {
+      const at = (regionPath: string, type: string, branchPath: string, extra: Record<string, unknown> = {}): FoldInput =>
+        ({ kind: 'region', event: { type, regionId: 'inner', regionPath, branchPath, ...extra } } as FoldInput);
+      const seq: FoldInput[] = [
+        { kind: 'regionEntered', regionId: 'inner', regionPath: '0' }, at('0', 'branch.opened', '0.0'),
+        { kind: 'regionEntered', regionId: 'inner', regionPath: '1' }, at('1', 'branch.opened', '1.0'),
+        at('0', 'branch.suspended', '0.0', { at: 'p' }), at('1', 'branch.suspended', '1.0', { at: 'p' }),
+        at('1', leave, '1.0', more),
+      ];
+      const s = fold(seq);
+      equal([s.regions['inner']?.['0']?.suspended, s.regions['inner']?.['1']?.suspended], [['0.0'], []],
+        'instance 1 lists nothing and instance 0 still lists its own parked path');
+    });
+  }
+
+  // **What this suite declares, by name and by count** — W133's adequacy reader, finding 3, and W85's shape:
+  // the L1 census in `test/definition/l4-corpus.test.ts` is over SUITE names, so a case deleted from one of
+  // the loops above cost 0. The count is against a LITERAL, which a re-sourced `declared` cannot satisfy.
+  test('every case this suite declares RAN, both ways and by count', () => {
+    const SUITE = 'RN-R6 v0.13 — regions[*].suspended is CURRENT, not cumulative';
+    const SELF = 'every case this suite declares RAN, both ways and by count';
+    const observed = collected().filter((x) => x.suite === SUITE).flatMap((x) => x.cases.map((c) => c.name))
+      .filter((n) => n !== SELF).sort();
+    const declared = [
+      'a suspended branch is listed while suspended and not once it is resolved done',
+      'a suspended branch is listed while suspended and not once it is resolved failed',
+      'a terminal event takes a suspended path out with no branch.resumed before it — branch.arrived',
+      'a terminal event takes a suspended path out with no branch.resumed before it — branch.exited',
+      'a terminal event takes a suspended path out with no branch.resumed before it — branch.lost',
+      'a path that suspends AGAIN re-enters it, and another path is untouched',
+      'per INSTANCE — branch.resumed in one instance leaves the other instance\'s suspension listed',
+      'per INSTANCE — branch.arrived in one instance leaves the other instance\'s suspension listed',
+      'per INSTANCE — branch.lost in one instance leaves the other instance\'s suspension listed',
+    ].sort();
+    equal(observed, declared, 'the cases that ran are exactly the declared ones');
+    equal(observed.length, 9, 'and NINE of them, against a literal');
+  });
+});
+
+/**
+ * **Q63 — `UncloneableResult` is named ONCE, by the class** (P30 decision 2, W133). `RunFailure.kind`
+ * is the constructor name and `stoppedBy` is `<class>: <message>`, so a message that opened with the
+ * class name read `UncloneableResult: UncloneableResult: …` in `RunState.stoppedBy` with no consumer
+ * render at all. The expected strings are the decision's message text and that composition.
+ */
+suite('OR-R6 and OR-R10 — stoppedBy and the reported failure name UncloneableResult exactly once', (test) => {
+  test('an uncloneable settlement stops the run naming the class once and the task id', async () => {
+    const failures: { kind: string; message: string }[] = [];
+    const scheduler = new FakeScheduler();
+    const driver = new Driver(await load('valid/linear.flow.json'), {
+      runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(),
+      workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
+      joinPolicy: stubPolicy as unknown as JoinPolicy,
+      onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
+    });
+    driver.start({});
+    scheduler.settle('r1:ingest:-:0', 'done', { result: { fn: () => 1 } });
+    const message = 'the result of task "r1:ingest:-:0" is not structured-cloneable';
+    equal(failures, [{ kind: 'UncloneableResult', message }], 'OR-R10: one failure, the class as its kind');
+    const state = fold(driver.foldInputs());
+    equal(state.outcome, 'stopped', 'RN-R8: a refusal that terminated the run');
+    equal(state.stoppedBy, `UncloneableResult: ${message}`, 'stoppedBy is the class, then the message');
+    equal(state.stoppedBy?.split('UncloneableResult').length, 2, 'and the class name occurs in it EXACTLY once');
   });
 });
 

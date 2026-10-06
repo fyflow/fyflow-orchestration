@@ -1282,7 +1282,7 @@
     "AttestWorker": { "worker": "attest", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
     "ReviewWorker": { "worker": "fail", "inline": true, "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
     "ExtractWorker": { "worker": "fail", "inline": true, "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
-    "MergeWorker": { "worker": "uncloneable", "inline": true, "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
+    "MergeWorker": { "worker": "uncloneable", "config": { "delayMs": 20 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
     "RetryWorker": { "worker": "retry", "inline": true, "config": { "delayMs": 5 }, "pool": { "maxThreads": 1, "idleTimeout": 0 } },
     "Echo": {
       "worker": "echo",

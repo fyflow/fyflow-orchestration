@@ -101,7 +101,7 @@ import uiRegistryDocument from './ui-registry.json' with { type: 'json' };
  * that as a DIFF.** The one derivation below exists because a per-run knob has NO DOCUMENT SPELLING:
  * `inline` is fixed per TYPE (P18 decision 2 — an instance's config merges into `config` and never
  * reaches it), while `Expectation.threaded` is a property of a ROW. So `registryDocumentFor` writes
- * `inline: !threaded` into the types that declare none — three since W94's `Identify` — and does nothing else.
+ * `inline: !threaded` into the types that declare none — four since W133's `MergeWorker` — and does nothing else.
  *
  * *(These sentences said **"every row but a threaded one runs the document AS IT IS ON DISK"** and
  * **"at `threaded: false` it returns the document object itself, unchanged"**. Both are FALSE and
@@ -116,7 +116,9 @@ import uiRegistryDocument from './ui-registry.json' with { type: 'json' };
  * **Measured at W67's declaration step, because a knob with no assertion deserves a number**:
  * forcing every such type inline — which is what dropping the knob would do — costs **ZERO** L6
  * failures. That is [Q99](../doc/questions/q99.md)'s *a knob held down by no assertion* with a
- * figure. It is kept because what it buys is that the fan-out pool is a real THREAD on the rows that
+ * figure. *(True of W67's tree and no longer of W133's: since `MergeWorker` is threadable, forcing it
+ * inline turns the threaded `uncloneable` row into an `OR-R6` stop, and that row is red. Inferred by
+ * W133's conformity reader, finding 6, and measured by its adequacy reader's probe R2.)* It is kept because what it buys is that the fan-out pool is a real THREAD on the rows that
  * ask for one, which is the one place two tasks are in flight at once and therefore where a dispatch
  * race or an id collision would show — and W51 measured that it changes dispatch order 12/12.
  */
@@ -913,8 +915,8 @@ export interface RunReport {
    *
    * `RunFailure.kind` was pinned by no test anywhere: row 12's assertion read
    * `${kind}: ${message}` for a substring, and `UncloneableResult`'s message
-   * begins with its own class name, so forcing `kind` to `'Error'` was green at
-   * L6 **and** at L1-L5. Found by W6's adequacy reader.
+   * began with its own class name until W133, so forcing `kind` to `'Error'` was
+   * green at L6 **and** at L1-L5. Found by W6's adequacy reader.
    */
   failureKinds: readonly string[];
   /**
