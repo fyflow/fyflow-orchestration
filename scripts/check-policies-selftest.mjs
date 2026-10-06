@@ -379,15 +379,17 @@ const MIN_PROBES = 13;
  * obligation neither reader could instantiate anywhere is *does anything COUNT the
  * list from a source other than itself*, and the answer in all three self-tests is
  * no: every floor is a literal.
+ *
+ * **7 since W131**, which gave P3's `names === null` clause the entry Q144 said it could not have.
  */
-const MIN_META = 6;
+const MIN_META = 7;
 
 /** And the same floor for `SELF`, because `bounded === SELF.length` is vacuously true at zero. */
 const MIN_SELF = 14;
 
 /**
  * **How many `META` gradings may pass as `corpus`.** Zero, and the number is
- * MEASURED rather than chosen: all six mutants below report `inert: yes` today and
+ * MEASURED rather than chosen: every mutant below reports `inert: yes` today and
  * the summary line carries no corpus term at all.
  *
  * A `corpus` grading is a **pass** — the mutant fails on the repository's own tree,
@@ -397,7 +399,8 @@ const MIN_SELF = 14;
  * exited 0 saying *"0 noticed by the named probe, 21 by the corpus"*.
  * [Q150](../doc/questions/q150.md), closed there and left live in the other four;
  * this is one of the four. Forcing every grading here to `corpus` reports
- * **`6/6 noticed — 0 by the named probe, 6 by the corpus`** at exit 0.
+ * **`6/6 noticed — 0 by the named probe, 6 by the corpus`** at exit 0 (measured when the list
+ * was six long).
  *
  * **Raise this only with a measurement beside it.** A cap written above the observed
  * number is [Q102](../doc/questions/q102.md)'s ratchet in a new place.
@@ -521,10 +524,8 @@ const META = [
     'a deliberate global rename of every P1 and P2 site — the swap IS the mutation'],
   ['P2 disabled', (t) => t.replace('for (const { key, binding } of halvesRead ? (policies ?? []) : []) {', 'for (const { key, binding } of []) {'),
     'a policy object`s own id changed, leaving the key alone'],
-  // The clause this mutates is `names === null` specifically, and this is the one
-  // probe that drives it — every other P3 probe reaches a different clause.
-  //
-  // **This entry has been wrong twice, and the second time is the more interesting.**
+  // **This entry was first written for the `names === null` clause, and was wrong twice
+  // there; the second time is the more interesting.**
   //
   // It first read `if (names === null) fail('P3'` -> `if (false) fail('P3'`, which
   // takes the branch away from an `if`/`else if` chain whose next arm evaluates
@@ -535,7 +536,7 @@ const META = [
   //
   // **The repair was `[].push('P3', …)` — inert, chain intact — and it STILL
   // crashed**, which only the readers' second correction could see. `check-policies.mjs`
-  // ends with ``All checks passed — ${names.join(', ')}``, and that line is reachable
+  // ENDED with ``All checks passed — ${names.join(', ')}`` until W131, and that line was reachable
   // with `names === null` **only when P3's first clause is disabled**: the clause is
   // what guarantees the success path never runs on a null. So the mutant is inert on
   // the clean tree and throws under its own probe — precisely the case the `ran:`
@@ -543,12 +544,18 @@ const META = [
   // first `ran:` guard could not see it either, because it keyed on the report
   // HEADER and the throw happens after it.
   //
-  // **So the `names === null` clause has no META entry and cannot have one**, short
-  // of a change to `check-policies.mjs` that this item does not own:
-  // [Q144](../doc/questions/q144.md). This entry now takes P3's FLOOR clause, which
+  // **So the `names === null` clause had no META entry and could not have one**, short
+  // of a change to `check-policies.mjs` that W28 did not own:
+  // [Q144](../doc/questions/q144.md). This entry took P3's FLOOR clause, which
   // is inert, does not crash, and has a probe of its own.
   ['P3`s floor clause disabled', (t) => t.replace('else if (names.length < 2) {', 'else if (false) {'),
     'section 3 left with a single row, which is under P3`s floor'],
+  // **And the `names === null` clause has its entry since W131**, which made the success line
+  // read `(names ?? []).join` (Q144). The mutant W28 had to withdraw now RUNS to that line and
+  // exits 0, so its probe — the one probe that drives this clause — grades it `exit0`. Its old
+  // `SELF` entry, the `ran:` case, stopped firing with the fix and was replaced (see `SELF`).
+  ['P3`s names === null clause disabled', (t) => t.replace("if (names === null) fail('P3',", "if (names === null) [].push('P3',"),
+    'section 3`s number removed, so no names are read at all'],
   ['every failure swallowed', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};'),
     'a policy deleted from POLICIES'],
   ['the non-zero exit removed', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;'),
@@ -642,20 +649,25 @@ const SELF = [
     // mislabelled and the verdict has to say so.
     (t) => t.replace("    'a policy object`s own id changed, leaving the key alone'],",
       "    'a policy deleted from POLICIES'],")],
-  // **The `ran:` guard, and this file is the only place its case exists.** W28 had
-  // to DELETE this mutation as a `META` entry: `check-policies.mjs` ends with
-  // ``All checks passed — ${names.join(', ')}``, reachable with `names === null`
-  // exactly when this clause is disabled, so the mutant is inert on the clean tree
-  // and THROWS under its own probe — [Q144](../doc/questions/q144.md), which records
-  // the guard as live in several files and provoked in none. As a `SELF` entry it is
-  // exactly right: with the guard live the run is `6/7 noticed` at exit 1, and
-  // disabling EITHER half — the parent's `!ran` arm or the child's `RAN` producer —
-  // takes it to `7/7` at exit 0. **The second demonstration anywhere that `ran:`
-  // fires**, after W29 constructed one in `check-docs`.
+  // **The `ran:` guard, and this file is the only place its case exists.** A `META` entry
+  // that is inert on the clean tree and THROWS under its own probe — the case the guard is for —
+  // cannot ship as a `META` entry, because the file would ship red; as a `SELF` entry it is
+  // exactly right. With the guard live the child's META pass reports one entry FAIL *the mutant
+  // did not run* and exits 1; disabling EITHER half — the parent's `!ran` arm or the child's `RAN`
+  // producer — grades that entry `disappeared`, every entry ok, exit 0. **The second
+  // demonstration anywhere that `ran:` fires**, after W29 constructed one in `check-docs`.
+  //
+  // **W131 replaced the mutation, and P30 decision 4 required the replacement BEFORE the fix.**
+  // The first was W28's withdrawn `META` entry for P3's `names === null` clause, which threw only
+  // because `check-policies.mjs`'s success line dereferenced `names` — so Q144's one-line fix
+  // made it run to exit 0 and this entry would have proved nothing. That clause is an ordinary
+  // `META` entry now. This one disables `srcPolicies`' `if (!m) return null;`: inert on the
+  // clean tree, and under *the POLICIES block renamed* it throws in `m[1]` before ANY report line,
+  // so it rests on no success line at all.
   ['a META entry inert on the clean tree and FATAL under its probe — the `ran:` case',
     (t) => t.replace("  ['every failure swallowed',",
-      "  ['Q144 — the names === null clause disabled inertly', (t) => t.replace(\"if (names === null) fail('P3',\", \"if (names === null) [].push('P3',\"),\n" +
-      "    'section 3`s number removed, so no names are read at all'],\n  ['every failure swallowed',")],
+      "  ['srcPolicies` unread-block guard disabled, so the mutant THROWS', (t) => t.replace('if (!m) return null;', 'if (false) return null;'),\n" +
+      "    'the POLICIES block renamed, so the source half cannot be read'],\n  ['every failure swallowed',")],
 
   // --- the three bounds W31 adds, made load-bearing rather than merely present ----
   //
@@ -705,7 +717,7 @@ const SELF = [
   // tests (so `P3` DISAPPEARS rather than staying caught) **and** makes `P1` fire on
   // the untouched tree (so the mutant is not inert):
   //   - inertness run LIVE  -> `corpus`, `byCorpus` 1, `MAX_CORPUS` refuses      RED
-  //   - inertness run GONE  -> `disappeared`, `ok`, 6/6, `byCorpus` 0            GREEN
+  //   - inertness run GONE  -> `disappeared`, `ok`, every entry, `byCorpus` 0    GREEN
   // A `META` mutation may take two edits; a rule 8 provenance probe may not, and the
   // difference is that this one asks *does this harness notice* rather than *is this
   // value what it claims*.
