@@ -118,9 +118,9 @@ const SET = [
     // this is the LAST member of the set to MEET its
     // target. So the ceiling is the TARGET, and here that is not a preference: **the declaration
     // space admits exactly ONE value.** `B4` requires `TOTAL_CEILING <= sumCeilings` and
-    // `TOTAL_CEILING >= TOTAL_TARGET`, so `sumCeilings >= 78,848` and this ceiling must be at
-    // least 35,840; `B5` requires a MET member's ceiling to sit at or below its target, so it must
-    // be at most 35,840. Brute-forced at W115's declaration step over every value in 1..400,000 for
+    // `TOTAL_CEILING >= TOTAL_TARGET`, so `sumCeilings >= 79,872` and this ceiling must be at
+    // least 36,864; `B5` requires a MET member's ceiling to sit at or below its target, so it must
+    // be at most 36,864. Brute-forced at W115's declaration step over every value in 1..400,000 for
     // staged sizes of 35,840, 35,000, 30,000 and 20,000: **one legal ceiling and one legal total, in
     // all four.** *So W112's obligation (d) — "lower the ceiling to your own post-cut measurement" —
     // is not satisfiable at the last member, and W114's setting of `CLAUDE.md`'s ceiling to its
@@ -131,9 +131,14 @@ const SET = [
     // headroom here is target-minus-measurement, which the report prints. A retro that adopts a clause must
     // cut as much as it writes — which is what a met budget means, stated here rather than
     // discovered by a red gate (ADR 0076 decision 5, and `doc/concept.md`'s 283 bytes).
-    // 35 * 1024, the target, written as a literal for the reason the SET docstring gives.
-    ceiling: 35_840,
-    target: 35 * 1024,
+    //
+    // **The TARGET was RAISED by decision, once: 35 KiB to 36 KiB, by the maintainer on 2026-10-06**
+    // for `doc/workflow.md` v0.28 ([P29](../doc/plans/p29-which-open-questions-still-matter.md)
+    // stop-and-ask (n)), when the headroom was 66 bytes and the clause needed more. Ceiling and
+    // target moved together, as `B4` and `B5` require. A raise is a decision, never an edit to fit.
+    // 36 * 1024, the target, written as a literal for the reason the SET docstring gives.
+    ceiling: 36_864,
+    target: 36 * 1024,
   },
   {
     path: 'doc/concept.md',
@@ -185,7 +190,7 @@ const DECLARED_PATHS = Object.freeze(['CLAUDE.md', 'doc/workflow.md', 'doc/conce
 const DECLARED_TARGETS_UNDECLARED = (k) => DECLARED_PATHS.indexOf(k) < 0;
 const DECLARED_TARGETS = Object.freeze({
   'CLAUDE.md': 25 * 1024,
-  'doc/workflow.md': 35 * 1024,
+  'doc/workflow.md': 36 * 1024,
   'doc/concept.md': 17 * 1024,
 });
 
@@ -248,9 +253,12 @@ const MIN_MEMBERS = 3;
 // [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
 // decision 4: `B3` keeps a probe as a compound and regains its own case the moment any member is
 // UN-met, which is what a fourth member would do. [Q479](../doc/questions/q479.md).
-// 77 * 1024, which is both the sum of the ceilings and the sum of the targets.
-const TOTAL_CEILING = 78_848;
-const TOTAL_TARGET = 77 * 1024;  // P27 decision 1's 77 KB, and the per-file targets sum to it
+// 78 * 1024, which is both the sum of the ceilings and the sum of the targets.
+// **P27 decision 1's 77 KB was raised to 78 KB by the maintainer on 2026-10-06**, the 1 KiB going
+// to `doc/workflow.md` for v0.28 ([P29](../doc/plans/p29-which-open-questions-still-matter.md)
+// stop-and-ask (n)). The other two members' targets are still P27's.
+const TOTAL_CEILING = 79_872;
+const TOTAL_TARGET = 78 * 1024;  // P27's 77 KB raised to 78 KB by P29 (n); the per-file targets sum to it
 
 // --- B1: the set is there -----------------------------------------------------
 if (SET.length < MIN_MEMBERS) {

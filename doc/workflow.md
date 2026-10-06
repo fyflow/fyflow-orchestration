@@ -1,8 +1,8 @@
 # Workflow
 
-**Status:** v0.27 — **run to completion TWENTY-EIGHT times**, by P1 through P28, three of which adopted
-nothing (P8, P25 and P28), which is section 6 pass 3 rule 1's expected verdict rather than a failure to
-run it. **Read this before starting any work item.** Paths are relative to the repo root unless they
+**Status:** v0.28 — **run to completion TWENTY-NINE times**, by P1 through P29, four of whose retros
+adopted nothing (P8, P25, P28 and P29), which is section 6 pass 3 rule 1's expected verdict rather than
+a failure to run it; v0.28 is the maintainer's answer to P29's proposal. **Read this before starting any work item.** Paths are relative to the repo root unless they
 are markdown links.
 
 *This file was **305,643 bytes** until
@@ -174,6 +174,11 @@ W114.*
 > if it did not.** **Do not start one over a tree with a known red lane** — fix the lane, re-run
 > it alone, then pay for the gate once, on the final tree.
 
+**And an item that does not run `gate:full` runs, alone, every self-test whose check reads a file
+in its `Owns`** — v0.28, P29, the maintainer's answer to its retro. *P29's register self-test was
+red for six items behind a waiver argued from the ladder, which says nothing about the self-tests.*
+It costs about 3 h across P29's six batches, against about 4 h for `gate:full` once per item.
+
 **Levels 0-6 are the agent's job. Level 7 is where a person enters.** Never spend a person on
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have
 found, the fix is to **add the check**, not just fix the bug.
@@ -335,8 +340,8 @@ ever, came from two briefs naming the same obligations and the same specifics; *
 differed its two and got three**.* So the overlap measures the briefs as much as the readers.
 **The band's denominator is NOT the ordinal, and conflating them is how the band went false** —
 three measurements are outside it (6, 6, 7) and each had a shared priming. **It counts measurements
-TAKEN, not items reviewed, and the ORDINAL is that count: eighty-one, so the next is the
-EIGHTY-SECOND.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
+TAKEN, not items reviewed, and the ORDINAL is that count: eighty-two, so the next is the
+EIGHTY-THIRD.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
 why three published ordinals were short by one.* **An item's RECORD states its own overlap — its own
 file, always legal — and only a retro carries the total forward** (v0.26; v0.27).
 
@@ -449,7 +454,8 @@ v0.23 [P22](plans/p22-what-a-regions-identity-is.md#retro) ·
 v0.24 [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md#retro) ·
 v0.25 [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md#retro) ·
 v0.26 [P26](plans/p26-what-a-flow-can-say-without-code.md#retro) ·
-v0.27 [P27](plans/p27-what-a-register-row-is.md#retro)
+v0.27 [P27](plans/p27-what-a-register-row-is.md#retro) ·
+v0.28 [P29](plans/p29-which-open-questions-still-matter.md#retro)
 
 ## The refusal ledger
 
