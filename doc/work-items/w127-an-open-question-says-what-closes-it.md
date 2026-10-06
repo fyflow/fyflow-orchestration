@@ -1,6 +1,6 @@
 # W127 — R9: an open question says what would close it; ADR 0082; Q494 resolved; the self-test and `npm run state` made triage-proof
 
-**Status:** todo — declared 2026-10-06 on `1b8b819`, after W126's Record; no edit made
+**Status:** in progress — declared 2026-10-06 on `1b8b819`, after W126's Record; BUILD done 2026-10-06, readers next
 **Plan:** P29, `doc/plans/p29-which-open-questions-still-matter.md`
 
 *This file carries NO relative link, deliberately* — W126's calibration 16 and Q142's mechanism.
@@ -186,6 +186,106 @@ The maintainer's answers of 2026-10-06 (P29 stop-and-ask (m)), on the coordinato
    the operation, report the mismatch, never fit the value to the description.
 4. **The keeps round followed every recommendation for the third batch running.**
 5. **Resolves overturned at W126: 1 of 2** (Q461).
+
+## BUILD
+
+*The build unit's report, 2026-10-06, on `8ad7db7` plus this item's edits, uncommitted. Scratch
+`dev-dist/w127b-56423/`, whose `56423` is the build shell's pid. The Reader and Record sections are
+later units'.*
+
+**Built, per Build step.**
+
+1. **`R9`** in `scripts/check-register.mjs`: for every PARSED file carrying both `status` and
+   `closes-when`, `status: open` with `closes-when` empty after `trim()` fails, naming the file. A
+   file that does not parse, or lacks either field, is skipped as R2's. R9 runs inside the
+   readable-folder branch, so a missing folder prints it NOT RUN; it is in `ran`, in the report rows
+   and in the header comment.
+2. **R9's probes**, 14, in `scripts/check-register-selftest.mjs`, each checked in, each graded on its
+   exact `trips` and `notRun` sets, each aborting if its staging changed nothing (rule 7 (b)):
+   - `['R9']` x5: `closes-when` emptied; one space; a tab and a newline; the FIRST file in the
+     folder's order (q1.md, overwritten whole with a synthetic open question); the LAST (a synthetic
+     q99999.md).
+   - `[]` x3, the controls: the SAME synthetic file with `closes-when` emptied and its status moved
+     to `deferred`, to `icebox` (its note kept) and to `resolved` (with a `resolved-by`) — so every
+     status word R9 enumerates is a fixture, and each control differs from the firing probe by the
+     status alone (rule 8 (a)).
+   - `['R2']` x6: each of the five status near-misses (`opened`, `Open`, `Deferred`, `iceboxed`,
+     `Resolved`) with `closes-when` emptied, and an open question with `closes-when` emptied whose
+     front matter never closes. The existing *`closes-when` deleted* probe (`['R2']`) is R9's
+     absent-field control.
+   - **11 META mutants**: R9's test disabled; without its trim; stripping spaces only; widened to
+     `deferred`; the status matched case-insensitively; by prefix; an absent `closes-when` read as
+     empty; the first file skipped; the last file skipped; `ran.R9` never set; R9 marked run with no
+     folder. Each names the probe that must stop grading as declared.
+   - The folder-missing probe's `notRun` set gained `R9`.
+3. **The META fix**: `MAX_CORPUS = 0` is replaced by `CORPUS_ALLOWED`, an exact list of META NAMES
+   permitted to fail the untouched tree, checked BOTH WAYS in the META pass — a listed mutant that
+   is inert is red, and an unlisted one that is not inert is red — and statically, before anything
+   runs, against the META list (a name that is no META entry, or a name listed twice, is red). The
+   run reports the corpus-noticed mutants BY NAME. Listed at build: *`icebox` removed from the
+   vocabulary* (182 iceboxed questions) and *R9 widened to `deferred`* (64 of 65 deferred questions
+   carry no `closes-when`). Measured over all 184 META entries against the untouched tree before the
+   gate: exactly those two are not inert, and 0 disagree with the list. The SELF entry for
+   `MAX_CORPUS` is replaced by three: the list emptied, an inert mutant listed, and a name that is
+   no META entry.
+4. **Every live-question fixture re-pointed.** The harness PLANTS synthetic questions into its
+   staged copy — Q8001 (open, a note), Q8002 (open, empty note), Q8003 (resolved by prose), Q8004
+   (resolved by the synthetic ADR 8803, which resolves it back), Q8005 (deferred), Q80031 (resolved;
+   Q8003 is a prefix of its id) — and synthetic ADRs 8801-8803 for R3's and R8's pairings. `plant`
+   refuses to overwrite a register file, so the day the register reaches the band it aborts by name.
+   Every probe, grader control, STATE probe, the R4 deletion target (was Q300) and the restore
+   control's shifted file (was q1.md) now reads only these. *Scan of every `scripts/*selftest*.mjs`
+   first*: anchors on live questions in `check-register-selftest.mjs` (Q1, Q4, Q12, Q17, Q92, Q300,
+   Q466, Q488, Q490 — the declaration's list, complete) and in `check-markdown-selftest.mjs` (the
+   end fences of q488.md and q490.md); `check-lookup-selftest.mjs` builds a synthetic tree; the other
+   eight self-tests and `run-selftests.mjs` name no question file. **What still needs a real file,
+   and why**: q466.md by NAME, because `NOT_A_RESOLUTION` in the check excuses `Q466 -> ADR 0077`
+   by id — the base overwrites it whole with a synthetic stand-in, so no probe reads its content;
+   q1.md by NAME for R9's first-position probe, overwritten whole; q490-q499 and q492 by EXISTENCE
+   for the two STATE listing mutants S1 and S1b; and q488.md and q490.md by existence in the
+   markdown self-test, whose five probes now write a synthetic question over the file and read none
+   of it. Real ADRs 0062, 0077, 0078 and 0079 stay R6/R7 anchors: no ADR's CONTENT is a triage
+   subject, **but its `resolves` is** (P29 decision 5), so the five probes that anchored on
+   `resolves: ""` above the fence of 0079 and 0062 now anchor on the fence itself.
+5. **The `state.mjs` floor fix.** The `questions reading open >= 200` floor is removed. The comment
+   now says a floor is safe where the quantity only grows, which is true of a file count and false
+   of a status. **The `live >= 200` floor is REPLACED by a relation**: live against open + deferred +
+   iceboxed read the other way, so with the existing forward row live EQUALS their sum at any
+   register size. What the floor caught (every question read as resolved, live 0) the relation
+   catches; a new STATE_META entry, S8, provokes it. Margin: none needed — at W127 live is 270,
+   which a floor of 200 would have lost after 71 more resolutions. `resolved >= 50` stays.
+6. **ADR 0082**, *An open question owes a closing condition, and owner is prose*: `amends: ADR 0079
+   decision 2`, `resolves: Q494`, `item: W127`, `raised-by: P29`.
+7. **`doc/questions/README.md`**: the `closes-when` row (a CLOSING condition, required non-empty
+   while `open`, R9), the `owner` row's pointer moved from Q494 to ADR 0082, the `open` status row,
+   the check paragraph naming the amendment, and *Raising a question* step 2 requiring a
+   `closes-when` (or `deferred` with its reason).
+8. **Q494**: `status: resolved`, `resolved-by` naming ADR 0082 decision 4, `closes-when` cleared,
+   `note` appended `; P29 W127: resolve — ADR 0082`. `check:register` R8 compared 28 pairings,
+   W126's 26 plus 2.
+
+**Floors moved to their lists' lengths**: `MIN_PROBES` 238 -> 252, `MIN_META` 173 -> 184,
+`MIN_SELF` 19 -> 21, `MIN_STATE_META` 10 -> 11.
+
+**Prediction 6 is reversed as declared** (`state.mjs` changed). `lookup.mjs` and
+`check-lookup-selftest.mjs` are untouched; `lookup:selftest`'s AGREE did not have to learn R9.
+
+**The gate**, every command redirected with its EXIT read in the same command:
+
+| command | EXIT | log, under `dev-dist/w127b-56423/` |
+|---|---|---|
+| `npm run check:register:selftest`, alone | **0** — 252 probes (232 caught, 20 clean), 4/4 grader, META 182/184 by the named probe plus 2 by the corpus as `CORPUS_ALLOWED` permits, by name; STATE 6/6 and 11/11; SELF 21/21; digest unmoved | `regself.log`, `regself.exit` |
+| `npm run check:markdown:selftest`, alone | **0** | `mdself.log` |
+| `npm run check:register` | **0** — R1-R9 ok, R8 compared 28 pairings | `reg2.log` |
+| `npm run state` | **0** — all 24 derivations non-empty | `st2.log` |
+| `npm run q -- --where status=open --where closes-when=` | **1**, `# no question matches`, as the exit artifact requires | `r9.log` |
+| `npm run gate:full`, once | **0** — selftests 11/11 ok, 2164.2 s wall | `gatefull.log`, `gatefull.exit` |
+
+The tree was still across `gate:full`: the sha256 of `git diff` plus ADR 0082 (untracked) was
+`0ea2b884…d6498` before and after (`gf-before.sha`, `gf-after.sha`). This table was written after
+the gate and is the only edit since. `git diff --name-only` plus the one untracked file: the five
+Owns scripts and documents, `q494.md`, ADR 0082 and this file. The plan's Stop-and-asks row (m),
+the declared exception, was written at declaration and is unchanged by the build.
 
 ## Record
 

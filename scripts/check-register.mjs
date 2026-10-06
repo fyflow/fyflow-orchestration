@@ -74,6 +74,15 @@
 //       itself checked against the tree both ways.
 //
 // R7 and R8 read the question folder, so they say NOT RUN where it cannot be read.
+//
+// **The third, since [W127](../doc/work-items/w127-an-open-question-says-what-closes-it.md)** —
+// [ADR 0082](../doc/decisions/0082-an-open-question-owes-a-closing-condition-and-owner-is-prose.md),
+// P29 decision 6, which amends ADR 0079 decision 2:
+//   R9  every `status: open` question has a `closes-when` that is non-empty after a trim — the
+//       closing condition is what an open question owes a reader. `deferred` is NOT bound (its
+//       reason is in `note`), nor `icebox` or `resolved`. A file whose front matter does not parse,
+//       or that has no `status` or no `closes-when`, is `R2`'s: R9 reads no field that is not there.
+//       `owner` is prose and is checked by nothing here (Q494).
 
 import { readdirSync, readFileSync, statSync, existsSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -105,7 +114,7 @@ const README = 'README.md';
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which clauses executed — `NOT RUN` is a third state and it is not `ok` (W5). */
-const ran = { R1: false, R2: false, R3: false, R4: false, R5: false, R6: false, R7: false, R8: false };
+const ran = { R1: false, R2: false, R3: false, R4: false, R5: false, R6: false, R7: false, R8: false, R9: false };
 let r4Why = '';
 /** What R3 and R4 compared, printed so a reader can check the check against its own work. */
 let refsChecked = 0, atHeadCount = 0;
@@ -309,6 +318,16 @@ if (!names) {
     for (const m of by.matchAll(/\bW(\d+)\b/g)) {
       refsChecked++;
       if (!items.has(String(Number(m[1])))) fail('R3', `${DIR}/${n}'s resolved-by names W${m[1]}, and doc/work-items has no w${m[1]}-*.md`);
+    }
+  }
+
+  // --- R9: an open question says what would close it — ADR 0082 -----------------
+  ran.R9 = true;
+  for (const [n, { fields, order }] of parsed) {
+    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's
+    if (fields.status === 'open' && fields['closes-when'].trim() === '') {
+      fail('R9', `${DIR}/${n} is open and its \`closes-when\` is empty — an open question says what ` +
+        'would close it, or it is deferred with its reason in `note`');
     }
   }
 
@@ -607,6 +626,7 @@ const CHECKS = [
   'R6 every ADR is NNNN-<slug>.md, declares its own id and title, and carries the nine fields',
   'R7 every id an ADR names is in its field`s form and exists',
   'R8 an ADR`s resolves and a question`s resolved-by name each other, both ways',
+  'R9 every open question says what would close it in closes-when',
 ];
 const qCount = names ? names.filter((n) => NAME.test(n)).length : 0;
 console.log(`register check — ${qCount} question file(s) in ${DIR}, measured at ${MEASURE_ROOT}\n`);
