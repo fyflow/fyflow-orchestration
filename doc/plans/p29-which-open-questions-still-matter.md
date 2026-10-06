@@ -1,7 +1,7 @@
 # P29 — Which open questions still matter, and what does each one that does owe a reader?
 
-**Status:** joined 2026-10-06 — W121-W127 done and committed (`a93b767`..`2d94607`), the exit
-artifact measured on the final tree and the Record filled; the retro is pending
+**Status:** complete and retro'd 2026-10-06 — seven items, all done (`a93b767`..`2d94607`);
+`doc/workflow.md` stays v0.27, no change adopted. See the Record and the Retro below
 **Question this plan answers:** *which open questions still matter, and what does each one that does
 owe a reader?*
 **Exit artifact:** *on the final tree, `npm run check:register` EXITs 0 with `R9` live; `npm run q --
@@ -326,4 +326,146 @@ Q533 and ADR 0085.*
 12. **W127's two readers shared 2 subjects** (the live relation, U+200B), inside section 6's 0-4
     band; W127's Record carries it, and the ordinal is the retro's to carry.
 
-**Retro.**
+## Retro
+
+*Pass 3 ran on 2026-10-06 over `723403e`, with the working tree clean before it. Scratch
+`dev-dist/p29r-58647/` (the retro shell's pid). The coordinator's ledger
+`dev-dist/p29c-33131/ledger.md` was read as data. **NO CHANGE ADOPTED.** One refusal is counted
+in the ledger, and one proposal goes to the maintainer as a question (section 1). `doc/workflow.md`
+stays v0.27, following P8's, P25's and P28's precedent. This unit may only append to its ledger, so
+the Status count and the overlap ordinal in section 6 are NOT updated (section 7). Ids in this Retro
+are bare text, as in the Record.*
+
+### 1. The register self-test red from W121 to W127: a rule BROKEN at declaration, then a rule FOLLOWED that did not work
+
+This is candidate (a). **Two occurrences in different items, from one cause.** META went red at W121
+(`MAX_CORPUS = 0` against an iceboxed corpus) and STATE at W123 (`state.mjs`'s `open >= 200`).
+`check:register:selftest` reads exactly the files every batch edited. It runs only in `gate:full`,
+and no batch declared `gate:full`.
+
+- **Broken, not followed: section 4's v0.26 clause, *an item's confirming gate is `gate:full`*.**
+  The plan's index row declared `check:register` and the two markdown checks for every batch
+  (*"as W121"*). It argued from prediction 1, that no rung of L0-L6 moves. But `gate:full` adds the
+  SELF-TESTS, which ADR 0070 took off the ladder, and prediction 1 says nothing about them. So the
+  waiver answered a different question from the one the clause asks. No reader reads a plan's Gate
+  column against section 4. This is the third time the v0.26 failure class has fired, after W110
+  and W114 (P26).
+- **Followed, and it failed: section 1 rule 4, *say what you skipped*.** W125 and W126 each wrote
+  down the skip (*"Not run: `gate` and `gate:full` — no rung's input changed"*, and W126 named
+  `check:register:selftest` itself). The stated REASON was false for the self-tests, and stating it
+  caused nobody to run them. W121-W124 did not state the skip. **The red was found by people**: W126's
+  proposer saw the fixture hazard, and the coordinator ran the lane by hand.
+- **RUNG: none.** The self-tests are not a rung (ADR 0070). `gate:full`'s `selftests` lane is the
+  only place this is caught, and that lane caught it at W127's BUILD.
+
+**For the maintainer, not adopted.** *When a plan's items do not run `gate:full`, which self-tests
+must they run?*
+
+1. **Recommended.** An item that declares a gate without `gate:full` names every self-test whose
+   check reads a file in its `Owns`, and runs each one alone. Here that is `check:register:selftest`
+   (1828 s alone at W127, so about 3 h over six batches) and `check:markdown:selftest`, which the
+   batches already ran. It would have shown META red at W121. It replaces nothing: it prices the
+   waiver that section 4 does not allow today. It needs about 150 bytes of `doc/workflow.md`, which
+   has 66 (section 7).
+2. Hold plans to v0.26 as written: `gate:full` once per item, about 40 min each, or 4 h over six.
+3. No change. W127's `gate:full` caught it, nothing wrong was applied, and the cost was one day of
+   a red lane and W127's fix scope (stop-and-ask (m)).
+
+### 2. Checks coupled to the corpus they measure: three shapes in four items
+
+This is candidate (b), and it meets rule 2's bar. W121's META (a cap of 0 on corpus-noticed mutants,
+over a vocabulary the plan used on purpose), W123's `state.mjs` floor, W123's `M4` floor (Q142) and
+W126's fixture anchors (Q488, Q490 and the resolved Q1, Q4 and Q466) each held a literal or an anchor
+that was true of the register when written. A plan then moved the register ON PURPOSE. **The
+`state.mjs` floor carried its own false argument**: *"ids are never reused, so these quantities only
+grow"* was written at W116. It is true of file counts and false of a status count.
+
+**Noted, no rule.** The general question, whether floors are hand-tuned literals or derived from
+the trees they measure, is **Q142**, which W123's keeps round KEPT with a `closes-when` naming the
+maintainer's decision. A retro rule would answer it, and decision 3 says triage does not answer.
+The fixture-anchor shape has a MECHANISM since W127: synthetic fixtures above Q8000, and a guard
+that aborts any probe that writes a register question. A rule restating a check adds nothing. The
+existing rule 8 table row, *a set-equal-literal ceiling is DATED, re-run by the item that moves the
+value*, was followed for `M4` and caught it. It was not followed for `npm run state`: W123-W125 never
+ran it, and W126 ran it and recorded EXIT 1 as known. **RUNG: none.** `npm run state` is not a
+rung, and both self-tests are in `gate:full` only.
+
+### 3. The reader and the keeps round: prediction 3, and the calibration
+
+This is candidate (c). **The reader paid for itself.** It changed or disputed rows in every batch,
+25 of 307 batch rows in all (5, 4, 7, 4, 1 and 4). It overturned 8 of the 31 resolves that W122-W126 proposed, and none of W121's 3 (W122
+1 of 11, W123 5 of 10, W124 1 of 5, W125 0 of 3, W126 1 of 2). **Resolves are where proposers
+overreached, and the trend after calibrations 12-17 is the pilot rule (decision 5) working**: W121's
+calibration reached each later declaration through each Record's *What this taught*, not only through
+the scratch ledger. The reader missed Q103's absent row (section 4). **The keeps round is the
+maintainer's own instrument, added after W121.** It moved 9 of W121's 13 keeps and then 0, 1, 0, 1
+and 1. Every answer followed its recommendation except Q283. **No change.** Neither is a workflow
+rule. A future triage plan would declare the round in its decision 4 rather than add it mid-plan.
+
+### 4. Coordinator and proposer slips: the count class, and a refusal
+
+This is candidate (d). There were three slips:
+
+- the 26/1 approval question at W122, where the rows approved were right;
+- the two band labels, which were range bounds, and each bound selected exactly 50;
+- Q103's missing row and the two off-by-one tallies at W121.
+
+**Each was caught inside the plan**: at W122's Record, at W123's and W124's declarations, and at
+W121's keeps round and Approval. The in-plan remedy was a scratch script that counts the rows
+against the lookup's id list (calibration 6 and 11). It found no other gap in five batches, one of
+them interrupted by an outage. **The structural observer already exists and is computed**: the
+stamp count (`--where "note~P29 W1nn" --count`) catches a missing row at apply, as W121's Record
+says. **RUNG: none.** A tally in an item file is *"did you build what you said"* (section 4). Its
+only remaining observer is a check over an item file's prose tables, so **a check over `doc/` is
+REFUSED a 28th time**, on the ledger's standing ground.
+
+### 5. Prediction 2's ranking failed, and the exit artifact's columns
+
+- **Candidate (e).** The threshold held by a factor of six: 287 of 308 left `open`, against the 47
+  needed. Verification and fixtures ranked third. The prediction was written before the pilot, and
+  the maintainer's calibration after W121 (*"more aggressive in iceboxing and deferring"*) moved
+  every cluster toward 90-100%. **What it measured was the calibration, not the register's shape.**
+  It is one occurrence, with no argument for a rule. **Noted.**
+- **Candidate (f).** The header says the third command *lists every question … each with the batch
+  item that judged it*. Its default columns are id, status and title. The Record found this at the
+  join by running it, which is P28's lesson (*nothing reads a plan against itself*) in a different
+  shape: P28's was an exit artifact contradicting a decision, and this one is a claim about a
+  command's output. One occurrence of this shape. **Noted, and the Record already states it.** The
+  correct reading is `npm run q -- --include-icebox --where "note~P29 W" --fields id,status,note`.
+
+### 6. The overlap, and a correction
+
+**W127's two readers shared 2 subjects** (the live relation, and U+200B). That is the
+**eighty-second** measurement, and **2 is inside the 0-4 band**. The ordinal is now
+**eighty-two**, so the next measurement is the **EIGHTY-THIRD**. The band's *fifty-nine* stays,
+because it is the band's denominator and not the ordinal (P27's retro). W121-W126 ran one reader
+each, as declared, so there is no overlap to measure for them.
+
+**Correction (rule 6, applied to this plan's own Record).** Finding 6 says *`npm run state` EXITed 1
+from W123 (open 68 then)*. Counted with `git grep` per commit, open was **160 at W123's `9ad2345`**,
+113 at W124's and **68 at W125's `6eaa270`**, which is the tree the coordinator diagnosed. The EXIT 1
+from W123 stands, and the 68 belongs to W125. **No item file is corrected**, because none was found
+false.
+
+### 7. What the retro changed, and what it ran
+
+| file | why |
+|---|---|
+| this plan | the Status line and this Retro |
+| `doc/workflow.md` | the ledger's first row, *27 times, P2-P28* becomes *28 times, P2-P29*. It changes no bytes and is the ledger's own *appends to its row* |
+
+**The ledger has 66 bytes of headroom under `check:budget`**, and that ceiling only moves down. So
+pass 3 rule 7, *one line per refusal*, cannot be followed for a NEW refusal without a cut elsewhere.
+This retro refused none. **Left stale, outside this unit's permission**: `doc/workflow.md`'s Status,
+*run to completion TWENTY-EIGHT times … P8, P25 and P28*, which should now read twenty-nine and add
+P29; and section 6's *eighty-one, so the next is the EIGHTY-SECOND*, which should now read
+eighty-two and the eighty-third. Each edit fits in the headroom. Both are the maintainer's or the
+next retro's to make.
+
+**Ids.** Issued: W121-W127, Q513 and ADR 0082. **W128 CLOSED unissued, W129 CLOSED unissued, W130
+CLOSED unissued; Q514-Q532 SPENT; ADR 0083-0084 SKIPPED.** None exists in the tree.
+**The next plan starts at W131, Q533 and ADR 0085.** `npm run state` derives the same ids from the
+tree once the spent block above is read, and from the ledger through this sentence.
+
+Ran, each redirected with `$?` read in the same command: `check:markdown`, `check:markdown:selftest`,
+`check:budget`, `check:register` and `npm run state`. Only `doc/` changed, so `gate:full` was not run.
