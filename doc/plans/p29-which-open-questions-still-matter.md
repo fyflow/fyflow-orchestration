@@ -164,6 +164,7 @@ predecessor's Record is done, so that W121's calibration reaches the others.
 | **(j)** | ~~How are the batches cut and run?~~ | **ANSWERED, 2026-10-05: six serial items, W121 the pilot, then `R9` last** (decision 5) |
 | **(k)** | ~~Are the two deferred questions in scope?~~ | **ANSWERED, 2026-10-05: yes for Q92**, which joins B1 by its cluster. Q499 stays out by (e) |
 | **(l)** | ~~Does (i) resolve Q494?~~ | **ANSWERED, 2026-10-05: yes, at W127, by ADR 0082.** It is the one exception to decision 3, because this declaration is the decision |
+| **(m)** | ~~`npm run state` has EXITed 1 since W123 (its `open` floor of 200), and `check:register:selftest` is RED since W121 (META: `MAX_CORPUS = 0` against 148+ iceboxed questions) and on fixtures anchored on live questions (Q488, Q490). Whose are the fixes?~~ | **ANSWERED by the maintainer, 2026-10-06: W127's.** *"W127 owns it"*: `scripts/state.mjs` joins W127's Owns, and **prediction 6 is reversed** by its own condition. *"Apply now, W127 fixes"*: W126 applies Q488's verdict, and W127 re-points every self-test fixture anchored on a live question, so `scripts/check-markdown-selftest.mjs` joins its Owns for those anchors only |
 
 ## Open questions this plan carries
 
