@@ -120,8 +120,8 @@
 // returns from single-probe mode first. It is load-bearing in
 // `check-source-selftest.mjs`, which has a `SELF` list whose children do not.
 //
-// **And one guard here is live in FIVE files and provoked in none of THIS file's
-// lists.** The case `ran:` exists for is *inert on the clean tree, FATAL under the
+// **And one guard here is live in several self-tests (`grep -l "ran: yes"
+// scripts/*-selftest.mjs`) and provoked in none of THIS file's lists.** The case `ran:` exists for is *inert on the clean tree, FATAL under the
 // probe*. W29 constructed one in `check-docs` and recorded it as a rule 8
 // provocation; the checked-in form is a `SELF` entry, and only
 // `check-policies-selftest.mjs` has one (W31's, rebased by W131). It was
