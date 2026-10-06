@@ -53,8 +53,12 @@ decision 2, which gave `status` its four words and bound only `icebox`.
 
 1. **The requirement is checked, not written down**: `doc/questions/README.md` says `closes-when` is
    required while `status` is `open`, and *raising a question* asks for one, but the gate is what
-   makes it so. `npm run q -- --where status=open --where closes-when=` matching nothing is the same
-   fact, read by the lookup rather than the check.
+   makes it so. `npm run q -- --where status=open --where closes-when=` is a WEAKER reading of it,
+   by the lookup rather than the check: its `=` compares the value exactly as read, with no trim, so
+   it matches an open question whose `closes-when` is `""` and does NOT match one whose
+   `closes-when` is whitespace alone, which `R9` refuses. So a green `R9` implies the query matches
+   nothing, and the query matching nothing does not imply a green `R9` *(corrected at W127's fix
+   round, the conformity reader's finding 3; this said "the same fact")*.
 2. **A question raised open with no closing condition is a red gate.** The way out is to state one,
    or to defer the question with its reason in `note`.
 3. **What `R9` cannot see**: whether a `closes-when` is a real condition or a placeholder (`TBD`

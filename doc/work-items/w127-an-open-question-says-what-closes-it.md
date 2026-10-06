@@ -1,6 +1,6 @@
 # W127 — R9: an open question says what would close it; ADR 0082; Q494 resolved; the self-test and `npm run state` made triage-proof
 
-**Status:** in progress — declared 2026-10-06 on `1b8b819`, after W126's Record; BUILD done 2026-10-06, readers next
+**Status:** done — declared 2026-10-06 on `1b8b819`, after W126's Record; BUILD, both readers and the fix round done 2026-10-06
 **Plan:** P29, `doc/plans/p29-which-open-questions-still-matter.md`
 
 *This file carries NO relative link, deliberately* — W126's calibration 16 and Q142's mechanism.
@@ -287,6 +287,320 @@ the gate and is the only edit since. `git diff --name-only` plus the one untrack
 Owns scripts and documents, `q494.md`, ADR 0082 and this file. The plan's Stop-and-asks row (m),
 the declared exception, was written at declaration and is unchanged by the build.
 
+## Reader
+
+### Conformity reader
+
+*Section 6 pass 2, 2026-10-06, on `d2c19ff` with the tree clean. Spec first (P29 decisions 1, 6
+and 7, stop-and-ask (m), the predictions; ADR 0079; ADR 0082; doc/questions/README.md; this file's
+Owns, Gate and Build steps), the verdicts derived on paper, then the diff. Scratch
+`dev-dist/w127c-56876/`, whose `56876` is the reader shell's pid: `construct.mjs`, `statemut.mjs`,
+`corpus.mjs` and their logs. Nothing tracked was edited except this section. Reports; fixes
+nothing.*
+
+**What conforms, by construction** (`node dev-dist/w127c-56876/construct.mjs`, EXIT 0, 18 staged
+copies run through the real `check-register.mjs` and `lookup.mjs`). Each verdict matched the one
+derived from ADR 0082 decisions 1-3 before the run: open with `""`, `"   "`, `"\t\r\n"` or NBSP
+gives R9; a quoted `"open"` status gives R9; open with an unquoted empty or padded value, with the
+field missing, declared twice, or with CRLF endings gives R2 and not R9; `Open` gives R2 alone;
+deferred, icebox with a note, and resolved with a `resolved-by`, each with `""`, give nothing; an
+id that disagrees with its name gives R1 and R9, because the file parses; and a missing folder
+gives R1 and R5, with R9 NOT RUN. *The staged copies leave out `doc/scheduler-upstream.md`, so R7
+is red in every row, the control included. That comes from the staging and is independent of R9.*
+On the real tree: `npm run check:register` EXIT 0 (R1-R9 ok, R8 28 pairings); `npm run state`
+EXIT 0 (live 269 = open 22 + deferred 65 + icebox 182); the exit artifact query EXIT 1,
+`no question matches`. Deferred: 65, of which 64 have an empty `closes-when`, which is ADR 0082's
+figure. ADR 0082 amends ADR 0079 decision 2 in its front matter and in decision 5, in the form
+other ADRs use (`amends: ADR 0078 decision 1`). Q494 is resolved with R8 holding both ways: ADR
+0082 is the only ADR whose `resolves` names Q494, and Q494's `resolved-by` names ADR 0082.
+`CORPUS_ALLOWED` is checked both ways: statically, an unknown or duplicated name is red; at run
+time, a listed mutant that is inert is red and an unlisted one that is not inert is red. The
+markdown self-test's five probes ignore the file's text and write a synthetic question.
+
+**Findings**
+
+1. **MEDIUM. The replacement for `live >= 200` does not catch what the floor caught, and two
+   places say it does.** The second relation row, at scripts/state.mjs:344-349, is a tautology
+   over the unmutated code. `liveCount` is `questions.length - resolvedCount`, and the four
+   `byStatus` counts are disjoint, so `live >= open + deferred + icebox` holds for every input. It
+   can fail only when one of the two count expressions is mutated on its own. S8 is that mutation,
+   and the row catches it. A status reader that reads every file as `resolved` does not get
+   caught: live is 0, every count is 0, and both rows hold. Evidence: `node
+   dev-dist/w127c-56876/statemut.mjs`, EXIT 0. With the reader mutated to return `resolved`,
+   `state.mjs` prints `live / resolved 0 / 394` and **EXITs 0**, where `live >= 200` would have
+   been red. S8 applied gives EXIT 1, and S8 applied with the reverse row deleted gives EXIT 0.
+   This breaks Build step 5's *says which … with its margin*: BUILD step 5 says *what the floor
+   caught (every question read as resolved, live 0) the relation catches*, and so does the comment
+   at state.mjs:344-347. That holds for a `resolvedCount` mutation and is false for a status
+   reading that collapses. The self-test's STATE pass, with its third reading, may still see it
+   under `gate:full`. A person's own `npm run state` does not.
+2. **MEDIUM. `CORPUS_ALLOWED` is a fixture that depends on live register content, which is what
+   Build step 4 set out to remove.** Inertness is measured by `run(mutant, null)` at
+   scripts/check-register-selftest.mjs:1741, which reads the REAL register, so both entries
+   (lines 63-66) depend on its content. `R9 widened to deferred` needs at least one deferred
+   question with no `closes-when`, and `icebox removed` needs at least one iceboxed question.
+   Evidence: `node dev-dist/w127c-56876/corpus.mjs`, EXIT 0. I gave the 64 deferred questions a
+   `closes-when`, which ADR 0082 decision 3 permits. The widened mutant goes from EXIT 1 to EXIT 0
+   (INERT), and line 1744 turns that into a red META entry. Two clauses conflict. Build step 4 says
+   *no triage verdict can break a probe again*. Build step 3 offered a synthetic register for the
+   untouched-tree reading, and the BUILD did not take it. A side effect: the deferred control's
+   power against widening is credited to the corpus and is never graded by its own probe.
+3. **LOW. ADR 0082 consequence 1 overclaims.** At doc/decisions/0082-*.md:54-57 it calls the
+   lookup's empty match *the same fact* as R9. The lookup's `=` is exact and does not trim
+   (scripts/lookup.mjs:548), while R9 trims. An open question with `closes-when: "   "` is red under
+   R9 and is not matched by `--where closes-when=` (construct.mjs, rows 3-5). R9 is the stricter of
+   the two, so green R9 implies an empty lookup and the exit artifact is sound. The converse is
+   false.
+4. **LOW. Two probes still depend on the relationships of register questions, though not on
+   their content.** The first-position R9 probe overwrites q1.md (selftest:504-510), and `plant`
+   overwrites q466.md (selftest:129-130). The probe's exact `['R9']` holds only while no real
+   ADR's `resolves` names Q1. The base holds only while no ADR other than 0077 resolves Q466,
+   because otherwise R8 fires. That is true today (grep `^resolves:` over doc/decisions/). Under
+   P29 decision 5, a later resolution that names an ADR edits that ADR's `resolves`, so this can
+   move. The BUILD names both files and gives its reasons. It does not name this dependency.
+5. **INFO. "Non-empty after a trim" is JavaScript's `trim()`.** A `closes-when` of `"​"`
+   (zero-width space) passes R9 (construct.mjs, row 6). That conforms to ADR 0082 decision 1 as
+   written, and consequence 3 already accepts placeholders.
+6. **INFO, already in the code before W127.** A `q<N>.md` that exists but cannot be read throws
+   at scripts/check-register.mjs:246 before any clause reports. It is an uncaught crash with a
+   non-zero exit, not a named R2 failure. R9 never reads such a file, which conforms, but the
+   README's *refused rather than guessed at* gets a stack trace here. I did not construct this
+   case: denying read access on Windows needs an ACL edit, which I chose not to make in the shared
+   tree.
+
+**Not run:** `check:register:selftest`, `gate:full` and every self-test, which are the author's
+rungs and the adequacy reader's subject. No mutation was made to the shared tree. Scratch
+copies only.
+
+### Adequacy reader
+
+*Section 6 pass 2, mutation, 2026-10-06. I read the spec first (ADR 0082, ADR 0079 decision 2,
+doc/questions/README.md's format and P29 decision 6), then the tests. Isolated copy:
+`git archive d2c19ff` into dev-dist/w127q-56833/tree, with node_modules COPIED (`cp -r`), plus one
+archive tree for each state.mjs mutant and harness mutant. Node 24.20.0 in every shell. Logs are in
+dev-dist/w127q-56833/res/, where 56833 is the reader shell's pid.*
+
+**Green in the copy first.** `node scripts/check-register.mjs` gave EXIT 0, with R1-R3 and R5-R9
+ok and R4 NOT RUN. `node scripts/check-register.mjs --self-test` gave EXIT 0 in 2026 s: 232/232
+caught and 20/20 clean, META 182/184 plus the 2 that CORPUS_ALLOWED names, STATE 6/6 and 11/11,
+SELF 21/21, and the digest unmoved.
+
+**How each mutant was graded.** Each check-register mutant was graded twice. First it was run on
+the untouched tree, to see whether the corpus notices it. Then the whole PROBES and STATE pass was
+run against it, through `CHECK_REGISTER_SCRIPT`. A state.mjs mutant was placed in its own archive
+tree and graded by `node scripts/state.mjs` (what a person runs) and by the STATE pass (what the
+gate runs). CAUGHT means a self-test EXIT of 1 (or 3) with the named probe among its FAIL lines.
+The SELF pass of the green run already covers the three CORPUS_ALLOWED rows (CA1-CA3), so those
+rows cite that run instead of a separate one.
+
+| # | rule | mutation | caught | by what |
+|---|---|---|---|---|
+| CR01 | R9 | the whole R9 block removed | yes | every probe: R9 row NOT RUN against the declared notRun |
+| CR02 | R9 | binds `deferred` and skips `open` | yes | the corpus, and all 252 probes as noise — Q8005 and 64 register questions are deferred with no closes-when |
+| CR03 | R9 | binds every status but `resolved` | yes | the corpus, and 247 probes as noise |
+| CR04 | R9 | binds `open` and `icebox` | yes | the corpus, and 247 probes as noise |
+| CR05 | R9 | no trim | yes | the one-SPACE and TAB-NEWLINE probes |
+| CR06 | R9 | trims spaces only | yes | the TAB-NEWLINE probe |
+| CR07 | R9 | reads `owner` instead of `closes-when` | yes | 242 probes (BARE has an empty owner) |
+| CR08 | R9 | reports as R2 | yes | the five R9 probes, against-declaration |
+| CR09 | R9 | tests only the first file | yes | the emptied, space, tab and last-file probes |
+| CR10 | R9 | tests only the last file | yes | the emptied, space, tab and first-file probes |
+| CR11 | R9 | `break` after the first failure | **no** | — |
+| CR12 | R9 | runs only when no earlier clause failed | **no** | — |
+| CR13 | R9 | skips a file without exactly ten fields | **no** | — |
+| CR14 | R9 | skips a file whose cluster is undeclared | **no** | — |
+| CR15 | R9 | skips a file whose id disagrees with its name | **no** | — |
+| CR16 | R9 | a closes-when shorter than 4 characters read as empty | **no** | — |
+| CR17 | R9 | ASCII whitespace stripped instead of `trim()` | **no** | — |
+| CR18 | R9 | the message drops the file name | yes | the five R9 probes, wrong-reason |
+| CR19 | R9 | `TBD` refused as a placeholder | **no** | — |
+| CR20 | R9 | widened to `deferred` (the listed META mutant, graded by its probes) | yes | the corpus, and 247 probes as noise, the three R9 CONTROLs among them |
+| ST01 | state relation | `icebox` dropped from the reverse (`live`) row | **no** | — |
+| ST02 | state relation | the reverse (`live`) row deleted | **no** | — |
+| ST03 | state open floor | `open >= 200` added back | yes | STATE CONTROL and the iceboxed probe exited 1; `npm run state` exited 1 |
+| ST04 | state live floor | `live >= 200` added back | **no** | — |
+| ST05 | state relation | reverse row deleted and S8 applied together | yes | the figure grader (`live/resolved 0,400`), not the relation; `node scripts/state.mjs` EXIT 0 with live 0 |
+| ST06 | state open floor | `open >= 20` added back | **no** | — |
+| CA1 | CORPUS_ALLOWED | the list emptied | yes | SELF entry, green run 21/21 |
+| CA2 | CORPUS_ALLOWED | an inert META name added | yes | SELF entry, green run 21/21 |
+| CA3 | CORPUS_ALLOWED | a name that is no META entry | yes | SELF entry, green run 21/21 |
+| H3 | fixtures | OPEN set to 494, a register id | yes | `plant` refuses, ABORT, EXIT 3 |
+| H3b | fixtures | the emptied R9 probe anchored on live Q20 | **no** | single-probe mode grades it caught, EXIT 0 |
+
+**31 mutants: 18 caught and 13 survived.**
+
+**Constructed inputs**, each run through the copy's check against a staged register (construct.log).
+The check is right on all ten, and the probes cover none of K3-K6, K9 or K10:
+
+- K1, an inline comment after `""`, is R2: the quoted value does not parse.
+- K2, a CRLF file, is R2: it does not open with `---`.
+- K3 (U+00A0) and K10 (U+FEFF) are R9, because `trim()` strips them.
+- K4 (U+200B) passes R9.
+- K5, two open files, gives two R9 lines.
+- K6, an undeclared cluster, is R2 and R9 both.
+- K7, a plain `TBD`, passes.
+- K8, a plain value with a trailing comment, is R2.
+- K9, an id that disagrees with its name, is R1 and R9 both.
+
+**Findings**
+
+1. **MEDIUM. R9 is never graded when it is not the only failure** (CR11-CR15). Every R9 probe stages
+   exactly one fault, so nothing in the suite can see a narrowing by interaction. Four kinds of
+   change survive, each at EXIT 0: R9 stopping after its first failure; R9 running only when the
+   other clauses are clean; R9 skipping a file that has an extra field or an undeclared cluster;
+   and R9 skipping a file whose id disagrees with its name. ADR 0082 decision 2 says *one failure
+   per open file* and excuses only an unparseable file or a missing `status` or `closes-when`. K5,
+   K6 and K9 show that the check does what the ADR says; the suite does not. The probes are
+   checked in and cheap: two open files emptied (`['R9']`, with both file names in the reason), an
+   open file emptied with an undeclared cluster (`['R2','R9']`), and an id mismatch
+   (`['R1','R9']`).
+2. **MEDIUM-LOW. The reverse `live` relation can be deleted (ST02) or have `icebox` dropped (ST01)
+   at no cost.** S8 does not provoke the relation: ST05 shows S8 is still caught with the relation
+   gone, by the STATE grader's figure comparison. A person's `npm run state` then exits 0 with
+   live 0. The BUILD says *S8 provokes it*. It provokes the figure grader. Rule 8 (c): count the
+   observers.
+3. **LOW. The three R9 CONTROLs (deferred, icebox, resolved) are never seen to discriminate.** Every
+   staged copy holds the synthetic Q8005, deferred with an empty closes-when, and the register's
+   deferred and iceboxed questions. So any widening of R9 fails every probe (CR02-CR04, CR20).
+   That is Q150's noise, not the control's verdict. The META pass is still sound, because the
+   corpus catches each widening and CORPUS_ALLOWED lists it by name. What is unproven is that a
+   control would notice a widening on its own.
+4. **LOW. R9 over-binding a short or placeholder condition survives** (CR16, CR19). ADR 0082
+   consequence 3 says outright that `TBD` passes, and no probe holds a minimal non-empty
+   `closes-when`.
+5. **LOW. Non-ASCII whitespace is unprobed** (CR17). And K4: a closes-when of U+200B, which looks
+   empty, passes R9 because `trim()` leaves U+200B alone. That is the ADR's *after a trim* read
+   literally. I am noting it, not calling it a defect.
+6. **INFORMATIONAL. A status floor can be re-added below today's reading** (ST04 `live >= 200`,
+   ST06 `open >= 20`) and nothing objects. This is the shape the corrected comment warns about.
+   No check could tell it apart from a legitimate floor.
+7. **LOW. Only `plant` guards the synthetic band** (H3b). Nothing stops a future probe from editing
+   a live question by number. One that does is graded caught today and goes red at the next
+   triage, which is calibration 1's hazard.
+
+**Link scan before removal.** `find dev-dist/w127q-56833 -type l` printed nothing, and
+`gci -Recurse -Force -Attributes ReparsePoint` counted 0. The trees were then removed and the logs
+kept. In the shared tree, only this section changed.
+
 ## Record
 
-*Filled in when the item is done, with the tree still.*
+*The fix unit, 2026-10-06, on `d2c19ff` plus this round's edits, uncommitted. Scratch
+`dev-dist/w127f-57782/`, whose `57782` is the fix shell's pid. Every command redirected, its EXIT
+read in the same command. The tree was still across the rule 8 re-run, the lanes and `gate:full`:
+this Record and the Status line are the only edits since.*
+
+**What was built** — the BUILD section above, plus this round:
+
+1. **R9 beside another failure** (adequacy finding 1, CR11-CR15): four probes in
+   `scripts/check-register-selftest.mjs` — two open files emptied (`['R9']`, BOTH file names
+   required: `says` may now be a list, each matched on a failure line), an undeclared cluster
+   (`['R2','R9']`), an eleventh field (`['R2','R9']`) and an id disagreeing with its name
+   (`['R1','R9']`) — and five META entries, CR11-CR15, each naming its probe.
+2. **The emptiness test's other edge** (CR16, CR17, CR19): `x` is clean, `TBD` is clean (ADR 0082
+   consequence 3 is right, so no stop), a no-break space alone is `['R9']`; three META entries.
+3. **The live relation made able to fail** (conformity 1, adequacy ST01/ST02): `scripts/state.mjs`'s
+   tautological reverse row is REPLACED by `live >= liveSecondRoute`, a live count read by a second
+   route — its own `readdirSync` listing, its own read, a line scan — that does not pass through
+   `questions`. **Why this and not a STATE probe alone**: no staged tree can make the old row fail on
+   unmutated code, because it is an identity over four disjoint counts; a probe can only fail a row
+   that some input can fail. The smallest change is one independent count and one row. And
+   `STATE_META` gains a fourth element, the ROW a mutant must be refused BY: S8 and the new **S9**
+   (the status reader returns `resolved` for every file — the all-resolved misreading) are graded on
+   that row's refusal, so the figure grader can no longer stand in for it (ST05's shape).
+   `MIN_STATE_META` 11 -> 12.
+4. **Inertness measured on the planted base** (conformity 2, option (a)): `run(mutant, base)`, and a
+   synthetic iceboxed **Q8006** joins the planted fixtures, so each `CORPUS_ALLOWED` entry is
+   non-inert BY A SYNTHETIC FILE (Q8006; Q8005 deferred with no `closes-when`).
+5. **A control seen to discriminate on its own** (adequacy finding 3): a listed mutant is now ALSO
+   graded by its named probe, and *R9 widened to `deferred`* is graded on a new isolated control —
+   every other deferred file given a `closes-when` first — with an optional fourth META element
+   requiring every failure line to name `q8001.md`.
+6. **The register-write guard** (adequacy H3b): after each staging, a question file below the
+   synthetic band (8000) that is new or changed aborts the probe by name. Deletion is not a write;
+   q1.md and q466.md are declared stand-ins; a probe may pass only by declaring `writesRegister` with
+   its reason (the isolated control is the one). A GUARD CONTROL provokes it on every run (the
+   lowest non-stand-in register id, found at run time) and a SELF entry blinds it.
+7. **ADR 0082 consequence 1** corrected (conformity 3): the query is a WEAKER reading — exact `=`,
+   no trim — so green R9 implies an empty query and not the converse.
+8. **Q150's note** appended: `MAX_CORPUS` no longer caps the register self-test; it caps three.
+
+Floors moved to their lists' lengths: `MIN_PROBES` 252 -> 260, `MIN_META` 184 -> 192, `MIN_SELF`
+21 -> 22, `MIN_STATE_META` 11 -> 12. `scripts/check-register.mjs`, `doc/questions/README.md` and
+`scripts/check-markdown-selftest.mjs` were not edited this round.
+
+**The readers' findings and their disposition**
+
+| reader | finding | disposition |
+|---|---|---|
+| conformity 1 | the reverse `live` row is a tautology; an all-resolved reader exits 0 | FIXED — built 3 |
+| conformity 2 | `CORPUS_ALLOWED` leans on live register content | FIXED — built 4 |
+| conformity 3 | ADR 0082 consequence 1 says *the same fact* | FIXED — built 7 |
+| conformity 4 | the q1.md and q466.md overwrites hold only while no ADR's `resolves` names Q1, and none but ADR 0077 names Q466 | INFO. **The condition**: the first-position probe's exact `['R9']` holds while no ADR's `resolves` names Q1, and the base holds while ADR 0077 is the only ADR whose `resolves` names Q466; a later resolution that names either breaks it with an R8 failure, by name |
+| conformity 5 | U+200B counts as non-empty | INFO — `trim()` as ADR 0082 decision 1 says; consequence 3 accepts placeholders |
+| conformity 6 | an unreadable `q<N>.md` crashes before any clause reports | INFO — pre-existing at W116, not R9's |
+| adequacy 1 | CR11-CR15 survive | FIXED — built 1 |
+| adequacy 2 | ST01/ST02 survive; S8 is caught by the figure grader | FIXED — built 3 |
+| adequacy 3 | the three R9 controls are never seen to discriminate | FIXED for the deferred control — built 5. The iceboxed and resolved controls are still seen only with noise: INFO |
+| adequacy 4 | CR16, CR19 survive | FIXED — built 2 |
+| adequacy 5 | CR17 survives; U+200B passes | CR17 FIXED — built 2; U+200B INFO, as conformity 5 |
+| adequacy 6 | ST04, ST06: a status floor re-added below today's reading | INFO — not a defect of the shipped code, and no fix here catches it: a floor below the reading passes by construction |
+| adequacy 7 | H3b: nothing stops a probe writing a live question | FIXED — built 6 |
+
+**The reader overlap: 2 shared subjects** — the live relation (conformity 1, adequacy 2) and the
+zero-width space (conformity 5, adequacy 5), which agrees with the coordinator's estimate.
+*Considered and not counted*: conformity 4 and adequacy 7 both concern probes touching register
+files, but conformity 4 is the RELATIONS two declared stand-ins depend on and adequacy 7 the
+ABSENCE of a guard; and conformity 2 and adequacy 3 both concern the register's deferred
+questions, but their subjects are the allow-list's inertness and the controls' discrimination.
+
+**Rule 8 — each fix broken, the red seen, the break undone.** Every break was made in a scratch
+mutant or a scratch COPY of the tree (`dev-dist/w127f-57782/tree-*`, copied, never linked, removed
+after each run), so no restore of the shared tree was needed. The shared tree's `git diff` digest
+was `b2482299…a3302` before the still-tree run and before and after `gate:full`.
+
+| fix | break | red seen | EXIT |
+|---|---|---|---|
+| 1, 2 | each CR mutant applied to the check, the new probe in single-probe mode (`probes.mjs`) | CR11 wrong-reason; CR12 (twice), CR13, CR14, CR15, CR16, CR17, CR19 against-declaration | **1** x9; the 8 probes against the real check **0** x8 |
+| 3 | `state.mjs`: the all-resolved reader; S8 (`statemut.mjs`) | refused BY the new row | **1**, **1** |
+| 3 | the same two with the new row deleted | not refused (ST02's shape) | **0**, **0** — what the fix closes |
+| 3 | the new row deleted, through the STATE pass (`trim.mjs row-deleted`) | `STATE_META S8`, `S9` — *not refused by* the row | **1** |
+| 4 | a legal register edit (64 deferred given a `closes-when`) with inertness on the base (`register-edit`) | none | **0** |
+| 4 | the same edit with inertness on the REAL register (`register-edit-on-real`) | *listed in CORPUS_ALLOWED and INERT* | **1** |
+| 5 | the isolated control's `fillDeferred` removed (`iso-unfilled`) | *seen through 65 failure line(s) not naming q8001.md* | **1** |
+| 6 | a probe pointed at live Q20, full pass (`guard`) and single-probe mode (`guard-single`) | abort: *the probe WROTE register question(s) q20.md* | **1**, **1** |
+| 6 | the guard blinded (`guard-blind`; `guard-blind-single`) | GUARD CONTROL red; the live probe grades **caught**, which is H3b | **1**; **0** |
+
+`trim.mjs fixed`, the trimmed harness on the unbroken copy: **0**. Each `trim.mjs` case printed
+*as-predicted*.
+
+**The lanes**, on the still tree, logs under `dev-dist/w127f-57782/`:
+
+| command | EXIT | |
+|---|---|---|
+| `npm run check:register:selftest`, alone | **0**, 1828 s | 260 probes (237 caught, 23 clean), grader 4/4, guard seen, META 192/192 by the named probe, 2 also by the corpus on the base, by name; STATE 6/6 and 12/12; SELF 22/22; digest unmoved |
+| `npm run check:register` | **0** | R1-R9 ok, R8 28 pairings |
+| `npm run state` | **0** | live 269 / resolved 125; open 22, deferred 65, iceboxed 182; 24 derivations |
+| `npm run check:markdown` | **0** | |
+| `npm run check:markdown:selftest` | **0** | |
+| `npm run q -- --where status=open --where closes-when=` | **1** | `# no question matches`, the exit artifact |
+| `npm run gate:full`, once | **0**, 2580 s wall | selftests 11/11 ok, 2424.3 s, 10 lanes |
+| `npm run lint`, `npm run check:wiring`, before the still tree | **0**, **0** | |
+
+**Predictions.** **1 holds**: no L0-L6 rung reads a question's `status` or an ADR's `resolves`, and
+nothing under `test/` changed. **5 holds**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md`
+were not edited. **6 is REVERSED** by its own condition: `scripts/state.mjs` changed, by the
+maintainer's answer (m), at the BUILD and again here. `lookup.mjs` and `lookup:selftest` did not.
+
+**Ids**: ADR 0082 issued. **Q532 unissued** — skipped, never reissued. No W beyond W127.
+
+**`git diff --name-only`**: `scripts/check-register-selftest.mjs`, `scripts/state.mjs`, ADR 0082,
+`doc/questions/q150.md` and this file — every one in Owns or the record step; nothing untracked.
+Over the item: the five Owns scripts and documents, `q494.md`, ADR 0082, `q150.md` and this file,
+with the plan's Stop-and-asks row (m) the declared exception. **Own-id and withdrawn-claim grep**,
+excluding `dev-dist/`: `W127` appears where P29 and W121-W126 name it as planned and in the files
+this item owns; *the same fact* survives only inside ADR 0082's correction note; *read the other
+way* only in `state.mjs`'s comment naming the first cut; `MAX_CORPUS = 0` only as the history in
+the register self-test's comments.
+
+**Info for a human, not acted on**: a future ADR whose `resolves` names Q1 or Q466 breaks the base
+by name (conformity 4); the iceboxed and resolved R9 controls still discriminate only under noise.
