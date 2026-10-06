@@ -256,6 +256,22 @@ const rawMaxQ = rawQuestionNames.reduce((a, n) => {
   const m = /(\d+)/.exec(n);
   return m ? Math.max(a, Number(m[1])) : a;
 }, 0);
+/**
+ * **The live count read a SECOND way, sharing nothing with the reader above** — its own listing
+ * (`rawQuestionNames`), its own read, and a line scan rather than the front-matter regex. W127's
+ * two readers showed why: the first cut held live by `open + deferred + icebox` read the other
+ * way, and since `liveCount` is `questions.length - resolvedCount` over four disjoint counts, that
+ * relation held for EVERY input — a reader that read every file as `resolved` printed live 0 at
+ * EXIT 0, where the `live >= 200` floor it replaced had been red. One observer counted twice is
+ * obligation (c)'s LIMIT. A file is live here unless its first `status:` line reads `resolved`, so
+ * an unreadable or unparseable file is live on both routes, as it is above.
+ */
+const liveSecondRoute = rawQuestionNames.filter((n) => /^q\d+\.md$/.test(n)).filter((n) => {
+  let text;
+  try { text = readFileSync(join(TREE, QUESTION_DIR, n), 'utf8'); } catch { return true; }
+  const line = text.split('\n').find((l) => l.startsWith('status:'));
+  return !line || line.slice('status:'.length).replace(/["\s]/g, '') !== 'resolved';
+}).length;
 const byStatus = (s) => questions.filter((q) => q.status === s).length;
 const resolvedCount = byStatus('resolved');
 const liveCount = questions.length - resolvedCount;
@@ -341,12 +357,15 @@ const ASSERTIONS = [
   // status line that changes shape is caught where a floor of 200 would absorb it silently —
   // and an unreadable `status:` line counts as live and as none of the three.
   ['live questions that are open, deferred or iceboxed', openRows + deferredRows + iceboxRows, liveCount, 'register'],
-  // **And the same relation read the OTHER way, which replaced `live >= 200` at W127.** Live falls
-  // with every resolution (270 at W127), so a floor on it is a status floor in waiting. What it
-  // caught — a reading that counts every question resolved, live 0 — is this row: the two together
-  // make live EQUAL to open + deferred + iceboxed, at any register size.
-  ['live questions, against open, deferred and iceboxed read the other way', liveCount,
-    openRows + deferredRows + iceboxRows, 'register'],
+  // **And live against a SECOND ROUTE's live count, which replaced `live >= 200` at W127.** Live
+  // falls with every resolution (270 at W127), so a floor on it is a status floor in waiting. What
+  // the floor caught — a reading that counts every question resolved, live 0 — this row catches at
+  // any register size, because `liveSecondRoute` does not read through `questions` at all. *(The
+  // first cut compared live to open + deferred + iceboxed the other way, which no input can fail:
+  // W127's readers, conformity 1 and adequacy ST01/ST02.)* The self-test's S9 is graded on THIS
+  // row's refusal, not on a figure, so deleting it is red there.
+  ['live questions, against the files not reading `resolved` counted a second way', liveCount,
+    liveSecondRoute, 'register'],
   // **The second route, and each comparison is a floor at the OTHER route's figure**, so the first
   // route reading fewer than the directory holds, or a next id at or below an id on disk, is red.
   ['question files read, against every entry the folder holds read a second way',

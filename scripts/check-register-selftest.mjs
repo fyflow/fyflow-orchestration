@@ -46,9 +46,9 @@ const MIN_NODE_MAJOR = 24;
 
 // --- the floors on this file's own lists, each AT its list's length -------------
 // *A floor one below its list is a permission to delete the entry nobody has named* — W112.
-const MIN_PROBES = 252;
-const MIN_META = 184;
-const MIN_SELF = 21;
+const MIN_PROBES = 260;
+const MIN_META = 192;
+const MIN_SELF = 22;
 const MIN_GRADER = 4;
 const GRADED_VERDICTS = ['crash', 'wrong-reason', 'against-declaration', 'did-not-run'];
 // A `corpus` grading is a pass and that is Q150: a mutant that fails on the untouched tree is
@@ -56,10 +56,16 @@ const GRADED_VERDICTS = ['crash', 'wrong-reason', 'against-declaration', 'did-no
 // on purpose**: once triage iced a question, the mutant *`icebox` removed from the vocabulary*
 // failed the untouched tree for ever, and a count of zero had no way to say that one mutant may.
 // So the permission is an exact list BY META NAME, checked BOTH WAYS (rule 8 (e)): a listed mutant
-// that is INERT on the untouched tree is red — the entry excuses nothing and would excuse whatever
-// arrives — and an unlisted one that is not inert is red. Reported by id, never by count (v0.26).
-// *R9 widened to `deferred`* is here because 64 of the 65 deferred questions carry no
-// `closes-when` at W127, which is ADR 0082's point: deferred is not bound.
+// that is INERT on the base is red — the entry excuses nothing and would excuse whatever arrives —
+// and an unlisted one that is not inert is red. Reported by id, never by count (v0.26).
+// **Inertness is measured on the PLANTED BASE, not the repository's own register** — W127's
+// conformity reader (finding 2): measured on the register, both entries leaned on its content, and
+// giving the 64 deferred questions a `closes-when`, which ADR 0082 decision 3 permits, turned the
+// suite red. On the base each entry is non-inert BY A SYNTHETIC FILE: *`icebox` removed* by Q8006,
+// iceboxed with a note, and *R9 widened to `deferred`* by Q8005, deferred with no `closes-when`.
+// **A listed mutant is ALSO graded by its named probe**, so a listing excuses the corpus's notice
+// and nothing else — and the widened one's probe is a control isolated so that it sees the widening
+// through its own file alone (the adequacy reader's finding 3).
 const CORPUS_ALLOWED = Object.freeze([
   '`icebox` removed from the vocabulary',
   'R9 widened to `deferred`',
@@ -80,6 +86,7 @@ const RES = 8003;            // resolved by prose naming no ADR
 const RES_ADR = 8004;        // resolved by ADR 8803, which resolves it back — R8's pairing
 const DEF = 8005;            // deferred, with its reason in `note`
 const RES_PREFIXED = 80031;  // resolved; Q8003 is a PREFIX of its id
+const ICE = 8006;            // iceboxed, with its note — so the vocabulary's fourth word is in every copy
 /** Synthetic ADRs beside them, for R3's and R8's pairings: none resolves anything but 8803. */
 const SYN_ADRS = ['8801', '8802', '8803'];
 const Q1_BY = 'resolved-by: "The driver, outside the scheduler"\n';
@@ -105,6 +112,7 @@ const SYN_QUESTIONS = [
     note: 'a synthetic reason it is not now' },
   { id: RES_PREFIXED, title: 'a synthetic resolved question whose id Q8003 is a prefix of', status: 'resolved',
     resolvedBy: 'Two features over ONE region' },
+  { id: ICE, title: 'a synthetic iceboxed question', status: 'icebox', note: 'a synthetic what-if' },
 ];
 /**
  * **Q466 is the ONE register id a probe still needs, and only its NAME**: `NOT_A_RESOLUTION` in the
@@ -134,6 +142,55 @@ const plant = (t, { adrs = true } = {}) => {
     if (readdirSync(dir).some((n) => n.startsWith(`${nnnn}-`))) throw new Error(`ADR ${nnnn} is in the tree`);
     writeFileSync(join(dir, `${nnnn}-a-synthetic-fixture.md`), synAdr(nnnn, nnnn === '8803' ? `Q${RES_ADR}` : '""'));
   }
+};
+/**
+ * **A probe that WRITES a register question is refused** — W127's adequacy reader (H3b) re-pointed
+ * the emptied R9 probe at a live question and single-probe mode graded it caught: `plant` guards the
+ * synthetic band, and nothing guarded the register FROM a probe. So every staged tree is compared to
+ * its base after the probe's staging, and a question file below the band that is NEW or CHANGED
+ * aborts the probe by name — a fixture in the register is dated by the next triage (W126's
+ * calibration 1). **Deleting one is not a write** (the floor and folder probes read no content).
+ * The two stand-ins are overwritten whole by NAME and read for nothing; a probe that must write
+ * the register declares `writesRegister` with its reason, which is the one way past this.
+ */
+const SYN_FLOOR = 8000;
+const STAND_INS = new Set([1, 466]);
+const registerWrites = (tree, baseQ) => {
+  const qdir = join(tree, 'doc', 'questions');
+  if (!existsSync(qdir)) return [];
+  const out = [];
+  for (const n of readdirSync(qdir)) {
+    const m = /^q(\d+)\.md$/.exec(n);
+    if (!m) continue;
+    const id = Number(m[1]);
+    if (id >= SYN_FLOOR || STAND_INS.has(id)) continue;
+    const f = join(qdir, n);
+    if (!statSync(f).isFile()) continue;
+    const was = baseQ.get(n);
+    if (was === undefined || !readFileSync(f).equals(was)) out.push(n);
+  }
+  return out.sort();
+};
+/** A base's question files, read once: `name -> bytes`. */
+const questionBytes = (tree) => new Map(readdirSync(join(tree, 'doc', 'questions'))
+  .filter((n) => statSync(join(tree, 'doc', 'questions', n)).isFile())
+  .map((n) => [n, readFileSync(join(tree, 'doc', 'questions', n))]));
+/**
+ * Give every DEFERRED question with an empty `closes-when` one — so a control moved to deferred is
+ * the only deferred file a widening of R9 could see. Selected by status at staging time, so no
+ * triage verdict moves it; at least Q8005 must be filled, or it threw.
+ */
+const fillDeferred = (t) => {
+  const qdir = join(t, 'doc', 'questions');
+  let filled = 0;
+  for (const n of readdirSync(qdir).filter((x) => /^q\d+\.md$/.test(x))) {
+    const f = join(qdir, n);
+    const text = readFileSync(f, 'utf8');
+    if (!text.includes('\nstatus: deferred\n') || !text.includes('\ncloses-when: ""\n')) continue;
+    writeFileSync(f, text.replace('\ncloses-when: ""\n', '\ncloses-when: "a staged closing condition"\n'));
+    filled++;
+  }
+  if (!filled || readFileSync(Q(t, DEF), 'utf8').includes('closes-when: ""')) throw new Error('fillDeferred filled nothing, or not Q8005');
 };
 /**
  * **Every edit checks its ANCHOR against the current text** — v0.17. A probe whose edit matches
@@ -511,6 +568,39 @@ const PROBES = [
   r9('R9 — the LAST file in the folder`s order, q99999.md, open with no closing condition',
     'q99999.md is open and its `closes-when` is empty',
     (t) => writeFileSync(Q(t, 99999), synQ({ id: 99999, title: 'a synthetic question at the last position', status: 'open' }))),
+  // **R9 beside ANOTHER failure** — W127's adequacy reader, CR11-CR15: every probe above stages one
+  // fault, so R9 stopping at its first failure, running only on a clean tree, or skipping a file
+  // that is wrong in some OTHER way, survived all of them. ADR 0082 decision 2 excuses only a file
+  // that does not parse or lacks `status` or `closes-when`; each of these parses, so R9 fires.
+  { name: 'R9 — TWO open questions with no closing condition: BOTH are named',
+    git: false, trips: ['R9'], notRun: NR, says: ['q8001.md is open and its `closes-when` is empty', 'q8002.md is open and its `closes-when` is empty'],
+    stage: (t) => { noClose(t, OPEN); noClose(t, BARE); } },
+  { name: 'R9 — no closing condition AND an undeclared cluster: R2 and R9 both',
+    git: false, trips: ['R2', 'R9'], notRun: NR, says: 'q8001.md is open and its `closes-when` is empty',
+    stage: (t) => { noClose(t, OPEN); setLine(t, OPEN, 'cluster', '"Nowhere"'); } },
+  { name: 'R9 — no closing condition AND an eleventh field: R2 and R9 both',
+    git: false, trips: ['R2', 'R9'], notRun: NR, says: 'q8001.md is open and its `closes-when` is empty',
+    stage: (t) => { noClose(t, OPEN); edit(t, OPEN, '\nraised-by: ', '\nstray: ""\nraised-by: '); } },
+  { name: 'R9 — no closing condition AND an id that disagrees with its name: R1 and R9 both',
+    git: false, trips: ['R1', 'R9'], notRun: NR, says: 'q8001.md is open and its `closes-when` is empty',
+    stage: (t) => { noClose(t, OPEN); setLine(t, OPEN, 'id', 'Q8009'); } },
+  // **The emptiness test's other edge**: a SHORT condition is a condition, and `TBD` passes, which
+  // ADR 0082 consequence 3 says outright (CR16, CR19); a NON-ASCII space `trim()` removes is empty
+  // (CR17).
+  clean('R9 — a closes-when of ONE character, `x`, is a closing condition: clean',
+    (t) => setLine(t, OPEN, 'closes-when', '"x"')),
+  clean('R9 — a closes-when of `TBD` passes: R9 reads emptiness, not content (ADR 0082 consequence 3)',
+    (t) => setLine(t, OPEN, 'closes-when', '"TBD"')),
+  r9('R9 — a closes-when of a NO-BREAK SPACE alone, which trim() removes', 'q8001.md is open and its `closes-when` is empty',
+    (t) => setLine(t, OPEN, 'closes-when', '"\u00a0"')),
+  // **A control seen to discriminate ON ITS OWN** — the adequacy reader's finding 3: Q8005 and the
+  // register's deferred questions trip any widening in every copy, so the controls above are never
+  // the reason a widening is seen. Here every other deferred file is given a `closes-when` first,
+  // and META grades the widening on THIS probe with its failure lines confined to q8001.md.
+  { name: 'R9 CONTROL — DEFERRED with an empty closes-when, ISOLATED: every other deferred question given one first',
+    git: false, trips: [], notRun: NR,
+    writesRegister: 'gives each deferred question a closes-when, which R9 does not read for deferred',
+    stage: (t) => { fillDeferred(t); noClose(t, OPEN); edit(t, OPEN, 'status: open\n', 'status: deferred\n'); } },
 
   // --- R4: HEAD against the tree, in a real repository --------------------------------
   { name: 'a question DELETED while another is raised — the count holds and only R4 sees it',
@@ -1191,10 +1281,12 @@ const META = [
   ['R9 — the emptiness test strips SPACES alone', 'an open question with a closes-when of a TAB and a NEWLINE',
     (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
       "    if (fields.status === 'open' && fields['closes-when'].replace(/ /g, '') === '') {")],
-  // Not inert: 64 deferred questions carry no closes-when at W127 — CORPUS_ALLOWED names it.
-  ['R9 widened to `deferred`', 'R9 CONTROL — the same question DEFERRED with an empty closes-when is clean: deferred is not bound',
+  // Not inert on the base: Q8005 is deferred with no closes-when — CORPUS_ALLOWED names it. Graded
+  // ALSO on the ISOLATED control, and its failure lines must name q8001.md alone (the fourth element).
+  ['R9 widened to `deferred`', 'R9 CONTROL — DEFERRED with an empty closes-when, ISOLATED: every other deferred question given one first',
     (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
-      "    if ((fields.status === 'open' || fields.status === 'deferred') && fields['closes-when'].trim() === '') {")],
+      "    if ((fields.status === 'open' || fields.status === 'deferred') && fields['closes-when'].trim() === '') {"),
+    'q8001.md'],
   ['R9 — the status matched CASE-INSENSITIVELY', 'R9 — a status NEAR-MISS `Open` with an empty closes-when is R2\'s alone',
     (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
       "    if (fields.status.toLowerCase() === 'open' && fields['closes-when'].trim() === '') {")],
@@ -1210,6 +1302,24 @@ const META = [
   ['R9 — the LAST file skipped', 'R9 — the LAST file in the folder`s order, q99999.md, open with no closing condition',
     (s) => s.replace('  ran.R9 = true;\n  for (const [n, { fields, order }] of parsed) {',
       '  ran.R9 = true;\n  for (const [n, { fields, order }] of [...parsed].slice(0, -1)) {')],
+  // W127's fix round: the adequacy reader's CR11-CR17 and CR19, each against the probe written for it.
+  ['R9 — stops at its FIRST failure (CR11)', 'R9 — TWO open questions with no closing condition: BOTH are named',
+    (s) => s.replace("        'would close it, or it is deferred with its reason in `note`');\n",
+      "        'would close it, or it is deferred with its reason in `note`'); break;\n")],
+  ['R9 — runs only where no earlier clause failed (CR12)', 'R9 — no closing condition AND an id that disagrees with its name: R1 and R9 both',
+    (s) => s.replace("    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's", "    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's\n    if (failures.length) break;")],
+  ['R9 — skips a file without exactly the ten fields (CR13)', 'R9 — no closing condition AND an eleventh field: R2 and R9 both',
+    (s) => s.replace("    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's", "    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's\n    if (order.length !== 10) continue;")],
+  ['R9 — skips a file whose cluster is undeclared (CR14)', 'R9 — no closing condition AND an undeclared cluster: R2 and R9 both',
+    (s) => s.replace("    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's", "    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's\n    if (!clusters.includes(fields.cluster)) continue;")],
+  ['R9 — skips a file whose id disagrees with its name (CR15)', 'R9 — no closing condition AND an id that disagrees with its name: R1 and R9 both',
+    (s) => s.replace("    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's", "    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's\n    if (fields.id !== `Q${n.slice(1, -3)}`) continue;")],
+  ['R9 — a closes-when shorter than four characters read as empty (CR16)', 'R9 — a closes-when of ONE character, `x`, is a closing condition: clean',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {", "    if (fields.status === 'open' && fields['closes-when'].trim().length < 4) {")],
+  ['R9 — ASCII whitespace stripped instead of trim() (CR17)', 'R9 — a closes-when of a NO-BREAK SPACE alone, which trim() removes',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {", "    if (fields.status === 'open' && fields['closes-when'].replace(/[ \\t\\r\\n\\f\\v]/g, '') === '') {")],
+  ['R9 — `TBD` refused as a placeholder (CR19)', 'R9 — a closes-when of `TBD` passes: R9 reads emptiness, not content (ADR 0082 consequence 3)',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {", "    if (fields.status === 'open' && ['', 'TBD'].includes(fields['closes-when'].trim())) {")],
   ['R9 never marked as run — its row reads NOT RUN over a clause that ran', 'CONTROL — a staged copy that is not a repository: clean, and R4 NOT RUN',
     (s) => s.replace('  ran.R9 = true;\n', '')],
   ['R9 run without the question folder', 'the folder missing entirely — R1 and R5 fail, R2 to R4 say NOT RUN',
@@ -1253,7 +1363,13 @@ const STATE_PROBES = [
 ];
 const MIN_STATE = 6;
 
-/** `[what, the STATE probe that must stop grading as declared, mutation of state.mjs]`. */
+/** The label of `state.mjs`'s live relation — the row S8 and S9 must be refused BY. */
+const LIVE_RELATION = 'live questions, against the files not reading `resolved` counted a second way';
+/**
+ * `[what, the STATE probe that must stop grading as declared, mutation of state.mjs, the row that
+ * must refuse it]` — the fourth is optional; where present, *noticed* means `state.mjs` exits 1
+ * naming THAT row, and a mutant noticed only by the figure grader is red.
+ */
 const STATE_META = [
   ['S1 — the listing narrowed to skip Q490-Q499', 'STATE CONTROL — the register as it is: every figure agrees with a third reading',
     (s) => s.replace('const questions = listing(QUESTION_DIR, /^q\\d+\\.md$/)', 'const questions = listing(QUESTION_DIR, /^q(?!49)\\d+\\.md$/)')],
@@ -1279,12 +1395,20 @@ const STATE_META = [
       .replace("  ['the next free Q, against the highest number on disk read a second way', next.q, rawMaxQ + 1, 'register'],\n", '')],
   ['the status-parses assertion deleted', 'STATE — a CRLF question file, whose status line does not parse: refused',
     (s) => s.replace("  ['question files whose `status:` line parses', questions.filter((q) => q.status !== null).length,\n    questions.length, 'register'],\n", '')],
-  // W127: the `live >= 200` floor became the relation read the other way. What the floor caught —
-  // every question read as resolved, live 0 — the relation catches at any register size.
+  // W127: the `live >= 200` floor became a relation to a SECOND ROUTE's live count. What the floor
+  // caught — every question read as resolved, live 0 — the relation catches at any register size.
+  // **S8 and S9 carry a fourth element: the row that must REFUSE them**, because W127's readers
+  // showed the figure grader catching S8 with the relation deleted (adequacy ST05): one observer
+  // standing in for another. Graded on that row's own refusal, deleting the row is red here.
   ['S8 — every question counted as resolved, so live reads 0', 'STATE CONTROL — the register as it is: every figure agrees with a third reading',
-    (s) => s.replace("const resolvedCount = byStatus('resolved');", 'const resolvedCount = questions.length;')],
+    (s) => s.replace("const resolvedCount = byStatus('resolved');", 'const resolvedCount = questions.length;'),
+    LIVE_RELATION],
+  ['S9 — the status reader reads every file as `resolved`, so every count but resolved reads 0',
+    'STATE CONTROL — the register as it is: every figure agrees with a third reading',
+    (s) => s.replace('  return { id: idOf(f), status: m ? m[1] : null };', "  return { id: idOf(f), status: 'resolved' };"),
+    LIVE_RELATION],
 ];
-const MIN_STATE_META = 11;
+const MIN_STATE_META = 12;
 
 // ==============================================================================
 // SELF — break THIS FILE: each must turn the suite red
@@ -1327,12 +1451,15 @@ const SELF = [
   ['a GRADER control declaring the wrong verdict — what grading the grader catches',
     (t) => t.replace("    expect: 'crash', git: false,", "    expect: 'caught', git: false,")],
   // --- W127: the corpus allow-list, which replaced `MAX_CORPUS = 0`, broken each way it is held ---
-  ['CORPUS_ALLOWED emptied — an UNLISTED mutant fails the untouched tree',
+  ['CORPUS_ALLOWED emptied — an UNLISTED mutant fails the planted base',
     (t) => t.replace(/const CORPUS_ALLOWED = Object\.freeze\(\[[\s\S]*?\]\);/, 'const CORPUS_ALLOWED = Object.freeze([]);')],
-  ['an INERT mutant listed in CORPUS_ALLOWED — an entry the untouched tree does not need',
+  ['an INERT mutant listed in CORPUS_ALLOWED — an entry the planted base does not need',
     (t) => t.replace("  'R9 widened to `deferred`',\n]);", "  'R9 widened to `deferred`',\n  'R9`s clause disabled',\n]);")],
   ['a CORPUS_ALLOWED name that is no META entry',
     (t) => t.replace("  '`icebox` removed from the vocabulary',\n  'R9", "  '`icebox` removed from the vocabulary',\n  'a mutant nobody wrote',\n  'R9")],
+  // --- W127's fix round: the register-write guard, which H3b showed absent ------------------------
+  ['the register-write guard made blind — a probe may write a live question',
+    (t) => t.replace('    if (id >= SYN_FLOOR || STAND_INS.has(id)) continue;', '    if (true) continue;')],
   // --- W117's fix round: the restore, which the adequacy reader proved asserted and not proved ---
   // **These anchor the HARNESS, which sits BELOW this list in this same file**, so each replaces the
   // LAST occurrence. The first cut used `replace`, which hit the anchor's own copy in the line that
@@ -1409,7 +1536,8 @@ function verdict(probe, r) {
   if (!setsEqual(got, wanted) || !setsEqual(failRows, wanted) || !setsEqual(notRun, [...probe.notRun].sort())) {
     return { outcome: 'against-declaration', got, notRun, failRows, out };
   }
-  if (probe.says !== undefined && !mentions(out, probe.says)) return { outcome: 'wrong-reason', got, out };
+  // A LIST of reasons is each matched on a failure line — W127: two files, both named (CR11).
+  if (probe.says !== undefined && ![].concat(probe.says).every((x) => mentions(out, x))) return { outcome: 'wrong-reason', got, out };
   if (wanted.length === 0) return { outcome: r.status === 0 ? 'clean' : 'crash', got, out };
   if (r.status === 0) return { outcome: 'exit-zero', got, out };
   return { outcome: 'caught', got, out };
@@ -1560,6 +1688,7 @@ export async function selfTest(root) {
   // hash. A fresh copy per probe paid it twice per probe, at 190 probes and every META and SELF
   // re-run of them. The restore rewrites only what a probe changed, so only that is read cold.
   const baseDigest = digestDir(base);
+  const baseQ = questionBytes(base);
   const work = join(dir, 'work');
   const restore = (src, dst) => {
     const list = (d) => (existsSync(d) ? readdirSync(d, { withFileTypes: true }) : []);
@@ -1590,6 +1719,8 @@ export async function selfTest(root) {
         try { probe.stage(work); } catch (e) { return { abort: `the edit's anchor matched nothing — ${e.message}` }; }
         // **Rule 7 (b): a probe asserts it changed its input.**
         if (digestDir(work) === baseDigest) return { abort: 'the staging changed nothing (rule 7 (b))' };
+        const wrote = probe.writesRegister ? [] : registerWrites(work, baseQ);
+        if (wrote.length) return { abort: `the probe WROTE register question(s) ${wrote.join(', ')} — a fixture is synthetic (W127, H3b)` };
       }
       return { tree: work, top: null };
     }
@@ -1622,6 +1753,8 @@ export async function selfTest(root) {
       try { probe.stage(tree); } catch (e) { return { abort: `the edit's anchor matched nothing — ${e.message}` }; }
       // **Rule 7 (b): a probe asserts it changed its input.**
       if (digestDir(tree) === was) return { abort: 'the staging changed nothing (rule 7 (b))' };
+      const wrote = probe.writesRegister ? [] : registerWrites(tree, baseQ);
+      if (wrote.length) return { abort: `the probe WROTE register question(s) ${wrote.join(', ')} — a fixture is synthetic (W127, H3b)` };
     }
     return { tree, top };
   };
@@ -1694,6 +1827,25 @@ export async function selfTest(root) {
   }
   console.log(`  restore: ${residueOk}/${RESIDUE.length} residue kind(s) seen by the assertion and removed by the restore`);
 
+  // --- the register-write guard's control: H3b's case, which the guard must SEE -------------------
+  // W127: the lowest register id that is no stand-in, found at run time so no verdict moves it, is
+  // overwritten with a synthetic open question; the guard must name it, and after a restore must not.
+  {
+    const live = [...baseQ.keys()].map((n) => /^q(\d+)\.md$/.exec(n)).filter(Boolean).map((m) => Number(m[1]))
+      .filter((id) => id < SYN_FLOOR && !STAND_INS.has(id)).sort((a, b) => a - b)[0];
+    if (live === undefined) failures.push('GUARD CONTROL — no register question below the band to provoke the guard with');
+    else {
+      restore(base, work);
+      writeFileSync(Q(work, live), synQ({ id: live, title: 'a probe written over a live question', status: 'open' }));
+      const seen = registerWrites(work, baseQ).includes(`q${live}.md`);
+      restore(base, work);
+      const cleared = registerWrites(work, baseQ).length === 0;
+      if (seen && cleared) console.log(`  guard: a write over q${live}.md seen, and gone after the restore`);
+      else failures.push(`GUARD CONTROL — a write over q${live}.md was ${seen ? 'seen' : 'NOT seen'} by the register-write guard, ` +
+        `and ${cleared ? 'cleared' : 'still SEEN'} after the restore`);
+    }
+  }
+
   // --- pass 1: the probes ---------------------------------------------------------------
   // **A SELF child stops at its first red**, and that is a cost decision taken at W116's fix round,
   // stated rather than hidden: a SELF child's only verdict is *did this suite go red*, and five of
@@ -1731,35 +1883,41 @@ export async function selfTest(root) {
   let noticed = 0;
   const byCorpus = [];
   if (meta) {
-    for (const [what, probeName, mutate] of META) {
+    for (const [what, probeName, mutate, only] of META) {
       const mutated = mutate(realSrc);
       if (mutated === realSrc) { failures.push(`META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`); continue; }
       const mutant = mutantPath('meta');
       writeFileSync(mutant, mutated);
-      // Is the mutant INERT on the untouched tree? One that fails there is noticed by the corpus,
-      // and that is permitted for the names CORPUS_ALLOWED lists and for no other — BOTH WAYS.
-      const inert = run(mutant, null).status === 0;
+      // Is the mutant INERT on the planted BASE? One that fails there is noticed by the corpus, and
+      // that is permitted for the names CORPUS_ALLOWED lists and for no other — BOTH WAYS. The BASE,
+      // not the repository's register (W127, conformity 2): a legal register edit cannot move it.
+      const inert = run(mutant, base).status === 0;
       rmSync(mutant, { force: true });
       const allowed = CORPUS_ALLOWED.includes(what);
       if (allowed && inert) {
-        failures.push(`META ${what} — listed in CORPUS_ALLOWED and INERT on the untouched tree: the entry ` +
+        failures.push(`META ${what} — listed in CORPUS_ALLOWED and INERT on the base: the entry ` +
           'excuses nothing, so delete it and let its probe grade it');
         continue;
       }
       if (!inert) {
-        if (allowed) byCorpus.push(what);
-        else failures.push(`META ${what} — NOT INERT on the untouched tree and not in CORPUS_ALLOWED: its probe's ` +
-          'verdict would be noise (Q150), so either the tree is wrong or the mutant is listed by name');
-        continue;
+        if (!allowed) {
+          failures.push(`META ${what} — NOT INERT on the base and not in CORPUS_ALLOWED: its probe's ` +
+            'verdict would be noise (Q150), so either the tree is wrong or the mutant is listed by name');
+          continue;
+        }
+        byCorpus.push(what);   // and graded by its named probe below, all the same (W127)
       }
       const probe = PROBES.find((p) => p.name === probeName);
       const v = grade(probe, mutated);
+      // `only`: the probe must see the mutant through that ONE file — every failure line names it.
+      const beyond = only === undefined ? [] : (v.out ?? '').split('\n').filter((l) => /^ {2}R\d: /.test(l) && !l.includes(only));
       if (v.outcome === 'abort') failures.push(`META ${what} — the probe aborted: ${v.why}`);
       else if (v.outcome === expected(probe)) failures.push(`META ${what} — STILL ${v.outcome} by "${probeName}", so the clause is not what it rests on`);
+      else if (beyond.length) failures.push(`META ${what} — seen by "${probeName}" through ${beyond.length} failure line(s) not naming ${only}: the control did not see it ON ITS OWN`);
       else noticed++;
     }
-    console.log(`  meta: ${noticed}/${META.length} noticed by the named probe, ${byCorpus.length} by the corpus ` +
-      `as CORPUS_ALLOWED permits, by name: ${byCorpus.length ? byCorpus.join('; ') : 'none'}`);
+    console.log(`  meta: ${noticed}/${META.length} noticed by the named probe; ${byCorpus.length} of them also by the corpus ` +
+      `on the base, as CORPUS_ALLOWED permits, by name: ${byCorpus.length ? byCorpus.join('; ') : 'none'}`);
   } else console.log('  meta: skipped — this run is already a META child');
 
   // --- pass 2b: STATE — `npm run state` against a third reading ------------------------------
@@ -1837,10 +1995,17 @@ export async function selfTest(root) {
     else failures.push(`${p.name} — ${v.outcome}${v.why ? `: ${v.why}` : ''}`);
   }
   if (meta) {
-    for (const [what, probeName, mutate] of STATE_META) {
+    for (const [what, probeName, mutate, refusedBy] of STATE_META) {
       const mutated = mutate(stateSrc);
       if (mutated === stateSrc) { failures.push(`STATE_META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`); continue; }
       const probe = STATE_PROBES.find((p) => p.name === probeName);
+      if (refusedBy !== undefined) {
+        // W127: graded on the named ROW's refusal, so a second observer cannot stand in for it.
+        const v = gradeState({ ...probe, exit: 1, says: refusedBy }, mutated);
+        if (v.outcome === 'refused') stateNoticed++;
+        else failures.push(`STATE_META ${what} — not refused by "${refusedBy}": ${v.outcome}${v.why ? `: ${v.why}` : ''}`);
+        continue;
+      }
       const v = gradeState(probe, mutated);
       if (v.outcome === 'abort') failures.push(`STATE_META ${what} — the probe aborted: ${v.why}`);
       else if (v.outcome === stateWant(probe)) failures.push(`STATE_META ${what} — STILL ${v.outcome} by "${probeName}"`);
