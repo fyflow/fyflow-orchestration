@@ -1,0 +1,171 @@
+# P30 — Which open questions close by a fix their own `closes-when` already names?
+
+**Status:** planning — declared 2026-10-06 on `e61df81`; no item started
+**Question this plan answers:** *which open questions close by a fix their own `closes-when` already
+names, and does each one close when that fix lands?*
+**Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
+"resolved-by~P30" --fields id,status,resolved-by` lists exactly the thirteen questions of decision 1,
+each `resolved` and each naming the item that closed it; and `npm run q -- --where status=open
+--count` prints **9**, down from 22 at `e61df81`, plus any question an item raises open, each
+named in that item's Record.*
+**Reserves:** W131-W138, Q533-Q547, ADR 0085-0086
+
+```
+Question: which open questions close by a fix their own closes-when already names?
+Items:    W131 (the self-tests: Q144, Q430, Q439, Q454, Q490),
+          W132 (the test harness: Q272, Q382),
+          W133 (two spec sentences and one message: Q61, Q62, Q63),
+          W134 (the repository's own files: Q235, Q484)
+Reserves: W131-W138, Q533-Q547, ADR 0085-0086
+Baseline: plans to p29, work items to w127, ADRs to 0084, register to Q532 — `npm run state`
+          on `e61df81`, where the tree and the ledger AGREE on W131 / Q533 / ADR 0085
+Declared: 2026-10-06 on `e61df81`
+```
+
+## Why this plan, and why now
+
+P29 gave every open question a `closes-when` (`R9`, ADR 0082). **Twenty-two are open on `e61df81`,
+and for thirteen of them the `closes-when` names a fix of a few lines in one or two files**,
+most of them written as *"one commit outside P29"*. P29 decision 3 forbade it from answering
+anything, so those fixes were left for a later plan. This is that plan.
+
+Every claim below was **re-checked on `e61df81`**, not inherited from P29's notes, which are dated
+`988ef5f`:
+
+| Q | the claim in its note | on `e61df81` |
+|---|---|---|
+| Q235 | `.gitignore` has no `.claude` entry | true: 6 entries, none under `.claude/` |
+| Q144 | `scripts/check-policies.mjs` ends on `names.join` | true, line 187 |
+| Q272 | `test/runner.ts` imports every suite outside a `try` | true, line 38 |
+| Q382 | `test/definition/gate.test.ts` names its cases by index | true: 17 `test(DECLARED_CASES[i]!` sites |
+| Q430, Q454 | `scripts/check-docs-selftest.mjs`'s header states site counts that are stale | true: the header says 55 and 64; `grep -c "fail(" scripts/check-docs.mjs` is 58 |
+| Q439 | `README_SNIPPET_FLOOR` is held by no self-test | true: it is 3 at `scripts/check-docs.mjs:953`, and the self-test's source-text bound (lines 975-990) reads only `X4_WIDTH` |
+| Q490 | `DECLARED_TARGETS_UNDECLARED` has no META entry | true: 2 hits, both in `scripts/check-budget.mjs` |
+| Q63 | the message opens with its class name | true, and **it is worse than the title says**: `src/driver/driver.ts:1806` builds `stoppedBy` as `${constructor.name}: ${message}`, so `RunState.stoppedBy` reads `UncloneableResult: UncloneableResult: the result of task …` without any consumer render |
+| Q484 | `doc/README.md` carries stale derived counts | true, and **far more than four** — section 3 |
+
+## Decisions taken before fan-out
+
+**1. Thirteen questions are in. Nine are Out**, by the maintainer's choice on 2026-10-06 (*"A + B"*):
+
+| | questions | why |
+|---|---|---|
+| **in, tier A** | Q144, Q235, Q272, Q382, Q430, Q439, Q454, Q484, Q490 | P27 decision 4 or a device already in the tree sets the fix's direction. The only open choice is how to write it |
+| **in, tier B** | Q61, Q62, Q63 | one spec sentence, or a small change to the public surface. Section 2 decides the direction of each |
+| **Out, tier C** | Q337, Q434, Q437 | concrete fixes, but spread across several files. **Q337 re-takes the `M3`-`M5` floors, which is [Q142](../questions/q142.md)'s question**, so it waits for that decision |
+| **Out, decisions** | Q20, Q513 (they close in `fyflow-react-components`, P29 decision 7), Q142, Q244, Q266, Q283, Q508 | each `closes-when` names a design or naming decision, not a fix. Q508 was offered and left out by the maintainer |
+
+**2. The direction of each tier-B question is decided here**, so no item has to choose it:
+
+- **Q61. `spec/outcome-record.md`'s `OR-R6` gains the thread-pool sentence.** With a thread pool,
+  the scheduler's own structured clone refuses the value first, the task ends `user_action`, and no
+  result reaches the listener. So `OR-R6` is reachable only from an inline pool. **P2 measured this
+  before the 0.5.2 pin.** W133 re-measures it on 0.5.2 at L6 and writes the sentence from that
+  measurement rather than from P2's. If the measurement differs, that is stop-and-ask (b).
+- **Q62. `spec/run-state.md`'s `RN-R6` says `regions[*].suspended` is CURRENT**: a branch path
+  leaves it on that branch's terminal event. That is how the fold behaves (`examples/l6.ts:564-571`).
+  It is the spec catching up to the code, and the code does not change. The spec change owes a test,
+  so W133 adds an L2 assertion that a suspended branch is listed while it is suspended and is not
+  listed once it is resolved. The test's expected values come from the new sentence.
+- **Q63. The message drops its class name**: `the result of task "<id>" is not structured-cloneable`.
+  Chosen by the maintainer on 2026-10-06. `stoppedBy` and every `${kind}: ${message}` render then
+  read the class name once. `AGENTS.md:1797` asserts `stoppedBy.startsWith('UncloneableResult')`, and
+  that still holds, because `driver.ts:1806` supplies the name. **This changes public message text**,
+  so it is a `fix:` commit, and `AGENTS.md` changes only if a snippet quotes the text.
+
+Each spec change is **its own change with its rationale stated** (`CLAUDE.md`, *Working rules*). It
+bumps the document's own version (`outcome-record` v0.10 → v0.11, `run-state` v0.12 → v0.13) and is
+never a side effect of a test.
+
+**3. Q484 is a DELETION, not a re-take** — P27 decision 4. The question names four sections of
+`doc/README.md`. Measured on `e61df81`, its *Reading order* and *Document status* tables carry
+dozens of derived figures: register counts, ADR counts, spec example and rule counts, workflow
+versions and plan counts, and a parenthetical history of each one going stale. **W134 deletes every
+figure that `npm run state` or a check derives**, and the parentheticals that record that figure's
+staleness go with it. A cell left with nothing to say goes too. This is
+`doc/README.md`'s first edit since W115, and the Out section's *not CLAUDE.md* still holds.
+
+**4. Q144's fix breaks the only `ran:` case in its own self-test** (stop-and-ask (a)).
+`scripts/check-policies-selftest.mjs:645-658` uses the Q144 mutant as a `SELF` entry, and it is the
+file's only demonstration that the `ran:` guard fires. The mutant fires because it is inert on the
+clean tree and fatal under its probe, and **it is fatal only because of `names.join`**. Fix the
+line and that entry stops proving anything. **W131 constructs a replacement `ran:` case before it
+lands the fix**, and the Record names which mutation now carries it. `check-docs`' W29 case is the
+other demonstration of `ran:` in the tree, so that guard is not proved only here. But this file
+would otherwise lose its own proof.
+
+**5. Q430 and Q454 are one fix**: both are about the site counts in `check-docs-selftest.mjs`'s
+header. **Delete the counts** (P27 decision 4) rather than computing them. Q454's `closes-when`
+offers the computed census as the alternative. It is refused here because a census printed for a
+reader is a second copy of `grep -c`, and both questions record it going stale three times.
+
+**6. Every item's confirming gate is `npm run gate:full`** (`doc/workflow.md` section 4, v0.26).
+None runs the v0.28 alternative of self-tests one at a time. Every item edits `doc/questions/**` in
+its record step, and `check:register:selftest` alone ran 1828 s at W127. Three of the four items
+also own a file that a self-test reads. So per-lane runs would cost more than `gate:full` and would
+cover less.
+
+**7. The items run SERIALLY on one tree**, although their `Owns` are disjoint. Each item's
+`gate:full` and its reader need the tree to hold still (section 6, v0.15), and four agents on one
+checkout cannot give them that. The order is W133, W131, W132, W134: the public-surface change
+first, and the document deletion last, so that its `check:markdown` floors are measured on the
+final tree.
+
+**8. Readers.** **W133 runs both readers**, conformity and adequacy, because it changes `spec/` and
+`src/`. **W131, W132 and W134 run one conformity reader each**: W131 and W132 change checks and
+harnesses whose provocations are checked in (section 5 rule 7), and W134 changes no behaviour. The
+item that runs two readers states its overlap in its Record, and it is the **eighty-third**
+measurement (P29's retro, section 6).
+
+## Work items
+
+| Id | Item | Owns | Depends on | Gate |
+|---|---|---|---|---|
+| W133 | **Two spec sentences and one message.** Q61: `OR-R6` gains the thread-pool sentence, re-measured at L6 on 0.5.2. Q62: `RN-R6` says `suspended` is current, with an L2 test. Q63: the message drops its class name, and a test asserts `stoppedBy` names the class exactly once | `spec/outcome-record.md`, `spec/run-state.md`, `src/driver/listener.ts`, `test/driver/log.test.ts`, the L2 suite that takes Q62's test, `examples/l6.ts` (the Q61 row and the comments at 564-571 and 4961-5016), `AGENTS.md` only if a snippet quotes the message | nothing | L0-L6 in every runtime that rung requires; both readers; `gate:full` EXIT 0 |
+| W131 | **The self-tests' stale and unpinned.** Q144: the success line stops dereferencing `names`, after a replacement `ran:` case exists (decision 4). Q430 + Q454: the header's site counts deleted (decision 5). Q439: `README_SNIPPET_FLOOR` read by the self-test's source-text bound beside `X4_WIDTH`'s. Q490: the META entry for `DECLARED_TARGETS_UNDECLARED` | `scripts/check-policies.mjs`, `scripts/check-policies-selftest.mjs`, `scripts/check-docs-selftest.mjs`, `scripts/check-budget-selftest.mjs`, plus comment-only edits to `scripts/check-markdown-selftest.mjs:871` and `scripts/check-scheduler-selftest.mjs:124` if their Q144 sentences become false | W133 | each new or moved clause provoked at birth (section 5 rule 7); conformity reader; `gate:full` EXIT 0 |
+| W132 | **The test harness.** Q272: `test/runner.ts` reports a suite it cannot import as one named `FAIL` and exits 1, and it still runs the other suites. Q382: the 17 cases in `test/definition/gate.test.ts` are named at the call site, as in `test/driver/gate.test.ts` | `test/runner.ts`, `test/definition/gate.test.ts`, and a checked-in provocation for Q272 (a suite that throws on import, outside the default glob) | W131 | L1-L5 in Node, Deno and Chromium, with the case count unchanged; Q272's provocation shows one named `FAIL` and EXIT 1; conformity reader; `gate:full` EXIT 0 |
+| W134 | **The repository's own files.** Q235: `.gitignore` gains `.claude/worktrees/`. Q484: every derived figure in `doc/README.md` deleted (decision 3) | `.gitignore`, `doc/README.md` | W132 | `git check-ignore .claude/worktrees/x` EXIT 0; `check:markdown` and `check:markdown:selftest` EXIT 0 on the final tree; conformity reader; `gate:full` EXIT 0 |
+
+**Item files are written from these rows when each item starts**, as at P29, so that what one item
+learns reaches the next item's declaration.
+
+## Predictions
+
+| | prediction | what would reverse it |
+|---|---|---|
+| **1** | **Q61's sentence survives re-measurement**: on 0.5.2 a thread pool still ends the task `user_action` and no result reaches the listener | the scheduler now passing the value, or ending the task `failed` (stop-and-ask (b)) |
+| **2** | **no L1-L6 case count moves except by W133's added tests**: Q382 renames and Q272 changes reporting, not cases | a rename that changes a case's identity in a way some check counts |
+| **3** | **W134 crosses no `check-markdown` floor.** Deleting counts removes few relative links | `check:markdown:selftest` RED on W134's tree. Then it is [Q142](../questions/q142.md)'s window again, and stop-and-ask (c) |
+| **4** | **no ADR is written**: every fix is a spec sentence, a check or a file, within existing decisions | an item finding that a fix needs a rule no spec, ADR or plan holds |
+| **5** | **the always-read set does not grow.** `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are not edited | a fix whose only home is one of them |
+| **6** | **every item's reader finds at least one thing**, because the fixes are small and so are easy to under-provoke | a reader with zero findings on a check change |
+
+## Stop-and-asks
+
+| | the question | answer |
+|---|---|---|
+| **(a)** | Q144: may W131 land the fix if no replacement `ran:` case can be built in `check-policies-selftest.mjs`? | *open — W131 asks before the fix if it gets there* |
+| **(b)** | Q61: if the 0.5.2 measurement differs from P2's, does the sentence state the new behaviour, or does Q61 stay open and gain a new question? | *open — W133 asks* |
+| **(c)** | Q484: if W134's deletion crosses an `M3`-`M5` floor, are the floors retuned per ADR 0076 and ADR 0078, or does Q484 wait for Q142? | *open — W134 asks* |
+| **(d)** | ~~Scope~~ | **ANSWERED by the maintainer, 2026-10-06: tiers A and B**, thirteen questions (decision 1) |
+| **(e)** | ~~Q63's direction~~ | **ANSWERED, 2026-10-06: drop the class name** (decision 2) |
+| **(f)** | ~~Q508~~ | **ANSWERED, 2026-10-06: Out** |
+
+## Open questions this plan carries
+
+| Q | | Owner |
+|---|---|---|
+| — | *none raised at declaration* | |
+
+## Out
+
+- **Tier C**: [Q337](../questions/q337.md), [Q434](../questions/q434.md),
+  [Q437](../questions/q437.md). They are concrete, but not small, and Q337 waits on Q142.
+- **Every question whose `closes-when` names a decision**: [Q142](../questions/q142.md),
+  [Q244](../questions/q244.md), [Q266](../questions/q266.md), [Q283](../questions/q283.md),
+  [Q508](../questions/q508.md). And **the two that close in the sibling repository**,
+  [Q20](../questions/q20.md) and [Q513](../questions/q513.md).
+- **Q272 in the browser.** `test:browser` bundles its suites (`scripts/run-browser-tests.mjs`), so
+  there a suite that fails to import is a bundle failure, not the runner's. W132 fixes the Node and
+  Deno runner and states what Chromium does, measured.
+- **`CLAUDE.md` and `doc/workflow.md`**, by prediction 5.
