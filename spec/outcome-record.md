@@ -1,7 +1,19 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.10 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.11 is [W133](../doc/work-items/w133-two-spec-sentences-and-one-message.md) under
+[P30](../doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md), and it adds ONE
+sentence to `OR-R6`: the rule is reachable only from an INLINE pool.** On a thread pool the
+scheduler's own structured clone refuses the value at the worker boundary first, so nothing reaches
+the listener for `OR-R6` to refuse, and the task ends as any failure does: `user_action` if it is
+non-optional, `failed` if it is `optional`. P2 measured the non-optional case before the 0.5.2 pin
+and no document said it ([Q61](../doc/questions/q61.md)). **The sentence is written from W133's
+re-measurement on 0.5.2**, in Node 24 and Deno, which matches P2's table, and an L6 row holds the
+non-optional case. **The `optional` half was found by W133's conformity reader** and measured by
+W133 in both runtimes; no L6 row holds it. **What `OR-R6` says about an inline pool is unchanged**,
+and so is every other rule. No ADR moves: ADR 0007 rule 2 and ADR 0004 already decide what each
+settlement does, and the sentence only names which rule a given pool reaches.
 **v0.10 is [W80](../doc/work-items/w80-what-a-run-time-result-check-is.md) under
 [P21](../doc/plans/p21-what-a-run-time-schema-check-buys-and-what-it-costs.md), and it adds
 `OR-R13`**: a settled result may be held to the `outputSchema` its worker declares, opt-in and off
@@ -197,7 +209,7 @@ logged, cannot be handed to a predicate deterministically, and could never be pe
 
 | id | The run terminates when | Test owed by |
 |---|---|---|
-| `OR-R6` | `structuredClone(d.result)` throws. The run fails with `UncloneableResult` naming the task id. **At the LISTENER boundary** — the resolution path is `OR-R12` in section 5 and behaves differently. Test: a worker returning a function, asserting the named failure and that no record was written | W3 |
+| `OR-R6` | `structuredClone(d.result)` throws. The run fails with `UncloneableResult` naming the task id. **At the LISTENER boundary** — the resolution path is `OR-R12` in section 5 and behaves differently. Test: a worker returning a function, asserting the named failure and that no record was written. **v0.11: reachable only from an INLINE pool.** On a thread pool the result must cross the worker boundary before any listener sees it, and the scheduler's own structured clone refuses it there, so `OR-R6` never fires and `onRunFailure` is not called. What the task ends as is the scheduler's two branches for any failure (ADR 0007 rule 2). **A non-optional task** out of retries ends **`user_action`** (`task.failed` then `task.user_action`, with the scheduler's clone error as `error` and no `result`), one `outcome` record is written, and the run is **`awaiting_action`** (ADR 0004 rule 3, `RN-R7`) rather than `stopped`. **An `optional` task** ends **`failed`** instead (`task.failed` only), one `failed` record is written, and it routes as a failure (ADR 0004): with no `on: ["failed"]` edge the run is `failed`. One worker bug is therefore a run failure on one pool and a suspension or a routed failure on the other. The type's `inline` decides which, and the flow author does not set it. Measured on 0.5.2 in Node and Deno. Test: ladder L6, `uncloneable / OR-R6, threaded` | W3; thread pool **[W133](../doc/work-items/w133-two-spec-sentences-and-one-message.md)** |
 
 ### `OR-R11` — a result is a VALUE, not an OBJECT
 
