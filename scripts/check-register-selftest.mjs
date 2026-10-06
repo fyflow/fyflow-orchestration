@@ -46,16 +46,95 @@ const MIN_NODE_MAJOR = 24;
 
 // --- the floors on this file's own lists, each AT its list's length -------------
 // *A floor one below its list is a permission to delete the entry nobody has named* — W112.
-const MIN_PROBES = 238;
-const MIN_META = 173;
-const MIN_SELF = 19;
+const MIN_PROBES = 252;
+const MIN_META = 184;
+const MIN_SELF = 21;
 const MIN_GRADER = 4;
 const GRADED_VERDICTS = ['crash', 'wrong-reason', 'against-declaration', 'did-not-run'];
 // A `corpus` grading is a pass and that is Q150: a mutant that fails on the untouched tree is
-// noticed, but its probe verdict is noise. Asserted below, not merely declared.
-const MAX_CORPUS = 0;
+// noticed, but its probe verdict is noise. **Until W127 that was `MAX_CORPUS = 0`, and P29 broke it
+// on purpose**: once triage iced a question, the mutant *`icebox` removed from the vocabulary*
+// failed the untouched tree for ever, and a count of zero had no way to say that one mutant may.
+// So the permission is an exact list BY META NAME, checked BOTH WAYS (rule 8 (e)): a listed mutant
+// that is INERT on the untouched tree is red — the entry excuses nothing and would excuse whatever
+// arrives — and an unlisted one that is not inert is red. Reported by id, never by count (v0.26).
+// *R9 widened to `deferred`* is here because 64 of the 65 deferred questions carry no
+// `closes-when` at W127, which is ADR 0082's point: deferred is not bound.
+const CORPUS_ALLOWED = Object.freeze([
+  '`icebox` removed from the vocabulary',
+  'R9 widened to `deferred`',
+]);
 
 const Q = (t, n) => join(t, 'doc', 'questions', `q${n}.md`);
+
+// --- the SYNTHETIC fixtures, since W127 --------------------------------------------
+// **No probe reads a live question's content.** Until W127 the fixtures were register questions
+// chosen by their fields at the time — Q490 open with a note, Q488 open with an empty note, Q1
+// resolved — and P29's triage moved them: W126's verdict on Q488 aborted every probe anchored on
+// its `status: open`. A verdict is a register edit, so a fixture in the register is dated by the
+// next triage. These are written into the staged copy by `plant` instead, under ids far above the
+// register's maximum, and `plant` refuses to run if the register ever reaches one.
+const OPEN = 8001;           // open, a note, an owner, a closing condition — the R1/R2 fixture
+const BARE = 8002;           // open, an empty note — the one iced and deleted
+const RES = 8003;            // resolved by prose naming no ADR
+const RES_ADR = 8004;        // resolved by ADR 8803, which resolves it back — R8's pairing
+const DEF = 8005;            // deferred, with its reason in `note`
+const RES_PREFIXED = 80031;  // resolved; Q8003 is a PREFIX of its id
+/** Synthetic ADRs beside them, for R3's and R8's pairings: none resolves anything but 8803. */
+const SYN_ADRS = ['8801', '8802', '8803'];
+const Q1_BY = 'resolved-by: "The driver, outside the scheduler"\n';
+const Q4_BY = 'Live tokens - ADR 8803, decided';
+const Q466_LINK = '[ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) consequence 4';
+/** One question's front matter, every field present, in the subset the README declares. */
+const synQ = ({ id, title, status, cluster = 'Verification and fixtures', owner = '', closesWhen = '',
+  resolvedBy = '', note = '', raisedBy = 'W127', shared = '' }) => ['---', `id: Q${id}`,
+  `title: ${JSON.stringify(title)}`, `status: ${status}`, `cluster: ${JSON.stringify(cluster)}`,
+  `owner: ${JSON.stringify(owner)}`, `closes-when: ${JSON.stringify(closesWhen)}`,
+  `resolved-by: ${JSON.stringify(resolvedBy)}`, `note: ${JSON.stringify(note)}`,
+  `raised-by: ${JSON.stringify(raisedBy)}`, `shared: ${JSON.stringify(shared)}`, '---', ''].join('\n');
+const SYN_QUESTIONS = [
+  { id: OPEN, title: 'a synthetic open question with a note', status: 'open', owner: 'no owner',
+    closesWhen: 'a synthetic closing condition', note: 'a synthetic note' },
+  { id: BARE, title: 'a synthetic open question with an empty note', status: 'open',
+    closesWhen: 'a synthetic closing condition' },
+  { id: RES, title: 'a synthetic question resolved by prose', status: 'resolved',
+    resolvedBy: 'The driver, outside the scheduler' },
+  { id: RES_ADR, title: 'a synthetic question resolved by a synthetic ADR', status: 'resolved',
+    resolvedBy: Q4_BY },
+  { id: DEF, title: 'a synthetic deferred question', status: 'deferred',
+    note: 'a synthetic reason it is not now' },
+  { id: RES_PREFIXED, title: 'a synthetic resolved question whose id Q8003 is a prefix of', status: 'resolved',
+    resolvedBy: 'Two features over ONE region' },
+];
+/**
+ * **Q466 is the ONE register id a probe still needs, and only its NAME**: `NOT_A_RESOLUTION` in the
+ * check excuses `Q466 -> ADR 0077` by id, so the exception's probes must edit a file of that name.
+ * `plant` OVERWRITES it in the staged copy with this text, so no probe reads Q466's own content.
+ */
+const SYN_Q466 = synQ({ id: 466, title: 'a synthetic stand-in for Q466, the id NOT_A_RESOLUTION names',
+  status: 'resolved', cluster: 'Documents and indexes', raisedBy: '',
+  resolvedBy: `answered by a person, which ${Q466_LINK} left to a person` });
+const synAdr = (nnnn, resolves = '""') => {
+  const title = `A synthetic decision ${nnnn} the register self-test writes into its copy`;
+  return ['---', `id: ADR ${nnnn}`, `title: ${JSON.stringify(title)}`, 'status: accepted', 'date: "2026-10-06"',
+    'item: W127', 'raised-by: P29', 'supersedes: ""', 'amends: ""', `resolves: ${resolves}`, '---', '',
+    `# ADR ${nnnn} — ${title}`, '', 'A fixture. It decides nothing.', ''].join('\n');
+};
+/** Write the synthetic fixtures into a staged copy — refusing to overwrite a register file. */
+const plant = (t, { adrs = true } = {}) => {
+  for (const q of SYN_QUESTIONS) {
+    if (existsSync(Q(t, q.id))) throw new Error(`q${q.id}.md is in the register — the synthetic band is reached`);
+    writeFileSync(Q(t, q.id), synQ(q));
+  }
+  if (!existsSync(Q(t, 466))) throw new Error('q466.md is not in the register, and NOT_A_RESOLUTION names it');
+  writeFileSync(Q(t, 466), SYN_Q466);
+  if (!adrs) return;
+  const dir = join(t, 'doc', 'decisions');
+  for (const nnnn of SYN_ADRS) {
+    if (readdirSync(dir).some((n) => n.startsWith(`${nnnn}-`))) throw new Error(`ADR ${nnnn} is in the tree`);
+    writeFileSync(join(dir, `${nnnn}-a-synthetic-fixture.md`), synAdr(nnnn, nnnn === '8803' ? `Q${RES_ADR}` : '""'));
+  }
+};
 /**
  * **Every edit checks its ANCHOR against the current text** — v0.17. A probe whose edit matches
  * nothing throws, and the harness grades it ABORT rather than passing it.
@@ -66,11 +145,10 @@ const edit = (t, n, from, to) => {
   if (!s.includes(from)) throw new Error(`q${n}.md does not contain ${JSON.stringify(from)}`);
   writeFileSync(p, s.replace(from, to));
 };
-/** A NEW valid question, cloned from Q490 (open, no owner, a note) under a fresh id. */
-const raise = (t, n, from = 490) => {
-  const s = readFileSync(Q(t, from), 'utf8');
-  if (!s.includes(`id: Q${from}\n`)) throw new Error(`q${from}.md has no id line`);
-  writeFileSync(Q(t, n), s.replace(`id: Q${from}\n`, `id: Q${n}\n`));
+/** A NEW valid question under a fresh id — the synthetic open one's fields, written, never cloned. */
+const raise = (t, n) => {
+  if (existsSync(Q(t, n))) throw new Error(`q${n}.md already exists`);
+  writeFileSync(Q(t, n), synQ({ ...SYN_QUESTIONS[0], id: n }));
 };
 
 // --- the ADRs, since W117 --------------------------------------------------------
@@ -108,6 +186,27 @@ const adrDrop = (t, nnnn, key) => {
   writeFileSync(p, s.slice(0, m.index) + s.slice(m.index + m[0].length));
 };
 /**
+ * **Anchored on the CLOSING FENCE, never on a field's value** — W127. These probes anchored on
+ * `resolves: ""\n---\n`, and P29 decision 5 says a resolution naming an ADR edits that ADR's
+ * `resolves`: the next triage verdict naming ADR 0079 would have aborted them. `adrAppend` writes
+ * lines above the fence; `adrUnclose` deletes the fence.
+ */
+const adrFence = (t, nnnn) => {
+  const p = A(t, nnnn);
+  const s = readFileSync(p, 'utf8');
+  const close = s.indexOf('\n---\n', 3);
+  if (!s.startsWith('---\n') || close < 0) throw new Error(`ADR ${nnnn} has no front matter to edit`);
+  return { p, s, close };
+};
+const adrAppend = (t, nnnn, lines) => {
+  const { p, s, close } = adrFence(t, nnnn);
+  writeFileSync(p, s.slice(0, close + 1) + lines + s.slice(close + 1));
+};
+const adrUnclose = (t, nnnn) => {
+  const { p, s, close } = adrFence(t, nnnn);
+  writeFileSync(p, s.slice(0, close + 1) + s.slice(close + 5));
+};
+/**
  * **A copy of ADR 0079 under another NAME, its id and H1 renumbered to the name's digits**, so the
  * copy is valid in everything but its name — the one way a name probe tells `ADR_NAME` apart from
  * the id and H1 clauses, which a plain copy would trip as well and so cover for it.
@@ -125,8 +224,8 @@ const adrClone = (t, name, digits) => {
 //
 // `trips` is the exact set of ids the failure block must name; `notRun` the exact set the report
 // must print as NOT RUN — `['R4']` for every `git: false` copy, `[]` for every `git: true` one.
-// The fixture ids are chosen by their CURRENT fields: Q490 is open with a note, Q488 open with an
-// empty note, Q1 resolved, and none of them is a constant that moves when the register grows.
+// The fixtures are SYNTHETIC since W127 — `OPEN`, `BARE`, `RES` and the rest above, planted into
+// the staged copy — so no triage verdict, and no growth of the register, moves one.
 const NR = ['R4'];
 
 /** Replace the WHOLE `key: …` line of one question file; the anchor is the key, checked. */
@@ -150,7 +249,7 @@ const REAL_FLOOR = (() => {
   } catch { return NaN; }
 })();
 /** Fixture ids the probes name, which a floor probe never deletes. */
-const FIXTURES = new Set([1, 4, 12, 17, 92, 300, 466, 488, 490]);
+const FIXTURES = new Set([...SYN_QUESTIONS.map((q) => q.id), 466]);
 /**
  * Delete question files, lowest non-fixture id first, until the folder holds `REAL_FLOOR - 1` —
  * skipping every question an ADR's front matter NAMES, since W117: deleting one is `R7`'s failure
@@ -227,8 +326,9 @@ const TIMESTAMPS = ['2026-10-04T10:00:00Z', '2026-10-04t10:00:00', '2026-10-04 1
   '2026-10-04T10:00:00+02', '2026-10-04T10:00:00 Z', '2026-10-04T1:00:00', '2026-1-4T10:00:00'];
 /** YAML 1.1 numbers the first reader passed as strings: sexagesimal, binary, and SIGNED hex and octal. */
 const YAML_NUMBERS = ['1:30', '190:20:30.15', '0b101', '+0x1F', '+0o17'];
-const Q466_LINK ='[ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) consequence 4';
-const Q1_BY = 'resolved-by: "The driver, outside the scheduler"\n';
+const r9 = (name, says, stage) => ({ name, git: false, trips: ['R9'], notRun: NR, says, stage });
+/** Empty an open question's closing condition — the input every R9 probe starts from. */
+const noClose = (t, n) => setLine(t, n, 'closes-when', '""');
 
 const PROBES = [
   // --- the controls — v0.11: a probe that changes nothing comes back clean ----------
@@ -238,35 +338,32 @@ const PROBES = [
     git: true, trips: [], notRun: [], stage: null },
   { name: 'icebox WITH a note is accepted — the fourth word is in the vocabulary',
     git: false, trips: [], notRun: NR,
-    stage: (t) => { edit(t, 488, 'status: open\n', 'status: icebox\n');
-      edit(t, 488, 'note: ""\n', 'note: "a what-if: no flow in the corpus reaches it"\n'); } },
+    stage: (t) => { edit(t, BARE, 'status: open\n', 'status: icebox\n');
+      edit(t, BARE, 'note: ""\n', 'note: "a what-if: no flow in the corpus reaches it"\n'); } },
 
   // --- R1: the names, and each id is its file's ---------------------------------
   { name: 'a stray file in the folder that is not q<N>.md',
     git: false, trips: ['R1'], notRun: NR, says: 'is not `q<N>.md`',
     stage: (t) => writeFileSync(join(t, 'doc', 'questions', 'notes.md'), '# notes\n') },
-  { name: 'a PADDED name, q0017.md, declaring the id its digits spell',
-    git: false, trips: ['R1'], notRun: NR, says: 'q0017.md is not',
-    stage: (t) => { const s = readFileSync(Q(t, 17), 'utf8');
-      if (!s.includes('id: Q17\n')) throw new Error('q17.md has no id line');
-      writeFileSync(join(t, 'doc', 'questions', 'q0017.md'), s.replace('id: Q17\n', 'id: Q0017\n')); } },
+  { name: 'a PADDED name, q08001.md, declaring the id its digits spell',
+    git: false, trips: ['R1'], notRun: NR, says: 'q08001.md is not',
+    stage: (t) => writeFileSync(join(t, 'doc', 'questions', 'q08001.md'),
+      synQ({ ...SYN_QUESTIONS[0], id: '08001' })) },
   // W116's adequacy reader, R1-n1: `NAME` made case-insensitive accepted this, and `state.mjs`
   // skipped it in silence.
   { name: 'an UPPER-CASE name, Q9001.md, declaring its own id',
     git: false, trips: ['R1'], notRun: NR, says: 'Q9001.md is not',
-    stage: (t) => { const s = readFileSync(Q(t, 490), 'utf8');
-      if (!s.includes('id: Q490\n')) throw new Error('q490.md has no id line');
-      writeFileSync(join(t, 'doc', 'questions', 'Q9001.md'), s.replace('id: Q490\n', 'id: Q9001\n')); } },
-  { name: 'a file whose id disagrees with its name — a second Q491 inside q490.md',
-    git: false, trips: ['R1'], notRun: NR, says: 'its name says Q490',
-    stage: (t) => edit(t, 490, 'id: Q490\n', 'id: Q491\n') },
+    stage: (t) => writeFileSync(join(t, 'doc', 'questions', 'Q9001.md'), synQ({ ...SYN_QUESTIONS[0], id: 9001 })) },
+  { name: 'a file whose id disagrees with its name — a second Q8002 inside q8001.md',
+    git: false, trips: ['R1'], notRun: NR, says: 'its name says Q8001',
+    stage: (t) => edit(t, OPEN, `id: Q${OPEN}\n`, `id: Q${BARE}\n`) },
   // R1-n2 and R1-n3: a NUMERIC and a case-folding comparison each passed one of these.
-  { name: 'a padded ID inside its own file — `id: Q017` in q17.md',
-    git: false, trips: ['R1'], notRun: NR, says: 'declares `id: Q017`',
-    stage: (t) => edit(t, 17, 'id: Q17\n', 'id: Q017\n') },
-  { name: 'a lower-case ID inside its own file — `id: q17` in q17.md',
-    git: false, trips: ['R1'], notRun: NR, says: 'declares `id: q17`',
-    stage: (t) => edit(t, 17, 'id: Q17\n', 'id: q17\n') },
+  { name: 'a padded ID inside its own file — `id: Q08001` in q8001.md',
+    git: false, trips: ['R1'], notRun: NR, says: 'declares `id: Q08001`',
+    stage: (t) => edit(t, OPEN, `id: Q${OPEN}\n`, 'id: Q08001\n') },
+  { name: 'a lower-case ID inside its own file — `id: q8001` in q8001.md',
+    git: false, trips: ['R1'], notRun: NR, says: 'declares `id: q8001`',
+    stage: (t) => edit(t, OPEN, `id: Q${OPEN}\n`, 'id: q8001\n') },
 
   // --- R2: every field, the vocabulary, the clusters, the subset -----------------------
   // EACH of the ten fields deleted, because the first cut deleted only `shared` and a missing-field
@@ -275,64 +372,64 @@ const PROBES = [
   ...FIELDS.map((f) => ({
     name: `a required field missing — \`${f}\` deleted`,
     git: false, trips: f === 'id' ? ['R1', 'R2'] : ['R2'], notRun: NR, says: `has no \`${f}\``,
-    stage: (t) => { const s = readFileSync(Q(t, 490), 'utf8');
+    stage: (t) => { const s = readFileSync(Q(t, OPEN), 'utf8');
       const re = new RegExp(`^${f}: .*\\n`, 'm');
-      if (!re.test(s)) throw new Error(`q490.md has no ${f} line`);
-      writeFileSync(Q(t, 490), s.replace(re, '')); },
+      if (!re.test(s)) throw new Error(`q${OPEN}.md has no ${f} line`);
+      writeFileSync(Q(t, OPEN), s.replace(re, '')); },
   })),
   r2('a field P28 decision 1 does not declare — `closes-by` beside `closes-when`', 'declares `closes-by`',
     // A key in the subset's own spelling: `closes_when` is refused EARLIER, as a line that is not
     // `key: value`, and graded `wrong-reason` on this probe's first run.
-    (t) => edit(t, 490, 'shared: ""\n', 'shared: ""\ncloses-by: ""\n')),
+    (t) => edit(t, OPEN, 'shared: ""\n', 'shared: ""\ncloses-by: ""\n')),
   // R2-n8: a test that flagged only HYPHENATED extras passed a plain one.
   r2('an undeclared field with no hyphen — `foo`', 'declares `foo`',
-    (t) => edit(t, 490, 'shared: ""\n', 'shared: ""\nfoo: ""\n')),
+    (t) => edit(t, OPEN, 'shared: ""\n', 'shared: ""\nfoo: ""\n')),
   // R2-r1: the duplicate-key refusal had no probe at all.
   r2('a field declared TWICE — two `title` lines', 'declares `title` twice',
-    (t) => edit(t, 490, 'id: Q490\n', 'id: Q490\ntitle: "a second title"\n')),
-  r2('an empty title', '`title` is empty', (t) => setLine(t, 490, 'title', '""')),
+    (t) => edit(t, OPEN, `id: Q${OPEN}\n`, `id: Q${OPEN}\ntitle: "a second title"\n`)),
+  r2('an empty title', '`title` is empty', (t) => setLine(t, OPEN, 'title', '""')),
   // R2-n6: the non-empty test without its trim.
-  r2('a title of one SPACE', '`title` is empty', (t) => setLine(t, 490, 'title', '" "')),
+  r2('a title of one SPACE', '`title` is empty', (t) => setLine(t, OPEN, 'title', '" "')),
   r2('a status outside the four words — `closed`', 'status is "closed"',
-    (t) => edit(t, 490, 'status: open\n', 'status: closed\n')),
+    (t) => edit(t, OPEN, 'status: open\n', 'status: closed\n')),
   // R2-n1 and R2-n2: a prefix match and a case-folded match each passed one of these.
   ...STATUS_NEAR_MISSES.map((w) => r2(`a status NEAR-MISS — \`${w}\``, `status is "${w}"`,
-    (t) => edit(t, 490, 'status: open\n', `status: ${w}\n`))),
+    (t) => edit(t, OPEN, 'status: open\n', `status: ${w}\n`))),
   r2('a cluster the README does not declare', 'cluster "Nowhere" is not',
-    (t) => setLine(t, 490, 'cluster', '"Nowhere"')),
+    (t) => setLine(t, OPEN, 'cluster', '"Nowhere"')),
   // R2-n3 and R2-n4, and a near-miss of EVERY declared cluster (rule 8 (a)).
   ...CLUSTERS.map((c) => r2(`a cluster NEAR-MISS — "${c.toLowerCase()}"`, `cluster "${c.toLowerCase()}" is not`,
-    (t) => setLine(t, 490, 'cluster', JSON.stringify(c.toLowerCase())))),
+    (t) => setLine(t, OPEN, 'cluster', JSON.stringify(c.toLowerCase())))),
   r2('a cluster that is a SUBSTRING of a declared one — "join"', 'cluster "join" is not',
-    (t) => setLine(t, 490, 'cluster', '"join"')),
+    (t) => setLine(t, OPEN, 'cluster', '"join"')),
   r2('a cluster with a trailing space inside its quotes — "The join "', 'cluster "The join " is not',
-    (t) => setLine(t, 490, 'cluster', '"The join "')),
+    (t) => setLine(t, OPEN, 'cluster', '"The join "')),
   r2('icebox with an EMPTY note', 'iceboxed with no `note`',
-    (t) => edit(t, 488, 'status: open\n', 'status: icebox\n')),
+    (t) => edit(t, BARE, 'status: open\n', 'status: icebox\n')),
   // R2-n5: the icebox test without its trim.
   r2('icebox with a note of one SPACE', 'iceboxed with no `note`',
-    (t) => { edit(t, 488, 'status: open\n', 'status: icebox\n'); edit(t, 488, 'note: ""\n', 'note: " "\n'); }),
+    (t) => { edit(t, BARE, 'status: open\n', 'status: icebox\n'); edit(t, BARE, 'note: ""\n', 'note: " "\n'); }),
   r2('front matter with no closing fence — unreadable, so no field is present', 'has no closing `---` line',
-    (t) => { const s = readFileSync(Q(t, 490), 'utf8');
-      if (!s.endsWith('\n---\n')) throw new Error('q490.md does not close with ---');
-      writeFileSync(Q(t, 490), s.slice(0, -4)); }),
+    (t) => { const s = readFileSync(Q(t, OPEN), 'utf8');
+      if (!s.endsWith('\n---\n')) throw new Error(`q${OPEN}.md does not close with ---`);
+      writeFileSync(Q(t, OPEN), s.slice(0, -4)); }),
   // R2-n9: a reader that normalised a BOM and CRLF first accepted this file.
   r2('a file with a BOM and CRLF line ends', 'does not open with a `---` line',
-    (t) => { const s = readFileSync(Q(t, 490), 'utf8');
-      writeFileSync(Q(t, 490), `﻿${s.replace(/\n/g, '\r\n')}`); }),
+    (t) => { const s = readFileSync(Q(t, OPEN), 'utf8');
+      writeFileSync(Q(t, OPEN), `﻿${s.replace(/\n/g, '\r\n')}`); }),
   // Each guard of the plain subset, one input each (R2-r2 .. R2-r5), and every typed word.
   r2('a plain value outside the declared subset — an unquoted `: ` inside it', 'carries a comment or a mapping',
-    (t) => setLine(t, 490, 'owner', 'no owner: nobody')),
+    (t) => setLine(t, OPEN, 'owner', 'no owner: nobody')),
   r2('a plain value carrying an inline COMMENT — `a # comment`', 'carries a comment or a mapping',
-    (t) => setLine(t, 490, 'title', 'a # comment')),
+    (t) => setLine(t, OPEN, 'title', 'a # comment')),
   r2('a plain value with a TRAILING space', 'leading or trailing space',
-    (t) => setLine(t, 490, 'title', 'x ')),
+    (t) => setLine(t, OPEN, 'title', 'x ')),
   r2('a plain value opening with a YAML indicator — `[a, b]`', 'opens with a YAML indicator',
-    (t) => setLine(t, 490, 'title', '[a, b]')),
+    (t) => setLine(t, OPEN, 'title', '[a, b]')),
   r2('an EMPTY unquoted value — `shared: `, which YAML reads as null', 'is empty and unquoted',
-    (t) => setLine(t, 490, 'shared', '')),
+    (t) => setLine(t, OPEN, 'shared', '')),
   ...TYPED_WORDS.map((w) => r2(`a plain word YAML would TYPE — \`shared: ${w}\``, `plain value "${w}" is a YAML`,
-    (t) => setLine(t, 490, 'shared', w))),
+    (t) => setLine(t, OPEN, 'shared', w))),
   r2("the README's Clusters table emptied — no cluster can be checked", 'declares no cluster',
     (t) => { const p = join(t, 'doc', 'questions', 'README.md');
       const s = readFileSync(p, 'utf8');
@@ -343,68 +440,107 @@ const PROBES = [
 
   // --- R3: resolved iff resolved-by, and what it names exists ------------------------
   r3('resolved with an EMPTY resolved-by', 'is resolved and `resolved-by` is empty',
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: ""\n')),
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: ""\n')),
   // R3-n2: the emptiness test without its trim.
   r3('resolved with a resolved-by of one SPACE', 'is resolved and `resolved-by` is empty',
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: " "\n')),
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: " "\n')),
   r3('open with a resolved-by filled', 'is open and `resolved-by` is filled',
-    (t) => edit(t, 490, 'resolved-by: ""\n', 'resolved-by: "nothing yet"\n')),
+    (t) => edit(t, OPEN, 'resolved-by: ""\n', 'resolved-by: "nothing yet"\n')),
   // R3-n3: the reverse clause narrowed to `open` passed these — every non-resolved word.
   r3('deferred with a resolved-by filled', 'is deferred and `resolved-by` is filled',
-    (t) => edit(t, 92, 'resolved-by: ""\n', 'resolved-by: "nothing yet"\n')),
+    (t) => edit(t, DEF, 'resolved-by: ""\n', 'resolved-by: "nothing yet"\n')),
   r3('icebox with a resolved-by filled', 'is icebox and `resolved-by` is filled',
-    (t) => { edit(t, 488, 'status: open\n', 'status: icebox\n');
-      edit(t, 488, 'note: ""\n', 'note: "a what-if"\n');
-      edit(t, 488, 'resolved-by: ""\n', 'resolved-by: "nothing yet"\n'); }),
+    (t) => { edit(t, BARE, 'status: open\n', 'status: icebox\n');
+      edit(t, BARE, 'note: ""\n', 'note: "a what-if"\n');
+      edit(t, BARE, 'resolved-by: ""\n', 'resolved-by: "nothing yet"\n'); }),
   r3('resolved-by naming an ADR that does not exist', 'names ADR 9999',
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 9999"\n')),
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 9999"\n')),
   // R3-n1, C10, C11: the SECOND id of a cell, the list form, and the hyphenated form. **Since W117
-  // an ADR a resolved-by names must list the question back (`R8`)**, so each probe that names a REAL
-  // ADR also writes that ADR's `resolves` — the probe is R3's, and R8 is held clean beside it.
-  r3('resolved-by naming two ADRs, the SECOND missing — `ADR 0001 and ADR 9999`', 'names ADR 9999',
-    (t) => { edit(t, 1, Q1_BY, 'resolved-by: "ADR 0001 and ADR 9999"\n'); adrSet(t, '0001', 'resolves', 'Q1'); }),
-  r3('resolved-by in the LIST form, the second missing — `ADRs 0001 and 9999`', 'names ADR 9999',
-    (t) => { edit(t, 1, Q1_BY, 'resolved-by: "ADRs 0001 and 9999"\n'); adrSet(t, '0001', 'resolves', 'Q1'); }),
+  // an ADR a resolved-by names must list the question back (`R8`)**, so each probe that names an
+  // existing ADR also writes that ADR's `resolves` — the probe is R3's, and R8 is held clean beside
+  // it. The ADRs are the SYNTHETIC 8801 and 8802 since W127, so no resolution can move them.
+  r3('resolved-by naming two ADRs, the SECOND missing — `ADR 8801 and ADR 9999`', 'names ADR 9999',
+    (t) => { edit(t, RES, Q1_BY, 'resolved-by: "ADR 8801 and ADR 9999"\n'); adrSet(t, '8801', 'resolves', `Q${RES}`); }),
+  r3('resolved-by in the LIST form, the second missing — `ADRs 8801 and 9999`', 'names ADR 9999',
+    (t) => { edit(t, RES, Q1_BY, 'resolved-by: "ADRs 8801 and 9999"\n'); adrSet(t, '8801', 'resolves', `Q${RES}`); }),
   r3('resolved-by in the HYPHENATED form — `ADR-9999`', 'names ADR 9999',
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "ADR-9999"\n')),
-  { name: 'resolved-by in the list form with BOTH ADRs present — `ADRs 0001 and 0002` is clean',
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "ADR-9999"\n')),
+  { name: 'resolved-by in the list form with BOTH ADRs present — `ADRs 8801 and 8802` is clean',
     git: false, trips: [], notRun: NR,
-    stage: (t) => { edit(t, 1, Q1_BY, 'resolved-by: "ADRs 0001 and 0002"\n');
-      adrSet(t, '0001', 'resolves', 'Q1'); adrSet(t, '0002', 'resolves', 'Q1'); } },
+    stage: (t) => { edit(t, RES, Q1_BY, 'resolved-by: "ADRs 8801 and 8802"\n');
+      adrSet(t, '8801', 'resolves', `Q${RES}`); adrSet(t, '8802', 'resolves', `Q${RES}`); } },
   r3('resolved-by naming a PLAN that does not exist', 'names P999,',
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - P999"\n')),
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - P999"\n')),
   r3('resolved-by naming a WORK ITEM that does not exist', 'names W9999,',
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - W9999"\n')),
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - W9999"\n')),
+
+  // --- R9: an open question says what would close it — W127, ADR 0082 ------------------------
+  // Written from P29 decision 6's sentence before the first run: *every `status: open` question has
+  // a non-empty `closes-when`*, and *`deferred` is not bound*. Rule 8 (a): EVERY status word is a
+  // fixture, and the three R9 does not bind are the SAME file with only its status moved, so each
+  // control differs from the firing probe by the one thing the clause selects on.
+  r9('an open question with its closes-when EMPTIED', 'q8001.md is open and its `closes-when` is empty',
+    (t) => noClose(t, OPEN)),
+  r9('an open question with a closes-when of one SPACE', 'q8001.md is open and its `closes-when` is empty',
+    (t) => setLine(t, OPEN, 'closes-when', '" "')),
+  r9('an open question with a closes-when of a TAB and a NEWLINE', 'q8001.md is open and its `closes-when` is empty',
+    (t) => setLine(t, OPEN, 'closes-when', '"\\t\\n"')),
+  clean('R9 CONTROL — the same question DEFERRED with an empty closes-when is clean: deferred is not bound',
+    (t) => { noClose(t, OPEN); edit(t, OPEN, 'status: open\n', 'status: deferred\n'); }),
+  clean('R9 CONTROL — the same question ICEBOXED, with its note, and an empty closes-when is clean',
+    (t) => { noClose(t, OPEN); edit(t, OPEN, 'status: open\n', 'status: icebox\n'); }),
+  clean('R9 CONTROL — the same question RESOLVED, with a resolved-by, and an empty closes-when is clean',
+    (t) => { noClose(t, OPEN); edit(t, OPEN, 'status: open\n', 'status: resolved\n');
+      setLine(t, OPEN, 'resolved-by', '"a synthetic answer"'); }),
+  // A status NEAR-MISS is R2's and not R9's: R9 binds the word `open` and nothing that resembles it.
+  ...STATUS_NEAR_MISSES.map((w) => r2(`R9 — a status NEAR-MISS \`${w}\` with an empty closes-when is R2's alone`,
+    `status is "${w}"`, (t) => { noClose(t, OPEN); edit(t, OPEN, 'status: open\n', `status: ${w}\n`); })),
+  // A file R2 cannot read is R2's: R9 reads no field of it.
+  r2('R9 — an open question with an empty closes-when whose front matter never closes is R2`s alone',
+    'has no closing `---` line', (t) => { noClose(t, OPEN);
+      const s = readFileSync(Q(t, OPEN), 'utf8');
+      if (!s.endsWith('\n---\n')) throw new Error(`q${OPEN}.md does not close with ---`);
+      writeFileSync(Q(t, OPEN), s.slice(0, -4)); }),
+  // The loop's BOUNDS (rule 8 (d)): the first file in the folder's order and the last. **q1.md is
+  // the first name any listing can hold** — `q0…` is refused by R1 and `.` sorts below every digit —
+  // so this probe needs that NAME. It OVERWRITES the file whole, reading none of Q1's content; Q1 is
+  // resolved by prose that names no ADR, and no ADR's `resolves` lists it.
+  r9('R9 — the FIRST file in the folder`s order, q1.md, open with no closing condition',
+    'q1.md is open and its `closes-when` is empty',
+    (t) => writeFileSync(Q(t, 1), synQ({ id: 1, title: 'a synthetic stand-in at the first position', status: 'open' }))),
+  r9('R9 — the LAST file in the folder`s order, q99999.md, open with no closing condition',
+    'q99999.md is open and its `closes-when` is empty',
+    (t) => writeFileSync(Q(t, 99999), synQ({ id: 99999, title: 'a synthetic question at the last position', status: 'open' }))),
 
   // --- R4: HEAD against the tree, in a real repository --------------------------------
   { name: 'a question DELETED while another is raised — the count holds and only R4 sees it',
-    git: true, trips: ['R4'], notRun: [], says: 'q300.md is at HEAD and not in the tree',
-    stage: (t) => { rmSync(Q(t, 300)); raise(t, 9001); } },
+    git: true, trips: ['R4'], notRun: [], says: 'q8002.md is at HEAD and not in the tree',
+    stage: (t) => { rmSync(Q(t, BARE)); raise(t, 9001); } },
   // R4-n3: comparing the INDEX (`git ls-files`) instead of HEAD passed a STAGED removal.
   { name: 'a question removed with `git rm` — staged, not committed — while another is raised',
-    git: true, trips: ['R4'], notRun: [], says: 'q300.md is at HEAD and not in the tree',
-    stage: (t) => { const g = git(t, ['rm', '-q', '--', 'doc/questions/q300.md']);
+    git: true, trips: ['R4'], notRun: [], says: 'q8002.md is at HEAD and not in the tree',
+    stage: (t) => { const g = git(t, ['rm', '-q', '--', `doc/questions/q${BARE}.md`]);
       if (g.error || g.status !== 0) throw new Error(`git rm failed: ${(g.stderr ?? '').trim()}`);
       raise(t, 9001); } },
   { name: 'questions deleted below the floor with nothing raised — R4 and R5 both',
     git: true, trips: ['R4', 'R5'], notRun: [], stage: (t) => dropBelowFloor(t) },
   { name: 'the same deletion and raise in a copy that is NOT a repository — R4 says NOT RUN, nothing passes for it',
     git: false, trips: [], notRun: NR,
-    stage: (t) => { rmSync(Q(t, 300)); raise(t, 9001); } },
+    stage: (t) => { rmSync(Q(t, BARE)); raise(t, 9001); } },
   { name: 'a repository with no commit — no HEAD, so R4 says NOT RUN',
     git: 'init-only', trips: [], notRun: NR, stage: (t) => raise(t, 9001) },
   { name: 'a copy NESTED inside another repository that does not track it — R4 says NOT RUN',
     git: 'nested', trips: [], notRun: NR,
-    stage: (t) => { rmSync(Q(t, 300)); raise(t, 9001); } },
+    stage: (t) => { rmSync(Q(t, BARE)); raise(t, 9001); } },
 
   // --- R5: the floor -------------------------------------------------------------------
   { name: 'the folder taken one below the floor, in a copy that is not a repository — the floor alone',
     git: false, trips: ['R5'], notRun: NR, says: 'and the floor is',
     stage: (t) => dropBelowFloor(t) },
   // R2-R4 have nothing to read and say so: NOT RUN, never `ok` over an absent folder — and since
-  // W117 R7 and R8, which check an ADR's Q ids against this folder.
+  // W117 R7 and R8, which check an ADR's Q ids against this folder, and since W127 R9.
   { name: 'the folder missing entirely — R1 and R5 fail, R2 to R4 say NOT RUN',
-    git: false, trips: ['R1', 'R5'], notRun: ['R2', 'R3', 'R4', 'R7', 'R8'],
+    git: false, trips: ['R1', 'R5'], notRun: ['R2', 'R3', 'R4', 'R7', 'R8', 'R9'],
     stage: (t) => rmSync(join(t, 'doc', 'questions'), { recursive: true, force: true }) },
   { name: 'a question added — the floor only moves up, so more is clean',
     git: false, trips: [], notRun: NR, stage: (t) => raise(t, 9001) },
@@ -434,9 +570,9 @@ const PROBES = [
   ...ADR_FIELDS.map((f) => r6(`an ADR field missing — \`${f}\` deleted from ADR 0079`, `has no \`${f}\``,
     (t) => adrDrop(t, '0079', f))),
   r6('an ADR field P28 decision 2 does not declare — `plan`', 'declares `plan`',
-    (t) => adrEdit(t, '0079', 'resolves: ""\n', 'resolves: ""\nplan: P28\n')),
+    (t) => adrAppend(t, '0079', 'plan: P28\n')),
   r6('a DERIVED field declared by hand — `superseded-by`', 'declares `superseded-by`',
-    (t) => adrEdit(t, '0079', 'resolves: ""\n', 'resolves: ""\nsuperseded-by: ""\n')),
+    (t) => adrAppend(t, '0079', 'superseded-by: ""\n')),
   r6('an empty ADR id', '`id` is empty', (t) => adrSet(t, '0079', 'id', '""')),
   r6('an empty ADR title', '`title` is empty', (t) => adrSet(t, '0079', 'title', '""')),
   r6('an empty ADR status', '`status` is empty', (t) => adrSet(t, '0079', 'status', '""')),
@@ -478,9 +614,9 @@ const PROBES = [
   r6('an ADR with CRLF line ends and no BOM', 'does not open with a `---` line',
     (t) => writeFileSync(A(t, '0079'), readFileSync(A(t, '0079'), 'utf8').replace(/\n/g, '\r\n'))),
   r6('an ADR whose front matter never closes', 'has no closing `---` line',
-    (t) => adrEdit(t, '0079', 'resolves: ""\n---\n', 'resolves: ""\n')),
+    (t) => adrUnclose(t, '0079')),
   r6('an ADR whose front matter never closes ABOVE a thematic break — the break is not a close',
-    'carries a line that is not `key: value`', (t) => adrEdit(t, '0062', 'resolves: ""\n---\n', 'resolves: ""\n')),
+    'carries a line that is not `key: value`', (t) => adrUnclose(t, '0062')),
   r6('an UNQUOTED date, which YAML 1.1 types as a timestamp', 'is a YAML null, boolean, number or timestamp',
     (t) => adrSet(t, '0079', 'date', '2026-10-04')),
   r6('an unquoted ADR status with a TRAILING space', 'leading or trailing space',
@@ -514,8 +650,8 @@ const PROBES = [
     (t) => adrSet(t, '0079', 'raised-by', '"P28, S99"')),
   r7('raised-by with two ids, the SECOND a missing ADR — `P28, ADR 9999`', 'raised-by names ADR 9999,',
     (t) => adrSet(t, '0079', 'raised-by', '"P28, ADR 9999"')),
-  r7('resolves with two ids, the SECOND missing — `Q4, Q9999` on ADR 0003', 'resolves names Q9999,',
-    (t) => adrSet(t, '0003', 'resolves', '"Q4, Q9999"')),
+  r7('resolves with two ids, the SECOND missing — `Q8004, Q9999` on ADR 8803', 'resolves names Q9999,',
+    (t) => adrSet(t, '8803', 'resolves', `"Q${RES_ADR}, Q9999"`)),
   r7('supersedes with two entries, the SECOND missing — `ADR 0078; ADR 0005`', 'supersedes names ADR 0005,',
     (t) => adrSet(t, '0079', 'supersedes', '"ADR 0078; ADR 0005"')),
   r7('amends with two entries, the SECOND missing — `ADR 0078; ADR 0006`', 'amends names ADR 0006,',
@@ -524,41 +660,44 @@ const PROBES = [
     (t) => adrSet(t, '0079', 'supersedes', 'ADR 0079')),
   r7('amends naming ITSELF', 'amends names ADR 0079, which is itself',
     (t) => adrSet(t, '0079', 'amends', 'ADR 0079')),
-  clean('raised-by naming one id of EVERY kind, each present — `P28, Q4, W116, S10, ADR 0078` is clean',
-    (t) => adrSet(t, '0079', 'raised-by', '"P28, Q4, W116, S10, ADR 0078"')),
+  clean('raised-by naming one id of EVERY kind, each present — `P28, Q8001, W116, S10, ADR 0078` is clean',
+    (t) => adrSet(t, '0079', 'raised-by', `"P28, Q${OPEN}, W116, S10, ADR 0078"`)),
   clean('supersedes with EVERY qualifier form — `ADR 0078 rules 1, 2 and 6; ADR 0076 decision 3 in part` is clean',
     (t) => adrSet(t, '0079', 'supersedes', '"ADR 0078 rules 1, 2 and 6; ADR 0076 decision 3 in part"')),
 
   // --- R8: resolves and resolved-by, each direction broken ALONE --------------------------------
-  r8('FORWARD alone — ADR 0079 resolves Q1, whose resolved-by names no ADR',
-    "resolves Q1, and doc/questions/q1.md's resolved-by does not name ADR 0079",
-    (t) => adrSet(t, '0079', 'resolves', 'Q1')),
-  r8('FORWARD alone — ADR 0079 resolves an OPEN question, Q490', 'resolves Q490, and',
-    (t) => adrSet(t, '0079', 'resolves', 'Q490')),
-  r8('FORWARD, the SECOND id — ADR 0003 resolves `Q4, Q1`', 'resolves Q1, and',
-    (t) => adrSet(t, '0003', 'resolves', '"Q4, Q1"')),
-  r8('FORWARD broken from the QUESTION side — Q4`s resolved-by stops naming ADR 0003', 'resolves Q4, and',
-    (t) => edit(t, 4, 'Live tokens - ADR 0003, decided', 'Live tokens, decided')),
-  r8('REVERSE alone — Q1`s resolved-by names ADR 0001, which does not list it',
-    "q1.md's resolved-by names ADR 0001, and", (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 0001"\n')),
-  r8('REVERSE broken from the ADR side — ADR 0003`s resolves emptied', "q4.md's resolved-by names ADR 0003, and",
-    (t) => adrSet(t, '0003', 'resolves', '""')),
-  r8('REVERSE, the SECOND ADR of a list — `ADRs 0003 and 0001`, only 0003 listing Q1',
-    "q1.md's resolved-by names ADR 0001, and",
-    (t) => { edit(t, 1, Q1_BY, 'resolved-by: "ADRs 0003 and 0001"\n'); adrSet(t, '0003', 'resolves', '"Q4, Q1"'); }),
-  r8('REVERSE in the HYPHENATED form — `ADR-0001`', "q1.md's resolved-by names ADR 0001, and",
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "ADR-0001"\n')),
-  r8('REVERSE where Q1 is a PREFIX of a listed Q12 — a substring is not a listing', "q1.md's resolved-by names ADR 0003, and",
-    (t) => { adrSet(t, '0003', 'resolves', '"Q4, Q12"');
-      edit(t, 12, 'resolved-by: "Two features over ONE region"\n', 'resolved-by: "Two features over ONE region - ADR 0003"\n');
-      edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 0003"\n'); }),
-  clean('a pairing stated on BOTH sides — Q1 names ADR 0001 and ADR 0001 resolves Q1 — is clean',
-    (t) => { edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 0001"\n'); adrSet(t, '0001', 'resolves', 'Q1'); }),
+  // Synthetic since W127: Q8003 resolved by prose, Q8004 resolved by ADR 8803 which resolves it back,
+  // Q80031 whose id Q8003 is a prefix of, and ADRs 8801 and 8802 resolving nothing. Only the
+  // exception's probes still name a register file, and only by the id `NOT_A_RESOLUTION` holds.
+  r8('FORWARD alone — ADR 8802 resolves Q8003, whose resolved-by names no ADR',
+    "resolves Q8003, and doc/questions/q8003.md's resolved-by does not name ADR 8802",
+    (t) => adrSet(t, '8802', 'resolves', `Q${RES}`)),
+  r8('FORWARD alone — ADR 8802 resolves an OPEN question, Q8001', 'resolves Q8001, and',
+    (t) => adrSet(t, '8802', 'resolves', `Q${OPEN}`)),
+  r8('FORWARD, the SECOND id — ADR 8803 resolves `Q8004, Q8003`', 'resolves Q8003, and',
+    (t) => adrSet(t, '8803', 'resolves', `"Q${RES_ADR}, Q${RES}"`)),
+  r8('FORWARD broken from the QUESTION side — Q8004`s resolved-by stops naming ADR 8803', 'resolves Q8004, and',
+    (t) => edit(t, RES_ADR, Q4_BY, 'Live tokens, decided')),
+  r8('REVERSE alone — Q8003`s resolved-by names ADR 8801, which does not list it',
+    "q8003.md's resolved-by names ADR 8801, and", (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 8801"\n')),
+  r8('REVERSE broken from the ADR side — ADR 8803`s resolves emptied', "q8004.md's resolved-by names ADR 8803, and",
+    (t) => adrSet(t, '8803', 'resolves', '""')),
+  r8('REVERSE, the SECOND ADR of a list — `ADRs 8803 and 8801`, only 8803 listing Q8003',
+    "q8003.md's resolved-by names ADR 8801, and",
+    (t) => { edit(t, RES, Q1_BY, 'resolved-by: "ADRs 8803 and 8801"\n'); adrSet(t, '8803', 'resolves', `"Q${RES_ADR}, Q${RES}"`); }),
+  r8('REVERSE in the HYPHENATED form — `ADR-8801`', "q8003.md's resolved-by names ADR 8801, and",
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "ADR-8801"\n')),
+  r8('REVERSE where Q8003 is a PREFIX of a listed Q80031 — a substring is not a listing', "q8003.md's resolved-by names ADR 8803, and",
+    (t) => { adrSet(t, '8803', 'resolves', `"Q${RES_ADR}, Q${RES_PREFIXED}"`);
+      edit(t, RES_PREFIXED, 'resolved-by: "Two features over ONE region"\n', 'resolved-by: "Two features over ONE region - ADR 8803"\n');
+      edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 8803"\n'); }),
+  clean('a pairing stated on BOTH sides — Q8003 names ADR 8801 and ADR 8801 resolves Q8003 — is clean',
+    (t) => { edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 8801"\n'); adrSet(t, '8801', 'resolves', `Q${RES}`); }),
   r8('the exception is BY PAIR — another question naming ADR 0077 is still compared',
-    "q1.md's resolved-by names ADR 0077, and",
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 0077"\n')),
-  r8('the exception is BY PAIR — Q466 naming ANOTHER ADR is still compared', "q466.md's resolved-by names ADR 0001, and",
-    (t) => edit(t, 466, 'left to a person', 'left to a person (see ADR 0001)')),
+    "q8003.md's resolved-by names ADR 0077, and",
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - ADR 0077"\n')),
+  r8('the exception is BY PAIR — Q466 naming ANOTHER ADR is still compared', "q466.md's resolved-by names ADR 8801, and",
+    (t) => edit(t, 466, 'left to a person', 'left to a person (see ADR 8801)')),
   r8('a STALE exception — Q466 no longer names ADR 0077', 'NOT_A_RESOLUTION excuses Q466',
     (t) => edit(t, 466, Q466_LINK, 'that item`s consequence 4')),
   r8('a CONTRADICTED exception — ADR 0077 resolves Q466', 'NOT_A_RESOLUTION declares',
@@ -570,7 +709,7 @@ const PROBES = [
   r6('an ADR slug with a DOUBLED hyphen — 0093-a--b.md', '0093-a--b.md is not', (t) => adrClone(t, '0093-a--b.md', '0093')),
   r6('an ADR name with a suffix AFTER .md — 0092-x.md.bak', '0092-x.md.bak is not', (t) => adrClone(t, '0092-x.md.bak', '0092')),
   r6('a QUESTION register field on an ADR — `note`', 'declares `note`',
-    (t) => adrEdit(t, '0079', 'resolves: ""\n', 'resolves: ""\nnote: ""\n')),
+    (t) => adrAppend(t, '0079', 'note: ""\n')),
   r6('an ADR date NEAR-MISS — "2026-02-29", in a year with no leap day', 'date "2026-02-29" is not a real',
     (t) => adrSet(t, '0079', 'date', '"2026-02-29"')),
   r7('a raised-by of one SPACE — an entry outside its form, never skipped as empty', 'raised-by entry " "',
@@ -579,26 +718,26 @@ const PROBES = [
     (t) => adrSet(t, '0079', 'supersedes', '"ADR 0078 rules 1 or 2"')),
   r8('a STALE exception whose question keeps the number in OTHER words — "commit 0077"', 'NOT_A_RESOLUTION excuses Q466',
     (t) => edit(t, 466, Q466_LINK, 'that item`s consequence 4 (commit 0077)')),
-  r8('FORWARD broken by a number that is NOT an ADR reference — "commit 0003"', 'resolves Q4, and',
-    (t) => edit(t, 4, 'Live tokens - ADR 0003, decided', 'Live tokens - commit 0003, decided')),
+  r8('FORWARD broken by a number that is NOT an ADR reference — "commit 8803"', 'resolves Q8004, and',
+    (t) => edit(t, RES_ADR, Q4_BY, 'Live tokens - commit 8803, decided')),
   // ... and every clause of a full YAML 1.1 timestamp, each refused plain (the survivors' nine).
   ...TIMESTAMPS.map((v) => r2(`a plain YAML 1.1 TIMESTAMP — \`shared: ${v}\``, `plain value "${v}" is a YAML`,
-    (t) => setLine(t, 490, 'shared', v))),
+    (t) => setLine(t, OPEN, 'shared', v))),
   // The adequacy reader's CONSTRUCTED inputs, each a value YAML 1.1 types or cannot read as a string.
   ...YAML_NUMBERS.map((v) => r2(`a plain YAML 1.1 NUMBER — \`shared: ${v}\``, `plain value "${v}" is a YAML`,
-    (t) => setLine(t, 490, 'shared', v))),
-  r2('a plain value with a TAB-led comment — `a<TAB>#b`', 'carries a tab-led comment', (t) => setLine(t, 490, 'shared', 'a\t#b')),
-  r2('a plain value ENDING in a mapping colon — `W1:`', 'ends in a mapping colon', (t) => setLine(t, 490, 'shared', 'W1:')),
+    (t) => setLine(t, OPEN, 'shared', v))),
+  r2('a plain value with a TAB-led comment — `a<TAB>#b`', 'carries a tab-led comment', (t) => setLine(t, OPEN, 'shared', 'a\t#b')),
+  r2('a plain value ENDING in a mapping colon — `W1:`', 'ends in a mapping colon', (t) => setLine(t, OPEN, 'shared', 'W1:')),
   r2('a plain value opening with the complex-key indicator — `? x`', 'opens with the `?` complex-key indicator',
-    (t) => setLine(t, 490, 'shared', '? x')),
+    (t) => setLine(t, OPEN, 'shared', '? x')),
   r2('a plain value that is the complex-key indicator ALONE — `?`', 'opens with the `?` complex-key indicator',
-    (t) => setLine(t, 490, 'shared', '?')),
+    (t) => setLine(t, OPEN, 'shared', '?')),
   // The other side of each: what YAML 1.1 reads as a STRING is accepted, so no guard over-refuses.
   clean('a plain date with ONE-digit month and day — `2026-1-4` — is a string to YAML 1.1, and accepted',
-    (t) => setLine(t, 490, 'shared', '2026-1-4')),
+    (t) => setLine(t, OPEN, 'shared', '2026-1-4')),
   clean('a plain value with a colon INSIDE it and no space — `W1:2a` — is accepted',
-    (t) => setLine(t, 490, 'shared', 'W1:2a')),
-  clean('a plain value opening with `?` and no space — `?x` — is accepted', (t) => setLine(t, 490, 'shared', '?x')),
+    (t) => setLine(t, OPEN, 'shared', 'W1:2a')),
+  clean('a plain value opening with `?` and no space — `?x` — is accepted', (t) => setLine(t, OPEN, 'shared', '?x')),
   clean('an ADR dated in the year 0026 is a real day — `Date.UTC` read it as 1926', (t) => adrSet(t, '0079', 'date', '"0026-10-04"')),
   // R7's new clauses, from both readers' constructions.
   r7('an OLDER ADR superseding a newer one — 0078 supersedes ADR 0079', 'which is NEWER',
@@ -609,18 +748,18 @@ const PROBES = [
     (t) => adrSet(t, '0078', 'amends', 'ADR 0079')),
   r7('raised-by naming its OWN ADR — `P28, ADR 0079`', 'raised-by names ADR 0079, which is itself',
     (t) => adrSet(t, '0079', 'raised-by', '"P28, ADR 0079"')),
-  r7('resolves naming one question TWICE — `Q4, Q4` on ADR 0003', 'resolves names Q4 twice',
-    (t) => adrSet(t, '0003', 'resolves', '"Q4, Q4"')),
+  r7('resolves naming one question TWICE — `Q8004, Q8004` on ADR 8803', 'resolves names Q8004 twice',
+    (t) => adrSet(t, '8803', 'resolves', `"Q${RES_ADR}, Q${RES_ADR}"`)),
   r7('raised-by naming one id TWICE — `P28, P28`', 'raised-by names P28 twice',
     (t) => adrSet(t, '0079', 'raised-by', '"P28, P28"')),
   r7('supersedes naming one ADR TWICE, qualified differently — `ADR 0078; ADR 0078 rule 1`', 'supersedes names ADR 0078 twice',
     (t) => adrSet(t, '0079', 'supersedes', '"ADR 0078; ADR 0078 rule 1"')),
   r7('an item of TWO work items — `W116, W117`', 'item names 2 entries', (t) => adrSet(t, '0079', 'item', '"W116, W117"')),
   // R8 reads an ADR however a resolved-by names it: either case, or only a link into decisions/.
-  r8('REVERSE in LOWER case — `adr 0001`', "q1.md's resolved-by names ADR 0001, and",
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - adr 0001"\n')),
-  r8('REVERSE by a LINK alone — `[the decision](decisions/0001-x.md)`', "q1.md's resolved-by names ADR 0001, and",
-    (t) => edit(t, 1, Q1_BY, 'resolved-by: "The driver, outside the scheduler - [the decision](decisions/0001-x.md)"\n')),
+  r8('REVERSE in LOWER case — `adr 8801`', "q8003.md's resolved-by names ADR 8801, and",
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - adr 8801"\n')),
+  r8('REVERSE by a LINK alone — `[the decision](decisions/8801-x.md)`', "q8003.md's resolved-by names ADR 8801, and",
+    (t) => edit(t, RES, Q1_BY, 'resolved-by: "The driver, outside the scheduler - [the decision](decisions/8801-x.md)"\n')),
   clean('the exception still matches when Q466 names ADR 0077 by its LINK alone',
     (t) => edit(t, 466, '[ADR 0077](decisions/0077-', '[that ADR](decisions/0077-')),
 ];
@@ -631,17 +770,17 @@ const PROBES = [
 const GRADER_CONTROLS = [
   { name: 'GRADER CONTROL — the check made to THROW: non-zero exit, zero named failures',
     expect: 'crash', git: false, trips: ['R2'], notRun: NR,
-    stage: (t) => edit(t, 490, 'status: open\n', 'status: closed\n'),
+    stage: (t) => edit(t, OPEN, 'status: open\n', 'status: closed\n'),
     declare: (s) => s.replace('const failures = [];', 'const failures = [];\nthrow new Error("grader control");') },
   { name: 'GRADER CONTROL — trips R2 as declared, with a reason the check never prints',
     expect: 'wrong-reason', git: false, trips: ['R2'], notRun: NR, says: 'status is "a word nobody wrote"',
-    stage: (t) => edit(t, 490, 'status: open\n', 'status: closed\n') },
+    stage: (t) => edit(t, OPEN, 'status: open\n', 'status: closed\n') },
   { name: 'GRADER CONTROL — declares R1 and trips R2: against-declaration',
     expect: 'against-declaration', git: false, trips: ['R1'], notRun: NR,
-    stage: (t) => edit(t, 490, 'status: open\n', 'status: closed\n') },
+    stage: (t) => edit(t, OPEN, 'status: open\n', 'status: closed\n') },
   { name: 'GRADER CONTROL — the banner removed: the check runs and cannot be seen to',
     expect: 'did-not-run', git: false, trips: ['R2'], notRun: NR,
-    stage: (t) => edit(t, 490, 'status: open\n', 'status: closed\n'),
+    stage: (t) => edit(t, OPEN, 'status: open\n', 'status: closed\n'),
     declare: (s) => s.replace('console.log(`register check — ', 'console.log(`BANNER REMOVED — ') },
 ];
 
@@ -652,17 +791,17 @@ const META = [
   ['R1`s name clause disabled', 'a stray file in the folder that is not q<N>.md',
     (s) => s.replace("    if (!m || !statSync(join(dirAbs, n)).isFile()) {\n      fail('R1'",
       "    if (!m || !statSync(join(dirAbs, n)).isFile()) {\n      continue;\n      fail('R1'")],
-  ['R1`s name pattern loosened to accept a padded id', 'a PADDED name, q0017.md, declaring the id its digits spell',
+  ['R1`s name pattern loosened to accept a padded id', 'a PADDED name, q08001.md, declaring the id its digits spell',
     (s) => s.replace('const NAME = /^q([1-9][0-9]*)\\.md$/;', 'const NAME = /^q([0-9]+)\\.md$/;')],
   // --- W116's adequacy reader's survivors, each against the probe written for it ---------------
   ['R1-n1 — the name pattern made CASE-INSENSITIVE', 'an UPPER-CASE name, Q9001.md, declaring its own id',
     (s) => s.replace('const NAME = /^q([1-9][0-9]*)\\.md$/;', 'const NAME = /^q([1-9][0-9]*)\\.md$/i;')],
-  ['R1`s id-equals-name comparison disabled', 'a file whose id disagrees with its name — a second Q491 inside q490.md',
+  ['R1`s id-equals-name comparison disabled', 'a file whose id disagrees with its name — a second Q8002 inside q8001.md',
     (s) => s.replace('    if (got.fields.id !== `Q${m[1]}`) {', '    if (false) {')],
-  ['R1-n2 — the id compared NUMERICALLY', 'a padded ID inside its own file — `id: Q017` in q17.md',
+  ['R1-n2 — the id compared NUMERICALLY', 'a padded ID inside its own file — `id: Q08001` in q8001.md',
     (s) => s.replace('    if (got.fields.id !== `Q${m[1]}`) {',
       '    if (Number(String(got.fields.id).slice(1)) !== Number(m[1])) {')],
-  ['R1-n3 — the id compared after UPPER-CASING', 'a lower-case ID inside its own file — `id: q17` in q17.md',
+  ['R1-n3 — the id compared after UPPER-CASING', 'a lower-case ID inside its own file — `id: q8001` in q8001.md',
     (s) => s.replace('    if (got.fields.id !== `Q${m[1]}`) {', '    if (String(got.fields.id).toUpperCase() !== `Q${m[1]}`) {')],
   ['R2`s missing-field clause disabled', 'a required field missing — `shared` deleted',
     (s) => s.replace('    if (missing.length) fail(', '    if (false) fail(')],
@@ -733,9 +872,9 @@ const META = [
     (s) => s.replace("    } else if (!isResolved && by.trim() !== '') {", "    } else if (fields.status === 'open' && by.trim() !== '') {")],
   ['R3`s ADR existence clause disabled', 'resolved-by naming an ADR that does not exist',
     (s) => s.replace('        if (!adrs.has(id)) fail(', '        if (false) fail(')],
-  ['R3-n1 — only the FIRST ADR reference of a cell read', 'resolved-by naming two ADRs, the SECOND missing — `ADR 0001 and ADR 9999`',
+  ['R3-n1 — only the FIRST ADR reference of a cell read', 'resolved-by naming two ADRs, the SECOND missing — `ADR 8801 and ADR 9999`',
     (s) => s.replace('    for (const m of by.matchAll(ADR_REF)) {', '    for (const m of [...by.matchAll(ADR_REF)].slice(0, 1)) {')],
-  ['C10 — only the first id of a LIST read', 'resolved-by in the LIST form, the second missing — `ADRs 0001 and 9999`',
+  ['C10 — only the first id of a LIST read', 'resolved-by in the LIST form, the second missing — `ADRs 8801 and 9999`',
     (s) => s.replace('      for (const [id] of m[1].matchAll(/\\d{4}/g)) {', '      for (const [id] of [...m[1].matchAll(/\\d{4}/g)].slice(0, 1)) {')],
   ['C11 — the HYPHENATED form not read', 'resolved-by in the HYPHENATED form — `ADR-9999`',
     (s) => s.replace('const ADR_REF = /\\bADRs?[\\s-]+(', 'const ADR_REF = /\\bADRs?\\s+(')],
@@ -923,27 +1062,27 @@ const META = [
   ...['item', 'raised-by', 'resolves', 'supersedes', 'amends'].map((k) => [`R7 — \`${k}\` not read`,
     { item: 'item with two ids, the SECOND missing — `W116, W9999`',
       'raised-by': 'raised-by with two ids, the SECOND a missing ITEM — `P28, W9999`',
-      resolves: 'resolves with two ids, the SECOND missing — `Q4, Q9999` on ADR 0003',
+      resolves: 'resolves with two ids, the SECOND missing — `Q8004, Q9999` on ADR 8803',
       supersedes: 'supersedes with two entries, the SECOND missing — `ADR 0078; ADR 0005`',
       amends: 'amends with two entries, the SECOND missing — `ADR 0078; ADR 0006`' }[k],
     (s) => s.replace("    for (const key of ['item', 'raised-by', 'resolves', 'supersedes', 'amends']) {",
       `    for (const key of ${JSON.stringify(['item', 'raised-by', 'resolves', 'supersedes', 'amends'].filter((x) => x !== k)).replace(/"/g, "'")}) {`)]),
 
   // --- R8, W117 -------------------------------------------------------------------------------
-  ['R8`s forward clause disabled', 'FORWARD alone — ADR 0079 resolves Q1, whose resolved-by names no ADR',
+  ['R8`s forward clause disabled', 'FORWARD alone — ADR 8802 resolves Q8003, whose resolved-by names no ADR',
     (s) => s.replace("      } else if (!adrRefs(qf.fields['resolved-by']).includes(nnnn)) {", '      } else if (false) {')],
-  ['R8 — forward reads only the FIRST question', 'FORWARD, the SECOND id — ADR 0003 resolves `Q4, Q1`',
+  ['R8 — forward reads only the FIRST question', 'FORWARD, the SECOND id — ADR 8803 resolves `Q8004, Q8003`',
     (s) => s.replace("    for (const q of fields.resolves.split(', ')) {", "    for (const q of fields.resolves.split(', ').slice(0, 1)) {")],
-  ['R8`s reverse clause disabled', 'REVERSE alone — Q1`s resolved-by names ADR 0001, which does not list it',
+  ['R8`s reverse clause disabled', 'REVERSE alone — Q8003`s resolved-by names ADR 8801, which does not list it',
     (s) => s.replace("      if (!a.fields.resolves.split(', ').includes(q)) {", '      if (false) {')],
-  ['R8 — reverse skips an ADR whose resolves is EMPTY', 'REVERSE broken from the ADR side — ADR 0003`s resolves emptied',
+  ['R8 — reverse skips an ADR whose resolves is EMPTY', 'REVERSE broken from the ADR side — ADR 8803`s resolves emptied',
     (s) => s.replace("      if (!a || !a.order.includes('resolves')) continue;",
       "      if (!a || !a.order.includes('resolves') || a.fields.resolves === '') continue;")],
-  ['R8 — reverse reads only the FIRST ADR a resolved-by names', 'REVERSE, the SECOND ADR of a list — `ADRs 0003 and 0001`, only 0003 listing Q1',
+  ['R8 — reverse reads only the FIRST ADR a resolved-by names', 'REVERSE, the SECOND ADR of a list — `ADRs 8803 and 8801`, only 8803 listing Q8003',
     (s) => s.replace("    for (const id of adrRefs(fields['resolved-by'])) {", "    for (const id of adrRefs(fields['resolved-by']).slice(0, 1)) {")],
-  ['R8 — reverse compares by SUBSTRING', 'REVERSE where Q1 is a PREFIX of a listed Q12 — a substring is not a listing',
+  ['R8 — reverse compares by SUBSTRING', 'REVERSE where Q8003 is a PREFIX of a listed Q80031 — a substring is not a listing',
     (s) => s.replace("      if (!a.fields.resolves.split(', ').includes(q)) {", '      if (!a.fields.resolves.includes(q)) {')],
-  ['R8 — the HYPHENATED form not read', 'REVERSE in the HYPHENATED form — `ADR-0001`',
+  ['R8 — the HYPHENATED form not read', 'REVERSE in the HYPHENATED form — `ADR-8801`',
     (s) => s.replace('const ADR_REF = /\\bADRs?[\\s-]+(', 'const ADR_REF = /\\bADRs?\\s+(')],
   ['R8 — the exception keyed by its ADR alone', 'the exception is BY PAIR — another question naming ADR 0077 is still compared',
     (s) => s.replace('NOT_A_RESOLUTION.some((x) => x.q === q && x.adr === adr);', 'NOT_A_RESOLUTION.some((x) => x.adr === adr);')],
@@ -972,7 +1111,7 @@ const META = [
     (s) => s.replace('\\d+(?:(?:, \\d+)* and \\d+)?)?', '\\d+(?:(?:, \\d+)* (?:and|or) \\d+)?)?')],
   ['R8 — the stale-exception test reads resolved-by as a SUBSTRING', 'a STALE exception whose question keeps the number in OTHER words — "commit 0077"',
     (s) => s.replace("    if (!qf || !adrRefs(qf.fields['resolved-by'] ?? '').includes(x.adr)) {", "    if (!qf || !(qf.fields['resolved-by'] ?? '').includes(x.adr)) {")],
-  ['R8 — the forward test reads resolved-by as a SUBSTRING', 'FORWARD broken by a number that is NOT an ADR reference — "commit 0003"',
+  ['R8 — the forward test reads resolved-by as a SUBSTRING', 'FORWARD broken by a number that is NOT an ADR reference — "commit 8803"',
     (s) => s.replace("      } else if (!adrRefs(qf.fields['resolved-by']).includes(nnnn)) {", "      } else if (!qf.fields['resolved-by'].includes(nnnn)) {")],
   ['the timestamp — its whole TIME form removed', 'a plain YAML 1.1 TIMESTAMP — `shared: 2026-10-04T10:00:00Z`',
     (s) => s.replace('|\\d{4}-\\d\\d?-\\d\\d?(?:[Tt]|[ \\t]+)', '|(?!)\\d{4}-\\d\\d?-\\d\\d?(?:[Tt]|[ \\t]+)')],
@@ -1030,7 +1169,7 @@ const META = [
     (s) => s.replace('            if (seen.has(r[1])) fail(', '            if (false) fail(')],
   ['R7 — a ruled duplicate compared by its WHOLE entry', 'supersedes naming one ADR TWICE, qualified differently — `ADR 0078; ADR 0078 rule 1`',
     (s) => s.replace('            if (seen.has(r[1])) fail(', '            if (seen.has(entry)) fail(').replace('            seen.add(r[1]);', '            seen.add(entry);')],
-  ['R7`s bare-id duplicate clause disabled', 'resolves naming one question TWICE — `Q4, Q4` on ADR 0003',
+  ['R7`s bare-id duplicate clause disabled', 'resolves naming one question TWICE — `Q8004, Q8004` on ADR 8803',
     (s) => s.replace('          if (seen.has(entry)) fail(', '          if (false) fail(')],
   ['R7`s own-ADR clause for bare ids disabled', 'raised-by naming its OWN ADR — `P28, ADR 0079`',
     (s) => s.replace('          if (entry === `ADR ${nnnn}`) fail(', '          if (false) fail(')],
@@ -1038,10 +1177,44 @@ const META = [
     (s) => s.replace("      if (key === 'item' && entries.length > 1) {", '      if (false) {')],
 
   // --- R8's wider reading ---------------------------------------------------------------------
-  ['R8 — an ADR read in UPPER case only', 'REVERSE in LOWER case — `adr 0001`',
+  ['R8 — an ADR read in UPPER case only', 'REVERSE in LOWER case — `adr 8801`',
     (s) => s.replace("const ADR_REF_ANY_CASE = new RegExp(ADR_REF.source, 'gi');", "const ADR_REF_ANY_CASE = new RegExp(ADR_REF.source, 'g');")],
-  ['R8 — a LINK into decisions/ not read', 'REVERSE by a LINK alone — `[the decision](decisions/0001-x.md)`',
+  ['R8 — a LINK into decisions/ not read', 'REVERSE by a LINK alone — `[the decision](decisions/8801-x.md)`',
     (s) => s.replace('  ...[...by.matchAll(/decisions\\/(\\d{4})-/g)].map((m) => m[1]),\n', '')],
+
+  // --- R9, W127: disabled, and each way it could be NARROWED or WIDENED -------------------------
+  ['R9`s clause disabled', 'an open question with its closes-when EMPTIED',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {", '    if (false) {')],
+  ['R9 — the emptiness test without its trim', 'an open question with a closes-when of one SPACE',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
+      "    if (fields.status === 'open' && fields['closes-when'] === '') {")],
+  ['R9 — the emptiness test strips SPACES alone', 'an open question with a closes-when of a TAB and a NEWLINE',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
+      "    if (fields.status === 'open' && fields['closes-when'].replace(/ /g, '') === '') {")],
+  // Not inert: 64 deferred questions carry no closes-when at W127 — CORPUS_ALLOWED names it.
+  ['R9 widened to `deferred`', 'R9 CONTROL — the same question DEFERRED with an empty closes-when is clean: deferred is not bound',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
+      "    if ((fields.status === 'open' || fields.status === 'deferred') && fields['closes-when'].trim() === '') {")],
+  ['R9 — the status matched CASE-INSENSITIVELY', 'R9 — a status NEAR-MISS `Open` with an empty closes-when is R2\'s alone',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
+      "    if (fields.status.toLowerCase() === 'open' && fields['closes-when'].trim() === '') {")],
+  ['R9 — the status matched by PREFIX', 'R9 — a status NEAR-MISS `opened` with an empty closes-when is R2\'s alone',
+    (s) => s.replace("    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
+      "    if (fields.status.startsWith('open') && fields['closes-when'].trim() === '') {")],
+  ['R9 — an ABSENT closes-when read as an empty one', 'a required field missing — `closes-when` deleted',
+    (s) => s.replace("    if (!order.includes('status') || !order.includes('closes-when')) continue;   // R2's\n    if (fields.status === 'open' && fields['closes-when'].trim() === '') {",
+      "    if (!order.includes('status')) continue;\n    if (fields.status === 'open' && (fields['closes-when'] ?? '').trim() === '') {")],
+  ['R9 — the FIRST file skipped', 'R9 — the FIRST file in the folder`s order, q1.md, open with no closing condition',
+    (s) => s.replace('  ran.R9 = true;\n  for (const [n, { fields, order }] of parsed) {',
+      '  ran.R9 = true;\n  for (const [n, { fields, order }] of [...parsed].slice(1)) {')],
+  ['R9 — the LAST file skipped', 'R9 — the LAST file in the folder`s order, q99999.md, open with no closing condition',
+    (s) => s.replace('  ran.R9 = true;\n  for (const [n, { fields, order }] of parsed) {',
+      '  ran.R9 = true;\n  for (const [n, { fields, order }] of [...parsed].slice(0, -1)) {')],
+  ['R9 never marked as run — its row reads NOT RUN over a clause that ran', 'CONTROL — a staged copy that is not a repository: clean, and R4 NOT RUN',
+    (s) => s.replace('  ran.R9 = true;\n', '')],
+  ['R9 run without the question folder', 'the folder missing entirely — R1 and R5 fail, R2 to R4 say NOT RUN',
+    (s) => s.replace('  ran.R9 = true;\n', '').replace("const ran = { R1: false, R2: false, R3: false, R4: false, R5: false, R6: false, R7: false, R8: false, R9: false };",
+      "const ran = { R1: false, R2: false, R3: false, R4: false, R5: false, R6: false, R7: false, R8: false, R9: true };")],
 ];
 
 // ==============================================================================
@@ -1062,18 +1235,17 @@ const META = [
 const STATE_PROBES = [
   { name: 'STATE CONTROL — the register as it is: every figure agrees with a third reading', exit: 0, stage: null },
   { name: 'STATE — one question iceboxed: counted on its own line, and live', exit: 0,
-    stage: (t) => { edit(t, 488, 'status: open\n', 'status: icebox\n');
-      edit(t, 488, 'note: ""\n', 'note: "a what-if"\n'); } },
+    stage: (t) => { edit(t, BARE, 'status: open\n', 'status: icebox\n');
+      edit(t, BARE, 'note: ""\n', 'note: "a what-if"\n'); } },
   { name: 'STATE — a status outside the four words is live and none of them: refused', exit: 1,
     says: 'live questions that are open, deferred or iceboxed',
-    stage: (t) => edit(t, 490, 'status: open\n', 'status: closed\n') },
+    stage: (t) => edit(t, OPEN, 'status: open\n', 'status: closed\n') },
   { name: 'STATE — a CRLF question file, whose status line does not parse: refused', exit: 1,
     says: 'question files whose `status:` line parses',
-    stage: (t) => { const s = readFileSync(Q(t, 490), 'utf8'); writeFileSync(Q(t, 490), s.replace(/\n/g, '\r\n')); } },
+    stage: (t) => { const s = readFileSync(Q(t, OPEN), 'utf8'); writeFileSync(Q(t, OPEN), s.replace(/\n/g, '\r\n')); } },
   { name: 'STATE — an UPPER-CASE Q9001.md the listing does not read: refused', exit: 1,
     says: 'read a second way',
-    stage: (t) => { const s = readFileSync(Q(t, 490), 'utf8');
-      writeFileSync(join(t, 'doc', 'questions', 'Q9001.md'), s.replace('id: Q490\n', 'id: Q9001\n')); } },
+    stage: (t) => writeFileSync(join(t, 'doc', 'questions', 'Q9001.md'), synQ({ ...SYN_QUESTIONS[0], id: 9001 })) },
   { name: 'STATE — a DIRECTORY named q9002.md: refused BY NAME, not a crash', exit: 1,
     says: 'NOT: q9002.md',
     stage: (t) => { mkdirSync(join(t, 'doc', 'questions', 'q9002.md'));
@@ -1107,8 +1279,12 @@ const STATE_META = [
       .replace("  ['the next free Q, against the highest number on disk read a second way', next.q, rawMaxQ + 1, 'register'],\n", '')],
   ['the status-parses assertion deleted', 'STATE — a CRLF question file, whose status line does not parse: refused',
     (s) => s.replace("  ['question files whose `status:` line parses', questions.filter((q) => q.status !== null).length,\n    questions.length, 'register'],\n", '')],
+  // W127: the `live >= 200` floor became the relation read the other way. What the floor caught —
+  // every question read as resolved, live 0 — the relation catches at any register size.
+  ['S8 — every question counted as resolved, so live reads 0', 'STATE CONTROL — the register as it is: every figure agrees with a third reading',
+    (s) => s.replace("const resolvedCount = byStatus('resolved');", 'const resolvedCount = questions.length;')],
 ];
-const MIN_STATE_META = 10;
+const MIN_STATE_META = 11;
 
 // ==============================================================================
 // SELF — break THIS FILE: each must turn the suite red
@@ -1123,7 +1299,7 @@ const lastReplace = (t, from, to) => {
 };
 const SELF = [
   ['one probe deleted from PROBES',
-    (t) => t.replace("  r2('an empty title', '`title` is empty', (t) => setLine(t, 490, 'title', '\"\"')),\n", '')],
+    (t) => t.replace("  r2('an empty title', '`title` is empty', (t) => setLine(t, OPEN, 'title', '\"\"')),\n", '')],
   ['PROBES emptied entirely', (t) => t.replace(/const PROBES = \[[\s\S]*?\n\];/, 'const PROBES = [];')],
   ['MIN_PROBES lowered AND PROBES emptied — what the coverage bound catches',
     (t) => t.replace(/const MIN_PROBES = \d+;/, 'const MIN_PROBES = 0;')
@@ -1143,15 +1319,20 @@ const SELF = [
   ['a probe declaring the wrong NOT RUN set — a git copy said to skip R4',
     (t) => t.replace("    git: true, trips: ['R4', 'R5'], notRun: [],", "    git: true, trips: ['R4', 'R5'], notRun: NR,")],
   ['a probe whose staging changes NOTHING — what rule 7 (b) catches',
-    (t) => t.replace("    (t) => edit(t, 490, 'shared: \"\"\\n', 'shared: \"\"\\ncloses-by: \"\"\\n')),",
-      "    (t) => edit(t, 490, 'shared: \"\"\\n', 'shared: \"\"\\n')),")],
+    (t) => t.replace("    (t) => edit(t, OPEN, 'shared: \"\"\\n', 'shared: \"\"\\ncloses-by: \"\"\\n')),",
+      "    (t) => edit(t, OPEN, 'shared: \"\"\\n', 'shared: \"\"\\n')),")],
   ['the CONTROL made to trip something — what the control`s own verdict catches',
     (t) => t.replace("    git: false, trips: [], notRun: NR, stage: null },",
-      "    git: false, trips: [], notRun: NR, stage: (t) => edit(t, 490, 'status: open\\n', 'status: closed\\n') },")],
+      "    git: false, trips: [], notRun: NR, stage: (t) => edit(t, OPEN, 'status: open\\n', 'status: closed\\n') },")],
   ['a GRADER control declaring the wrong verdict — what grading the grader catches',
     (t) => t.replace("    expect: 'crash', git: false,", "    expect: 'caught', git: false,")],
-  ['MAX_CORPUS raised — the inertness run asserted, not declared',
-    (t) => t.replace('const MAX_CORPUS = 0;', 'const MAX_CORPUS = 3;')],
+  // --- W127: the corpus allow-list, which replaced `MAX_CORPUS = 0`, broken each way it is held ---
+  ['CORPUS_ALLOWED emptied — an UNLISTED mutant fails the untouched tree',
+    (t) => t.replace(/const CORPUS_ALLOWED = Object\.freeze\(\[[\s\S]*?\]\);/, 'const CORPUS_ALLOWED = Object.freeze([]);')],
+  ['an INERT mutant listed in CORPUS_ALLOWED — an entry the untouched tree does not need',
+    (t) => t.replace("  'R9 widened to `deferred`',\n]);", "  'R9 widened to `deferred`',\n  'R9`s clause disabled',\n]);")],
+  ['a CORPUS_ALLOWED name that is no META entry',
+    (t) => t.replace("  '`icebox` removed from the vocabulary',\n  'R9", "  '`icebox` removed from the vocabulary',\n  'a mutant nobody wrote',\n  'R9")],
   // --- W117's fix round: the restore, which the adequacy reader proved asserted and not proved ---
   // **These anchor the HARNESS, which sits BELOW this list in this same file**, so each replaces the
   // LAST occurrence. The first cut used `replace`, which hit the anchor's own copy in the line that
@@ -1288,11 +1469,16 @@ export async function selfTest(root) {
   const before = digestTree();
 
   const banner = () => console.log('check-register self-test —');
-  if (MAX_CORPUS !== 0) {
-    banner();
-    console.log(`  FAIL  MAX_CORPUS is ${MAX_CORPUS} and must be 0: a corpus grading says the mutant is ` +
-      'noticed and nothing about the probe the entry names.');
-    return 1;
+  {
+    // **The allow-list is a list of META NAMES, and a name that is no META entry excuses nothing it
+    // can be seen to** — refused here, before anything runs, as `META` naming a missing probe is.
+    const unknown = CORPUS_ALLOWED.filter((n) => !META.some((m) => m[0] === n));
+    if (unknown.length || new Set(CORPUS_ALLOWED).size !== CORPUS_ALLOWED.length) {
+      banner();
+      console.log(`  FAIL  CORPUS_ALLOWED names ${unknown.length ? `[${unknown.join('; ')}], which is no META entry` : 'one entry twice'}: ` +
+        'the allow-list is by name, and a name that matches nothing would excuse whatever is renamed to it.');
+      return 1;
+    }
   }
   {
     const have = [...new Set(GRADER_CONTROLS.map((g) => g.expect))].sort();
@@ -1359,6 +1545,11 @@ export async function selfTest(root) {
   for (const d of ['plans', 'work-items']) {
     mkdirSync(join(base, 'doc', d), { recursive: true });
     for (const f of readdirSync(join(root, 'doc', d))) writeFileSync(join(base, 'doc', d, f), '');
+  }
+  // **The synthetic fixtures, W127** — written once into the base, so every probe's copy has them.
+  try { plant(base); } catch (e) {
+    console.log(`check-register self-test — ABORT: the synthetic fixtures could not be planted — ${e.message}`);
+    return 3;
   }
   let seq = 0;
   /** Stage one probe's tree. Returns `{ tree }`, or `{ abort }` with the reason. */
@@ -1483,8 +1674,8 @@ export async function selfTest(root) {
     ['an EMPTY directory named like an ADR', (t) => mkdirSync(join(t, 'doc', 'decisions', '0090-residue.md'))],
     ['an EMPTY directory named like a question', (t) => mkdirSync(join(t, 'doc', 'questions', 'q9003.md'))],
     ['a file named .git below the root', (t) => writeFileSync(join(t, 'doc', 'decisions', '.git'), '')],
-    ['a name and its bytes SHIFTED across their boundary — q1.md becomes q1.md- one byte shorter', (t) => {
-      const q1 = join(t, 'doc', 'questions', 'q1.md');
+    ['a name and its bytes SHIFTED across their boundary — q8003.md becomes q8003.md- one byte shorter', (t) => {
+      const q1 = Q(t, RES);
       const s = readFileSync(q1);
       rmSync(q1);
       writeFileSync(`${q1}${String.fromCharCode(s[0])}`, s.subarray(1));
@@ -1537,27 +1728,38 @@ export async function selfTest(root) {
   }
 
   // --- pass 2: META -----------------------------------------------------------------------
-  let noticed = 0, byCorpus = 0;
+  let noticed = 0;
+  const byCorpus = [];
   if (meta) {
     for (const [what, probeName, mutate] of META) {
       const mutated = mutate(realSrc);
       if (mutated === realSrc) { failures.push(`META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`); continue; }
       const mutant = mutantPath('meta');
       writeFileSync(mutant, mutated);
-      // Is the mutant INERT on the untouched tree? One that fails there is noticed by the corpus.
+      // Is the mutant INERT on the untouched tree? One that fails there is noticed by the corpus,
+      // and that is permitted for the names CORPUS_ALLOWED lists and for no other — BOTH WAYS.
       const inert = run(mutant, null).status === 0;
       rmSync(mutant, { force: true });
-      if (!inert) { byCorpus++; continue; }
+      const allowed = CORPUS_ALLOWED.includes(what);
+      if (allowed && inert) {
+        failures.push(`META ${what} — listed in CORPUS_ALLOWED and INERT on the untouched tree: the entry ` +
+          'excuses nothing, so delete it and let its probe grade it');
+        continue;
+      }
+      if (!inert) {
+        if (allowed) byCorpus.push(what);
+        else failures.push(`META ${what} — NOT INERT on the untouched tree and not in CORPUS_ALLOWED: its probe's ` +
+          'verdict would be noise (Q150), so either the tree is wrong or the mutant is listed by name');
+        continue;
+      }
       const probe = PROBES.find((p) => p.name === probeName);
       const v = grade(probe, mutated);
       if (v.outcome === 'abort') failures.push(`META ${what} — the probe aborted: ${v.why}`);
       else if (v.outcome === expected(probe)) failures.push(`META ${what} — STILL ${v.outcome} by "${probeName}", so the clause is not what it rests on`);
       else noticed++;
     }
-    if (byCorpus > MAX_CORPUS) {
-      failures.push(`META: ${byCorpus} mutant(s) were not inert and MAX_CORPUS is ${MAX_CORPUS}`);
-    }
-    console.log(`  meta: ${noticed}/${META.length} noticed by the named probe, ${byCorpus} by the corpus`);
+    console.log(`  meta: ${noticed}/${META.length} noticed by the named probe, ${byCorpus.length} by the corpus ` +
+      `as CORPUS_ALLOWED permits, by name: ${byCorpus.length ? byCorpus.join('; ') : 'none'}`);
   } else console.log('  meta: skipped — this run is already a META child');
 
   // --- pass 2b: STATE — `npm run state` against a third reading ------------------------------
@@ -1570,6 +1772,12 @@ export async function selfTest(root) {
   mkdirSync(join(sbase, 'examples'), { recursive: true });
   cpSync(join(root, 'examples', 'l6.ts'), join(sbase, 'examples', 'l6.ts'));
   for (const f of ['package.json', 'deno.json']) cpSync(join(root, f), join(sbase, f));
+  // The same synthetic questions, so no STATE probe anchors on a live one either (W127). No ADR:
+  // `state.mjs` counts the decisions folder and reads none of its front matter.
+  try { plant(sbase, { adrs: false }); } catch (e) {
+    console.log(`check-register self-test — ABORT: the synthetic fixtures could not be planted for STATE — ${e.message}`);
+    return 3;
+  }
   /** The third reading: substring counts per file and the highest number on disk — no regex of state's. */
   const thirdReading = (tree) => {
     const qdir = join(tree, 'doc', 'questions');

@@ -321,8 +321,13 @@ const counts = [
  * Each bound is a FLOOR well below today's reading rather than an equality, because an
  * equality here would be a ratchet every new plan, item, question and decision had to
  * bump — the shape [Q102](../doc/questions/q102.md) describes. A floor cannot go stale
- * toward weakness the way a ceiling can: ids are never reused, so these quantities only
- * grow. **What a floor cannot see is a plausible wrong number**, which is why the one
+ * toward weakness the way a ceiling can **where the quantity only grows, and that is true of a
+ * FILE COUNT and false of a STATUS**: ids are never reused, so plans, items, decisions and
+ * question files only grow, while how many questions read `open` is a judgement a plan can move
+ * on purpose. P29's triage took `open` from 307 to 23 and a floor of 200 on it turned this
+ * script red at W123 — [W127](../doc/work-items/w127-an-open-question-says-what-closes-it.md)
+ * removed it. A status is held by RELATIONS here, which move with the register rather than with a
+ * literal. **What a floor cannot see is a plausible wrong number**, which is why the one
  * defect it missed is recorded in the header rather than guarded here.
  */
 const ASSERTIONS = [
@@ -330,13 +335,18 @@ const ASSERTIONS = [
   ['item files found', items.length, 80, 'items'],
   ['decision files found', adrFiles.length, 40, 'decisions'],
   ['register question files read', questions.length, 300, 'register'],
-  ['questions that are live (not resolved)', liveCount, 200, 'register'],
+  // **Resolved only grows in practice** — nothing un-resolves a question — so it keeps its floor.
   ['questions that are resolved', resolvedCount, 50, 'register'],
-  ['questions reading `open`', openRows, 200, 'register'],
   // a RELATION rather than a floor: every live question is open, deferred or iceboxed, so a
   // status line that changes shape is caught where a floor of 200 would absorb it silently —
   // and an unreadable `status:` line counts as live and as none of the three.
   ['live questions that are open, deferred or iceboxed', openRows + deferredRows + iceboxRows, liveCount, 'register'],
+  // **And the same relation read the OTHER way, which replaced `live >= 200` at W127.** Live falls
+  // with every resolution (270 at W127), so a floor on it is a status floor in waiting. What it
+  // caught — a reading that counts every question resolved, live 0 — is this row: the two together
+  // make live EQUAL to open + deferred + iceboxed, at any register size.
+  ['live questions, against open, deferred and iceboxed read the other way', liveCount,
+    openRows + deferredRows + iceboxRows, 'register'],
   // **The second route, and each comparison is a floor at the OTHER route's figure**, so the first
   // route reading fewer than the directory holds, or a next id at or below an id on disk, is red.
   ['question files read, against every entry the folder holds read a second way',

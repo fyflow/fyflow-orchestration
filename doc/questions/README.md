@@ -11,8 +11,8 @@ from it.
 `spec/`. `npm run q -- Q17` looks one up (W119), and the file name still works: Q17 is `q17.md`.
 
 **`npm run check:register` holds this folder** —
-[ADR 0079](../decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md).
-It is a gate entry, so a malformed file, an undeclared cluster or a deleted question is a red gate
+[ADR 0079](../decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md),
+amended by ADR 0082. It is a gate entry, so a malformed file, an undeclared cluster or a deleted question is a red gate
 rather than a sentence here.
 
 ## The format
@@ -26,8 +26,8 @@ every file**, empty as `""` where there is nothing to say:
 | `title` | the question or the finding, in one line |
 | `status` | one of the four words below, and nothing else |
 | `cluster` | one of the clusters declared below |
-| `owner` | the work item or plan that will answer it, or `no owner` — which is honest and common. **It is PROSE, not an id field**: a migrated value is the register's cell verbatim (`W28 (P9)`, `no owner — P16's retro`), and a migrated resolved question has `""`. `check:register` checks that the field is present, not its form — [Q494](q494.md) |
-| `closes-when` | the closing condition, where one is stated |
+| `owner` | the work item or plan that will answer it, or `no owner` — which is honest and common. **It is optional PROSE, not an id field**: a migrated value is the register's cell verbatim (`W28 (P9)`, `no owner — P16's retro`), and a migrated resolved question has `""`. `check:register` checks that the field is present, not its form — [ADR 0082](../decisions/0082-an-open-question-owes-a-closing-condition-and-owner-is-prose.md) |
+| `closes-when` | the CLOSING condition: what would let the question be resolved — not a trigger for reopening one. **Required non-empty while `status` is `open`** (`R9`, [ADR 0082](../decisions/0082-an-open-question-owes-a-closing-condition-and-owner-is-prose.md)); optional for every other status |
 | `resolved-by` | **non-empty exactly when `status` is `resolved`**: an ADR, a plan, a spec reference, or free text. Every `ADR NNNN`, `P<n>` and `W<n>` it names must exist |
 | `note` | what qualifies the status — for a migrated row, what its status cell carried after the first word |
 | `raised-by` | the item or plan that raised it. **Left empty by the migration rather than guessed** |
@@ -47,7 +47,7 @@ matter is optional — the migrated files carry none, and their long bodies are 
 
 | word | means |
 |---|---|
-| `open` | real, and not yet answered |
+| `open` | real, and not yet answered — **with a `closes-when` saying what would answer it** |
 | `deferred` | **real, not now, with a reason** — it is expected to come back |
 | `icebox` | **a what-if judged unlikely to matter to most work items.** It is NOT expected to come back on its own, and that is what separates it from `deferred`. **It requires a non-empty `note` saying why.** The lookup leaves it out unless asked for |
 | `resolved` | answered, with what answered it in `resolved-by` |
@@ -74,8 +74,10 @@ its first cell. *The descriptions are the register's cluster headings at `aa43cb
 ## Raising a question
 
 1. Take an id from your item's `Reserves:` block — `npm run state` prints the next free one.
-2. Write `doc/questions/q<N>.md` with all ten fields: `status: open`, a declared `cluster`, the
-   `owner` if one is known, and **`raised-by` set to your item or plan**.
+2. Write `doc/questions/q<N>.md` with all ten fields: `status: open`, a declared `cluster`, **a
+   `closes-when` saying what would close it** — an open question without one is a red gate (`R9`) —
+   the `owner` if one is known, and **`raised-by` set to your item or plan**. A question that is
+   real but not now is `deferred` instead, with its reason in `note`.
 3. Cite it as `[Q<N>](../questions/q<N>.md)` from wherever it is relevant, at that file's depth.
 
 **To resolve one**, set `status: resolved` and fill `resolved-by`. **To ice one**, set

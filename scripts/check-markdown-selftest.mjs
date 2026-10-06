@@ -92,6 +92,19 @@ const TEMPLATE = 'doc/work-items/TEMPLATE.md';
 const SPEC_DOC = 'spec/flow-definition.md';
 const AGENTS = 'AGENTS.md';
 const SPEC_RUNTIME = 'spec/runtime-targets.md';
+/**
+ * **The question-file probes write a SYNTHETIC question over the file, and read none of it** —
+ * [W127](../doc/work-items/w127-an-open-question-says-what-closes-it.md), P29 stop-and-ask (m). They
+ * anchored on the closing fence of `q488.md` and `q490.md`, and a triage verdict is an edit to a
+ * question file: a body added below the fence would have aborted them. The files must still EXIST,
+ * which they always will — a question is never deleted (`check:register`'s `R4`) — and their
+ * content is replaced whole, so no verdict can move what the probe sees.
+ */
+const QFILE_A = 'doc/questions/q488.md';
+const QFILE_B = 'doc/questions/q490.md';
+const synQuestion = (id) => `---\nid: ${id}\ntitle: "a synthetic question the markdown self-test writes"\n` +
+  'status: open\ncluster: "Verification and fixtures"\nowner: ""\ncloses-when: "a synthetic closing condition"\n' +
+  'resolved-by: ""\nnote: ""\nraised-by: "W127"\nshared: ""\n---\n';
 
 /**
  * `file` is the document the probe rewrites, relative to the fixture root.
@@ -189,28 +202,28 @@ const PROBES = [
   // `---` never closes — 155 links gone. Both were green through the whole of this file.
   {
     name: 'a dead link ABOVE a thematic break in a question file`s body — the fence is the FIRST `---`',
-    file: 'doc/questions/q488.md', check: 'M1',
-    mutate: (t) => t.replace(/\n---\n$/, '\n---\n\nSee [a](no-such-a.md).\n\n---\n\nBelow the break.\n'),
+    file: QFILE_A, check: 'M1',
+    mutate: () => synQuestion('Q488').replace(/\n---\n$/, '\n---\n\nSee [a](no-such-a.md).\n\n---\n\nBelow the break.\n'),
   },
   {
     name: 'a dead link BELOW a thematic break in a question file`s body',
-    file: 'doc/questions/q488.md', check: 'M1',
-    mutate: (t) => t.replace(/\n---\n$/, '\n---\n\nAbove the break.\n\n---\n\nSee [b](no-such-b.md).\n'),
+    file: QFILE_A, check: 'M1',
+    mutate: () => synQuestion('Q488').replace(/\n---\n$/, '\n---\n\nAbove the break.\n\n---\n\nSee [b](no-such-b.md).\n'),
   },
   {
     name: 'an opening `---` that never CLOSES is not front matter — the dead link in the file still trips',
-    file: 'doc/questions/q488.md', check: 'M1',
-    mutate: (t) => t.replace(/\n---\n$/, '\n\nSee [c](no-such-c.md).\n'),
+    file: QFILE_A, check: 'M1',
+    mutate: () => synQuestion('Q488').replace(/\n---\n$/, '\n\nSee [c](no-such-c.md).\n'),
   },
   {
     name: 'a dead link in the BODY below a question file`s front matter',
-    file: 'doc/questions/q490.md', check: 'M1',
-    mutate: (t) => t.replace(/\n---\n$/, '\n---\n\nSee [the plan](no-such-plan.md).\n'),
+    file: QFILE_B, check: 'M1',
+    mutate: () => synQuestion('Q490').replace(/\n---\n$/, '\n---\n\nSee [the plan](no-such-plan.md).\n'),
   },
   {
     name: 'a dead link inside a question file`s FRONT MATTER — a field is data, must trip nothing',
-    file: 'doc/questions/q490.md', check: null,
-    mutate: (t) => t.replace('\ntitle: "', '\ntitle: "see [the plan](no-such-plan.md) — '),
+    file: QFILE_B, check: null,
+    mutate: () => synQuestion('Q490').replace('\ntitle: "', '\ntitle: "see [the plan](no-such-plan.md) — '),
   },
 
   // --- {} : the check must NOT fire ------------------------------------------
