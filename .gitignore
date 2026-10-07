@@ -6,3 +6,6 @@ playwright-report/
 
 # Editor
 .vscode/
+
+# Claude Code agent worktrees: each is an EMBEDDED git repository (Q235)
+.claude/worktrees/
