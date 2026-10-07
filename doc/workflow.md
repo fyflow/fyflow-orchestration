@@ -1,8 +1,8 @@
 # Workflow
 
-**Status:** v0.28 — **run to completion TWENTY-NINE times**, by P1 through P29, four of whose retros
+**Status:** v0.29 — **run to completion THIRTY times**, by P1 through P30, four of whose retros
 adopted nothing (P8, P25, P28 and P29), which is section 6 pass 3 rule 1's expected verdict rather than
-a failure to run it; v0.28 is the maintainer's answer to P29's proposal. **Read this before starting any work item.** Paths are relative to the repo root unless they
+a failure to run it; v0.29 is the maintainer's answer to P30's proposal. **Read this before starting any work item.** Paths are relative to the repo root unless they
 are markdown links.
 
 *This file was **305,643 bytes** until
@@ -161,23 +161,18 @@ checks print and `lint` does not.
 > A pipe replaces the exit code with the last stage's, and **`grep -c` exits 1 on zero matches**.
 > **Grep the log afterwards; grep is a reading tool and never a verdict.**
 
-**AND AN ITEM'S CONFIRMING GATE IS `npm run gate:full`, NOT `npm run gate`** — v0.26, P26, and the
-sharpest kind of finding: a rule FOLLOWED that did not work.
+**AND AN ITEM'S CONFIRMING GATE IS THE SELF-TESTS TOO, NOT `npm run gate`** — v0.26, P26, a rule
+FOLLOWED that did not work: *two items shipped `gate` green and `gate:full` RED*, the case
 [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)
-took the self-tests off the ladder at 245 s against 1326 s and **priced this case in its own
-consequence 2**. *Two of P26's items shipped with `gate` green and `gate:full` RED, found at W110
-only because its brief asked for `gate:full` by name — which is not a mechanism. It fired again at
-W114.*
+consequence 2 priced. **A green `gate` says the product works, not that anything could have noticed
+if it did not.** **Do not start one over a tree with a known red lane** — fix it, re-run it alone,
+then pay once, on the final tree.
 
-> It costs **about a quarter of an hour over eight lanes, ONCE per item**. **A
-> green `gate` says the product works; it says nothing about whether anything could have noticed
-> if it did not.** **Do not start one over a tree with a known red lane** — fix the lane, re-run
-> it alone, then pay for the gate once, on the final tree.
-
-**And an item that does not run `gate:full` runs, alone, every self-test whose check reads a file
-in its `Owns`** — v0.28, P29, the maintainer's answer to its retro. *P29's register self-test was
-red for six items behind a waiver argued from the ladder, which says nothing about the self-tests.*
-It costs about 3 h across P29's six batches, against about 4 h for `gate:full` once per item.
+> **That gate is `gate:full` LESS `check:register:selftest`, and the plan's LAST item runs the whole
+> `gate:full`** — v0.29, P30, the maintainer's answer to its retro. An item editing
+> `scripts/check-register*.mjs`, `scripts/state.mjs` or `doc/questions/README.md` runs the lane too.
+> *It was ~2300 s of each P30 item's ~2330 s self-test wall and red 0 times in four; without it the
+> wall is 777 s.* **In force when the `gate:item` mechanism lands; until then an item runs `gate:full`.**
 
 **Levels 0-6 are the agent's job. Level 7 is where a person enters.** Never spend a person on
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have
@@ -340,8 +335,8 @@ ever, came from two briefs naming the same obligations and the same specifics; *
 differed its two and got three**.* So the overlap measures the briefs as much as the readers.
 **The band's denominator is NOT the ordinal, and conflating them is how the band went false** —
 three measurements are outside it (6, 6, 7) and each had a shared priming. **It counts measurements
-TAKEN, not items reviewed, and the ORDINAL is that count: eighty-two, so the next is the
-EIGHTY-THIRD.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
+TAKEN, not items reviewed, and the ORDINAL is that count: eighty-three, so the next is the
+EIGHTY-FOURTH.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
 why three published ordinals were short by one.* **An item's RECORD states its own overlap — its own
 file, always legal — and only a retro carries the total forward** (v0.26; v0.27).
 
@@ -455,7 +450,8 @@ v0.24 [P23](plans/p23-what-a-run-needs-to-outlive-its-process.md#retro) ·
 v0.25 [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md#retro) ·
 v0.26 [P26](plans/p26-what-a-flow-can-say-without-code.md#retro) ·
 v0.27 [P27](plans/p27-what-a-register-row-is.md#retro) ·
-v0.28 [P29](plans/p29-which-open-questions-still-matter.md#retro)
+v0.28 [P29](plans/p29-which-open-questions-still-matter.md#retro) ·
+v0.29 [P30](plans/p30-which-open-questions-close-by-a-fix-already-named.md#retro)
 
 ## The refusal ledger
 
@@ -466,8 +462,8 @@ than restating it.** *The count is of REFUSALS, not of mentions.*
 
 | the proposal | refused | the standing ground |
 |---|---|---|
-| **A check over `doc/`** — prose held true by a script | **28 times**, P2-P29 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](questions/q489.md)* |
-| **An `Owns` pre-declaration rule / `check-owns.mjs`** | **13 times**, P2-P26 | three miscounts were caused by the record-step list being WRONG, and naming the missing file fixed it with no script. It returns on a miscount with the list correct |
+| **A check over `doc/`** — prose held true by a script | **29 times**, P2-P30 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](questions/q489.md)* |
+| **An `Owns` pre-declaration rule / `check-owns.mjs`** | **14 times**, P2-P30 | three miscounts were caused by the record-step list being WRONG, and naming the missing file fixed it with no script. It returns on a miscount with the list correct — **and at P30 it did, refused because a rung in `gate` had found both late files before their edit** |
 | **A ladder LEVEL for the evidence** | 4 times, P11-P14 | answered from the other side by [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md): not a rung, and not on the local gate |
 | **The dated-ceiling HAND-OFF**, and **keeping the harness so the re-run has a subject** | **4 times**, P18-P20, P27 | the ground CHANGED: *the retro catches it in one command* needs a harness, and at P27 none survived — **0 of 28** declared ceilings re-runnable. It stands on the YIELD, **5 catches in 72** and falling (2/11, 2/23, 1/14, 0/24), with the in-item re-run doing the work ([Q486](questions/q486.md)) |
 | **A fourth list below `CROSS_ROW_SUBJECTS`** | twice, P13-P14 | three iterations each closed one layer further out ([Q217](questions/q217.md)) |
