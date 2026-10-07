@@ -1,8 +1,8 @@
 # Workflow
 
-**Status:** v0.29 — **run to completion THIRTY times**, by P1 through P30, four of whose retros
+**Status:** v0.30 — **run to completion THIRTY times**, by P1 through P30, four of whose retros
 adopted nothing (P8, P25, P28 and P29), which is section 6 pass 3 rule 1's expected verdict rather than
-a failure to run it; v0.29 is the maintainer's answer to P30's proposal. **Read this before starting any work item.** Paths are relative to the repo root unless they
+a failure to run it; v0.29 is the maintainer's answer to P30's proposal, and v0.30 is section 1 rule 6, the maintainer's direction. **Read this before starting any work item.** Paths are relative to the repo root unless they
 are markdown links.
 
 *This file was **305,643 bytes** until
@@ -35,7 +35,7 @@ carry the rest.*
                   - NOT CLAUDE.md and NOT doc/README.md
 ```
 
-Five rules that make the loop worth having:
+Six rules that make the loop worth having:
 
 1. **A work item that cannot state its verification gate is not ready to start.** Write the gate
    first. If you cannot, the decomposition is wrong and starting will not fix it.
@@ -70,6 +70,10 @@ Five rules that make the loop worth having:
    *An index that contradicts the document it indexes does so on precisely the sentence that was just
    corrected, because that is the sentence somebody was looking at.* **So: before an item is done, it
    greps the tree for its own id, and for any phrase or number it withdrew.**
+6. **A defect one simple decision settles is ASKED, not raised** — v0.30, the maintainer's
+   direction: P30's items closed thirteen questions and raised four. The item stops, asks to
+   widen its `Owns`, puts a YES in its Exceptions before the edit, and fixes it. **A question is
+   raised only on a NO, or when the fix is not small.** Its Record states closed and raised.
 
 ## 2. The unit of work
 
@@ -451,7 +455,7 @@ v0.25 [P24](plans/p24-what-a-node-may-remember-across-a-runs-branches.md#retro) 
 v0.26 [P26](plans/p26-what-a-flow-can-say-without-code.md#retro) ·
 v0.27 [P27](plans/p27-what-a-register-row-is.md#retro) ·
 v0.28 [P29](plans/p29-which-open-questions-still-matter.md#retro) ·
-v0.29 [P30](plans/p30-which-open-questions-close-by-a-fix-already-named.md#retro)
+v0.29 [P30](plans/p30-which-open-questions-close-by-a-fix-already-named.md#retro) · v0.30 the maintainer, after P30
 
 ## The refusal ledger
 
