@@ -203,7 +203,8 @@ pool); the class instance is the quiet half, and it is the one people hit.*
 `git diff --name-only cc287bc~1 HEAD` plus the record step. **Owns, 4**: `.gitignore`, `doc/README.md`,
 `AGENTS.md` (one hunk, inside the sentence — asserted by rung `out`'s `out-owns`), this file.
 **Exception, 1, late**: P30's Stop-and-asks table, row (h), in `921aa60` (declared above). **Record step**:
-P30's plan (its Record, its Status line, stop-and-ask (c)'s answer cell), `doc/questions/q542.md`
+P30's plan (its Record, its Status line, stop-and-ask (c)'s answer cell, and a Q542 row in its
+*Open questions this plan carries*, as W132 added Q541's), `doc/questions/q542.md`
 (raised), `q235.md`, `q484.md`, `q534.md` (resolved). `README.md` was read and not edited: nothing in it
 moved. `doc/decisions/**` was not touched — no ADR (prediction 4). `CLAUDE.md`, `doc/workflow.md` and
 `doc/concept.md` not edited (prediction 5).
