@@ -1,6 +1,6 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** complete — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); retro run 2026-10-07, its proposal to the maintainer (Retro below)
+**Status:** complete and retro'd 2026-10-07 — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); proposal A adopted by the maintainer the same day as `doc/workflow.md` v0.29 (Retro below)
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
@@ -296,10 +296,9 @@ raised after `e61df81`, so closing it does not lower the count from 22. The arit
 ## Retro
 
 *Pass 3 ran on 2026-10-07 over `5108345`, with the working tree clean before it. Scratch
-`dev-dist/p30r-1122/` (the retro shell's pid). **PROPOSED, NOT ADOPTED**: this section goes to the
-maintainer, as P29's did, and `doc/workflow.md`, `CLAUDE.md`, `package.json` and every ADR are
-untouched by it. What the maintainer answers is recorded below this section, in the commits that
-make it. Ids in this Retro are bare text, as in the Record.*
+`dev-dist/p30r-1122/` (the retro shell's pid). **PROPOSAL A ADOPTED by the maintainer, 2026-10-07, as `doc/workflow.md`
+v0.29** — section 10. Sections 1-9 are the proposal as it went up, unedited but for section 7's
+heading. Ids in this Retro are bare text, as in the Record.*
 
 ### 1. What is in `gate:full`, measured from the four confirming gates
 
@@ -527,9 +526,9 @@ sentence and its test cell), with briefs written apart. **The eighty-third measu
 ordinal is now EIGHTY-THREE and the next measurement is the EIGHTY-FOURTH.** The band's *fifty-nine*
 stays, as P29's retro kept it.
 
-### 7. Refusals, and what is held for the maintainer's answer
+### 7. Refusals, and the `doc/workflow.md` edits
 
-**Held, not written**, because each is a `doc/workflow.md` edit and this section only proposes:
+**Held until the maintainer answered, then made in v0.29** (section 10):
 
 | edit | where |
 |---|---|
@@ -557,3 +556,33 @@ never reissued) and P29's own precedent with W128-W130 and ADR 0083-0084 decide 
 
 Ran, each redirected with `$?` read in the same command: `npm run state` (before and after),
 `check:budget`, the self-tests without the register lane (section 1). Only this plan file changed after them, so `check:markdown`, `check:register` and `npm run gate` were re-run on the final tree; `gate:full` was not, since nothing a self-test reads moved but this file, which `check:markdown:selftest` was also re-run over.
+
+### 10. The maintainer's answer, 2026-10-07: proposal A
+
+**A, and not B, C or D.** `check:register:selftest` runs once per PLAN, not per item. An item's
+confirming gate is `gate:full` less that lane; an item that edits `scripts/check-register*.mjs`,
+`scripts/state.mjs` or `doc/questions/README.md` still runs it; the plan's LAST item runs the whole
+`gate:full`. Written into `doc/workflow.md` section 4 as **v0.29**, replacing the v0.26 and v0.28
+paragraphs, with section 7's edits, in `7ebd377`. `check:budget` EXIT 0 after it, with 649 bytes of
+headroom against 567 before: the replacement is shorter than what it replaced.
+
+**The rule is NOT in force yet.** Section 3's cost stands: nothing today runs the self-tests less one
+lane in a form the gate's checks can see. **The mechanism is a work item — the first of the next
+plan, or an item outside any plan if the maintainer prefers — and v0.29 says that until it lands an
+item runs `gate:full`.** It owns:
+
+| file | the change |
+|---|---|
+| `package.json` | a `gate:item` entry: `gate`, then the self-tests less the register lane |
+| `scripts/run-selftests.mjs` | the option that leaves one entry out, printed by `--plan` and accounted for both ways, provoked at birth (section 5 rule 7) |
+| `scripts/check-wiring.mjs` and its self-test | if `G4`/`G5` bind the manifest: `gate:item` runs the runner, and the set left out is exactly the register lane |
+| `CLAUDE.md` | its *an ITEM'S CONFIRMING GATE* line, which names `gate:full` |
+| `doc/workflow.md` | v0.29's *In force when the `gate:item` mechanism lands; until then an item runs `gate:full`*, deleted |
+
+**`CLAUDE.md` and `package.json` are not edited by this retro**, so neither says something false
+before the mechanism exists: today `gate:full` IS an item's gate, as both say. ADR 0070 is not
+amended: its rule 4 (nothing deleted, every lane still runs) holds, once per plan. **The ids stand**
+as section 8 states them.
+
+Ran after the answer, each redirected with `$?` read in the same command: `check:budget`,
+`check:markdown` and `npm run gate`, all EXIT 0 (`dev-dist/p30r-1122/`).
