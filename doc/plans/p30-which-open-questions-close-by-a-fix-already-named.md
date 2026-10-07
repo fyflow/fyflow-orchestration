@@ -4,11 +4,11 @@
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
-"resolved-by~P30" --fields id,status,resolved-by` lists exactly the fourteen questions of decision 1,
+"resolved-by~P30" --fields id,status,resolved-by` lists exactly the thirteen questions of decision 1 (its twelve plus Q534),
 each `resolved` and each naming the item that closed it; and `npm run q -- --where status=open
---count` prints **8**, down from 22 at `e61df81`, plus any question an item raises open, each
-named in that item's Record.* *(Read thirteen and **9** until Q534 joined at W133's record step,
-stop-and-ask (g).)*
+--count` prints **10**, down from 22 at `e61df81` by the twelve, plus any question an item raises open, each
+named in that item's Record.* *(Read thirteen and **9** at declaration, then fourteen and **8** after Q534
+joined at W133's record step, stop-and-ask (g); both were wrong.)* *(Corrected 2026-10-07, by the maintainer's answer to W134's Record: decision 1's table always listed twelve, not thirteen, and Q534 was raised after `e61df81`, so it was never among the 22.)*
 **Reserves:** W131-W138, Q533-Q547, ADR 0085-0086
 
 ```
@@ -26,7 +26,7 @@ Declared: 2026-10-06 on `e61df81`
 ## Why this plan, and why now
 
 P29 gave every open question a `closes-when` (`R9`, ADR 0082). **Twenty-two are open on `e61df81`,
-and for thirteen of them the `closes-when` names a fix of a few lines in one or two files**,
+and for twelve of them the `closes-when` names a fix of a few lines in one or two files**,
 most of them written as *"one commit outside P29"*. P29 decision 3 forbade it from answering
 anything, so those fixes were left for a later plan. This is that plan.
 
@@ -47,8 +47,9 @@ Every claim below was **re-checked on `e61df81`**, not inherited from P29's note
 
 ## Decisions taken before fan-out
 
-**1. Thirteen questions are in. Nine are Out**, by the maintainer's choice on 2026-10-06 (*"A + B"*).
-**Q534 is the fourteenth**, raised by W133 and added to W134 by the maintainer on the same day
+**1. Twelve questions are in. Ten are Out**, by the maintainer's choice on 2026-10-06 (*"A + B"*).
+*(Corrected 2026-10-07, by the maintainer's answer to W134's Record: decision 1's table always listed twelve, not thirteen, and Q534 was raised after `e61df81`, so it was never among the 22.)*
+**Q534 is the thirteenth**, raised by W133 and added to W134 by the maintainer on the same day
 (stop-and-ask (g)):
 
 | | questions | why |
@@ -150,7 +151,7 @@ learns reaches the next item's declaration.
 | **(a)** | Q144: may W131 land the fix if no replacement `ran:` case can be built in `check-policies-selftest.mjs`? | *open — W131 asks before the fix if it gets there* |
 | **(b)** | Q61: if the 0.5.2 measurement differs from P2's, does the sentence state the new behaviour, or does Q61 stay open and gain a new question? | **did not fire**: W133's measurement matched P2's table in Node and Deno |
 | **(c)** | Q484: if W134's deletion crosses an `M3`-`M5` floor, are the floors retuned per ADR 0076 and ADR 0078, or does Q484 wait for Q142? | **did not fire**: W134 crossed no floor — `check:markdown:selftest` EXIT 0, 42/42, before and after the deletion; 199 linking documents against `M4`'s 120, 84 anchored against `M5`'s 72 |
-| **(d)** | ~~Scope~~ | **ANSWERED by the maintainer, 2026-10-06: tiers A and B**, thirteen questions (decision 1) |
+| **(d)** | ~~Scope~~ | **ANSWERED by the maintainer, 2026-10-06: tiers A and B**, twelve questions (decision 1; *read thirteen until 2026-10-07*) |
 | **(e)** | ~~Q63's direction~~ | **ANSWERED, 2026-10-06: drop the class name** (decision 2) |
 | **(f)** | ~~Q508~~ | **ANSWERED, 2026-10-06: Out** |
 | **(g)** | ~~Q534, raised by W133 outside its `Owns`~~ | **ANSWERED by the maintainer, 2026-10-06: into W134**, which gains `AGENTS.md` for that sentence. And for the rest of the plan: *an item that finds a small fix outside its `Owns` may stop and ask to widen its scope*, rather than only raising a question |
