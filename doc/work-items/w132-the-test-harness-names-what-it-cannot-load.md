@@ -98,8 +98,10 @@ first.
   `deno run --allow-read --allow-run test/provocations/q272.ts`, each EXIT 0 meaning the provoked
   runner did what Q272 says.
 - **Rule 8**: break each output's clause — the `try` removed, the FAIL line unnamed, the exit code
-  left 0, the loop stopped at the first failure, a call-site name swapped with its neighbour's — and
-  watch the provocation or the suite go red for the reason it names.
+  left 0, the loop stopped at the first failure, a call-site name changed, deleted or duplicated — and
+  watch the provocation or the suite go red for the reason it names. *A call-site name SWAPPED with its
+  neighbour's cannot go red: the membership compares sets and a length. It is declared survivor S2, and
+  the call-site form puts it in front of a reader instead (the conformity reader's finding 4).*
 - **Reader**: one conformity reader, fresh context, P30 and this file first, then the code; it reports
   and does not fix, and the tree holds still while it reads.
 - **Confirming gate**: `npm run gate:full > dev-dist/w132-63479/full.log 2>&1; echo "EXIT=$?"`, once,
