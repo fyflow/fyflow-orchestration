@@ -586,3 +586,7 @@ as section 8 states them.
 
 Ran after the answer, each redirected with `$?` read in the same command: `check:budget`,
 `check:markdown` and `npm run gate`, all EXIT 0 (`dev-dist/p30r-1122/`).
+
+**2026-10-07: the mechanism landed at W139**, outside any plan: `npm run gate:item`, bound by
+`check:wiring` `G7`. v0.29 is in force, and this section's *not in force yet* is history. `gate:item`
+measured 985 s against section 1's ~915 s estimate.
