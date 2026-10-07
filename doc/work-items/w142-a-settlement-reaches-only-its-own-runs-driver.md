@@ -23,6 +23,8 @@ Owns:       src/scheduler/runtime.ts — the runtime's event delivery (P31's W14
             the tests: test/scheduler/runtime.test.ts (a W142 suite), examples/l6.ts (the two pair
             rows gain a delivery clause; DECLARED_TOTAL by arithmetic), examples/run-flow.ts (the
             per-driver delivery observer those clauses read);
+            examples/run-flow.ts's per-run scheduler listeners and `poolOfTask` on a SHARED runtime —
+            the maintainer's answer (B) to the prediction-3 stop, 2026-10-07;
             examples/retention.ts (a `topology` mode: N runs through runtime.start with no per-run
             harness listener on the scheduler — the scale measurement);
             doc/decisions/0088-*.md; AGENTS.md section 12 (the topology guidance);
@@ -97,8 +99,14 @@ Reserves:   Q556-Q558, ADR 0088. No W beyond W142
   the `Driver`'s surface.
 - Detaching a finished run from the routing: RN-R25 says a finished run's driver still hears its id,
   and this item does not move that rule.
-- The harness's own per-run listeners in `examples/run-flow.ts` — measured, reported, not removed
-  (they are what L6's other rows observe).
+- ~~The harness's own per-run listeners in `examples/run-flow.ts` — measured, reported, not removed.~~
+  **Moved IN by the maintainer, 2026-10-07 — answer (B) to this item's prediction-3 stop.** After
+  ADR 0088 routed the drivers, `retention.ts scale` (W55's command) was still super-linear (10 985 ms
+  and 880 MiB at N = 800 shared), because `runFlow` files about ten listeners of its own per run on the
+  scheduler and copies `scheduler.tasks` into each report. The answer: on a SHARED runtime those
+  listeners hear only their own run's events and every unminted id (ADR 0088's rule, applied to the
+  harness), and `poolOfTask` keeps the same set. A run on its own runtime is unchanged. `runPair`'s
+  `record` stays a direct listener, because it must hear every run.
 - P31's other items.
 
 ## Verification

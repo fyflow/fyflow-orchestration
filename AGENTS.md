@@ -1989,6 +1989,24 @@ pass every flow the runtime will run: `createRuntime(registry, code, { base, flo
 flow handed to `start` that transforms on a type no pool was built for is refused there, naming the
 type and the language, rather than failing every task of that node one run in.
 
+**Thousands of runs at once: start them all on ONE runtime.** Every run `start` (or `resume`) opens
+shares the runtime's pools and its one scheduler, and the runtime ROUTES each settlement to the driver
+holding its run id — [ADR 0088](doc/decisions/0088-a-runtime-routes-each-settlement-to-the-driver-holding-its-run-id.md).
+A driver is handed its own run's settlements and nothing of any other run's, so N concurrent runs cost
+one delivery per settlement and the topology is **linear in N**; before it, every settlement reached
+every driver and one runtime cost N² (`examples/retention.ts topology N` measures both). Two things are
+not routed, and both are yours to size:
+
+- **A `Driver` you build by hand** on `runtime.scheduler` or on your own `FyflowScheduler` (the long
+  way, below) subscribes to the scheduler itself and hears every settlement on it, dropping the ones
+  that are not its run's (`ID-R4`). That is correct, and N of them on one scheduler is N² deliveries.
+  For a handful of runs it does not matter; for thousands, go through `start`.
+- **A listener of your own** on `runtime.scheduler` — a dashboard, a logger — hears every event of
+  every run. Key it on `detail.id` and do O(1) work per event, or N such listeners are N² again.
+
+A task id that does not parse — work this library did not mint — still reaches EVERY driver, which
+each report it through `onUnmintedTask` (section 9): nobody owns it, so everybody says so.
+
 **The long way, and it is the same objects.** You can build the scheduler yourself and hand the
 `Driver` the registry sets — which is what the runtime does, and what ladder L2-L5 here do with a
 double. You supply the scheduler, and that is all you have to supply. Since
@@ -2197,8 +2215,9 @@ if (state.outcome !== 'completed') throw new Error(`expected completed, got ${st
 **Three things bite everyone.** The **run id is a constructor option**, not a `start()` argument,
 and it must match `[A-Za-z0-9_-]{1,64}`. A definition with a fan-out and no `joinPolicy` is
 **refused at construction**. A driver serves **exactly one run**, so `start()` is called at most
-once — **and a second driver on the same scheduler is fine**, because a settlement only reaches the
-driver that dispatched it. See section 9.
+once — **and a second driver on the same scheduler is fine**, because a settlement only affects the
+driver that dispatched it. Built by hand, each driver still HEARS every settlement and drops the
+others; through `runtime.start` it is only handed its own (ADR 0088, above). See section 9.
 
 ---
 

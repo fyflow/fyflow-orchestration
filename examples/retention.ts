@@ -400,14 +400,16 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
 /**
  * **N real runs through `runtime.start` alone — W142, and it is ADR 0088's measurement.**
  *
- * **Why a second mode rather than the `scale` one, and the reason is measured.** `scale` runs each run
- * through `runFlow`, which attaches about ten listeners of its OWN to the scheduler per run — `noteDone`
- * among them, which records every settlement it hears in that run's sets. On one shared scheduler
- * every one of those hears every run's settlements, so `scale --shared` measures the harness's N² beside
- * the library's: W142 re-took W55's figure on `7ba87df` and read **879 MiB** of heap at N = 800 shared,
- * against **13.7 MiB** for the same 800 runs here, where the only listeners are the library's. So this
- * mode attaches nothing: the runs are `runtime.start(flow, payload)` and `await done`, a consumer's two
- * lines, and what it times and weighs is the library's delivery and nothing a harness adds.
+ * **Why a second mode beside `scale`, and the reason was measured.** `scale` runs each run through
+ * `runFlow`, which attaches about ten listeners of its OWN to the scheduler per run — `noteDone` among
+ * them, which records every settlement it hears in that run's sets — and copies `scheduler.tasks` into
+ * each report. On one shared scheduler each of those heard and copied every run's, so `scale` measured
+ * the harness's N² beside the library's: W142 re-took W55's figure on `7ba87df` and read **879 MiB** of
+ * heap at N = 800 shared, and the same after ADR 0088 routed the drivers. **W142 then routed the
+ * harness too** (the maintainer's answer (B) to its prediction-3 stop; `routeHarnessListener` in
+ * `run-flow.ts`), and `scale` is linear again — but it still measures a harness with ten listeners a
+ * run. This mode attaches nothing: the runs are `runtime.start(flow, payload)` and `await done`, a
+ * consumer's two lines, and what it times and weighs is the library's delivery alone.
  *
  * **Two observers, and the second is a COUNT, so it is clock-free** (`doc/workflow.md` section 5 rule 8,
  * obligation (c)'s LIMIT): the wall time and `heapUsed`, which are properties of a machine (Q179), and
