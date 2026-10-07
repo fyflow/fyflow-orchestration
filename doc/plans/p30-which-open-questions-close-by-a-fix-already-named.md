@@ -1,6 +1,6 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** complete — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); the retro is to come
+**Status:** complete — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); retro run 2026-10-07, its proposal to the maintainer (Retro below)
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
@@ -292,3 +292,268 @@ by P30's own items and left open**: Q533 (W133), Q536 (W131), Q541 (W132), Q542 
 was 22 less fourteen, and it is wrong twice: the plan took twelve of the 22, not thirteen, and Q534 was
 raised after `e61df81`, so closing it does not lower the count from 22. The arithmetic the plan meant:
 22 − 12 = **10**, plus the four raised = **14**, as measured.
+
+## Retro
+
+*Pass 3 ran on 2026-10-07 over `5108345`, with the working tree clean before it. Scratch
+`dev-dist/p30r-1122/` (the retro shell's pid). **PROPOSED, NOT ADOPTED**: this section goes to the
+maintainer, as P29's did, and `doc/workflow.md`, `CLAUDE.md`, `package.json` and every ADR are
+untouched by it. What the maintainer answers is recorded below this section, in the commits that
+make it. Ids in this Retro are bare text, as in the Record.*
+
+### 1. What is in `gate:full`, measured from the four confirming gates
+
+The maintainer asked for this subject by name: *the 50 min full gate … is not performance, is what is
+in that run*. Every figure below is read from the four `full.log`s (`dev-dist/w133-59497/`,
+`w131-61120/`, `w132-63479/`, `w134-64418/`), each `gate:full` EXIT 0, run once per item on a still
+tree.
+
+**The wall per item**, from `tree-before-full.txt`'s write to `full.log`'s last write:
+
+| item | `gate:full` wall | of which `selftests` | so the ladder (`gate`) |
+|---|---|---|---|
+| W133 | 2451 s (40 m 51 s) | 2312.9 s | ~138 s |
+| W131 | 2461 s (41 m 01 s) | 2323.0 s | ~138 s |
+| W132 | 2467 s (41 m 07 s) | 2328.8 s | ~138 s |
+| W134 | 2495 s (41 m 35 s) | 2358.3 s | ~137 s |
+
+**The self-test half is 94% of every confirming gate.** Each item then re-ran `gate` (~140 s) and
+`check:markdown:selftest` alone after its record step, which is how 41 minutes reads as 50.
+
+**Per lane**, as the runner prints it (`=== <entry> — ok, N s`). Ten lanes run at once and
+`check:scheduler:selftest` runs alone first:
+
+| lane | W133 | W131 | W132 | W134 | what it proves can fail | reads |
+|---|---|---|---|---|---|---|
+| `check:register:selftest` | **2299.4** | **2309.0** | **2315.5** | **2344.9** | `R1`-`R9` over the register's front matter, ADR pairing, `state.mjs`: 260 probes, 192 META, 22 SELF, 4 grader controls, 6 state gradings — **each probe stages a whole copy of `doc/questions/` and `doc/decisions/`** | `doc/questions/**`, `doc/decisions/**`, plan and item NAMES |
+| `check:docs:selftest` | 815.1 | 813.3 | 810.9 | 807.3 | `X2`-`X10`: every `AGENTS.md` snippet typechecked and run, the cost figures, the README floor | `AGENTS.md`, `README.md`, `examples/`, `spec/flow-definition.md` |
+| `check:source:selftest` | 782.7 | 784.8 | 783.5 | 784.3 | `RT-R4`/`RT-R5`, `S7`'s bare specifier, `S11`-`S13`'s chain | `src/`, `index.ts`, `test/`, `examples/`, `package.json` |
+| `check:markdown:selftest` | 639.6 | 644.0 | 639.6 | 637.6 | links and anchors, `M3`-`M6` floors | every tracked `.md` |
+| `check:wiring:selftest` | 616.4 | 613.1 | 614.0 | 615.0 | a `:selftest` entry runs a self-test; the runner's accounting | `scripts/`, `package.json` |
+| `lookup:selftest` | 602.7 | 601.5 | 595.9 | 596.3 | the lookup's 82 cases; AGREE with the check's reader over ~449 tree files | `doc/**` |
+| `check:spec:selftest` | 157.3 | 159.5 | 160.3 | 156.8 | `C1`-`C8` | `spec/**` |
+| `check:budget:selftest` | 88.9 | 97.3 | 95.3 | 93.9 | `B1`-`B7` | `CLAUDE.md`, `doc/workflow.md`, `doc/concept.md` |
+| `check:workers:selftest` | 48.9 | 47.9 | 49.9 | 48.9 | `K1`-`K4`: a worker run on its example | `examples/workers/`, `examples/registry.json` |
+| `check:policies:selftest` | 37.0 | 41.0 | 41.1 | 41.4 | `JP-R9` both ways | `spec/join-policy.md`, `src/fold/policies.ts` |
+| `check:scheduler:selftest` (alone) | 13.4 | 13.9 | 13.2 | 13.2 | `D1`-`D3`: the pin, both runtimes | `package.json`, `node_modules/`, the import map |
+| **wall / serial-equivalent** | 2312.9 / 6101.5 | 2323.0 / 6125.5 | 2328.8 / 6119.1 | 2358.3 / 6139.6 | | |
+
+**One lane IS the wall.** `check:register:selftest` is within 15 s of the whole `selftests` wall in
+all four runs and **2.9x the next lane**. The other nine concurrent lanes finish inside its shadow.
+*This is ADR 0070 consequence 3's finding again, one lane over: then `check:docs:selftest` was 98%
+of the wall, W104 halved it, and the register lane has since grown past it* — W127 measured it
+1828 s alone.
+
+**Measured without it**, on `5108345` with nothing else moving, through the runner's own
+`CHECK_SELFTESTS_PKG` override pointed at a copy of `package.json` with that one entry removed
+(`dev-dist/p30r-1122/selftests-no-register.log`): `selftests` EXIT 0, 10/10 ok, **777.2 s wall** (3604.9 s serial-equivalent, 9 lanes), from 13:40:05 to 13:53:02. The wall is now `check:docs:selftest`'s 763.3 s, within 14 s, so **the next binding lane is docs, as ADR 0070 consequence 3 left it**. Every other lane ran 4-10% faster with one fewer competitor. With the ladder's ~138 s, a `gate:full` without the register lane is **about 915 s, 15 minutes, against 41**.
+
+### 2. The yield, by lane
+
+**P30's four `gate:full` runs: 44 lane runs, ZERO red.** No self-test went red inside a confirming
+gate, and none went red in any standalone run either: W131's three owned lanes (its own deliverable,
+section 5 rule 7), W133's, W132's and W134's `check:markdown:selftest`, all EXIT 0. **No defect in
+P30 was caught by a self-test.** Section 4 below names who caught each one: the ladder three times
+(`check:spec` `C8`, the L1 census, `check:register` `R8`, all in `gate`), the rule-8 harnesses, and
+the readers.
+
+**Which lanes read a file each item changed** (each lane also reads its own two scripts):
+
+| item | files changed (with the record step) | lanes reading one | lanes reading none |
+|---|---|---|---|
+| W133 | `spec/` ×3, `src/` ×1, `test/` ×3, `examples/` ×5, `doc/` ×7 | register, markdown, lookup, spec, source, docs, workers, scheduler (8) | budget, policies, wiring |
+| W131 | `scripts/` ×7, `doc/` ×9 | register, markdown, lookup, policies, docs, budget, scheduler, wiring (8) | spec, source, workers |
+| W132 | `test/` ×4, `doc/` ×5 | register, markdown, lookup, source (4) | the other seven |
+| W134 | `.gitignore`, `AGENTS.md`, `doc/` ×7 | register, markdown, lookup, docs (4) | the other seven |
+
+**Every item reaches `register`, `markdown` and `lookup` through its record step alone**, because the
+record step writes `doc/questions/**` and a plan. So v0.28's alternative — *run alone every self-test
+whose check reads a file in its `Owns`* — runs the 2300 s lane for every item in P30, and decision 6
+said so before the plan began.
+
+**Across the plans since v0.26 made `gate:full` the confirming gate**, every red self-test lane the
+retros record, other than an item's own new or edited lane (rule 7 at birth):
+
+| plan | lane | caused by | found |
+|---|---|---|---|
+| P26 | `check:docs:selftest` | W109 editing `check-docs.mjs` | W110's `gate:full`, two items late |
+| P26 | `check:wiring:selftest` | W108's scratch left in `dev-dist/` | W110's `gate:full` |
+| P27 | `check:markdown:selftest` ×4 | W114 (`M6`), W115 ×2, the retro: `.md` edits | the item's own `gate:full` |
+| P28 | `check:markdown:selftest` | W116's declaration documents | `gate:full` |
+| P28 | `check:wiring:selftest` | W119's new `:selftest` entry | W119's `gate:full` |
+| P29 | `check:register:selftest` ×2 | W121 (META `MAX_CORPUS = 0` against an iceboxed corpus), W123 (`state.mjs`'s `open >= 200`): register CONTENT | W127's `gate:full`, **the plan's last item**, after six items that ran none |
+| P30 | — | — | — |
+
+**`check:register:selftest`'s whole cross-item yield is P29's two**, both in a triage plan that
+rewrote hundreds of question files on purpose, and **both were found at the plan's last item, not at
+the item that caused them**. W127 then moved every probe onto synthetic fixtures above Q8000 and
+measured META inertness on a planted base, which narrows the coupling to the real register without
+removing it. P30 is the only plan since: thirteen resolutions and five raises, four runs, 0 red,
+**about 2.6 hours of lane time**. *The markdown, docs and wiring lanes have earned their place in an
+item's gate at least once each; the register lane has not earned it at item scope.*
+
+### 3. The proposal the maintainer asked for: what leaves the item's confirming gate
+
+Section 6 pass 3 rule 4: each states what it replaces, what it costs, and what it would no longer
+catch, measured from section 2. **Ranked.**
+
+**A. Recommended. `check:register:selftest` leaves the ITEM's confirming gate and runs once at the
+plan's JOIN.**
+
+- **Replaces** section 4's v0.26 clause for an item that does not edit the register's machinery: its
+  confirming gate becomes `gate:full` without that one lane. An item that edits
+  `scripts/check-register*.mjs`, `scripts/state.mjs`, or the register's declared front-matter subset
+  (`doc/questions/README.md`) still runs it. **The plan's last item runs the whole `gate:full`**, and
+  its Record says that run is the join's. Nothing is deleted and no bound moves, so ADR 0070 rule 4
+  holds: every lane still runs once per plan, and in CI when it is dispatched.
+- **Saves** about 1550 s, 26 minutes, per item: `gate:full` about 15 minutes against 41 minutes, measured above. Over P30's
+  four items that is about 87 minutes (three at 15 and the join at 41) against 164 minutes.
+- **Costs** a way to run the self-tests minus one lane that the gate's checks can see. Today the only
+  way is the runner's test override, which `G4` and `G5` exist to keep out of the shipped path. So it
+  needs either a manifest entry (`gate:item`) with a runner option that `check-wiring` binds, or the
+  lane split into its own entry outside `selftests` with `gate:full` naming both. **Either is a work
+  item with its own provocations, not a retro edit.** About 200 bytes of `doc/workflow.md`, which has
+  567 of headroom, by REPLACING the v0.26 and v0.28 paragraphs; and `CLAUDE.md`'s *an ITEM'S
+  CONFIRMING GATE* line.
+- **Would no longer catch, at item scope**: a register edit that turns one of 192 META mutants
+  non-inert, or a `state.mjs` floor crossed by a count. **Measured: two firings in the sixteen items
+  since the lane was born at W116 (P28's five, P29's seven, P30's four), not counting the items that
+  built or edited the lane itself, which would still run it; both in P29, both found at the plan's last item anyway; 0 in P30's four.**
+  Under A each would be found at the join, as both actually were. `check:register` itself stays in
+  `gate`, so a malformed question is still caught at the item, as W131's `R8` was.
+
+**B. v0.28 promoted from the alternative to the rule: each item runs only the lanes reading a file it
+changed, with A's exception for the register lane.**
+
+- **Replaces** v0.26 outright.
+- **Saves** almost nothing over A, measured: every item in section 2 reaches `markdown` (640 s) and
+  `lookup` (600 s) through its record step, and half reach `docs` or `source` (~800 s), so B's wall
+  is bounded below by the same lanes that bound A's. Its best case in P30 (W132, W134) is perhaps
+  five minutes under A.
+- **Costs** a hand-kept mapping from file to lane, judged per item. **That is P29's failure exactly**:
+  a waiver argued item by item, which held a lane red for six items. And P26's wiring red came from a
+  file no item changed (scratch in `dev-dist/`), which a by-file mapping cannot see.
+- **Would no longer catch** that class, at any scope until the join. **Not recommended.**
+
+**C. `gate:full` leaves the item altogether and runs at the plan's join; an item's gate is `gate`
+plus its own lanes.**
+
+- **Replaces** v0.26 and v0.28 both.
+- **Saves** the most: an item's gate becomes ~140 s.
+- **Would no longer catch**, at item scope, every row of section 2's table but P29's: **eight firings
+  over P26-P28, each found in the item that caused it or the next**. Under C each is found at the
+  join, with every item since as a suspect. **That is the state v0.26 was adopted to end** (P26:
+  W108's and W109's reds found at W110). Re-raising it needs the ground to have changed, and section
+  2 shows the markdown, docs and wiring lanes still firing on ordinary `.md` and script edits.
+  **Not recommended.**
+
+**D. No change.** v0.26 as written, ~41 minutes per item. Listed because rule 1 says it is always a
+legitimate verdict; the maintainer's question rules it out as the only answer.
+
+*Neither ledger row the brief names is re-raised.* *A ladder LEVEL for the evidence* (4 times,
+P11-P14) and *a LEVEL for the gate itself* (P10-P11) proposed new rungs. A, B and C add no rung; they
+move ONE lane, or all of them, between the item and the plan's join, which ADR 0070 already placed
+outside the ladder.
+
+### 4. Name the rung (rule 5)
+
+**Thirty-eight defects across the four Records**, counting each *What broke* entry and each reader's
+BLOCKING and should-fix findings once (a *What broke* entry that restates a finding is the finding;
+notes are not counted). By who caught them:
+
+| caught by | count | the defects |
+|---|---|---|
+| **a rung in `gate`** | 3 | W133's two late exceptions (`check:spec` `C8`, L0; the L1 census); W131's record-step `R8` (`check:register`, L0) |
+| **a self-test lane** | **0** | — |
+| **the rule-8 harness** (the item's own provocations) | 6 | W131's `ran:` replacement passing for a reason it did not name (p8); the grader's own declarations in all four items, W133 twice (section 5 below) |
+| **the conformity reader** | 20 | should-fix: W133 5, W131 8, W132 3, W134 4 — the sharpest each item's prediction 6 names: W133's optional half of `OR-R6`, W131's constructed survivor through the whole budget self-test, W132's `catch` that could crash, W134's sentence true and incomplete |
+| **the adequacy reader** (W133 only) | 5 | two BLOCKING (a second `outcome` record surviving L6; a `branch.resumed` emptying other instances surviving L2), three should-fix |
+| **the author, before any rung** | 3 | W133's output (2) unbuildable as declared (Scope 1's measurement); W131's heredoc scripts (aborted before the tree); W134's cut matching its own quoted heading (seen in the diff) |
+| **the exit artifact, measured at the join** | 1 | decision 1's miscount (section 5) |
+
+**The readers remain the mechanism, for the fifth plan running** (P26-P30); the ladder is what keeps
+the product from regressing. **And every defect a rung COULD have caught, the rung in `gate` did.**
+*No defect has NO rung that should have caught it and did not*: the readers' findings are spec
+scope, consumer prose and constructed inputs, which section 4's closing note already says no command
+covers.
+
+### 5. Rules followed, and the candidates
+
+**(a) Every item's rule-8 grader mis-declared probes. FOLLOWED, and it WORKED. No change.** W133
+pass 1 ten and pass 2 nine, W131 one, W132 one, W134 three: **24 gradings against declaration, every
+one the DECLARATION's error and the probe right**, every one caught by the harness's exact-set match
+(section 5 rule 7 (c)) and re-run in a 1b or 2b pass. This is four items, which meets rule 2's bar,
+but nothing failed: the requirement exists because a declaration is a claim, and it caught the claim
+every time. The cost is one short re-run pass per item. *What would make it a finding is a
+re-declaration that hid a survivor*, and every Record says the re-declared set was read from the
+output and why, which is the guard. **Noted.**
+
+**(b) W133's two late "drag" files. One occurrence, and W133's Record already names both for the
+next item. No change.** A spec version bump drags `spec/README.md`'s version column (`C8`) and a new
+suite drags the L1 census. W131, W132 and W134 did neither. **The ledger row *an `Owns`
+pre-declaration rule / `check-owns.mjs`* returns *on a miscount with the list correct*, and this is
+that shape**: the record-step list was right. It is refused anyway, on a ground the row does not yet
+state: **both files were found by a rung in `gate` before their first edit, so a diff-against-`Owns`
+check would have reported nothing the gate had not.** Appended to the row (section 7).
+
+**(c) Decision 1 miscounted, and the amendment compounded it. BROKEN, not followed.** Decision 1 wrote
+*thirteen* beside a table of twelve; W133's record step amended the exit artifact to *fourteen* and
+**8** from that figure; W134 found it by measuring the exit artifact, and the maintainer corrected
+both. **The rule that would have prevented it exists**: P27 decision 4, *a count a script can derive
+is not written down* — the table is the list, and the count of it is a second copy. **It is the third
+plan running whose own text contradicted itself, found only at the join** (P28's exit artifact
+against its decision, P29's candidate (f), this). The only mechanical observer is a check over a
+plan's prose: **a check over `doc/` is REFUSED a 29th time**, on the row's standing ground. The
+exit artifact did its job, which is the point of measuring it.
+
+**(d) Stop-and-ask (g) — *an item that finds a small fix outside its `Owns` may stop and ask to widen
+its scope*. FOLLOWED, and it WORKED. No change.** Three widenings across two items (Q534 into W134;
+W131's two comment-only edits to `check-docs.mjs`), each asked and answered before its first edit, and
+none late; plus (h) at W134 and the maintainer's correction of decision 1, five mid-plan answers in
+all. It is a plan-level device, and a plan that wants it declares it, as P30 did on 2026-10-06.
+Making it a workflow default would answer a question P30 did not ask. **Noted for P31's
+declaration.**
+
+**(e) The record step's re-runs.** W131, W132 and W134 each re-ran `gate` and
+`check:markdown:selftest` after the record step and did not re-run `check:register:selftest`, citing
+`gate:full` on the commit before. Each said so (section 1 rule 4). The record step writes exactly the
+files that lane reads. *That is A's argument stated by three items, without a rule behind it.*
+
+### 6. The overlap
+
+**W133's two readers shared 2 subjects** (`OR-R6` v0.11's thread-pool clauses; `RN-R6` v0.13's
+sentence and its test cell), with briefs written apart. **The eighty-third measurement, inside the
+0-4 band.** W131, W132 and W134 ran one reader each, as decision 8 declared, so they took none. **The
+ordinal is now EIGHTY-THREE and the next measurement is the EIGHTY-FOURTH.** The band's *fifty-nine*
+stays, as P29's retro kept it.
+
+### 7. Refusals, and what is held for the maintainer's answer
+
+**Held, not written**, because each is a `doc/workflow.md` edit and this section only proposes:
+
+| edit | where |
+|---|---|
+| the ledger's first row: *28 times, P2-P29* → *29 times, P2-P30* | refusal ledger |
+| the `Owns` row: *13 times, P2-P26* → *14 times, P2-P30*, and its ground gains *a late file a rung in `gate` found before its edit is not a miscount a script would add to* | refusal ledger |
+| the Status line: *TWENTY-NINE times, by P1 through P29* → THIRTY, P30 | header |
+| section 6: *eighty-two, so the next is the EIGHTY-THIRD* → *eighty-three … EIGHTY-FOURTH* | section 6 |
+| whichever of section 3's proposals the maintainer answers, with its version line | sections 4 and 8, the version index |
+
+### 8. Ids
+
+**Issued: W131-W134; Q533, Q534, Q536, Q541 and Q542.** No ADR (prediction 4). **W135 CLOSED
+unissued, W136 CLOSED unissued, W137 CLOSED unissued, W138 CLOSED unissued; Q535 SPENT; Q537-Q540
+SPENT; Q543-Q547 SPENT; ADR 0085-0086 SKIPPED.** None exists in the tree. **The next plan starts at
+W139, Q548 and ADR 0087**, and P31 is the next plan. *`npm run state` printed the tree and the ledger
+disagreeing before this section (W135 / Q543 / ADR 0085 against W131 / Q533 / ADR 0085), because
+P29's sentence was the last; section 3 of `doc/workflow.md` (reserved and never issued is skipped,
+never reissued) and P29's own precedent with W128-W130 and ADR 0083-0084 decide it.*
+
+### 9. What the retro changed and ran
+
+| file | why |
+|---|---|
+| this plan | the Status line and this Retro |
+
+Ran, each redirected with `$?` read in the same command: `npm run state` (before and after),
+`check:budget`, the self-tests without the register lane (section 1). Only this plan file changed after them, so `check:markdown`, `check:register` and `npm run gate` were re-run on the final tree; `gate:full` was not, since nothing a self-test reads moved but this file, which `check:markdown:selftest` was also re-run over.
