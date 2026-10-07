@@ -1602,8 +1602,11 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   `structuredClone` copies the fields and drops the prototype, so the next node receives a plain
   object: `instanceof` is false, the methods are gone, and **nothing is reported** — `OR-R11` in
   `spec/outcome-record.md` section 4. **Return data, read data.** The loud half is a result that
-  cannot be cloned at all (a function, a `Promise`, a `WeakMap`), which stops the run with
-  `UncloneableResult`; this is the quiet half, and it is the one people hit.
+  cannot be cloned at all (a function, a `Promise`, a `WeakMap`), which on an **inline** pool stops
+  the run with `UncloneableResult` and on a **thread** pool never reaches the driver — the
+  scheduler's own clone refuses it first, so a non-optional task ends `user_action` and an
+  `optional` one `failed`, as any failure does (`OR-R6`); this is the quiet half, and it is the one
+  people hit.
 - **Assuming `joinStatusOf().describe` is yours.** It is whatever **your** policy's `describe()`
   returned. The two shipped policies return a fresh object; a policy that returns its own state hands
   you that state, and writing to it changes what the join decides. Return a copy from `describe()`
