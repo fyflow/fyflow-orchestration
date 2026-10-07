@@ -16,7 +16,10 @@ Owns:       scripts/check-policies.mjs, scripts/check-policies-selftest.mjs,
             scripts/check-scheduler-selftest.mjs (~122-128), each only if its Q144 sentence becomes
             false; and, by P30 stop-and-ask (g) answered by the maintainer 2026-10-06 (option A),
             COMMENT-ONLY: the one paragraph above `const README_SNIPPET_FLOOR = 3;` in
-            scripts/check-docs.mjs, no code and no other comment; and this file (P30's index row)
+            scripts/check-docs.mjs, no code and no other comment; and, by the same stop-and-ask
+            answered by the maintainer 2026-10-07 (option A again, after the conformity reader's
+            finding 7), COMMENT-ONLY: one clause appended to that file's "8 since W101" history
+            sentence; and this file (P30's index row)
 Inputs:     the tree at `cc9f6e2` (W133 done); P30 decisions 4, 5, 6, 7, 8; the five questions'
             own files
 Outputs:    (1) a REPLACEMENT `ran:` case in check-policies-selftest.mjs's SELF list, built and
@@ -53,8 +56,9 @@ Gate:       L0-L6 by `npm run gate` along the way; each lane this item owns run 
 Reserves:   Q536-Q540, ADR 0086. No W beyond W131. (Q535 and ADR 0085 were W133's, spent unissued)
 ```
 
-**Exceptions**: one, declared before its first edit — the paragraph in `scripts/check-docs.mjs`,
-answered into `Owns` above by P30 stop-and-ask (g) (the maintainer, 2026-10-06, option A). **The
+**Exceptions**: two, both in `scripts/check-docs.mjs` and both answered into `Owns` above by P30
+stop-and-ask (g), each before its first edit — the paragraph above `README_SNIPPET_FLOOR` (the
+maintainer, 2026-10-06, option A) and one clause in the "8 since W101" sentence (2026-10-07, option A). **The
 two files W133 found an item always drags do not apply here**: W131 adds no L1 suite
 (`test/definition/l4-corpus.test.ts`) and bumps no spec version (`spec/README.md`). Any other file
 edited outside `Owns` and outside the record step is declared here before its first edit.
