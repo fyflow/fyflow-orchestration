@@ -168,11 +168,11 @@ consequence 2 priced. **A green `gate` says the product works, not that anything
 if it did not.** **Do not start one over a tree with a known red lane** — fix it, re-run it alone,
 then pay once, on the final tree.
 
-> **That gate is `gate:full` LESS `check:register:selftest`, and the plan's LAST item runs the whole
-> `gate:full`** — v0.29, P30, the maintainer's answer to its retro. An item editing
-> `scripts/check-register*.mjs`, `scripts/state.mjs` or `doc/questions/README.md` runs the lane too.
-> *It was ~2300 s of each P30 item's ~2330 s self-test wall and red 0 times in four; without it the
-> wall is 777 s.* **In force when the `gate:item` mechanism lands; until then an item runs `gate:full`.**
+> **That gate is `npm run gate:item`, `gate:full` LESS `check:register:selftest`, and the plan's LAST
+> item runs the whole `gate:full`** — v0.29, P30, the maintainer's answer to its retro; `check:wiring`
+> `G7` binds the one lane (W139). An item editing `scripts/check-register*.mjs`, `scripts/state.mjs`
+> or `doc/questions/README.md` runs `gate:full` too. *It was ~2300 s of each P30 item's ~2330 s
+> self-test wall and red 0 times in four; without it the wall is 777 s.*
 
 **Levels 0-6 are the agent's job. Level 7 is where a person enters.** Never spend a person on
 something an L<=6 assertion could have caught. If a human finds a bug a machine check could have

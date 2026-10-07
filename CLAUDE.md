@@ -113,7 +113,8 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
 
   ```bash
   npm run gate            # the LADDER: lint, typecheck, the checks, L1-L5, both L6 runtimes
-  npm run gate:full       # the ladder plus the self-tests - an ITEM'S CONFIRMING GATE
+  npm run gate:item       # the ladder plus the self-tests less the register lane - an ITEM'S CONFIRMING GATE
+  npm run gate:full       # the ladder plus every self-test - the plan's LAST item
   npm run test:l6         # ladder L6, node 24
   npm run test:l6:deno    # ladder L6, deno
   ```
@@ -122,7 +123,10 @@ concept -> plan -> work items -> verify (ladder, spec conformity, retro) -> reco
   the ladder and `gate:full` adds the self-tests that prove the checks can fail
   ([ADR 0070](doc/decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md)),
   and the reason the distinction is in this file is that `gate:full` was RED for two items while
-  `npm run gate` was green.
+  `npm run gate` was green. **An item's is `gate:item`**, which leaves out `check:register:selftest`
+  and nothing else (v0.29; `check:wiring` `G7` binds it). **The plan's last item runs `gate:full`**,
+  as does an item editing `scripts/check-register*.mjs`, `scripts/state.mjs` or
+  `doc/questions/README.md`.
 
   **L6 lives in `examples/**` and not in `test/**`, deliberately**: the browser bundle globs
   `test/**/*.test.ts`, so anything that imports a scheduler placed there would be bundled for a
