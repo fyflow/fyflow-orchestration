@@ -7050,11 +7050,14 @@ for (const row of PAIR_ROWS) {
   // let every later settlement overwrite it and the claim became unfalsifiable
   // with all 370 assertions green - the count at the moment it was measured. W19's
   // adequacy reader.
-  // **Since ADR 0088 the count below is the HARNESS's listeners and the runtime's router, not the drivers'**: a driver
-  // subscribes to its run's view, and the router subscribes the scheduler once, at the first driver (rule 2). `runFlow`
-  // adds its own listeners in the same synchronous call that starts each driver, so the equality still says both runs
-  // were wired before the first settlement — and on the foreign row the `delivered` clause above says it more directly:
-  // each driver was HANDED every foreign id, so each was attached when they arrived. W142.
+  // **Since W142 the count below is WIRING, not drivers**: under ADR 0088 a driver subscribes to its run's view and the
+  // runtime's router subscribes the scheduler once (rule 2); and `runFlow`'s own listeners on a shared runtime are filed
+  // on the harness's routes rather than on the scheduler (the maintainer's answer (B)) — so `runPair` counts
+  // `scheduler.addEventListener` calls PLUS `harnessRegistrations`. Each run files its ten in the same synchronous call
+  // that starts its driver, so the equality still says both runs were wired before the first settlement, and a
+  // sequential pair still leaves the first count short of the last. On the foreign row the `delivered` clause above
+  // says it more directly: each driver was HANDED every foreign id, so each was attached when they arrived. `record`
+  // itself stays a DIRECT scheduler listener on purpose — it is the one observer here that must hear every run.
   check(row.key, 'the scheduler-side record holds one listener count per settlement',
     facts.listenersAtSettlement.length, facts.settlementIds.length);
   assertThat(row.key, 'both drivers were ATTACHED to the one scheduler before the first SETTLEMENT',

@@ -44,7 +44,7 @@
 // Everything from the package entry, never from `src/` — an example that reached
 // past `index.ts` would be exercising a surface no consumer has.
 import {
-  Driver, branchIndices, buildTaskId, checkWiring, emptyState, isTerminal, step,
+  Driver, InvalidTaskId, branchIndices, buildTaskId, checkWiring, emptyState, isTerminal, parseTaskId, step,
   type FlowDefinition, type WiringReport, type FoldInput, type JoinPolicy, type LogRecord,
   // **W82: `OR-R13`'s payload, from the package ROOT like everything else here.** `index.ts`
   // re-exports `src/driver/driver.ts` whole, so this is the name a consumer has — which is what
@@ -1218,7 +1218,7 @@ export async function runPair(
     // length is what makes "record only the last one" fail as well.
     if (typeof id === 'string') {
       settlementIds.push(id);
-      listenersAtSettlement.push(listenersTotal);
+      listenersAtSettlement.push(listenersTotal + harnessRegistrations(scheduler));
     }
   };
   scheduler.addEventListener('task.completed', record);
@@ -1292,7 +1292,12 @@ export async function runPair(
     return {
       a: ra,
       b: rb,
-      facts: { settlementIds, listenersAtSettlement, listenersTotal, addTaskCalls, shutdownCalls: shutdownCalls + 1 },
+      facts: {
+        settlementIds, listenersAtSettlement,
+        // W142 (B): the routed harness listeners are wiring too — see `routeHarnessListener`.
+        listenersTotal: listenersTotal + harnessRegistrations(scheduler),
+        addTaskCalls, shutdownCalls: shutdownCalls + 1,
+      },
     };
   } finally {
     // Once, after both — and in a `finally`, because a row that fails must not
@@ -1388,6 +1393,83 @@ export interface PairFacts {
  */
 const rawArrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>> =>
   (d as unknown as { arrivals: Map<string, Map<string, Map<string, unknown>>> }).arrivals;
+
+/**
+ * **The HARNESS's own listeners on a SHARED scheduler, routed by run id — W142, the maintainer's answer (B) to its
+ * prediction-3 stop.** ADR 0088 routes the DRIVERS' settlements; it cannot route a listener a consumer attaches to the
+ * scheduler itself, and `runFlow` attaches about ten per run. On one scheduler carrying N runs each of those heard every
+ * run's events — `noteDone` recorded every settlement into that run's sets — so `retention.ts scale` measured the
+ * HARNESS's N² beside the library's N: W142 read 880 MiB of heap at N = 800 after routing the drivers, against 39 MiB
+ * for the same runs with no harness listener.
+ *
+ * **The same rule ADR 0088 rule 4 gives a driver, for the same reason**: an event whose task id names a run goes to that
+ * run's listeners only; one whose id does not parse — a task no driver minted — goes to every run's, because the pair
+ * row's foreign block asserts EACH run's `settledByScheduler` carries every foreign id. The id is `detail.id`, or for a
+ * `resource.*` event `detail.holderId` (the only key `noteResource` reads); a non-string, or a holder that is not a task,
+ * goes to every run, whose listeners already ignore it. **`parseTaskId` from the package root**, so an id like
+ * `pc:ingest:x:0` — first segment a run id, branch path malformed — still reaches `pd` too.
+ *
+ * **Only where the runtime is SHARED.** A run on its own runtime (every `EXPECTED` row) subscribes directly, exactly as
+ * before — one run, so there is nothing to route, and the sixty-odd rows that read these observers see the same
+ * listeners in the same order. `registrations` counts every listener filed here, so `runPair`'s *wired before the first
+ * settlement* clause still sees the second run's wiring, which no longer reaches `scheduler.addEventListener`.
+ */
+interface HarnessRoutes {
+  byRun: Map<string, Map<string, ((e: { detail: unknown }) => void)[]>>;
+  every: Map<string, ((e: { detail: unknown }) => void)[]>;
+  registrations: number;
+}
+const harnessRoutes = new WeakMap<object, HarnessRoutes>();
+
+/**
+ * **The run a task id names, or `null` when `parseTaskId` refuses it — PARSED ONCE per id per scheduler.** The router
+ * and `runFlow`'s read of `scheduler.tasks` both ask; on a shared scheduler every run's read meets every other run's ids,
+ * and re-running the grammar on each would put an N² of regex work back in the measurement this exists to make linear.
+ */
+const ownerCache = new WeakMap<object, Map<string, string | null>>();
+function ownerOf(scheduler: object, taskId: string): string | null {
+  let cache = ownerCache.get(scheduler);
+  if (cache === undefined) ownerCache.set(scheduler, cache = new Map());
+  const hit = cache.get(taskId);
+  if (hit !== undefined) return hit;
+  let owner: string | null = null;
+  try {
+    owner = parseTaskId(taskId).runId;
+  } catch (err) {
+    if (!(err instanceof InvalidTaskId)) throw err;
+  }
+  cache.set(taskId, owner);
+  return owner;
+}
+
+/** How many harness listeners have been filed on this scheduler's routes — `runPair`'s wiring count. */
+export function harnessRegistrations(scheduler: object): number {
+  return harnessRoutes.get(scheduler)?.registrations ?? 0;
+}
+
+function routeHarnessListener(
+  scheduler: { addEventListener(type: string, fn: (e: { detail: unknown }) => void): void },
+  runId: string,
+  name: string,
+  fn: (e: { detail: unknown }) => void,
+): void {
+  let routes = harnessRoutes.get(scheduler);
+  if (routes === undefined) harnessRoutes.set(scheduler, routes = { byRun: new Map(), every: new Map(), registrations: 0 });
+  const r = routes;
+  r.registrations++;
+  let mine = r.byRun.get(runId);
+  if (mine === undefined) r.byRun.set(runId, mine = new Map());
+  mine.set(name, [...(mine.get(name) ?? []), fn]);
+  const all = r.every.get(name);
+  if (all !== undefined) { all.push(fn); return; }
+  r.every.set(name, [fn]);
+  scheduler.addEventListener(name, (e) => {
+    const d = e.detail as { id?: unknown; holderId?: unknown; holderKind?: unknown } | null | undefined;
+    const key = name.startsWith('resource.') ? (d?.holderKind === 'task' ? d.holderId : undefined) : d?.id;
+    const owner = typeof key === 'string' ? ownerOf(scheduler, key) : null;
+    for (const listener of (owner === null ? r.every.get(name) : r.byRun.get(owner)?.get(name)) ?? []) listener(e);
+  });
+}
 
 /**
  * **What a driver's listener is HANDED, one entry per scheduler event, the task id as it arrived** —
@@ -1764,6 +1846,16 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // outcome RECORD.
   const inFlight = new Set<string>();
   let branchesOverlapped = false;
+  // **W142 (B): on a SHARED runtime this run's listeners hear this run's events and every unminted id, and no other
+  // run's** — `routeHarnessListener`. A shared run must therefore NAME its run id; the runtime would mint one only after
+  // these are filed. On its own runtime nothing changes: one run, subscribed directly.
+  if (!ownsScheduler && opts.runId === undefined) {
+    throw new Error('runFlow: a run on a SHARED runtime must name its runId — its harness listeners are routed by it (W142)');
+  }
+  const listen = (name: string, fn: (e: { detail: unknown }) => void): void => {
+    if (ownsScheduler) scheduler.addEventListener(name, fn as never);
+    else routeHarnessListener(scheduler as never, opts.runId!, name, fn);
+  };
   const noteRunning = (e: { detail: unknown }) => {
     const id = (e.detail as { id?: string })?.id;
     if (typeof id !== 'string') return;
@@ -1809,9 +1901,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     // `Object.keys` cannot see and `structuredClone` therefore does not copy.
     if (typeof result === 'object' && result !== null) settledOwnKeys[id] = Object.getOwnPropertyNames(result).sort();
   };
-  scheduler.addEventListener('task.running', noteRunning);
-  scheduler.addEventListener('task.completed', noteDone);
-  scheduler.addEventListener('task.failed', noteDone);
+  listen('task.running', noteRunning);
+  listen('task.completed', noteDone);
+  listen('task.failed', noteDone);
 
   // **W58: the scheduler's own account of a task's RESOURCES, per task id, with `task.running`
   // interleaved** — see `RunReport.resourceEvents`. `resource.*` is emitted only once something
@@ -1834,9 +1926,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     }
   };
   for (const n of ['resource.blocked', 'resource.unblocked', 'resource.acquired', 'resource.released']) {
-    scheduler.addEventListener(n, noteResource(n));
+    listen(n, noteResource(n));
   }
-  scheduler.addEventListener('task.running', (e: { detail: unknown }) => {
+  listen('task.running', (e: { detail: unknown }) => {
     const id = (e.detail as { id?: string })?.id;
     if (typeof id === 'string' && id in resourceEvents) resourceEvents[id]!.push('task.running');
   });
@@ -2203,8 +2295,14 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // `scheduler.tasks`.** The first version of this read it in the return object, after the drain, and
   // every entry came back `(not held)` — the exact shape the comment above records for `tasksHeld`,
   // reproduced one field along on its first run.
+  // **W142 (B): on a SHARED scheduler, this run's tasks and every task no driver minted — the router's rule — and not
+  // the other runs'.** Still read off `scheduler.tasks` (W67's provenance, which the cross-row `(iv-b)` clause holds on
+  // the pair row's foreign ids, all of which are unminted and so all still here). Each run copying the WHOLE map was
+  // the other half of the harness's N²: N runs x 6N entries. On its own runtime every entry is this run's, as before.
   const poolOfTask: Record<string, string> = Object.fromEntries(
-    [...scheduler.tasks.entries()].map(([id, t]) => [id, (t as unknown as { workerType?: string }).workerType ?? '(none)']),
+    [...scheduler.tasks.entries()]
+      .filter(([id]) => ownsScheduler || (() => { const o = ownerOf(scheduler, id); return o === null || o === opts.runId; })())
+      .map(([id, t]) => [id, (t as unknown as { workerType?: string }).workerType ?? '(none)']),
   );
 
   // **What the driver is still holding, read in the same place and for the same
