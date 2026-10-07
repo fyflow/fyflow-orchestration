@@ -47,7 +47,7 @@ try {
   const p = ROOT + PROVOCATION;
   await import(/^[A-Za-z]:/.test(p) ? `file:///${p}` : `file://${p}`);
 } catch (e) {
-  threw = e instanceof Error ? e.name : String(e);
+  threw = e instanceof Error ? e.name : typeof e;
 }
 check(threw !== '', `${PROVOCATION} throws when it is imported (${threw || 'it did not'})`);
 
@@ -89,7 +89,9 @@ check(provoked.fails.length === 1 && provoked.fails[0]!.startsWith(expectedFail)
   `the provoked run prints EXACTLY one FAIL line, naming ${PROVOCATION} and its error (got ${JSON.stringify(provoked.fails)})`);
 check(provoked.cases === clean.cases, `the provoked run still runs every other suite: ${provoked.cases} cases against the clean run's ${clean.cases}`);
 check(provoked.oks === clean.cases, `and every one of them passed: ${provoked.oks} ok against ${clean.cases}`);
-check(/\n {2}1 file\(s\) could not be imported/.test(provoked.out), 'the provoked run says 1 file(s) could not be imported');
+// The WHOLE line: it claims no more than that (the conformity reader's finding 2 — a file can register a case
+// and then throw, so "none of their cases ran" was false of the tree).
+check(/\n {2}1 file\(s\) could not be imported\r?\n/.test(provoked.out), 'the provoked run says 1 file(s) could not be imported, and nothing more');
 check(/\n {2}1 FAILURE\(S\)/.test(provoked.out) && !/all passed/.test(provoked.out), 'the provoked run counts 1 FAILURE(S) and does not say all passed');
 check(provoked.out.includes(`${PROVOCATION} › could not be imported`), 'the failure list names the file too');
 
