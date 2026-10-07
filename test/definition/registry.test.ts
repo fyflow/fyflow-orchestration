@@ -584,7 +584,11 @@ const W141_DEFECTS: readonly W141Defect[] = [
   { site: 'is named as node type ${q(key)} is', cls: NameCollision, reg: { workers: W, nodeTypes: OK_TYPE, pools: { T: { type: 'T' } } }, says: 'is named as node type "T"' },
   { site: 'which is not a node type`', cls: PoolTypeMissing, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'Nope' } } }, says: 'names type "Nope"' },
 ];
-/** The one site no consumer input reaches — named, with its reason, so the both-ways comparison can hold every other. */
+/**
+ * The one site no consumer input reaches — named, with its reason, so the both-ways comparison can hold every other.
+ * *(It WAS reachable until W141's adequacy reader (Rl): `name in BUILT_IN_NODE_TYPES` read `Object.prototype`,
+ * so a consumer's type called `constructor` reached it. The lookup is own-key now, and a case below holds that.)*
+ */
 const W141_UNREACHABLE: readonly string[] = ["names a worker — the library's own types name none"];
 
 /** Both roads over one hand-built registry: `[class, at, message]`, or the string `ACCEPTED`. */
@@ -604,8 +608,9 @@ suite('W141 — one shape function: checkRegistry and resolveRegistry refuse eve
   test('the defect list and the shape functions` throw sites are the SAME list, compared both ways — every site has a defect, every defect a site, and one site is exempt by name', async () => {
     const src = await readText(ROOT + 'src/definition/registry.ts');
     const region = (from: string, to: string) => { const a = src.indexOf(from); const b = src.indexOf(to, a); ok(a > 0 && b > a, `found ${from}`); return src.slice(a, b); };
-    // The two functions every shape check lives in: `checkNodeTypeShape` and `checkRegistryShape`.
-    const shape = region('function checkNodeTypeShape(', '\n}\n') + region('function checkRegistryShape(', '\n}\n');
+    // Every function a shape check lives in: `checkNodeTypeShape`, and the three KINDS `checkRegistryShape`
+    // composes — workers, node types, pools — which sit together, in that order, after it.
+    const shape = region('function checkNodeTypeShape(', '\n}\n') + region('function checkWorkersShape(', '\n/**');
     const lines = shape.split('\n').filter((l) => /throw new |noUndeclared\(|checkSchema\(/.test(l));
     for (const d of W141_DEFECTS) equal(lines.filter((l) => l.includes(d.site)).length, 1, `the site "${d.site}" is ONE line of the shape functions`);
     const uncovered = lines.filter((l) => !W141_DEFECTS.some((d) => l.includes(d.site)) && !W141_UNREACHABLE.some((u) => l.includes(u)));
@@ -627,10 +632,45 @@ suite('W141 — one shape function: checkRegistry and resolveRegistry refuse eve
     equal([check, resolve], ['ACCEPTED', 'ACCEPTED'], 'both accept');
   });
 
+  test('a consumer name that is an Object.prototype member — constructor, toString, __proto__ — is an ordinary name on BOTH roads, never a built-in (the adequacy reader`s Rl)', () => {
+    for (const name of ['constructor', 'toString', '__proto__']) {
+      // JSON.parse, so `__proto__` is an OWN key and not the literal's prototype setter.
+      const nodeTypes = JSON.parse(`{${JSON.stringify(name)}: {"worker": "w"}}`) as Record<string, unknown>;
+      const { check, resolve } = bothRoads({ workers: W, nodeTypes });
+      equal([check, resolve], ['ACCEPTED', 'ACCEPTED'], `a type named ${name} is accepted on both roads`);
+      const pools = JSON.parse(`{${JSON.stringify(name)}: {"type": "T"}}`) as Record<string, unknown>;
+      const named = bothRoads({ workers: W, nodeTypes: OK_TYPE, pools });
+      equal([named.check, named.resolve], ['ACCEPTED', 'ACCEPTED'], `a pool named ${name} is accepted on both roads`);
+    }
+    let err: unknown = null;
+    try { resolveRegistry({ workers: W } as never, { nodeTypes: { toString: { worker: 'w', pool: () => ({}) } } } as never); } catch (e) { err = e; }
+    equal(err, null, 'a class named toString with NO document types is not a document-against-code collision');
+  });
+
+  test('ORDER across KINDS in resolveRegistry, as before W141 — workers, group types, groups, node types with their declared groups and default instances, then pools (the conformity reader`s 1)', () => {
+    // Expected values: spec section 3's *every entry of a kind before the next kind is read*, on the order
+    // `resolveRegistry` has read its kinds in since W65 — the five documents the conformity reader measured
+    // old against new, and the adequacy reader's Rf.
+    const first = (doc: Record<string, unknown>, c: Record<string, unknown> = {}): string => {
+      try { resolveRegistry(doc as never, c as never); return 'ACCEPTED'; } catch (e) { return `${(e as RegistryError).name} at ${(e as RegistryError).at}`; }
+    };
+    const wk = { w: { url: 'test://w' } };
+    const strict = { w: { url: 'test://w', configSchema: { type: 'object', properties: { n: { type: 'string' } } } } };
+    equal(first({ workers: wk, nodeTypes: { A: { worker: 'w', groups: ['nope'] } }, pools: { p: { type: 'Nope' } } }), 'NameMissing at A', 'a node type`s declared group before a pool');
+    equal(first({ workers: strict, nodeTypes: { A: { worker: 'w', config: { n: 1 } } }, pools: { p: { type: 'A', x: 1 } } }), 'TypeDefaultRefused at A', 'a type`s default instance before a pool');
+    equal(first({ workers: wk, groups: { g: { type: 'NoSuchGroupType' } }, nodeTypes: { A: { worker: 'w' } }, pools: { p: { type: 'Nope' } } }), 'GroupTypeMissing at g', 'a group before a pool');
+    equal(first({ workers: wk, groups: { g: { type: 'NoSuchGroupType' } }, nodeTypes: { A: { worker: 'w', inline: 'no' } } }), 'GroupTypeMissing at g', 'a group before a node type');
+    equal(first({ workers: { w: { url: '' } }, nodeTypes: { A: { worker: 'w' } } }, { nodeTypes: { A: { worker: 'w', pool: () => ({}) } } }), 'WorkerMissing at w', 'a worker before the document-against-code collision');
+    equal(first({ workers: wk, nodeTypes: { A: { worker: 'w' } } }, { nodeTypes: { A: { worker: 'w', pool: () => ({}), configSchema: { type: 'object', patternProperties: {} } } } }), 'NameCollision at A', 'the collision before the colliding class`s own shape (Rf)');
+  });
+
   test('ORDER: a bad pool AND a bad worker names the WORKER on both roads (spec section 3`s refusal table), and a bad type before a bad pool', () => {
     const one = bothRoads({ workers: { w: { url: '' } }, nodeTypes: OK_TYPE, pools: { p: { type: 'Nope' } } });
     equal([(one.check as unknown[])[0], (one.resolve as unknown[])[0]], ['WorkerMissing', 'WorkerMissing'], 'the worker first, on both');
     const two = bothRoads({ workers: W, nodeTypes: { T: { worker: 'w', inline: 'no' } }, pools: { p: { type: 'Nope' } } });
     equal([(two.check as unknown[])[0], (two.resolve as unknown[])[0]], ['DerivationRefused', 'DerivationRefused'], 'the type before the pool, on both');
+    // And a bad worker before a bad TYPE — the one pair the two above leave free (the adequacy reader's Rc).
+    const three = bothRoads({ workers: { w: { url: '' } }, nodeTypes: { T: { worker: 'w', inline: 'no' } } });
+    equal([(three.check as unknown[])[0], (three.resolve as unknown[])[0]], ['WorkerMissing', 'WorkerMissing'], 'the worker before the type, on both');
   });
 });

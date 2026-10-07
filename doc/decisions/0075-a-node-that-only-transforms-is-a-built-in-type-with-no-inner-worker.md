@@ -130,8 +130,10 @@ occurrences in code).
    no engine, and a consumer who never transforms pays for none. The type is free; the engine is the
    consumer's. The pool config carries `transformOnly: true` and the language urls, written by
    `poolOptionsOf`; **the MARKER is written rather than the absence of `worker` left to speak**, because
-   an absent `worker` is also what a malformed config has and `setup()` has refused that by name since
-   v0.17. A config carrying both is refused rather than resolved.
+   an absent `worker` is also what a malformed config has and the envelope worker has refused that by name
+   since v0.17. A config carrying both is refused rather than resolved. *(Since W141 both refusals are
+   remembered by `setup()` and thrown from `run()` on every task, where `setup()` threw them until then —
+   Q266; the text of each refusal is unchanged.)*
 
 5. **The built-ins are merged at every READ and STORED in no registry, and a collision is REFUSED on
    every road.** `nodeTypesOf` merges them exactly as `gateTypesOf` merges the gate types, so a flow may
