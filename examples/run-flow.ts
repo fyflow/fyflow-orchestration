@@ -1066,11 +1066,12 @@ export interface RunOptions {
    * so sharing the scheduler alone shares half of what a run needs — and `runtime.start` is what
    * makes a driver now, so a shared scheduler with no runtime could not start a second run at all.)*
    *
-   * What this shares, and it is worth knowing before reading a report: the
-   * `task.running`/`completed`/`failed` listeners this function registers see
-   * **both** runs, so `branchesOverlapped` and `settledByScheduler` are
-   * scheduler-wide rather than run-wide when a scheduler is shared. Everything
-   * else in a `RunReport` comes from that run's own driver.
+   * What this shares, and it is worth knowing before reading a report: since W142 (the maintainer's answer B) the
+   * listeners this function registers on a shared runtime hear THIS run's events and every id no driver minted, and
+   * `poolOfTask` keeps the same set (`routeHarnessListener`) — so `branchesOverlapped`, `settledByScheduler` and
+   * `poolOfTask` are run-wide, the unminted ids aside. *(This said they saw **both** runs and were scheduler-wide, which
+   * was true until W142 — its conformity reader, finding 3.)* Everything else in a `RunReport` comes from that run's
+   * own driver.
    */
   runtime?: Runtime;
   /**
@@ -1265,8 +1266,8 @@ export async function runPair(
   //
   // **Both halves are asserted rather than trusted**, which is W17's lesson about
   // `SETTLES_LAST`: `PairFacts.settlementIds[0]` says the foreign settlement came
-  // first, and `listenersAtFirstSettlement === listenersTotal` says both drivers
-  // were attached when it was delivered. `doc/workflow.md` section 5 rule 5 —
+  // first, and `listenersAtFirstSettlement === listenersTotal` says both runs
+  // were wired when it was delivered (since W142 a count of wiring, not of drivers — see `PairFacts`). `doc/workflow.md` section 5 rule 5 —
   // this ARRANGES an order and then checks the effect; nothing depends on an
   // order the spec does not fix.
   for (const f of foreign) {
@@ -1289,6 +1290,11 @@ export async function runPair(
       runFlow({ ...a, runtime }),
       runFlow({ ...b, runtime }),
     ]);
+    // **The routed wiring is counted, so it must EXIST** — W142's adequacy reader, H11: deleting the registrations count
+    // left every row green, because both sides of the attach clause lost the same term. Sixteen is two runs' eight.
+    if (harnessRegistrations(scheduler) !== 16) {
+      throw new Error(`runPair: ${harnessRegistrations(scheduler)} harness listeners filed on the shared routes, not 16 (W142)`);
+    }
     return {
       a: ra,
       b: rb,
@@ -1326,10 +1332,11 @@ export interface PairFacts {
    * How many listeners were registered when **each** settlement was delivered, in
    * the same order and at the same length as `settlementIds`, and the total.
    *
-   * `[0] === listenersTotal` iff both runs were attached before **anything**
-   * settled — which is what makes "two drivers on one scheduler" structural rather
-   * than a hope about timing, because a driver attached later would never see that
-   * settlement.
+   * `[0] === listenersTotal` iff both runs were WIRED before **anything** settled — their harness listeners, counted
+   * here directly or through `harnessRegistrations`. *(It read "attached", meaning the drivers: since ADR 0088 a second
+   * driver's subscription goes to the runtime's router and reaches no count here, so this measures the runs' wiring and
+   * not the drivers' — W142's conformity reader, finding 2. The foreign row's `delivered` clause is what sees a
+   * driver.)*
    *
    * **An array rather than a latched first-settlement field, since W19.** The
    * field's `if (settlementIds.length === 0)` guard was deletable with all 370
@@ -1343,9 +1350,9 @@ export interface PairFacts {
    * A sequential `runPair` leaves `[0]` strictly less than the total; a run given
    * its own scheduler leaves `addTaskCalls` at zero on this one.
    *
-   * **And it proves ATTACHMENT, not that either run had `start()`ed** — a `Driver`
-   * registers its listeners in its constructor (ADR 0022). That is the property
-   * `ID-R5` needs and it is what the row's prose now says. W19's conformity reader.
+   * **And it proves WIRING, not that either run had `start()`ed.** Until ADR 0088 it proved ATTACHMENT — a `Driver`
+   * registered its listeners on the scheduler in its constructor (ADR 0022) — and W19's conformity reader had the row's
+   * prose say so; W142 narrowed the word to what the count still sees.
    */
   listenersAtSettlement: readonly number[];
   listenersTotal: number;
@@ -1397,7 +1404,7 @@ const rawArrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>
 /**
  * **The HARNESS's own listeners on a SHARED scheduler, routed by run id — W142, the maintainer's answer (B) to its
  * prediction-3 stop.** ADR 0088 routes the DRIVERS' settlements; it cannot route a listener a consumer attaches to the
- * scheduler itself, and `runFlow` attaches about ten per run. On one scheduler carrying N runs each of those heard every
+ * scheduler itself, and `runFlow` attaches eight per run. On one scheduler carrying N runs each of those heard every
  * run's events — `noteDone` recorded every settlement into that run's sets — so `retention.ts scale` measured the
  * HARNESS's N² beside the library's N: W142 read 880 MiB of heap at N = 800 after routing the drivers, against 39 MiB
  * for the same runs with no harness listener.
@@ -1424,7 +1431,7 @@ const harnessRoutes = new WeakMap<object, HarnessRoutes>();
 /**
  * **The run a task id names, or `null` when `parseTaskId` refuses it — PARSED ONCE per id per scheduler.** The router
  * and `runFlow`'s read of `scheduler.tasks` both ask; on a shared scheduler every run's read meets every other run's ids,
- * and re-running the grammar on each would put an N² of regex work back in the measurement this exists to make linear.
+ * and re-running the grammar on each would put an N² of regex work back in the measurement this exists to make linear in heap.
  */
 const ownerCache = new WeakMap<object, Map<string, string | null>>();
 function ownerOf(scheduler: object, taskId: string): string | null {
@@ -2299,6 +2306,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // the other runs'.** Still read off `scheduler.tasks` (W67's provenance, which the cross-row `(iv-b)` clause holds on
   // the pair row's foreign ids, all of which are unminted and so all still here). Each run copying the WHOLE map was
   // the other half of the harness's N²: N runs x 6N entries. On its own runtime every entry is this run's, as before.
+  // **What stays N² is the WALK, not the copy**: each run still visits every entry to filter it, N x 6N cached lookups,
+  // which the heap does not see and the wall barely does — `retention.ts scale` is linear in both at N = 800 (W142's
+  // conformity reader, finding 9, which is why this says linear in HEAP and not in work).
   const poolOfTask: Record<string, string> = Object.fromEntries(
     [...scheduler.tasks.entries()]
       .filter(([id]) => ownsScheduler || (() => { const o = ownerOf(scheduler, id); return o === null || o === opts.runId; })())

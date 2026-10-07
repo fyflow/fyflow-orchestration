@@ -2271,6 +2271,19 @@ function handed(d: Driver): string[] {
   return seen;
 }
 
+/** `handed`'s instrument with a caller's sink, chained onto whatever `onEvent` the instance already has. */
+function onDeliveryInto(d: Driver, sink: (id: string) => void): void {
+  const original = (d as unknown as { onEvent: (n: string, x: unknown) => void }).onEvent;
+  Object.defineProperty(d, 'onEvent', {
+    enumerable: false, configurable: true, writable: true,
+    value: function (this: unknown, n: string, x: unknown) {
+      const id = (x as { id?: unknown } | undefined)?.id;
+      sink(typeof id === 'string' ? id : '(no string id)');
+      return original.call(this, n, x);
+    },
+  });
+}
+
 suite('W142 — ADR 0088: a settlement reaches only the driver holding its run id, and an id no driver minted reaches every driver', (test) => {
   /** Three runs of `FLOW` (one task `a`, then `done`) on ONE runtime, so ONE scheduler, with their reports kept. */
   function threeRuns() {
@@ -2328,6 +2341,12 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
 
   test('rule 4, row 3: an id parseTaskId REFUSES is handed to EVERY driver, which each reports under its own run id (ADR 0027, ID-R5)', () => {
     const { s, runs } = threeRuns();
+    // ONE log across the three drivers, so the ORDER rule 4 row 3 states — *in the order they subscribed* — is a value.
+    // Each driver's own list cannot see it (the adequacy reader's M09: reversing the broadcast left every list equal).
+    const together: string[] = [];
+    for (const x of runs) {
+      onDeliveryInto(x.driver, (id) => together.push(`${x.runId} ${id}`));
+    }
     // Three shapes: a plain non-flow task; an id whose FIRST segment is one of our run ids and whose branch path is
     // malformed — `split(':')[0]` would hand it to `r1` alone, `parseTaskId` refuses it; and a detail with no id.
     s.done('nightly-cleanup');
@@ -2341,6 +2360,49 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
       ]),
       'each driver reports each one, under ITS OWN run id, with detail.id uncoerced');
     equal(runs.map((x) => x.failures), [[], [], []], 'and no run stops for it');
+    equal(together, want.flatMap((id) => ['r1', 'r2', 'r3'].map((r) => `${r} ${id}`)),
+      'and each event reaches the three IN THE ORDER THEY SUBSCRIBED, r1 then r2 then r3, before the next event');
+  });
+
+  test('rule 1: a RESUMED run is routed as a started one is — handed its own settlements and no other run`s', () => {
+    // A checkpoint taken from a run on one runtime, resumed on a SECOND runtime beside two started runs. `openRun` is the
+    // one place a driver is built, so `resume` must hand the driver the run's view too (the adequacy reader's M22: a
+    // resumed driver handed the scheduler itself left every case green, because tier 1 hides a broadcast's results).
+    const first = routedSeams();
+    const one = createRuntime(DOC, {}, { createPool: first.createPool, createScheduler: first.createScheduler });
+    const checkpoint = one.start(FLOW, { x: 1 }, { runId: 'x1' }).driver.checkpoint();
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const a = handed(r.start(FLOW, { x: 1 }, { runId: 'r1' }).driver);
+    const resumed = r.resume(FLOW, checkpoint);
+    const b = handed(resumed.driver);
+    equal(resumed.driver.runId, 'x1', 'the CONTROL: the resumed driver holds the checkpoint`s run');
+    s.done('r1:a:-:0');
+    s.done('x1:a:-:0');
+    equal([a, b], [['r1:a:-:0'], ['x1:a:-:0']], 'r1`s settlement to r1 alone, x1`s to the resumed driver alone');
+    equal(fold(resumed.driver.foldInputs()).outcome, 'completed', 'and the resumed run completes on its own settlement');
+  });
+
+  test('rule 4 row 3 under copy-on-write: a run started DURING a broadcast is not handed the event in flight', () => {
+    // `EventTarget.dispatchEvent` does not invoke a listener added during dispatch; until W142's two readers (conformity
+    // 6, adequacy C1) the router pushed onto the array it was iterating, so a run started from a consumer's
+    // `onUnmintedTask` heard the very event that started it.
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const reports: string[] = [];
+    r.start(FLOW, { x: 1 }, {
+      runId: 'r1',
+      onUnmintedTask: (u) => {
+        reports.push(`r1 ${String(u.taskId)}`);
+        if (u.taskId === 'nightly-cleanup') {
+          r.start(FLOW, { x: 1 }, { runId: 'r2', onUnmintedTask: (v) => { reports.push(`r2 ${String(v.taskId)}`); } });
+        }
+      },
+    });
+    s.done('nightly-cleanup');
+    equal(reports, ['r1 nightly-cleanup'], 'r2 did not exist when the event was dispatched, so it is not handed it');
+    s.done('weekly-report');
+    equal(reports, ['r1 nightly-cleanup', 'r1 weekly-report', 'r2 weekly-report'], 'and it is handed the NEXT one');
   });
 
   test('ID-R4 tier 2 under routing: OUR run id on a task we never dispatched still stops THAT run, and no other', () => {
@@ -2359,6 +2421,11 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     s.done('r2:a:-:0');
     equal(handedBy(runs), [[], ['r2:a:-:0', 'r2:a:-:0'], []], 'handed again after it completed — the routing keeps it for the runtime`s life');
     ok(runs[1]!.driver.foldInputs().length > before, 'and its sequence grows, which is RN-R25`s measured reason a run id stays in use');
+    // And it is still among EVERY driver for rule 4 row 3 — a finished run that left the broadcast would stop reporting
+    // what no driver minted, which no other case here sees (the adequacy reader's M16).
+    s.done('after-the-end');
+    equal(runs.map((x) => x.unminted.map((u) => u.taskId)), [['after-the-end'], ['after-the-end'], ['after-the-end']],
+      'the finished r2 still reports an unminted id, as r1 and r3 do');
   });
 
   test('rule 7: a Driver built BY HAND on runtime.scheduler is not routed — it subscribes to the scheduler and hears every settlement', () => {

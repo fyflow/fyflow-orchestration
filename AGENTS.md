@@ -1994,7 +1994,8 @@ shares the runtime's pools and its one scheduler, and the runtime ROUTES each se
 holding its run id — [ADR 0088](doc/decisions/0088-a-runtime-routes-each-settlement-to-the-driver-holding-its-run-id.md).
 A driver is handed its own run's settlements and nothing of any other run's, so N concurrent runs cost
 one delivery per settlement and the topology is **linear in N**; before it, every settlement reached
-every driver and one runtime cost N² (`examples/retention.ts topology N` measures both). Two things are
+every driver and one runtime cost N² (`examples/retention.ts topology N` measures either topology, one runtime or
+`own` per run, and ADR 0088 carries both figures). Two things are
 not routed, and both are yours to size:
 
 - **A `Driver` you build by hand** on `runtime.scheduler` or on your own `FyflowScheduler` (the long

@@ -401,13 +401,13 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
  * **N real runs through `runtime.start` alone — W142, and it is ADR 0088's measurement.**
  *
  * **Why a second mode beside `scale`, and the reason was measured.** `scale` runs each run through
- * `runFlow`, which attaches about ten listeners of its OWN to the scheduler per run — `noteDone` among
+ * `runFlow`, which attaches eight listeners of its OWN to the scheduler per run — `noteDone` among
  * them, which records every settlement it hears in that run's sets — and copies `scheduler.tasks` into
  * each report. On one shared scheduler each of those heard and copied every run's, so `scale` measured
  * the harness's N² beside the library's: W142 re-took W55's figure on `7ba87df` and read **879 MiB** of
  * heap at N = 800 shared, and the same after ADR 0088 routed the drivers. **W142 then routed the
  * harness too** (the maintainer's answer (B) to its prediction-3 stop; `routeHarnessListener` in
- * `run-flow.ts`), and `scale` is linear again — but it still measures a harness with ten listeners a
+ * `run-flow.ts`), and `scale` is linear again — but it still measures a harness with eight listeners a
  * run. This mode attaches nothing: the runs are `runtime.start(flow, payload)` and `await done`, a
  * consumer's two lines, and what it times and weighs is the library's delivery alone.
  *
@@ -415,7 +415,7 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
  * obligation (c)'s LIMIT): the wall time and `heapUsed`, which are properties of a machine (Q179), and
  * how many scheduler events each driver was HANDED (`onDelivery`, COUNTED and never kept), which is not. ADR 0088 says
  * a driver is handed its own run's settlement events and nothing of any other run's, so on the shared
- * topology the total is `N x (events per run)` — linear — where a broadcast makes it `N²` times that.
+ * topology the total is `N x (events per run)` — linear — where a broadcast makes it `N` times that, `N² x (events per run)`.
  *
  * **What it REFUSES to print a figure for**, because a mode whose output is a number must be able to
  * refuse (W55's adequacy reader): a run that did not complete; a driver handed another run's parseable

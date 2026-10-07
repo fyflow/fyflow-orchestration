@@ -7066,14 +7066,18 @@ for (const row of PAIR_ROWS) {
   // **Since W142 the count below is WIRING, not drivers**: under ADR 0088 a driver subscribes to its run's view and the
   // runtime's router subscribes the scheduler once (rule 2); and `runFlow`'s own listeners on a shared runtime are filed
   // on the harness's routes rather than on the scheduler (the maintainer's answer (B)) — so `runPair` counts
-  // `scheduler.addEventListener` calls PLUS `harnessRegistrations`. Each run files its ten in the same synchronous call
-  // that starts its driver, so the equality still says both runs were wired before the first settlement, and a
-  // sequential pair still leaves the first count short of the last. On the foreign row the `delivered` clause above
+  // `scheduler.addEventListener` calls PLUS `harnessRegistrations`. Each run files its EIGHT harness listeners before it
+  // starts its driver (an `await checkWiring` sits between the two), so the equality says both runs' wiring was in
+  // place before the first settlement, and a sequential pair still leaves the first count short of the last (rule 8
+  // probe h-seq). **What it no longer sees is a DRIVER**: since ADR 0088 a second driver's subscription reaches no
+  // scheduler count at all, so the clause is labelled for what it measures. *(Its label read "both drivers were
+  // ATTACHED", and this comment "its ten … in the same synchronous call" — W142's conformity reader, findings 1-2.)*
+  // On the control row nothing asserts driver attachment by itself; on the foreign row the `delivered` clause does. On the foreign row the `delivered` clause above
   // says it more directly: each driver was HANDED every foreign id, so each was attached when they arrived. `record`
   // itself stays a DIRECT scheduler listener on purpose — it is the one observer here that must hear every run.
   check(row.key, 'the scheduler-side record holds one listener count per settlement',
     facts.listenersAtSettlement.length, facts.settlementIds.length);
-  assertThat(row.key, 'both drivers were ATTACHED to the one scheduler before the first SETTLEMENT',
+  assertThat(row.key, 'both runs were WIRED to the one scheduler before the first SETTLEMENT',
     facts.addTaskCalls > 0 && facts.listenersAtSettlement[0] === facts.listenersTotal,
     `at the first settlement ${facts.listenersAtSettlement[0]} of ${facts.listenersTotal}`);
   // `runFlow` must not shut down a scheduler it did not build — `runPair` owns it.

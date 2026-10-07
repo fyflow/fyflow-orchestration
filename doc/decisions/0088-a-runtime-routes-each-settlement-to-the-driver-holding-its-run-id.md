@@ -27,7 +27,8 @@ rule 3 working exactly as written, N times per settlement. N runs settle `N x k`
 runtime does `N² x k` deliveries. [W55](../work-items/w55-a-run-at-scale-on-real-workers.md) measured
 it and raised Q244; this is the topology `createRuntime` builds and `AGENTS.md` recommends.
 
-**Re-taken by W142 on `ba90b5a`**, `examples/retention.ts topology N 4 1 [own]` under
+**Re-taken by W142 on `ba90b5a`'s library source**, with the measuring mode added and not yet committed
+(it landed in `6ed7c7d`, with the routing), `examples/retention.ts topology N 4 1 [own]` under
 `node --expose-gc` — N runs of `map-alias` (six tasks each) through `runtime.start` and `await done`,
 with nothing of the harness subscribed to the scheduler:
 
@@ -41,9 +42,11 @@ with nothing of the harness subscribed to the scheduler:
 
 **The wall is the broadcast's and the count says so without a clock**: 6N² events handed on the
 shared topology against 6N on the other. **The library's HEAP is linear in both**, which corrects
-W55's *super-linear in heap*: W55 measured through `runFlow`, which subscribes about ten listeners of
-the harness's own per run and records every settlement each hears, so on one scheduler the HARNESS
-held N² ids (W142 re-took W55's own command on the same tree: 879 MiB at N = 800, against 38.6 here).
+W55's *super-linear in heap*: W55 measured through `runFlow`, which subscribed eight listeners of
+the harness's own per run, recorded every settlement each heard and copied `scheduler.tasks` into each
+report, so on one scheduler the HARNESS held N² ids (W142 re-took W55's own command on the same tree:
+879 MiB at N = 800, against 38.6 here). W142 then routed the harness too — the maintainer's answer (B)
+to its prediction-3 stop — and W55's command reads 68.0 MiB and 868 ms at N = 800 shared.
 
 ## Decision
 
@@ -71,9 +74,13 @@ held N² ids (W142 re-took W55's own command on the same tree: 879 MiB at N = 80
    | does not parse, or is not a string | **every driver of this runtime subscribed to that event**, in the order they subscribed — so each still reports it through `onUnmintedTask` under its own run id ([ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) rule 3, `ID-R5`) |
 
 5. **A driver stays in the routing for the runtime's life.** `RN-R25` is unchanged: *in use means
-   held by a driver*, and a finished run's driver — or a refused start's, or a refused resume's —
-   still hears every settlement under its id. Detaching it would change that rule's text, and this
-   decision does not.
+   held by a driver*, and a finished run's driver, or a refused start's, still hears every settlement
+   under its id — and stays among *every driver* for rule 4's third row. A refused resume's driver is
+   HANDED them too and, spent, does nothing with them (`RN-R23`: it *hears nothing* in the sense that
+   nothing is appended, routed, delivered or reported). Detaching any of them would change `RN-R25`'s
+   text, and this decision does not. *(This rule said a refused resume's driver "still hears" and
+   credited `RN-R25` with it, which names only the finished run and the refused start — W142's
+   conformity reader, finding 4.)*
 6. **The driver's own tiers still run on every event it is handed, unchanged**: tier 0 reports an
    unminted id, tier 1 drops another run's, tier 2 refuses ours-but-undispatched with
    `UndispatchedTask`. For a routed driver tier 1 can no longer be reached from the scheduler; it
@@ -110,13 +117,23 @@ and it still does that with every one it is handed.
 run id the driver was constructed with, so *one driver, one run* is what makes a single key per
 driver enough.
 
-**Cost.** One parse and one map lookup per settlement, whatever N is, where the broadcast was N
-listener calls and N parses. An unparseable id still costs one delivery per driver — it did before,
-and it is the case nobody minted.
+**Cost.** Two parses — the router's and the driver's own tier 0, unchanged — and one map lookup per
+settlement, whatever N is, where the broadcast was N listener calls and N parses. An unparseable id
+still costs one delivery per driver — it did before, and it is the case nobody minted. *(This read
+"one parse": W142's conformity reader, finding 10.)*
 
-**What it does not reach.** A consumer's own listeners on `runtime.scheduler` (a dashboard, the L6
-harness's ~ten per run) are the consumer's and still hear every event; N of those is the consumer's
-N². And `spec/runtime-targets.md`'s *the driver subscribes to an `EventTarget` and calls `addTask`*
+**Two orders it fixes, stated because a consumer can see them.** A driver started DURING a broadcast
+is not handed the event in flight — the broadcast list is copy-on-write, as `EventTarget` treats a
+listener added mid-dispatch (both of W142's readers constructed the case; the first build pushed onto
+the list it was iterating). And every routed driver now sits behind ONE scheduler listener, filed
+when the first driver subscribed, so a consumer listener filed between run 1 and run 2 runs AFTER
+run 2's driver where it used to run before it. Nothing in `spec/` or `AGENTS.md` depends on the second
+(W142's conformity reader, finding 7).
+
+**What it does not reach.** A consumer's own listeners on `runtime.scheduler` (a dashboard, a logger)
+are the consumer's and still hear every event; N of those is the consumer's N². The L6 harness was one
+such consumer, with eight a run, until W142 routed it by this decision's rule (`examples/run-flow.ts`,
+`routeHarnessListener`). And `spec/runtime-targets.md`'s *the driver subscribes to an `EventTarget` and calls `addTask`*
 stays true of the seam: on a runtime, the `EventTarget` behind the view is the scheduler.
 
 ## Alternatives rejected

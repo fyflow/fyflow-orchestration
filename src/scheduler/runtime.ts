@@ -759,13 +759,12 @@ function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): Sc
           let mine = byRun.get(runId);
           if (mine === undefined) byRun.set(runId, mine = new Map());
           mine.set(name, [...(mine.get(name) ?? []), listener]);
+          // COPY-ON-WRITE, as the per-run arrays above are: a delivery iterates the array it read, so a run started from
+          // INSIDE a broadcast delivery is not handed the event already in flight — what `EventTarget.dispatchEvent` does
+          // with a listener added mid-dispatch, and what this did not do until W142's conformity reader, finding 6.
           const all = every.get(name);
-          if (all === undefined) {
-            every.set(name, [listener]);
-            scheduler.addEventListener(name, deliver(name));
-          } else {
-            all.push(listener);
-          }
+          every.set(name, [...(all ?? []), listener]);
+          if (all === undefined) scheduler.addEventListener(name, deliver(name));
         },
       };
     },
