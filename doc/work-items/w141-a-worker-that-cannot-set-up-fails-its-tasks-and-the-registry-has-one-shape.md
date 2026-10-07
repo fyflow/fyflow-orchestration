@@ -1,6 +1,6 @@
 # W141 — A type's worker that cannot set up fails its tasks instead of hanging them, and the registry's shape is checked by ONE function (Q266, Q283)
 
-**Status:** in progress — declared 2026-10-07 on `625d98b`, the third item of P31
+**Status:** done — declared 2026-10-07 on `625d98b`, the third item of P31; built, both readers and the fix round done, `gate:item` EXIT 0 on `511a009`, 2026-10-08
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, deliberately* — W127's note and Q142's mechanism (`M4`), as in
@@ -144,4 +144,185 @@ so the item asks to widen it before any edit, and the answer goes in this table 
 
 ## Record
 
-*Filled in when the item is done.*
+*Filled in 2026-10-08 on `511a009`, the tree the confirming gate ran on, held still from the final rule-8
+pass through that gate to this Record.* Scratch is `dev-dist/w141-12912/` (this item's shell pid): the
+measurement scripts and logs, `rule8.mjs` and its three passes, and `item.log`.
+
+**Gate — what ran.**
+
+| Clause | Verdict | Notes |
+|---|---|---|
+| L0 | RAN, green | `lint` 0, all five typechecks 0 |
+| L1-L5 | RAN, green | **56 files / 1580 cases in node 24.20.0, deno 2.9.6 and chromium** (from 1538): the three W141 suites and the two cases the readers bought. Firefox and webkit NOT RUN (`test:browser:all` is not on `gate:item`) |
+| L6 | RAN, green | **2487 assertions over 164 real runs in node AND deno** (from 2474 / 162): the setup-fails block, 13 cross-row assertions over two runs. *(Its first run read 2475 against a derived 2462 — 13 — in a log the later runs overwrote; the arithmetic is `CROSS_ROW` 246 -> 259.)* |
+| the measurement | RAN | output (1), below |
+| rule 8 | RAN, three passes | author 48/48; the re-run with both readers' edits 61/65 and then 65/65 on four corrected DECLARATIONS; **final, on the still tree, 65 of 65 at their declared verdict**, digest `1152490c17f3bd67` before and after — below |
+| conformity reader | RAN | 10 findings, 2 blocking — below |
+| adequacy reader | RAN | 24 mutations and an 8-input probe: 14 caught, 10 survived (4 real gaps, 1 real defect, 1 unchecked comment, 3 vacuous) — below |
+| `npm run gate` | RAN, EXIT 0 | on the tree after the two asked edits (`b2ce762`), before the readers |
+| **`npm run gate:item`** | **RAN once, EXIT 0, on `511a009`** | `item.log`; selftests 10/10 ok, 879.4 s wall, `check:register:selftest` left out (P31 decision 4: this item touches no register script) |
+
+**The measurement — output (1).**
+
+*Q266, the hang.* `node dev-dist/w141-12912/measure3.mjs 3` — the L6 block's own shape (three OPTIONAL nodes of
+a type whose worker's `setup()` throws, a fanout, `on:["failed"]` edges, a live-token join), inline and
+threaded, three repeats each, a **12 s deadline**, called a hang because by then the pool has reported
+`worker.restart_limit_exceeded` and nothing can settle the tasks after it (`measure2-before.log` counts the
+events). **Before: 6 of 6 HUNG** — the three tasks `pending`, the fold `running`. **After: 6 of 6
+`completed`** in 2-45 ms, each node `failed` with the setup message. *(`measure3-before.log`,
+`measure3-after.log`.)*
+
+**ADR 0051 F1, corrected** (`measure-before.log`, `measure2-before.log`, through `createRuntime` on 0.5.2):
+**a SINGLE task with no retry on a worker whose `setup()` throws did NOT hang** — it settled `user_action`
+(`failed` when optional), `attempts: 0`, in both pool modes. The hang needs a worker that fails again after
+the task it failed on: three tasks on one worker (both modes, every time), or one task with a retry
+(threaded). F1's mechanism is real; its single-task statement does not reproduce here. Recorded beside F1
+in ADR 0051 (record step) and in the L6 block's comment. **`spec/flow-definition.md` section 2 says the same
+single-task sentence** (*"the task stays `pending` with `attempts: 0` … emits nothing a driver could
+record"*, around line 726) — a spec text, so this item did not move it: it is put to the caller as an ask
+(Questions, below).
+
+*Q283, the shape checks each caller made* (read off `625d98b`):
+
+| check | `checkRegistry` before | `resolveRegistry` before | after |
+|---|---|---|---|
+| gate types (`NameCollision`, `GateTypeRefused`) | yes | no (`createRuntime` calls `checkGateTypes`) | unchanged — `checkRegistry` only |
+| worker not an object | yes | yes | ONE function, both |
+| worker undeclared key | yes | yes | ONE function, both |
+| worker `url` missing or empty | yes | yes, **another message** | ONE function, one message |
+| the four worker schemas in the subset | yes | yes | ONE function, both |
+| node type named as a built-in | yes, one message | yes, **two directional messages** | ONE function, one message |
+| `checkNodeTypeShape` (not an object, undeclared key, `pool` object/keys/PoolSpec, `groups`, a class's `configSchema`, `worker` present/absent, `inline`, `retryPolicy`, `settings`) | yes, over the built-ins too | yes, the consumer's only | ONE function, both, built-ins included |
+| a type's worker declared | yes ("registry's") | yes ("registry document's") | ONE function, one message |
+| pool not an object | yes | yes | ONE function, both |
+| pool undeclared key | yes | yes | ONE function, both |
+| pool named as a type or a built-in | yes | yes | ONE function, both |
+| pool's type is a node type | yes | yes | ONE function, both |
+
+The resolver keeps what only a DOCUMENT has: its own shape and keys, the sections, group types, groups,
+the document-against-code collision, a document type's declared groups, the derivations, predicates and
+languages. **The order of kinds is the resolver's as before** — workers, group types, groups, node types
+(their declared groups and default instances), pools — because the shape is three functions, one per
+kind, which `checkRegistry` calls in sequence and `resolveRegistry` calls where each kind was always read
+(the conformity reader's finding 1).
+
+**Outputs — what was actually built.**
+
+| Declared output | Exists | What would fail without it |
+|---|---|---|
+| (1) the measurement | above; `measure*.mjs` and `*-before.log` / `*-after.log` | — |
+| (2) setup() never throws; every task fails from run() | `src/scheduler/envelope-worker.ts`: `setup()` wraps `setupOrThrow()`, remembers every throw (six stages), tears a constructed inner worker down once, starts a second call clean; `run()` reads the memory FIRST and throws a fresh Error naming the WHOLE worker URL, the stage and the error; `teardown()` clears it; `printable()` / `messageOf()` cannot throw | e1, e1-l6, e2, e3a-e3f, e4-e9, cr2, cr4, cr5, A1, A1b, A3, A9, A9-l6, A9i, A12 |
+| (3) L1 | the W141 suite in `test/scheduler/transform.test.ts` (12 cases), and the three moved refusal cases | every e-probe; `drove` binds the backends |
+| (4) L2 | the W141 suite in `test/driver/node-type.test.ts` (2 cases) | l2a |
+| (5) L6 | the "W141 setup fails" block in `examples/l6.ts`, two runs, 13 cross-row assertions, bounded, crash-guarded | e1-l6, A1-l6, A9-l6, t1b-l6; `crash-l6` grades the guard |
+| (6) one shape function | `checkRegistryShape` = `checkWorkersShape` + `checkNodeTypesShape` + `checkPoolsShape`, called by `checkRegistry` and, kind by kind, by `resolveRegistry`; built-in lookups own-key | r1, r2, r4, r3-00 to r3-20, cr1, Rc, Rf, Rl |
+| (7) L1 for (6) | the W141 suite in `test/definition/registry.test.ts` (26 cases): 21 defects refused identically, the source-site membership both ways, a control, two ORDER cases, the prototype-name case | the same probes |
+| (8) Q266, Q283 resolved | the record step | — |
+
+**Exceptions, reconciled** — `git diff --name-only 625d98b..HEAD` before the record step lists 14 paths.
+Owned: `src/scheduler/envelope-worker.ts`, `src/definition/registry.ts`, the four test files, `examples/l6.ts`,
+this file. Declared at declaration: `examples/README.md`, `test/definition/l4-corpus.test.ts`. Asked and
+answered YES before their edits: `AGENTS.md` (the one section-20 sentence), `scripts/build-browser-tests.mjs`
+(the one corpus line). Record-step files (workflow section 1 rule 5): `doc/decisions/0051-*` (F1's
+correction) and `doc/decisions/0075-*` (rule 4's *setup() has refused that*, now false — the conformity
+reader's 3). `spec/README.md` NOT edited: no spec document moved. Nothing else.
+
+**Rule 8 — the three passes** (`dev-dist/w141-12912/rule8.mjs`; each `must` is the FULL key — a test's
+own name, or `<row key> :: <what>` at L6; node 24 asserted; every anchor checked against the CURRENT text and
+unique or the pass aborts; every edit asserted to change its input; each file restored to its FIRST
+snapshot byte for byte and compared; a digest before and after).
+
+- **Author pass: 48 / 48.**
+- **Re-run with both readers' edits checked in** (re-anchored where the fix moved the code): 61 / 65. The
+  four were the HARNESS's declarations, each corrected and re-run: e4 gained a second observer (the
+  unprintable case also sees a teardown never called); e5's anchor stopped being unique when `setup()`
+  gained its reset; t1-l6's anchor moved when the L6 clause gained the URL; A9 (threaded only) still drives
+  both backends, so `drove` is not tripped. None was a code defect.
+- **Final pass, the still tree: 65 / 65** — 56 CAUGHT, 6 CLEAN, 2 WRONG-REASON, 1 CRASH, each its declared verdict:
+  - **controls of the grader**: `c0-test`, `c0-l6` CLEAN; `crash-l6` CRASH; `wrong-l6` WRONG-REASON (a label
+    renamed trips the subject membership and not the clause it names);
+  - **declared survivors, each RUN**: `t1-l6` (the L6 error clause made a tautology — it is the ONLY L6
+    observer of the message; second routes t1b-l6 and A1-l6 at L6, e9 and A1 at L1); `race-l6` (the race
+    removed — the deadline never fires on a correct tree; second route e1-l6, where the deadline IS the
+    verdict); **`Ri` — a stated LIMIT**: a resolve-only check written inside the resolver's own node-type
+    loop survives, because the membership reads only the shape functions' source; there is no second route;
+  - **`Rh` WRONG-REASON, the same limit's other face**: such a check outside the shape functions is caught only
+    by an unrelated URL test, never by the Q283 suite that names the url check;
+  - **order** (obligation (f)): `f1-l6`, the failing worker's `setup()` delayed 300 ms, CLEAN in both pool
+    modes; both pool modes are themselves the block's two runs, and A9 / A9i bring the hang back in ONE mode
+    and are caught by that mode's clauses alone.
+  - **Not re-run here**: the adequacy reader's A10 (the hang under Deno only) — this harness grades node;
+    the reader ran it in its copy and both deno rungs caught it (`deno-test` 13 FAIL, `deno-l6` 12 FAIL).
+
+**Readers — fresh contexts, differed briefs, the tree still** (`b2ce762` throughout).
+
+*Conformity* (spec, ADRs, P31 first; then the code; probes in its own scratch):
+
+| # | finding | done |
+|---|---|---|
+| 1 BLOCKING | the first cut called the whole shape at the top of `resolveRegistry`, moving node types' declared groups and default instances after the pools and groups before node types — five documents refused differently than before, against section 3's *every entry of a kind before the next* | the shape split into three per-kind functions, each called where its kind was always read; an ORDER-across-KINDS case pins the five documents and Rf; `cr1` puts the first cut back and is CAUGHT |
+| 2 BLOCKING | `setup()` could still throw: `String()` on an inner teardown's `Object.create(null)`; and an inner setup throwing one lost the URL and the stage | `printable()` and a `messageOf()` that cannot throw; a case for both; `cr2` |
+| 3 | three claims that `setup()` refuses a malformed config, false since the refusal moved to `run()` | `envelope-worker.ts` and `registry.ts` corrected; ADR 0075 rule 4 corrected at the record step |
+| 4 | `brief()` cut a worker URL past 117 characters | the URL is named WHOLE; the L1 stage cases and the L6 error clause compare the whole URL; `cr4`, A1, A1-l6, A1b |
+| 5 | a second `setup()` kept the first one's failure | reset at the top of `setup()`; a case; `cr5` |
+| 6 | the measurement contradicts F1's and the spec's single-task sentence; the L6 comment over-generalised | F1 corrected in ADR 0051 and above; the L6 comment narrowed (*no retry*); the spec sentence is an ask, below |
+| 7 | the record step not yet done | done below |
+| 8 | three refusal messages changed (worker url; a type's worker; the built-in collision no longer says which source) | stated here; no spec text, test or document pins the old ones (the reader's grep: only W109's historical Record) |
+| 9 | verified true: six stages, 21 sites, the L6 counts, the browser comment, AGENTS.md's new sentence | — |
+| 10 | expected values from spec and fixtures | — |
+
+*Adequacy* (mutation in an isolated `tar` COPY, `node_modules` copied, `find -type l` empty before and after,
+copy left in place; baselines green in node and deno first):
+
+| finding | done |
+|---|---|
+| **Rl — a real defect, older than W141**: `name in BUILT_IN_NODE_TYPES` reads `Object.prototype`, so a type called `constructor` / `toString` / `__proto__` was refused on both roads as *a built-in names a worker* — which made the Q283 membership's one exemption ("unreachable") false; and `name in declared` raised a false collision for a class named `toString` | own-key lookups everywhere in `registry.ts` (`isBuiltInNodeType`, `hasOwn`); a case over the three names on both roads; the exemption comment now true and says why; probe `Rl` |
+| A1 / A1b — the URL check was a 40-character prefix every fixture shares | the whole URL; probes A1, A1-l6, A1b |
+| A3 — a non-envelope task on a failed worker | the stage cases send one; probe A3 |
+| A12 — *a fresh Error per task* checked by nothing | the stage cases assert distinct objects; probe A12 |
+| Rc — checkRegistry's worker-before-type order unpinned | a third ORDER case; probe Rc |
+| Rf — the document-against-code collision's position unpinned | the ORDER-across-KINDS case; probe Rf |
+| Ri, Rh — a check written OUTSIDE the shape functions | a stated limit, run as `Ri` (survivor) and `Rh` (wrong reason) |
+| A6, Re, A17 — vacuous | stated |
+| caught: A5, A18, A22, A9, A9i, A10, Ra, Rb, Rc, Rd, Rg, Rk1, Rk2 | — |
+
+**Overlap: THREE shared subjects — the eighty-sixth measurement**, inside the 0-4 band, the briefs differed
+(the conformity brief named the order and the claims; the adequacy brief named narrowing mutations, the
+merge and the pool modes): (1) the order of kinds in `resolveRegistry` — conformity 1, adequacy Rc/Rf; (2) an
+unprintable throw inside `setup()`'s catch — conformity 2, adequacy's input probe; (3) the worker URL in the
+message — conformity 4, adequacy A1/A1b.
+
+**What broke.**
+
+1. **The first cut of Q283 moved the order of refusals and no test of mine saw it.** It called the whole
+   shape up front, which is the natural shape for *one function called from both* — and section 3's rule is
+   about the RESOLVER's order of kinds, which `checkRegistry` has fewer of. The repair keeps one
+   implementation per kind and two call patterns.
+2. **The hang's premise was half wrong.** ADR 0051 F1 says a single task never settles; on 0.5.2 through
+   `createRuntime` it did. The L6 block runs three tasks because the measurement said one would not hang.
+3. **`String(e)` in a catch is a throw site** — W132's lesson, met again inside the one method this item
+   promised would never throw.
+4. **A membership's exemption rested on a false sentence** (*no consumer input reaches it*) because of a
+   prototype lookup older than the item.
+5. **Four rule-8 declarations were wrong on the re-run**, every one a consequence of the readers' repairs
+   (a new observer, a duplicated line, a moved line, a loop that keeps going) — the harness reported each
+   as BAD or ABORT rather than letting it pass.
+
+**What this taught.** A *one function for both callers* refactor has a second invariant beside *same
+checks*: *same ORDER where the spec states one* — the caller with more kinds owns the order. And a
+membership over a SOURCE REGION binds only that region (Ri, Rh): Q283's class can still come back as a check
+written elsewhere in the resolver; the defence is the per-defect both-roads comparison, which catches any
+check that changes a verdict, not one that adds a refusal.
+
+**Questions — closed and raised** (workflow section 1 rule 6).
+
+- **Closed: Q266, Q283**, each `resolved-by` starting "P31 W141 —". No ADR names them; none was needed
+  (ADR 0089 unused).
+- **Raised: none.** Q559-Q561 are reserved and UNUSED.
+- **Rule 6 fired twice and both were asked, not raised**: `AGENTS.md`'s section-20 sentence (YES) and the
+  browser corpus line (YES, option 1), both 2026-10-07.
+- **One ask outstanding, put to the caller rather than raised**: `spec/flow-definition.md` section 2's
+  single-task F1 sentence (*the task stays `pending` with `attempts: 0` …*) does not reproduce on 0.5.2 —
+  correct the sentence to the measured mechanism (several tasks on a failing worker, or a retry), or leave it
+  as F1's historical measurement. A spec text, so a change of its own.
+- **Stated limits, not questions**: Ri / Rh above.
