@@ -75,7 +75,7 @@ if (process.argv.includes('--self-test')) {
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed — the `NOT RUN` state W5's finding asks for. */
-const ran = { G1: false, G2: false, G3: false, G4: false, G5: false, G6: false };
+const ran = { G1: false, G2: false, G3: false, G4: false, G5: false, G6: false, G7: false };
 
 const PKG_PATH = process.env.CHECK_WIRING_PKG ?? 'package.json';
 const SCRIPTS = process.env.CHECK_WIRING_SCRIPTS
@@ -667,8 +667,15 @@ if (pkg && existsSync(join(SCRIPTS, 'run-selftests.mjs'))) {
       "const SCRIPTS = resolve(ROOT, process.env.CHECK_SELFTESTS_SCRIPTS ?? join(ROOT, 'scripts'));"],
     ['the command an entry gets when nothing overrides it',
       "const CMD = process.env.CHECK_SELFTESTS_CMD ?? '';"],
+    // **W139: the plan takes the left-out set, and the left-out set is the ARGUMENTS'.** A default
+    // that left something out with no `--without` given is `gate:full` silently short one lane;
+    // `G4`'s `--plan` run would see that one, and these three lines are what the run itself reads.
+    ['the arguments, read whole',
+      'const ARGS = argsFrom(process.argv.slice(2));'],
+    ['the left-out set, which is what the arguments name and nothing else',
+      'const WITHOUT = ARGS.without;'],
     ['the plan, computed unconditionally',
-      'const PLAN = plan(pkg);'],
+      'const PLAN = plan(pkg, WITHOUT);'],
     ['the command the plan carries, which is the command the run spawns',
       'return { entry, exclusive, command: CMD || commandFor(entry) };'],
     ['the spawn, which reads the plan and nothing else',
@@ -934,6 +941,108 @@ if (existsSync(SCRIPTS)) {
     }
   }
 }
+// --- G7: `gate:item` is `gate:full` less EXACTLY the declared lanes — W139 ---------
+//
+// **`doc/workflow.md` v0.29, the maintainer's answer to P30's retro**: an item's confirming gate is
+// `gate:full` LESS `check:register:selftest`, and the plan's last item runs the whole `gate:full`.
+// `npm run gate:item` is that gate. Two ways for it to go quietly wrong, and they are the two this
+// clause exists for: it can **leave out a SECOND lane** — one more `--without`, and every item's gate
+// is shorter by a lane nobody decided to drop — or it can **stop composing the LADDER**, and an item
+// is confirmed by self-tests over a tree no rung checked. `G3`/`G4`/`S11`/`S13` all read `gate:full`
+// and none of them reads this entry, so without this clause both edits are free.
+//
+// **`ITEM_LEAVES_OUT` is v0.29 as code, and the manifest's argv is compared to it BOTH WAYS.** Then
+// the runner is ASKED, with the entry's own arguments, rather than trusted to honour them: its plan
+// must be the manifest's `:selftest` entries less exactly that set, it must say it left out exactly
+// that set, and run against a passing stub it must complete exactly what it planned and exit 0. And
+// two runs it must REFUSE — `--without` naming no entry, and `--without` naming an entry that does not
+// exist — because a gate that *believes* it left a lane out is the gate that ran everything, or
+// nothing, while its log reads as v0.29.
+const ITEM_LEAVES_OUT = ['check:register:selftest'];
+const ITEM_RUNNER = 'scripts/run-selftests.mjs';
+if (pkg) {
+  ran.G7 = true;
+  const scripts = pkg.scripts ?? {};
+  const cmd = typeof scripts['gate:item'] === 'string' ? scripts['gate:item'].trim() : '';
+  const owed = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort();
+  const want = [...ITEM_LEAVES_OUT].sort();
+  if (!cmd) {
+    fail('G7', `${PKG_PATH} has no "gate:item" script, and doc/workflow.md v0.29 makes it an item's ` +
+      'confirming gate: `gate:full` less check:register:selftest');
+  } else {
+    const parts = cmd.split('&&').map((s) => s.trim());
+    const argv = (parts[1] ?? '').split(/\s+/).filter((t) => t !== '');
+    const pairs = argv.slice(2);
+    if (parts.length !== 2 || parts[0] !== 'npm run gate') {
+      fail('G7', `"gate:item" runs \`${cmd}\`, and it must be exactly two \`&&\` parts, \`npm run gate\` ` +
+        'and then the runner. Without the ladder first, an item is confirmed by self-tests over a tree ' +
+        'no rung checked; with a third part, by something this clause has not read');
+    } else if (argv[0] !== 'node' || argv[1] !== ITEM_RUNNER || pairs.length % 2 !== 0 ||
+        !pairs.every((t, i) => (i % 2 === 0 ? t === '--without' : !t.startsWith('-')))) {
+      fail('G7', `"gate:item"'s second part is \`${parts[1]}\`, and it must be \`node ${ITEM_RUNNER}\` ` +
+        'followed only by `--without <entry>` pairs — anything else (a suffix that swallows the verdict, ' +
+        '`--plan`, another program) is a command this clause cannot vouch for');
+    } else {
+      const named = pairs.filter((_, i) => i % 2 === 1).sort();
+      for (const e of want.filter((x) => !named.includes(x))) {
+        fail('G7', `"gate:item" does not leave out ${e}, which ITEM_LEAVES_OUT declares — v0.29 takes ` +
+          'exactly that lane out of an item`s gate, and running it costs every item ~26 minutes');
+      }
+      for (const e of named.filter((x) => !want.includes(x))) {
+        fail('G7', `"gate:item" leaves out ${e}, which ITEM_LEAVES_OUT does not declare. A second lane ` +
+          'leaving an item`s gate is a decision (doc/workflow.md section 4), not a manifest edit');
+      }
+      const runner = join(SCRIPTS, 'run-selftests.mjs');
+      const base = { ...process.env, CHECK_SELFTESTS_PKG: resolve(ROOT, PKG_PATH),
+        CHECK_SELFTESTS_SCRIPTS: relative(ROOT, SCRIPTS).replace(/\\/g, '/') || '.' };
+      delete base.CHECK_SELFTESTS_CMD;
+      const runIt = (extra, env = base) => spawnSync(process.execPath, [runner, ...extra],
+        { cwd: ROOT, encoding: 'utf8', env, timeout: 120_000 });
+      const p = runIt([...pairs, '--plan']);
+      const out = `${p.stdout ?? ''}`;
+      const planned = [...out.matchAll(/^(?:alone|concurrent)\s+(\S+)\s+::/gm)].map((m) => m[1]).sort();
+      const leftOut = [...out.matchAll(/^left out\s+(\S+)\s+::/gm)].map((m) => m[1]).sort();
+      if (p.status !== 0 || planned.length === 0) {
+        fail('G7', `the runner, asked for "gate:item"'s plan (\`${pairs.join(' ')} --plan\`), exited ` +
+          `${p.status} and planned ${planned.length} entries`);
+      } else {
+        const wantPlanned = owed.filter((e) => !want.includes(e));
+        const extra = planned.filter((e) => !wantPlanned.includes(e));
+        const missing = wantPlanned.filter((e) => !planned.includes(e));
+        if (extra.length || missing.length) {
+          fail('G7', `for "gate:item" the runner plans [${planned.join(', ')}], and it must plan the ` +
+            `manifest's \`:selftest\` entries less [${want.join(', ')}]` +
+            `${missing.length ? ` — missing: ${missing.join(', ')}` : ''}` +
+            `${extra.length ? ` — not to be run: ${extra.join(', ')}` : ''}`);
+        }
+        if (leftOut.join(',') !== want.join(',')) {
+          fail('G7', `for "gate:item" the runner says it left out [${leftOut.join(', ')}], and ` +
+            `ITEM_LEAVES_OUT is [${want.join(', ')}] — a lane left out and not reported is a gate log ` +
+            'that reads as gate:full');
+        }
+        const stub = { ...base, CHECK_SELFTESTS_CMD: `"${process.execPath}" -e "process.exit(0)"` };
+        const green = runIt(pairs, stub);
+        const done = /(\d+)\/(\d+) completed/.exec(`${green.stdout ?? ''}`);
+        if (green.status !== 0 || !done || done[1] !== done[2] || Number(done[2]) !== wantPlanned.length) {
+          fail('G7', `the runner, run with "gate:item"'s arguments against a stub that succeeds, exited ` +
+            `${green.status} and reported \`${done ? done[0] : 'no completion line'}\` against ` +
+            `${wantPlanned.length} to run`);
+        }
+      }
+      // **The two refusals, run.** Each is a way to leave out NOTHING while the caller believes a
+      // lane left: a bare flag, and a name that matches no entry (a typo of the real one).
+      for (const [why, extra] of [['names no entry', ['--plan', '--without']],
+        ['names an entry the manifest does not have', ['--plan', '--without', 'check:no-such-lane:selftest']]]) {
+        const r = runIt(extra);
+        if (r.status === 0) {
+          fail('G7', `the runner accepted \`${extra.join(' ')}\` — a \`--without\` that ${why} — at ` +
+            'exit 0. It leaves out nothing, silently, which is the one thing v0.29`s option must not do');
+        }
+      }
+    }
+  }
+}
+
 const checks = [
   ['G1', ran.G1, 'G1 every :selftest script routes --self-test to a self-test'],
   ['G2', ran.G2, 'G2 and its DEFAULT self-test is its own, reached with no override set'],
@@ -941,6 +1050,7 @@ const checks = [
   ['G4', ran.G4, 'G4 and the gate RUNS every one of them, which the runner is asked'],
   ['G5', ran.G5, 'G5 and the runner`s DEFAULT behaviour is its own, which G4 cannot observe'],
   ['G6', ran.G6, 'G6 and a scratch path under dev-dist/ carries its PROCESS, exceptions declared'],
+  ['G7', ran.G7, 'G7 and gate:item is the ladder then the runner less EXACTLY the declared lanes'],
 ];
 console.log(`wiring check — ${Object.keys(pkg?.scripts ?? {}).filter((n) => n.endsWith(':selftest')).length} :selftest entries\n`);
 for (const [id, didRun, label] of checks) {

@@ -38,6 +38,11 @@
 //           becomes `return 0` for **zero** failures, and the floor is lowerable to
 //           nothing, printing `0/0 probes caught` at exit 0. **Six.**
 //
+// **`G7` (W139) adds a family to each pass and states no count here**, since the counts above are the
+// defect they describe: manifests of `gate:item` and mutations of the runner's `--without` in PROBES,
+// one META entry per `G7` `fail()` site, and `G7_NAMES` binding the family by name. W139 also moved
+// META's count baseline from the control's single number to each probe's own — see `probeFails`.
+//
 // **A probe declares the SET of checks it must trip** (rule 7 (c)) and this file
 // compares by equality: a probe that trips a check it did not name is malformed, and
 // a malformed probe reported as caught is the defect W6 shipped and P3's retro
@@ -240,7 +245,7 @@ const PKG_PROBE = [{
   // **The rows that must read `NOT RUN`**, declared here so that a `NOT RUN` row is a
   // disagreement for every other probe. `G6` is absent deliberately: it is not gated on the
   // manifest and must still report.
-  notRun: ['G1', 'G2', 'G3', 'G4', 'G5'],
+  notRun: ['G1', 'G2', 'G3', 'G4', 'G5', 'G7'],
   env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/broken-package.json` }),
   mutate: (t) => t,
 }];
@@ -302,6 +307,8 @@ const G4_PROBES = [
     name: 'the runner plans one fewer entry than the manifest declares',
     file: 'run-selftests.mjs',
     check: 'G4',
+    // **W139: `G7` co-fires** — its plan or stub run of gate:item's arguments sees the same defect.
+    also: ['G7'],
     mutate: (t) => t.replace("  const entries = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort();",
       "  const entries = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort().slice(1);"),
   },
@@ -309,8 +316,11 @@ const G4_PROBES = [
     name: 'the runner plans an entry the manifest does not declare',
     file: 'run-selftests.mjs',
     check: 'G4',
-    mutate: (t) => t.replace('  return entries.map((entry) => {',
-      "  return [...entries, 'check:ghost:selftest'].map((entry) => {"),
+    // **W139: `G7` co-fires** — its plan or stub run of gate:item's arguments sees the same defect.
+    also: ['G7'],
+    // *(Re-anchored at W139, whose `--without` put a filter on this line.)*
+    mutate: (t) => t.replace('  return entries.filter((entry) => !without.includes(entry)).map((entry) => {',
+      "  return [...entries, 'check:ghost:selftest'].filter((entry) => !without.includes(entry)).map((entry) => {"),
   },
   {
     // **W36's `D6` and W35's `test:l6` shape, in the runner.** The plan names the
@@ -339,6 +349,8 @@ const G4_PROBES = [
     name: 'the runner plans every entry and runs one fewer',
     file: 'run-selftests.mjs',
     check: 'G4',
+    // **W139: `G7` co-fires** — its plan or stub run of gate:item's arguments sees the same defect.
+    also: ['G7'],
     mutate: (t) => t.replace(NL + 'const queue = [...rest];', NL + 'const queue = [...rest].slice(1);'),
   },
   {
@@ -352,6 +364,8 @@ const G4_PROBES = [
     name: 'the runner runs one fewer entry and reports the plan`s count anyway',
     file: 'run-selftests.mjs',
     check: 'G4',
+    // **W139: `G7` co-fires** — its plan or stub run of gate:item's arguments sees the same defect.
+    also: ['G7'],
     mutate: (t) => t.replace(NL + 'const queue = [...rest];', NL + 'const queue = [...rest].slice(1);')
       .replace('${completed.length}/${planned.length} completed', '${planned.length}/${planned.length} completed'),
   },
@@ -440,8 +454,9 @@ const G4_PROBES = [
     check: 'G5',
     // Co-fires with `G4`: `rest` still excludes the two exclusive entries, so with the
     // first loop falsified they run NOWHERE and the stub pass reports `5/7 completed`.
-    // Declared rather than discovered — the set caught it on its first run.
-    also: ['G4'],
+    // Declared rather than discovered — the set caught it on its first run. `G7` too, since W139: its
+    // stub run of gate:item's arguments completes one fewer than it planned for the same reason.
+    also: ['G4', 'G7'],
     mutate: (t) => t.replace('for (const p of PLAN.filter((x) => x.exclusive)) results.push(await run(p));',
       'for (const p of PLAN.filter((x) => x.exclusive && false)) results.push(await run(p));'),
   },
@@ -452,8 +467,9 @@ const G4_PROBES = [
     name: 'the plan is computed only when the PKG override is set',
     file: 'run-selftests.mjs',
     check: 'G5',
-    mutate: (t) => t.replace('const PLAN = plan(pkg);',
-      'const PLAN = process.env.CHECK_SELFTESTS_PKG ? plan(pkg) : [];'),
+    // *(Re-anchored at W139, whose `--without` gave `plan` its second argument.)*
+    mutate: (t) => t.replace('const PLAN = plan(pkg, WITHOUT);',
+      'const PLAN = process.env.CHECK_SELFTESTS_PKG ? plan(pkg, WITHOUT) : [];'),
   },
   {
     // The markers are read out of `SCRIPTS`, and `G4` sets that too — so moving the
@@ -618,12 +634,135 @@ const G6_NAMES = [
   'a scratch path keyed on process.ppid, which is not this process',
 ];
 
+/**
+ * **`G7` — `gate:item` is `gate:full` less EXACTLY the declared lanes (W139, `doc/workflow.md` v0.29).**
+ * Written to the RULE's two halves rather than to the clause's code: the entry may not leave a SECOND
+ * lane out, may not leave out NONE, and may not stop composing the ladder; and the runner may not
+ * leave a lane out silently, in its plan, in its run, or by accepting a `--without` that names nothing.
+ * Manifests are derived from the real one inside the run, like `G3`'s and `G4`'s.
+ */
+const G7_PROBES = [
+  {
+    name: 'gate:item leaves out a second lane',
+    file: null,
+    check: 'G7',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-item-twolanes.json` }),
+    mutate: (t) => t,
+  },
+  {
+    name: 'gate:item leaves out no lane at all',
+    file: null,
+    check: 'G7',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-item-nolane.json` }),
+    mutate: (t) => t,
+  },
+  {
+    name: 'gate:item stops composing the ladder',
+    file: null,
+    check: 'G7',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-item-noladder.json` }),
+    mutate: (t) => t,
+  },
+  {
+    name: 'gate:item is deleted from the manifest',
+    file: null,
+    check: 'G7',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-item-deleted.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // **A misspelt lane in the MANIFEST**: the runner refuses it, so the plan run is what fails.
+    name: 'gate:item names a lane that does not exist',
+    file: null,
+    check: 'G7',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-item-typo.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // `G4`'s suffix probe, one entry over: the argv clause must be equality on SHAPE, not a search.
+    name: 'gate:item appends a shell suffix that swallows the verdict',
+    file: null,
+    check: 'G7',
+    env: (dir) => ({ CHECK_WIRING_PKG: `${dir}/pkg-item-suffix.json` }),
+    mutate: (t) => t,
+  },
+  {
+    // **The runner stops honouring the option.** The manifest is right and the plan is `gate:full`'s.
+    name: 'the runner ignores --without in its plan',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    mutate: (t) => t.replace('  return entries.filter((entry) => !without.includes(entry)).map((entry) => {',
+      '  return entries.filter(() => true).map((entry) => {'),
+  },
+  {
+    // A lane left out and not REPORTED: the run is right and its log reads as `gate:full`.
+    name: 'the runner leaves a lane out without saying so in its plan',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    mutate: (t) => t.replace('  for (const e of LEFT_OUT) console.log(`left out   ${e} :: --without`);' + NL, ''),
+  },
+  {
+    // **A misspelt lane, accepted**: the gate runs everything and its caller believes otherwise.
+    name: 'the runner accepts a --without naming an entry that does not exist',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    mutate: (t) => t.replace('  for (const w of WITHOUT.filter((x) => !MANIFEST.includes(x))) {', '  for (const w of []) {'),
+  },
+  {
+    // **Zero lanes left out, silently** — the bare flag. Its refusal is dropped and nothing else is
+    // changed, so the empty name never reaches the unknown-entry refusal that would mask it.
+    name: 'the runner accepts a --without naming no entry',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    mutate: (t) => t.replace("        refusals.push('`--without` names no entry, and leaving out nothing", "        [].push('`--without` names no entry, and leaving out nothing"),
+  },
+  {
+    // **The COMPOUND that makes the runner's MANIFEST accounting load-bearing** — `G4`'s
+    // *runs one fewer and reports the plan's count anyway*, for the left-out set. The plan is honest
+    // under `--plan` and the run puts the left-out lane back; the count is reported as the plan's, so
+    // `G7`'s arithmetic is satisfied and only the runner's exit code — which its *run plus left-out is
+    // the manifest* clause alone produces here — is left to notice.
+    name: 'the runner runs the left-out lane and reports the plan`s count anyway',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    mutate: (t) => t.replace('  return entries.filter((entry) => !without.includes(entry)).map((entry) => {',
+      "  return entries.filter((entry) => !process.argv.includes('--plan') || !without.includes(entry)).map((entry) => {")
+      .replace('${completed.length}/${planned.length} completed',
+        '${completed.length - LEFT_OUT.length}/${planned.length - LEFT_OUT.length} completed'),
+  },
+  {
+    // **The DEFAULT leaks a lane** — `gate:full` itself one short with no `--without` anywhere. Three
+    // clauses, three reasons: `G4`'s plan of the default, `G5`'s declaration, `G7`'s plan of gate:item.
+    name: 'the runner leaves a lane out when nothing names one',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    also: ['G4', 'G5'],
+    mutate: (t) => t.replace('const WITHOUT = ARGS.without;', "const WITHOUT = [...ARGS.without, 'check:docs:selftest'];"),
+  },
+];
+
+/** The `G7` probes by NAME, both ways — `G6_NAMES`' argument: the count cannot see one leave. */
+const G7_NAMES = [
+  'gate:item leaves out a second lane',
+  'gate:item leaves out no lane at all',
+  'gate:item stops composing the ladder',
+  'gate:item is deleted from the manifest',
+  'gate:item names a lane that does not exist',
+  'gate:item appends a shell suffix that swallows the verdict',
+  'the runner ignores --without in its plan',
+  'the runner leaves a lane out without saying so in its plan',
+  'the runner accepts a --without naming an entry that does not exist',
+  'the runner accepts a --without naming no entry',
+  'the runner runs the left-out lane and reports the plan`s count anyway',
+  'the runner leaves a lane out when nothing names one',
+];
+
 const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,
-  ...G6_PROBES];
+  ...G6_PROBES, ...G7_PROBES];
 
 /** Vacuous at zero, which is the floor `check-policies-selftest.mjs` taught. */
-const MIN_PROBES = 41;
-const MIN_META = 14;
+const MIN_PROBES = 53;
+const MIN_META = 24;
 const MIN_SELF = 6;
 
 // **`G5` had to be added here as well as to the check, and forgetting it is
@@ -631,7 +770,10 @@ const MIN_SELF = 6;
 // failure lines invisible to the parse, so a probe declaring `[G4,G5]` reported
 // `got [G4]` while `G5` was failing in the same output. W36 hit this adding `D6`;
 // W39 hit it adding `G5`, one item later, in the file that records it.
-const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];
+const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'];
+
+/** Disable ONE `G7` failure site, named by the text that follows `fail('G7', ` there. */
+const g7off = (head) => (t) => t.replace(`fail('G7', ${head}`, `[].push(${head}`);
 
 /**
  * **The mutations `check-wiring.mjs` itself is run against**, each naming the probe
@@ -692,6 +834,28 @@ const META = [
   ['G4 stops refusing the override in its own environment',
     'CHECK_SELFTESTS_CMD is exported into the gate`s own environment',
     (t) => t.replace("    fail('G4', 'CHECK_SELFTESTS_CMD is set in this process", "    [].push('CHECK_SELFTESTS_CMD is set in this process")],
+  // **`G7`'s ten `fail()` sites, one entry each (W139)** — every one a distinct mechanism, and the
+  // several that co-fire on their probe are graded by the failure COUNT, which is what it is for.
+  ['G7 stops requiring gate:item to exist',
+    'gate:item is deleted from the manifest', g7off('`${PKG_PATH} has no "gate:item" script')],
+  ['G7 stops requiring the ladder first',
+    'gate:item stops composing the ladder', g7off('`"gate:item" runs ')],
+  ['G7 stops requiring the runner`s argv shape',
+    'gate:item appends a shell suffix that swallows the verdict', g7off('`"gate:item"\'s second part is')],
+  ['G7 stops requiring the declared lane to be left out',
+    'gate:item leaves out no lane at all', g7off('`"gate:item" does not leave out')],
+  ['G7 stops refusing an undeclared lane left out',
+    'gate:item leaves out a second lane', g7off('`"gate:item" leaves out ${e}')],
+  ['G7 stops reading whether the runner could plan at all',
+    'gate:item names a lane that does not exist', g7off('`the runner, asked for "gate:item"')],
+  ['G7 stops comparing the runner`s plan to the manifest less the lane',
+    'the runner ignores --without in its plan', g7off('`for "gate:item" the runner plans [')],
+  ['G7 stops comparing what the runner says it left out',
+    'the runner leaves a lane out without saying so in its plan', g7off('`for "gate:item" the runner says it left out')],
+  ['G7 stops running the runner with gate:item`s arguments',
+    'the runner runs the left-out lane and reports the plan`s count anyway', g7off('`the runner, run with "gate:item"')],
+  ['G7 stops requiring the runner to refuse a --without that names nothing',
+    'the runner accepts a --without naming an entry that does not exist', g7off('`the runner accepted')],
 ];
 
 /**
@@ -747,16 +911,16 @@ const SELF = [
         '  mutate: (t) => t,'),
     (out) => { const m = /(\d+)\/(\d+) probes caught/.exec(out); return !!m && m[1] !== m[2]; }],
   ['MIN_PROBES is lowered and PROBES emptied',
-    (t) => t.replace('const MIN_PROBES = 41;', 'const MIN_PROBES = 0;')
+    (t) => t.replace('const MIN_PROBES = 53;', 'const MIN_PROBES = 0;')
       .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,'
-        + NL + '  ...G6_PROBES];', 'const PROBES = [];')],
+        + NL + '  ...G6_PROBES, ...G7_PROBES];', 'const PROBES = [];')],
   ['MIN_PROBES is lowered, PROBES emptied, and the per-check coverage bound removed',
-    (t) => t.replace('const MIN_PROBES = 41;', 'const MIN_PROBES = 0;')
+    (t) => t.replace('const MIN_PROBES = 53;', 'const MIN_PROBES = 0;')
       .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,'
-        + NL + '  ...G6_PROBES];', 'const PROBES = [];')
+        + NL + '  ...G6_PROBES, ...G7_PROBES];', 'const PROBES = [];')
       .replace('    if (missing.length) {', '    if (false) {')],
   ['ALL_CHECKS is emptied, so no probe can trip anything',
-    (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'];", 'const ALL_CHECKS = [];')],
+    (t) => t.replace("const ALL_CHECKS = ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7'];", 'const ALL_CHECKS = [];')],
   // **Both entries below were pinned to the LITERAL and W112 moved it**, which is
   // `check-markdown`'s own lesson three times over: *a mutation pinned to a magic number is
   // unmutatable the moment the number is right to change*. Here it is a magic LIST rather than a
@@ -906,6 +1070,22 @@ export async function selfTest(root) {
     two.scripts['selftests:again'] = two.scripts.selftests;
     two.scripts.gate = `${two.scripts.gate} && npm run selftests:again`;
     writeFileSync(join(dir, 'pkg-tworunners.json'), JSON.stringify(two));
+    // **`G7`'s manifests (W139)**, each one edit to the real `gate:item`. A fixture whose edit matched
+    // nothing would be the real manifest, and its probe would report `got []` — rule 7 (b) by way of
+    // the declared set, which is how this file has caught a moved subject before (`pkg-norunner`).
+    const item = (name, edit) => {
+      const p = structuredClone(real);
+      const before = p.scripts['gate:item'];
+      edit(p.scripts);
+      if (p.scripts['gate:item'] === before) throw new Error(`the ${name} fixture changed nothing`);
+      writeFileSync(join(dir, name), JSON.stringify(p));
+    };
+    item('pkg-item-twolanes.json', (s) => { s['gate:item'] = `${s['gate:item']} --without check:docs:selftest`; });
+    item('pkg-item-nolane.json', (s) => { s['gate:item'] = s['gate:item'].replace(' --without check:register:selftest', ''); });
+    item('pkg-item-noladder.json', (s) => { s['gate:item'] = s['gate:item'].replace('npm run gate && ', ''); });
+    item('pkg-item-deleted.json', (s) => { delete s['gate:item']; });
+    item('pkg-item-typo.json', (s) => { s['gate:item'] = s['gate:item'].replace('check:register:selftest', 'check:register:selftst'); });
+    item('pkg-item-suffix.json', (s) => { s['gate:item'] = `${s['gate:item']} || exit 0`; });
   }
 
   const done = (code) => { rmSync(dir, { recursive: true, force: true }); return code; };
@@ -1042,14 +1222,14 @@ export async function selfTest(root) {
         'nothing about which checks they reach.');
       return done(1);
     }
-    // **`G6`'s probes, by NAME and both ways** — see `G6_NAMES`. The count below cannot see one leave.
-    {
-      const got = PROBES.filter((p) => p.check === 'G6').map((p) => p.name).sort();
-      const want = [...G6_NAMES].sort();
+    // **`G6`'s and `G7`'s probes, by NAME and both ways** — see `G6_NAMES`. The count cannot see one leave.
+    for (const [id, NAMES] of [['G6', G6_NAMES], ['G7', G7_NAMES]]) {
+      const got = PROBES.filter((p) => p.check === id).map((p) => p.name).sort();
+      const want = [...NAMES].sort();
       const missing = want.filter((n) => !got.includes(n));
       const extra = got.filter((n) => !want.includes(n));
       if (missing.length || extra.length) {
-        console.log(`  FAIL  the \`G6\` probes are [${got.join(' | ')}] and \`G6_NAMES\` declares ` +
+        console.log(`  FAIL  the \`${id}\` probes are [${got.join(' | ')}] and \`${id}_NAMES\` declares ` +
           `[${want.join(' | ')}]` +
           `${missing.length ? ` — missing: ${missing.join(', ')}` : ''}` +
           `${extra.length ? ` — undeclared: ${extra.join(', ')}` : ''}. A probe can leave without the ` +
@@ -1138,8 +1318,21 @@ export async function selfTest(root) {
   }
 
   let bad = 0;
+  /**
+   * **Each probe's failure COUNT against the REAL check — the baseline its META entries are graded
+   * against (W139).** Until W139 the META pass compared every entry's count to ONE number, the
+   * control's, which is the count of `META[0]`'s probe — a `G1`+`G2` dispatch probe at 2. An entry
+   * naming any OTHER probe was graded *by the failure COUNT* whenever its mutant's count merely
+   * differed from 2: measured at W139, `G7 stops requiring the declared lane to be left out` printed
+   * `2 -> 3` while its probe's real count is 4, so a disabled clause read as noticed by coincidence,
+   * and `G7 stops reading whether the runner could plan at all` read STILL CAUGHT at `2 -> 2` against a
+   * real 3. Q146's discriminator needs the SAME probe's count on both sides, and it costs nothing:
+   * this pass has just run every probe against the real check.
+   */
+  const probeFails = new Map();
   for (const probe of PROBES) {
     const v = runProbe(probe);
+    probeFails.set(probe.name, v.fails);
     if (v.vacuous || !v.refused || !v.agree) bad++;
     const tag = v.vacuous ? 'FAIL' : v.refused && v.agree ? 'ok  ' : 'FAIL';
     console.log(`  ${tag}  ${[probe.check, ...(probe.also ?? [])].join('+')}  ${probe.name}${v.why ?? ''}` +
@@ -1157,8 +1350,6 @@ export async function selfTest(root) {
     console.log('  FAIL  two META entries produce the same mutation; the count says nothing.');
     return done(1);
   }
-  /** The control's own failure count, which the entries below are compared against. */
-  let controlFails = -1;
   /**
    * **The CONTROL for THIS pass, and it is the thing that was missing — W105's adequacy reader.**
    * v0.11 requires a harness to carry a control; the PROBES pass has one (`stage(null)` must run clean
@@ -1175,8 +1366,9 @@ export async function selfTest(root) {
     writeFileSync(ctl, src);
     const v = runProbe(probe, ctl);
     rmSync(ctl, { force: true });
-    const noticed = v.vacuous || !v.refused || !v.agree;
-    controlFails = v.fails;
+    // **And the copy must reproduce its probe's count from the PROBES pass (W139)**, or the
+    // per-probe baselines below are about a different check from the one each mutant is a copy of.
+    const noticed = v.vacuous || !v.refused || !v.agree || v.fails !== probeFails.get(probe.name);
     if (noticed) {
       console.log(`  FAIL  the control: an UNMUTATED copy of check-wiring.mjs is graded as NOTICED ` +
         `(${v.why ?? ''} ${JSON.stringify(v.tripped ?? [])} against ${JSON.stringify(v.declared ?? [])}). ` +
@@ -1233,11 +1425,12 @@ export async function selfTest(root) {
     // mutation trips the same id through the ROUTING clause, so disabling the COUNTING clause leaves the
     // id set identical and moves only the number of failures. [Q146](../doc/questions/q146.md)'s
     // discriminator, which `check-scheduler-selftest.mjs` has carried since W29 and this file did not.
-    const byCount = v.fails !== controlFails;
+    const baseline = probeFails.get(probe.name);
+    const byCount = v.fails !== baseline;
     const noticed = v.vacuous || !v.refused || !v.agree || byCount;
     if (!noticed) ungraded++;
     console.log(`  ${noticed ? 'ok  ' : 'FAIL'}  ${label}`
-      + (noticed ? (byCount && v.refused && v.agree ? ` (by the failure COUNT, ${controlFails} -> ${v.fails}, which the id set cannot see)` : '')
+      + (noticed ? (byCount && v.refused && v.agree ? ` (by the failure COUNT, ${baseline} -> ${v.fails}, which the id set cannot see)` : '')
         : ' — STILL CAUGHT against a check that does not check'));
   }
   console.log(`\n${META.length - ungraded}/${META.length} graded.`);
