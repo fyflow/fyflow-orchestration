@@ -80,8 +80,10 @@ Reserves:   Q559-Q561, and ADR 0089 only if a stop-and-ask answer needs one. No 
 | `examples/README.md` | the two current L6 count copies `check-docs`' `X10` compares, each with the one-clause history parenthetical every copy there carries (W141 as bare text, no link), and the l6.ts cell's tail count of runs | output (5) moves `DECLARED_TOTAL` and `DECLARED_RUNS`, and `X10` is red until both copies follow |
 | `test/definition/l4-corpus.test.ts` | suite names appended to `LATE_SUITES` | outputs (3), (4) and (7) are new suites, and the L1 census holds suite names both ways |
 | `spec/README.md` | its version line — **ONLY if** a spec document is bumped | none is planned; a spec text that must move is a stop, not an exception |
+| `AGENTS.md` | the ONE section-20 snippet comment sentence that says a wrong `base` leaves *the tasks pending for ever (Q266)*, rewritten to the new behaviour | **asked under rule 6 and answered YES by the maintainer, 2026-10-07 (answer (A))** — output (2) makes the sentence false |
+| `scripts/build-browser-tests.mjs` | one `join(ROOT, 'src', 'definition', 'registry.ts')` line in the inlined-corpus list, with the W76/W77 comment convention | **asked under rule 6 and answered YES by the maintainer, 2026-10-07 (answer (B), option 1)** — output (7)'s membership case reads that file's source and was RED in chromium with *fixture not inlined* |
 
-**Known at declaration, and ASKED rather than edited** (workflow section 1 rule 6): `AGENTS.md`'s
+**Known at declaration, and ASKED rather than edited** *(answered YES, 2026-10-07 — the table above)* (workflow section 1 rule 6): `AGENTS.md`'s
 section-20 snippet says, of a wrong `base`, *the tasks stay pending for ever (Q266)*. Output (2) makes
 that false — a module that does not load fails every task of the type. `AGENTS.md` is outside `Owns`,
 so the item asks to widen it before any edit, and the answer goes in this table first.
