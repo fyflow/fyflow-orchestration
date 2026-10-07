@@ -37,7 +37,9 @@ export function throws(fn: () => unknown, match: string, msg: string): void {
   try {
     fn();
   } catch (e) {
-    const text = e instanceof Error ? e.message : String(e);
+    // The error's own render — its `name`, then its message — since W140 (Q533, P31 decision 2): a refusal
+    // class names itself by `name` and no longer in its message, so a match on the class reads it from there.
+    const text = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     if (!text.includes(match)) {
       throw new AssertionError(`${msg}\n    expected an error containing ${JSON.stringify(match)}\n    got: ${text}`);
     }

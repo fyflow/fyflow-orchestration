@@ -358,6 +358,10 @@ suite(SUITE, (test) => {
       h.scheduler.settle('R:first:-:0', 'done', { x: 1 });
       const last = h.driver.foldInputs().at(-1)!;
       equal([h.failures.length, h.failures[0]?.kind], [1, 'UndeclaredRoute'], `ret=${String(ret)}: reported once, by name`);
+      // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+      equal([h.failures[0]!.message.startsWith('FD-R5 — run "R" reached gate "g"'), String(h.failures[0]!.cause), String(fold(h.driver.foldInputs()).stoppedBy), `${h.failures[0]!.kind}: ${h.failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UndeclaredRoute').length),
+        [true, 2, 2, 2], `ret=${String(ret)}: the message opens with the rule, and String(e), stoppedBy and kind: message each name the class EXACTLY once: ${String(h.failures[0]!.cause).slice(0, 80)}`);
+      equal((h.failures[0]!.cause as Error).name, 'UndeclaredRoute', `ret=${String(ret)}: the class sets its OWN name, not one that merely contains it (W140 adequacy reader, finding 1)`);
       ok(/FD-R5/.test(h.failures[0]!.message) && h.failures[0]!.message.includes('"g"') && h.failures[0]!.message.includes('"rogue"'),
         `ret=${String(ret)}: naming the rule, the gate and the type: ${h.failures[0]!.message.slice(0, 160)}`);
       // …and what the type RETURNED and the routes it DECLARES, as the spec's row says (the adequacy reader's R6).

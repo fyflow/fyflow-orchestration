@@ -68,12 +68,14 @@ class Fake {
   private fire(t: string, detail: unknown): void { for (const f of this.l.get(t) ?? []) f({ detail }); }
 }
 
-interface Rig { driver: Driver; failures: string[]; failureRunIds: string[]; unminted: UnmintedTask[] }
+interface Rig { driver: Driver; failures: string[]; failureRunIds: string[]; unminted: UnmintedTask[]; causes: unknown[]; messages: string[] }
 
 function attach(scheduler: Fake, def: FlowDefinition, runId: string): Rig {
   const failures: string[] = [];
   const failureRunIds: string[] = [];
   const unminted: UnmintedTask[] = [];
+  const causes: unknown[] = [];
+  const messages: string[] = [];
   const driver = new Driver(def, {
     runId,
     scheduler,
@@ -82,10 +84,10 @@ function attach(scheduler: Fake, def: FlowDefinition, runId: string): Rig {
     workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
     now: () => 1,
     joinPolicy: stubPolicy as unknown as JoinPolicy,
-    onRunFailure: (f) => { failures.push(f.kind); failureRunIds.push(f.runId); },
+    onRunFailure: (f) => { failures.push(f.kind); failureRunIds.push(f.runId); causes.push(f.cause); messages.push(f.message); },
     onUnmintedTask: (i) => unminted.push(i),
   });
-  return { driver, failures, failureRunIds, unminted };
+  return { driver, failures, failureRunIds, unminted, causes, messages };
 }
 
 suite('ID-R4 — a settlement carrying OUR run id for a task we never dispatched stops the run', (test) => {
@@ -111,6 +113,10 @@ suite('ID-R4 — a settlement carrying OUR run id for a task we never dispatched
       s.settle(taskId, 'done', { result: null });
 
       equal(r.failures, ['UndispatchedTask'], `ID-R4 refuses it: ${why}`);
+      // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+      equal([r.messages[0]!.startsWith(`"${taskId}" settled in run "r1"`), String(r.causes[0]), String(fold(r.driver.foldInputs()).stoppedBy), `${r.failures[0]}: ${r.messages[0]}`].map((s, i) => i === 0 ? s : String(s).split('UndispatchedTask').length),
+        [true, 2, 2, 2], `the message opens with the task id, and String(e), stoppedBy and kind: message each name the class EXACTLY once: ${String(r.causes[0]).slice(0, 80)}`);
+      equal((r.causes[0] as Error).name, 'UndispatchedTask', 'the class sets its OWN name, not one that merely contains it (W140 adequacy reader, finding 1)');
       equal(r.driver.snapshot().length, 0,
         'and NOTHING is appended — the record is refused before it enters the sequence, for the ' +
         'reason ID-R1 refuses before addTask sees the task');

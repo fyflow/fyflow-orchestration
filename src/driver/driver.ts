@@ -63,7 +63,12 @@ export class InvalidDefinition extends Error {
     this.rules = rules;
   }
 }
-export class DuplicateTaskId extends Error {}
+export class DuplicateTaskId extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'DuplicateTaskId';
+  }
+}
 
 /**
  * **A `map` node's `over` did not name an array on the value it received** —
@@ -101,7 +106,12 @@ export class DuplicateTaskId extends Error {}
  * An **empty array is not this**: `{items: []}` is a lawful map of zero items and
  * is `spec/join-policy.md` section 5's own case.
  */
-export class UnresolvedMapArity extends Error {}
+export class UnresolvedMapArity extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'UnresolvedMapArity';
+  }
+}
 
 /**
  * **`FD-R3` — a `needs` reference that names a node this run did not produce an
@@ -123,7 +133,12 @@ export class UnresolvedMapArity extends Error {}
  * `start()` and `resolve()`, which are caller-initiated — exactly as
  * `UnresolvedMapArity` is.
  */
-export class UnresolvedReference extends Error {}
+export class UnresolvedReference extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'UnresolvedReference';
+  }
+}
 
 /**
  * **`FD-R5` — a gate's TYPE returned a route it does not declare.** P24 decision 8,
@@ -140,7 +155,12 @@ export class UnresolvedReference extends Error {}
  * and dies with the stopped run. *A type whose `fn` THROWS takes the same road with its OWN error* — the road
  * a throwing decision predicate takes, measured at W93's declaration step.
  */
-export class UndeclaredRoute extends Error {}
+export class UndeclaredRoute extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'UndeclaredRoute';
+  }
+}
 
 /**
  * **`FD-R4` — one of the two values no static check can reach fails the schema the worker's author
@@ -197,7 +217,12 @@ export class BoundaryRefused extends Error {
  * rule 4.** The run id is a constructor option, so "a second, *different* run" is
  * not a thing a caller can express: **any** second `start` is refused.
  */
-export class MultipleRuns extends Error {}
+export class MultipleRuns extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'MultipleRuns';
+  }
+}
 
 /**
  * **`checkpoint()` on a driver that has not started a run** — `RN-R14`,
@@ -209,7 +234,12 @@ export class MultipleRuns extends Error {}
  * the two would be indistinguishable to the resume that reads it — or a sentinel the contract
  * does not define. Refusing is the one answer that cannot be mistaken for a run.
  */
-export class NotStarted extends Error {}
+export class NotStarted extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'NotStarted';
+  }
+}
 
 /**
  * **What a checkpoint's header says, and the number a resume refuses on** — `RN-R16`,
@@ -418,7 +448,12 @@ interface Replay {
  * not a refusal at all (rule 3). The two are different failures and only one of
  * them is ours.
  */
-export class UndispatchedTask extends Error {}
+export class UndispatchedTask extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'UndispatchedTask';
+  }
+}
 
 /**
  * A record copy that does not alias `result`. Ten of the eleven outcome fields
@@ -629,7 +664,12 @@ function freezeInput(i: FoldInput): FoldInput {
  * that produces it for a *configuration* mistake would put a second cause behind
  * the observation the whole plan turns on.
  */
-export class MissingJoinPolicy extends Error {}
+export class MissingJoinPolicy extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'MissingJoinPolicy';
+  }
+}
 
 /**
  * The run has failed and the driver has stopped routing it.
@@ -1312,7 +1352,7 @@ export class Driver {
 
     if (this.regions.length > 0 && !opts.joinPolicy) {
       throw new MissingJoinPolicy(
-        `MissingJoinPolicy: definition "${definition.flowId}" has ${this.regions.length} ` +
+        `definition "${definition.flowId}" has ${this.regions.length} ` +
           `fan-out region(s) and no joinPolicy. ` +
           'Without one every branch would arrive and the join would never fire, which is ' +
           'indistinguishable from the case P1 exists to measure.',
@@ -1392,7 +1432,7 @@ export class Driver {
     const runId = this.runId;
     if (this.started) {
       throw new MultipleRuns(
-        `MultipleRuns: this driver already started run "${runId}" and cannot start it again. ` +
+        `this driver already started run "${runId}" and cannot start it again. ` +
           'ID-R3: a Driver serves exactly one run — its input sequence, its fired joins and its ' +
           'policy state carry no run id, so a second run would silently merge into the first. ' +
           // **[Q87](../../doc/questions/q87.md) — this sentence recommended the violation.** It
@@ -1433,7 +1473,7 @@ export class Driver {
         const fs = findings(schema, received);
         if (fs.length) {
           throw new BoundaryRefused('start', node, null, fs,
-            `BoundaryRefused: the payload handed to run "${runId}" does not satisfy the inputSchema of node "${node}"'s worker ` +
+            `the payload handed to run "${runId}" does not satisfy the inputSchema of node "${node}"'s worker ` +
               `"${type!.worker}" (type "${n.type}") — ${describeFindings(fs)}. FD-R4: the run's payload is held to the first ` +
               'task(s) it reaches once, at start(); nothing was dispatched and this driver is unstarted, so a corrected payload may start it. ' +
               '`validateBoundaries: false` turns the check off.');
@@ -1495,7 +1535,7 @@ export class Driver {
   resume(checkpoint: Checkpoint): void {
     if (this.started) {
       throw new MultipleRuns(
-        `MultipleRuns: this driver already started or resumed run "${this.runId}", and resume() is the other door into the SAME run. ` +
+        `this driver already started or resumed run "${this.runId}", and resume() is the other door into the SAME run. ` +
           'ID-R3: a Driver serves exactly one run, entered once — construct a fresh Driver for the checkpoint (runtime.resume does).',
       );
     }
@@ -1688,7 +1728,7 @@ export class Driver {
         const fs = findings(schema, value.result ?? null);
         if (fs.length) {
           throw new BoundaryRefused('resolve', nodeId, taskId, fs,
-            `BoundaryRefused: the resolution of "${taskId}" (node "${nodeId}", type "${(n as { type: string }).type}") does not satisfy its worker ` +
+            `the resolution of "${taskId}" (node "${nodeId}", type "${(n as { type: string }).type}") does not satisfy its worker ` +
               `"${type!.worker}"'s outputSchema — ${describeFindings(fs)}. FD-R4: a person's value stands in for what the worker ` +
               'would have returned, and it is held to that schema once; nothing was appended and the task is still suspended, so resolve ' +
               'it again with a conforming value (the worker`s declared example is one). `validateBoundaries: false` turns the check off.');
@@ -1921,7 +1961,7 @@ export class Driver {
     // conditioned on it.
     if (!this.dispatched.has(taskId as string)) {
       throw new UndispatchedTask(
-        `UndispatchedTask: "${taskId}" settled in run "${runId}", but this driver never ` +
+        `"${taskId}" settled in run "${runId}", but this driver never ` +
           'dispatched it. ID-R4: within one run the driver mints every task id it dispatches, so ' +
           'either its path bookkeeping is wrong or something else is writing into this run id.',
       );
@@ -2510,7 +2550,7 @@ export class Driver {
         const type = decided.type;
         if (!decided.declared) {
           throw new UndeclaredRoute(
-            `UndeclaredRoute: FD-R5 — run "${runId}" reached gate "${nodeId}" and its type "${node.type}" returned ` +
+            `FD-R5 — run "${runId}" reached gate "${nodeId}" and its type "${node.type}" returned ` +
               `${describeRoute(decided.route)}, which it does not declare; its routes are ${type.routes.map((r) => JSON.stringify(r)).join(', ')}. ` +
               'A route only running the type reveals cannot be refused at load (FD-V41 wires every DECLARED route), so the run stops ' +
               'here rather than routing nowhere. The type is the CODE registered under that name, not the document.',
@@ -2913,7 +2953,7 @@ export class Driver {
     }
     if (visible.length === 0) {
       throw new UnresolvedReference(
-        `UnresolvedReference: node "${atNodeId}" at branch path "${here}" declares ` +
+        `node "${atNodeId}" at branch path "${here}" declares ` +
           `\`${site}[${JSON.stringify(key)}]\` naming "${t.node}", and no output of that node is ` +
           'on this path. `FD-V27` checked that this node is reachable FROM it and `FD-V29` that ' +
           'it must have RUN, which is everything the graph can say; whether any of its outputs is ' +
@@ -2996,7 +3036,7 @@ export class Driver {
     // or this driver's path bookkeeping is wrong; continuing runs both tasks and
     // lands two outcome records under one key (spec/task-id.md section 2).
     if (this.dispatched.has(taskId)) {
-      throw new DuplicateTaskId(`DuplicateTaskId: "${taskId}" was already dispatched in run "${runId}"`);
+      throw new DuplicateTaskId(`"${taskId}" was already dispatched in run "${runId}"`);
     }
     this.dispatched.add(taskId);
     // Appended BEFORE `addTask`. `RN-R4` says a node absent from `nodes` was never
@@ -3092,7 +3132,7 @@ export class Driver {
     const v = (payload as Record<string, unknown> | null | undefined)?.[node.over];
     if (Array.isArray(v)) return v;
     throw new UnresolvedMapArity(
-      `UnresolvedMapArity: map node "${node.id}" is declared \`over: ${JSON.stringify(node.over)}\`, ` +
+      `map node "${node.id}" is declared \`over: ${JSON.stringify(node.over)}\`, ` +
         `and the value it received carries no array there — it is ${describeShape(v)}, on a payload ` +
         `that is ${describeShape(payload)}. A map's arity is a run-time fact, so no validator rule ` +
         'could have seen this: `FD-V25` checks that `over` is a key NAME. Return an array (an empty ' +
@@ -3649,7 +3689,7 @@ export class Driver {
     const h = this.header;
     if (h === null) {
       throw new NotStarted(
-        `NotStarted: driver for run "${this.runId}" holds no run to checkpoint — it has not started, or its resume was refused. ` +
+        `driver for run "${this.runId}" holds no run to checkpoint — it has not started, or its resume was refused. ` +
           'RN-R14: a checkpoint is a header and the whole event sequence, and the header\'s entry payload is the value ' +
           'start() was called with (or a resumed checkpoint carried) — call start() first; a driver whose resume was refused is spent (RN-R23).',
       );

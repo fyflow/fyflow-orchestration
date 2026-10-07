@@ -929,6 +929,9 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
       'as a NODE`s `needs`, not an edge`s — the edge site says `edge needs["f"]` and is asserted ' +
       'in test/driver/decision-context.test.ts');
 
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    equal([msg.startsWith('node "publish" at branch path "-"'), String(fold(h.driver.foldInputs()).stoppedBy), `${failures[0]!.kind}: ${failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UnresolvedReference').length),
+      [true, 2, 2], 'the message opens with the node, and stoppedBy and kind: message each name the class EXACTLY once');
     equal(failures[0]!.kind, 'UnresolvedReference',
       'FD-R3 is the backstop — a policy this repository does not ship falsifies FD-V29`s credit, ' +
       'and the run stops rather than handing a worker something it did not ask for');
@@ -1068,10 +1071,11 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     };
     const s3 = new FakeScheduler();
     const f3: { kind: string }[] = [];
+    const c3: unknown[] = [];
     const d3 = new Driver(def3, {
       runId: 'r1', scheduler: s3, createTask: (c) => c, predicates: new Map(),
       workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, joinPolicy: eagerR as unknown as JoinPolicy,
-      onRunFailure: (f) => f3.push({ kind: f.kind }),
+      onRunFailure: (f) => { f3.push({ kind: f.kind }); c3.push(f.cause); },
     });
     d3.start({});
     s3.settle('r1:ingest:-:0', 'done', { result: {} });
@@ -1079,12 +1083,18 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
     // join happens inside `resolve()` and not inside a settlement.
     s3.settle('r1:scoreB:1:0', 'user_action', {});
     equal(f3, [], 'suspended, and nothing has gone wrong yet');
+    let rethrown: unknown;
     throws(
-      () => d3.resolve('r1:scoreB:1:0', 'done', { result: { B: 2 }, actor: 'a-person' }),
+      () => { try { d3.resolve('r1:scoreB:1:0', 'done', { result: { B: 2 }, actor: 'a-person' }); } catch (x) { rethrown = x; throw x; } },
       'UnresolvedReference',
       'resolve() RETHROWS, because the caller is on the stack — FD-R3, the one road it has',
     );
     equal(f3.length, 1, 'and it REPORTS as well as rethrowing');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    // The error resolve() rethrew is the one onRunFailure carried as its cause (W140 conformity reader, note 3).
+    ok(rethrown !== undefined && rethrown === c3[0], 'the rethrown error IS the reported cause');
+    equal([(c3[0] as Error).name, String(c3[0]).split('UnresolvedReference').length], ['UnresolvedReference', 2],
+      `String(e) names the class EXACTLY once: ${String(c3[0]).slice(0, 80)}`);
     equal(f3[0]!.kind, 'UnresolvedReference', 'through OR-R10, under its own class');
 
     // **The CONTROL** — the same document, the same suspension, the same resolution,
