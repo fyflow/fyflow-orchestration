@@ -731,6 +731,19 @@ const G7_PROBES = [
         '${completed.length - LEFT_OUT.length}/${planned.length - LEFT_OUT.length} completed'),
   },
   {
+    // **W139's conformity reader, finding 1, its edits verbatim.** A lane leaks out of `plan()` on the
+    // RUN path only — `--plan` stays honest — and the count line is inflated to match, so the only
+    // observer left is the runner's exit code, which its *neither run nor left out* arm alone produces.
+    // `G4`'s and `G7`'s stub runs both read that exit. Without this probe that arm was deletable for 0.
+    name: 'the runner drops a lane from the run and reports the manifest`s count anyway',
+    file: 'run-selftests.mjs',
+    check: 'G7',
+    also: ['G4'],
+    mutate: (t) => t.replace('  return entries.filter((entry) => !without.includes(entry)).map((entry) => {',
+      "  return entries.filter((entry) => !without.includes(entry) && (process.argv.includes('--plan') || entry !== 'check:docs:selftest')).map((entry) => {")
+      .replace('${completed.length}/${planned.length} completed', '${completed.length + 1}/${planned.length + 1} completed'),
+  },
+  {
     // **The DEFAULT leaks a lane** — `gate:full` itself one short with no `--without` anywhere. Three
     // clauses, three reasons: `G4`'s plan of the default, `G5`'s declaration, `G7`'s plan of gate:item.
     name: 'the runner leaves a lane out when nothing names one',
@@ -754,6 +767,7 @@ const G7_NAMES = [
   'the runner accepts a --without naming an entry that does not exist',
   'the runner accepts a --without naming no entry',
   'the runner runs the left-out lane and reports the plan`s count anyway',
+  'the runner drops a lane from the run and reports the manifest`s count anyway',
   'the runner leaves a lane out when nothing names one',
 ];
 
@@ -761,7 +775,7 @@ const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROB
   ...G6_PROBES, ...G7_PROBES];
 
 /** Vacuous at zero, which is the floor `check-policies-selftest.mjs` taught. */
-const MIN_PROBES = 53;
+const MIN_PROBES = 54;
 const MIN_META = 24;
 const MIN_SELF = 6;
 
@@ -854,7 +868,7 @@ const META = [
     'the runner leaves a lane out without saying so in its plan', g7off('`for "gate:item" the runner says it left out')],
   ['G7 stops running the runner with gate:item`s arguments',
     'the runner runs the left-out lane and reports the plan`s count anyway', g7off('`the runner, run with "gate:item"')],
-  ['G7 stops requiring the runner to refuse a --without that names nothing',
+  ['G7 stops requiring the runner to refuse a --without that leaves out nothing',
     'the runner accepts a --without naming an entry that does not exist', g7off('`the runner accepted')],
 ];
 
@@ -911,11 +925,11 @@ const SELF = [
         '  mutate: (t) => t,'),
     (out) => { const m = /(\d+)\/(\d+) probes caught/.exec(out); return !!m && m[1] !== m[2]; }],
   ['MIN_PROBES is lowered and PROBES emptied',
-    (t) => t.replace('const MIN_PROBES = 53;', 'const MIN_PROBES = 0;')
+    (t) => t.replace('const MIN_PROBES = 54;', 'const MIN_PROBES = 0;')
       .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,'
         + NL + '  ...G6_PROBES, ...G7_PROBES];', 'const PROBES = [];')],
   ['MIN_PROBES is lowered, PROBES emptied, and the per-check coverage bound removed',
-    (t) => t.replace('const MIN_PROBES = 53;', 'const MIN_PROBES = 0;')
+    (t) => t.replace('const MIN_PROBES = 54;', 'const MIN_PROBES = 0;')
       .replace('const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROBES, ...PKG_PROBE,'
         + NL + '  ...G6_PROBES, ...G7_PROBES];', 'const PROBES = [];')
       .replace('    if (missing.length) {', '    if (false) {')],
