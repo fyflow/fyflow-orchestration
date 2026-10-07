@@ -135,6 +135,12 @@ const cleanEveryShape = (gate: Record<string, unknown>, why: string, r: Registry
   equal(visited.sort(), ALL_SHAPES, `${why} — asserted where the gate stands in no region, in a fanout and in a map`);
 };
 
+/**
+ * **The cases, declared by NAME and named AGAIN at each call site** — Q382, closed by W132, as
+ * `test/driver/gate.test.ts` has done since W93. A name read by INDEX from this list could run two cases
+ * under each other's names with nothing able to see it; written twice, the name stands beside the body it
+ * names, and a case renamed or deleted at its call site fails the membership case at the end.
+ */
 const DECLARED_CASES = [
   'the kind: FD-V24 accepts `gate`, and FD-V23, FD-V17 and FD-V21 read its key table',
   'FD-V39 — an unregistered type, a type that is not a GateType, and a type registered twice; each beside its accepted neighbour',
@@ -156,7 +162,7 @@ const DECLARED_CASES = [
 ];
 
 suite(SUITE, (test) => {
-  test(DECLARED_CASES[0]!, () => {
+  test('the kind: FD-V24 accepts `gate`, and FD-V23, FD-V17 and FD-V21 read its key table', () => {
     cleanEveryShape(GATE(), 'a fully wired distinct gate is valid');
     for (const k of ['Gate', 'GATE', 'decision', 'gates']) {
       equal(violatedRules(validateDefinition(SHAPES[0]![1](GATE({ kind: k })), registry)).includes('FD-V24'), true, `kind ${JSON.stringify(k)} is still FD-V24`);
@@ -174,7 +180,7 @@ suite(SUITE, (test) => {
     everyShape(GATE({ type: 5 }), ['FD-V21'], 'type 5 is FD-V21, and nothing asks for the routes of a type that is not a name');
   });
 
-  test(DECLARED_CASES[1]!, () => {
+  test('FD-V39 — an unregistered type, a type that is not a GateType, and a type registered twice; each beside its accepted neighbour', () => {
     everyShape(GATE({ type: 'unique' }), ['FD-V39'], 'an unregistered gate type is FD-V39 ALONE — the routes of a type that does not exist are not asked');
     const detail = at(SHAPES[0]![1](GATE({ type: 'unique' })))[0]!.detail;
     ok(detail.includes('"distinct"') && detail.includes('"threshold"'), `the message names the built-ins and the registry's: ${detail}`);
@@ -194,7 +200,7 @@ suite(SUITE, (test) => {
     cleanEveryShape(GATE(), 'distinct against a registry that declares NO gate types — absent means the built-ins', { ...registry, gateTypes: undefined });
   });
 
-  test(DECLARED_CASES[2]!, () => {
+  test('FD-V40 — settings a plain object, the key a KEY PATH (the library`s grammar), and the type`s settingsSchema', () => {
     everyShape(GATE({ settings: ['series'] }), ['FD-V40'], 'settings an array is FD-V40');
     everyShape(GATE({ settings: 'series.id' }), ['FD-V40'], 'settings a string is FD-V40');
     // The KEY PATH — P24 stop-and-ask (d): dotted object keys in FD-V16's charset, no index, wildcard or expression.
@@ -221,7 +227,7 @@ suite(SUITE, (test) => {
     cleanEveryShape(GATE({ type: 'loose', settings: undefined, edges: looseEdges }), 'and ABSENT settings on it are {} and valid', loose);
   });
 
-  test(DECLARED_CASES[3]!, () => {
+  test('FD-V41 — every declared route wired by EXACTLY ONE edge, an edge with no route carrying the DEFAULT', () => {
     // One edge, the default by omission — distinct's duplicate and nokey unwired. TWO findings, one per route.
     for (const [shape, build] of SHAPES) {
       const fs = at(build(GATE({ edges: [{ to: 'setup' }] })));
@@ -239,7 +245,7 @@ suite(SUITE, (test) => {
     cleanEveryShape(GATE({ edges: [{ route: 'first', to: 'setup' }, { route: 'duplicate', to: 'dropped' }, { route: 'nokey', to: 'dropped' }] }), 'first named explicitly is the default stated, and valid');
   });
 
-  test(DECLARED_CASES[4]!, () => {
+  test('FD-V41 — the default route is the TYPE`s default and not its first route, nor every route', () => {
     // **threshold declares ['low', 'high'] and its DEFAULT is 'high'** — the fixture where the default and the
     // first differ. Each case below is valid or refused under exactly one of the three readings.
     const th = (edges: Edge[]) => GATE({ type: 'threshold', settings: { limit: 1 }, edges });
@@ -257,7 +263,7 @@ suite(SUITE, (test) => {
     equal(at(SHAPES[0]![1](GATE({ edges: [{ to: 'setup' }] }))).length, 2, 'distinct`s routeless edge carries first alone');
   });
 
-  test(DECLARED_CASES[5]!, () => {
+  test('FD-V41 — a gate`s edge carries to and route and nothing else, and route on any other node`s edge is refused', () => {
     for (const [k, v] of [['when', 'isLow'], ['on', ['done']], ['needs', { a: 'identify' }]] as const) {
       const edges: Edge[] = [{ to: 'setup', [k]: v } as Edge, DISTINCT_EDGES[1]!, DISTINCT_EDGES[2]!];
       for (const [shape, build] of SHAPES) {
@@ -276,7 +282,7 @@ suite(SUITE, (test) => {
     equal(validateDefinition(onJoin, registry).map((f) => `${f.rule}@${f.at}`), ['FD-V41@collect#edge0'], 'route on a JOIN`s edge is FD-V41 at that edge');
   });
 
-  test(DECLARED_CASES[6]!, async () => {
+  test('the corpus: gated-map is valid, and the three invalid cases are refused naming their own rule', async () => {
     const load = async (p: string) => JSON.parse(await readText(`${ROOT}spec/examples/${p}`)) as FlowDefinition;
     const corpusReg: Registry = { predicates: new Set(), ...typesFor(['IngestWorker', 'ExtractWorker', 'ScoreWorker', 'PublishWorker']) };
     const valid = await load('valid/gated-map.flow.json');
@@ -289,7 +295,7 @@ suite(SUITE, (test) => {
     }
   });
 
-  test(DECLARED_CASES[7]!, () => {
+  test('where a gate stands: a region member like a task, disjunctive out-arcs, no output, and never a branch entry', () => {
     // Region membership: a gate inside a map branch is a member of the map's region, as a task is.
     const d = SHAPES[2]![1](GATE());
     const regions = allRegions(buildGraph(d), d);
@@ -339,7 +345,7 @@ suite(SUITE, (test) => {
     equal(validateDefinition(entry, registry), [], 'a gate may be the entry');
   });
 
-  test(DECLARED_CASES[8]!, async () => {
+  test('the value a gate hands on is what reached it — and since W99 the wiring check refines it by what the route guarantees', async () => {
     // Producer: `identify` emits { series: { id } }. The node after the gate is judged against THAT, so a consumer
     // requiring `series` fits and one requiring `key` — the gate's own SETTING name — does not.
     const out = { type: 'object', required: ['series'], properties: { series: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } }, additionalProperties: false, examples: [{ series: { id: 's1' } }] };
@@ -374,7 +380,7 @@ suite(SUITE, (test) => {
     equal((await checkWiring(reg({ type: 'object' }), entry)).entry, ['setup'], 'an entry gate does not end the walk');
   });
 
-  test(DECLARED_CASES[9]!, () => {
+  test('distinct is registered THROUGH the interface: one predicate, one registry road, a second type the same way', () => {
     equal([...gateTypesOf(undefined).keys()], ['distinct'], 'absent: the built-ins alone, and distinct is the only one');
     equal(Object.keys(BUILT_IN_GATE_TYPES), ['distinct'], 'the built-in set');
     equal(gateTypeProblem(distinct), null, 'distinct passes the SAME predicate a consumer`s type passes');
@@ -395,7 +401,7 @@ suite(SUITE, (test) => {
     cleanEveryShape(GATE({ type: 'threshold', settings: { limit: 3 }, edges: [{ to: 'setup' }, { route: 'low', to: 'dropped' }] }), 'a Map-shaped gateTypes', { ...registry, gateTypes: new Map([['threshold', threshold]]) });
   });
 
-  test(DECLARED_CASES[10]!, () => {
+  test('GateTypeRefused and NameCollision at construction — each clause of gateTypeProblem, both ways', () => {
     checkRegistry({ gateTypes: { threshold } });
     checkRegistry({});
     ok(true, 'the accepted neighbours: a well-formed consumer type, and none');
@@ -430,7 +436,7 @@ suite(SUITE, (test) => {
     equal(gateTypeProblem(noSchema), null, 'a type with no settingsSchema is a gate type');
   });
 
-  test(DECLARED_CASES[11]!, () => {
+  test('distinct`s decision: first, duplicate and nokey, keys compared as JSON values, one memory', () => {
     const memory = new Map<string, unknown>();
     const run = (key: unknown) => distinct.fn({ key, input: { key }, settings: { key: 'k' }, memory } as GateContext);
     equal(['s1', 's2', 's1', 's2', 's3'].map(run), ['first', 'first', 'duplicate', 'duplicate', 'first'], 'the first per key, every later one a duplicate');
@@ -442,7 +448,7 @@ suite(SUITE, (test) => {
     equal(memory.size, 6, 'the memory holds one entry per KEY seen — s1, s2, s3, 1, "1" and the empty string — and nokey writes nothing');
   });
 
-  test(DECLARED_CASES[12]!, () => {
+  test('readKeyPath — own keys of plain objects, no index, and anything else is nothing', () => {
     const v = { series: { id: 's1', tags: ['a'] }, list: [{ id: 'x' }], nul: null };
     equal(readKeyPath(v, 'series.id'), 's1', 'a nested own key');
     equal(readKeyPath(v, 'series'), v.series, 'the value at the end is returned whatever it is');
@@ -461,7 +467,7 @@ suite(SUITE, (test) => {
     ok(KEY_PATH_RE.test('a.b') && !KEY_PATH_RE.test('a..b'), 'KEY_PATH_RE is the grammar');
   });
 
-  test(DECLARED_CASES[13]!, async () => {
+  test('new Driver CONSTRUCTS a gate flow since W93 — ADR 0066 rule 7 LIFTED — an INVALID one still reports its FD-V, and a consumer type arrives by DriverOptions.gateTypes', async () => {
     // **W92 asserted the REFUSAL here, and W93's lift turned it red on its first run** — `a VALID gate flow is refused
     // at construction: Error: MissingJoinPolicy…`, the constructor having reached the next check instead. That was the
     // assertion's designed expiry (ADR 0066 rule 7, lifted by ADR 0067); what it asserts now is the lift itself.
@@ -499,7 +505,7 @@ suite(SUITE, (test) => {
     equal(err, undefined, 'with gateTypes: { threshold } it constructs');
   });
 
-  test(DECLARED_CASES[14]!, async () => {
+  test('the spec`s tables are the code`s lists, both ways — the gate`s keys, the interface`s members, distinct`s routes', async () => {
     const spec = await readText(`${ROOT}spec/flow-definition.md`);
     const tableAfter = (heading: string): string[] => {
       const from = spec.indexOf(heading);
@@ -515,7 +521,7 @@ suite(SUITE, (test) => {
     equal(tableAfter('#### Gate types — CODE, beside the built-ins — v0.23'), [...GATE_TYPE_KEYS].sort(), 'the interface table is GATE_TYPE_KEYS, both ways');
   });
 
-  test(DECLARED_CASES[15]!, async () => {
+  test('what a gate carries on EVERY route, with a plain and a transformed consumer, and from an entry gate', async () => {
     // The adequacy reader's #15, #14 and #12, one shape: every pass-through fixture sent the NON-default routes to an
     // `end`, so a consumer on `duplicate` could leave the report — W92's own census defect for every route but the
     // default — and a transformed consumer after a gate, which needs the SAMPLE through the gate, existed nowhere.
@@ -543,7 +549,7 @@ suite(SUITE, (test) => {
     equal([...(await checkWiring(r, flowWith('dedupe'))).entry].sort(), ['audit', 'setup'], 'an entry gate lists EVERY route`s task target');
   });
 
-  test(DECLARED_CASES[16]!, () => {
+  test('every case this suite declares actually ran — a deleted case fails naming itself', () => {
     const ran = collected().filter((s) => s.suite === SUITE).flatMap((s) => s.cases.map((c) => c.name)).sort();
     const declared = [...DECLARED_CASES].sort();
     equal(declared.filter((n) => !ran.includes(n)), [], 'a declared case did not run — it was deleted, renamed, or its suite stopped loading');
