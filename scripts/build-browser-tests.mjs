@@ -177,6 +177,13 @@ const fixtures = [
   join(ROOT, 'src', 'scheduler', 'index.ts'),
   join(ROOT, 'src', 'scheduler', 'bootstrap.ts'),
   join(ROOT, 'src', 'scheduler', 'envelope-worker.ts'),
+  // **W141 — `src/definition/registry.ts`, as TEXT, and this is the SEVENTH time a suite reading a file
+  // outside `spec/examples/` has reached this list.** Q283's suite in `test/definition/registry.test.ts`
+  // compares the shape function's THROW SITES with its defect list both ways, and the only place the
+  // sites exist is the source — the claim W76's entries above make about two lists, one file over. The
+  // read is inside a `test()`, so without this line chromium reported ONE named test at `fixture not
+  // inlined in the browser bundle` (the maintainer's answer (B) to W141's ask, 2026-10-07).
+  join(ROOT, 'src', 'definition', 'registry.ts'),
 ].sort();
 const corpus = Object.fromEntries(fixtures.map((p) => [relPosix(p), readFileSync(p, 'utf8')]));
 
