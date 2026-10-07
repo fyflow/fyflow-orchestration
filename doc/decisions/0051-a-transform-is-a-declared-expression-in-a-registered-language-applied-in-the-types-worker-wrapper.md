@@ -50,6 +50,8 @@ both runtimes) before anything was built:
 | **F3. An evaluation failure thrown from `run()` takes a task's two roads.** | Optional task: `task.failed`, state `failed`; non-optional: `task.failed` then `task.user_action`, state `user_action`, the error's message and `code` carried on the detail — inline and threaded, both runtimes. ADR 0007 rule 2's pair, on a throw the wrapper makes |
 | **F4. `unpackEnvelope` on the shipped wrapper**, re-taken: `["settings", "input"]`. | Fact 8 confirmed on the tree the item started from |
 
+*(**F1, re-measured by W141 on 0.5.2, 2026-10-07**, through `createRuntime` — `dev-dist/w141-12912/measure-before.log`, `measure2-before.log`, `measure3-before.log`: a SINGLE task on a worker whose `setup()` throws did NOT hang there — with no retry it settled `user_action` (`failed` when optional), `attempts: 0`, in both pool modes. The hang F1 records is real and needs more than the task the worker failed on: THREE tasks on one worker stayed `pending` for ever six times of six, inline and threaded, the pool requeueing them until its restart limit, and a single task with a retry hung threaded. Rule 5's road now covers the type's own worker too — W141, Q266 — so no `setup()` of the envelope throws.)*
+
 **One stop-and-ask decision was put to the maintainer with the three roads priced, on 2026-09-12,
 after F1 was measured and before the wrapper's final form was written:**
 

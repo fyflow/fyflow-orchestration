@@ -472,6 +472,11 @@ const W141 = {
   setup: `data:text/javascript,${encodeURIComponent('export default class { constructor() { globalThis.__W141_LOG__ = []; } async setup() { globalThis.__W141_LOG__.push("setup"); throw new Error("W141 setup: the database is down"); } run() { globalThis.__W141_LOG__.push("run"); return 1; } teardown() { globalThis.__W141_LOG__.push("teardown"); } }')}`,
   setupAndTeardown: `data:text/javascript,${encodeURIComponent('export default class { async setup() { throw new Error("W141 setup: the licence server refused"); } run() { return 1; } teardown() { throw new Error("W141 teardown: nothing to release"); } }')}`,
   healthy: `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run(p) { return { ran: p.input }; } }')}`,
+  /** Both readers' shared subject: `String()` THROWS on a null-prototype object, and these two throw one. */
+  setupUnprintable: `data:text/javascript,${encodeURIComponent('export default class { async setup() { throw Object.create(null); } run() { return 1; } }')}`,
+  teardownUnprintable: `data:text/javascript,${encodeURIComponent('export default class { async setup() { throw new Error("W141 setup: refused"); } run() { return 1; } teardown() { throw Object.create(null); } }')}`,
+  /** Fails its FIRST setup only — a second setup() on the same envelope must start from nothing remembered. */
+  onceThenFine: `data:text/javascript,${encodeURIComponent('export default class { async setup() { if (!globalThis.__W141_ONCE__) { globalThis.__W141_ONCE__ = 1; throw new Error("W141 setup: the first time"); } } run(p) { return { ran: p.input }; } }')}`,
 };
 /**
  * **Every stage `setup()` could throw at, before W141** — `[label, pool config, what the message must
@@ -555,17 +560,25 @@ suite('W141 — a type`s worker that cannot set up: setup() never throws, and ev
       try { await w.setup(); } catch (e) { setupErr = e; }
       equal(setupErr, null, 'setup() does not throw — a throw there is a worker error the run never hears of (ADR 0051 F1)');
       const messages: string[] = [];
-      for (let i = 0; i < 2; i++) {
-        try { await w.run({ settings: {}, input: 1 }); messages.push('(ran)'); } catch (e) { messages.push((e as Error).message); }
+      const thrown: unknown[] = [];
+      // The second task carries a payload that is NOT an envelope (the adequacy reader's A3): the setup
+      // failure is still what it fails with, because every task on this worker fails with it, first.
+      for (const payload of [{ settings: {}, input: 1 }, { confidence: 0.9 }]) {
+        try { await w.run(payload); messages.push('(ran)'); } catch (e) { thrown.push(e); messages.push((e as Error).message); }
       }
       equal(messages.length, 2, 'two tasks were run');
+      ok(thrown.length === 2 && thrown[0] !== thrown[1], 'each task got its OWN Error object — one shared object would be one object every record held (the adequacy reader`s A12)');
       for (const m of messages) {
         ok(names.every((n) => m.includes(n)), `the message names ${names.join(' and ')} — ${m}`);
         ok(m.includes('every task on this worker fails with this'), `and says it is the worker's, for every task — ${m}`);
         ok(!m.includes('before setup()'), `and is not the cold-worker refusal — ${m}`);
       }
       const url = (cfg as { worker?: unknown }).worker;
-      if (typeof url === 'string' && !('transformOnly' in cfg)) ok(messages[0]!.includes(url.slice(0, 40)), `it names the type's worker URL — ${messages[0]}`);
+      // The WHOLE URL, quoted — both readers: a prefix check let a truncated or a wrong URL through, and every
+      // fixture URL shares its first forty characters.
+      if (typeof url === 'string' && !('transformOnly' in cfg)) {
+        ok(messages.every((m) => m.includes(JSON.stringify(url))), `it names the type's worker URL, whole — ${messages[0]}`);
+      }
       await w.teardown();
     });
   }
@@ -592,6 +605,34 @@ suite('W141 — a type`s worker that cannot set up: setup() never throws, and ev
     ok(m.includes('W141 setup: the licence server refused') && m.includes('W141 teardown: nothing to release') &&
       m.indexOf('W141 setup') < m.indexOf('W141 teardown'), `the setup error first, the teardown error beside it — ${m}`);
     await both.teardown();
+  });
+
+  test('a value String() cannot print — thrown from the inner setup() or from its teardown() — still leaves setup() RESOLVED and the message naming the worker and the stage (both readers)', async () => {
+    for (const [label, url, names] of [
+      ['setup() throws Object.create(null)', W141.setupUnprintable, ['threw from its setup()']],
+      ['teardown() throws Object.create(null) after a failed setup', W141.teardownUnprintable, ['threw from its setup()', 'W141 setup: refused', 'its teardown() after the failed setup threw too']],
+    ] as const) {
+      const w = new EnvelopeWorker({ worker: url } as never);
+      let setupErr: unknown = null;
+      try { await w.setup(); } catch (e) { setupErr = e; }
+      equal(setupErr, null, `${label}: setup() does not throw`);
+      let m = '';
+      try { await w.run({ settings: {}, input: 1 }); } catch (e) { m = (e as Error).message; }
+      ok(names.every((n) => m.includes(n)) && m.includes(JSON.stringify(url)), `${label}: the message names the stage and the worker — ${m}`);
+      await w.teardown();
+    }
+  });
+
+  test('a SECOND setup() starts from nothing remembered: a worker whose first setup failed and second succeeded runs its tasks (the conformity reader`s 5)', async () => {
+    (globalThis as Record<string, unknown>).__W141_ONCE__ = undefined;
+    const w = new EnvelopeWorker({ worker: W141.onceThenFine } as never);
+    await w.setup();
+    let m = '';
+    try { await w.run({ settings: {}, input: 1 }); } catch (e) { m = (e as Error).message; }
+    ok(m.includes('W141 setup: the first time'), `the first setup's failure fails the task — ${m}`);
+    await w.setup();
+    equal(await w.run({ settings: {}, input: 3 }), { ran: 3 }, 'after the second setup succeeded, the task runs');
+    await w.teardown();
   });
 
   test('teardown() clears the memory: run() after it is the cold-worker refusal, not the stale setup error', async () => {

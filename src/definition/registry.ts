@@ -128,6 +128,14 @@ export const DECLARED_POOL_KEYS: readonly string[] = POOL_SPEC_KEYS.filter((k) =
 export const INSTANCE_KEYS: readonly string[] = ['type', 'config'];
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+/**
+ * **Is `name` a BUILT-IN node type — an OWN key, never an inherited one** — W141's adequacy reader (Rl).
+ * `name in BUILT_IN_NODE_TYPES` read `Object.prototype` too, so a consumer's type called `constructor`,
+ * `toString` or `__proto__` was taken for a built-in on BOTH roads and refused as *a built-in names a
+ * worker*. `nodeTypeCollisions` already asks the own-key question; every lookup here asks it now.
+ */
+const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+const isBuiltInNodeType = (name: string): boolean => hasOwn(BUILT_IN_NODE_TYPES, name);
 const q = (s: string) => JSON.stringify(s);
 
 /** A document entry may carry only its declared keys — a typo in a registry is the silent kind. */
@@ -235,7 +243,7 @@ export function poolOptionsOf(spec: PoolSpec, inline: boolean | undefined, worke
     ...(groups !== undefined ? { groups: [...groups] } : {}),
     // **A type that only transforms gets `transformOnly: true` and no `worker`** (ADR 0075 rule 4).
     // The marker is written rather than the absence left to speak, because an absent `worker` is also
-    // what a malformed config has and `EnvelopeWorker.setup()` has refused that by name since v0.17 —
+    // what a malformed config has and the envelope worker has refused that by name since v0.17 (from `run()`, on every task, since W141) —
     // its own comment has the argument. `worker` is omitted rather than set to `undefined`, on P18
     // fact 5's rule that a key is present only when there is something to say.
     config: workerUrl !== undefined
@@ -408,6 +416,21 @@ export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; p
  * 3's refusal table).
  */
 function checkRegistryShape(rawWorkers: Workers | undefined, rawNodeTypes: NodeTypes | undefined, rawPools: Pools | undefined): void {
+  const workers = checkWorkersShape(rawWorkers);
+  const types = checkNodeTypesShape(rawNodeTypes, workers);
+  checkPoolsShape(rawPools, types);
+}
+
+/**
+ * **The three KINDS of the shape, one function each, in the order both roads read them** — W141's
+ * conformity reader, BLOCKING (1). The first cut called the whole shape at the top of `resolveRegistry`,
+ * which moved a document type's declared groups and its default derivation AFTER the pools and the
+ * groups BEFORE the node types — spec section 3's *every entry of a kind before the next kind is read*
+ * broken across five measured documents. `checkRegistry` calls the three through `checkRegistryShape`;
+ * `resolveRegistry` calls each where its kind has always been read. Still one implementation of every
+ * check, so the two roads cannot disagree about one.
+ */
+function checkWorkersShape(rawWorkers: Workers | undefined): ReadonlyMap<string, WorkerEntry> {
   const workers = workersOf(rawWorkers);
   for (const [name, w] of workers) {
     if (!isPlainObject(w)) throw new UndeclaredKey(name, `worker ${q(name)} is not an object`);
@@ -425,6 +448,10 @@ function checkRegistryShape(rawWorkers: Workers | undefined, rawNodeTypes: NodeT
     // trusted by the authoring-time tools that run on it.
     for (const f of WORKER_KEYS.slice(1)) checkSchema(name, f, (w as unknown as Record<string, unknown>)[f]);
   }
+  return workers;
+}
+
+function checkNodeTypesShape(rawNodeTypes: NodeTypes | undefined, workers: ReadonlyMap<string, WorkerEntry>): ReadonlyMap<string, NodeTypeEntry> {
   // **A node type named as a BUILT-IN is refused HERE too, and that is a repair** — W109's conformity
   // reader (6) and its adequacy reader (F2), the pair's shared subject. `resolveRegistry` refused both
   // directions and this road did not, so a consumer handing the VALIDATOR a worker-backed `Transform`
@@ -440,7 +467,7 @@ function checkRegistryShape(rawWorkers: Workers | undefined, rawNodeTypes: NodeT
   }
   const types = nodeTypesOf(rawNodeTypes);
   for (const [name, t] of types) {
-    checkNodeTypeShape(name, t, name in BUILT_IN_NODE_TYPES);
+    checkNodeTypeShape(name, t, isBuiltInNodeType(name));
     // A type that only transforms names no worker (ADR 0075) and is exempt BY THE PROPERTY, not by its
     // name; `checkNodeTypeShape` above is what keeps a CONSUMER's type from reaching here worker-less.
     if (t.worker !== undefined && !workers.has(t.worker)) {
@@ -448,13 +475,17 @@ function checkRegistryShape(rawWorkers: Workers | undefined, rawNodeTypes: NodeT
         (workers.size ? ` (it declares ${[...workers.keys()].sort().map(q).join(', ')})` : ' (it declares none)'));
     }
   }
+  return types;
+}
+
+function checkPoolsShape(rawPools: Pools | undefined, types: ReadonlyMap<string, NodeTypeEntry>): void {
   for (const [key, p] of poolsOf(rawPools)) {
     if (!isPlainObject(p)) throw new UndeclaredKey(key, `pool ${q(key)} is not an object`);
     noUndeclared('pool', key, p as unknown as Record<string, unknown>, INSTANCE_KEYS);   // P2: an inert `maxThreads` on an instance, refused as the resolver refuses it
     // **The message names a BUILT-IN as the library's** — v0.29, W110's conformity reader (19): `types` is
     // the MERGED map, so a pool called `Transform` has always reached this clause and got the generic
     // sentence, where W109's three `NameCollision` messages each say whose name it is.
-    if (types.has(key)) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it` + (key in BUILT_IN_NODE_TYPES ? ` — and ${q(key)} is a BUILT-IN node type, so that name is the library's and no registry document declares it` : ''));
+    if (types.has(key)) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it` + (isBuiltInNodeType(key) ? ` — and ${q(key)} is a BUILT-IN node type, so that name is the library's and no registry document declares it` : ''));
     if (typeof p?.type !== 'string' || !types.has(p.type)) {
       throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(p?.type)}, which is not a node type`
         + poolTypeNames([...types.keys()]));
@@ -496,22 +527,9 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     return v;
   };
 
-  // ---- the SHAPE, by the one function `checkRegistry` runs too (W141, Q283) ----
-  // What is only a DOCUMENT's comes first: its sections, and the collision between the document's node
-  // types and `code`'s classes, which a hand-built registry has no two halves to commit.
-  const declared = sections('nodeTypes', doc.nodeTypes);
-  const classes = code.nodeTypes ?? {};
-  for (const name of Object.keys(classes)) {
-    if (name in declared) throw new NameCollision(name, `node type ${q(name)} is declared in the document's nodeTypes AND registered as a class in code — one namespace, one definition per name`);
-  }
+  // ---- workers: the URL and the four schemas — the shape `checkRegistry` runs too (W141, Q283) ----
   const rawWorkers = sections('workers', doc.workers);
-  const rawPools = sections('pools', doc.pools);
-  // **THREE namespaces since v0.28, where every other kind here has two** — the built-ins, the
-  // document's `nodeTypes` and `code`'s classes (W109, ADR 0075 rule 5). A consumer's name colliding
-  // with a built-in's is refused on the document road and the code road alike, by the one function,
-  // because the merged map carries both — and the built-in is never replaced.
-  checkRegistryShape(rawWorkers as unknown as Workers, { ...declared, ...classes } as NodeTypes, rawPools as unknown as Pools);
-  const workers = new Map<string, WorkerEntry>(Object.entries(rawWorkers).map(([name, raw]) => [name, raw as unknown as WorkerEntry]));
+  const workers = new Map<string, WorkerEntry>(checkWorkersShape(rawWorkers as unknown as Workers));
 
   // ---- group types: the three built-ins and the custom ones, one namespace ----
   const groupTypes = new Map<string, GroupType | { configSchema: JsonSchema }>();
@@ -543,6 +561,18 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
   const groupKeys = new Set(groups.keys());
 
   // ---- node types: document declarations and code classes, one namespace ----
+  // The collision between the document's types and `code`'s classes is the DOCUMENT's — a hand-built
+  // registry has no two halves to commit it — and it is read before the kind's shape, as it always was.
+  const declared = sections('nodeTypes', doc.nodeTypes);
+  const classes = code.nodeTypes ?? {};
+  for (const name of Object.keys(classes)) {
+    if (hasOwn(declared, name)) throw new NameCollision(name, `node type ${q(name)} is declared in the document's nodeTypes AND registered as a class in code — one namespace, one definition per name`);
+  }
+  // **THREE namespaces since v0.28, where every other kind here has two** — the built-ins, the
+  // document's `nodeTypes` and `code`'s classes (W109, ADR 0075 rule 5). A consumer's name colliding
+  // with a built-in's is refused on the document road and the code road alike, by the one function,
+  // because the merged map carries both — and the built-in is never replaced.
+  const types = checkNodeTypesShape({ ...declared, ...classes } as NodeTypes, workers);
   const nodeTypes = new Map<string, NodeTypeDefinition>();
   // **The built-ins are NOT stored here, and `ResolvedRegistry` is why.** It has no `gateTypes` field
   // at all: a gate type is never stored and is merged at every READ by `gateTypesOf`, which is the
@@ -574,6 +604,8 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
   for (const [name, def] of nodeTypes) {
     pools.set(name, derivePool(name, name, def, def.worker === undefined ? undefined : workers.get(def.worker), def.config, groupKeys, TypeDefaultRefused));
   }
+  const rawPools = sections('pools', doc.pools);
+  checkPoolsShape(rawPools as unknown as Pools, types);
   for (const [key, raw] of Object.entries(rawPools)) {
     // Its shape — an object, its two keys, not named as a type, a `type` that IS one — was held by
     // `checkRegistryShape` above, over the same merged map this lookup reads.
@@ -599,7 +631,7 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     // `bootstrap`, whose own named-instance loop reads the MERGED map already (W109's repair) and
     // which builds every built-in's DEFAULT pool last. So a built-in's default is still built in
     // one place and a named instance of it in one place.
-    const builtInEntry = typeof inst.type === 'string' && inst.type in BUILT_IN_NODE_TYPES
+    const builtInEntry = typeof inst.type === 'string' && isBuiltInNodeType(inst.type)
       ? BUILT_IN_NODE_TYPES[inst.type]!
       : undefined;
     const builtIn = builtInEntry === undefined

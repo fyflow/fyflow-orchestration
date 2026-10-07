@@ -8976,8 +8976,9 @@ if (gateKill !== null) {
  * OPTIONAL nodes, each with an `on: ["failed"]` edge to an end, joined under `live-token`. Before W141
  * the envelope's `setup()` threw, the pool requeued the worker's tasks on every failure until its
  * restart limit, and the three stayed `pending` with the fold reading `running` for ever. A single task
- * did NOT hang there (it settled `user_action`), which is why the row runs three: the hang needs a
- * worker holding more than the task it failed on. After W141 every task fails from `run()` with the
+ * with NO retry did not hang there (it settled `user_action`) — one with a retry did, threaded
+ * (`measure2-before.log`, the conformity reader's 6) — which is why the row runs three: the hang needs
+ * a worker that fails again after the task it failed on. After W141 every task fails from `run()` with the
  * remembered error, and the run takes ADR 0004's road.
  *
  * **Every expected value is the spec's or this fixture's**: the outcome from `spec/run-state.md` section
@@ -9063,9 +9064,10 @@ if (setupFails !== null) {
       [r.outcome, r.terminal], ['completed', true]);
     check(key, `W141 setup fails (${r.mode}): each of the three nodes of the failing type FAILED — an ordinary task failure, ADR 0007 ` +
       'rule 2`s optional road — read off the fold of the driver`s own inputs', r.unready, ['a:failed', 'b:failed', 'c:failed']);
-    assertThat(key, `W141 setup fails (${r.mode}): and each one's error is the worker's own setup error, named as a setup failure — ` +
+    assertThat(key, `W141 setup fails (${r.mode}): and each one's error is the worker's own setup error, named as a setup failure, naming the WHOLE worker URL — ` +
       'what a person reading RunState sees',
-    r.errors.length === 3 && r.errors.every((e) => e.includes(SETUP_FAILS_TEXT) && e.includes('threw from its setup()')),
+    r.errors.length === 3 && r.errors.every((e) => e.includes(SETUP_FAILS_TEXT) && e.includes('threw from its setup()') &&
+      e.includes(JSON.stringify(setupFailsDoc(r.mode === 'inline').workers.unready.url))),
     JSON.stringify(r.errors.map((e) => e.slice(0, 160))));
     check(key, `W141 setup fails (${r.mode}): ADR 0004 — each failure ROUTED down on:["failed"] to its end, and the join fired over three ` +
       'EXITED branches under live-token', r.ends, ['end abandoned', 'end abandoned', 'end abandoned', 'end done']);

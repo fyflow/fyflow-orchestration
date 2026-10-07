@@ -63,9 +63,10 @@ export interface EnvelopePoolConfig {
    * `poolOptionsOf` when the type names no worker.
    *
    * **Why a MARKER and not the absence of `worker`.** An absent `worker` is also what a malformed
-   * pool config has, and `setup()` has refused that by name since v0.17 — *the pool config names no
-   * worker URL*. Reading the absence as a SHAPE would turn every such defect into a node that
-   * silently returns its input, which is the conflation this file's own `setup()` refuses one
+   * pool config has, and this worker has refused that by name since v0.17 — *the pool config names no
+   * worker URL*; since W141 the refusal is remembered by `setup()` and thrown from `run()` on every task,
+   * where until then `setup()` threw it. Reading the absence as a SHAPE would turn every such defect into
+   * a node that silently returns its input, which is the conflation this file's own refusal refuses one
    * construct along. So the transform-only pool DECLARES itself and an empty config stays an error:
    * the two states are told apart by what is present, never by what is missing.
    */
@@ -150,9 +151,19 @@ export function unpackEnvelope(payload: unknown): Envelope {
 }
 
 function brief(v: unknown): string {
-  let s: string;
-  try { s = JSON.stringify(v) ?? String(v); } catch { s = String(v); }
+  const s = printable(v);
   return s.length > 120 ? `${s.slice(0, 117)}...` : s;
+}
+
+/**
+ * **A value as text, and never a throw** — W141's two readers' shared subject. `String(v)` THROWS on
+ * `Object.create(null)` (W132 met the same in `test/runner.ts`), and these run inside `setup()`'s catch,
+ * where a throw is exactly F1's worker error: measured, an inner `teardown()` throwing that value made
+ * `setup()` throw again, and an inner `setup()` throwing it left a message with no worker and no stage.
+ */
+function printable(v: unknown): string {
+  try { const j = JSON.stringify(v); if (j !== undefined) return j; } catch { /* fall through */ }
+  try { return String(v); } catch { return `an unprintable ${typeof v}`; }
 }
 
 function codeOf(e: unknown): string | undefined {
@@ -160,7 +171,8 @@ function codeOf(e: unknown): string | undefined {
   return typeof c === 'string' && c.length ? c : undefined;
 }
 function messageOf(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  if (e instanceof Error) return e.message;
+  try { return String(e); } catch { return printable(e); }
 }
 
 /** The scheduler's worker contract, structurally: `setup` and `teardown` are optional on a plain class, `run` is not. */
@@ -245,6 +257,9 @@ export default class EnvelopeWorker {
    * reason is not retried here (W141's Out).
    */
   async setup(): Promise<void> {
+    // A second `setup()` starts from nothing remembered — the conformity reader's 5: a failure kept from
+    // the first call would fail every task of a worker whose second setup succeeded.
+    this.setupFailure = null;
     try {
       await this.setupOrThrow();
     } catch (e) {
@@ -290,21 +305,21 @@ export default class EnvelopeWorker {
     try {
       mod = (await import(workerUrl)) as { default?: unknown };
     } catch (e) {
-      throw new Error(`envelope worker: the type's worker ${brief(workerUrl)} did not load: ${messageOf(e)}`);
+      throw new Error(`envelope worker: the type's worker ${JSON.stringify(workerUrl)} did not load: ${messageOf(e)}`);
     }
     if (typeof mod.default !== 'function' || !(mod.default as { prototype?: unknown }).prototype) {
-      throw new Error(`envelope worker: ${brief(workerUrl)} must export a default class`);
+      throw new Error(`envelope worker: the type's worker ${JSON.stringify(workerUrl)} must export a default class`);
     }
     const Inner = mod.default as new (config: unknown, workerContext?: unknown) => InnerWorker;
     try {
       this.inner = new Inner(this.cfg.config ?? {}, this.workerContext);
     } catch (e) {
-      throw new Error(`envelope worker: the type's worker ${brief(workerUrl)} threw from its constructor: ${messageOf(e)}`);
+      throw new Error(`envelope worker: the type's worker ${JSON.stringify(workerUrl)} threw from its constructor: ${messageOf(e)}`);
     }
     try {
       await this.inner.setup?.();
     } catch (e) {
-      throw new Error(`envelope worker: the type's worker ${brief(workerUrl)} threw from its setup(): ${messageOf(e)}`);
+      throw new Error(`envelope worker: the type's worker ${JSON.stringify(workerUrl)} threw from its setup(): ${messageOf(e)}`);
     }
     for (const [name, url] of Object.entries(this.cfg.languages ?? {})) {
       this.langs.set(name, await this.loadLanguage(name, url));
