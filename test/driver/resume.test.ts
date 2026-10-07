@@ -694,6 +694,9 @@ suite(SUITE, (test) => {
     let caught: unknown;
     try { b.resume(REF.quiet); } catch (e) { caught = e; }
     ok(caught instanceof MultipleRuns, 'by the class ID-R3 names');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    equal([(caught as Error).message.startsWith('this driver already started or resumed run "R"'), String(caught).split('MultipleRuns').length],
+      [true, 2], `String(e) names the class EXACTLY once, and the message opens with the run: ${String(caught).slice(0, 80)}`);
   });
 
   test('every case this suite declares actually ran — a deleted case fails naming itself', () => {

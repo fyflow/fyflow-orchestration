@@ -298,6 +298,9 @@ suite(SUITE, (test) => {
     throws(() => d.checkpoint(), 'NotStarted', 'RN-R14: before start() there is no run, and no header to invent');
     let caught: unknown;
     try { d.checkpoint(); } catch (e) { caught = e; }
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    equal([(caught as Error).name, (caught as Error).message.startsWith('driver for run "batch42" holds no run to checkpoint'), String(caught).split('NotStarted').length],
+      ['NotStarted', true, 2], `String(e) names the class EXACTLY once: ${String(caught).slice(0, 80)}`);
     ok(caught instanceof NotStarted, 'and it is the named class, exported from the package root');
 
     let cloneError: unknown;

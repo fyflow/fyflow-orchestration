@@ -926,6 +926,9 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
         'InvalidDefinition: the definition is valid and the DATA is wrong, which is a ' +
         'different persons bug');
       ok(h.failures[0]!.message.includes('"split"'), `${label}: it names the NODE`);
+      // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+      equal([h.failures[0]!.message.startsWith('map node "split"'), String(fold(h.driver.foldInputs()).stoppedBy), `${h.failures[0]!.kind}: ${h.failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UnresolvedMapArity').length),
+        [true, 2, 2], `${label}: the message opens with the node, and stoppedBy and kind: message each name the class EXACTLY once`);
       ok(h.failures[0]!.message.includes('"items"'),
         `${label}: and the \`over\` key, so a reader knows what to look at`);
       equal(fold(h.driver.foldInputs()).outcome, 'stopped',

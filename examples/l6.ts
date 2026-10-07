@@ -575,9 +575,10 @@ interface Expectation {
   stoppedBy?: string;
   /**
    * **`stoppedBy` names the refusal's class EXACTLY ONCE** — W133, P30 decision 2 ([Q63](../doc/questions/q63.md)).
-   * Declared only by the `uncloneable` row: `UnresolvedMapArity`'s message still opens with its own class name, as
-   * nine refusal classes' messages do ([Q533](../doc/questions/q533.md)), so the `FD-R2` row
-   * would be red on it for a reason no decision has taken.
+   * Declared by the `uncloneable` row and, since W140, by the `FD-R2` row: until W140 `UnresolvedMapArity`'s
+   * message opened with its own class name, as nine refusal classes' messages did ([Q533](../doc/questions/q533.md)),
+   * so that row could not declare it — and W133's probe p12, the driver dropping the class from `stoppedBy`, stayed
+   * green there because the message supplied the prefix. P31 decision 2 dropped the name from all nine.
    */
   stoppedByNamesItOnce?: true;
   /**
@@ -2227,6 +2228,9 @@ const EXPECTED: Expectation[] = [
     // row declares rather than the row's dispatched ids.
     failureNames: ['"split"', '"rows"'],
     stoppedBy: 'UnresolvedMapArity',
+    // W140 (Q533, P31 decision 2): the message no longer opens with the class name, so the driver's
+    // `${constructor.name}: ` is the only place it comes from — and this row can hold it to once.
+    stoppedByNamesItOnce: true,
     // The path did not end at an `end` node and did not end at all: the driver
     // stopped routing. `RN-R8` outranks section 3's discriminants.
     pathEnds: [],
@@ -5038,7 +5042,7 @@ for (const [i, e] of EXPECTED.entries()) {
     // ([Q63](../doc/questions/q63.md)) — so a substring over `${kind}: ${message}`
     // was satisfied by the message alone and `RunFailure.kind` was pinned by
     // nothing anywhere in the repository. Nine other refusal classes' messages
-    // still begin with their own name ([Q533](../doc/questions/q533.md)). And
+    // began with their own name until W140 ([Q533](../doc/questions/q533.md)). And
     // `OR-R6`'s wording is *"fails with UncloneableResult **naming the task
     // id**"*, so the id is the half worth asserting. Found by W6's adequacy
     // reader.
@@ -11191,7 +11195,10 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // `stoppedByNamesItOnce` clause is the 29th. `CROSS_ROW` does not move: the `inline` membership and the `taskErrors`
 // clause each changed what they compare, not how many times they assert. *(2464 until the adequacy reader's finding 1
 // bought the threaded row's one `records` clause, the 30th.)*
-const DECLARED_TOTAL = 2465;
+// **2466 / 162 since W140** — +1, DERIVED before the file was re-run: the `map / FD-R2` row declares
+// `stoppedByNamesItOnce`, one clause on one row (the per-row extra `e.stoppedByNamesItOnce ? 1 : 0`). No row, no run and
+// no `CROSS_ROW` term moved.
+const DECLARED_TOTAL = 2466;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built

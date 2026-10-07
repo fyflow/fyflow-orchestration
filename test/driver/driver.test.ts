@@ -200,6 +200,7 @@ suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test)
     // OR-R10 describes and the thrown one never was. It exercises the rule on a
     // path a real scheduler could reach rather than on one only a caller could.
     const failures: { kind: string; message: string }[] = [];
+    const causes: unknown[] = [];
     const scheduler = new FakeScheduler();
     const driver = new Driver(await load('valid/linear.flow.json'), {
       runId: 'r1',
@@ -208,7 +209,7 @@ suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test)
       predicates: new Map(),
       workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
       now: () => 1,
-      onRunFailure: (f) => failures.push({ kind: f.kind, message: f.message }),
+      onRunFailure: (f) => { failures.push({ kind: f.kind, message: f.message }); causes.push(f.cause); },
     });
     driver.start({});
     scheduler.settle('r1:ingest:-:0', 'done', { result: null });
@@ -222,6 +223,15 @@ suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test)
     equal(scheduler.added.length, before, 'addTask is NOT called — at 0.3.0 both tasks would run');
     ok(driver.hasFailed(), 'and the run is stopped, so nothing routes for it again');
     ok(new DuplicateTaskId('x') instanceof Error, 'DuplicateTaskId is an Error');
+    // **W140 — Q533, P31 decision 2: the CLASS names the refusal and the message does not**, so the
+    // error's own render, `stoppedBy` and `${kind}: ${message}` each name it EXACTLY once. The message
+    // is ID-R1's literal less its old `DuplicateTaskId: ` prefix.
+    const msg = 'r1:publish:-:0" was already dispatched in run "r1"';
+    equal(failures[0]!.message, `"${msg}`, 'the message is the refusal`s text, with no class name in front');
+    equal(String(causes[0]), `DuplicateTaskId: "${msg}`, 'String(e) is the class, then the message — the class sets its own name');
+    const stoppedBy = fold(driver.foldInputs()).stoppedBy;
+    equal([stoppedBy, `${failures[0]!.kind}: ${failures[0]!.message}`].map((s) => String(s).split('DuplicateTaskId').length),
+      [2, 2], `stoppedBy and kind: message each name the class EXACTLY once: ${stoppedBy}`);
   });
 });
 
@@ -538,6 +548,19 @@ suite('the join seam — the driver asks a policy and acts on the answer', (test
         'cause behind the observation P1 turns on, so it is refused up front',
     );
     ok(new MissingJoinPolicy('x') instanceof Error, 'MissingJoinPolicy is an Error');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    let caught: unknown;
+    try {
+      new Driver(def, {
+        runId: 'r1',
+        scheduler: new FakeScheduler(), createTask: (c) => c,
+        predicates: new Map(), workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools,
+      });
+    } catch (e) { caught = e; }
+    ok(caught instanceof MissingJoinPolicy, `the refusal is the class: ${String(caught)}`);
+    equal([(caught as Error).name, (caught as Error).message.startsWith('definition "'), String(caught).split('MissingJoinPolicy').length],
+      ['MissingJoinPolicy', true, 2], `String(e) names the class EXACTLY once, and the message opens with what was refused: ${String(caught).slice(0, 80)}`);
+    ok((caught as Error).message.endsWith('indistinguishable from the case P1 exists to measure.'), 'the prefix went and nothing else — the body ends as it did (W140 adequacy reader, finding 2)');
   });
 
   test('a flow with no fan-out needs no policy', async () => {

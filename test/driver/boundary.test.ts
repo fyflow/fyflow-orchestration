@@ -64,6 +64,9 @@ suite('FD-R4 at START — the payload is held to the first task(s) it reaches, o
     ok(caught instanceof BoundaryRefused, `a BoundaryRefused, got ${String(caught)}`);
     const e = caught as BoundaryRefused;
     equal([e.name, e.boundary, e.nodeId, e.taskId], ['BoundaryRefused', 'start', 'a', null], 'the class, the boundary, the node, no task yet');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    equal([e.message.startsWith('the payload handed to run "r1"'), String(e).split('BoundaryRefused').length], [true, 2],
+      `String(e) names the class EXACTLY once, and the message opens with what was refused: ${String(e).slice(0, 80)}`);
     equal(e.findings, [{ path: '$.confidence', says: 'above maximum 1' }], 'the schema`s own finding');
     ok(e.message.includes('node "a"') && e.message.includes('worker "checked"') && e.message.includes('FD-R4') && e.message.includes('above maximum 1'), `the message names the node, the worker, the rule and the finding: ${e.message}`);
     equal(scheduler.added.length, 0, 'nothing was dispatched');
@@ -74,6 +77,12 @@ suite('FD-R4 at START — the payload is held to the first task(s) it reaches, o
     equal(scheduler.added.map((x) => x.id), ['r1:a:-:0'], 'the corrected payload dispatched the entry');
     throws(() => d.start({ confidence: 0.4 }), 'MultipleRuns', 'and a SECOND start is ID-R3`s refusal as ever');
     ok(MultipleRuns !== undefined, 'the class this refers to');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    let second: unknown;
+    try { d.start({ confidence: 0.4 }); } catch (x) { second = x; }
+    ok(second instanceof MultipleRuns, `the refusal is the class: ${String(second)}`);
+    equal([(second as Error).name, (second as Error).message.startsWith('this driver already started run "r1"'), String(second).split('MultipleRuns').length],
+      ['MultipleRuns', true, 2], `String(e) names the class EXACTLY once: ${String(second).slice(0, 80)}`);
   });
   test('a payload the schema accepts is dispatched as it always was, to the byte', () => {
     const { d, scheduler } = driver(LINEAR);
@@ -116,6 +125,12 @@ suite('FD-R4 at START — the payload is held to the first task(s) it reaches, o
     // Not an array under `over`: nothing to hold — FD-R2's refusal is the run's, and it still fires.
     const { d: d2, failures } = driver(map);
     throws(() => d2.start({ items: 'no' }), 'UnresolvedMapArity', 'FD-R2, as before');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    const { d: d3 } = driver(map);
+    let arity: unknown;
+    try { d3.start({ items: 'no' }); } catch (x) { arity = x; }
+    equal([(arity as Error).name, (arity as Error).message.startsWith('map node "each"'), String(arity).split('UnresolvedMapArity').length],
+      ['UnresolvedMapArity', true, 2], `String(e) names the class EXACTLY once: ${String(arity).slice(0, 80)}`);
     equal(failures, ['UnresolvedMapArity'], 'reported and rethrown, as W33 left it');
   });
   test('SHAPE: an entry composing a "." reference — the COMPOSED value is what the schema sees', () => {
@@ -144,6 +159,9 @@ suite('FD-R4 at RESOLVE — a person`s value is held to the parked node`s worker
     ok(caught instanceof BoundaryRefused, `a BoundaryRefused, got ${String(caught)}`);
     const e = caught as BoundaryRefused;
     equal([e.boundary, e.nodeId, e.taskId], ['resolve', 'b', 'r1:b:-:0'], 'the boundary, the node, the task');
+    // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
+    equal([e.name, e.message.startsWith('the resolution of "r1:b:-:0"'), String(e).split('BoundaryRefused').length], ['BoundaryRefused', true, 2],
+      `String(e) names the class EXACTLY once, and the message opens with what was refused: ${String(e).slice(0, 80)}`);
     equal(e.findings, [{ path: '$.score', says: 'expected integer, got string' }], 'the schema`s own finding');
     ok(e.message.includes('outputSchema') && e.message.includes('still suspended') && e.message.includes('declared example'), e.message);
     equal(d.snapshot().length, before, 'nothing appended');

@@ -32,7 +32,7 @@ Outputs:    (1) the nine classes — BoundaryRefused, DuplicateTaskId, MissingJo
                 cases, so no L1-L5 case count moves (P31 prediction 4)
             (4) L6's `map / FD-R2 — over names no array` row declares `stoppedByNamesItOnce: true`;
                 DECLARED_TOTAL 2465 -> 2466 by arithmetic (one clause on one row), before L6 re-runs
-            (5) the 24 `throws(…, '<Class>', …)` call sites still assert the class (see Exceptions)
+            (5) the 23 `throws(…, '<Class>', …)` call sites still assert the class (see Exceptions)
             (6) l6.ts's comments at the `stoppedByNamesItOnce` declaration and the `runFailure`
                 block, which say nine classes still self-name, made true of the new tree
             (7) Q533 resolved, `resolved-by` starting "P31 W140 —"
@@ -53,7 +53,7 @@ Reserves:   Q553-Q555. No ADR. No W beyond W140
 |---|---|---|
 | `examples/README.md` | the two current L6 count copies `check-docs`' `X10` compares (lines ~38 and ~70), each with the one-clause history parenthetical every copy there carries (W140 as bare text, no link) | output (4) moves `DECLARED_TOTAL`, and `X10` is red until both copies follow. No run is added, so `DECLARED_RUNS` does not move |
 | `test/definition/l4-corpus.test.ts` | a suite name appended to `LATE_SUITES` — **ONLY if** this item adds an L1-L5 suite | the L1 census holds suite names both ways. Output (3) is planned inside existing cases, so this row is expected to stay unused; it is declared so a late suite is not a late exception |
-| `test/harness.ts` | **ASKED, no answer yet** — `throws` would match against the error's own render, `${e.name}: ${e.message}`, rather than `e.message` alone | 24 call sites in 8 test files (boundary, checkpoint, driver, fold-inputs, lifetime, needs and resume under test/driver, and test/scheduler/resume) match the class name (`throws(() => d.start({}), 'MultipleRuns', …)`) and read it out of the MESSAGE prefix this item removes. Section 1 rule 6: stop and ask to widen; NOT edited until a YES is written here |
+| `test/harness.ts` | **YES — the maintainer, 2026-10-07, option (A), written here before the edit.** One line: `throws` matches against the error's own render, `${e.name}: ${e.message}`, rather than `e.message` alone | 23 call sites in 8 test files (a 24th grep hit, fold-inputs.test.ts:394, is a comment — the adequacy reader, finding 3) (boundary, checkpoint, driver, fold-inputs, lifetime, needs and resume under test/driver, and test/scheduler/resume) match the class name (`throws(() => d.start({}), 'MultipleRuns', …)`) and read it out of the MESSAGE prefix this item removes. Section 1 rule 6: asked to widen after the measurement; option (B), rewriting the 23 sites inside Owns, was not chosen. A rule-8 probe reverts this line |
 
 ## Scope
 
