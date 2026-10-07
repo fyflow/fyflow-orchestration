@@ -154,6 +154,7 @@ learns reaches the next item's declaration.
 | **(e)** | ~~Q63's direction~~ | **ANSWERED, 2026-10-06: drop the class name** (decision 2) |
 | **(f)** | ~~Q508~~ | **ANSWERED, 2026-10-06: Out** |
 | **(g)** | ~~Q534, raised by W133 outside its `Owns`~~ | **ANSWERED by the maintainer, 2026-10-06: into W134**, which gains `AGENTS.md` for that sentence. And for the rest of the plan: *an item that finds a small fix outside its `Owns` may stop and ask to widen its scope*, rather than only raising a question |
+| **(h)** | ~~Q484: decision 3 deletes what `npm run state` or a check DERIVES, and names "workflow versions and plan counts" — which no command derives. Do they go, and does a figure neither named nor derived (`concept.md` v0.3, `S1-S9`, `9 items`)?~~ | **ANSWERED by the maintainer, 2026-10-07: option A.** The workflow-version copies go with their staleness parentheticals and the intro paragraph, since their one source is `doc/workflow.md`'s own header (P27 decision 4); the class neither named nor derived stays, and [Q542](../questions/q542.md) is raised for it and for the stale claims that are not figures. Raised by W134 |
 
 ## Open questions this plan carries
 
