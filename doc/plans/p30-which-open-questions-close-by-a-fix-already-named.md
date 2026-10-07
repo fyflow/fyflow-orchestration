@@ -1,6 +1,6 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** in progress — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06 and W131 done 2026-10-07 (Record below), W132 and W134 to come
+**Status:** in progress — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131 and W132 done 2026-10-07 (Record below), W134 to come
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
@@ -162,6 +162,7 @@ learns reaches the next item's declaration.
 | [Q533](../questions/q533.md) | raised by W133: nine refusal classes still open their message with their own class name, which Q63 changed for one | no owner |
 | [Q534](../questions/q534.md) | raised by W133: `AGENTS.md` states the inline-only `OR-R6` behaviour generally | W134, by stop-and-ask (g) |
 | [Q536](../questions/q536.md) | raised by W131: the `ran:` guard has a checked-in case in one self-test of six | no owner |
+| [Q541](../questions/q541.md) | raised by W132: `test:browser` reports any failing node baseline as *could not establish* it, and chromium alone never reports a bundle that throws on import | no owner |
 
 ## Out
 
@@ -223,3 +224,25 @@ and three rule-8 passes; this section names what the PLAN needs from it.
   held**: the reader's finding 1 was a constructed survivor green through the whole budget self-test.
 - **Exceptions: one path, two widenings, none late.** Neither of W133's drag files applied: W131 added no
   suite and bumped no spec.
+
+**W132 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `c72e704`), the
+measurement, the reader and two rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q272, Q382**, each `resolved-by` naming P30 W132. **Raised: Q541** (open) — `test:browser`
+  reports any failing node baseline as *could not establish the Node baseline — run node test/runner.ts
+  first*, wrong once the runner has run and failed. On W132's tree `npm run q -- --where status=open
+  --count` prints **16**: 17, less these two, plus Q541. Q541 is the third question an item has raised and
+  left open, after Q533 and Q536, so the exit artifact's **8** reads **11** on the final tree if nothing
+  else moves.
+- **The Out section's *Q272 in the browser*, measured** before and after W132 with a suite that throws on
+  import: `npm run test:browser` stops at its node baseline either way, so chromium never starts; run on
+  its own, the bundle (one module) raises a `pageerror`, no suite runs, and the result is never set. Not
+  fixed, as decided; Q541 is its address.
+- **Prediction 2 held**: 1528 L1-L5 cases in node, deno and chromium before and after, 2465 L6 assertions
+  over 162 runs. The 17 renamed cases keep their exact text, so no census or `DECLARED_CASES` list moved.
+  **Prediction 4 held** (no ADR). **Prediction 5 held.** **Prediction 6 held**: the reader's finding 1
+  restored Q272's own crash through the fix — a thrown value with no string form escaped the `catch`.
+- **Exceptions: none.** Neither of W133's drag files applied: no suite entered the glob and no spec was
+  bumped. The provocation lives in `test/provocations/`, outside the glob, and is run by
+  `node test/provocations/q272.ts` and its deno form; it is not a gate entry, since `package.json` is
+  outside W132's `Owns`.
