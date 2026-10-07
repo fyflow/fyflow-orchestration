@@ -137,7 +137,11 @@ never piped. Ids here are bare text, as the header says.
 | — L6 | 0 | 2465 assertions over 162 real runs, node and deno: unchanged |
 | — self-tests | 0 | 11/11 lanes ok |
 
-L7 did not run. **After the record step** (four doc files a check reads): see the end of this Record.
+L7 did not run. **After the record step** (P30, three resolved questions and this file, all read by
+`check:markdown` or `check:register`), on `6833fc9`: `npm run gate` EXIT 0 (`gate-record.log`, 1528 in all
+three runtimes, 2465 / 162 at L6) and `npm run check:markdown:selftest` EXIT 0 (`md-selftest-record.log`,
+42/42, 7/7). `check:register:selftest` was not re-run alone, `gate:full` having run it at `2b48046`, as at
+W132.
 
 ### Scope 1 — the measurement, before any edit, on `cc287bc`
 
