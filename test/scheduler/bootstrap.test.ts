@@ -283,23 +283,28 @@ suite('W59 — the envelope worker: unpacks the two keys, refuses everything els
     await w.teardown();
   });
 
-  test('run before setup, and a module with no default class, are refused by name', async () => {
+  test('run before setup is refused by name; a module with no default class, and a config with no worker URL, set up WITHOUT throwing and fail every task from run() by name — W141', async () => {
     const cold = new EnvelopeWorker({ worker: INNER_URL });
     let err: unknown;
     try { await cold.run({ settings: {}, input: 1 }); } catch (e) { err = e; }
     ok(err instanceof Error && err.message.includes('before setup()'), `run before setup: ${(err as Error)?.message}`);
-    const noDefault = new EnvelopeWorker({ worker: NO_DEFAULT_URL });
-    err = undefined;
-    try { await noDefault.setup(); } catch (e) { err = e; }
-    ok(err instanceof Error && err.message.includes('default class'), `no default export: ${(err as Error)?.message}`);
-    const arrow = new EnvelopeWorker({ worker: ARROW_DEFAULT_URL });
-    err = undefined;
-    try { await arrow.setup(); } catch (e) { err = e; }
-    ok(err instanceof Error && err.message.includes('default class'), `an arrow default is refused by the prototype clause, by name, not one line later as "not a constructor": ${(err as Error)?.message}`);
-    const noUrl = new EnvelopeWorker({} as unknown as { worker: string });
-    err = undefined;
-    try { await noUrl.setup(); } catch (e) { err = e; }
-    ok(err instanceof Error && err.message.includes('no worker URL'), `no worker URL: ${(err as Error)?.message}`);
+    // **W141, Q266**: a throw from setup() is a WORKER error the run never hears of (ADR 0051 F1), so
+    // each of these is remembered and thrown from run() instead — the refusal's text is unchanged and
+    // only the method that reports it moved. `setup()` resolving is asserted, not assumed.
+    for (const [label, cfg, names] of [
+      ['no default export', { worker: NO_DEFAULT_URL }, 'default class'],
+      ['an arrow default — refused by the prototype clause, by name, not one line later as "not a constructor"', { worker: ARROW_DEFAULT_URL }, 'default class'],
+      ['no worker URL', {}, 'no worker URL'],
+    ] as const) {
+      const w = new EnvelopeWorker(cfg as unknown as { worker: string });
+      let setupErr: unknown = null;
+      try { await w.setup(); } catch (e) { setupErr = e; }
+      equal(setupErr, null, `${label}: setup() does not throw`);
+      err = undefined;
+      try { await w.run({ settings: {}, input: 1 }); } catch (e) { err = e; }
+      ok(err instanceof Error && err.message.includes(names) && !err.message.includes('before setup()'),
+        `${label}: run() fails the task naming why, and not as a cold worker: ${(err as Error)?.message}`);
+    }
   });
 });
 

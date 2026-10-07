@@ -22,6 +22,7 @@ import { typesFor } from '../registry-fixture.ts';
 import { Driver, InvalidDefinition } from '../../src/driver/driver.ts';
 import { DerivationRefused, NameCollision, PoolTypeMissing, SchemaRefused, UndeclaredKey, WorkerMissing } from '../../src/definition/registry.ts';
 import { POLICIES } from '../../src/fold/policies.ts';
+import { fold } from '../../src/fold/run-state.ts';
 import { shapesOf, typedNode } from '../definition/task-shapes.ts';
 import type { FlowDefinition, NodeTypeEntry, NodeTypes, RetryPolicy, WorkerEntry } from '../../src/definition/types.ts';
 
@@ -389,4 +390,61 @@ suite('W59 — what a type declares for its nodes: the retry merge and the group
     equal((s.byId(subject[0]!).payload as { settings: unknown }).settings, SETTINGS_A, 'dispatched with the envelope from a Map-shaped registry');
     equal(s.byId(subject[0]!).retryPolicy, TYPE_POLICY, 'and the type`s policy read from it');
   });
+});
+
+/**
+ * **W141 — a typed task that failed because its TYPE's worker could not set up is an ORDINARY task
+ * failure to the run**, ladder L2 — Q266, P31 decision 3, ADR 0004 (a failure routes), ADR 0007 rule 2
+ * (key on terminal state). The envelope worker (`src/scheduler/envelope-worker.ts`) remembers the setup
+ * failure and throws it from `run()` on every task; the SCHEDULER then settles the task `failed` on an
+ * optional node and `user_action` on a non-optional one (measured at W61, F3, and on W141's real pools
+ * at L1). What this suite holds is the run's half: no worker and no scheduler, a fixture settlement
+ * carrying the envelope's message — written here from the envelope's template, never read from a run —
+ * and the routing the spec gives it. **The message is DATA to the driver and nothing in it is read for
+ * routing**: the pair below differs in `optional` alone and routes two ways on one message.
+ */
+const W141_SETUP_FAILED = 'envelope worker: the type\'s worker "test://scorer" threw from its setup(): the database is down — every task on this worker fails with this until the pool is rebuilt';
+
+class W141Fake {
+  added: Record<string, unknown>[] = [];
+  private l = new Map<string, ((e: { detail: unknown }) => void)[]>();
+  addTask(t: unknown) { this.added.push(t as Record<string, unknown>); }
+  addEventListener(t: string, f: (e: { detail: unknown }) => void) { this.l.set(t, [...(this.l.get(t) ?? []), f]); }
+  /** Exactly as 0.5.2 delivers it: `task.failed` first, and `task.user_action` after it for a parked task (ADR 0007 rule 2). */
+  fail(id: string, state: 'failed' | 'user_action', error: string) {
+    const d = { id, state, error, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
+    for (const f of this.l.get('task.failed') ?? []) f({ detail: d });
+    if (state === 'user_action') for (const f of this.l.get('task.user_action') ?? []) f({ detail: d });
+  }
+}
+
+const w141Flow = (optional: boolean): FlowDefinition => ({
+  flowId: 'w141-setup-failed', version: 1, entry: 'score',
+  nodes: [
+    { id: 'score', kind: 'task', type: 'Scorer', ...(optional ? { optional: true } : {}), edges: [{ on: ['failed'], to: 'quarantine' }, { to: 'done' }] },
+    { id: 'quarantine', kind: 'end', outcome: 'quarantined' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition);
+
+suite('W141 — a task failed by its type`s setup routes as any task failure: down on:["failed"] when optional, parked when not (Q266, ADR 0004)', (test) => {
+  for (const optional of [true, false]) {
+    test(`${optional ? 'optional' : 'non-optional'}: the setup failure is the node's error, and the run ${optional ? 'routes down the failure edge and completes' : 'waits on a person — awaiting_action, the node suspended'}`, () => {
+      const s = new W141Fake();
+      const d = new Driver(w141Flow(optional), { runId: 'r1', scheduler: s, createTask: (c) => c, ...BASE, joinPolicy: POLICIES['live-token'] });
+      d.start({ confidence: 0.9 });
+      equal(s.added.map((t) => t.id), ['r1:score:-:0'], 'one task dispatched, to the type`s pool');
+      s.fail('r1:score:-:0', optional ? 'failed' : 'user_action', W141_SETUP_FAILED);
+      const st = fold(d.foldInputs());
+      const node = st.nodes['r1:score:-:0'];
+      equal(node?.error, W141_SETUP_FAILED, 'the node carries the envelope`s message verbatim — what a person reading RunState sees');
+      if (optional) {
+        equal([node?.state, st.outcome], ['failed', 'completed'], 'failed, and the run completed (spec/run-state.md section 3: a path that reached an end)');
+        equal(st.pathEnds, [{ reason: 'end', at: 'quarantine' }], 'ADR 0004: the failure ROUTED, down on:["failed"] to its end — not to `done`');
+      } else {
+        equal([node?.state, st.outcome], ['suspended', 'awaiting_action'], 'parked: a non-optional task out of retries is user_action, and the run waits on a person (ADR 0007 rule 2)');
+        equal(st.pathEnds, [], 'and no path ended — nothing routed while the node is suspended');
+      }
+    });
+  }
 });
