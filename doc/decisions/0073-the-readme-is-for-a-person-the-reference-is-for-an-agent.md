@@ -183,6 +183,11 @@ status the tail duplicated.
    does not pay the lane: a source-text bound of the kind this self-test already runs on `X4_WIDTH`,
    which is the device the verdict records are bound by in consequence 5.
 
+   *Fixed since W131 (P30, 2026-10-07), by that cheaper road:* `check-docs-selftest.mjs`'s
+   source-text bound now holds `README_SNIPPET_FLOOR` at decision 4's 3 beside `X4_WIDTH`'s pair, and
+   refuses a declaration it cannot read, so lowering it is a third edit in another file.
+   [Q439](../questions/q439.md) is resolved. The paragraph above is this consequence as written.
+
 11. **And decision 2 is a TAUTOLOGY: nothing asserts what the README does not carry.** W107's adequacy
     reader reinstated a `## Current state` section with a plan-history sentence, work-item ids in prose,
     a table of gate figures ADR 0070 withdrew, a correction-archaeology parenthetical, and **a stale L6
