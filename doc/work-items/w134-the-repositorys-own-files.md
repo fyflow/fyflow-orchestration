@@ -51,11 +51,16 @@ Gate:       `git check-ignore .claude/worktrees/x` EXIT 0; `check:markdown`,
 Reserves:   Q542-Q546. No ADR (P30's block 0085-0086 is spent). No W beyond W134
 ```
 
-**Exceptions**: none declared. **W133's drag files were checked up front and none applies**: no
+**Exceptions**: one, declared LATE (the conformity reader's finding 6), after its edit in `921aa60`:
+P30's **Stop-and-asks table**, row (h) — outside the plan's Record, which is the record step's file.
+The maintainer's answer of 2026-10-07 directed the row there, as W131's record commit did for row (b).
+**W133's drag files were checked up front and none applies**: no
 suite is added, so `test/definition/l4-corpus.test.ts` does not move; no spec is bumped, so
 `spec/README.md` does not move. **AGENTS.md drags nothing**: the edit is prose inside a bullet, so
 `check:docs`' snippet list, its snippet count and every `run` snippet are unchanged; no check or
-self-test anchors on that sentence (`grep "loud half"` over `scripts/` and `test/` returns none), and
+self-test anchors on that sentence (`grep "loud half"` over `scripts/` and `test/` returns one
+hit, `test/jsonata/jsonata.test.ts:171`, an unrelated phrase — *corrected by the conformity reader's
+finding 5; this said "returns none"*), and
 README.md carries no twin of it for `X8` to compare. **doc/README.md drags nothing either**: the only
 scripts that read it are `check-markdown` (its links) and `check-markdown-selftest`, whose probes
 anchor on four texts there — `](workflow.md)`, `](open-questions.md)`, the W37 link and the
