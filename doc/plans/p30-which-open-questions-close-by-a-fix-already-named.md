@@ -1,6 +1,6 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** in progress — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06 (Record below), W131, W132 and W134 to come
+**Status:** in progress — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06 and W131 done 2026-10-07 (Record below), W132 and W134 to come
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
@@ -161,6 +161,7 @@ learns reaches the next item's declaration.
 |---|---|---|
 | [Q533](../questions/q533.md) | raised by W133: nine refusal classes still open their message with their own class name, which Q63 changed for one | no owner |
 | [Q534](../questions/q534.md) | raised by W133: `AGENTS.md` states the inline-only `OR-R6` behaviour generally | W134, by stop-and-ask (g) |
+| [Q536](../questions/q536.md) | raised by W131: the `ran:` guard has a checked-in case in one self-test of six | no owner |
 
 ## Out
 
@@ -198,3 +199,27 @@ rule-8 passes; this section names what the PLAN needs from it.
 - **Six exceptions**, four declared before the first edit and two late (`spec/README.md`,
   `test/definition/l4-corpus.test.ts`); W133's Record lists them and why. A spec bump and a new suite
   each drag one of those two files, every time: the next item that does either can name them up front.
+
+**W131 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `79e844a`), the reader
+and three rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q144, Q430, Q439, Q454, Q490**, each `resolved-by` naming P30 W131. **Raised: Q536** (open) — the
+  `ran:` guard has a checked-in case in one self-test of six, and the gap Q144 carried for the others has
+  no address now. On W131's tree `npm run q -- --where status=open --count` prints **17**: 21, less these
+  five, plus Q536. Q536 is the second question an item has raised and left open, after Q533, so the exit
+  artifact's **8** reads **10** on the final tree if nothing else moves.
+- **Stop-and-ask (a) did not fire.** The replacement `ran:` case was built and shown firing before the fix:
+  `srcPolicies`' `if (!m) return null;` disabled, named against *the POLICIES block renamed*, which throws
+  before any report line. P3's `names === null` clause then gained the `META` entry Q144 said it could not
+  have.
+- **Stop-and-ask (g) fired twice for W131**, both answered by the maintainer with option A, comment-only
+  in `scripts/check-docs.mjs`: on 2026-10-06 the paragraph above `README_SNIPPET_FLOOR`, whose residue
+  sentence Q439's fix made false; on 2026-10-07 one clause in its "8 since W101" sentence, after the
+  conformity reader's finding 7. Neither touched code.
+- **Decision 5 held as written**: the counts were deleted, not computed; a re-added count survives every
+  check (declared survivor S2), which is P27 decision 4's own position.
+- **Prediction 2 held** for W131 (no case count moved: 1528 L1-L5, 2465 L6). **Prediction 4 held** (no ADR;
+  ADR 0073 consequence 10 gained a dated note in the record step). **Prediction 5 held.** **Prediction 6
+  held**: the reader's finding 1 was a constructed survivor green through the whole budget self-test.
+- **Exceptions: one path, two widenings, none late.** Neither of W133's drag files applied: W131 added no
+  suite and bumped no spec.
