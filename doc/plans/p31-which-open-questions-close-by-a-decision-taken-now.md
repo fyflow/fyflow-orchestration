@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** planning — declared 2026-10-07 on `a68b449`; no item started
+**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 done 2026-10-07 (Record below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -125,3 +125,26 @@ closed and raised.
 
 - [Q20](../questions/q20.md) and [Q513](../questions/q513.md) — they close in `fyflow-react-components`.
 - **Any change to what `gate:full` or `gate:item` runs** — W139's, and workflow v0.29's.
+
+## Record
+
+**W140 — done 2026-10-07.** Its own Record covers the gate, the measurement, both readers and the
+rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q533**, its `resolved-by` naming P31 W140. **Raised: none.** Prediction 1 held for W140.
+  On W140's tree `npm run q -- --where status=open --count` prints **13**: fourteen, less Q533.
+- **Workflow section 1 rule 6 fired three times, and nothing was raised.**
+  - `test/harness.ts`: `throws` read the class out of the message prefix this item removes. The
+    maintainer chose option (A), so `throws` now matches `${name}: ${message}`.
+  - The two comments the conformity reader found false or ambiguous after that change:
+    `test/definition/map.test.ts` and `test/driver/nested-regions.test.ts`.
+  - Each was asked before its edit, answered YES, and the YES was written into W140's Exceptions first.
+    None is on this plan's W140 row, which the next item that changes refusal text can carry at declaration.
+- **Prediction 4 held.** L1-L5 stayed at **1528** cases in node, deno and chromium. L6 moved from **2465 to
+  2466** assertions over 162 runs: the one clause W140 added. No check counts message text.
+- **Q533's masking is gone.** W133's probe p12, the driver dropping the class from `stoppedBy`, is now
+  CAUGHT on the `map / FD-R2 — over names no array` row by both of its `stoppedBy` clauses.
+- **Predictions 2 and 6 held for W140.** It needed no ADR, and `CLAUDE.md`, `doc/workflow.md` and
+  `doc/concept.md` are untouched.
+- **Overlap**: FOUR shared subjects, the eighty-fourth measurement — the count a retro carries forward.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `74d3487`, once, on a still tree (decision 4).
