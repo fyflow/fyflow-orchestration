@@ -12,11 +12,23 @@
  * seven minutes; and they ran one at a time on a machine with twenty cores, because
  * `&&` is the only sequencing a manifest string has.
  *
- * **What this file does NOT do.** It does not choose which self-tests run, does not
- * skip any, and does not change what any of them prove. The set is *derived* from the
- * manifest — every entry whose name ends in `:selftest` — so there is no list here to
- * go stale against `package.json`, which is [Q102](../doc/questions/q102.md)'s shape
- * and the reason `G3` reads the `scripts/` listing rather than a declaration.
+ * **What this file does NOT do.** It does not choose which self-tests run, and does not
+ * change what any of them prove. The set is *derived* from the manifest — every entry
+ * whose name ends in `:selftest` — so there is no list here to go stale against
+ * `package.json`, which is [Q102](../doc/questions/q102.md)'s shape and the reason `G3`
+ * reads the `scripts/` listing rather than a declaration.
+ *
+ * **It skips an entry only when its CALLER names it, and says so — `--without <entry>`,
+ * W139.** `doc/workflow.md` v0.29: an item's confirming gate is `gate:full` less
+ * `check:register:selftest`, and `npm run gate:item` is that gate. The choice of WHICH
+ * lane is the manifest's (`gate:item`'s own argv) and `G7` in `scripts/check-wiring.mjs`
+ * binds it to exactly that one; this file only obeys and accounts. **It cannot leave
+ * nothing out silently**: a `--without` with no entry, an entry that is not a `:selftest`
+ * entry, a duplicate, an argument it does not know, or a set that leaves nothing to run
+ * is REFUSED, exit 2, before anything runs — measured at W139's declaration, this file
+ * ignored every argument but `--plan`, so `--without x` was exit 0. Every left-out entry
+ * is printed by `--plan` and by the run, and the accounting below compares the run's
+ * entries plus the left-out ones to the manifest both ways.
  *
  * **What binds it.** `G4` in `scripts/check-wiring.mjs`:
  *   - the gate's chain must run this file;
@@ -70,10 +82,40 @@ const CMD = process.env.CHECK_SELFTESTS_CMD ?? '';
 /** `npm run <entry>` — the command an entry gets when nothing overrides it. */
 const commandFor = (entry) => `npm run ${entry}`;
 
-export function plan(pkg) {
+/**
+ * **The arguments, read whole, and anything unknown is a refusal rather than ignored.**
+ * Returns the entries `--without` names, in order, and every reason to refuse. Pure, so
+ * a reader can see that `--plan` and `--without` are the only two words it accepts.
+ */
+export function argsFrom(argv) {
+  const without = [];
+  const refusals = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === '--plan') continue;
+    if (a === '--without') {
+      const v = argv[i + 1];
+      i += 1;
+      if (v === undefined || v === '' || v.startsWith('--')) {
+        refusals.push('`--without` names no entry, and leaving out nothing is not something this ' +
+          'option does silently');
+        if (v !== undefined && v.startsWith('--')) i -= 1;
+      } else if (without.includes(v)) {
+        refusals.push(`\`--without ${v}\` is given twice`);
+      } else {
+        without.push(v);
+      }
+      continue;
+    }
+    refusals.push(`\`${a}\` is not an argument this runner knows (\`--plan\`, \`--without <entry>\`)`);
+  }
+  return { without, refusals };
+}
+
+export function plan(pkg, without = []) {
   const scripts = pkg.scripts ?? {};
   const entries = Object.keys(scripts).filter((n) => n.endsWith(':selftest')).sort();
-  return entries.map((entry) => {
+  return entries.filter((entry) => !without.includes(entry)).map((entry) => {
     // The self-test module of `check:X:selftest` is `scripts/check-X-selftest.mjs`,
     // which is not an assumption: `G2` reads that default out of the dispatch and
     // refuses any other, in every one of the seven.
@@ -90,7 +132,27 @@ export function plan(pkg) {
 }
 
 const pkg = JSON.parse(readFileSync(PKG_PATH, 'utf8'));
-const PLAN = plan(pkg);
+const ARGS = argsFrom(process.argv.slice(2));
+const WITHOUT = ARGS.without;
+const PLAN = plan(pkg, WITHOUT);
+
+/** Every `:selftest` entry the manifest declares — what the run and the left-out set must add up to. */
+const MANIFEST = Object.keys(pkg.scripts ?? {}).filter((n) => n.endsWith(':selftest')).sort();
+const LEFT_OUT = MANIFEST.filter((e) => WITHOUT.includes(e));
+{
+  const refusals = [...ARGS.refusals];
+  for (const w of WITHOUT.filter((x) => !MANIFEST.includes(x))) {
+    refusals.push(`\`--without ${w}\` names no \`:selftest\` entry in package.json, so it would leave ` +
+      'out nothing — a misspelt lane is a gate that runs everything while its caller believes otherwise');
+  }
+  if (WITHOUT.length && PLAN.length === 0) {
+    refusals.push(`\`--without\` leaves out all ${MANIFEST.length} entries, and a run of none proves nothing`);
+  }
+  if (refusals.length) {
+    for (const r of refusals) console.log(`  FAIL  selftests refused: ${r}`);
+    process.exit(2);
+  }
+}
 
 if (process.argv.includes('--plan')) {
   // **The plan prints the command it WOULD RUN**, which is the same `p.command` the
@@ -99,7 +161,9 @@ if (process.argv.includes('--plan')) {
   for (const p of PLAN) {
     console.log(`${p.exclusive ? 'alone     ' : 'concurrent'} ${p.entry} :: ${p.command}`);
   }
-  console.log(`plan ${PLAN.length} entries, ${PLAN.filter((p) => p.exclusive).length} exclusive`);
+  for (const e of LEFT_OUT) console.log(`left out   ${e} :: --without`);
+  console.log(`plan ${PLAN.length} entries, ${PLAN.filter((p) => p.exclusive).length} exclusive` +
+    `${LEFT_OUT.length ? `, ${LEFT_OUT.length} left out` : ''}`);
   process.exit(0);
 }
 
@@ -160,6 +224,7 @@ for (const p of PLAN) {
     `${p.exclusive ? '(alone)' : `(1 of ${lanes} lanes)`} ===`);
   process.stdout.write(r.out.endsWith('\n') || r.out === '' ? r.out : `${r.out}\n`);
 }
+for (const e of LEFT_OUT) console.log(`\n=== ${e} — LEFT OUT by --without, not run ===`);
 
 // **The accounting, and it is the whole of obligation (e) for this file.** A runner
 // that plans seven and runs six is `npm run gate` at exit 0 with a self-test silently
@@ -179,7 +244,27 @@ if (missing.length || extra.length || completed.length !== planned.length) {
     'hole ADR 0039 was required not to reopen');
   ok = false;
 }
+// **And the run plus what was left out is the MANIFEST, both ways — W139.** The check
+// above compares the run to its own plan, so a `plan()` that stopped honouring
+// `--without`, or honoured an entry nobody named, is invisible to it: plan and run agree
+// and both are wrong. This compares them to the one list neither of them computes.
+{
+  const accounted = [...planned, ...LEFT_OUT].sort();
+  const unaccounted = MANIFEST.filter((e) => !accounted.includes(e));
+  const twice = accounted.filter((e, i) => accounted.indexOf(e) !== i);
+  const foreign = accounted.filter((e) => !MANIFEST.includes(e));
+  if (unaccounted.length || twice.length || foreign.length) {
+    console.log(`\n  FAIL  selftests ran ${planned.length} and left out ${LEFT_OUT.length} of the manifest's ` +
+      `${MANIFEST.length} \`:selftest\` entries` +
+      `${unaccounted.length ? ` — neither run nor left out: ${unaccounted.join(', ')}` : ''}` +
+      `${twice.length ? ` — both run and left out: ${twice.join(', ')}` : ''}` +
+      `${foreign.length ? ` — not in the manifest: ${foreign.join(', ')}` : ''}. A lane may leave only ` +
+      'by being NAMED, and every one named must be the one that left');
+    ok = false;
+  }
+}
 console.log(`\nselftests — ${completed.length}/${planned.length} completed, ` +
   `${results.filter((r) => r.code === 0).length} ok, ${wall.toFixed(1)} s wall, ` +
-  `${results.reduce((a, r) => a + r.s, 0).toFixed(1)} s serial-equivalent, ${lanes} lanes.`);
+  `${results.reduce((a, r) => a + r.s, 0).toFixed(1)} s serial-equivalent, ${lanes} lanes` +
+  `${LEFT_OUT.length ? `, ${LEFT_OUT.length} left out: ${LEFT_OUT.join(', ')}` : ''}.`);
 process.exit(ok ? 0 : 1);
