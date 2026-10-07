@@ -6644,13 +6644,19 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
 // dispatched twice under two outcomes (`spec/task-id.md` section 2's collision)
 // and `ID-R1` could not fire, because each driver keeps its own dispatched-id set.
 //
-// **It is also the only L6 coverage `ID-R4` TIER 1 has, and it has none for tier
-// 2.** W13's adequacy reader measured that the single-driver rows give the rule
-// nothing at all: one run, no foreign settlements, nothing to drop. Here every
-// settlement of run `pa` reaches `pb`'s listener and tier 1 drops it — so deleting
-// tier 1 makes EACH driver hit tier 2 on the other`s settlements, stop with
-// `UndispatchedTask`, and fail this row. Measured: 7 failures across BOTH runs —
-// the first version of this comment said `pb` alone.
+// **It WAS the only L6 coverage `ID-R4` TIER 1 had, and since W142 it is none.**
+// W13's adequacy reader measured that the single-driver rows give the rule
+// nothing at all: one run, no foreign settlements, nothing to drop. Until
+// [ADR 0088](../doc/decisions/0088-a-runtime-routes-each-settlement-to-the-driver-holding-its-run-id.md)
+// every settlement of run `pa` reached `pb`'s listener and tier 1 dropped it, so
+// deleting tier 1 made EACH driver hit tier 2 on the other`s settlements and
+// fail this row (7 failures across BOTH runs). **Now the runtime ROUTES**: a
+// settlement of `pa` is never handed to `pb`'s driver, so tier 1 cannot be reached
+// from a real scheduler through a runtime at all — ADR 0088 rule 6 keeps it as the
+// guard for a driver built by hand, and its coverage is L2's
+// (`test/driver/lifetime.test.ts`, every terminal state). What this row asserts
+// in its place is the ROUTING itself: the `delivered` clause below, each driver's
+// own four settlements and nothing of the other run's.
 //
 // **Tier 2 is still not reachable here**, which W14's own negative test measured
 // rather than assumed: deleting tier 2 leaves row 1 **green**, because a foreign
@@ -6843,18 +6849,18 @@ const PAIR_ROWS: PairRow[] = [
     key: 'two runs / two drivers / one scheduler',
     runIds: ['pa', 'pb'], payloads: [HIGH, LOW],
     foreign: [],
-    // **The negative control, and it is `ID-R4` tier 1 asserted from the other
-    // side.** Every settlement of `pa` reaches `pb`'s listener and is dropped in
-    // silence (ADR 0023 rule 3) — a *parseable* foreign id must not reach
-    // `onUnmintedTask`, which is ADR 0027 rule 4's asymmetry. Merging the two
+    // **The negative control.** A *parseable* foreign id must not reach
+    // `onUnmintedTask`, which is ADR 0027 rule 4's asymmetry. *(This read "every
+    // settlement of `pa` reaches `pb`'s listener and is dropped in silence" — true
+    // until ADR 0088, under which it reaches no driver but `pa`'s: W142.)* Merging the two
     // channels would make this array non-empty on a row where the decision says
     // it must not be.
     unminted: [],
     why: 'P4 exit artifact — the pairing MultipleRuns tells you to build, on real workers. Before ' +
       'W13 each driver received the other`s settlements and dispatched its successors: one task id ' +
-      'under two outcomes, with nothing reported. It is also ID-R4 TIER 1`s only L6 coverage — ' +
-      'every settlement of one run reaches the other driver and is dropped by tier 1, in silence, ' +
-      'which is what the empty onUnmintedTask array here asserts',
+      'under two outcomes, with nothing reported. Since ADR 0088 the runtime ROUTES: each driver is ' +
+      'handed its own run`s settlements and none of the other`s (the delivered clause), and a ' +
+      'parseable foreign id reaches no onUnmintedTask, which the empty array here asserts',
   },
   {
     key: 'two runs / one scheduler / tasks we did not mint',
@@ -7006,6 +7012,17 @@ for (const row of PAIR_ROWS) {
       [...r.unmintedTasks].sort((x, y) => String(x.taskId).localeCompare(String(y.taskId))),
       row.unminted.map((u) => ({ runId: who, ...u }))
         .sort((x, y) => String(x.taskId).localeCompare(String(y.taskId))));
+    // **ADR 0088 — what this driver was HANDED, as a multiset.** Rule 4's first row: a settlement whose run id this
+    // driver holds reaches it and no other driver; its third row: an id `parseTaskId` refuses reaches EVERY driver. So
+    // the expected list is this run's four settlements (`pairTaskIds`, `spec/task-id.md` section 1 — each task settles
+    // once, `done`) plus every foreign id once (each settles once: done, or `failed` for the optional one), and NOTHING
+    // of the other run's. Before ADR 0088 it also held the other run's four. Sorted on both sides with one comparator,
+    // because the arrival order is the scheduler's and `spec/` does not fix it. `r.delivered` is read at the driver's
+    // entry (`onDelivery`), so it sees what the ROUTER handed over and nothing the driver decided afterwards.
+    const byId = (x: string, y: string) => x.localeCompare(y);
+    check(row.key, `${who}: what this driver was HANDED — its own run's settlements and every id no driver minted, ` +
+      'nothing of the other run`s (ADR 0088)',
+      [...r.delivered].sort(byId), [...pairTaskIds(who), ...row.foreign.map((f) => f.id)].sort(byId));
   }
 
   // --- what the SCHEDULER saw, which is the only source here that is not the code
@@ -7033,6 +7050,11 @@ for (const row of PAIR_ROWS) {
   // let every later settlement overwrite it and the claim became unfalsifiable
   // with all 370 assertions green - the count at the moment it was measured. W19's
   // adequacy reader.
+  // **Since ADR 0088 the count below is the HARNESS's listeners and the runtime's router, not the drivers'**: a driver
+  // subscribes to its run's view, and the router subscribes the scheduler once, at the first driver (rule 2). `runFlow`
+  // adds its own listeners in the same synchronous call that starts each driver, so the equality still says both runs
+  // were wired before the first settlement — and on the foreign row the `delivered` clause above says it more directly:
+  // each driver was HANDED every foreign id, so each was attached when they arrived. W142.
   check(row.key, 'the scheduler-side record holds one listener count per settlement',
     facts.listenersAtSettlement.length, facts.settlementIds.length);
   assertThat(row.key, 'both drivers were ATTACHED to the one scheduler before the first SETTLEMENT',
@@ -7138,8 +7160,8 @@ for (const row of PAIR_ROWS) {
 /** One per run of the pair row that carries foreign tasks. */
 const PAIR_EXTRA = 2;
 
-/** Per pair row: one distinctness check, nine per run, seven scheduler-side. */
-const PAIR_PER_RUN = 9;
+/** Per pair row: one distinctness check, ten per run (W142's `delivered` the tenth), seven scheduler-side. */
+const PAIR_PER_RUN = 10;
 const PAIR_CROSS = 8;
 /**
  * Derived from the rows rather than typed. **Nothing currently depends on the
@@ -11198,7 +11220,9 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2466 / 162 since W140** — +1, DERIVED before the file was re-run: the `map / FD-R2` row declares
 // `stoppedByNamesItOnce`, one clause on one row (the per-row extra `e.stoppedByNamesItOnce ? 1 : 0`). No row, no run and
 // no `CROSS_ROW` term moved.
-const DECLARED_TOTAL = 2466;
+// **2470 / 162 since W142** — +4, DERIVED before the file was re-run: ADR 0088's `delivered` clause, once per run of each
+// of the two pair rows (`PAIR_PER_RUN` 9 -> 10, two rows x two runs). No row, no run and no `CROSS_ROW` term moved.
+const DECLARED_TOTAL = 2470;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built

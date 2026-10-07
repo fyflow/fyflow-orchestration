@@ -8,6 +8,8 @@
  * node examples/retention.ts                       # the artifact, and a sweep
  * node --expose-gc examples/retention.ts           # with the second observer
  * node --expose-gc examples/retention.ts scale 200 4 1
+ * node --expose-gc examples/retention.ts topology 800 4 1      # W142: runtime.start alone, shared
+ * node --expose-gc examples/retention.ts topology 800 4 1 own  # and on a runtime per run
  * deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env \
  *   --v8-flags=--expose-gc examples/retention.ts
  * ```
@@ -82,7 +84,7 @@
  * and re-taking every row, rather than trusting it.
  */
 import { POLICIES } from '../index.ts';
-import { buildRuntime, retainedBytes, runFlow, violations, type RunReport } from './run-flow.ts';
+import { buildRuntime, onDelivery, retainedBytes, runFlow, violations, type RunReport } from './run-flow.ts';
 import mapAlias from './flows/map-alias.flow.json' with { type: 'json' };
 import type { FlowDefinition } from '../index.ts';
 
@@ -393,8 +395,94 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
   );
 }
 
+// --- the topology mode: N runs through runtime.start, and NOTHING of this harness's on the scheduler -----
+
+/**
+ * **N real runs through `runtime.start` alone — W142, and it is ADR 0088's measurement.**
+ *
+ * **Why a second mode rather than the `scale` one, and the reason is measured.** `scale` runs each run
+ * through `runFlow`, which attaches about ten listeners of its OWN to the scheduler per run — `noteDone`
+ * among them, which records every settlement it hears in that run's sets. On one shared scheduler
+ * every one of those hears every run's settlements, so `scale --shared` measures the harness's N² beside
+ * the library's: W142 re-took W55's figure on `7ba87df` and read **879 MiB** of heap at N = 800 shared,
+ * against **13.7 MiB** for the same 800 runs here, where the only listeners are the library's. So this
+ * mode attaches nothing: the runs are `runtime.start(flow, payload)` and `await done`, a consumer's two
+ * lines, and what it times and weighs is the library's delivery and nothing a harness adds.
+ *
+ * **Two observers, and the second is a COUNT, so it is clock-free** (`doc/workflow.md` section 5 rule 8,
+ * obligation (c)'s LIMIT): the wall time and `heapUsed`, which are properties of a machine (Q179), and
+ * how many scheduler events each driver was HANDED (`onDelivery`, COUNTED and never kept), which is not. ADR 0088 says
+ * a driver is handed its own run's settlement events and nothing of any other run's, so on the shared
+ * topology the total is `N x (events per run)` — linear — where a broadcast makes it `N²` times that.
+ *
+ * **What it REFUSES to print a figure for**, because a mode whose output is a number must be able to
+ * refuse (W55's adequacy reader): a run that did not complete; a driver handed another run's parseable
+ * settlement (ADR 0088 rule 1 — the routing has failed, and the wall time beside it would be the
+ * broadcast's); a driver handed fewer events than it dispatched tasks (the routing lost one).
+ */
+async function topology(runs: number, arity: number, sizeKib: number, shared: boolean): Promise<void> {
+  // **Before the runtimes are built**, so the heap figure carries each topology's own runtimes: one, or N.
+  const heap0 = heapUsed();
+  const one = shared ? buildRuntime(false, [MAL], undefined, 0) : null;
+  const runtimes = one ? [one] : Array.from({ length: runs }, () => buildRuntime(false, [MAL], undefined, 0));
+  const started = Date.now();
+  const handles = Array.from({ length: runs }, (_, i) => {
+    const rt = one ?? runtimes[i]!;
+    const h = rt.start(MAL, payloadFor(arity, sizeKib), { runId: `t${i}`, joinPolicy: POLICIES['live-token'] });
+    // COUNTED, never kept: an array of every id would be the heap this mode weighs (see `onDelivery`).
+    const tally = { own: 0, theirs: 0 };
+    const prefix = `t${i}:`;
+    onDelivery(h.driver, (id) => { if (id.startsWith(prefix)) tally.own++; else tally.theirs++; });
+    return { ...h, tally };
+  });
+  const states = await Promise.all(handles.map((h) => h.done));
+  const elapsed = Date.now() - started;
+  // After the runs and before `heapUsed`, as `scale` does: a scheduler never shut down keeps the process alive.
+  await Promise.all(runtimes.map((r) => r.shutdown()));
+  const heap1 = heapUsed();
+  const wrong: string[] = [];
+  let delivered = 0;
+  let foreign = 0;
+  let dispatched = 0;
+  for (const [i, h] of handles.entries()) {
+    delivered += h.tally.own + h.tally.theirs;
+    dispatched += h.driver.dispatchedIds().length;
+    // **Parseable and not this run's** is ADR 0088 rule 1's violation; an id `parseTaskId` refuses
+    // would be rule 3's broadcast, and this mode's runs carry none — so ANY id not opening with this
+    // run's prefix here is another run's.
+    foreign += h.tally.theirs;
+    if (states[i]!.outcome !== 'completed') wrong.push(`t${i}: outcome ${states[i]!.outcome}`);
+    if (h.tally.own < h.driver.dispatchedIds().length) {
+      wrong.push(`t${i}: handed ${h.tally.own} of its own events for ${h.driver.dispatchedIds().length} dispatched tasks`);
+    }
+  }
+  if (foreign > 0) wrong.push(`ADR 0088 rule 1: drivers were handed ${foreign} settlement(s) of runs they do not hold`);
+  if (gc && (heap0 === null || heap1 === null)) wrong.push('observer 2 is available and produced nothing');
+  console.log(
+    `\n  ladder L6 topology — ${runs} real runs through runtime.start on ${shared ? 'ONE shared' : `${runs} own`} ` +
+      `runtime${shared ? '' : 's'}, nothing of the harness on the scheduler, on ${runtime}\n`,
+  );
+  console.log(`    arity ${arity}, result ~${sizeKib} KiB, ${dispatched} tasks, ${runtimes.length} runtime(s) held`);
+  console.log(`    outcomes                  ${[...new Set(states.map((s) => s.outcome))].sort().join(', ')}`);
+  console.log(`    events handed to drivers  ${delivered}  (${(delivered / runs).toFixed(1)} per run, ${foreign} of another run's)`);
+  console.log(
+    `    heapUsed    (observer 2)  ${
+      heap0 === null || heap1 === null ? '     n/a  — run with --expose-gc' : `${mib(heap1 - heap0)} MiB`
+    }`,
+  );
+  console.log(`    wall                      ${elapsed} ms\n`);
+  if (wrong.length) {
+    console.log('  FAIL  the relation this mode exists to report does not hold:');
+    for (const w of wrong.slice(0, 8)) console.log(`    ${w}`);
+    console.log('');
+    exit(1);
+  }
+}
+
 if (argv[0] === 'scale') {
   await scale(Number(argv[1] ?? 100), Number(argv[2] ?? 4), Number(argv[3] ?? 1), argv[4] !== 'own');
+} else if (argv[0] === 'topology') {
+  await topology(Number(argv[1] ?? 100), Number(argv[2] ?? 4), Number(argv[3] ?? 1), argv[4] !== 'own');
 } else {
   await artifact();
 }

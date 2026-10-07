@@ -2215,3 +2215,175 @@ suite('W77 — `done` on a real scheduler, and `done` belongs to a RUN', (test) 
     ok(deepEqual(state, byTheCaller), 'and the invariant holds on a real scheduler too, not only on the recorded seam');
   });
 });
+
+/**
+ * **ADR 0088 — the runtime ROUTES each settlement to the driver holding its run id** —
+ * [W142](../../doc/work-items/w142-a-settlement-reaches-only-its-own-runs-driver.md), ladder L1-L2, over the scheduler seam.
+ *
+ * **Every expected value is a row of ADR 0088 rule 4 or a rule it names, never this module's output.** A settlement whose
+ * run id a driver of the runtime holds is HANDED to that driver and no other; a parseable id no driver holds is handed to
+ * none; an id `parseTaskId` refuses is handed to every driver, which each reports through `onUnmintedTask` under its own
+ * run id (ADR 0027 rule 3, `ID-R5`); our run id on a task we never dispatched still stops that run (`ID-R4` tier 2); a
+ * finished run's driver still hears its id (`RN-R25`); and a driver built by hand on `runtime.scheduler` is not routed
+ * (rule 7).
+ *
+ * **What a driver is HANDED is read at its ENTRY**, the instance's `onEvent`, shadowed non-enumerably as
+ * `examples/run-flow.ts`'s `onDelivery` does. That is the only place the claim is visible: a broadcast that tier 1 then
+ * drops leaves every driver's fold, failures and reports exactly as routing does, so an observer downstream of the driver
+ * could not tell the two apart — which is the whole of what this decision changes.
+ */
+function routedSeams() {
+  /** Every `addEventListener` the SCHEDULER received, by event name — rule 2's observable. */
+  const subscriptions: string[] = [];
+  const listeners = new Map<string, ((e: object) => void)[]>();
+  const added: { id: string }[] = [];
+  const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => ({
+    workerPools: p, groups: g,
+    addTask(t: unknown) { added.push(t as { id: string }); },
+    addEventListener(type: string, fn: (e: object) => void) {
+      subscriptions.push(type);
+      listeners.set(type, [...(listeners.get(type) ?? []), fn]);
+    },
+    shutdown() { return Promise.resolve(); },
+  }) as never;
+  /** One scheduler event, dispatched as an `EventTarget` would: every listener on that name, in order. */
+  const emit = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+  const detail = (id: unknown, state: string) => ({
+    id, state, result: state === 'done' ? { ok: true } : null, error: state === 'done' ? undefined : 'boom',
+    attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1,
+  });
+  const done = (id: unknown) => emit('task.completed', detail(id, 'done'));
+  return { subscriptions, added, createScheduler, createPool: seams().createPool, emit, detail, done };
+}
+
+/** What a driver's listener is handed from here on, one id per event — the instrument the suite below describes. */
+function handed(d: Driver): string[] {
+  const seen: string[] = [];
+  const original = (d as unknown as { onEvent: (n: string, x: unknown) => void }).onEvent;
+  Object.defineProperty(d, 'onEvent', {
+    enumerable: false, configurable: true, writable: true,
+    value: function (this: unknown, n: string, x: unknown) {
+      const id = (x as { id?: unknown } | undefined)?.id;
+      seen.push(typeof id === 'string' ? id : '(no string id)');
+      return original.call(this, n, x);
+    },
+  });
+  return seen;
+}
+
+suite('W142 — ADR 0088: a settlement reaches only the driver holding its run id, and an id no driver minted reaches every driver', (test) => {
+  /** Three runs of `FLOW` (one task `a`, then `done`) on ONE runtime, so ONE scheduler, with their reports kept. */
+  function threeRuns() {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const subscribedBeforeAnyRun = [...s.subscriptions];
+    const runs = ['r1', 'r2', 'r3'].map((runId) => {
+      const failures: string[] = [];
+      const unminted: { runId: string; taskId: unknown }[] = [];
+      const { driver, done } = r.start(FLOW, { x: 1 }, {
+        runId,
+        onRunFailure: (f) => { failures.push(f.kind); },
+        onUnmintedTask: (u) => { unminted.push({ runId: u.runId, taskId: u.taskId }); },
+      });
+      return { runId, driver, done, failures, unminted, handed: handed(driver) };
+    });
+    return { s, r, runs, subscribedBeforeAnyRun };
+  }
+  const handedBy = (runs: { handed: string[] }[]) => runs.map((x) => [...x.handed]);
+
+  test('rule 2: the scheduler is subscribed ONCE per settlement event however many runs start — and not at all before the first', () => {
+    const { s, runs, subscribedBeforeAnyRun } = threeRuns();
+    equal(subscribedBeforeAnyRun, [], 'a runtime that has started nothing has subscribed nothing');
+    equal(runs.map((x) => x.driver.runId), ['r1', 'r2', 'r3'], 'the CONTROL: three runs really started on this one runtime');
+    // The driver subscribes to three names (`SETTLEMENT_EVENTS`, `src/driver/driver.ts`): one each, not three each.
+    equal([...s.subscriptions].sort(), ['task.completed', 'task.failed', 'task.user_action'],
+      'one subscription per event NAME — a broadcast would show nine, three per driver');
+  });
+
+  test('rule 4, row 1: a settlement is handed to the driver holding its run id, and to NO other — in all three terminal states', () => {
+    const { s, runs } = threeRuns();
+    s.done('r2:a:-:0');
+    equal(handedBy(runs), [[], ['r2:a:-:0'], []], 'done: r2 alone');
+    // A `failed` is one `task.failed`; a non-optional task out of retries is `task.failed` THEN `task.user_action`, one
+    // object (ADR 0007 rule 2) — two events, both to the one driver.
+    s.emit('task.failed', s.detail('r1:a:-:0', 'failed'));
+    s.emit('task.failed', s.detail('r3:a:-:0', 'user_action'));
+    s.emit('task.user_action', s.detail('r3:a:-:0', 'user_action'));
+    equal(handedBy(runs), [['r1:a:-:0'], ['r2:a:-:0'], ['r3:a:-:0', 'r3:a:-:0']],
+      'failed: r1 alone; user_action: BOTH of its events to r3 alone');
+    equal(runs.map((x) => x.failures), [[], [], []], 'and nothing was reported anywhere — each was its own run`s dispatched task');
+    equal(runs.map((x) => x.unminted), [[], [], []], 'and a parseable id reaches no onUnmintedTask (ADR 0027 rule 4)');
+  });
+
+  test('rule 4, row 2: a parseable run id NO driver of the runtime holds is handed to no driver, and reported by none', () => {
+    const { s, runs } = threeRuns();
+    s.done('r9:a:-:0');
+    s.done('other-runtime:a:-:0');
+    equal(handedBy(runs), [[], [], []], 'what every driver`s tier 1 did with it before, done once by the runtime');
+    equal(runs.map((x) => [x.failures, x.unminted]), [[[], []], [[], []], [[], []]], 'not a failure, not a report (ADR 0023 rule 3)');
+    // And the runs are untouched by it: each still completes on its own settlement.
+    for (const x of runs) s.done(`${x.runId}:a:-:0`);
+    equal(runs.map((x) => fold(x.driver.foldInputs()).outcome), ['completed', 'completed', 'completed'], 'each run completes afterwards');
+  });
+
+  test('rule 4, row 3: an id parseTaskId REFUSES is handed to EVERY driver, which each reports under its own run id (ADR 0027, ID-R5)', () => {
+    const { s, runs } = threeRuns();
+    // Three shapes: a plain non-flow task; an id whose FIRST segment is one of our run ids and whose branch path is
+    // malformed — `split(':')[0]` would hand it to `r1` alone, `parseTaskId` refuses it; and a detail with no id.
+    s.done('nightly-cleanup');
+    s.done('r1:a:x:0');
+    s.done(undefined);
+    const want = ['nightly-cleanup', 'r1:a:x:0', '(no string id)'];
+    equal(handedBy(runs), [want, want, want], 'all three to all three drivers, in the order the scheduler dispatched them');
+    equal(runs.map((x) => x.unminted),
+      runs.map((x) => [
+        { runId: x.runId, taskId: 'nightly-cleanup' }, { runId: x.runId, taskId: 'r1:a:x:0' }, { runId: x.runId, taskId: undefined },
+      ]),
+      'each driver reports each one, under ITS OWN run id, with detail.id uncoerced');
+    equal(runs.map((x) => x.failures), [[], [], []], 'and no run stops for it');
+  });
+
+  test('ID-R4 tier 2 under routing: OUR run id on a task we never dispatched still stops THAT run, and no other', () => {
+    const { s, runs } = threeRuns();
+    s.done('r1:b:-:0');
+    equal(handedBy(runs), [['r1:b:-:0'], [], []], 'routed to r1 by its run id, as rule 4 row 1 says');
+    equal(runs.map((x) => x.failures), [['UndispatchedTask'], [], []], 'r1 stops with UndispatchedTask; r2 and r3 hear nothing of it');
+  });
+
+  test('rule 5, RN-R25: a FINISHED run`s driver still hears its own run id', async () => {
+    const { s, runs } = threeRuns();
+    s.done('r2:a:-:0');
+    const state = await w77Settlement(runs[1]!.done);
+    equal(state.outcome, 'completed', 'the CONTROL: r2 finished');
+    const before = runs[1]!.driver.foldInputs().length;
+    s.done('r2:a:-:0');
+    equal(handedBy(runs), [[], ['r2:a:-:0', 'r2:a:-:0'], []], 'handed again after it completed — the routing keeps it for the runtime`s life');
+    ok(runs[1]!.driver.foldInputs().length > before, 'and its sequence grows, which is RN-R25`s measured reason a run id stays in use');
+  });
+
+  test('rule 7: a Driver built BY HAND on runtime.scheduler is not routed — it subscribes to the scheduler and hears every settlement', () => {
+    const { s, r, runs } = threeRuns();
+    const subscribed = s.subscriptions.length;
+    const byHand = new Driver(FLOW, { ...r.registry, runId: 'hand', scheduler: r.scheduler, joinPolicy: liveToken });
+    const heard = handed(byHand);
+    equal(s.subscriptions.length - subscribed, 3, 'its three subscriptions went to the scheduler itself');
+    s.done('r1:a:-:0');
+    equal([heard, ...handedBy(runs)], [['r1:a:-:0'], ['r1:a:-:0'], [], []], 'the hand-built driver hears r1`s settlement; r2 and r3 still do not');
+  });
+
+  test('a throw out of one driver`s listener does not stop the broadcast to the next, and still reaches the dispatcher', () => {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const reports: string[] = [];
+    // A consumer callback that throws out of the driver's failure path: `onUnmintedTask` throws, the driver's listener
+    // catches it and fails the run (`OR-R10`), and `onRunFailure` throws again — which nothing in the driver catches.
+    r.start(FLOW, { x: 1 }, {
+      runId: 'r1',
+      onUnmintedTask: () => { throw new Error('first'); },
+      onRunFailure: () => { throw new Error('escaped'); },
+    });
+    r.start(FLOW, { x: 1 }, { runId: 'r2', onUnmintedTask: (u) => { reports.push(`${u.runId} ${String(u.taskId)}`); } });
+    throws(() => s.done('nightly-cleanup'), 'escaped', 'the first throw reaches whoever dispatched the event, synchronously, as it did before');
+    equal(reports, ['r2 nightly-cleanup'], 'and r2, after r1 in subscription order, was still handed the event and reported it');
+  });
+});

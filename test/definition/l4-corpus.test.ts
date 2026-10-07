@@ -424,6 +424,8 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W142 — ADR 0088's routing, through `createRuntime`'s scheduler seam, in `test/scheduler/runtime.test.ts`.
+  'W142 — ADR 0088: a settlement reaches only the driver holding its run id, and an id no driver minted reaches every driver',
   // W109 — the BUILT-IN node type and `FD-V46`, in `test/definition/node-type.test.ts`; the no-inner
   // arm on real pools, in `test/scheduler/transform.test.ts`.
   'W109 — the BUILT-IN node type: nameable with no nodeTypes declared, and FD-V46 when it has nothing to do',
