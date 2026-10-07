@@ -7023,6 +7023,19 @@ for (const row of PAIR_ROWS) {
     check(row.key, `${who}: what this driver was HANDED — its own run's settlements and every id no driver minted, ` +
       'nothing of the other run`s (ADR 0088)',
       [...r.delivered].sort(byId), [...pairTaskIds(who), ...row.foreign.map((f) => f.id)].sort(byId));
+    // **W142 (B) — the HARNESS's own observers obey the same rule, and this is what says so.** On a shared runtime
+    // `runFlow` files its listeners on routes keyed by run id (`routeHarnessListener`) and `poolOfTask` keeps the same
+    // set, so what this run's report says the SCHEDULER settled and held is its own four ids plus every unminted one —
+    // the expected list above, from the same two sources. Without the routing each run's sets held the OTHER run's
+    // four as well, which on N runs is the N² `retention.ts scale` measured; no clause before this one could see it,
+    // because every other reader of these two fields looks only for the foreign ids.
+    check(row.key, `${who}: the harness's scheduler observers heard this run and every id no driver minted, nothing of the ` +
+      'other run`s — settledByScheduler and poolOfTask (W142, the maintainer`s answer B)',
+      { settled: [...r.settledByScheduler].sort(byId), pooled: Object.keys(r.poolOfTask).sort(byId) },
+      {
+        settled: [...pairTaskIds(who), ...row.foreign.map((f) => f.id)].sort(byId),
+        pooled: [...pairTaskIds(who), ...row.foreign.map((f) => f.id)].sort(byId),
+      });
   }
 
   // --- what the SCHEDULER saw, which is the only source here that is not the code
@@ -7163,8 +7176,8 @@ for (const row of PAIR_ROWS) {
 /** One per run of the pair row that carries foreign tasks. */
 const PAIR_EXTRA = 2;
 
-/** Per pair row: one distinctness check, ten per run (W142's `delivered` the tenth), seven scheduler-side. */
-const PAIR_PER_RUN = 10;
+/** Per pair row: one distinctness check, eleven per run (W142's `delivered` and harness-routing clauses the last two), seven scheduler-side. */
+const PAIR_PER_RUN = 11;
 const PAIR_CROSS = 8;
 /**
  * Derived from the rows rather than typed. **Nothing currently depends on the
@@ -11223,9 +11236,11 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2466 / 162 since W140** — +1, DERIVED before the file was re-run: the `map / FD-R2` row declares
 // `stoppedByNamesItOnce`, one clause on one row (the per-row extra `e.stoppedByNamesItOnce ? 1 : 0`). No row, no run and
 // no `CROSS_ROW` term moved.
-// **2470 / 162 since W142** — +4, DERIVED before the file was re-run: ADR 0088's `delivered` clause, once per run of each
-// of the two pair rows (`PAIR_PER_RUN` 9 -> 10, two rows x two runs). No row, no run and no `CROSS_ROW` term moved.
-const DECLARED_TOTAL = 2470;
+// **2474 / 162 since W142** — +8, DERIVED before the file was re-run: two clauses per run of each of the two pair rows
+// (`PAIR_PER_RUN` 9 -> 11, two rows x two runs x two): ADR 0088's `delivered`, and the harness-routing clause the
+// maintainer's answer (B) to W142's prediction-3 stop needed. *(2470 for the hours between the first and the second.)*
+// No row, no run and no `CROSS_ROW` term moved.
+const DECLARED_TOTAL = 2474;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
