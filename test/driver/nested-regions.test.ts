@@ -962,7 +962,7 @@ suite('L2 — W85: the at-most-once latch is per INSTANCE — Q95`s precondition
       '"0")` is false here and `after` is minted again at the same id');
     equal(h.failures, [],
       'so no run failure — which is the assertion the mutation moves: with the latch one level ' +
-      'short this reads `DuplicateTaskId: "r1:after:0:0" was already dispatched in run "r1"`, ' +
+      'short this reads, as `${kind}: ${message}`, `DuplicateTaskId: "r1:after:0:0" was already dispatched in run "r1"`, ' +
       'reported through `onRunFailure` and stopping the run. ID-R1 catches it BEFORE addTask, ' +
       'which is why the id list above is unmoved either way and this list is not');
   });

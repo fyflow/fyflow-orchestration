@@ -620,7 +620,8 @@ suite('map — branchPath is a property of the DISPATCH (spec/task-id.md v0.8, I
     throws(() => branchPathOf(regions, 'score'), 'crosses map region',
       'and its own phrasing, so a sibling guard cannot answer for it');
     // The class, not merely a throw — a caller has to be able to tell this from a
-    // bug. `throws()` matches on the message, so the class is asserted separately.
+    // bug. `throws()` matches `${name}: ${message}` since W140, and the `instanceof` below stays because it is
+    // stronger: it is the class itself, not a string that happens to contain its name.
     let caught: unknown;
     try { branchPathOf(regions, 'score'); } catch (e) { caught = e; }
     ok(caught instanceof UnresolvedBranchPath, 'it is an UnresolvedBranchPath');
