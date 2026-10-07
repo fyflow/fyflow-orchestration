@@ -164,6 +164,7 @@ learns reaches the next item's declaration.
 | [Q534](../questions/q534.md) | raised by W133: `AGENTS.md` states the inline-only `OR-R6` behaviour generally | W134, by stop-and-ask (g) |
 | [Q536](../questions/q536.md) | raised by W131: the `ran:` guard has a checked-in case in one self-test of six | no owner |
 | [Q541](../questions/q541.md) | raised by W132: `test:browser` reports any failing node baseline as *could not establish* it, and chromium alone never reports a bundle that throws on import | no owner |
+| [Q542](../questions/q542.md) | raised by W134: `doc/README.md`'s stale claims that no command derives, which decision 3 does not reach (stop-and-ask (h)) | no owner |
 
 ## Out
 
