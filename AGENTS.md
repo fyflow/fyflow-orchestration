@@ -3536,8 +3536,9 @@ if ([...(distinct.keyResolvedRoutes ?? [])].join() !== 'first,duplicate') throw 
 
 // ---- 5. and it runs. ONE run, so the quota is shared by every branch. ----
 // `base` is the REGISTRY's own url, never the caller's: its worker urls are relative to the module that
-// declares them. Point it at the wrong base and the workers cannot load, which does not fail the run —
-// the tasks stay pending for ever (Q266), so this is a line to get right rather than to debug.
+// declares them. Point it at the wrong base and the workers cannot load: every task of each such type fails
+// naming the worker URL and the load error — on a non-optional node it is parked user_action, so `done` waits
+// on a person (W141, Q266) — so this is a line to get right rather than to debug.
 const runtime = createRuntime(QUOTA_REGISTRY, { gateTypes: { quota: QUOTA } }, { base: QUOTA_BASE });
 const { done } = runtime.start(quotaFlow('owner.id'), { files: QUOTA_FILES });
 const state = await done;
