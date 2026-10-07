@@ -941,6 +941,13 @@ export interface RunReport {
    * own surface.
    */
   unmintedTasks: readonly UnmintedTask[];
+  /**
+   * **Every task id this run's driver was HANDED, one per scheduler event, in arrival order** — W142,
+   * `onDelivery`. On a runtime, ADR 0088 makes it this run's own settlement events plus every
+   * id `parseTaskId` refuses; before it, it was every settlement on the scheduler. The pair rows
+   * assert it as a SET, never in order (`doc/workflow.md` section 5 rule 5).
+   */
+  delivered: readonly string[];
   /** W55 — see `Retention`. Measured on every run; asserted by the RELATION, never by the bytes. */
   retention: Retention;
   /**
@@ -1381,6 +1388,40 @@ export interface PairFacts {
  */
 const rawArrivalsOf = (d: Driver): Map<string, Map<string, Map<string, unknown>>> =>
   (d as unknown as { arrivals: Map<string, Map<string, Map<string, unknown>>> }).arrivals;
+
+/**
+ * **What a driver's listener is HANDED, one entry per scheduler event, the task id as it arrived** —
+ * W142, and it is the observer of ADR 0088's one claim: *a settlement reaches only its own run's
+ * driver, and an id no driver minted reaches every driver.*
+ *
+ * **The instrument is on the driver's ENTRY, not on the scheduler and not on the router.** The
+ * driver's three subscriptions call `this.onEvent(name, detail)` by property lookup at call time, so an
+ * own property on the instance shadows the prototype's method and sees every event the driver hears,
+ * from whatever delivered it — the scheduler's broadcast before ADR 0088, the runtime's routing after.
+ * Installed synchronously after `runtime.start` returns, which is before anything can settle: the
+ * scheduler settles a task from a promise's `then` (`_dispatchTask`), never inside `addTask`. The id is
+ * copied as a string and nothing else is retained (`OR-R1`); an event with no string id is recorded
+ * as `'(no string id)'`, which no driver mints. **It hands each id to `seen` and keeps nothing itself**,
+ * so a caller that only COUNTS retains nothing per event — `examples/retention.ts`'s topology mode, where
+ * a broadcast hands 1600 drivers fifteen million events and an array of them would be most of the heap
+ * it is measuring (rule 8 obligation (c): what the instrument RETAINS).
+ *
+ * *It reads a private member, as `rawArrivalsOf` above does and for the same reason: a public accessor
+ * for a test's convenience is surface (Q53).*
+ */
+export function onDelivery(d: Driver, seen: (taskId: string) => void): void {
+  const original = (d as unknown as { onEvent: (name: string, detail: unknown) => void }).onEvent;
+  // **NON-enumerable**, so the driver's own field list — which `retainedBytes` walks and the `cross-row` census holds both
+  // ways, by `Object.keys` — does not gain an `onEvent` the driver never declared. Found by that census on the first run.
+  Object.defineProperty(d, 'onEvent', {
+    enumerable: false, configurable: true, writable: true,
+    value: function (this: unknown, name: string, detail: unknown) {
+      const id = (detail as { id?: unknown } | undefined)?.id;
+      seen(typeof id === 'string' ? id : '(no string id)');
+      return original.call(this, name, detail);
+    },
+  });
+}
 
 const arrivalsOf = (d: Driver): Map<string, Map<string, unknown>> => {
   const out = new Map<string, Map<string, unknown>>();
@@ -2097,6 +2138,9 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // LIMIT's ideal and is said here rather than overstated (the same reader, finding 8).
   const { driver } = runtime.start(definition, payload, startOptions);
   driverRef.current = driver;
+  // W142: what this driver is handed, from here on — see `onDelivery` and `RunReport.delivered`.
+  const delivered: string[] = [];
+  onDelivery(driver, (id) => delivered.push(id));
   // **Read OFF THE DRIVER, not from the option** — `Driver.runId` is readable since W66 precisely so
   // a caller can learn a minted one, and this is the only thing that makes the shim run's id a fact
   // about the runtime rather than about this file.
@@ -2266,6 +2310,7 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     unsatisfiableJoins,
     failureKinds,
     unmintedTasks,
+    delivered,
     lateInputs,
     branchesOverlapped,
     retention,

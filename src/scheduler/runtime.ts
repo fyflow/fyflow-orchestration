@@ -61,7 +61,8 @@ import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGr
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { checkGateTypes, groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver, resumeRefusal } from '../driver/driver.ts';
-import type { Checkpoint, CheckpointHeader, DriverOptions } from '../driver/driver.ts';
+import type { Checkpoint, CheckpointHeader, DriverOptions, SchedulerLike } from '../driver/driver.ts';
+import { InvalidTaskId, parseTaskId } from '../driver/ids.ts';
 import { liveToken } from '../fold/policies.ts';
 import { emptyState, isTerminal, step } from '../fold/run-state.ts';
 import type { FoldInput, RunState } from '../fold/run-state.ts';
@@ -512,12 +513,16 @@ export function createRuntime(
   /**
    * **Every run id a driver of THIS runtime holds** — `RN-R25`, [Q364](../../doc/questions/q364.md), P23 stop-and-ask (b),
    * answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's**, and that is a
-   * measurement rather than caution: a driver subscribes to the scheduler at construction and `SchedulerLike` has no way to
-   * unsubscribe it, so a completed run's driver still hears every settlement carrying its run id — a second run under that
-   * id would have its settlements appended to the first run's sequence, and the first run's checkpoint would change after it
-   * completed. So *live* here means *a driver of this runtime holds it*, which is every run it started or resumed.
+   * measurement rather than caution: a driver subscribes at construction and `SchedulerLike` has no way to unsubscribe it —
+   * since [ADR 0088](../../doc/decisions/0088-a-runtime-routes-each-settlement-to-the-driver-holding-its-run-id.md) to this
+   * runtime's ROUTER, which keeps it for the runtime's life (rule 5) — so a completed run's driver still hears every
+   * settlement carrying its run id: a second run under that id would have its settlements appended to the first run's
+   * sequence, and the first run's checkpoint would change after it completed. So *live* here means *a driver of this runtime
+   * holds it*, which is every run it started or resumed.
    */
   const inUse = new Set<string>();
+  /** **ADR 0088** — every driver this runtime builds hears its own run's settlements and no other run's. */
+  const router = settlementRouter(scheduler);
   const mint = (): string => {
     let id: string;
     do id = `r${++minted}`; while (inUse.has(id));
@@ -635,6 +640,12 @@ export function createRuntime(
     };
     // **The whole of `registry`, spread** — which is what makes decision 14's claim true: a
     // consumer who writes this line by hand passes the same object, `predicates` included.
+    // **A per-run VIEW of the scheduler, not the scheduler** — ADR 0088 rule 1. `addTask` is the scheduler's own; a
+    // listener the driver attaches is held by the runtime's router under THIS run id, so a settlement reaches this driver
+    // only when its task id names this run (or names no run at all, which every driver must hear — ADR 0027). **It SHADOWS
+    // the runtime's `scheduler` for the rest of this function, on purpose**: the literal below cannot hand a driver the
+    // scheduler itself by accident, and it stays the bare `scheduler,` line W76's binding reads as road (a).
+    const scheduler = router.forRun(runId);
     const driver = new Driver(flow, {
       runId,
       scheduler,
@@ -679,6 +690,86 @@ export function createRuntime(
     // one: the entry payload would be the caller's own object, which the caller can still mutate.
     return { driver, done, header: driver.checkpoint().header };
   }
+}
+
+/**
+ * **ADR 0088 — the runtime ROUTES each settlement to the driver holding its run id**, where one shared scheduler used to
+ * broadcast it to every driver and `ID-R4` tier 1 dropped all but one: N runs settling `k` times each cost `N² x k`
+ * deliveries ([Q244](../../doc/questions/q244.md), W55's measurement, re-taken by W142).
+ *
+ * **What it does, rule by rule.** `forRun(runId)` is the `SchedulerLike` a driver is handed (rule 1): `addTask` is the
+ * scheduler's own, and `addEventListener` files the listener under `runId` and that event name. The scheduler is subscribed
+ * ONCE per event name, by the first driver that asks (rule 2). Each event is read for `detail.id` and nothing else, and that
+ * id is put through `parseTaskId` — `ID-R4`'s tier-0 parse, the same function, so the grammar is in one place (rule 3).
+ * Then (rule 4): a run id some driver here holds goes to that run's listeners and to no other; a run id none holds goes
+ * nowhere, which is what every driver's tier 1 did with it; and an id that does not parse — or is not a string — goes to
+ * EVERY driver subscribed to that event, in subscription order, so each still reports it through `onUnmintedTask` under
+ * its own run id (ADR 0027 rule 3). Nothing is ever removed (rule 5, `RN-R25`).
+ *
+ * **Why `parseTaskId` and not the cheaper `split(':')[0]`.** `pc:ingest:x:0` has a run-id-shaped first segment and does
+ * not parse: split would route it to `pc` alone and every other driver would stop reporting it. L6's second pair row
+ * carries that id for exactly this.
+ *
+ * **A listener that throws does not starve the others, and its throw still reaches whoever dispatched the event.** A
+ * driver's own listener catches everything its routing raises (`OR-R10`); what can still escape is a consumer's callback —
+ * `onFoldInput` or `onRunFailure` — throwing out of the driver's failure path. Before ADR 0088 that throw left the driver's
+ * listener and reached the scheduler's `dispatchEvent`, which reports it; it still does, because the FIRST throw is
+ * re-thrown here after the loop, synchronously — so a run's single routed listener throws exactly as it did. Only the
+ * broadcast row can hand one event to several drivers, and there the loop finishes first: every later throw is re-raised on
+ * a microtask, as `dispatchEvent` reports each listener's on its own. *(Isolating EVERY throw onto a microtask was the first
+ * version, and `test/scheduler/runtime.test.ts`'s W77 case — a consumer's `onFoldInput` throwing, over a scheduler double
+ * that calls listeners directly — took the process down: the throw that used to unwind to the double's caller became an
+ * uncaught exception.)*
+ */
+function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): SchedulerLike } {
+  type Listener = (e: object) => void;
+  /** run id -> event name -> the listeners filed under it. */
+  const byRun = new Map<string, Map<string, Listener[]>>();
+  /** event name -> every listener filed under it, in subscription order — rule 4's third row. */
+  const every = new Map<string, Listener[]>();
+  const deliver = (name: string): Listener => (e) => {
+    const detail = 'detail' in e ? (e as { detail?: unknown }).detail : undefined;
+    const id = typeof detail === 'object' && detail !== null ? (detail as { id?: unknown }).id : undefined;
+    let runId: string | null = null;
+    if (typeof id === 'string') {
+      try {
+        runId = parseTaskId(id).runId;
+      } catch (err) {
+        if (!(err instanceof InvalidTaskId)) throw err;
+      }
+    }
+    const listeners = runId === null ? every.get(name) : byRun.get(runId)?.get(name);
+    if (listeners === undefined) return;
+    let first: { err: unknown } | null = null;
+    for (const listener of listeners) {
+      try {
+        listener(e);
+      } catch (err) {
+        if (first === null) first = { err };
+        else queueMicrotask(() => { throw err; });
+      }
+    }
+    if (first !== null) throw first.err;
+  };
+  return {
+    forRun(runId) {
+      return {
+        addTask: (task, options) => scheduler.addTask(task, options),
+        addEventListener(name, listener) {
+          let mine = byRun.get(runId);
+          if (mine === undefined) byRun.set(runId, mine = new Map());
+          mine.set(name, [...(mine.get(name) ?? []), listener]);
+          const all = every.get(name);
+          if (all === undefined) {
+            every.set(name, [listener]);
+            scheduler.addEventListener(name, deliver(name));
+          } else {
+            all.push(listener);
+          }
+        },
+      };
+    },
+  };
 }
 
 /** Re-exported so a consumer can read what a schema-bearing built-in admits without importing the pure entry. */
