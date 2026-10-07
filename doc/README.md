@@ -71,8 +71,8 @@ sibling was deleted by a recursive tool following a `node_modules` junction.
 | Repo | Owns | Pinned to |
 |---|---|---|
 | [`fyflow-scheduler`](https://github.com/fyflow/fyflow-scheduler) | executing independent tasks: pools, resource groups, retry, spawn | — |
-| **`fyflow-orchestration`** (here) | **control flow**: sequence, decision, fan-out, join | — |
-| `fyflow-react-components` | visualizing a scheduler: collector, wire envelopes, React components | scheduler 0.2.1 — **needs the same bump**; 0.3.0 is what unblocks its `3a`/`3b` views |
+| **`fyflow-orchestration`** (here) | **control flow**: sequence, decision, fan-out, join | `package.json` |
+| `fyflow-react-components` | visualizing a scheduler: collector, wire envelopes, React components | scheduler 0.2.1; 0.3.0 is what unblocks its `3a`/`3b` views |
 
 Deliberate overlaps, which are coordination points rather than duplication:
 
