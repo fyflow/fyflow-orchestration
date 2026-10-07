@@ -7,15 +7,15 @@ item: W142
 raised-by: Q244, P31
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q244
 ---
 
 # ADR 0088 — A runtime routes each settlement to the driver holding its run id, and broadcasts only an id no driver minted
 
 **Status:** accepted — P31 decision 2, the maintainer's direction for [Q244](../questions/q244.md)
-(2026-10-07), written and measured by W142. *`resolves` is filled at W142's record step, when Q244's
-`resolved-by` names this ADR: `check:register`'s `R8` compares the two both ways, so the one cannot be
-written before the other.*
+(2026-10-07), written and measured by W142. *`resolves` was filled at W142's record step, with Q244's
+`resolved-by`: `check:register`'s `R8` compares the two both ways, so the one could not be written before
+the other.*
 
 ## Context
 

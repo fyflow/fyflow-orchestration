@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 done 2026-10-07 (Record below)
+**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07 (Record below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -148,3 +148,28 @@ rule-8 passes; this section names what the PLAN needs from it.
   `doc/concept.md` are untouched.
 - **Overlap**: FOUR shared subjects, the eighty-fourth measurement — the count a retro carries forward.
 - **The confirming gate**: `npm run gate:item` EXIT 0 on `74d3487`, once, on a still tree (decision 4).
+
+**W142 — done 2026-10-07.** Its own Record covers the gate, the scaling figures, both readers and the rule-8
+passes; this section names what the PLAN needs from it.
+
+- **Closed: Q244**, its `resolved-by` naming P31 W142 and ADR 0088, whose `resolves` lists it. **Raised: none.**
+  Prediction 1 held for W142. On W142's tree `npm run q -- --where status=open --count` prints **12**.
+- **Prediction 2 held**: ADR 0088 is the one ADR. ADR 0089 is unused.
+- **Prediction 3 held, after one stop.**
+  - The library alone is linear: the events handed to drivers go from 6N² to 6N.
+  - W55's own command stayed super-linear after the routing. The cause was the L6 harness, which files eight
+    listeners per run on the scheduler and copied `scheduler.tasks` into each report.
+  - The maintainer answered **(B)** on 2026-10-07: route the harness too.
+  - W55's command is now linear in wall and heap: 904 ms and 68.0 MiB at N = 800 shared, against 13 652 ms and
+    879 MiB on `7ba87df`.
+- **Stop-and-ask (a) was not needed.** The routing changes no public surface: `start` and `resume` return the
+  same handle, and nothing new is exported.
+- **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are untouched.
+- **Counts:**
+  - L1-L5 went from 1528 to **1538** in node, deno and chromium, the W142 suite's ten.
+  - L6 went from 2466 to **2474** assertions over 162 runs: two per-run clauses on the two pair rows.
+- **What W141 inherits:**
+  - ID-R4 tier 1 is no longer reachable at L6. Its coverage is L2's.
+  - `runPair` refuses a shared pair that filed no routed harness registration.
+- **Overlap**: FOUR shared subjects, the eighty-fifth measurement.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `81b0ed9`, once, on a still tree (decision 4).

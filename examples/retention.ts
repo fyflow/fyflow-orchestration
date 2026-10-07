@@ -284,10 +284,11 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
   // so.** `AGENTS.md` §9 recommends the shared-scheduler topology and
   // [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md)
   // makes it supported, so *N runs at once* has two readings — one scheduler with N
-  // drivers subscribed, or N schedulers. Every settlement on a shared scheduler is
-  // delivered to **every** driver's listener and `ID-R4` tier 1 drops the ones that
-  // are not that run's, so the second reading is the one that is linear in N. Run
-  // both; the difference is the topology's, not the driver's.
+  // drivers subscribed, or N schedulers. Until ADR 0088 every settlement on a shared
+  // scheduler was delivered to every driver's listener and `ID-R4` tier 1 dropped the
+  // ones that were not that run's, so only the second reading was linear in N; since
+  // W142 the runtime routes and the harness does too, and both are. Run both: the
+  // process's share still differs, by one scheduler against N.
   // The flow handed to the runtime is inert here — no node of `map-alias` transforms, so no pool
   // loads an engine — but `createRuntime` requires the flows rather than defaulting them (W63).
   // **`delayMs: 0`** is the document override this mode exists to use: hundreds of runs want none of
