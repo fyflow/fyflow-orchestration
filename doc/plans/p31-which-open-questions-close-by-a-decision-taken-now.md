@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07 (Record below)
+**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141 done 2026-10-08 (Record below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -111,7 +111,7 @@ closed and raised.
 | | the question | answer |
 |---|---|---|
 | **(a)** | Q244: if routing by run id cannot be done without changing what `start()` returns or what a consumer must pass, does W142 change the public surface or stop at the measurement? | *open — W142 asks* |
-| **(b)** | Q266: if W61's road cannot fail the tasks without the scheduler's cooperation, does the hang stay documented and an upstream want go to `doc/scheduler-upstream.md`? | *open — W141 asks* |
+| **(b)** | Q266: if W61's road cannot fail the tasks without the scheduler's cooperation, does the hang stay documented and an upstream want go to `doc/scheduler-upstream.md`? | **NOT NEEDED** — W141 measured that the envelope alone closes the hang (6 of 6 hung before, 6 of 6 completed after); no scheduler cooperation, no upstream want |
 | **(c)** | Q142: if no derivation from the probe trees is stable, are the floors retuned once more and Q142 re-asked? | *open — W144 asks* |
 | **(d)** | ~~Scope and the four directions~~ | **ANSWERED by the maintainer, 2026-10-07** (decisions 1 and 2) |
 
@@ -173,3 +173,22 @@ passes; this section names what the PLAN needs from it.
   - `runPair` refuses a shared pair that filed no routed harness registration.
 - **Overlap**: FOUR shared subjects, the eighty-fifth measurement.
 - **The confirming gate**: `npm run gate:item` EXIT 0 on `81b0ed9`, once, on a still tree (decision 4).
+
+**W141 — done 2026-10-08.** Its own Record covers the gate, the measurement, both readers and the rule-8
+passes; this section names what the PLAN needs from it.
+
+- **Closed: Q266 and Q283**, each `resolved-by` naming P31 W141. **Raised: none** (Q559-Q561 unused).
+  Prediction 1 held for W141. On W141's tree `npm run q -- --where status=open --count` prints **10**.
+- **Prediction 2 held**: no ADR; ADR 0089 is unused. ADR 0051 (F1's correction) and ADR 0075 (rule 4's
+  now-false *setup() has refused that*) were corrected at the record step.
+- **Stop-and-ask (b) was not needed**: the envelope worker alone closes the hang.
+- **Workflow section 1 rule 6 fired twice, both asked and answered YES** (2026-10-07): `AGENTS.md`'s section-20
+  sentence, and `scripts/build-browser-tests.mjs`'s one corpus line. Neither is on this plan's W141 row.
+- **One ask is outstanding for the maintainer**: `spec/flow-definition.md` section 2's single-task F1 sentence
+  does not reproduce on 0.5.2 (a single task with no retry settles; several tasks, or a retry, hang).
+- **Counts:** L1-L5 went from 1538 to **1580** in node, deno and chromium; L6 from 2474 / 162 to **2487 / 164**
+  in node and deno — the setup-fails block's two runs.
+- **What W145 inherits**: `scripts/build-browser-tests.mjs` gained one corpus line (`src/definition/registry.ts`).
+- **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are untouched.
+- **Overlap**: THREE shared subjects, the eighty-sixth measurement.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `511a009`, once, on a still tree (decision 4).
