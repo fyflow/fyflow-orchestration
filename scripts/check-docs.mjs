@@ -936,7 +936,8 @@ const README_SNIPPETS = [
 // section 20's pair — the same ratchet, and the three edits are one diff. **What this floor does NOT have is
 // `RUN_FLOOR`'s self-test probe**: W101's adequacy reader (F12) lowered it to 7 and `check:docs:selftest` was
 // EXIT 0 at 50/50 and 28/28, where lowering `RUN_FLOOR` is CAUGHT by name. A declared CEILING, and
-// [Q102](../doc/questions/q102.md)'s shape on one of two floors that carry it.
+// [Q102](../doc/questions/q102.md)'s shape on one of two floors that carry it *(closed since W131:
+// `check-docs-selftest.mjs`'s source-text bound holds the floor — Q439)*.
 // **3 since [W107](../doc/work-items/w107-the-readme-is-for-a-person-who-will-use-the-library.md), and it
 // went DOWN, which is the only time that has happened to a floor here.** A ratchet lowered is how a
 // deliverable leaves ([Q102](../doc/questions/q102.md)), so this is legitimate only because the thing
