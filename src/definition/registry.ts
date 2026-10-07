@@ -385,14 +385,44 @@ export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; p
   // **The gate types first, v0.23 (W92)** — a consumer's, beside the built-ins. Every entry of a kind before
   // the next kind is read (this module's rule), so the refusal names the first defect.
   checkGateTypes(reg.gateTypes);
-  const workers = workersOf(reg.workers);
+  checkRegistryShape(reg.workers, reg.nodeTypes, reg.pools);
+}
+
+/**
+ * **The registry's SHAPE, in ONE function, and BOTH roads call it** —
+ * [W141](../../doc/work-items/w141-a-worker-that-cannot-set-up-fails-its-tasks-and-the-registry-has-one-shape.md),
+ * [Q283](../../doc/questions/q283.md), P31 decision 3: `checkRegistry` (what `new Driver` and
+ * `bootstrap` run over the registry they are handed) and `resolveRegistry` (what `createRuntime` runs
+ * over a DOCUMENT). Until W141 they were two functions with two copies of every check below, and the
+ * copies diverged TWICE: at W65 `checkRegistry` lacked the undeclared-key check on a worker and on a
+ * pool (its adequacy reader's P1 and P2 — a hand-built `Driver` handed `settingSchema` applied no
+ * schema at all), and at W109 it lacked the built-in collision `resolveRegistry` refused (that item's
+ * two readers' shared subject). A check written here is made on both roads or on neither.
+ *
+ * It takes what BOTH callers hold: the workers, the consumer's node types (this function appends the
+ * built-ins, `nodeTypesOf`'s reading) and the named pools — each a `Map` or a plain object. What is
+ * only a DOCUMENT's stays in `resolveRegistry`: its own top-level shape, the sections, group types and
+ * groups, the document-against-code collision, a document type's declared groups, the derivations,
+ * the predicates and the languages. Every entry of a kind is checked before the next kind is read, in
+ * the order workers, node types, pools — so a bad pool AND a bad worker names the worker (spec section
+ * 3's refusal table).
+ */
+function checkRegistryShape(rawWorkers: Workers | undefined, rawNodeTypes: NodeTypes | undefined, rawPools: Pools | undefined): void {
+  const workers = workersOf(rawWorkers);
   for (const [name, w] of workers) {
     if (!isPlainObject(w)) throw new UndeclaredKey(name, `worker ${q(name)} is not an object`);
     // The adequacy reader (P1): a worker entry's undeclared key — `settingSchema`, a typo of
     // `settingsSchema` — was accepted here and refused by the resolver, so a hand-built Driver applied
-    // no schema and every settings value passed. The same lists the resolver reads, at the driver.
+    // no schema and every settings value passed. Since W141 there is no second copy to disagree with.
     noUndeclared('worker', name, w as unknown as Record<string, unknown>, WORKER_KEYS);
-    if (typeof w.url !== 'string' || w.url.length === 0) throw new WorkerMissing(name, `worker ${q(name)} has no url — the module URL of its worker class`);
+    if (typeof w.url !== 'string' || w.url.length === 0) {
+      throw new WorkerMissing(name, `worker ${q(name)} has no url — the module URL of its worker class (a registry document's may be relative, resolved against the runtime's base)`);
+    }
+    // ALL four schemas are held to the subset at construction — a malformed inputSchema is a registry
+    // defect the day it is written, and a run reads it once, at start() (FD-R4, W73) — and two are applied
+    // to every dispatch. Since v0.20 (ADR 0056, W72) that check holds every declared `examples` to the
+    // schema it sits on, so an example that refutes its schema is refused here, by name, and never
+    // trusted by the authoring-time tools that run on it.
     for (const f of WORKER_KEYS.slice(1)) checkSchema(name, f, (w as unknown as Record<string, unknown>)[f]);
   }
   // **A node type named as a BUILT-IN is refused HERE too, and that is a repair** — W109's conformity
@@ -404,19 +434,21 @@ export function checkRegistry(reg: { workers?: Workers; nodeTypes?: NodeTypes; p
   // lines up**: `checkGateTypes` refuses a gate-type collision on this same road (`FD-V39`'s third
   // clause), which is what ADR 0075 rule 5's *the third kind now agrees with both* claims and did not
   // have. `nodeTypeCollisions` was exported and called by nothing.
-  for (const name of nodeTypeCollisions(reg.nodeTypes)) {
-    throw new NameCollision(name, `node type ${q(name)} is registered in nodeTypes and is a BUILT-IN node type (${Object.keys(BUILT_IN_NODE_TYPES).map(q).join(', ')}) — ` +
+  for (const name of nodeTypeCollisions(rawNodeTypes)) {
+    throw new NameCollision(name, `node type ${q(name)} is registered as a node type and is a BUILT-IN node type (${Object.keys(BUILT_IN_NODE_TYPES).map(q).join(', ')}) — ` +
       'one namespace, one definition per name; a built-in is never replaced, so the entry given here would be discarded in silence');
   }
-  const types = nodeTypesOf(reg.nodeTypes);
+  const types = nodeTypesOf(rawNodeTypes);
   for (const [name, t] of types) {
     checkNodeTypeShape(name, t, name in BUILT_IN_NODE_TYPES);
+    // A type that only transforms names no worker (ADR 0075) and is exempt BY THE PROPERTY, not by its
+    // name; `checkNodeTypeShape` above is what keeps a CONSUMER's type from reaching here worker-less.
     if (t.worker !== undefined && !workers.has(t.worker)) {
       throw new WorkerMissing(name, `node type ${q(name)} names worker ${q(t.worker)}, which the registry's workers does not declare` +
         (workers.size ? ` (it declares ${[...workers.keys()].sort().map(q).join(', ')})` : ' (it declares none)'));
     }
   }
-  for (const [key, p] of poolsOf(reg.pools)) {
+  for (const [key, p] of poolsOf(rawPools)) {
     if (!isPlainObject(p)) throw new UndeclaredKey(key, `pool ${q(key)} is not an object`);
     noUndeclared('pool', key, p as unknown as Record<string, unknown>, INSTANCE_KEYS);   // P2: an inert `maxThreads` on an instance, refused as the resolver refuses it
     // **The message names a BUILT-IN as the library's** — v0.29, W110's conformity reader (19): `types` is
@@ -464,20 +496,22 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     return v;
   };
 
-  // ---- workers: the URL and the four schemas, two of them checked ----
-  const workers = new Map<string, WorkerEntry>();
-  for (const [name, raw] of Object.entries(sections('workers', doc.workers))) {
-    if (!isPlainObject(raw)) throw new UndeclaredKey(name, `worker ${q(name)} is not an object`);
-    noUndeclared('worker', name, raw, WORKER_KEYS);
-    if (typeof raw.url !== 'string' || raw.url.length === 0) throw new WorkerMissing(name, `worker ${q(name)} has no url — the module URL of its worker class, resolved against the runtime's base when relative`);
-    // ALL four schemas are held to the subset at construction — a malformed inputSchema is a registry
-    // defect the day it is written, and a run reads it once, at start() (FD-R4, W73) — and two are applied
-    // to every dispatch. Since v0.20 (ADR 0056, W72)
-    // that check holds every declared `examples` to the schema it sits on, so an example that refutes
-    // its schema is refused here, by name, and never trusted by the authoring-time tools that run on it.
-    for (const f of WORKER_KEYS.slice(1)) checkSchema(name, f, raw[f]);
-    workers.set(name, raw as unknown as WorkerEntry);
+  // ---- the SHAPE, by the one function `checkRegistry` runs too (W141, Q283) ----
+  // What is only a DOCUMENT's comes first: its sections, and the collision between the document's node
+  // types and `code`'s classes, which a hand-built registry has no two halves to commit.
+  const declared = sections('nodeTypes', doc.nodeTypes);
+  const classes = code.nodeTypes ?? {};
+  for (const name of Object.keys(classes)) {
+    if (name in declared) throw new NameCollision(name, `node type ${q(name)} is declared in the document's nodeTypes AND registered as a class in code — one namespace, one definition per name`);
   }
+  const rawWorkers = sections('workers', doc.workers);
+  const rawPools = sections('pools', doc.pools);
+  // **THREE namespaces since v0.28, where every other kind here has two** — the built-ins, the
+  // document's `nodeTypes` and `code`'s classes (W109, ADR 0075 rule 5). A consumer's name colliding
+  // with a built-in's is refused on the document road and the code road alike, by the one function,
+  // because the merged map carries both — and the built-in is never replaced.
+  checkRegistryShape(rawWorkers as unknown as Workers, { ...declared, ...classes } as NodeTypes, rawPools as unknown as Pools);
+  const workers = new Map<string, WorkerEntry>(Object.entries(rawWorkers).map(([name, raw]) => [name, raw as unknown as WorkerEntry]));
 
   // ---- group types: the three built-ins and the custom ones, one namespace ----
   const groupTypes = new Map<string, GroupType | { configSchema: JsonSchema }>();
@@ -510,22 +544,6 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
 
   // ---- node types: document declarations and code classes, one namespace ----
   const nodeTypes = new Map<string, NodeTypeDefinition>();
-  const declared = sections('nodeTypes', doc.nodeTypes);
-  const classes = code.nodeTypes ?? {};
-  for (const name of Object.keys(classes)) {
-    if (name in declared) throw new NameCollision(name, `node type ${q(name)} is declared in the document's nodeTypes AND registered as a class in code — one namespace, one definition per name`);
-  }
-  // **THREE namespaces since v0.28, where every other kind here has two** — the built-ins, the
-  // document's `nodeTypes` and `code`'s classes (W109, ADR 0075 rule 5). The clause above was the only
-  // one and it compares the last two; measured at W109's declaration step, both roads accepted the name
-  // `Transform` before this. **A collision is REFUSED in both new directions and the built-in is never
-  // replaced**, which is what a custom group type colliding with a built-in does (`registry.ts`, below)
-  // and what a custom gate type does (`gateTypeCollisions`) — one namespace, one definition per name.
-  for (const [where, section] of [["the document's nodeTypes", declared], ['code', classes]] as const) {
-    for (const name of nodeTypeCollisions(section as NodeTypes)) {
-      throw new NameCollision(name, `node type ${q(name)} is declared in ${where} and is a BUILT-IN node type (${Object.keys(BUILT_IN_NODE_TYPES).map(q).join(', ')}) — one namespace, one definition per name; a built-in is never replaced`);
-    }
-  }
   // **The built-ins are NOT stored here, and `ResolvedRegistry` is why.** It has no `gateTypes` field
   // at all: a gate type is never stored and is merged at every READ by `gateTypesOf`, which is the
   // precedent ADR 0075 rule 5 cites, and `nodeTypesOf` merges the node types the same way. Seeding
@@ -538,14 +556,8 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     ...Object.entries(classes).map(([n, c]) => [n, c] as [string, NodeTypeEntry]),
   ];
   for (const [name, entry] of entries) {
-    checkNodeTypeShape(name, entry, name in BUILT_IN_NODE_TYPES);
+    // Its shape and its worker were held by `checkRegistryShape` above.
     const def = isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry);
-    // A type that only transforms names no worker (ADR 0075) and is exempt BY THE PROPERTY, not by its
-    // name; `checkNodeTypeShape` above is what keeps a CONSUMER's type from reaching here worker-less.
-    if (def.worker !== undefined && !workers.has(def.worker)) {
-      throw new WorkerMissing(name, `node type ${q(name)} names worker ${q(def.worker)}, which the registry document's workers does not declare` +
-        (workers.size ? ` (it declares ${[...workers.keys()].sort().map(q).join(', ')})` : ' (it declares none)'));
-    }
     // A DOCUMENT type's declared groups are checked here by name, before any derivation runs, so the
     // message names the declaration rather than the derived spec.
     for (const g of (entry as NodeTypeDeclaration).groups ?? []) {
@@ -562,11 +574,10 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
   for (const [name, def] of nodeTypes) {
     pools.set(name, derivePool(name, name, def, def.worker === undefined ? undefined : workers.get(def.worker), def.config, groupKeys, TypeDefaultRefused));
   }
-  for (const [key, raw] of Object.entries(sections('pools', doc.pools))) {
-    if (!isPlainObject(raw)) throw new UndeclaredKey(key, `pool ${q(key)} is not an object`);
-    noUndeclared('pool', key, raw, INSTANCE_KEYS);
+  for (const [key, raw] of Object.entries(rawPools)) {
+    // Its shape — an object, its two keys, not named as a type, a `type` that IS one — was held by
+    // `checkRegistryShape` above, over the same merged map this lookup reads.
     const inst = raw as unknown as PoolInstance;
-    if (nodeTypes.has(key) || key in BUILT_IN_NODE_TYPES) throw new NameCollision(key, `pool ${q(key)} is named as node type ${q(key)} is — a type's name is its DEFAULT instance's key, so a named instance may not take it` + (key in BUILT_IN_NODE_TYPES ? ` — and ${q(key)} is a BUILT-IN node type, so that name is the library's and no registry document declares it` : ''));
     // **A named instance may name a BUILT-IN type, and this lookup is MERGED where `nodeTypes` is
     // not** — v0.29, [W110](../../doc/work-items/w110-a-flow-a-ui-could-have-emitted.md), and it is
     // the maintainer's answer to that item's stop-and-ask (b), taken AGAINST the recommendation.
@@ -595,15 +606,9 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
       ? undefined
       : isDerivation(builtInEntry) ? builtInEntry : nodeTypeFromDeclaration(builtInEntry);
     const def = (typeof inst.type === 'string' ? nodeTypes.get(inst.type) : undefined) ?? builtIn;
-    if (def === undefined) {
-      // The enumeration names what a `type` MAY be, which since v0.29 is the consumer's types and
-      // the library's own — a message listing only the document's would send an author to add an
-      // entry for a built-in that is never declared. **The two halves are named APART**, because the
-      // first fix folded them into one list under *the registry declares*, which is false of a
-      // built-in and left an unreachable empty-list arm beside it (the conformity reader's 9).
-      throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(inst.type)}, which is not a node type`
-        + poolTypeNames([...nodeTypes.keys()]));
-    }
+    // Unreachable past `checkRegistryShape`'s `PoolTypeMissing`, which reads the same merged names; an
+    // internal error and not a second copy of that refusal, because a second copy is what Q283 was.
+    if (def === undefined) throw new Error(`resolveRegistry: pool ${q(key)} reached derivation with no type — checkRegistryShape should have refused it`);
     pools.set(key, derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), inst.config, groupKeys, ConfigRefused));
   }
 

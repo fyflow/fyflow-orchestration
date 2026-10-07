@@ -534,3 +534,103 @@ suite('the refusal table`s remaining clauses — the conformity reader`s four', 
     refused(edited((d) => { (d.nodeTypes!.Prompt as { groups?: unknown }).groups = ['gpu', 3]; }), DerivationRefused, ['"Prompt"', 'groups must be an array']);
   });
 });
+
+/**
+ * **W141 — ONE shape function, and both roads refuse every shape defect IDENTICALLY** — Q283, P31
+ * decision 3. `checkRegistry` (what `new Driver` and `bootstrap` run) and `resolveRegistry` (what
+ * `createRuntime` runs over a DOCUMENT) diverged twice while each kept its own copy of these checks —
+ * W65 (a worker's and a pool's undeclared key, refused on one road only) and W109 (a type named as a
+ * built-in, refused on one road only). Since W141 both call `checkRegistryShape`.
+ *
+ * **The claim is per CHECK**: for every throw site the shape function reaches — its own and the ones in
+ * `checkNodeTypeShape`, `noUndeclared` and `checkSchema` it calls — one defect, handed to both roads,
+ * refused with the same class, the same `at` and the same message. The defects are written from spec
+ * section 3's refusal table and the clause each site states; the list of SITES is read from the source,
+ * and the two are compared BOTH WAYS, so a site added without a defect, or a defect whose site left, is
+ * red. One site is exempt, by name: a BUILT-IN type naming a worker, which no consumer input reaches
+ * because a consumer's entry under a built-in's name is refused as a collision first.
+ */
+type W141Defect = {
+  /** A fragment of the throw site's own source line, unique within the shape functions. */
+  site: string;
+  cls: new (...a: never[]) => RegistryError;
+  /** What a hand-built registry carries — `checkRegistry`'s input. A class-form type goes to `code` on the document road. */
+  reg: { workers?: Record<string, unknown>; nodeTypes?: Record<string, unknown>; pools?: Record<string, unknown> };
+  /** The message names this — a literal from the site's own template. */
+  says: string;
+};
+const W = { w: { url: 'test://w' } };
+const OK_TYPE = { T: { worker: 'w' } };
+const W141_DEFECTS: readonly W141Defect[] = [
+  { site: "worker ${q(name)} is not an object", cls: UndeclaredKey, reg: { workers: { w: 5 } }, says: 'is not an object' },
+  { site: "noUndeclared('worker',", cls: UndeclaredKey, reg: { workers: { w: { url: 'test://w', settingSchema: {} } } }, says: 'carries undeclared key "settingSchema"' },
+  { site: 'has no url — the module URL of its worker class', cls: WorkerMissing, reg: { workers: { w: { url: '' } } }, says: 'has no url' },
+  { site: 'for (const f of WORKER_KEYS.slice(1)) checkSchema(', cls: SchemaRefused, reg: { workers: { w: { url: 'test://w', inputSchema: { type: 'object', patternProperties: {} } } } }, says: 'inputSchema' },
+  { site: 'is registered as a node type and is a BUILT-IN node type', cls: NameCollision, reg: { workers: W, nodeTypes: { Transform: { worker: 'w' } } }, says: 'BUILT-IN' },
+  { site: "node type ${q(at)} is not an object", cls: UndeclaredKey, reg: { workers: W, nodeTypes: { T: 5 } }, says: 'is not an object' },
+  { site: "noUndeclared('node type', at", cls: UndeclaredKey, reg: { workers: W, nodeTypes: { T: { worker: 'w', workr: 'w' } } }, says: 'carries undeclared key "workr"' },
+  { site: '.pool must be an object of pool options', cls: DerivationRefused, reg: { workers: W, nodeTypes: { T: { worker: 'w', pool: 4 } } }, says: 'must be an object of pool options' },
+  { site: "noUndeclared('node type pool'", cls: UndeclaredKey, reg: { workers: W, nodeTypes: { T: { worker: 'w', pool: { maxThread: 2 } } } }, says: 'carries undeclared key "maxThread"' },
+  { site: 'node type ${q(at)}.pool: ${p}', cls: DerivationRefused, reg: { workers: W, nodeTypes: { T: { worker: 'w', pool: { maxThreads: 0 } } } }, says: 'maxThreads must be an integer >= 1' },
+  { site: '.groups must be an array of group keys', cls: DerivationRefused, reg: { workers: W, nodeTypes: { T: { worker: 'w', groups: 'gpu' } } }, says: 'groups must be an array' },
+  { site: "checkSchema(at, 'configSchema'", cls: SchemaRefused, reg: { workers: W, nodeTypes: { C: { worker: 'w', pool: () => ({}), configSchema: { type: 'object', patternProperties: {} } } } }, says: 'configSchema' },
+  { site: 'names no worker — ', cls: WorkerMissing, reg: { workers: W, nodeTypes: { T: {} } }, says: 'names no worker' },
+  { site: '.inline must be a boolean', cls: DerivationRefused, reg: { workers: W, nodeTypes: { T: { worker: 'w', inline: 'yes' } } }, says: 'inline must be a boolean' },
+  { site: 'declares a retryPolicy that is not a RetryPolicy', cls: DerivationRefused, reg: { workers: W, nodeTypes: { T: { worker: 'w', retryPolicy: { maxRetries: -1, backoffMs: 0 } } } }, says: 'FD-V30' },
+  { site: '.settings must be a plain object of defaults', cls: DerivationRefused, reg: { workers: W, nodeTypes: { T: { worker: 'w', settings: [1] } } }, says: 'settings must be a plain object' },
+  { site: "which the registry's workers does not declare", cls: WorkerMissing, reg: { workers: W, nodeTypes: { T: { worker: 'nope' } } }, says: 'names worker "nope"' },
+  { site: "pool ${q(key)} is not an object", cls: UndeclaredKey, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: 5 } }, says: 'is not an object' },
+  { site: "noUndeclared('pool', key", cls: UndeclaredKey, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'T', maxThreads: 2 } } }, says: 'carries undeclared key "maxThreads"' },
+  { site: 'is named as node type ${q(key)} is', cls: NameCollision, reg: { workers: W, nodeTypes: OK_TYPE, pools: { T: { type: 'T' } } }, says: 'is named as node type "T"' },
+  { site: 'which is not a node type`', cls: PoolTypeMissing, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'Nope' } } }, says: 'names type "Nope"' },
+];
+/** The one site no consumer input reaches — named, with its reason, so the both-ways comparison can hold every other. */
+const W141_UNREACHABLE: readonly string[] = ["names a worker — the library's own types name none"];
+
+/** Both roads over one hand-built registry: `[class, at, message]`, or the string `ACCEPTED`. */
+function bothRoads(reg: W141Defect['reg']): { check: unknown; resolve: unknown } {
+  const verdict = (f: () => unknown) => {
+    try { f(); return 'ACCEPTED'; } catch (e) { return e instanceof RegistryError ? [e.name, e.at, e.message] : `NOT A RegistryError: ${String(e)}`; }
+  };
+  const classes = Object.fromEntries(Object.entries(reg.nodeTypes ?? {}).filter(([, t]) => typeof (t as { pool?: unknown })?.pool === 'function'));
+  const declared = Object.fromEntries(Object.entries(reg.nodeTypes ?? {}).filter(([n]) => !(n in classes)));
+  return {
+    check: verdict(() => checkRegistry(reg as never)),
+    resolve: verdict(() => resolveRegistry({ workers: reg.workers, nodeTypes: declared, pools: reg.pools } as never, { nodeTypes: classes } as never)),
+  };
+}
+
+suite('W141 — one shape function: checkRegistry and resolveRegistry refuse every shape defect identically (Q283)', (test) => {
+  test('the defect list and the shape functions` throw sites are the SAME list, compared both ways — every site has a defect, every defect a site, and one site is exempt by name', async () => {
+    const src = await readText(ROOT + 'src/definition/registry.ts');
+    const region = (from: string, to: string) => { const a = src.indexOf(from); const b = src.indexOf(to, a); ok(a > 0 && b > a, `found ${from}`); return src.slice(a, b); };
+    // The two functions every shape check lives in: `checkNodeTypeShape` and `checkRegistryShape`.
+    const shape = region('function checkNodeTypeShape(', '\n}\n') + region('function checkRegistryShape(', '\n}\n');
+    const lines = shape.split('\n').filter((l) => /throw new |noUndeclared\(|checkSchema\(/.test(l));
+    for (const d of W141_DEFECTS) equal(lines.filter((l) => l.includes(d.site)).length, 1, `the site "${d.site}" is ONE line of the shape functions`);
+    const uncovered = lines.filter((l) => !W141_DEFECTS.some((d) => l.includes(d.site)) && !W141_UNREACHABLE.some((u) => l.includes(u)));
+    equal(uncovered.map((l) => l.trim().slice(0, 90)), [], 'and every throwing line of them is a defect`s site or the exempt one — the other direction');
+    ok(lines.length >= W141_DEFECTS.length, `${lines.length} throwing lines for ${W141_DEFECTS.length} defects`);
+  });
+
+  for (const d of W141_DEFECTS) {
+    test(`${d.cls.name} at "${d.site}": refused by BOTH roads, with the same class, the same at and the same message`, () => {
+      const { check, resolve } = bothRoads(d.reg);
+      ok(Array.isArray(check) && check[0] === d.cls.name, `checkRegistry refuses with ${d.cls.name} — ${JSON.stringify(check)}`);
+      ok(Array.isArray(check) && String(check[2]).includes(d.says), `and its message says ${d.says} — ${JSON.stringify(check)}`);
+      equal(resolve, check, 'resolveRegistry refuses the same registry IDENTICALLY — one function, one verdict');
+    });
+  }
+
+  test('the CONTROL: a clean registry of the same shapes is accepted by both roads — so the refusals above are the defects`, not the fixture`s', () => {
+    const { check, resolve } = bothRoads({ workers: W, nodeTypes: { ...OK_TYPE, C: { worker: 'w', pool: () => ({}) } }, pools: { p: { type: 'T' } } });
+    equal([check, resolve], ['ACCEPTED', 'ACCEPTED'], 'both accept');
+  });
+
+  test('ORDER: a bad pool AND a bad worker names the WORKER on both roads (spec section 3`s refusal table), and a bad type before a bad pool', () => {
+    const one = bothRoads({ workers: { w: { url: '' } }, nodeTypes: OK_TYPE, pools: { p: { type: 'Nope' } } });
+    equal([(one.check as unknown[])[0], (one.resolve as unknown[])[0]], ['WorkerMissing', 'WorkerMissing'], 'the worker first, on both');
+    const two = bothRoads({ workers: W, nodeTypes: { T: { worker: 'w', inline: 'no' } }, pools: { p: { type: 'Nope' } } });
+    equal([(two.check as unknown[])[0], (two.resolve as unknown[])[0]], ['DerivationRefused', 'DerivationRefused'], 'the type before the pool, on both');
+  });
+});

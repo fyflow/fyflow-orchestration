@@ -81,6 +81,7 @@
  * | **W90 — block (2g), KILLED and RESUMED** | **P23's EXIT ARTIFACT: a run killed mid-run on real workers and resumed on a FRESH runtime from a store the consumer built by appending events** — the header from the handle, every `onFoldInput` element at its POSITION. At EVERY kill point of `fan-out-per-item` and `triage`, the store frozen mid-step at a settlement and the runtime shut down, then `runtime.resume` on a fresh one: identical to a run nobody killed on outcome AND every node, the re-dispatched ids equal to a derivation from the KILLED process and to what the fresh scheduler holds when `resume` returns. **`shutdown()` DRAINS** (W90's declaration, measured), so the kill is the store and not the shutdown — and every re-dispatched task visibly ran twice. Beside the sweep: THREE processes appending to ONE positional store, with the same events keyed by arrival refused `diverged`; one killed run cut MID-STEP and QUIESCENT, re-dispatching the same set; and a PARKED kill that re-dispatches nothing and is resolved on the resumed driver |
  * | **W94 — `tv-ingest` arranged LAST-first, FIRST-first, and threaded** | **P24's EXIT ARTIFACT: a TV library's files through a `map` whose branch fetches each file and fans out BESIDE — a thumbnail for every file, and `identify` then a `distinct` GATE keyed on `series.id`.** The FIRST file of each series to ARRIVE opens the per-series work and every other file ends at an `end` (`duplicate`, or `nokey` for a file whose name carries no series); both joins fire and the run completes. **No assertion names which file won** (P24 decision 7): the gate clause reads the run's own `gated` elements — one `first` per series, the first of its series to arrive, the per-series task for exactly those branches, what reached the gate handed on. The sizes ARRANGE the order ([Q379](../doc/questions/q379.md)): LAST-first makes first-to-arrive differ from the lowest index and the first dispatched, FIRST-first is its pair (a different file opens each multi-file series, the same series once each), and the threaded row at equal work names no order at all. **The per-series road ends at its own `end`**, so every `beside` instance ends the same way whatever wins |
  * | **W94 — block (2h), the TV ingest KILLED and RESUMED** | **P24's exit artifact, its second half**: block (2g)'s kill — the consumer's store frozen mid-step, the runtime shut down (it DRAINS) — at EVERY one of the run's 25 kill points, resumed on a fresh runtime and IDENTICAL to a run nobody killed on outcome, every node, every branch's decision and the gate's MEMORY, which the replay rebuilt (`RN-R26`). Fifteen kill points lie BEFORE the first decision — [Q386](../doc/questions/q386.md)'s case — and the sweep is shown to DISCRIMINATE the rebuilt memory from a fresh one and from the killed process's, both derived from the killed run |
+ * | **W141 — `setup fails`, inline and threaded** | **Q266 on a real scheduler: a TYPE's worker whose `setup()` throws, and the run ENDS.** Three optional nodes of that type in a fanout, each with an `on: ["failed"]` edge to an end, joined under `live-token` — the arrangement that hung for ever before W141 (the pool requeued the tasks of its failing worker until its restart limit, six of six measured). Since W141 the envelope worker remembers the failure and fails every task from `run()`: each node FAILS with the setup error, each failure ROUTES (ADR 0004), the join fires over three exited branches and the run COMPLETES — inside a bounded race, with the scheduler's own task states as the second observer. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -174,6 +175,9 @@ import type { Predicate } from '../index.ts';
 // L6 definition to a derivation this file makes without it, so the function the pools were built
 // from cannot quietly read a different document than the row runs.
 import { transformLanguagesByType, type RunHandle } from '../src/scheduler/index.ts';
+// **W141**: its block builds a runtime from a registry it writes itself — a worker that cannot set up has no
+// place in the shared document — through the same sub-path entry, as a consumer would.
+import { createRuntime } from '../src/scheduler/index.ts';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
 // **Local to `examples/`, and that is [Q44](../doc/questions/q44.md) again.** The
@@ -5786,6 +5790,14 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W141**: the setup-fails block's seven subjects — its control (the two pool modes) and its six per-run claims.
+  'W141 setup fails: the block ran the scheduler`s TWO pool modes',
+  'the run ENDED — `done` won the race',
+  'it ended COMPLETED and terminal',
+  'each of the three nodes of the failing type FAILED',
+  "each one's error is the worker's own setup error",
+  'each failure ROUTED down on:["failed"] to its end',
+  'the SCHEDULER holds no task of the type pending',
   // **W99**: the arc that was Q391's false `no`, asserted FITTING at the consumer each gate row names, and the
   // consumer's own requirement beside it. Its sibling `rowsWithNo` was listed here and it was not (its adequacy
   // reader, F4).
@@ -8947,6 +8959,121 @@ if (gateKill !== null) {
   }
 }
 
+/**
+ * **W141 — a TYPE's worker whose `setup()` throws, on a real scheduler: the run ENDS** — Q266,
+ * [W141](../doc/work-items/w141-a-worker-that-cannot-set-up-fails-its-tasks-and-the-registry-has-one-shape.md),
+ * P31 decision 3, ADR 0051 rule 5's road taken for the whole of the envelope worker's `setup()`.
+ *
+ * **Why it is not an `EXPECTED` row.** Its subject is a hang, and a row runs through `runFlow`, whose
+ * backstop timer would turn a hang into a verdict named for the backstop rather than for the claim; and
+ * its registry is not `registry.json`'s — the worker that cannot set up is a `data:` module written here,
+ * because a worker file in `examples/workers/` would have to be a registry entry of the shared document
+ * and every row's runtime would build its pool. So it is W78's shape: one labelled block, TWO runs —
+ * the type's pool INLINE and THREADED, the scheduler's two modes — bound by `CROSS_ROW_SUBJECTS`.
+ *
+ * **The arrangement is the measurement's** (`dev-dist/w141-12912/measure3-before.log`, six of six
+ * HUNG on the tree before W141): THREE tasks of the failing type on one worker — a fanout of three
+ * OPTIONAL nodes, each with an `on: ["failed"]` edge to an end, joined under `live-token`. Before W141
+ * the envelope's `setup()` threw, the pool requeued the worker's tasks on every failure until its
+ * restart limit, and the three stayed `pending` with the fold reading `running` for ever. A single task
+ * did NOT hang there (it settled `user_action`), which is why the row runs three: the hang needs a
+ * worker holding more than the task it failed on. After W141 every task fails from `run()` with the
+ * remembered error, and the run takes ADR 0004's road.
+ *
+ * **Every expected value is the spec's or this fixture's**: the outcome from `spec/run-state.md` section
+ * 3 (every path reached an end — three `abandoned` and, the join firing over three EXITED branches under
+ * `live-token`, `done`), the error parts from the fixture's own thrown text and the envelope's stage
+ * clause, the task states from ADR 0007 rule 2's optional branch. Bounded by `settleWithin`, the
+ * scheduler shut down in a `finally` (Q323), and a crash is reported rather than taken for a detection.
+ */
+const SETUP_FAILS_DEADLINE_MS = 15_000;
+const SETUP_FAILS_TEXT = 'W141 L6: the model server is down';
+const SETUP_FAILS_FLOW = {
+  flowId: 'w141-setup-fails', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', type: 'Ready', edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'fanout', branches: ['a', 'b', 'c'] },
+    ...['a', 'b', 'c'].map((id) => ({ id, kind: 'task', type: 'Unready', optional: true, edges: [{ on: ['failed'], to: 'abandoned' }, { to: 'collect' }] })),
+    { id: 'abandoned', kind: 'end', outcome: 'branch-abandoned' },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+const setupFailsDoc = (inline: boolean) => ({
+  workers: {
+    unready: { url: `data:text/javascript,${encodeURIComponent(`export default class { async setup() { throw new Error(${JSON.stringify(SETUP_FAILS_TEXT)}); } run(p) { return p.input; } }`)}` },
+    ready: { url: `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run(p) { return p.input; } }')}` },
+  },
+  nodeTypes: { Unready: { worker: 'unready', inline }, Ready: { worker: 'ready', inline: true } },
+});
+type SetupFailsRun = {
+  mode: 'inline' | 'threaded';
+  endedBy: 'done' | 'the deadline';
+  outcome: RunOutcome | 'NEVER SETTLED';
+  terminal: boolean;
+  /** `nodeId:state` for the three nodes of the failing type, sorted — read off the FOLD of the driver's own inputs. */
+  unready: string[];
+  errors: string[];
+  ends: string[];
+  /** The scheduler's own states for the failing type's tasks — the second observer, and the one that saw `pending`. */
+  schedulerStates: string[];
+};
+let setupFails: { runs: string[]; results: SetupFailsRun[] } | null = null;
+try {
+  const results: SetupFailsRun[] = [];
+  const runs: string[] = [];
+  for (const inline of [true, false]) {
+    const rt = createRuntime(setupFailsDoc(inline) as never, {}, { flows: [SETUP_FAILS_FLOW] });
+    try {
+      const { driver, done } = rt.start(SETUP_FAILS_FLOW, {}, { runId: inline ? 'w141i' : 'w141t' });
+      runs.push(SETUP_FAILS_FLOW.flowId);
+      const won = await settleWithin(done, SETUP_FAILS_DEADLINE_MS);
+      const folded = fold(driver.foldInputs());
+      const unreadyNodes = Object.values(folded.nodes).filter((n) => ['a', 'b', 'c'].includes(n.nodeId));
+      results.push({
+        mode: inline ? 'inline' : 'threaded',
+        endedBy: won.by,
+        outcome: won.by === 'done' ? won.value.outcome : 'NEVER SETTLED',
+        terminal: won.by === 'done' && isTerminal(won.value),
+        unready: unreadyNodes.map((n) => `${n.nodeId}:${n.state}`).sort(),
+        errors: unreadyNodes.map((n) => n.error ?? ''),
+        ends: folded.pathEnds.map((p) => `${p.reason} ${p.at}`).sort(),
+        schedulerStates: [...(rt.scheduler.tasks as Map<string, { workerType: string; state: string }>).values()]
+          .filter((t) => t.workerType === 'Unready').map((t) => t.state).sort(),
+      });
+    } finally {
+      await rt.shutdown();
+    }
+  }
+  setupFails = { runs, results };
+} catch (err) {
+  // **A crash is not a detection** — the consumer road's guard, for the same reason: this block is outside
+  // the row loop, so a throw here would take the whole file down with exit 1 and ZERO failure lines.
+  failures.push(`W141 setup fails\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (setupFails !== null) {
+  const key = 'cross-row';
+  check(key, 'W141 setup fails: the block ran the scheduler`s TWO pool modes for the failing type, one run each — the measurement hung in both',
+    setupFails.results.map((r) => r.mode), ['inline', 'threaded']);
+  for (const r of setupFails.results) {
+    check(key, `W141 setup fails (${r.mode}): the run ENDED — \`done\` won the race and the deadline did not. Before W141 the three tasks ` +
+      'stayed pending for ever and this was the deadline (Q266)', r.endedBy, 'done');
+    check(key, `W141 setup fails (${r.mode}): it ended COMPLETED and terminal — every path reached an end (spec/run-state.md section 3)`,
+      [r.outcome, r.terminal], ['completed', true]);
+    check(key, `W141 setup fails (${r.mode}): each of the three nodes of the failing type FAILED — an ordinary task failure, ADR 0007 ` +
+      'rule 2`s optional road — read off the fold of the driver`s own inputs', r.unready, ['a:failed', 'b:failed', 'c:failed']);
+    assertThat(key, `W141 setup fails (${r.mode}): and each one's error is the worker's own setup error, named as a setup failure — ` +
+      'what a person reading RunState sees',
+    r.errors.length === 3 && r.errors.every((e) => e.includes(SETUP_FAILS_TEXT) && e.includes('threw from its setup()')),
+    JSON.stringify(r.errors.map((e) => e.slice(0, 160))));
+    check(key, `W141 setup fails (${r.mode}): ADR 0004 — each failure ROUTED down on:["failed"] to its end, and the join fired over three ` +
+      'EXITED branches under live-token', r.ends, ['end abandoned', 'end abandoned', 'end abandoned', 'end done']);
+    check(key, `W141 setup fails (${r.mode}): and the SCHEDULER holds no task of the type pending — its own states, the second observer ` +
+      'and the one that read `pending` before W141', r.schedulerStates, ['failed', 'failed', 'failed']);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -8962,7 +9089,8 @@ if (gateKill !== null) {
 // counts is still possible, and this makes it one edit dearer and the printed count honest.*
 // **And `+ killResume.runs.length` since W90**: block (2g) counts every run it made — each reference, each killed process and
 // each resume on a fresh runtime — as a LENGTH, on W78's precedent, so deleting the block moves the printed count with it.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0);
+// **And `+ setupFails.runs.length` since W141**: its two runs, inline and threaded, as a LENGTH on the same precedent.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -9247,7 +9375,10 @@ const PER_PLAIN_ROW = 22;
 // the time and unverifiable now, which is why the live sentence states only the figures this tree produces.)*
 // **+2 for the SEVENTH row, which the adequacy reader's F9 bought**: the threaded row's own pair clause (the inline
 // row's sequence on the same payload), and one more from W43's per-row `needs` clause, which iterates over EXPECTED.
-const CROSS_ROW = 246;
+// **+13 since W142 — W141's setup-fails block**: its control (the two pool modes) and six claims per run over two runs —
+// the run ended, completed and terminal, the three nodes failed, each error the setup's, each failure routed, and the
+// scheduler holding none pending. All thirteen are cross-row because the block is outside the row loop.
+const CROSS_ROW = 259;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -11244,14 +11375,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // (`PAIR_PER_RUN` 9 -> 11, two rows x two runs x two): ADR 0088's `delivered`, and the harness-routing clause the
 // maintainer's answer (B) to W142's prediction-3 stop needed. *(2470 for the hours between the first and the second.)*
 // No row, no run and no `CROSS_ROW` term moved.
-const DECLARED_TOTAL = 2474;
+// **2487 / 164 since W141** — +13 and two runs, DERIVED: the setup-fails block's thirteen cross-row assertions (`CROSS_ROW`
+// 246 -> 259) over its two runs, inline and threaded. No row moved. *(The block's first run read 2475 against a derived
+// 2462, and 2475 - 2462 = 13 is the block.)*
+const DECLARED_TOTAL = 2487;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 162;
+const DECLARED_RUNS = 164;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

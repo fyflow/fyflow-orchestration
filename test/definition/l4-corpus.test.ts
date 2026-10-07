@@ -424,6 +424,11 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W141 — Q266 at L1 (the class, and real inline and threaded pools) in `test/scheduler/transform.test.ts`,
+  // at L2 in `test/driver/node-type.test.ts`; Q283 in `test/definition/registry.test.ts`.
+  'W141 — a type`s worker that cannot set up: setup() never throws, and every task fails from run() naming why (Q266)',
+  'W141 — a task failed by its type`s setup routes as any task failure: down on:["failed"] when optional, parked when not (Q266, ADR 0004)',
+  'W141 — one shape function: checkRegistry and resolveRegistry refuse every shape defect identically (Q283)',
   // W142 — ADR 0088's routing, through `createRuntime`'s scheduler seam, in `test/scheduler/runtime.test.ts`.
   'W142 — ADR 0088: a settlement reaches only the driver holding its run id, and an id no driver minted reaches every driver',
   // W109 — the BUILT-IN node type and `FD-V46`, in `test/definition/node-type.test.ts`; the no-inner

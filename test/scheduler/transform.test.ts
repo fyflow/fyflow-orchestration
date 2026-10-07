@@ -19,7 +19,7 @@
  * case count is the same in all five runtimes, which is what the browser runner's parity check
  * asks, and the header of every case says which backends ran.
  */
-import { equal, ok, suite } from '../harness.ts';
+import { equal, ok, readText, ROOT, suite } from '../harness.ts';
 import { FyflowScheduler, FyflowTask, WorkerManager } from 'fyflow-scheduler';
 import { ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, TransformFailed, unpackEnvelope } from '../../src/scheduler/index.ts';
 import { PATH_WORKER_URL } from './fake-language.ts';
@@ -392,13 +392,19 @@ suite('W109 — a type that only TRANSFORMS: the transform IS the task, on a rea
     // **The probe the item's careful-point 5 asks for, second direction.** If the arm keyed off
     // `!('worker' in cfg)` then `{}` — a malformed pool config — would become a transform-only pool
     // and every such defect would silently return its input. Measured here as the refusal it is.
-    let err = '';
-    try { const w = new EnvelopeWorker({} as never); await w.setup(); } catch (e) { err = (e as Error).message; }
-    ok(err.includes('names no worker URL'), `an EMPTY pool config is a malformed config, not a transform-only one — ${err || '(setup returned)'}`);
+    // **Since W141 the refusal is thrown from run(), not from setup()** (Q266: a setup() throw is a worker
+    // error the run never hears of), so the arm is probed on what a TASK gets: the refusal, and never the
+    // input handed back as a transform-only pool would.
+    const failsWith = async (cfg: unknown): Promise<string> => {
+      const w = new EnvelopeWorker(cfg as never);
+      await w.setup();
+      try { return `(ran: ${JSON.stringify(await w.run({ settings: {}, input: 1, transform: { lang: 'path', expr: '$' } }))})`; } catch (e) { return (e as Error).message; }
+    };
+    const err = await failsWith({});
+    ok(err.includes('names no worker URL'), `an EMPTY pool config is a malformed config, not a transform-only one — ${err}`);
     for (const bad of [{ worker: '' }, { worker: 5 as never }, { worker: null as never }]) {
-      let e2 = '';
-      try { const w = new EnvelopeWorker(bad as never); await w.setup(); } catch (e) { e2 = (e as Error).message; }
-      ok(e2.includes('names no worker URL'), `${JSON.stringify(bad)} is refused, not read as a shape — ${e2 || '(setup returned)'}`);
+      const e2 = await failsWith(bad);
+      ok(e2.includes('names no worker URL'), `${JSON.stringify(bad)} is refused, not read as a shape — ${e2}`);
     }
   });
 
@@ -406,10 +412,13 @@ suite('W109 — a type that only TRANSFORMS: the transform IS the task, on a rea
     // **Obligation (e), first direction**: the no-inner road taken by a config that HAS an inner
     // worker. Silently preferring either key is how a pool runs the wrong one of the two things its
     // config names, so the contradiction is a refusal.
+    // Thrown from run() since W141 (Q266), the text unchanged.
+    const w = new EnvelopeWorker({ transformOnly: true, worker: INNER_URL } as never);
+    await w.setup();
     let err = '';
-    try { const w = new EnvelopeWorker({ transformOnly: true, worker: INNER_URL } as never); await w.setup(); } catch (e) { err = (e as Error).message; }
+    try { await w.run({ settings: {}, input: { a: 2 }, transform: { lang: 'path', expr: 'a' } }); } catch (e) { err = (e as Error).message; }
     ok(err.includes('transformOnly') && err.includes('either has an inner worker or only transforms'),
-      `both keys is a refusal naming both — ${err || '(setup returned)'}`);
+      `both keys is a refusal naming both — ${err || '(run returned)'}`);
   });
 
   test('run() before setup() and after teardown() are STILL refused on a transform-only pool — the lifecycle states the arm must not absorb', async () => {
@@ -441,5 +450,174 @@ suite('W109 — a type that only TRANSFORMS: the transform IS the task, on a rea
     equal(Object.keys(CFG).sort(), ['languages', 'worker'], 'the inner-worker config names a worker and no marker');
     equal(Object.keys(ONLY_CFG).sort(), ['languages', 'transformOnly'], 'the transform-only config names the marker and no worker');
     equal((ONLY_CFG as { worker?: unknown }).worker, undefined, 'and the two never both name a worker — the refusal above is what holds that');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+/**
+ * **W141 — a TYPE's worker that cannot set up fails every task from `run()`, and never hangs one** —
+ * Q266, P31 decision 3: W61's road (ADR 0051 rule 5), taken for the whole of `setup()`.
+ *
+ * ADR 0051 fact F1 is the reason, and W141 re-measured it on 0.5.2 before any edit
+ * (`dev-dist/w141-12912/measure3-before.log`, six of six): three tasks on a worker whose `setup()`
+ * throws stay `pending` for ever in both pool modes, because the pool requeues the tasks of a worker
+ * that failed and gives up at its restart limit. So `setup()` must not throw at all, and each way it
+ * could is a FIXTURE below whose thrown text is written here — the expected message parts are those
+ * literals and the clause each stage names, never a run's output.
+ */
+const W141 = {
+  syntax: `data:text/javascript,${encodeURIComponent('export default class {')}`,
+  noDefault: `data:text/javascript,${encodeURIComponent('export const x = 1;')}`,
+  ctor: `data:text/javascript,${encodeURIComponent('export default class { constructor() { throw new Error("W141 ctor: bad config"); } run() { return 1; } }')}`,
+  setup: `data:text/javascript,${encodeURIComponent('export default class { constructor() { globalThis.__W141_LOG__ = []; } async setup() { globalThis.__W141_LOG__.push("setup"); throw new Error("W141 setup: the database is down"); } run() { globalThis.__W141_LOG__.push("run"); return 1; } teardown() { globalThis.__W141_LOG__.push("teardown"); } }')}`,
+  setupAndTeardown: `data:text/javascript,${encodeURIComponent('export default class { async setup() { throw new Error("W141 setup: the licence server refused"); } run() { return 1; } teardown() { throw new Error("W141 teardown: nothing to release"); } }')}`,
+  healthy: `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run(p) { return { ran: p.input }; } }')}`,
+};
+/**
+ * **Every stage `setup()` could throw at, before W141** — `[label, pool config, what the message must
+ * name]`. Six: the four of the TYPE's worker (it does not load, it exports no class, its constructor
+ * throws, its `setup()` throws) and the two pool-config refusals the method made by name. The
+ * membership is asserted against the envelope worker's own throw sites in the first case, not by a
+ * count typed here.
+ */
+const W141_STAGES: readonly [string, Record<string, unknown>, readonly string[]][] = [
+  ['the module does not load', { worker: W141.syntax }, ['did not load']],
+  ['the module exports no default class', { worker: W141.noDefault }, ['must export a default class']],
+  ['its constructor throws', { worker: W141.ctor }, ['threw from its constructor', 'W141 ctor: bad config']],
+  ['its own setup() throws', { worker: W141.setup }, ['threw from its setup()', 'W141 setup: the database is down']],
+  ['the pool config names no worker', {}, ['names no worker URL']],
+  ['the pool config says transformOnly beside a worker', { transformOnly: true, worker: W141.healthy }, ['either has an inner worker or only transforms']],
+];
+const DROVE_141 = new Set<string>();
+type Many = { states: string[]; errors: string[] };
+/** THREE tasks on ONE worker of a pool whose config is `cfg` — the arrangement F1 hangs on (measured) — or three runs on one class. */
+async function driveThree(backend: string, cfg: Record<string, unknown>, optional: boolean): Promise<Many> {
+  DROVE_141.add(backend);
+  const payload = { settings: {}, input: { n: 1 } };
+  if (backend === 'class') {
+    const w = new EnvelopeWorker(cfg as never);
+    await w.setup();
+    const out: Many = { states: [], errors: [] };
+    for (let i = 0; i < 3; i++) {
+      try { await w.run(payload); out.states.push('done'); } catch (e) { out.states.push('threw'); out.errors.push((e as Error).message); }
+    }
+    await w.teardown();
+    return out;
+  }
+  const pool = new WorkerManager(ENVELOPE_WORKER_URL, { inline: backend === 'inline', maxThreads: 1, idleTimeout: 0, config: cfg });
+  const s = new FyflowScheduler({ Scorer: pool }, {});
+  const on = (name: string, f: (detail: Record<string, unknown>) => void) =>
+    (s as unknown as { addEventListener(n: string, l: (e: { detail: Record<string, unknown> }) => void): void }).addEventListener(name, (e) => f(e.detail));
+  // Read by TERMINAL STATE and by id, never by event name: a `user_action` task fires `task.failed`
+  // too (ADR 0007 rule 2), so a count of events would count it twice.
+  const ids = ['t1', 't2', 't3'];
+  const errors = new Map<string, string>();
+  const stateOf = (id: string): string => (s.tasks.get(id) as { state?: string } | undefined)?.state ?? 'absent';
+  const all = new Promise<void>((resolve) => {
+    for (const ev of ['task.completed', 'task.failed', 'task.user_action']) {
+      on(ev, (d) => {
+        const err = d.error as { message?: string } | string | undefined;
+        if (err !== undefined) errors.set(d.id as string, typeof err === 'string' ? err : err?.message ?? '');
+        if (ids.every((id) => ['done', 'failed', 'user_action'].includes(stateOf(id)))) resolve();
+      });
+    }
+  });
+  try {
+    for (const id of ids) s.addTask(new FyflowTask({ id, workerType: 'Scorer', payload, optional, retryPolicy: { maxRetries: 0, backoffMs: 0 } }));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // 8 s: the pool's own restart delay is 5 s, so a requeue loop is past its first restart by then.
+    const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, 8000); });
+    await Promise.race([all, timeout]);
+    if (timer !== undefined) clearTimeout(timer);
+    return { states: ids.map(stateOf), errors: ids.map((id) => errors.get(id) ?? '') };
+  } finally {
+    await s.shutdown();
+  }
+}
+
+suite('W141 — a type`s worker that cannot set up: setup() never throws, and every task fails from run() naming why (Q266)', (test) => {
+  test('the stage list is setup()`s own throw sites: as many stages as the envelope worker throws at on that road, with distinct labels', async () => {
+    // A membership, not a count typed here (obligation (d)): a stage deleted from the list, or a throw
+    // site added to the setup road without a stage, makes the two numbers differ.
+    equal(new Set(W141_STAGES.map(([l]) => l)).size, W141_STAGES.length, 'distinct labels');
+    const src = await readText(ROOT + 'src/scheduler/envelope-worker.ts');
+    const from = src.indexOf('private async setupOrThrow()');
+    const to = src.indexOf('/** One language');
+    ok(from > 0 && to > from, 'setupOrThrow is in the source, before loadLanguage');
+    const throwSites = [...src.slice(from, to).matchAll(/throw new Error\(`envelope worker: /g)].length;
+    equal(throwSites, W141_STAGES.length, 'setupOrThrow throws at exactly as many sites as there are stages');
+  });
+
+  for (const [label, cfg, names] of W141_STAGES) {
+    test(`${label}: setup() RESOLVES, and EVERY task fails at run() naming it — never as a cold worker`, async () => {
+      const w = new EnvelopeWorker(cfg as never);
+      let setupErr: unknown = null;
+      try { await w.setup(); } catch (e) { setupErr = e; }
+      equal(setupErr, null, 'setup() does not throw — a throw there is a worker error the run never hears of (ADR 0051 F1)');
+      const messages: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        try { await w.run({ settings: {}, input: 1 }); messages.push('(ran)'); } catch (e) { messages.push((e as Error).message); }
+      }
+      equal(messages.length, 2, 'two tasks were run');
+      for (const m of messages) {
+        ok(names.every((n) => m.includes(n)), `the message names ${names.join(' and ')} — ${m}`);
+        ok(m.includes('every task on this worker fails with this'), `and says it is the worker's, for every task — ${m}`);
+        ok(!m.includes('before setup()'), `and is not the cold-worker refusal — ${m}`);
+      }
+      const url = (cfg as { worker?: unknown }).worker;
+      if (typeof url === 'string' && !('transformOnly' in cfg)) ok(messages[0]!.includes(url.slice(0, 40)), `it names the type's worker URL — ${messages[0]}`);
+      await w.teardown();
+    });
+  }
+
+  test('the CONTROL: a healthy worker of the same shape sets up and runs — what makes the stages fail is their fixture, and nothing else', async () => {
+    const w = new EnvelopeWorker({ worker: W141.healthy } as never);
+    await w.setup();
+    equal(await w.run({ settings: {}, input: 7 }), { ran: 7 }, 'the healthy worker ran the task');
+    await w.teardown();
+  });
+
+  test('a constructed inner worker whose setup() threw is torn down AT ONCE and once; a teardown that throws too is reported BESIDE the setup error, never instead of it', async () => {
+    const w = new EnvelopeWorker({ worker: W141.setup } as never);
+    await w.setup();
+    const log = () => (globalThis as Record<string, unknown>).__W141_LOG__ as string[];
+    equal(log(), ['setup', 'teardown'], 'the scheduler`s rule for a failed setup — the worker is torn down — kept by the envelope');
+    try { await w.run({ settings: {}, input: 1 }); } catch { /* the failure, asserted above */ }
+    await w.teardown();
+    equal(log(), ['setup', 'teardown'], 'the inner worker never RAN, and the envelope`s own teardown does not tear it down twice');
+    const both = new EnvelopeWorker({ worker: W141.setupAndTeardown } as never);
+    await both.setup();
+    let m = '';
+    try { await both.run({ settings: {}, input: 1 }); } catch (e) { m = (e as Error).message; }
+    ok(m.includes('W141 setup: the licence server refused') && m.includes('W141 teardown: nothing to release') &&
+      m.indexOf('W141 setup') < m.indexOf('W141 teardown'), `the setup error first, the teardown error beside it — ${m}`);
+    await both.teardown();
+  });
+
+  test('teardown() clears the memory: run() after it is the cold-worker refusal, not the stale setup error', async () => {
+    const w = new EnvelopeWorker({ worker: W141.setup } as never);
+    await w.setup();
+    await w.teardown();
+    let m = '';
+    try { await w.run({ settings: {}, input: 1 }); } catch (e) { m = (e as Error).message; }
+    ok(m.includes('before setup()') && !m.includes('W141 setup'), `a torn-down worker is in its constructed state — ${m}`);
+  });
+
+  test(`THREE tasks on one worker whose setup() throws each SETTLE — failed when optional, user_action when not — with the message, and none is left pending (Q266, the arrangement F1 hung on); backends: ${BACKENDS.join(', ')}`, async () => {
+    for (const backend of BACKENDS) {
+      for (const optional of [true, false]) {
+        const r = await driveThree(backend, { worker: W141.setup }, optional);
+        const want = backend === 'class' ? 'threw' : optional ? 'failed' : 'user_action';
+        equal(r.states, [want, want, want], `${backend}, ${optional ? 'optional' : 'non-optional'}: every task settled ${want} — ${JSON.stringify(r)}`);
+        ok(r.errors.length === 3 && r.errors.every((e) => e.includes('W141 setup: the database is down') && e.includes('threw from its setup()')),
+          `${backend}, ${optional ? 'optional' : 'non-optional'}: each task's error is the setup failure — ${JSON.stringify(r.errors)}`);
+      }
+      const control = await driveThree(backend, { worker: W141.healthy }, true);
+      equal(control.states, ['done', 'done', 'done'], `${backend}: the healthy control settles done — the pair differs by the fixture alone`);
+    }
+  });
+
+  test('every backend BACKENDS names was driven by THIS suite', () => {
+    equal([...DROVE_141].sort(), [...BACKENDS].sort(), 'the backends W141 drove are exactly the backends declared');
   });
 });

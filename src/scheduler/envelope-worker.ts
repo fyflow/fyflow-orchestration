@@ -192,6 +192,14 @@ export default class EnvelopeWorker {
   private readonly langs = new Map<string, WorkerCompile | Error>();
   /** Each distinct `(lang, expr)` compiled ONCE per worker instance, never per task — P17 decision 3. */
   private readonly compiled = new Map<string, Compiled>();
+  /**
+   * **Why this worker could not set up, REMEMBERED — or `null`** —
+   * [W141](../../doc/work-items/w141-a-worker-that-cannot-set-up-fails-its-tasks-and-the-registry-has-one-shape.md),
+   * [Q266](../../doc/questions/q266.md), P31 decision 3: W61's road for a language, taken for the whole
+   * of `setup()`. Set by `setup()` instead of throwing; read FIRST by `run()`, which fails every task
+   * with it; cleared by `teardown()`, so a torn-down worker is in its constructed state again.
+   */
+  private setupFailure: string | null = null;
 
   /**
    * Both arguments are kept, and the second is forwarded to the inner worker: the scheduler passes
@@ -219,8 +227,46 @@ export default class EnvelopeWorker {
    * function, or an empty URL, each becomes a `TransformFailed` naming the language and the load
    * error, on exactly the tasks that need that language — a task with no transform, or one in a
    * language that did load, still runs on this worker.
+   *
+   * **And since W141 the same is true of the TYPE's own worker: this method never throws** — Q266,
+   * P31 decision 3, W61's road taken for the whole of `setup()`. F1 is a fact about THIS method
+   * throwing, whatever threw, and W141 measured it again on 0.5.2 through `createRuntime`: three
+   * tasks on a worker whose `setup()` throws stay `pending` for ever in both pool modes, the pool
+   * requeueing them on each worker failure until its restart limit, and the run's fold says
+   * `running`. So every way the type's worker can fail to set up — the module does not load, it
+   * exports no default class, its constructor throws, its own `setup()` throws — and the two
+   * pool-config refusals this method made by name, are REMEMBERED in `setupFailure`, and `run()`
+   * fails every task on this worker with it: an ordinary task failure, which the run routes per
+   * ADR 0004 — down an `on: ["failed"]` edge on an optional node, parked `user_action` on a
+   * non-optional one. **A constructed inner worker is torn down at once**, because the scheduler
+   * tears down a worker whose `setup()` threw (its own reference, §6: *a failing `setup()` still
+   * tears the worker down*) and this class is now the only thing that knows one did. The worker
+   * stays up and fails every task until the pool is rebuilt: a setup that failed for a transient
+   * reason is not retried here (W141's Out).
    */
   async setup(): Promise<void> {
+    try {
+      await this.setupOrThrow();
+    } catch (e) {
+      this.setupFailure = messageOf(e);
+      const inner = this.inner;
+      this.inner = null;
+      this.noInner = false;
+      this.langs.clear();
+      if (inner !== null) {
+        try {
+          await inner.teardown?.();
+        } catch (t) {
+          // Reported beside the setup error and never instead of it — the scheduler's own rule for a
+          // teardown that throws after a failed setup (its reference, §6).
+          this.setupFailure += ` (and its teardown() after the failed setup threw too: ${messageOf(t)})`;
+        }
+      }
+    }
+  }
+
+  /** What `setup()` did until W141, throws and all; `setup()` turns each throw into `setupFailure`. */
+  private async setupOrThrow(): Promise<void> {
     // **`transformOnly: true` is a type that only TRANSFORMS** (ADR 0075): nothing is imported,
     // `inner` stays null, and `run()` returns the transform's result. The two keys are mutually
     // exclusive and the contradiction is refused rather than resolved — a config carrying both says
@@ -239,13 +285,27 @@ export default class EnvelopeWorker {
     if (typeof this.cfg?.worker !== 'string' || this.cfg.worker.length === 0) {
       throw new Error(`envelope worker: the pool config names no worker URL — got ${brief(this.cfg)}`);
     }
-    const mod = (await import(this.cfg.worker)) as { default?: unknown };
+    const workerUrl = this.cfg.worker;
+    let mod: { default?: unknown };
+    try {
+      mod = (await import(workerUrl)) as { default?: unknown };
+    } catch (e) {
+      throw new Error(`envelope worker: the type's worker ${brief(workerUrl)} did not load: ${messageOf(e)}`);
+    }
     if (typeof mod.default !== 'function' || !(mod.default as { prototype?: unknown }).prototype) {
-      throw new Error(`envelope worker: ${this.cfg.worker} must export a default class`);
+      throw new Error(`envelope worker: ${brief(workerUrl)} must export a default class`);
     }
     const Inner = mod.default as new (config: unknown, workerContext?: unknown) => InnerWorker;
-    this.inner = new Inner(this.cfg.config ?? {}, this.workerContext);
-    await this.inner.setup?.();
+    try {
+      this.inner = new Inner(this.cfg.config ?? {}, this.workerContext);
+    } catch (e) {
+      throw new Error(`envelope worker: the type's worker ${brief(workerUrl)} threw from its constructor: ${messageOf(e)}`);
+    }
+    try {
+      await this.inner.setup?.();
+    } catch (e) {
+      throw new Error(`envelope worker: the type's worker ${brief(workerUrl)} threw from its setup(): ${messageOf(e)}`);
+    }
     for (const [name, url] of Object.entries(this.cfg.languages ?? {})) {
       this.langs.set(name, await this.loadLanguage(name, url));
     }
@@ -273,6 +333,12 @@ export default class EnvelopeWorker {
    * received, with the node's settings bound as `$settings`, and the third key is consumed here.
    */
   async run(payload: unknown, context?: unknown): Promise<unknown> {
+    // **FIRST, before the lifecycle check below** — a worker whose setup failed has a null `inner`
+    // too, and reading that as *run() before setup()* would fail the task with a false reason (W141).
+    // A fresh Error per task: one object thrown from every task would be one object every record shared.
+    if (this.setupFailure !== null) {
+      throw new Error(`${this.setupFailure} — every task on this worker fails with this until the pool is rebuilt`);
+    }
     if (this.inner === null && !this.noInner) throw new Error('envelope worker: run() before setup() — the inner worker is not loaded');
     const env = unpackEnvelope(payload);
     if (this.noInner) {
@@ -332,6 +398,9 @@ export default class EnvelopeWorker {
     // transform-only one — otherwise `run()` after `teardown()` would take the no-inner arm instead of
     // the refusal, which is the same conflation `setup()`'s comment is about.
     this.noInner = false;
+    // And the remembered failure with them (W141): a torn-down worker is in its CONSTRUCTED state, so
+    // `run()` after `teardown()` is refused as before rather than failing with a stale setup error.
+    this.setupFailure = null;
     this.langs.clear();
     this.compiled.clear();
   }
