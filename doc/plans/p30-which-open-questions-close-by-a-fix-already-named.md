@@ -1,6 +1,6 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** in progress — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131 and W132 done 2026-10-07 (Record below), W134 to come
+**Status:** complete — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); the retro is to come
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
@@ -149,7 +149,7 @@ learns reaches the next item's declaration.
 |---|---|---|
 | **(a)** | Q144: may W131 land the fix if no replacement `ran:` case can be built in `check-policies-selftest.mjs`? | *open — W131 asks before the fix if it gets there* |
 | **(b)** | Q61: if the 0.5.2 measurement differs from P2's, does the sentence state the new behaviour, or does Q61 stay open and gain a new question? | **did not fire**: W133's measurement matched P2's table in Node and Deno |
-| **(c)** | Q484: if W134's deletion crosses an `M3`-`M5` floor, are the floors retuned per ADR 0076 and ADR 0078, or does Q484 wait for Q142? | *open — W134 asks* |
+| **(c)** | Q484: if W134's deletion crosses an `M3`-`M5` floor, are the floors retuned per ADR 0076 and ADR 0078, or does Q484 wait for Q142? | **did not fire**: W134 crossed no floor — `check:markdown:selftest` EXIT 0, 42/42, before and after the deletion; 199 linking documents against `M4`'s 120, 84 anchored against `M5`'s 72 |
 | **(d)** | ~~Scope~~ | **ANSWERED by the maintainer, 2026-10-06: tiers A and B**, thirteen questions (decision 1) |
 | **(e)** | ~~Q63's direction~~ | **ANSWERED, 2026-10-06: drop the class name** (decision 2) |
 | **(f)** | ~~Q508~~ | **ANSWERED, 2026-10-06: Out** |
@@ -247,3 +247,46 @@ measurement, the reader and two rule-8 passes; this section names what the PLAN 
   bumped. The provocation lives in `test/provocations/`, outside the glob, and is run by
   `node test/provocations/q272.ts` and its deno form; it is not a gate entry, since `package.json` is
   outside W132's `Owns`.
+
+**W134 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `2b48046`), the
+measurement, the reader and two rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q235, Q484, Q534**, each `resolved-by` naming P30 W134. **Raised: Q542** (open) — the stale
+  claims in `doc/README.md` that no command derives, which decision 3 does not reach.
+- **Stop-and-ask (h) fired and was answered** (option A, the table above): decision 3's operative test
+  (*what `npm run state` or a check derives*) and its own list (*workflow versions and plan counts*)
+  disagreed about the workflow-version copies, which no command derives. They went; the class neither
+  named nor derived stayed, and is Q542's.
+- **Stop-and-ask (c) did not fire, and prediction 3 held**: 610 → 612 documents, 199 linking documents
+  and 84 anchored before and after, `check:markdown:selftest` EXIT 0 at 42/42 on both trees. Stripping
+  every relative link from `doc/README.md` (W134's probe r6) still crosses no floor.
+- **Prediction 4 held** (no ADR). **Prediction 5 held**: `CLAUDE.md`, `doc/workflow.md` and
+  `doc/concept.md` untouched by every item. **Prediction 2 held**: 1528 L1-L5 cases in all three
+  runtimes, 2465 L6 assertions over 162 runs. **Prediction 6 held**: the reader's finding 2 widened the
+  `AGENTS.md` sentence to what `OR-R6` v0.11 says a consumer needs (`onRunFailure` not called,
+  `awaiting_action`, `inline` decides).
+- **Exceptions: one, late** — row (h) of the Stop-and-asks table, which the maintainer's answer directed.
+  Neither of W133's drag files applied.
+
+### The exit artifact, measured on the final tree
+
+*Taken after W134's record step, on the tree its last commit ships.*
+
+| clause | measured | |
+|---|---|---|
+| `npm run gate:full` EXIT 0 | **0**, on `2b48046`, the last commit before W134's record step; the record step changed only four documents a check reads, and `npm run gate` and `check:markdown:selftest` were re-run after it (W134's Record) | met |
+| `npm run q -- --where "resolved-by~P30" --fields id,status,resolved-by` lists the fourteen questions of decision 1, each resolved | **thirteen**, each `resolved` and naming its item: Q61, Q62, Q63 (W133); Q144, Q430, Q439, Q454, Q490 (W131); Q272, Q382 (W132); Q235, Q484, Q534 (W134) | met on the questions; **the figure fourteen was wrong** — below |
+| `npm run q -- --where status=open --count` prints 8, plus any question an item raised open | **14** | accounted below |
+
+**Decision 1 miscounts by one.** It says *thirteen questions are in* and its table lists **twelve**:
+tier A is nine (Q144, Q235, Q272, Q382, Q430, Q439, Q454, Q484, Q490) and tier B three (Q61, Q62, Q63).
+The W-row index agrees with the table — five, two, three and two, plus Q534 — so thirteen were closed,
+which is every question the plan took. The *Why* section's *thirteen of them* carries the same error, and
+so does *nine are Out*: the Out rows hold **ten** (Q337, Q434, Q437; Q20, Q513, Q142, Q244, Q266, Q283,
+Q508), and 12 + 10 is the 22 open on `e61df81`.
+
+**The open count, by id.** 14 = the ten Out questions above, still open as decided, **plus four raised
+by P30's own items and left open**: Q533 (W133), Q536 (W131), Q541 (W132), Q542 (W134). The declared **8**
+was 22 less fourteen, and it is wrong twice: the plan took twelve of the 22, not thirteen, and Q534 was
+raised after `e61df81`, so closing it does not lower the count from 22. The arithmetic the plan meant:
+22 − 12 = **10**, plus the four raised = **14**, as measured.
