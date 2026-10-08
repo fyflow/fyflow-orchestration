@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.28 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.29 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -396,6 +396,16 @@ literally P14's words and occurs nowhere in P17 — W109's conformity reader, 13
 were in four documents with nothing comparing any two, which `check-docs`' `X6` now does for the two read
 as current — its own founding measurement one decision later, W109's adequacy reader, F11.)*
 
+**v0.29 corrects ONE sentence in section 2, by the maintainer on 2026-10-08**: what a throw in the
+envelope's `setup()` does. It said the task *"stays `pending` with `attempts: 0`"* and the scheduler
+*"emits nothing a driver could record"* — W61's measurement, carried into ADR 0051 F1. **W141
+re-measured it on 0.5.2** ([W141](../doc/work-items/w141-a-worker-that-cannot-set-up-fails-its-tasks-and-the-registry-has-one-shape.md),
+[Q266](../doc/questions/q266.md)): ONE task with no retry does not hang — it settles `user_action`;
+the hang needs several tasks on the failing worker, or one task with a retry, and then every task
+stays `pending` while the pool exhausts its restarts. **And since W141 no task hangs at all**: the
+envelope remembers ANY failure of its `setup()` and throws it from `run()`. No rule moves, no
+refusal is added, and `RunState.outcome` still never reads `stopped` for this.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -723,11 +733,15 @@ both runtimes — and a person who `resolve()`s the task supplies the value the 
 its `input`, because an adapter cannot tell a typo from an intended absence (P17 fact 4: a path typo
 is silent where a type error is loud), and saying otherwise here would decide P19. **And a language
 module that does not LOAD is the task's failure too, by the maintainer's choice at W61's
-stop-and-ask**: measured, a throw in the wrapper's `setup()` is a WORKER error — the task stays
-`pending` with `attempts: 0`, the pool restarts its worker, and the scheduler emits nothing a driver
-could record — so the wrapper remembers the load failure and throws it from `run()` on exactly the
-tasks whose transform names that language, while a task with no transform, or in a language that did
-load, still runs. No `FD-R` is added: `RunState.outcome` never says `stopped` for a transform.
+stop-and-ask**: a throw in the wrapper's `setup()` is a WORKER error, which the scheduler handles by
+restarting the worker — *(v0.29: re-measured on 0.5.2 at W141, one task with no retry settles
+`user_action`, and several tasks on the failing worker, or a retry, stay `pending` while the pool
+exhausts its restarts; this read "the task stays `pending` with `attempts: 0` … emits nothing a
+driver could record" until then)* — so the wrapper remembers the load failure and throws it from
+`run()` on exactly the tasks whose transform names that language, while a task with no transform, or
+in a language that did load, still runs. **Since W141 the same holds for ANY failure of the envelope's
+own `setup()`**: it is remembered and thrown from `run()` on every task of that worker, so no task of
+a type whose worker cannot set up hangs. No `FD-R` is added: `RunState.outcome` never says `stopped` for a transform.
 
 **`$now`, `$millis` and `$random` are UNBOUND, by name, in every adapter** — P17 decision 6, a rule
 about ANY language: *a transform is a function of what the run produced*, because a run's state is a
