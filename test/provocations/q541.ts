@@ -54,9 +54,12 @@ process.on('exit', () => rmSync(SCRATCH, { recursive: true, force: true }));
 
 /** The fixtures, each hand-written from the contract it stands in for. */
 const BUNDLE_REPORTS = 'globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 };\n';
-/** A console error, and the result set LATER, so the console event has arrived before the suite reports. */
+/**
+ * A console error, and the result set 6 s LATER — past the script's 5 s page-error grace, so a console error
+ * that shortened the wait as a page error does would cut this report off (rule 8 probe p13).
+ */
 const BUNDLE_CONSOLE = "console.error('a console error, not a page error');\n" +
-  'setTimeout(() => { globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 }; }, 300);\n';
+  'setTimeout(() => { globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 }; }, 6_000);\n';
 /** A page error from a suite that has not stopped: an unhandled rejection, then the result, as a stray async throw would. */
 const BUNDLE_REJECTS_THEN_REPORTS = "Promise.reject(new Error('a page error, and the suite still reports'));\n" +
   'setTimeout(() => { globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 }; }, 300);\n';
