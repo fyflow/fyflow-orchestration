@@ -28,7 +28,7 @@
 //       (C2 gained TWO at W41: the `RULE_PREFIXES` binding, both directions.)
 //  - 2  `C5`'s two, which are NOT this file's: `C5` was lifted into
 //       `scripts/check-markdown.mjs` by W25, and its probes and its one grading live
-//       in `scripts/check-markdown-selftest.mjs` (probes at :291 and :430, the META
+//       in `scripts/check-markdown-selftest.mjs` (the two probes declaring `check: 'C5'`, the META
 //       entry *"C5`s lift removed from check-spec"*). `check-spec` is the caller.
 //  ----
 //   19  probed here, ONE PROBE PER SITE and one META entry per site.
