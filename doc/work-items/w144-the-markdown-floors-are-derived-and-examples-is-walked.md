@@ -35,7 +35,12 @@ Outputs:    (1) the measurement, BEFORE any edit: M3, M4 and M5's literals, what
             (3) check-markdown-selftest.mjs: the removes probes and the derivation read ONE definition
                 of each probe tree; every new or moved clause provoked at birth (rule 7); META entries
                 showing the derivation can fail — a floor derived to 0, or a derivation made vacuous,
-                is RED
+                is RED. *Amended at the fix round*: "misnamed is RED" needed a clause of its own, M10 —
+                every path a probe tree names is one the walk links into — because one misnamed path of
+                two removes nothing and the probe built from the same name agrees with it; a META
+                entry graded `corpus` now declares the ids the corpus must trip, so M10's only case
+                asserts that M10 fired; and each tree probe's fixture counts are held to the
+                in-memory tree the floor is derived from (rule 8's d6)
             (4) prediction 5, shown: N ordinary linking documents added to a COPY of the tree, and the
                 check and the self-test's probe pass stay green, where on fb64b63 one document turns
                 the probe pass RED
@@ -62,7 +67,7 @@ Reserves:   Q565-Q567; ADR 0089 only if a stop-and-ask answer needs it. No W bey
 | `scripts/check-spec-selftest.mjs` | it reads check-markdown-selftest.mjs for `check: 'C5'` and relocates check-spec's `from './check-markdown.mjs'`; both literals are kept |
 | `scripts/check-wiring.mjs` | its G6 table reads the walk's skip line (`name === 'dev-dist'`) in check-markdown.mjs and two probe literals in the self-test; all three are kept byte for byte, and no new statement names the scratch directory |
 | `scripts/check-docs.mjs` (X10), `scripts/check-scheduler.mjs` | they read examples/README.md's L6-count sentences and its pin sentence; an edit to that file for a broken link leaves those sentences alone |
-| `doc/work-items/TEMPLATE.md` | its italic note says a real link there closes M6's gap in the second removes probe's tree; M6 and that probe tree are kept, so the note stays true |
+| `doc/work-items/TEMPLATE.md` | its italic note says a real link there closes M6's gap in the second removes probe's tree; M6 and that probe tree are kept. *Corrected at the fix round (the conformity reader's finding 10)*: the note was ALREADY false on fb64b63 — that tree's gap was 15, not 0 — so it does not "stay true"; W144 does not make it falser |
 | `package.json` | `check:markdown` and `check:markdown:selftest` are not renamed; nothing new is wired (P31 Out) |
 | documents citing the literals 362, 120 or 72 | dated history stays; a sentence that is FALSE once the floors are derived is un-written at the record step only where it sits in a record-step file, and asked otherwise |
 
