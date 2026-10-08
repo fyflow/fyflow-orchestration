@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141 and W145 done 2026-10-08 (Record below)
+**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08 (Record below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -208,3 +208,24 @@ passes; this section names what the PLAN needs from it.
 - **What W144 inherits**: nothing in its files. `test/provocations/q541.ts` is a new `test/` file outside
   every glob.
 - **The confirming gate**: `npm run gate:item` EXIT 0 on `ff61ff6`, once, on a still tree (decision 4).
+
+**W144 — done 2026-10-08.** Its own Record covers the gate, the floors and the window before and after, the
+reader and the rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q142 and Q337**, each `resolved-by` naming P31 W144 — **and Q487, a THIRTEENTH beyond decision 1's
+  twelve**, by the maintainer's answer (2026-10-08): it was deferred *waiting on Q142's decision*. The exit
+  artifact's `resolved-by~P31` listing therefore shows thirteen. **Raised: none** (Q565-Q567 unused).
+  Prediction 1 held for W144. On W144's tree `npm run q -- --where status=open --count` prints **7**.
+- **Stop-and-ask (c) fired and was answered (A) plus M9** — the row above. The floors are derived (M3 169,
+  M4 121, M5 71 today, each printed by the check); M9 and M10 are new; examples/ is walked.
+- **Prediction 2 held**: no ADR; ADR 0089 is unused. The maintainer chose dated notes in ADR 0076 and ADR 0078
+  over ADR 0089 (the reader's finding 1).
+- **Prediction 5 is now true by construction**, shown on W144's own tree with 200 ordinary documents; W146's
+  edits are its first real test.
+- **Workflow section 1 rule 6 fired once, two files, answered YES** (2026-10-08): doc/work-items/TEMPLATE.md's
+  italic note and scripts/check-spec-selftest.mjs:31. Neither is on this plan's W144 row.
+- **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are untouched.
+- **What W143 inherits**: check-markdown-selftest.mjs now builds its tree probes from the script under test's
+  `PROBE_TREES`, holds each tree probe's fixture to the in-memory measure, and lets a META entry graded
+  `corpus` declare its ids (a 5th element). Its lane is the slowest: about 12.7 min alone, 1302.6 s in the gate.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `8bbb662`, once, on a still tree (decision 4).

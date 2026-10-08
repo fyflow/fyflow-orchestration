@@ -1,6 +1,6 @@
 # W144 — check-markdown's M3-M5 floors are derived from the probe trees, and examples/ is walked (Q142, then Q337)
 
-**Status:** in review — declared 2026-10-08 on `fb64b63`, the fifth item of P31; built, the reader and the fix round done, `gate:item` EXIT 0 on `8bbb662`; the record step waits on three asks (Questions, below)
+**Status:** done — declared 2026-10-08 on `fb64b63`, the fifth item of P31; built, the reader and the fix round done, `gate:item` EXIT 0 on `8bbb662`, the three asks answered and the record step done, 2026-10-08
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, deliberately* — Q142's own mechanism: on `fb64b63` ONE more linking
@@ -203,8 +203,13 @@ its L6-count and pin sentences — what no check read was its links.
 
 `git diff --name-only fb64b63` at `8bbb662`: four paths. **Owns, 3**: scripts/check-markdown.mjs,
 scripts/check-markdown-selftest.mjs and this file (examples/README.md, Owns only for a broken link, did not
-move). **Record step, 1**: P31's plan (its stop-and-ask (c) row, written with the maintainer's answer).
-**Exceptions, 0** so far. The drag files did not move: check-spec, check-wiring, check-docs, check-scheduler
+move). **Exceptions, 2**, both asked under rule 6 and answered YES before the edit (the header):
+doc/work-items/TEMPLATE.md and scripts/check-spec-selftest.mjs. **Record step, 6**: P31's plan (its
+stop-and-ask (c) row and its Record), doc/questions/q142.md, q337.md and q487.md, and
+doc/decisions/0076-… and 0078-… (dated notes, the maintainer's answer (a)). README.md was not edited: a
+consumer page in which nothing moved. **After the confirming gate**, beyond the record step: four COMMENT
+edits in scripts/check-markdown-selftest.mjs (pointers to arithmetic that left for `git`, found by the
+record step's grep) — no code moved, and the self-test was re-run after them (below). The drag files did not move: check-spec, check-wiring, check-docs, check-scheduler
 EXIT 0 on the item's tree; check-spec's `resolveLinks(mdFiles, ROOT)` call is unchanged.
 
 ### Rule 8 — five passes, harness `rule8.mjs`
@@ -308,14 +313,14 @@ code's own statement of the reach; the in-memory trees equal staged copies (168/
 
 ### Questions closed and raised (section 1 rule 6)
 
-- **To close at the record step: Q142 and Q337**, each `resolved-by` starting "P31 W144 —".
-- **Raised: none.** Q565-Q567 unused so far.
-- **Asked, and waiting** (2026-10-08), before the record step:
-  1. **The ADR note** (the reader's finding 1; the maintainer's instruction: an ADR note is a stop) —
-     (a) dated correction notes in ADR 0076 decisions 1-2 and ADR 0078 decision 1, no new ADR, as W141
-     corrected ADR 0051 and ADR 0075 at its record step; or (b) ADR 0089, amending both and recording the
-     derivation, M9 and M10, which reverses prediction 2 for W144.
-  2. **Rule 6, to widen Owns by two pre-existing false claims**: doc/work-items/TEMPLATE.md's italic note,
-     and scripts/check-spec-selftest.mjs:31's line references.
-  3. **Q487** (deferred, *waits on Q142's decision*): the comments it names are gone and the derived floors
-     are printed, so it is closeable — but P31's exit artifact lists exactly twelve questions.
+- **Closed: Q142 and Q337**, each `resolved-by` starting "P31 W144 —"; **and Q487**, a thirteenth beyond P31
+  decision 1's twelve, by the maintainer's answer (it was deferred *waiting on Q142's decision*).
+- **Raised: none.** Q565-Q567 unused. ADR 0089 unused.
+- **Three asks, answered by the maintainer on 2026-10-08**: (1) the ADR note — **(a)**, dated notes in ADR
+  0076 and ADR 0078, no new ADR (prediction 2 holds); (2) rule 6 — **YES** to both widenings; (3) Q487 —
+  **close it in W144**.
+
+### After the record step
+
+The record step changed files three checks read (doc/questions/**, doc/decisions/**, the plan, this file,
+TEMPLATE.md and the self-test's comments), so each was re-run on the final tree:
