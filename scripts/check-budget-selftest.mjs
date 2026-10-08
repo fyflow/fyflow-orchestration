@@ -1235,7 +1235,8 @@ export async function selfTest(root) {
   // which for an entry is STILL CAUGHT. A copy that cannot run comes back `corpus`, which is how a pass
   // grades every mutation of a check it never ran against (W105's adequacy reader). The `SELF` entry
   // *the META control handed a copy that cannot run* is its checked-in case, and **removing this block
-  // is visible**: `metaControl` is read by the verdict below.
+  // is visible**: `metaControl` then stays `not run`, which gates META off, and the `NOT RUN` arm is a
+  // failure (the reader's finding 2 — this said the verdict read it, which was the wrong mechanism).
   let metaControl = { outcome: 'not run' };
   if (meta) {
     metaControl = gradeMeta(['the control: an UNMUTATED copy', META[0][1], IDENTITY]);
@@ -1259,7 +1260,9 @@ export async function selfTest(root) {
     }
     console.log(`  meta: ${noticed}/${META.length} noticed by the named probe, ${byCorpus} by the corpus`);
   } else if (meta) {
-    console.log('  meta: NOT RUN — its control failed');
+    // **A pass skipped is a FAILURE, never a quiet line** — W143's reader, finding 2.
+    failures.push(`META NOT RUN — its control did not hold (${metaControl.outcome}), so no entry was graded`);
+    console.log('  meta: NOT RUN — its control did not hold');
   } else {
     console.log('  meta: skipped — this run is already a META child');
   }

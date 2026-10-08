@@ -187,7 +187,7 @@
 // the other five, so `RUNNER` is no longer the only way in — and it is the SAME
 // variable this file already used for the same meaning, *the self-test module to
 // load*, which is why the two mechanisms compose rather than collide. `RUNNER` is
-// left standing: it is W31's, thirteen probes and fourteen `SELF` entries rest on it,
+// left standing: it is W31's, thirteen probes and fourteen `SELF` entries rest on it (seventeen since W143),
 // and replacing it is not W38's to do. Its stated REASON is what was corrected here.
 //
 // **This paragraph first said the difference cost nothing, and the twelfth `SELF`
@@ -654,7 +654,8 @@ const SELF = [
     // mislabelled and the verdict has to say so.
     (t) => t.replace("    'a policy object`s own id changed, leaving the key alone'],",
       "    'a policy deleted from POLICIES'],")],
-  // **The `ran:` guard, and this file is the only place its case exists.** A `META` entry
+  // **The `ran:` guard, and this file was the only place its case existed until W143** (Q536: docs,
+  // markdown, scheduler, source and spec carry one now). A `META` entry
   // that is inert on the clean tree and THROWS under its own probe — the case the guard is for —
   // cannot ship as a `META` entry, because the file would ship red; as a `SELF` entry it is
   // exactly right. With the guard live the child's META pass reports one entry FAIL *the mutant

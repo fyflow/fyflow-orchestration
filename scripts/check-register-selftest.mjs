@@ -1948,7 +1948,8 @@ export async function selfTest(root) {
   // Nothing is broken, so the copy must be inert on the base and its probe must still grade as declared —
   // which for an entry is STILL; `failure` names that, and `outcome` is the probe's own verdict. A copy
   // that cannot run comes back `corpus`, which is how a pass grades every mutation of a check it never ran
-  // against (W105's adequacy reader). **Removing this block is visible**: `metaControl` is read below.
+  // against (W105's adequacy reader). **Removing this block is visible** — `metaControl` then stays `not run`
+  // and the `NOT RUN` arm below is a failure (the reader's finding 1: it was a quiet line until then).
   const controlEntry = META.find(([w]) => !CORPUS_ALLOWED.includes(w));
   const controlProbe = PROBES.find((p) => p.name === controlEntry[1]);
   const metaControlOf = (source) => gradeMeta(['the control: an UNMUTATED copy', controlEntry[1], IDENTITY], source);
@@ -1986,8 +1987,13 @@ export async function selfTest(root) {
     }
     console.log(`  meta: ${noticed}/${META.length} noticed by the named probe; ${byCorpus.length} of them also by the corpus ` +
       `on the base, as CORPUS_ALLOWED permits, by name: ${byCorpus.length ? byCorpus.join('; ') : 'none'}`);
-  } else if (meta) console.log('  meta: NOT RUN — its control failed');
-  else console.log('  meta: skipped — this run is already a META child');
+  } else if (meta) {
+    // **A pass skipped is a FAILURE, never a quiet line — the reader's finding 1 (W143).** This printed
+    // `NOT RUN` and pushed nothing, so deleting the control block (`metaControl` stays `not run`) or only
+    // its failure line skipped all of META at exit 0. Now the skip is itself the red, whatever removed it.
+    failures.push(`META NOT RUN — its control did not hold (${metaControl.outcome}), so no entry was graded`);
+    console.log('  meta: NOT RUN — its control did not hold');
+  } else console.log('  meta: skipped — this run is already a META child');
   // **A SELF child stops at its first red after META too — W143**, the same cost decision W116 took after
   // the grader pass: the META control and the guard cases sit at the top of META, so a child whose planted
   // case is one of them had the whole of META and STATE still to run, for a verdict it already had.
@@ -2082,11 +2088,11 @@ export async function selfTest(root) {
     return { mutated };
   };
   let stateControl = { outcome: 'not run' };
+  const sProbe = STATE_PROBES.find((p) => p.name === STATE_META[0][1]);
   if (meta) {
     // **The CONTROL for STATE_META — W143, Q437.** An unmutated COPY of `state.mjs`, run from where every
     // mutant runs (`forceCopy`), against the first entry's probe, must grade exactly as the real script
     // does. Without it, a copy that cannot run would grade every entry noticed.
-    const sProbe = STATE_PROBES.find((p) => p.name === STATE_META[0][1]);
     stateControl = gradeState(sProbe, stateSrc, true);
     if (stateControl.outcome !== stateWant(sProbe)) {
       failures.push(`STATE_META CONTROL — an UNMUTATED copy of state.mjs graded "${stateControl.outcome}" by ` +
@@ -2102,7 +2108,13 @@ export async function selfTest(root) {
       `guard cases: Q434 ${s434.failure?.includes('matched NOTHING') ? 'refused' : 'NOT REFUSED'}, Q437 ` +
       `${s437.outcome === stateWant(sProbe) ? 'NOT FIRED' : `fired (${s437.outcome})`}`);
   }
-  if (meta && stateControl.outcome !== 'not run') {
+  // **Gated on the control HOLDING, and a skip is a failure** — the reader's finding 1 again: this read
+  // `!== 'not run'`, so a control that failed silently still let every entry grade, and a deleted control
+  // block skipped the pass with nothing said.
+  if (meta && stateControl.outcome !== stateWant(sProbe)) {
+    failures.push(`STATE_META NOT RUN — its control did not hold (${stateControl.outcome}), so no entry was graded`);
+  }
+  if (meta && stateControl.outcome === stateWant(sProbe)) {
     for (const [what, probeName, mutate, refusedBy] of STATE_META) {
       const { mutated, failure } = stateVacuity(what, mutate);
       if (failure) { failures.push(failure); continue; }

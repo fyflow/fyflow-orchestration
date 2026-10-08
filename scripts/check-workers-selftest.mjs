@@ -442,8 +442,8 @@ export async function selfTest(ROOT) {
   // is and driven through the same `gradeMeta`, naming the first probe-graded entry's probe. Nothing is
   // broken, so the copy must run clean on the document and its probe must still be caught — STILL CAUGHT,
   // for an entry. A copy that cannot run fails before that, which is how a pass grades every mutation of
-  // a check it never ran against (W105's adequacy reader). **Removing this block is visible**:
-  // `metaControl` is read before the entries are graded.
+  // a check it never ran against (W105's adequacy reader). **Removing this block is visible**: deleting
+  // `metaControl` is a ReferenceError, and deleting only its `bad` leaves the `NOT RUN` failure below.
   const controlOf = (source) => gradeMeta('control', { name: 'the control: an UNMUTATED copy',
     probe: META.find((m) => m.expect === 'probe').probe, expect: 'probe', mutate: IDENTITY }, source);
   const metaControl = controlOf(checkText);
@@ -459,6 +459,9 @@ export async function selfTest(ROOT) {
     if (!g434.failure?.includes('matched NOTHING')) bad(`GUARD CASE a compound META entry whose second edit matches nothing — Q434 — got ${g434.failure ?? g434.line}`);
     else console.log('  ok    GUARD CASE a compound META entry whose second edit matches nothing — Q434');
   }
+  // **A pass skipped is a FAILURE** — W143's reader, finding 3: with the `bad` above deleted, a control
+  // that did not hold skipped every entry with nothing said.
+  if (metaControl.stillCaught !== true) bad('META NOT RUN — its control did not hold, so no entry was graded');
   for (const [i, m] of metaControl.stillCaught === true ? META.entries() : []) {
     const g = gradeMeta(i, m);
     if (g.ok) { noticed++; console.log(g.line); } else bad(g.failure);

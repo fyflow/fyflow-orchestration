@@ -1476,6 +1476,20 @@ export async function selfTest(root) {
     console.log('  ok    GUARD CASE the C5 lift with its second anchor gone — Q434');
   }
 
+  /** The `check-spec.mjs` copy's run and grading, one function for the entry and its control (W143). */
+  const gradeSpec = (path, text, probeName, corpusIds) => {
+    writeFileSync(path, text);
+    try {
+      const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-markdown.mjs'), '--self-test'],
+        { cwd: root, encoding: 'utf8', timeout: 900_000,
+          env: { ...process.env, CHECK_MARKDOWN_SPEC_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
+            CHECK_MARKDOWN_PROBE: probeName } });
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      return { ...grade(probeName, r, corpusIds), outcome: (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1] };
+    } finally { rmSync(path, { force: true }); }
+  };
+  let specControlHeld = false;
+
   for (const [i, [name, probeName, mutate, which, corpusIds]] of META.entries()) {
     let broken, path;
     if (which === 'spec') {
@@ -1496,15 +1510,22 @@ export async function selfTest(root) {
       // the fixture. `base` has been two directories deep since W25 put the pid in it, so the stated
       // constraint was already violated by the line it was written above and nothing ever failed.
       // *A constraint quoted from a sibling file is a claim about this one.*
-      writeFileSync(path, broken);
-      let v = { ok: false, why: '' };
-      try {
-        const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-markdown.mjs'), '--self-test'],
-          { cwd: root, encoding: 'utf8', timeout: 900_000,
-            env: { ...process.env, CHECK_MARKDOWN_SPEC_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
-              CHECK_MARKDOWN_PROBE: probeName } });
-        v = grade(probeName, r, corpusIds);
-      } finally { rmSync(path, { force: true }); }
+      // **The check-spec path's own CONTROL — the reader's finding 9 (W143, Q437).** This entry runs a
+      // `check-spec.mjs` copy the `gradeMeta` control never covers, so the same path is first handed an
+      // UNMUTATED copy, which must come back `caught` and not noticed. Once per run, here, because only a
+      // run that reaches this entry pays for it.
+      if (!specControlHeld) {
+        const c = gradeSpec(join(base, '.meta-spec-control.mjs'), specSource, probeName, corpusIds);
+        if (c.ok || c.outcome !== 'caught') {
+          console.log(`  FAIL  the control: an UNMUTATED copy of check-spec.mjs, on the C5 path, is graded ` +
+            `${c.ok ? 'NOTICED' : 'not caught'} (outcome "${c.outcome || '(none)'}"${c.why})`);
+          if (!shared) rmSync(base, { recursive: true, force: true });
+          return 1;
+        }
+        console.log('  ok    the control: an unmutated check-spec.mjs on the C5 path is NOT graded as noticed');
+        specControlHeld = true;
+      }
+      const v = gradeSpec(path, broken, probeName, corpusIds);
       if (v.ok) noticed++;
       if (v.corpus) byCorpus++;
       console.log(`  ${v.ok ? 'ok  ' : 'FAIL'}  ${name}${v.why}`);

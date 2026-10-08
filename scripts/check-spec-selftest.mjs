@@ -120,9 +120,10 @@
 //   the fingerprint made RANDOM, so 7 (b) can never fire        survives
 //   `gradedIds()`'s own return expression -> `ids: []`          survives
 //   `MAX_CORPUS` -> 99                                          survives
-//   `bN > mN` -> `bN >= mN`                                     survives
+//   `bN > mN` -> `bN >= mN`                                     REFUSED since W143: the
+//                                                               control has `bN === mN`
 //   `tripped` re-sourced from the report ROWS                   survives
-//   `return noticed === META.length ? 0 : 1` -> `return 0`      survives
+//   the final verdict -> `return 0`                             survives
 //   `nested` -> `true`  (deletes the whole META pass)           survives
 //   the `note:` lines AND the report HEADER counts              unasserted
 //
@@ -130,7 +131,8 @@
 // found by W30's adequacy reader.** Four deserve naming rather than counting:
 //
 //  - **`bN > mN` -> `>=` is behaviour-preserving ALONE and load-bearing COMPOUNDED**,
-//    and the split is the point. No entry here has `bN === mN`, so the file reads
+//    and the split is the point. *(Until W143: its unmutated-copy control has `bN === mN`, so
+//    `>=` is now refused alone — the reader's finding 5.)* No entry here has `bN === mN`, so the file reads
 //    `21/21 graded — 20 by the named probe, 1 by the failure COUNT` either way. But
 //    `refused = true` ALONE is REFUSED at **18/21** — and all three failures come from
 //    this comparison, not from the report entries the ceiling first credited. Apply
@@ -146,7 +148,7 @@
 //    beyond it and one without.
 //  - **A fully broken harness reports `21/21` at exit 0.** `RAN` -> true,
 //    `inertOnCleanTree` -> true and the RELOCATE guard removed, together, grade nothing
-//    and say nothing. Each survives alone; each is REFUSED in combination with one of
+//    and say nothing. Each survived alone (`RAN` no longer does, since W143's `ran:` case); each is REFUSED in combination with one of
 //    the others, so all three are demonstrably reachable and none is bounded.
 //  - **A CONSTANT fingerprint is refused and a RANDOM one is not**, and the ceiling
 //    first conflated them. `return 1` makes every probe report *"the mutation matched
@@ -935,6 +937,13 @@ export async function selfTest(root) {
     // `MISS_EXEMPT`: it rewrites every document in spec/ and most of them carry nothing it removes.
     if (misses > 0 && !MISS_EXEMPT.includes(probe.name)) {
       return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: missWhy(misses) };
+    }
+    // **And the exemption is BOUNDED: at least one document must be hit** — the reader's finding 10. The
+    // exempt probe makes one `replace` per document, so a miss in EVERY document is its citation edit gone
+    // entirely, which the fingerprint cannot see while its row removal (by `split`/`join`) still lands.
+    if (MISS_EXEMPT.includes(probe.name) && misses >= readdirSync(specDir).filter((f) => f.endsWith('.md')).length) {
+      return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true,
+        msg: `${missWhy(misses)} — in every document, which the exemption does not cover` };
     }
     const r = spawnSync(process.execPath, [script], {
       cwd: root, encoding: 'utf8', timeout: 300_000,
