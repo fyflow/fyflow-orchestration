@@ -112,7 +112,7 @@ closed and raised.
 |---|---|---|
 | **(a)** | Q244: if routing by run id cannot be done without changing what `start()` returns or what a consumer must pass, does W142 change the public surface or stop at the measurement? | *open — W142 asks* |
 | **(b)** | Q266: if W61's road cannot fail the tasks without the scheduler's cooperation, does the hang stay documented and an upstream want go to `doc/scheduler-upstream.md`? | **NOT NEEDED** — W141 measured that the envelope alone closes the hang (6 of 6 hung before, 6 of 6 completed after); no scheduler cooperation, no upstream want |
-| **(c)** | Q142: if no derivation from the probe trees is stable, are the floors retuned once more and Q142 re-asked? | *open — W144 asks* |
+| **(c)** | Q142: if no derivation from the probe trees is stable, are the floors retuned once more and Q142 re-asked? | **ANSWERED by the maintainer, 2026-10-08: (A) pure derivation plus M9.** W144 measured that a floor no ordinary document can close is also one no ordinary document LEAVING can fire, so a derivation keeps no reach over a partial loss inside its subject. Each floor is the largest measure among the probe trees that must fire it, plus 1, from one exported probe-tree definition the self-test's `removes` probes read, with no literal; and a new clause, `M9`, *the walk reads every markdown file a walked document links to*, takes over noticing documents that leave the walk, landing with `examples/` joining the walk (Q337). *Not chosen*: (B) a literal margin over each subject; (C) retune once more |
 | **(d)** | ~~Scope and the four directions~~ | **ANSWERED by the maintainer, 2026-10-07** (decisions 1 and 2) |
 
 ## Open questions this plan carries
