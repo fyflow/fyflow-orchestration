@@ -386,8 +386,8 @@ export const probeTreePaths = () => [...new Set(Object.values(PROBE_TREES)
  * **Each floor, derived.** `files` is the walk; each probe tree is built from it in memory — the
  * removed paths left out of the walk AND made absent as link targets, so a link into them is dead and
  * counts as no anchor, exactly as in a fixture where they were deleted; the strip applied to its one
- * file's text. Verified against staged copies at W144: `166 / 150 / 78`, `134 / 119 / 56` and
- * `619 / 201 / 70` both ways.
+ * file's text. Verified equal to staged copies at W144, and the self-test holds every tree probe's
+ * fixture to it on each run — the figures are in the check's report, and only there.
  *
  * **A floor with no tree, or naming a tree that is not defined, is `Infinity`**, so it fires on every
  * tree rather than on none: `Math.max()` of nothing is `-Infinity`, and a floor of `-Infinity + 1` is a
@@ -412,6 +412,10 @@ export function deriveFloors(files, root) {
     for (const name of trees) {
       if (!(name in PROBE_TREES)) { floor = Infinity; from = `"${name}", which is not a probe tree`; break; }
       const m = measureOf(name)[measure];
+      // **A MEASURE no tree counts is `undefined`, and `undefined + 1 > floor` is false for ever**, so
+      // the floor stayed `-Infinity` and passed everything — the conformity reader's finding 3, `M3 -Infinity`
+      // printed with the check green. It is RED instead, for the reason a missing tree is.
+      if (!Number.isFinite(m)) { floor = Infinity; from = `"${measure}", which no probe tree counts`; break; }
       if (m + 1 > floor) { floor = m + 1; from = `the "${name}" probe tree's ${m}`; }
     }
     out[id] = { floor, from };
@@ -466,8 +470,10 @@ for (const d of r.deadAnchors) fail('M2', d);
 // time, which [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
 // and [ADR 0078](../doc/decisions/0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md)
 // measured and this replaces. Both ADRs' rules still hold of what a derived floor counts: `M4` counts
-// documents carrying a link (ADR 0076 decision 1), and each window is set by the probe SUITE's
-// declared sets (ADR 0078 decision 2) — now literally, because the suite's trees ARE the derivation.
+// documents carrying a link (ADR 0076 decision 1), and the probe trees that must FIRE a floor set it
+// (ADR 0078 decision 2's suite, read from the side that still binds). *The other side no longer does*:
+// a probe tree that must stay QUIET constrains nothing on the real tree, because each fixture derives its
+// own floors — the conformity reader's finding 1; the quiet verdicts are held by the probes' declared sets.
 const floors = deriveFloors(files, SCAN_ROOT);
 // **M3 — the walk covers the tree.** A walk that reads no file has a floor of 1 and fails it.
 if (r.files < floors.M3.floor) fail('M3', `only ${r.files} markdown file(s) were scanned, no more than ` +
@@ -497,9 +503,9 @@ if (r.sources < floors.M4.floor) fail('M4', `only ${r.sources} document(s) carri
 // under `M3` were each replaceable by `if (false)` for zero, since any probe tripping one satisfied
 // a declaration of the other two.
 //
-// Its own durability is measured rather than hoped: the gap is **5** today and **6** post-cut, and
-// three of the five are `TEMPLATE.md` files — `doc/decisions/`, `doc/plans/` and `doc/work-items/` —
-// which carry no link by their nature, so the gap cannot close while the templates exist.
+// Its own durability was measured at W112 — a gap of **5** then, three of them `TEMPLATE.md` files, which
+// carry no link by their nature. *That figure is history*: since W116 every question is a document and
+// most carry no relative link, so the gap is hundreds, and it is in the report as `files - sources`.
 if (r.sources >= r.files) {
   fail('M6', `the walk scanned ${r.files} document(s) and resolved a relative link from ` +
     `${r.sources} of them. M4 counts documents that CARRY a link and M3 counts documents SCANNED; ` +
@@ -545,9 +551,9 @@ for (const path of probeTreePaths()) {
 const checks = [
   'M1 every relative link resolves to a file that exists',
   'M2 every anchor resolves to a heading in its target',
-  'M3 the walk covers the tree',
-  'M4 the tree carries links to check',
-  'M5 the links carry anchors to check',
+  'M3 the walk scans more files than each probe tree that removes its subject',
+  'M4 more documents carry a link than in the probe tree that removes its subject',
+  'M5 more links carry an anchor than in each probe tree that removes its subject',
   'M6 M4 counts something M3 does not',
   'M9 the walk reads every markdown file it links to',
   'M10 every path a probe tree names is one the walk links into',

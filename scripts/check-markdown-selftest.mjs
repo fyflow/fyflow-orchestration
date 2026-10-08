@@ -644,7 +644,7 @@ const SELF_RAN = (out) => /self-test — /.test(out);
 
 const MIN_PROBES = 44;
 /** The same floor for `META`. */
-const MIN_META = 51;
+const MIN_META = 52;
 /** And for `SELF`. */
 const MIN_SELF = 7;
 
@@ -710,10 +710,15 @@ const META = [
   ['the walk skips doc/work-items and doc/plans — half the corpus leaves',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace("      if (name === 'node_modules' || name === '.git' || name === 'dev-dist' || name === 'dist') continue;",
-      "      if (name === 'node_modules' || name === '.git' || name === 'dev-dist' || name === 'dist') continue;\n      if (name === 'work-items' || name === 'plans') continue;")],
+      "      if (name === 'node_modules' || name === '.git' || name === 'dev-dist' || name === 'dist') continue;\n      if (name === 'work-items' || name === 'plans') continue;"),
+    // **Graded `corpus` by `M9` since W144** — before it the floors caught this (sources fell to 67).
+    undefined, ['M9']],
   ['the three ROOT documents dropped from the scan',
     'a dead link in the ROOT README.md — the only probe that covers a root document',
-    (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md'].map((f) => join(SCAN_ROOT, f)).filter(existsSync),", '')],
+    (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md'].map((f) => join(SCAN_ROOT, f)).filter(existsSync),", ''),
+    // **`corpus` by `M9` since W144**: a walked document links to each root document. The named probe no
+    // longer decides this entry — the reader's finding 5, the price of a relation that sees a walk shrink.
+    undefined, ['M9']],
   // **W25's adequacy sweep's three surviving mutations, checked back in.** All three
   // are inside `slug()` / `anchorsOf()` — the clause this item declared its corpus
   // cannot falsify — and all three cost 0 until the probes above existed.
@@ -771,10 +776,10 @@ const META = [
     (t) => t.replace("if (r.sources < floors.M4.floor) fail('M4'", "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
-    (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],
+    (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']"), undefined, ['M9']],
   ['spec/ dropped from this script`s own file set',
     'a dead link in spec/, seen by CHECK-MARKDOWN rather than by check-spec',
-    (t) => t.replace("  ...markdownIn(join(SCAN_ROOT, 'spec')),\n", '')],
+    (t) => t.replace("  ...markdownIn(join(SCAN_ROOT, 'spec')),\n", ''), undefined, ['M9']],
   ['the percent-decode guard removed, so an encoded anchor is compared raw',
     'a PERCENT-ENCODED anchor that resolves — must trip nothing',
     (t) => t.replace('        try { anchor = decodeURIComponent(raw); } catch { anchor = raw; }', '        anchor = raw;')],
@@ -783,7 +788,7 @@ const META = [
     (t) => t.replace('      if (!anchor) continue;', '      if (anchor === null) continue;')],
   ['isMarkdownFile`s .md test removed',
     'an anchored link to a NON-MARKDOWN file — must trip nothing',
-    (t) => t.replace("  if (!abs.endsWith('.md')) return false;\n", '')],
+    (t) => t.replace("  if (!abs.endsWith('.md')) return false;\n", ''), undefined, ['M9']],
   ['the external-scheme test narrowed to http(s)',
     'a MAILTO link — must trip nothing, and the scheme test is wider than https',
     (t) => t.replace('if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue;', 'if (/^https?:/i.test(target)) continue;')],
@@ -859,22 +864,25 @@ const META = [
   ['a probe tree`s removes EMPTIED — the tree is the whole walk, and so is its floor plus 1',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace("  'decisions removed': { removes: ['doc/decisions', 'doc/questions'] },",
-      "  'decisions removed': { removes: [] },")],
+      "  'decisions removed': { removes: [] },"), undefined, ['M3']],
   ['a probe tree path MISNAMED — it removes nothing, and only M10 sees it',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace("  'decisions removed': { removes: ['doc/decisions', 'doc/questions'] },",
-      "  'decisions removed': { removes: ['doc/decision', 'doc/questions'] },")],
+      "  'decisions removed': { removes: ['doc/decision', 'doc/questions'] },"), undefined, ['M10']],
   ['a floor`s probe-tree list EMPTIED — derived from no tree at all',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace("  M4: { measure: 'sources', trees: ['decisions and plans removed'] },",
-      "  M4: { measure: 'sources', trees: [] },")],
+      "  M4: { measure: 'sources', trees: [] },"), undefined, ['M4']],
   ['a floor naming a probe tree that is NOT DEFINED',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace("  M4: { measure: 'sources', trees: ['decisions and plans removed'] },",
-      "  M4: { measure: 'sources', trees: ['decisions and plans gone'] },")],
+      "  M4: { measure: 'sources', trees: ['decisions and plans gone'] },"), undefined, ['M4']],
+  ['a floor`s MEASURE misnamed — NaN, and a floor nothing can fail (the conformity reader`s finding 3)',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace("  M3: { measure: 'files', trees:", "  M3: { measure: 'file', trees:"), undefined, ['M3']],
   ['the strip NOT applied in memory — the upstream tree is the whole walk',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
-    (t) => t.replace('    return rewrite ? rewrite(abs, t) : t;', '    return t;')],
+    (t) => t.replace('    return rewrite ? rewrite(abs, t) : t;', '    return t;'), undefined, ['M5']],
   ['links into a removed path counted ALIVE in memory — the derived tree is not the probe`s',
     'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
     (t) => t.replace('  const exists = (abs) => !gone(abs) && existsSync(abs);', '  const exists = (abs) => existsSync(abs);')],
@@ -883,7 +891,7 @@ const META = [
     (t) => t.replace("for (const d of r.unwalked) fail('M9', d);", "for (const d of []) fail('M9', d);")],
   ['examples/ dropped from the walk — Q337 undone',
     'a dead link in examples/README.md — the walk reads examples/ (Q337)',
-    (t) => t.replace("  ...markdownIn(join(SCAN_ROOT, 'examples')),\n", '')],
+    (t) => t.replace("  ...markdownIn(join(SCAN_ROOT, 'examples')),\n", ''), undefined, ['M9']],
   ['C5`s lift removed from check-spec — the import kept and the call dropped',
     'a dead link inside spec/, which check-spec must still refuse as C5',
     (t) => t, 'spec'],
@@ -1053,7 +1061,10 @@ export async function selfTest(root) {
   /**
    * **The probe trees are read from the SCRIPT UNDER TEST**, never from a second copy here — W144. A
    * META child's script is a mutant, so a mutation of the definition reaches the probes and the floors
-   * together, which is what makes it ONE definition rather than two that agree today.
+   * together, which is what makes it ONE definition rather than two that agree today. **No entry can
+   * observe it, and that is measured** (the conformity reader's finding 6, W144's rule 8 `s4`): a derived
+   * floor fires on its own tree whatever the definition says, so every mutation of the definition is
+   * either non-inert on the corpus — graded before a probe runs — or caught by construction.
    */
   let PROBE_TREES;
   try {
@@ -1063,9 +1074,15 @@ export async function selfTest(root) {
     // instance whose `IS_ENTRY` is false, so it evaluates its exports and nothing else.
     ({ PROBE_TREES } = await import(`${pathToFileURL(script).href}?probe-trees`));
   } catch (e) {
-    console.log(`check-markdown self-test — the script under test could not be imported: ${e.message}`);
-    if (!shared) rmSync(base, { recursive: true, force: true });
-    return 1;
+    // **In single-probe mode a mutant that does not LOAD is graded as it was before W144** — by the
+    // inertness test, which runs it on the clean fixture and reads `corpus`. Returning here instead gave
+    // it no `outcome:` line and the parent graded a crash (the conformity reader's finding 4).
+    if (process.env.CHECK_MARKDOWN_PROBE === undefined) {
+      console.log(`check-markdown self-test — the script under test could not be imported: ${e.message}`);
+      if (!shared) rmSync(base, { recursive: true, force: true });
+      return 1;
+    }
+    PROBE_TREES = {};
   }
   if (!PROBE_TREES || typeof PROBE_TREES !== 'object') {
     console.log('check-markdown self-test — the script under test exports no PROBE_TREES.');
@@ -1117,7 +1134,7 @@ export async function selfTest(root) {
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       const measured = new Map([...out.matchAll(/^ {2}probe tree "(.+)" measured in memory: (\d+ \/ \d+ \/ \d+)$/gm)]
         .map((m) => [m[1], m[2]]));
-      clean = { status: r.status, measured };
+      clean = { status: r.status, measured, ids: trippedIn(out) };
     }
     return clean;
   };
@@ -1246,6 +1263,7 @@ export async function selfTest(root) {
     const inert = inertOnCleanFixture(probe);
     console.log(`  inert: ${inert ? 'yes' : 'no'}`);
     if (!inert) {
+      if (probe.runs !== 'spec') console.log(`  corpus-ids: [${cleanRun().ids.join(',')}]`);
       console.log('  outcome: corpus');
       if (!shared) rmSync(base, { recursive: true, force: true });
       return 1;
@@ -1331,10 +1349,19 @@ export async function selfTest(root) {
    *       neither may be closed by renaming the probe to whatever happens to fail.
    * `ran: no` means the mutant CRASHED rather than stopped checking.
    */
-  const grade = (probeName, r) => {
+  const grade = (probeName, r, corpusIds) => {
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     const outcome = (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1];
     if (r.status === 3) return { ok: false, why: ` — ${out.trim().split('\n').pop()}` };
+    // **A `corpus` verdict that DECLARES its ids is held to them** — W144, the conformity reader's findings
+    // 2 and 5: `corpus` read the exit status alone, so a clause like `M10`, whose only case is a mutated
+    // definition, had no assertion that IT fired rather than some other id.
+    if (outcome === 'corpus' && corpusIds) {
+      const got = (out.match(/^ {2}corpus-ids: \[(.*)\]$/m) ?? [, '(none printed)'])[1];
+      if (got !== [...corpusIds].sort().join(',')) {
+        return { ok: false, why: ` — the corpus tripped [${got}], and the entry declares [${[...corpusIds].sort().join(',')}]` };
+      }
+    }
     // Noticed by the corpus rather than by the named probe: true, stronger than a
     // probe, and not what the entry claims — so it is counted separately.
     if (outcome === 'corpus') return { ok: true, corpus: true, why: ' (by the corpus: the mutant is not inert)' };
@@ -1345,7 +1372,7 @@ export async function selfTest(root) {
     return { ok: false, why: ` — the child reported outcome "${outcome || '(none)'}", which grades nothing` };
   };
 
-  for (const [i, [name, probeName, mutate, which]] of META.entries()) {
+  for (const [i, [name, probeName, mutate, which, corpusIds]] of META.entries()) {
     let broken, path;
     if (which === 'spec') {
       // The lift's wiring: the import stays and the call goes, which is the shape
@@ -1370,7 +1397,7 @@ export async function selfTest(root) {
           { cwd: root, encoding: 'utf8', timeout: 900_000,
             env: { ...process.env, CHECK_MARKDOWN_SPEC_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
               CHECK_MARKDOWN_PROBE: probeName } });
-        v = grade(probeName, r);
+        v = grade(probeName, r, corpusIds);
       } finally { rmSync(path, { force: true }); }
       if (v.ok) noticed++;
       if (v.corpus) byCorpus++;
@@ -1387,7 +1414,7 @@ export async function selfTest(root) {
         { cwd: root, encoding: 'utf8', timeout: 900_000,
           env: { ...process.env, CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
             CHECK_MARKDOWN_PROBE: probeName } });
-      v = grade(probeName, r);
+      v = grade(probeName, r, corpusIds);
     } finally { rmSync(path, { force: true }); }
     if (v.ok) noticed++;
     if (v.corpus) byCorpus++;
