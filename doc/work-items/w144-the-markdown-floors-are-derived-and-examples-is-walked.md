@@ -59,7 +59,11 @@ Gate:       `npm run check:markdown` and `npm run check:markdown:selftest` EXIT 
 Reserves:   Q565-Q567; ADR 0089 only if a stop-and-ask answer needs it. No W beyond W144
 ```
 
-**Exceptions**: none declared. **The drag files, checked up front:**
+**Exceptions**: two, asked under workflow section 1 rule 6 and answered **YES by the maintainer on
+2026-10-08**, written here before either edit: (1) doc/work-items/TEMPLATE.md, its italic note's one false
+claim (the conformity reader's finding 10: *one of the FIVE … closes M6's gap*, false since before W144);
+(2) scripts/check-spec-selftest.mjs:31, its stale line references to the C5 probes. Neither is on P31's
+W144 row. **The drag files, checked up front:**
 
 | file | why it should not move |
 |---|---|
