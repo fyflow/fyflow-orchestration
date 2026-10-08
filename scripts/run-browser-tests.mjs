@@ -112,12 +112,12 @@ for (const name of engines) {
   let result;
   try {
     await page.goto(base, { waitUntil: 'load' });
-    // Settles with the error rather than rejecting, so the loser of the race is never an unhandled rejection.
+    // A timeout still rejects into the `catch` below, as before W145. `Promise.race` subscribes to both
+    // inputs, so the wait that loses — rejected when the browser closes — is never an unhandled rejection.
     const reported = page
       .waitForFunction(() => '__FYFLOW_RESULT__' in globalThis, null, { timeout: 60_000 })
-      .then(() => 'reported', (e) => e);
+      .then(() => 'reported');
     const first = await Promise.race([reported, stoppedByPageError]);
-    if (first instanceof Error) throw first;
     result = first === 'reported'
       ? await page.evaluate(() => globalThis.__FYFLOW_RESULT__)
       : { passed: 0, failures: ['the suite never reported: a page error stopped it (PAGE ERROR below)'], suites: 0 };
