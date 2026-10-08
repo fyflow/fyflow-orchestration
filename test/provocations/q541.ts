@@ -17,11 +17,14 @@
  * | **D** | a fixture runner that exits 0 with no count line | reports | **1** | `could not read an assertion count`, and nothing else |
  * | **E** | a fixture runner whose count line says 2 and exits 0 | **throws on import** | **1** | chromium's count line, `PARITY FAIL`, the never-reported `FAIL` naming a page error, the `PAGE ERROR` naming the fixture's error, the failure count — and well inside the 60 s wait |
  * | **F** | the same green fixture runner — the CONTROL | reports 2 passed | **0** | chromium's count line and `all passed (parity with node: 2)` |
+ * | **H** | the same green fixture runner | an UNHANDLED REJECTION (a page error), then reports 2 passed | **1** | chromium's count line, the `PAGE ERROR`, the failure count — and NO never-reported `FAIL` and no `PARITY FAIL`: a page error from a suite that goes on to report does not lose its report (the conformity reader's finding 1) |
  * | **G** | the same green fixture runner | logs a CONSOLE error, then reports 2 passed | **1** | chromium's count line, the `PAGE ERROR` naming that console text, the failure count — and NO never-reported `FAIL` and no `PARITY FAIL`: a console error does not stop the wait |
  *
  * Rule 7's three requirements: **(a)** this file; **(b)** each input is asserted to be what its case
  * says — the copy byte-identical to the script, `throws-on-import.ts` throwing when imported, and the
- * real runner exiting 1 under the shim; **(c)** each case's full SET of report lines is compared
+ * real runner's exit 1 under the shim, read through the script's own `RAN and exited 1` (B's missing
+ * runner and C's and D's missing count line are true by construction of their fixtures, and not
+ * asserted separately — the conformity reader's finding 6); **(c)** each case's full SET of report lines is compared
  * exactly. Not a `*.test.ts`, so neither the runner's glob nor the browser bundle runs it. Exits 0 when
  * every clause holds, 1 otherwise, naming each clause that did not.
  */
@@ -53,6 +56,9 @@ process.on('exit', () => rmSync(SCRATCH, { recursive: true, force: true }));
 const BUNDLE_REPORTS = 'globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 };\n';
 /** A console error, and the result set LATER, so the console event has arrived before the suite reports. */
 const BUNDLE_CONSOLE = "console.error('a console error, not a page error');\n" +
+  'setTimeout(() => { globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 }; }, 300);\n';
+/** A page error from a suite that has not stopped: an unhandled rejection, then the result, as a stray async throw would. */
+const BUNDLE_REJECTS_THEN_REPORTS = "Promise.reject(new Error('a page error, and the suite still reports'));\n" +
   'setTimeout(() => { globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 }; }, 300);\n';
 /** A fixture read at MODULE SCOPE that does not parse — the shape W132's provocation throws, now in a bundle. */
 const BUNDLE_THROWS = `const fixture = JSON.parse('{ "cases": 2, this is not JSON }');\n` +
@@ -175,6 +181,14 @@ kindsAre('G', g.kinds, ['engine-count', 'page-error', 'engine-failures']);
 const gPage = g.lines.filter((l) => KINDS[6]![1].test(l)).map((l) => l.trim());
 check(JSON.stringify(gPage) === JSON.stringify(['PAGE ERROR  a console error, not a page error']),
   `G: the one PAGE ERROR is the console text (got ${JSON.stringify(gPage)})`);
+
+// H — a PAGE error from a suite that goes on to report: the report is kept, not cut off at the error.
+const h = run('H', caseRoot('h', BUNDLE_REJECTS_THEN_REPORTS, RUNNER_GREEN));
+check(h.status === 1, `H: exits 1 (got ${h.status})`);
+kindsAre('H', h.kinds, ['engine-count', 'page-error', 'engine-failures']);
+const hPage = h.lines.filter((l) => KINDS[6]![1].test(l)).map((l) => l.trim());
+check(hPage.length === 1 && hPage[0]!.includes('a page error, and the suite still reports'),
+  `H: the one PAGE ERROR is the rejection's own (got ${JSON.stringify(hPage)})`);
 
 console.log(problems.length
   ? `\n  q541 provocation — ${problems.length} clause(s) did not hold\n`
