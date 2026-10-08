@@ -124,9 +124,10 @@
 // [Q536](../doc/questions/q536.md).** The case `ran:` exists for is *inert on the clean tree, FATAL
 // under the probe*. This file has no `SELF` list, so the case is a GUARD CASE beside the META pass:
 // a mutant run through the same `gradeMeta` every entry takes, which must come back FAIL naming *the
-// mutant did not run*. Two more GUARD CASES sit beside it — a compound whose second edit matches
-// nothing ([Q434](../doc/questions/q434.md)), once through the META pass and once through the PROBES
-// pass — and the META pass opens with an unmutated-copy CONTROL ([Q437](../doc/questions/q437.md)).
+// mutant did not run*. Beside it: a compound whose second edit matches nothing
+// ([Q434](../doc/questions/q434.md)) — by `replace` and by `replaceAll` through the META pass, and once
+// through the PROBES pass — and the META pass opens with an unmutated-copy CONTROL
+// ([Q437](../doc/questions/q437.md)) whose own case hands it a copy that cannot run.
 // *(This paragraph said the gap had "no address" from W131 until W143.)*
 
 // SELFTEST-EXCLUSIVE: this file's install probes DELETE `node_modules/fyflow-scheduler`
@@ -1528,7 +1529,8 @@ export async function selfTest(root) {
     // Q536: a mutation INERT on the clean tree and FATAL under its probe. Under the bare specifier
     // dropped from the import map, `spec` is undefined and `.trim()` throws before the report line, so
     // the child prints `ran: no`; on the real map it is a string and the mutant passes. The `ran:` guard
-    // is the only arm that names this — disable it and the entry reads `outcome "(none)"` instead.
+    // is the only arm that names this — disable it and the crash, which tripped nothing, reads
+    // `outcome: disappeared` and is graded ok, so this case FAILs reading "got ok".
     ['a mutant inert on the clean tree and FATAL under its probe — the `ran:` case, Q536',
       ['the import-map read made to throw on a missing entry', 'the bare specifier dropped from the import map entirely',
         (t) => t.replace("const spec = map.imports?.['fyflow-scheduler'];", "const spec = map.imports?.['fyflow-scheduler'].trim();")],

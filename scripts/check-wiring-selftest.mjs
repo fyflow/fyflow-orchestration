@@ -1366,6 +1366,7 @@ export async function selfTest(root) {
    * control's verdict was `noticed`, which is how a pass can grade fourteen mutations of a check it never
    * ran against. *A control that fails here means every verdict below it is a fact about the harness.*
    */
+  let metaControlHeld = false;
   /** **What it means for the control to be NOTICED**, one expression for the control and its case (W143). */
   const controlNoticed = (v, probe) => v.vacuous || !v.refused || !v.agree || v.fails !== probeFails.get(probe.name);
   {
@@ -1385,6 +1386,14 @@ export async function selfTest(root) {
       return done(1);
     }
     console.log(`  ok    the control: an unmutated copy is NOT graded as noticed${NL}`);
+    metaControlHeld = true;
+  }
+  // **Read before anything is graded — the reader's finding 3 (W143).** The control above predates W143
+  // and nothing read its result, so deleting the block, or its `return`, cost 0: the `SELF` children do not
+  // run `META`. Now a pass with no control that held refuses to grade.
+  if (!metaControlHeld) {
+    console.log('  FAIL  the META pass has no control that held, so nothing below would be about the check');
+    return done(1);
   }
 
   // **The control handed a copy that CANNOT run — its own case, W143, Q437.** The block above is the

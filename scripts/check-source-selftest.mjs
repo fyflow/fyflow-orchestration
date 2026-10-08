@@ -1375,9 +1375,11 @@ export async function selfTest(root) {
     }
     const { out: mutated, misses } = applyMutation(probe.mutate, source[probe.half]);
     // **`declared` and `tripped` on EVERY vacuous return — W143.** These two returns carried neither, so
-    // single-probe mode threw at `v.declared.filter(...)` and a META child whose named probe went vacuous
-    // printed no `ran:` and was graded *the mutant did not run* — a crash reported for a vacuity. The
-    // `src` half's return above always carried them; now all four do.
+    // single-probe mode threw at `v.declared.filter(...)`: a META child whose named probe went vacuous died
+    // with a TypeError instead of printing `ran: no` and `outcome: vacuous`. The child now says so; the
+    // parent still tests `!ran` first and reports it as *the mutant did not run* (the reader's finding 7),
+    // which is a red either way. The `src` half's return carried `declared: []`; all four carry the
+    // probe's own set now.
     if (mutated === source[probe.half]) {
       // A probe that changes nothing passes for the wrong reason — the exact
       // vacuity rule 7 (b) refuses.

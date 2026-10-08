@@ -58,7 +58,8 @@ export const applyMutation = (mutate, ...args) => {
 };
 
 /**
- * The sentence every caller prints for a miss, so the eleven files say the same thing and a grep finds them all.
+ * The sentence every caller prints for a miss, so every self-test that imports this says the same thing and a
+ * grep finds them all.
  * @param {number} misses
  */
 export const missWhy = (misses) => `${misses} of this mutation's \`replace\` calls matched NOTHING, so the ` +

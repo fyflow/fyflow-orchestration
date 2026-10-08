@@ -125,10 +125,12 @@
 // to `check-policies`, so no declared item picks this file up.
 //
 //   `MIN_PROBES` / `MIN_META` -> `0`, with the list shortened too   survives
-//   `return noticed === META.length ? 0 : 1` -> `return 0`          survives
+//   the final verdict -> `return 0`                                 survives
 //   `if (v.refused) caught++` -> `caught++`                         survives
-//   `outcome === 'caught'` accepted as a grading                    survives
-//   `RAN` forced true                                               survives
+//   `outcome === 'caught'` accepted as a grading                    REFUSED since W143: the
+//                                                                   control (Q437) is `caught`
+//   `RAN` forced true                                               REFUSED since W143: the
+//                                                                   `ran:` GUARD CASE (Q536)
 //   the inertness check forced true                                 survives
 //   the "mutation matched nothing" guard -> `if (false)`            survives
 //
