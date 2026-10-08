@@ -484,7 +484,7 @@ const PROBES = [
     // **`doc/questions` joined both fixtures at [W116](../doc/work-items/w116-a-question-is-a-file.md)**:
     // 384 files arrived in a directory neither probe cut, so this fixture read 530 against any floor
     // a whole tree of 579 could pass. Cutting the register takes its growth out of the lower edge;
-    // `check-markdown.mjs` carries the measurement beside `M3`'s floor.
+    // `check-markdown.mjs` carried the measurement beside `M3`'s floor until W144 (now `git`).
     // 66 -> 50 files, 1746 -> 1548 links, 86 anchored: RE-MEASURED at P9's declaration,
     // which is where the previous figures (62 -> 46 / 1577 -> 1379 / 78) stopped being
     // true and took this probe with them. Four new documents took the cut from 46 to
@@ -517,7 +517,7 @@ const PROBES = [
     // `doc/workflow.md`'s five all point INTO it. That is not a side effect to be tolerated: it is
     // **the only reason a floor for `M5` exists at all**, since the upper edge of every candidate
     // window is `min(whole, probe 1, probe 2)` and probe 2's 17 sat below what stripping the
-    // largest holder leaves. `check-markdown.mjs` carries the arithmetic beside the floor. *A
+    // largest holder leaves. `check-markdown.mjs` carried the arithmetic beside the floor until W144. *A
     // fixture's declared set is a claim about what the fixture DOES, and a prose cut three
     // directories away changed it.*
     // **41 files / 1357 links / 94 anchored, re-measured at W30's close** — and this
@@ -563,12 +563,14 @@ const PROBES = [
     // decision 3 predicted and handed over. Upstream is the largest remaining holder at **15 of 35**,
     // so stripping it takes the corpus to 20 against a floor of 28 and `M5` fires. What that ADR did
     // NOT predict is that the fixture below would have to declare `M5` for any floor to exist at all;
-    // the arithmetic is in `check-markdown.mjs` beside the floor.
+    // the arithmetic was in `check-markdown.mjs` beside the floor until W144.
     // *(**Both figures and *"the document that holds most of them"* stopped being true at
     // [W120](../doc/work-items/w120-the-glossary-points-and-never-defines.md)**: `doc/glossary.md`
     // holds 48 of 83 anchored links, so stripping upstream takes the corpus to **68 against a floor
     // of 72**. The probe still fires, because the window is `(68, 76]` — but it no longer empties the
-    // largest holder; the glossary is. Corrected in place by that item.)*
+    // largest holder; the glossary is. Corrected in place by that item.)* *(And since W144 there is no
+    // window to name: `M5`'s floor is derived from THIS tree and the second `removes` tree, and the
+    // arithmetic beside it in `check-markdown.mjs` is in `git`.)*
     //
     // Emptying the subject rather than the checker: with every `#` target gone from the document
     // that holds most of them, the corpus drops under the anchored floor and `M2` becomes true of

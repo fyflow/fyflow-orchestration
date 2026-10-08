@@ -462,3 +462,15 @@ arriving at the item asked to find it.*
     reported them as a verdict, where the conformity reader saw the red one. *It is the class
     [W98](../work-items/w98-what-a-row-may-assert-about-a-dispatch-order.md) fixed once by asserting
     per series, and it is handed on rather than taken.*
+
+## Note — 2026-10-08, W144 (P31 decision 2 and its stop-and-ask (c), answered (A) plus M9)
+
+**The floors this decision sets are no longer literals.** `check-markdown`'s `M3`, `M4` and `M5` are each the
+largest measure among the probe trees that must fire them, plus 1, computed in memory from one exported
+probe-tree definition the self-test's probes also read — so decision 1's `120` and decision 2's *`M3` is
+measured and NOT moved* (at 362) describe the tree they were taken on, and decision 1's sentence that ADR 0073's
+criterion is *the only one this repository accepts for lowering a ratchet* does not reach a floor that has
+no value to lower. **The rule stands**: `M4` still counts documents carrying a link, the quantity a prose cut
+cannot move. Two clauses join: **`M9`**, the walk reads every markdown file a walked document links to — what
+notices a document leaving the walk now that no derived floor can; and **`M10`**, every path a probe tree
+names is one the walk links into, so a misnamed tree is RED. Q142 and Q487 are resolved by P31 W144.

@@ -156,3 +156,12 @@ too — both edges are invalid. Its conformity reader found it.)*
    still three paths bound to three more paths in a self-test
    ([Q465](../questions/q465.md)'s surviving half) — what W113 closed is the other half, the
    instruction that made a fourth document always-read.
+
+## Note — 2026-10-08, W144 (P31 decision 2 and its stop-and-ask (c), answered (A) plus M9)
+
+**Decision 1's `M5` floor of 28 (72 since ADR 0080) is no longer a literal**: it is the larger of the second
+`removes` tree's and the upstream-stripped tree's anchored counts, plus 1, derived in memory from the same
+definition the probes read. **Decision 2 now holds literally on the side that FIRES**: the probe trees that
+must fire a floor are what set it. On the other side it no longer binds — a probe tree that must stay QUIET
+constrains nothing on the real tree, because each fixture derives its own floors; the probes' declared sets
+hold those verdicts. Decision 3 is unaffected. `M9` and `M10` are new clauses (ADR 0076's note).
