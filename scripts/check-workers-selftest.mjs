@@ -34,6 +34,7 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 const CHECK = 'scripts/check-workers.mjs';
 const REGISTRY = 'examples/registry.json';
@@ -283,6 +284,9 @@ const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 const canonical = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x));
 
 export async function selfTest(ROOT) {
+  // **The shared instrumented replace — W143, Q434.** This file has no compound mutation today; the
+  // META pass reads it anyway so the first compound written here is refused when half of it misses.
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(ROOT, 'scripts', 'selftest-guards.mjs')).href);
   const dir = join(ROOT, 'dev-dist', `workers-selftest-${process.pid}`);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -405,27 +409,59 @@ export async function selfTest(ROOT) {
   // ---- META ----
   if (META.length < MIN_META) bad(`META has ${META.length} entries, below the floor of ${MIN_META}`);
   let noticed = 0;
-  for (const [i, m] of META.entries()) {
+  /** The control's mutation: it changes nothing, and `gradeMeta` skips the vacuity guard for it alone. */
+  const IDENTITY = (t) => t;
+  /**
+   * **One META entry, graded — a function since W143** so the control and the guard cases below go
+   * through the SAME path as every entry. Returns `{ ok, failure, line, stillCaught }`.
+   */
+  const gradeMeta = (i, m, source = checkText) => {
     const probe = ALL_PROBES.find((p) => p.name.startsWith(m.probe));
-    if (!probe) { bad(`META "${m.name}" names probe "${m.probe}", which does not exist — ABORT`); continue; }
-    const mutated = m.mutate(checkText);
-    if (mutated === checkText) { bad(`META "${m.name}": the mutation matched nothing — ABORT`); continue; }
+    if (!probe) return { failure: `META "${m.name}" names probe "${m.probe}", which does not exist — ABORT` };
+    // **Instrumented — W143, Q434.**
+    const { out: mutated, misses } = applyMutation(m.mutate, source);
+    if (mutated === source && m.mutate !== IDENTITY) return { failure: `META "${m.name}": the mutation matched nothing — ABORT` };
+    if (misses > 0) return { failure: `META "${m.name}": ${missWhy(misses)} — ABORT` };
     const script = join(dir, `meta-${i}.mjs`);
     writeFileSync(script, mutated);
     const clean = runCheck(script, join(ROOT, REGISTRY));
-    if (!RAN(clean.out)) { bad(`META "${m.name}": the mutant did not run on the clean document (exit ${clean.status}) — a crash, not a detection`); continue; }
+    if (!RAN(clean.out)) return { failure: `META "${m.name}": the mutant did not run on the clean document (exit ${clean.status}) — a crash, not a detection` };
     if (m.expect === 'corpus') {
       const ids = idsOf(clean.out);
-      if (clean.status === 1 && same(ids, [m.corpusId])) { noticed++; console.log(`  ok    corpus:${m.corpusId} ${m.name}`); }
-      else bad(`META "${m.name}": declared the CORPUS goes red under ${m.corpusId} and it reported [${ids.join(',')}] at exit ${clean.status}`);
-      continue;
+      if (clean.status === 1 && same(ids, [m.corpusId])) return { ok: true, line: `  ok    corpus:${m.corpusId} ${m.name}` };
+      return { failure: `META "${m.name}": declared the CORPUS goes red under ${m.corpusId} and it reported [${ids.join(',')}] at exit ${clean.status}` };
     }
-    if (clean.status !== 0 || idsOf(clean.out).length) { bad(`META "${m.name}": the mutant is not inert on the clean document (${idsOf(clean.out).join(',')}) — declare it corpus or fix the entry`); continue; }
+    if (clean.status !== 0 || idsOf(clean.out).length) return { failure: `META "${m.name}": the mutant is not inert on the clean document (${idsOf(clean.out).join(',')}) — declare it corpus or fix the entry` };
     const r = runCheck(script, fixtureFor(probe, ALL_PROBES.indexOf(probe)));
-    if (!RAN(r.out)) { bad(`META "${m.name}": the mutant did not run on the probe (exit ${r.status}) — a crash, not a detection`); continue; }
+    if (!RAN(r.out)) return { failure: `META "${m.name}": the mutant did not run on the probe (exit ${r.status}) — a crash, not a detection` };
     const stillCaught = r.status === 1 && same(idsOf(r.out), [...probe.checks].sort());
-    if (!stillCaught) { noticed++; console.log(`  ok    noticed ${m.name} — "${probe.name.slice(0, 50)}" no longer caught (exit ${r.status}, [${idsOf(r.out).join(',')}])`); }
-    else bad(`META "${m.name}": STILL CAUGHT by "${probe.name.slice(0, 50)}" — the mutation reached nothing the probe observes`);
+    if (!stillCaught) return { ok: true, line: `  ok    noticed ${m.name} — "${probe.name.slice(0, 50)}" no longer caught (exit ${r.status}, [${idsOf(r.out).join(',')}])` };
+    return { stillCaught, failure: `META "${m.name}": STILL CAUGHT by "${probe.name.slice(0, 50)}" — the mutation reached nothing the probe observes` };
+  };
+  // **The CONTROL for this pass — W143, Q437.** An UNMUTATED copy of the check, written where every mutant
+  // is and driven through the same `gradeMeta`, naming the first probe-graded entry's probe. Nothing is
+  // broken, so the copy must run clean on the document and its probe must still be caught — STILL CAUGHT,
+  // for an entry. A copy that cannot run fails before that, which is how a pass grades every mutation of
+  // a check it never ran against (W105's adequacy reader). **Removing this block is visible**:
+  // `metaControl` is read before the entries are graded.
+  const controlOf = (source) => gradeMeta('control', { name: 'the control: an UNMUTATED copy',
+    probe: META.find((m) => m.expect === 'probe').probe, expect: 'probe', mutate: IDENTITY }, source);
+  const metaControl = controlOf(checkText);
+  if (metaControl.stillCaught !== true) bad(`META CONTROL — an UNMUTATED copy of the check was not STILL CAUGHT: ${metaControl.failure ?? metaControl.line}`);
+  else console.log('  ok    the control: an unmutated copy is NOT graded as noticed');
+  // **The guards' own cases, in process — W143, rule 7.** Each is graded on its guard's own line.
+  {
+    const g437 = controlOf('throw new Error("W143: this copy cannot run");\n' + checkText);
+    if (g437.stillCaught === true) bad('GUARD CASE the control handed a copy that cannot run — Q437 — it still held');
+    else console.log('  ok    GUARD CASE the control handed a copy that cannot run — Q437');
+    const m0 = META[0];
+    const g434 = gradeMeta('guard', { ...m0, mutate: (t) => m0.mutate(t).replace('\u0000W143: no such anchor', '') });
+    if (!g434.failure?.includes('matched NOTHING')) bad(`GUARD CASE a compound META entry whose second edit matches nothing — Q434 — got ${g434.failure ?? g434.line}`);
+    else console.log('  ok    GUARD CASE a compound META entry whose second edit matches nothing — Q434');
+  }
+  for (const [i, m] of metaControl.stillCaught === true ? META.entries() : []) {
+    const g = gradeMeta(i, m);
+    if (g.ok) { noticed++; console.log(g.line); } else bad(g.failure);
   }
   console.log(`  ${noticed}/${META.length} gradings noticed`);
 

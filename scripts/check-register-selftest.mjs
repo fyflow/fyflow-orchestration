@@ -38,6 +38,7 @@ import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // --- the environment the rungs need -------------------------------------------
 // v0.19: a rung that cannot START is indistinguishable in a report from one a probe took down.
@@ -270,8 +271,12 @@ const adrUnclose = (t, nnnn) => {
  */
 const adrClone = (t, name, digits) => {
   const s = readFileSync(A(t, '0079'), 'utf8');
+  // **Each edit checked on its own — W143, Q434.** This was one compound guarded by `out === s`, so a
+  // clone whose H1 had moved still changed (by its id line) and was written with the OLD H1: a copy
+  // invalid in a way the name probes do not name. Now either anchor missing throws, like every helper here.
+  if (!s.includes('id: ADR 0079\n')) throw new Error('ADR 0079 has no id line to renumber');
+  if (!s.includes('\n# ADR 0079 — ')) throw new Error('ADR 0079 has no H1 to renumber');
   const out = s.replace('id: ADR 0079\n', `id: ADR ${digits}\n`).replace('\n# ADR 0079 — ', `\n# ADR ${digits} — `);
-  if (out === s) throw new Error('ADR 0079 has no id line or no H1 to renumber');
   writeFileSync(join(t, 'doc', 'decisions', name), out);
 };
 
@@ -1544,6 +1549,9 @@ function verdict(probe, r) {
 }
 
 export async function selfTest(root) {
+  // **The shared instrumented replace — W143, Q434.** Loaded by the ROOT rather than by `./`, because
+  // a SELF child runs a mutated copy of this file from dev-dist/ (scripts/selftest-guards.mjs's header).
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(root, 'scripts', 'selftest-guards.mjs')).href);
   if (NODE_MAJOR < MIN_NODE_MAJOR) {
     console.log(`check-register self-test — ABORT: node ${process.versions.node}, and the rungs here ` +
       `need >= ${MIN_NODE_MAJOR}.`);
@@ -1769,8 +1777,10 @@ export async function selfTest(root) {
   /** Run a probe against a script, or against a mutant of it, and grade it. */
   const grade = (probe, src) => {
     let useScript = script;
-    const text = probe.declare ? probe.declare(src) : src;
+    // **Instrumented — W143, Q434**: a compound declaration whose second edit matches nothing aborts.
+    const { out: text, misses } = probe.declare ? applyMutation(probe.declare, src) : { out: src, misses: 0 };
     if (probe.declare && text === src) return { outcome: 'abort', why: 'the declaration mutation matched nothing' };
+    if (misses > 0) return { outcome: 'abort', why: missWhy(misses) };
     if (text !== realSrc || probe.declare) { useScript = mutantPath(`run-${seq}`); writeFileSync(useScript, text); }
     const s = stage(probe);
     if (s.abort) { if (useScript !== script) rmSync(useScript, { force: true }); return { outcome: 'abort', why: s.abort }; }
@@ -1873,6 +1883,16 @@ export async function selfTest(root) {
     else failures.push(`${g.name} — the grader said ${v.outcome} where the right verdict is ${g.expect}`);
   }
   console.log(`  grader: ${graderOk}/${GRADER_CONTROLS.length} control(s) graded as declared`);
+  // **Q434's case for a DECLARATION, in process — W143.** The first grader control's declaration with a
+  // dead second edit must abort naming the miss; `grade` refuses it before it stages or runs anything.
+  {
+    const g = GRADER_CONTROLS.find((x) => x.declare);
+    const v = grade({ ...g, declare: (s) => g.declare(s).replace('\u0000W143: no such anchor', '') }, realSrc);
+    if (v.outcome !== 'abort' || !`${v.why}`.includes('matched NOTHING')) {
+      failures.push(`GUARD CASE a compound declaration whose second edit matches nothing — Q434 — got ${v.outcome}${v.why ? `: ${v.why}` : ''}`);
+    }
+    console.log(`  declaration guard case (Q434): ${v.outcome === 'abort' && `${v.why}`.includes('matched NOTHING') ? 'refused, as it must be' : 'NOT REFUSED'}`);
+  }
   if (nestedRed()) {
     console.log('\n' + failures.map((f) => `  FAIL  ${f}`).join('\n'));
     console.log(`\n${failures.length} failure(s) — a SELF child, stopped at its first red.`);
@@ -1882,10 +1902,19 @@ export async function selfTest(root) {
   // --- pass 2: META -----------------------------------------------------------------------
   let noticed = 0;
   const byCorpus = [];
-  if (meta) {
-    for (const [what, probeName, mutate, only] of META) {
-      const mutated = mutate(realSrc);
-      if (mutated === realSrc) { failures.push(`META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`); continue; }
+  /** The control's mutation: it changes nothing, and the graders skip the vacuity guard for it alone. */
+  const IDENTITY = (t) => t;
+  /**
+   * **One META entry, graded — a function since W143** so the control and the guard cases below go
+   * through the SAME path as every entry. Returns `{ failure, corpus, outcome }`; `failure` is the line
+   * this file reports, or null when the entry is noticed.
+   */
+  const gradeMeta = ([what, probeName, mutate, only], source = realSrc) => {
+    {
+      // **Instrumented — W143, Q434.**
+      const { out: mutated, misses } = applyMutation(mutate, source);
+      if (mutated === source && mutate !== IDENTITY) return { failure: `META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`, outcome: 'abort' };
+      if (misses > 0) return { failure: `META ${what} — ABORT: ${missWhy(misses)}`, outcome: 'abort' };
       const mutant = mutantPath('meta');
       writeFileSync(mutant, mutated);
       // Is the mutant INERT on the planted BASE? One that fails there is noticed by the corpus, and
@@ -1895,30 +1924,78 @@ export async function selfTest(root) {
       rmSync(mutant, { force: true });
       const allowed = CORPUS_ALLOWED.includes(what);
       if (allowed && inert) {
-        failures.push(`META ${what} — listed in CORPUS_ALLOWED and INERT on the base: the entry ` +
-          'excuses nothing, so delete it and let its probe grade it');
-        continue;
+        return { outcome: 'inert-but-allowed', failure: `META ${what} — listed in CORPUS_ALLOWED and INERT on the base: the entry ` +
+          'excuses nothing, so delete it and let its probe grade it' };
       }
-      if (!inert) {
-        if (!allowed) {
-          failures.push(`META ${what} — NOT INERT on the base and not in CORPUS_ALLOWED: its probe's ` +
-            'verdict would be noise (Q150), so either the tree is wrong or the mutant is listed by name');
-          continue;
-        }
-        byCorpus.push(what);   // and graded by its named probe below, all the same (W127)
+      if (!inert && !allowed) {
+        return { outcome: 'corpus', failure: `META ${what} — NOT INERT on the base and not in CORPUS_ALLOWED: its probe's ` +
+          'verdict would be noise (Q150), so either the tree is wrong or the mutant is listed by name' };
       }
+      // A listed non-inert mutant is graded by its named probe below, all the same (W127).
       const probe = PROBES.find((p) => p.name === probeName);
       const v = grade(probe, mutated);
       // `only`: the probe must see the mutant through that ONE file — every failure line names it.
       const beyond = only === undefined ? [] : (v.out ?? '').split('\n').filter((l) => /^ {2}R\d: /.test(l) && !l.includes(only));
-      if (v.outcome === 'abort') failures.push(`META ${what} — the probe aborted: ${v.why}`);
-      else if (v.outcome === expected(probe)) failures.push(`META ${what} — STILL ${v.outcome} by "${probeName}", so the clause is not what it rests on`);
-      else if (beyond.length) failures.push(`META ${what} — seen by "${probeName}" through ${beyond.length} failure line(s) not naming ${only}: the control did not see it ON ITS OWN`);
+      const corpus = !inert;
+      if (v.outcome === 'abort') return { corpus, outcome: v.outcome, failure: `META ${what} — the probe aborted: ${v.why}` };
+      if (v.outcome === expected(probe)) return { corpus, outcome: v.outcome, failure: `META ${what} — STILL ${v.outcome} by "${probeName}", so the clause is not what it rests on` };
+      if (beyond.length) return { corpus, outcome: v.outcome, failure: `META ${what} — seen by "${probeName}" through ${beyond.length} failure line(s) not naming ${only}: the control did not see it ON ITS OWN` };
+      return { corpus, outcome: v.outcome, failure: null };
+    }
+  };
+  // **The CONTROL for this pass — W143, Q437.** An UNMUTATED copy of the check, staged where every mutant
+  // is and driven through the same `gradeMeta`, naming the first entry CORPUS_ALLOWED does not list.
+  // Nothing is broken, so the copy must be inert on the base and its probe must still grade as declared —
+  // which for an entry is STILL; `failure` names that, and `outcome` is the probe's own verdict. A copy
+  // that cannot run comes back `corpus`, which is how a pass grades every mutation of a check it never ran
+  // against (W105's adequacy reader). **Removing this block is visible**: `metaControl` is read below.
+  const controlEntry = META.find(([w]) => !CORPUS_ALLOWED.includes(w));
+  const controlProbe = PROBES.find((p) => p.name === controlEntry[1]);
+  const metaControlOf = (source) => gradeMeta(['the control: an UNMUTATED copy', controlEntry[1], IDENTITY], source);
+  const controlHolds = (g) => g.outcome === expected(controlProbe) && !g.corpus;
+  let metaControl = { outcome: 'not run' };
+  if (meta) {
+    metaControl = metaControlOf(realSrc);
+    if (!controlHolds(metaControl)) {
+      failures.push(`META CONTROL — an UNMUTATED copy of check-register.mjs graded "${metaControl.outcome}" by ` +
+        `"${controlEntry[1]}", where nothing is broken and the probe must still grade ${expected(controlProbe)}: every ` +
+        'META verdict is then a fact about the harness rather than about the check');
+    }
+    console.log(`  meta control: an unmutated copy graded ${metaControl.outcome} (must be ${expected(controlProbe)})`);
+    // **The guards' own cases, in process — W143, rule 7.** Each is graded on its guard's own line.
+    //   Q434: `META[0]`'s mutation with a dead second edit must ABORT naming the miss.
+    //   Q437: the control handed a copy that cannot run must NOT hold.
+    const g434 = gradeMeta([`${META[0][0]}, then a dead second edit`, META[0][1],
+      (s) => META[0][2](s).replace('\u0000W143: no such anchor', ''), META[0][3]]);
+    if (!g434.failure?.includes('matched NOTHING')) {
+      failures.push(`GUARD CASE a compound META entry whose second edit matches nothing — Q434 — got ${g434.failure ?? 'noticed'}`);
+    }
+    const g437 = metaControlOf('throw new Error("W143: this copy cannot run");\n' + realSrc);
+    if (controlHolds(g437)) {
+      failures.push('GUARD CASE the META control handed a copy that cannot run — Q437 — the control still held');
+    }
+    console.log(`  meta guard cases: Q434 ${g434.failure?.includes('matched NOTHING') ? 'refused' : 'NOT REFUSED'}, ` +
+      `Q437 ${controlHolds(g437) ? 'NOT FIRED' : `fired (${g437.outcome})`}`);
+  }
+  if (meta && controlHolds(metaControl)) {
+    for (const entry of META) {
+      const g = gradeMeta(entry);
+      if (g.corpus && !g.failure) byCorpus.push(entry[0]);
+      if (g.failure) failures.push(g.failure);
       else noticed++;
     }
     console.log(`  meta: ${noticed}/${META.length} noticed by the named probe; ${byCorpus.length} of them also by the corpus ` +
       `on the base, as CORPUS_ALLOWED permits, by name: ${byCorpus.length ? byCorpus.join('; ') : 'none'}`);
-  } else console.log('  meta: skipped — this run is already a META child');
+  } else if (meta) console.log('  meta: NOT RUN — its control failed');
+  else console.log('  meta: skipped — this run is already a META child');
+  // **A SELF child stops at its first red after META too — W143**, the same cost decision W116 took after
+  // the grader pass: the META control and the guard cases sit at the top of META, so a child whose planted
+  // case is one of them had the whole of META and STATE still to run, for a verdict it already had.
+  if (nestedRed()) {
+    console.log('\n' + failures.map((f) => `  FAIL  ${f}`).join('\n'));
+    console.log(`\n${failures.length} failure(s) — a SELF child, stopped at its first red.`);
+    return 1;
+  }
 
   // --- pass 2b: STATE — `npm run state` against a third reading ------------------------------
   const stateScript = join(root, 'scripts', 'state.mjs');
@@ -1948,7 +2025,7 @@ export async function selfTest(root) {
     }
     return c;
   };
-  const gradeState = (probe, src) => {
+  const gradeState = (probe, src, forceCopy = false) => {
     const tree = join(dir, `s${seq++}`);
     cpSync(sbase, tree, { recursive: true });
     if (probe.stage) {
@@ -1957,7 +2034,7 @@ export async function selfTest(root) {
       if (digestDir(tree) === was) return { outcome: 'abort', why: 'the staging changed nothing (rule 7 (b))' };
     }
     let useScript = stateScript;
-    if (src !== stateSrc) { useScript = mutantPath(`state-${seq}`); writeFileSync(useScript, src); }
+    if (src !== stateSrc || forceCopy) { useScript = mutantPath(`state-${seq}`); writeFileSync(useScript, src); }
     const env = { ...process.env, STATE_ROOT: relative(root, tree).replace(/\\/g, '/') };
     const r = spawnSync(process.execPath, [useScript], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
     if (useScript !== stateScript) rmSync(useScript, { force: true });
@@ -1994,10 +2071,41 @@ export async function selfTest(root) {
     if (v.outcome === stateWant(p)) stateOk++;
     else failures.push(`${p.name} — ${v.outcome}${v.why ? `: ${v.why}` : ''}`);
   }
+  /**
+   * **The first application of a STATE_META entry — a function since W143** so the guard case below
+   * reaches the SAME expression the loop does. Returns `{ mutated }` or `{ failure }`.
+   */
+  const stateVacuity = (what, mutate) => {
+    const { out: mutated, misses } = applyMutation(mutate, stateSrc);
+    if (mutated === stateSrc) return { failure: `STATE_META ${what} — ABORT: the mutation matched nothing (rule 7 (b))` };
+    if (misses > 0) return { failure: `STATE_META ${what} — ABORT: ${missWhy(misses)}` };
+    return { mutated };
+  };
+  let stateControl = { outcome: 'not run' };
   if (meta) {
+    // **The CONTROL for STATE_META — W143, Q437.** An unmutated COPY of `state.mjs`, run from where every
+    // mutant runs (`forceCopy`), against the first entry's probe, must grade exactly as the real script
+    // does. Without it, a copy that cannot run would grade every entry noticed.
+    const sProbe = STATE_PROBES.find((p) => p.name === STATE_META[0][1]);
+    stateControl = gradeState(sProbe, stateSrc, true);
+    if (stateControl.outcome !== stateWant(sProbe)) {
+      failures.push(`STATE_META CONTROL — an UNMUTATED copy of state.mjs graded "${stateControl.outcome}" by ` +
+        `"${sProbe.name}", where nothing is broken and it must grade ${stateWant(sProbe)}`);
+    }
+    // Q437's case: the same control handed a copy that cannot run must NOT grade as declared.
+    const s437 = gradeState(sProbe, 'throw new Error("W143: this copy cannot run");\n' + stateSrc, true);
+    if (s437.outcome === stateWant(sProbe)) failures.push('GUARD CASE the STATE_META control handed a copy that cannot run — Q437 — it still graded as declared');
+    // Q434's case: `STATE_META[0]`'s mutation with a dead second edit must ABORT naming the miss.
+    const s434 = stateVacuity('a dead second edit', (s) => STATE_META[0][2](s).replace('\u0000W143: no such anchor', ''));
+    if (!s434.failure?.includes('matched NOTHING')) failures.push(`GUARD CASE a compound STATE_META entry whose second edit matches nothing — Q434 — got ${s434.failure ?? 'a mutation to run'}`);
+    console.log(`  state meta control: an unmutated copy graded ${stateControl.outcome} (must be ${stateWant(sProbe)}); ` +
+      `guard cases: Q434 ${s434.failure?.includes('matched NOTHING') ? 'refused' : 'NOT REFUSED'}, Q437 ` +
+      `${s437.outcome === stateWant(sProbe) ? 'NOT FIRED' : `fired (${s437.outcome})`}`);
+  }
+  if (meta && stateControl.outcome !== 'not run') {
     for (const [what, probeName, mutate, refusedBy] of STATE_META) {
-      const mutated = mutate(stateSrc);
-      if (mutated === stateSrc) { failures.push(`STATE_META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`); continue; }
+      const { mutated, failure } = stateVacuity(what, mutate);
+      if (failure) { failures.push(failure); continue; }
       const probe = STATE_PROBES.find((p) => p.name === probeName);
       if (refusedBy !== undefined) {
         // W127: graded on the named ROW's refusal, so a second observer cannot stand in for it.
@@ -2019,9 +2127,22 @@ export async function selfTest(root) {
   let bounded = 0;
   if (meta && !nestedSelf) {
     const selfSrc = readFileSync(join(root, 'scripts', 'check-register-selftest.mjs'), 'utf8');
+    /** The first application of a SELF entry — a function since W143, so the guard case below reaches it. */
+    const selfVacuity = (mutate) => {
+      const { out, misses } = applyMutation(mutate, selfSrc);
+      if (out === selfSrc) return { why: 'the mutation matched nothing (rule 7 (b))' };
+      if (misses > 0) return { why: missWhy(misses) };
+      return { out };
+    };
+    // **Q434's case for THIS pass, in process** — a `SELF` child skips the `SELF` pass.
+    {
+      const v = selfVacuity((t) => SELF[0][1](t).replace('\u0000W143: no such anchor', ''));
+      if (!v.why?.includes('matched NOTHING')) failures.push(`GUARD CASE a compound SELF entry whose second edit matches nothing — Q434 — got ${v.why ?? 'a mutation to run'}`);
+      console.log(`  self guard case (Q434): ${v.why?.includes('matched NOTHING') ? 'refused, as it must be' : 'NOT REFUSED'}`);
+    }
     for (const [what, mutate] of SELF) {
-      const mutated = mutate(selfSrc);
-      if (mutated === selfSrc) { failures.push(`SELF ${what} — ABORT: the mutation matched nothing (rule 7 (b))`); continue; }
+      const { out: mutated, why: vacuous } = selfVacuity(mutate);
+      if (vacuous) { failures.push(`SELF ${what} — ABORT: ${vacuous}`); continue; }
       const mutant = mutantPath('self');
       writeFileSync(mutant, mutated);
       const env = { ...process.env, CHECK_REGISTER_SELFTEST: relative(root, mutant).replace(/\\/g, '/') };

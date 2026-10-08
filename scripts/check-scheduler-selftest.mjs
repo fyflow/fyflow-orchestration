@@ -120,14 +120,14 @@
 // returns from single-probe mode first. It is load-bearing in
 // `check-source-selftest.mjs`, which has a `SELF` list whose children do not.
 //
-// **And one guard here is live in several self-tests (`grep -l "ran: yes"
-// scripts/*-selftest.mjs`) and provoked in none of THIS file's lists.** The case `ran:` exists for is *inert on the clean tree, FATAL under the
-// probe*. W29 constructed one in `check-docs` and recorded it as a rule 8
-// provocation; the checked-in form is a `SELF` entry, and only
-// `check-policies-selftest.mjs` has one (W31's, rebased by W131). It was
-// [Q144](../doc/questions/q144.md)'s to carry until W131 closed that question with
-// the fix to `check-policies.mjs`'s success line, which does not reach this file:
-// the gap here is on this ceiling list and has no address.
+// **The `ran:` guard is provoked here by a checked-in case — W143,
+// [Q536](../doc/questions/q536.md).** The case `ran:` exists for is *inert on the clean tree, FATAL
+// under the probe*. This file has no `SELF` list, so the case is a GUARD CASE beside the META pass:
+// a mutant run through the same `gradeMeta` every entry takes, which must come back FAIL naming *the
+// mutant did not run*. Two more GUARD CASES sit beside it — a compound whose second edit matches
+// nothing ([Q434](../doc/questions/q434.md)), once through the META pass and once through the PROBES
+// pass — and the META pass opens with an unmutated-copy CONTROL ([Q437](../doc/questions/q437.md)).
+// *(This paragraph said the gap had "no address" from W131 until W143.)*
 
 // SELFTEST-EXCLUSIVE: this file's install probes DELETE `node_modules/fyflow-scheduler`
 // and restore it from a stash, so nothing that resolves that package may run while it
@@ -143,6 +143,7 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, lstatSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 const PKG = 'package.json';
 const MAP = 'examples/deno-import-map.json';
@@ -529,7 +530,11 @@ const INSTALL_PROBES = [
         // fine. That is `doc/workflow.md` rule 7 (b) in its purest form: the
         // mutation did not happen and the harness said so only because it was
         // asked to.
-        cpSync(stash, dir, { recursive: true });
+        // **`pkgDir`, not `dir` — W143.** This read `cpSync(stash, dir, …)`, and `dir` is not in scope
+        // here (the parameters are `root, pkgDir, stash, scratch`), so reaching this branch threw a
+        // ReferenceError rather than putting back the package it had just deleted. `runOne`'s `finally`
+        // restores from the stash anyway; this line is the branch saying what it means.
+        cpSync(stash, pkgDir, { recursive: true });
         return 'skipped';
       }
     },
@@ -830,6 +835,9 @@ const META = [
 ];
 
 export async function selfTest(root) {
+  // **The shared instrumented replace — W143, Q434.** Loaded by the ROOT rather than by `./`, because
+  // a mutated copy of this file would not find a sibling (scripts/selftest-guards.mjs's header).
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(root, 'scripts', 'selftest-guards.mjs')).href);
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
   // function deleted its parent's fixtures and two top-level runs did the same to each other
@@ -1182,10 +1190,15 @@ export async function selfTest(root) {
     } else if (probe.half) {
       const path = join(root, probe.half);
       const before = readFileSync(path, 'utf8');
-      const after = probe.mutate(before);
+      const { out: after, misses } = applyMutation(probe.mutate, before);
       if (after === before) {
         return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true,
           msg: 'the mutation matched nothing' };
+      }
+      // **And EVERY edit of it matched** (W143, Q434): a compound whose second edit lands nowhere
+      // still changes the file, so the whole-file guard above passes it.
+      if (misses > 0) {
+        return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: missWhy(misses) };
       }
       writeFileSync(path, after);
       restore = () => writeFileSync(path, before);
@@ -1324,15 +1337,23 @@ export async function selfTest(root) {
 
   // --- the META pass: does this suite NOTICE a broken check? -------------------
   const checkSource = readFileSync(join(root, 'scripts', 'check-scheduler.mjs'), 'utf8');
+  /** The control's mutation: it changes nothing, and `gradeMeta` skips the three text guards for it alone. */
+  const IDENTITY = (t) => t;
   let noticed = 0, byCorpus = 0, byMask = 0, byCount = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of check-scheduler.mjs itself\n`);
-  for (const [i, [name, probeName, mutate, maskedBy]] of META.entries()) {
-    const broken = mutate(checkSource);
-    let why = '', ok2 = false;
-    if (broken === checkSource) {
-      console.log(`  FAIL  ${name} — the mutation matched nothing`);
-      continue;
-    }
+  /**
+   * **One META entry, graded — a function since W143** so the control, the dead-compound case and the
+   * `ran:` case below go through the SAME path as every entry rather than a copy of it. Returns
+   * `{ ok2, why, kind }`; `kind` is how a noticed entry was noticed (`probe`, `corpus`, `count`, `mask`).
+   * `source` is the text the mutation is applied to — the real check, except for the control.
+   */
+  const gradeMeta = (i, [name, probeName, mutate, maskedBy], source = checkSource) => {
+    // **Instrumented — W143, Q434.** Only this FIRST application: the two guards below re-apply the
+    // mutation where it must NOT match, and counting those would count their success as a miss.
+    const { out: broken, misses } = applyMutation(mutate, source);
+    let why = '', ok2 = false, kind = 'probe';
+    if (broken === source && mutate !== IDENTITY) return { ok2, why: ' — the mutation matched nothing', kind };
+    if (misses > 0) return { ok2, why: ` — ${missWhy(misses)}`, kind };
     // **And it must have matched exactly ONCE.** `String.replace` takes the first of
     // several silently, so an ambiguous anchor lands somewhere the entry did not
     // name — rule 7 (b) asks that a mutation match something, and this asks that it
@@ -1343,10 +1364,9 @@ export async function selfTest(root) {
     // does — each replaces a `fail('Dx', ` prefix, an `if` head, or a whole line
     // with text that cannot re-match — and an entry that broke the assumption would
     // report as ambiguous rather than pass.)*
-    if (mutate(broken) !== broken) {
-      console.log(`  FAIL  ${name} — the mutation matched MORE THAN ONCE, so it landed ` +
-        'on the first of several and the entry does not say which');
-      continue;
+    if (mutate !== IDENTITY && mutate(broken) !== broken) {
+      return { ok2, kind, why: ' — the mutation matched MORE THAN ONCE, so it landed ' +
+        'on the first of several and the entry does not say which' };
     }
     // **And it must not be GLOBAL, which the check above cannot see.** W29's
     // adequacy reader swapped one entry's string anchor for `/fail\('D3', /g`:
@@ -1358,10 +1378,9 @@ export async function selfTest(root) {
     // Applying the mutation to the source CONCATENATED WITH ITSELF separates them:
     // a single replacement leaves the second copy untouched, so the result still
     // ends with the original; a global one edits both.
-    if (!mutate(checkSource + checkSource).endsWith(checkSource)) {
-      console.log(`  FAIL  ${name} — the mutation is GLOBAL: it edits every match rather ` +
-        'than the one this entry names, so its verdict is about a set of clauses and not a clause');
-      continue;
+    if (mutate !== IDENTITY && !mutate(source + source).endsWith(source)) {
+      return { ok2, kind, why: ' — the mutation is GLOBAL: it edits every match rather ' +
+        'than the one this entry names, so its verdict is about a set of clauses and not a clause' };
     }
     // **FLAT, with the pid in the NAME — and a rung is what corrected this, W105.** A `.meta-*` mutant
     // is a copy of the CHECK, which derives `ROOT = resolve(dirname(self), '..')`, so it must sit
@@ -1370,9 +1389,10 @@ export async function selfTest(root) {
     // of this SELFTEST module and receives `ROOT` as a parameter. Nested, the copy reads `dev-dist/` as
     // its tree: `check:spec:selftest` reported **29/29 graded, 0 by the named probe, 29 by the corpus**,
     // which is this file's own *the harness broke rather than the check* clause firing exactly as written.
-    const path = join(root, 'dev-dist', `.meta-sched-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    const path = join(root, 'dev-dist', `.meta-sched-${process.pid}-${i < 0 ? 'control' : String(i).padStart(2, '0')}.mjs`);
     metaMutants.add(path);
     writeFileSync(path, broken);
+    let lastOutcome;
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-scheduler.mjs'), '--self-test'],
         { cwd: root, encoding: 'utf8', timeout: 900_000,
@@ -1380,12 +1400,13 @@ export async function selfTest(root) {
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       const ran = /^ {2}ran: yes$/m.test(out);
       const outcome = (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1];
+      lastOutcome = outcome;
       if (r.status === 3) why = ` — ${out.trim().split('\n').pop()}`;
       // A mutant that fails on the repository's own tree is NOTICED — by the corpus,
       // which is stronger than any probe. Its probe verdict is meaningless and is
       // not consulted. Counted separately so the number of probe-backed gradings
       // stays visible.
-      else if (outcome === 'corpus') { ok2 = true; byCorpus++; why = ' (by the corpus: the mutant is not inert)'; }
+      else if (outcome === 'corpus') { ok2 = true; kind = 'corpus'; why = ' (by the corpus: the mutant is not inert)'; }
       else if (!ran) why = ' — the mutant did not run: this is a crash, not a detection';
       // **A declared masking inverts the expected verdict, and it takes TWO facts.**
       // The clause is inert and a sibling reporting the same id fires instead, so
@@ -1433,7 +1454,7 @@ export async function selfTest(root) {
             why = ` — declared MASKED by ${maskedBy}, but the count moved ${bN} -> ${mN}: the sibling ` +
               'reports ALONGSIDE this clause rather than in its place, so the clause IS detectable and ' +
               'the declaration is wrong';
-          } else { ok2 = true; byCount++; why = ` (by the COUNT: ${bN} -> ${mN}; the id set never moved)`; }
+          } else { ok2 = true; kind = 'count'; why = ` (by the COUNT: ${bN} -> ${mN}; the id set never moved)`; }
         } else if (maskedBy) {
           // **A masking must SHOW the sibling stepping in.** The `maskedBy` string is
           // free text and W29's adequacy reader renamed it to *"a clause that does not
@@ -1448,7 +1469,7 @@ export async function selfTest(root) {
           else if (bK === mK) {
             why = ` — declared MASKED by ${maskedBy}, but the failure MESSAGES are byte-identical ` +
               'too: nothing observable changed, so this mutation is vacuous rather than masked';
-          } else { ok2 = true; byMask++; why = ` (MASKED by ${maskedBy}: same id and same count ${mN}, different message)`; }
+          } else { ok2 = true; kind = 'mask'; why = ` (MASKED by ${maskedBy}: same id and same count ${mN}, different message)`; }
         }
         else why = ` — "${probeName}" is STILL CAUGHT against a check that does not check, and the ` +
           `failure count did not move either (${bN} -> ${mN})`;
@@ -1457,8 +1478,96 @@ export async function selfTest(root) {
       else if (['disappeared', 'disagreed', 'exit0'].includes(outcome)) ok2 = true;
       else why = ` — the child reported outcome "${outcome || '(none)'}", which grades nothing`;
     } finally { rmSync(path, { force: true }); }
-    if (ok2) noticed++;
-    console.log(`  ${ok2 ? 'ok  ' : 'FAIL'}  ${name}${ok2 ? '' : why}`);
+    return { ok2, why, kind, outcome: lastOutcome };
+  };
+
+  // **The CONTROL for this pass — W143, Q437.** An UNMUTATED copy of the check, driven through the same
+  // `gradeMeta` every entry takes, naming `META[0]`'s probe. Nothing is broken, so the probe must still
+  // catch what it declares — the child's `outcome: caught` — and the entry must NOT be graded noticed.
+  // A copy that cannot run against the check (a wrong ROOT, a missing sibling) comes back noticed, which
+  // is how a pass grades every mutation of a check it never ran against (W105's adequacy reader, measured
+  // in check-wiring-selftest.mjs). **Removing this block is visible**: `control` is read by the verdict.
+  /** **What it means for the control to HOLD**, one expression for the control and for its own case below. */
+  const controlHolds = (g) => !g.ok2 && g.outcome === 'caught';
+  const control = gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY]);
+  if (!controlHolds(control)) {
+    console.log(`  FAIL  the control: an UNMUTATED copy of check-scheduler.mjs is graded ` +
+      `${control.ok2 ? 'NOTICED' : 'not caught'} (outcome "${control.outcome ?? '(none)'}"${control.why}). Nothing ` +
+      'is broken, so the probe must still catch what it declares — every verdict below would be a fact ' +
+      'about the harness rather than about the check.');
+    rmSync(dir, { recursive: true, force: true });
+    return 1;
+  }
+  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)');
+  // **The control handed a copy that CANNOT run — its own case, W143, Q437.** The same unmutated source with
+  // a first line that throws must NOT hold: its child goes `corpus` on the clean tree, as a copy at the wrong
+  // depth did at W105. Graded on the control's own condition, so the case and the control cannot drift.
+  {
+    const broken = gradeMeta(-1, ['the control: a copy that cannot run', META[0][1], IDENTITY],
+      'throw new Error("W143: this copy cannot run");\n' + checkSource);
+    if (controlHolds(broken)) {
+      console.log('  FAIL  GUARD CASE the control handed a copy that cannot run — Q437 — it still held');
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    console.log(`  ok    GUARD CASE the control handed a copy that cannot run — Q437 (outcome ${broken.outcome || '(none)'})`);
+  }
+
+  // **The guards' own cases, checked in — W143, `doc/workflow.md` section 5 rule 7.** Each is graded on
+  // the failure line its guard prints, so a case that went red for another reason is a FAIL too.
+  const cases = [
+    // Q434: a compound whose SECOND edit matches nothing. `META[0]`'s mutation is real, so the text
+    // changes and the whole-text guard passes it; only the instrumented count can see the dead half.
+    ['a compound META entry whose second edit matches nothing — Q434',
+      [`${META[0][0]}, then a dead second edit`, META[0][1], (t) => META[0][2](t).replace('\u0000W143: no such anchor', '')],
+      'matched NOTHING'],
+    // Q434, the other method the shared guard counts: `replaceAll` (three swap entries elsewhere use it).
+    ['a compound META entry whose second edit is a `replaceAll` matching nothing — Q434',
+      [`${META[0][0]}, then a dead replaceAll`, META[0][1], (t) => META[0][2](t).replaceAll('\u0000W143: no such anchor', '')],
+      'matched NOTHING'],
+    // Q536: a mutation INERT on the clean tree and FATAL under its probe. Under the bare specifier
+    // dropped from the import map, `spec` is undefined and `.trim()` throws before the report line, so
+    // the child prints `ran: no`; on the real map it is a string and the mutant passes. The `ran:` guard
+    // is the only arm that names this — disable it and the entry reads `outcome "(none)"` instead.
+    ['a mutant inert on the clean tree and FATAL under its probe — the `ran:` case, Q536',
+      ['the import-map read made to throw on a missing entry', 'the bare specifier dropped from the import map entirely',
+        (t) => t.replace("const spec = map.imports?.['fyflow-scheduler'];", "const spec = map.imports?.['fyflow-scheduler'].trim();")],
+      'the mutant did not run'],
+  ];
+  for (const [label, entry, must] of cases) {
+    const g = gradeMeta(META.length, entry);
+    if (g.ok2 || !g.why.includes(must)) {
+      console.log(`  FAIL  GUARD CASE ${label} — wanted a FAIL naming "${must}", got ` +
+        `${g.ok2 ? 'ok' : 'FAIL'}${g.why}`);
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    console.log(`  ok    GUARD CASE ${label}`);
+  }
+  // Q434 in the PROBES pass too: the same dead second edit, through `runOne`, which returns before it
+  // writes anything when an edit missed — so this case touches no file and spawns nothing.
+  {
+    const p = PROBES[0];
+    const v = runOne({ ...p, mutate: (t) => p.mutate(t).replace('\u0000W143: no such anchor', '') }, 0, {});
+    if (!v.vacuous || !v.msg.includes('matched NOTHING')) {
+      console.log(`  FAIL  GUARD CASE a compound PROBE whose second edit matches nothing — Q434 — wanted a vacuous ` +
+        `verdict naming "matched NOTHING", got ${v.vacuous ? 'vacuous' : 'graded'}: ${v.msg}`);
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    console.log('  ok    GUARD CASE a compound PROBE whose second edit matches nothing — Q434');
+  }
+  console.log('');
+
+  for (const [i, entry] of META.entries()) {
+    const { ok2, why, kind } = gradeMeta(i, entry);
+    if (ok2) {
+      noticed++;
+      if (kind === 'corpus') byCorpus++;
+      if (kind === 'count') byCount++;
+      if (kind === 'mask') byMask++;
+    }
+    console.log(`  ${ok2 ? 'ok  ' : 'FAIL'}  ${entry[0]}${ok2 ? '' : why}`);
   }
   rmSync(dir, { recursive: true, force: true });
   // **The three kinds are counted separately**, because a bare "noticed" hides how
@@ -1471,5 +1580,5 @@ export async function selfTest(root) {
   if (byMask) parts.push(`${byMask} masked by a sibling clause`);
   console.log(`\n${noticed}/${META.length} graded` +
     (parts.length ? ` — ${noticed - byCorpus - byMask - byCount} noticed by the named probe, ${parts.join(', ')}.` : '.'));
-  return noticed === META.length ? 0 : 1;
+  return noticed === META.length && controlHolds(control) ? 0 : 1;
 }

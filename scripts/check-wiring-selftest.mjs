@@ -36,7 +36,8 @@
 //   SELF    break THIS FILE and require it to stop reporting success. W31's shape, and
 //           W38's adequacy reader asked for it by name: without one, the verdict line
 //           becomes `return 0` for **zero** failures, and the floor is lowerable to
-//           nothing, printing `0/0 probes caught` at exit 0. **Six.**
+//           nothing, printing `0/0 probes caught` at exit 0. **Six until W143, and seven
+//           since**: its entry is a probe made a compound whose second edit matches nothing (Q434).
 //
 // **`G7` (W139) adds a family to each pass and states no count here**, since the counts above are the
 // defect they describe: manifests of `gate:item` and mutations of the runner's `--without` in PROBES,
@@ -106,6 +107,7 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 /**
  * The ten checks whose dispatch `G1` and `G2` test (seven until W72's `check-workers`, eight until
@@ -777,7 +779,7 @@ const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROB
 /** Vacuous at zero, which is the floor `check-policies-selftest.mjs` taught. */
 const MIN_PROBES = 54;
 const MIN_META = 24;
-const MIN_SELF = 6;
+const MIN_SELF = 7;
 
 // **`G5` had to be added here as well as to the check, and forgetting it is
 // [Q43](../doc/questions/q43.md)'s class** — a closed allowlist makes a new id's
@@ -872,37 +874,12 @@ const META = [
     'the runner accepts a --without naming an entry that does not exist', g7off('`the runner accepted')],
 ];
 
-/**
- * **Apply a mutation and report how many of its `.replace` calls MATCHED NOTHING.**
- *
- * `mutated === src` is rule 7 (b) over the whole file, and a compound defeats it: W105 moved the
- * `PROBES` declaration onto two lines, two `SELF` entries below pinned it on one, and both reported
- * **`exited 0: the mutation costs nothing`** — `MIN_PROBES` had been lowered and `PROBES` had not been
- * emptied, so the entry ran, changed the file, and proved something narrower than its own name. *A
- * vacuity guard over the whole file cannot see half a compound.*
- *
- * **It instruments `String.prototype.replace` for the duration of the call**, which is cheaper and more
- * general than restructuring every entry into a list of pairs: it holds for any compound written later,
- * and it reads what the mutation DID rather than what its author says it does. The patch is restored in
- * a `finally`; a `.replace` that legitimately replaces a string with itself would count as a miss, and
- * no entry here does that.
- */
-const applyMutation = (mutate, src) => {
-  const real = String.prototype.replace;
-  let misses = 0;
-  // eslint-disable-next-line no-extend-native
-  String.prototype.replace = function patched(from, to) {
-    const out = real.call(this, from, to);
-    if (out === String(this)) misses += 1;
-    return out;
-  };
-  try {
-    const out = mutate(src);
-    return { out, misses };
-  } finally {
-    String.prototype.replace = real;
-  }
-};
+// **`applyMutation` lived HERE until W143, and only this file's `SELF` pass used it.** W105 wrote it:
+// `mutated === src` is rule 7 (b) over the whole file, and a compound defeats it — W105 moved the
+// `PROBES` declaration onto two lines, two `SELF` entries below pinned it on one, and both reported
+// **`exited 0: the mutation costs nothing`**. *A vacuity guard over the whole file cannot see half a
+// compound.* It is `scripts/selftest-guards.mjs` now, shared by every self-test (Q434, the maintainer's
+// option A), and it is applied in all three passes here — `stage()`, `META` and `SELF`.
 
 /**
  * **The mutations of THIS FILE, each of which must stop it exiting 0.** W31's
@@ -949,6 +926,13 @@ const SELF = [
   // and again at W119, whose `lookup` is.
   ['CHECKS drops a check the manifest has an entry for',
     (t) => t.replace(/, 'lookup'\];/, '];')],
+  // **W143, Q434 in the PROBES pass.** A dead second edit appended to a real probe mutation: the staged
+  // file still changes, so `stage()`'s whole-file guard passes it, and only the instrumented count
+  // refuses it. The child runs the probe pass, so the evidence is that probe's own `matched NOTHING` line.
+  ['a PROBE made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("    mutate: (t) => t.replace('let ok = results.every((r) => r.code === 0);', 'let ok = true;'),",
+      "    mutate: (t) => t.replace('let ok = results.every((r) => r.code === 0);', 'let ok = true;').replace('W143: no such anchor', ''),"),
+    (out) => out.includes("the runner never reads what its children returned  — 1 of this mutation's `replace` calls matched NOTHING")],
 ];
 
 // **What a `SELF` list buys nothing against here, stated rather than padded around.**
@@ -996,6 +980,9 @@ const verdict = (probe, r) => {
 };
 
 export async function selfTest(root) {
+  // **The shared instrumented replace — W143, Q434.** Loaded by the ROOT rather than by `./`, because
+  // a SELF child runs a mutated copy of this file from dev-dist/ (scripts/selftest-guards.mjs's header).
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(root, 'scripts', 'selftest-guards.mjs')).href);
   // **The pid is in the name, and [Q151](../doc/questions/q151.md) is why.** A
   // `SELF` child runs THIS function, whose first line deletes this directory — so a
   // fixed name has the child delete the parent's scratch space underneath it. W31
@@ -1120,8 +1107,10 @@ export async function selfTest(root) {
       const to = join(root, 'dev-dist', f);
       let text = readFileSync(join(root, 'scripts', f), 'utf8');
       if (probe && f === probe.file) {
-        const after = probe.mutate(text);
+        const { out: after, misses } = applyMutation(probe.mutate, text);
         if (after === text) return null;
+        // **And EVERY edit of it matched** (W143, Q434) — before anything is written, so nothing is unstaged.
+        if (misses > 0) return { misses, partial: staged };
         text = after;
       }
       writeFileSync(to, text);
@@ -1184,6 +1173,10 @@ export async function selfTest(root) {
     const staged = stage(probe.file ? probe : null);
     if (staged === null) {
       return { vacuous: true, refused: false, agree: true, why: '  — the mutation matched nothing' };
+    }
+    if (!Array.isArray(staged)) {
+      unstage(staged.partial);
+      return { vacuous: true, refused: false, agree: true, why: `  — ${missWhy(staged.misses)}` };
     }
     const env = { ...process.env, CHECK_WIRING_SCRIPTS: 'dev-dist', ...(probe.env?.(dir) ?? {}) };
     const r = spawnSync(process.execPath, [against], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
@@ -1373,6 +1366,8 @@ export async function selfTest(root) {
    * control's verdict was `noticed`, which is how a pass can grade fourteen mutations of a check it never
    * ran against. *A control that fails here means every verdict below it is a fact about the harness.*
    */
+  /** **What it means for the control to be NOTICED**, one expression for the control and its case (W143). */
+  const controlNoticed = (v, probe) => v.vacuous || !v.refused || !v.agree || v.fails !== probeFails.get(probe.name);
   {
     const probe = PROBES.find((p) => p.name === META[0][1]);
     const ctl = join(root, 'dev-dist', `.meta-wiring-${process.pid}-control.mjs`);
@@ -1382,8 +1377,7 @@ export async function selfTest(root) {
     rmSync(ctl, { force: true });
     // **And the copy must reproduce its probe's count from the PROBES pass (W139)**, or the
     // per-probe baselines below are about a different check from the one each mutant is a copy of.
-    const noticed = v.vacuous || !v.refused || !v.agree || v.fails !== probeFails.get(probe.name);
-    if (noticed) {
+    if (controlNoticed(v, probe)) {
       console.log(`  FAIL  the control: an UNMUTATED copy of check-wiring.mjs is graded as NOTICED ` +
         `(${v.why ?? ''} ${JSON.stringify(v.tripped ?? [])} against ${JSON.stringify(v.declared ?? [])}). ` +
         'Nothing is broken, so the probe must still catch what it declares — every verdict below would be ' +
@@ -1393,6 +1387,39 @@ export async function selfTest(root) {
     console.log(`  ok    the control: an unmutated copy is NOT graded as noticed${NL}`);
   }
 
+  // **The control handed a copy that CANNOT run — its own case, W143, Q437.** The block above is the
+  // control; this shows it fires: the same unmutated source with a first line that throws must be graded
+  // NOTICED, which is the verdict a copy at the wrong depth got at W105. One probe run, in process.
+  {
+    const probe = PROBES.find((p) => p.name === META[0][1]);
+    const ctl = join(root, 'dev-dist', `.meta-wiring-${process.pid}-control-broken.mjs`);
+    metaMutants.add(ctl);
+    writeFileSync(ctl, 'throw new Error("W143: this copy cannot run");' + NL + src);
+    const v = runProbe(probe, ctl);
+    rmSync(ctl, { force: true });
+    if (!controlNoticed(v, probe)) {
+      console.log('  FAIL  GUARD CASE the control handed a copy that cannot run — Q437 — it was graded NOT noticed');
+      return done(1);
+    }
+    console.log('  ok    GUARD CASE the control handed a copy that cannot run — Q437 — graded noticed, as it must be');
+  }
+  /** The first application of a META entry and its two vacuity verdicts — a function since W143. */
+  const metaVacuity = (mutate) => {
+    const { out: mutated, misses } = applyMutation(mutate, src);
+    if (mutated === src) return { why: ' — the mutation matched nothing' };
+    if (misses > 0) return { why: ` — ${missWhy(misses)}` };
+    return { mutated };
+  };
+  // **Q434's case for the META pass, in process** — a `SELF` child grades neither `META` nor `SELF`, so no
+  // `SELF` entry can provoke it.
+  {
+    const v = metaVacuity((t) => META[0][2](t).replace('\u0000W143: no such anchor', ''));
+    if (!v.why?.includes('matched NOTHING')) {
+      console.log(`  FAIL  GUARD CASE a compound META entry whose second edit matches nothing — Q434 — got ${v.why ?? 'a mutation to run'}`);
+      return done(1);
+    }
+    console.log(`  ok    GUARD CASE a compound META entry whose second edit matches nothing — Q434${NL}`);
+  }
   let ungraded = 0;
   for (const [k, [label, probeName, mutate]] of META.entries()) {
     const probe = PROBES.find((p) => p.name === probeName);
@@ -1401,9 +1428,9 @@ export async function selfTest(root) {
       ungraded++;
       continue;
     }
-    const mutated = mutate(src);
-    if (mutated === src) {
-      console.log(`  FAIL  ${label} — the mutation matched nothing`);
+    const { mutated, why: vacuous } = metaVacuity(mutate);
+    if (vacuous) {
+      console.log(`  FAIL  ${label}${vacuous}`);
       ungraded++;
       continue;
     }
@@ -1463,23 +1490,33 @@ export async function selfTest(root) {
     console.log('  FAIL  two SELF entries produce the same mutation; the count says nothing.');
     return done(1);
   }
+  /** The first application of a SELF entry and its two vacuity verdicts — a function since W143. */
+  const selfVacuity = (mutate) => {
+    const { out: mutated, misses } = applyMutation(mutate, selfSrc);
+    if (mutated === selfSrc) return { why: ' — the mutation matched nothing' };
+    // **And EVERY half of it matched** — W105's guard. An entry whose second `.replace` lands nowhere still
+    // changes the file, so the guard above passes and the entry grades a mutation it did not make.
+    if (misses > 0) return { why: ` — ${missWhy(misses)}` };
+    return { mutated };
+  };
+  // **Q434's case for the SELF pass, in process** — the guard has been here since W105 and had no
+  // checked-in case (W143). `SELF[1]`'s real compound with a dead third edit must be refused.
+  {
+    const v = selfVacuity((t) => SELF[1][1](t).replace('\u0000W143: no such anchor', ''));
+    if (!v.why?.includes('matched NOTHING')) {
+      console.log(`  FAIL  GUARD CASE a compound SELF entry whose last edit matches nothing — Q434 — got ${v.why ?? 'a mutation to run'}`);
+      return done(1);
+    }
+    console.log('  ok    GUARD CASE a compound SELF entry whose last edit matches nothing — Q434');
+  }
   let unbounded = 0;
   for (const [k, [label, mutate, evidence]] of SELF.entries()) {
-    const { out: mutated, misses } = applyMutation(mutate, selfSrc);
-    if (mutated === selfSrc) {
-      console.log(`  FAIL  ${label} — the mutation matched nothing`);
-      unbounded++;
-      continue;
-    }
-    // **And EVERY half of it matched** — see `applyMutation`. An entry whose second `.replace` lands
-    // nowhere still changes the file, so the guard above passes and the entry grades a mutation it did
-    // not make. W105 shipped exactly that for two entries and the lane said `exited 0: the mutation
-    // costs nothing`, which is a true sentence about the wrong subject.
-    if (misses > 0) {
-      console.log(`  FAIL  ${label} — ${misses} of this mutation's \`replace\` calls matched NOTHING, ` +
-        'so the file changed and the entry is about a different mutation from the one it names. Re-anchor ' +
-        'it: a literal pinned to a declaration someone has since reformatted is rule 7 (b) at the half ' +
-        'a whole-file comparison cannot see');
+    // **Both vacuity verdicts through `selfVacuity`**, the expression the case above reaches. W105 shipped
+    // a compound that matched half for two entries and the lane said `exited 0: the mutation costs
+    // nothing`, which is a true sentence about the wrong subject.
+    const { mutated, why: vacuous } = selfVacuity(mutate);
+    if (vacuous) {
+      console.log(`  FAIL  ${label}${vacuous}`);
       unbounded++;
       continue;
     }

@@ -179,6 +179,7 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 /**
  * `half` says which file the probe rewrites — `pkg` for the manifest, `check` for
@@ -811,7 +812,7 @@ const MIN_PROBES = 60;
 const MIN_META = 40;
 
 /** And for `SELF`. */
-const MIN_SELF = 10;
+const MIN_SELF = 14;
 
 /**
  * **How many META entries may take the `wide` exemption from the two anchor guards.**
@@ -1121,7 +1122,8 @@ const SELF = [
   // itself, which is true and is stronger than a probe. The `ran:` guard stays as
   // defence in depth for a mutant that is inert on the clean tree and dies only on
   // the probe's input, and **no such mutation exists in this file**, so its
-  // provocation is out of reach here. It is provoked in `check-markdown`, where the
+  // provocation is out of reach here. *(W143 found one — `S15`'s jsonata read — and it is
+  // the `ran:` case at the end of this list; Q536.)* It is provoked in `check-markdown`, where the
   // readers measured it at a cost of 2, and it is on this file's ceiling list.
   //
   // What this entry provokes instead is rule 7 (b) at the META layer: a mutation
@@ -1159,9 +1161,46 @@ const SELF = [
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',
     (t) => t.replace("(t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')",
       "(t) => t.replace('a string this file does not contain', 'nor this one')")],
+
+  // --- W143: the three guards' own cases, each graded on its REASON ----------------
+  //
+  // **Q536: the `ran:` case this file said it could not have.** The comment above said *no such
+  // mutation exists in this file*; one does. `S15` reads `deno.json`'s jsonata mapping, and with
+  // `.trim()` added to that read the mutant is INERT on the clean tree (the mapping is a string) and
+  // THROWS under *deno.json`s jsonata mapping REMOVED* (it is `undefined`) — before the report line, so
+  // the grandchild prints `ran: no` and the injected entry must FAIL naming *the mutant did not run*.
+  ['a META entry inert on the clean tree and FATAL under its probe — the `ran:` case, Q536',
+    (t) => t.replace("  ['S12 disabled',\n",
+      "  ['S15`s jsonata read made to THROW on a missing mapping',\n" +
+      "    'deno.json`s jsonata mapping REMOVED — Deno then resolves through package.json (Q252`s shape), and only S15 sees it',\n" +
+      "    (t) => t.replace('const mapped = denoJson.imports?.jsonata;', 'const mapped = denoJson.imports?.jsonata.trim();')],\n" +
+      "  ['S12 disabled',\n"),
+    'S15`s jsonata read made to THROW on a missing mapping — the mutant did not run'],
+  // **Q434, in the META pass and in the PROBES pass.** A dead second edit appended to a real mutation:
+  // the text still changes, so the whole-text guard passes it, and only the instrumented count refuses
+  // it. Each child must go red on that entry's own `matched NOTHING` line.
+  ['a META entry made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')],",
+      "'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {').replace('W143: no such anchor', '')],"),
+    "S12 disabled — 1 of this mutation's `replace` calls matched NOTHING"],
+  ['a PROBE made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("    mutate: (t) => t.replace('\"gate\": \"npm run lint && ', '\"gate\": \"'),",
+      "    mutate: (t) => t.replace('\"gate\": \"npm run lint && ', '\"gate\": \"').replace('W143: no such anchor', ''),"),
+    "lint dropped from the gate chain  — 1 of this mutation's `replace` calls matched NOTHING"],
+  // **Q437: the META control handed a copy that cannot run.** The control's source gets a first line
+  // that throws, so the copy fails on the clean tree as a copy at the wrong depth did at W105 — and the
+  // control, not any entry, must be what turns the child red. The anchor is SPLIT, because the line it
+  // edits sits BELOW this list and an unsplit quote here would be the first match.
+  ['the META control handed a copy that cannot run — Q437',
+    (t) => t.replace("gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY]" + ');',
+      "gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY], 'throw new Error(\"W143: this copy cannot run\");\\n' + checkSource);"),
+    'FAIL  the control: an UNMUTATED copy of check-source.mjs is graded'],
 ];
 
 export async function selfTest(root) {
+  // **The shared instrumented replace — W143, Q434.** Loaded by the ROOT rather than by `./`, because
+  // a SELF child runs a mutated copy of this file from dev-dist/ (scripts/selftest-guards.mjs's header).
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(root, 'scripts', 'selftest-guards.mjs')).href);
   // **Per PROCESS, and removed on the way out including on the abort path — W105.** `dev-dist/` is one
   // flat namespace and this was a FIXED path inside it, `rmSync`d on entry, so a child running this same
   // function deleted its parent's fixtures and two top-level runs did the same to each other
@@ -1308,6 +1347,7 @@ export async function selfTest(root) {
    */
   const runOne = (i, probe) => {
     const stem = `${relDir}/${String(i).padStart(2, '0')}`;
+    const declared = probe.clean ? [] : [probe.check, ...(probe.also ?? [])].sort();
     // **The third half, added by W30: a copy of the PUBLISHED TREE.** `S4` and `S7`
     // loop over `published()`, so neither the manifest half nor the check half can
     // reach them — the probe has to hand this script a different `src/` and
@@ -1320,23 +1360,30 @@ export async function selfTest(root) {
       cpSync(join(root, 'index.ts'), join(tree, 'index.ts'));
       const target = join(tree, probe.file);
       const before = readFileSync(target, 'utf8');
-      const after = probe.mutate(before);
+      const { out: after, misses } = applyMutation(probe.mutate, before);
       if (after === before) {
-        return { vacuous: true, refused: false, ran: false, declared: [], tripped: [], agree: true,
+        return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true,
           msg: 'the mutation matched nothing' };
       }
+      // **And EVERY edit of it matched** (W143, Q434).
+      if (misses > 0) return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: missWhy(misses) };
       writeFileSync(target, after);
       const env = { ...process.env, CHECK_SOURCE_SRC: relative(root, tree).replace(/\\/g, '/') };
       const r = spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8', env, timeout: 300_000 });
       rmSync(tree, { recursive: true, force: true });
       return verdict(probe, r);
     }
-    const mutated = probe.mutate(source[probe.half]);
+    const { out: mutated, misses } = applyMutation(probe.mutate, source[probe.half]);
+    // **`declared` and `tripped` on EVERY vacuous return — W143.** These two returns carried neither, so
+    // single-probe mode threw at `v.declared.filter(...)` and a META child whose named probe went vacuous
+    // printed no `ran:` and was graded *the mutant did not run* — a crash reported for a vacuity. The
+    // `src` half's return above always carried them; now all four do.
     if (mutated === source[probe.half]) {
       // A probe that changes nothing passes for the wrong reason — the exact
       // vacuity rule 7 (b) refuses.
-      return { vacuous: true, refused: false, ran: false, msg: 'the mutation matched nothing' };
+      return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: 'the mutation matched nothing' };
     }
+    if (misses > 0) return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: missWhy(misses) };
     const env = { ...process.env };
     let run = script;
     // **`alsoPkg` breaks the manifest as well as the check**, and exists because one
@@ -1346,10 +1393,11 @@ export async function selfTest(root) {
     // source can be swapped for free. A probe that mutates one half cannot
     // distinguish one route from two.
     if (probe.alsoPkg) {
-      const p = probe.alsoPkg(source.pkg);
+      const { out: p, misses: pMisses } = applyMutation(probe.alsoPkg, source.pkg);
       if (p === source.pkg) {
-        return { vacuous: true, refused: false, ran: false, msg: 'the alsoPkg mutation matched nothing' };
+        return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: 'the alsoPkg mutation matched nothing' };
       }
+      if (pMisses > 0) return { vacuous: true, refused: false, ran: false, declared, tripped: [], agree: true, msg: `alsoPkg: ${missWhy(pMisses)}` };
       writeFileSync(join(root, `${stem}.json`), p);
       env.CHECK_SOURCE_PKG = `${stem}.json`;
     }
@@ -1467,12 +1515,19 @@ export async function selfTest(root) {
   const checkSource = readFileSync(join(root, 'scripts', 'check-source.mjs'), 'utf8');
   let noticed = 0, byCorpus = 0;
   console.log(`\nand against a broken check — ${META.length} mutations of check-source.mjs itself\n`);
-  for (const [i, [name, probeName, mutate, wide]] of META.entries()) {
-    const broken = mutate(checkSource);
-    if (broken === checkSource) {
-      console.log(`  FAIL  ${name} — the mutation matched nothing`);
-      continue;
-    }
+  /** The control's mutation: it changes nothing, and `gradeMeta` skips the text guards for it alone. */
+  const IDENTITY = (t) => t;
+  /**
+   * **One META entry, graded — a function since W143** so the control below goes through the SAME path
+   * as every entry. Returns `{ ok, why, corpus, outcome }`. `source` is the text the mutation is applied
+   * to: the real check, except where a `SELF` entry provokes the control with a copy that cannot run.
+   */
+  const gradeMeta = (i, [name, probeName, mutate, wide], source = checkSource) => {
+    // **Instrumented — W143, Q434.** Only this FIRST application: the two guards below re-apply the
+    // mutation where it must NOT match, and counting those would count their success as a miss.
+    const { out: broken, misses } = applyMutation(mutate, source);
+    if (broken === source && mutate !== IDENTITY) return { ok: false, why: ' — the mutation matched nothing' };
+    if (misses > 0) return { ok: false, why: ` — ${missWhy(misses)}` };
     // **And it must have matched exactly ONCE, and must not be GLOBAL** — W29's two
     // guards, carried here because **W30 measured both holes live in this file**.
     // Swapping one entry's anchor for `/fail\('S12',/g` disabled **all five** `S12`
@@ -1490,16 +1545,14 @@ export async function selfTest(root) {
     // what makes the counts match and the sets not — so both guards would refuse a
     // correct entry. An exemption that has to be written down beside the entry is a
     // different thing from a guard that is not there.
-    if (!wide) {
+    if (!wide && mutate !== IDENTITY) {
       if (mutate(broken) !== broken) {
-        console.log(`  FAIL  ${name} — the mutation matched MORE THAN ONCE, so it landed ` +
-          'on the first of several and the entry does not say which');
-        continue;
+        return { ok: false, why: ' — the mutation matched MORE THAN ONCE, so it landed ' +
+          'on the first of several and the entry does not say which' };
       }
-      if (!mutate(checkSource + checkSource).endsWith(checkSource)) {
-        console.log(`  FAIL  ${name} — the mutation is GLOBAL: it edits every match rather ` +
-          'than the one this entry names, so its verdict is about a set of clauses and not a clause');
-        continue;
+      if (!mutate(source + source).endsWith(source)) {
+        return { ok: false, why: ' — the mutation is GLOBAL: it edits every match rather ' +
+          'than the one this entry names, so its verdict is about a set of clauses and not a clause' };
       }
     }
     // **FLAT, with the pid in the NAME.** A `.meta-*` mutant is a copy of the CHECK, which derives
@@ -1507,10 +1560,10 @@ export async function selfTest(root) {
     // root — W105 nested three of these and `check:spec:selftest` reported *29 of 29 graded by the
     // CORPUS*, its own *the harness broke rather than the check* clause. A `.self-*` mutant is a copy of
     // this SELFTEST module, which the dispatch hands `ROOT`, and nests.
-    const path = join(root, 'dev-dist', `.meta-${process.pid}-${String(i).padStart(2, '0')}.mjs`);
+    const path = join(root, 'dev-dist', `.meta-${process.pid}-${i < 0 ? 'control' : String(i).padStart(2, '0')}.mjs`);
     metaMutants.add(path);
     writeFileSync(path, broken);
-    let ok = false, why = '';
+    let ok = false, why = '', corpus = false, outcome;
     try {
       const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-source.mjs'), '--self-test'],
         { cwd: root, encoding: 'utf8', timeout: 900_000,
@@ -1532,22 +1585,44 @@ export async function selfTest(root) {
       // failure makes `refused` false, which the exit code reports as *uncaught*.
       // The child computes the discriminating fact and now says it out loud.
       const ran = /^ {2}ran: yes$/m.test(out);
-      const outcome = (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1];
+      outcome = (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1];
       if (r.status === 3) why = ` — ${out.trim().split('\n').pop()}`;
       // A mutant that fails on the repository's own tree is NOTICED — by the corpus,
       // which is stronger than any probe. Its probe verdict is meaningless and is
       // not consulted. Reported distinctly so the count of probe-backed gradings
       // stays visible; W25's *"caught by the CORPUS rather than by a probe"*, made
       // into a verdict instead of a footnote.
-      else if (outcome === 'corpus') { ok = true; byCorpus++; why = ' (by the corpus: the mutant is not inert)'; }
+      else if (outcome === 'corpus') { ok = true; corpus = true; why = ' (by the corpus: the mutant is not inert)'; }
       else if (!ran) why = ' — the mutant did not run: this is a crash, not a detection';
       else if (outcome === 'caught') why = ` — "${probeName}" is STILL CAUGHT against a check that does not check`;
       else if (outcome === 'noisy') why = ` — "${probeName}" still reports every id it declared; the mutant only got NOISIER, which is not a detection`;
       else if (['disappeared', 'fires', 'disagreed', 'exit0'].includes(outcome)) ok = true;
       else why = ` — the child reported outcome "${outcome || '(none)'}", which grades nothing`;
     } finally { rmSync(path, { force: true }); }
-    if (ok) noticed++;
-    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : why}`);
+    return { ok, why, corpus, outcome };
+  };
+
+  // **The CONTROL for this pass — W143, Q437.** An UNMUTATED copy of the check, driven through the same
+  // `gradeMeta` every entry takes, naming `META[0]`'s probe. Nothing is broken, so the probe must still
+  // catch what it declares (`outcome: caught`) and the entry must NOT be graded noticed. A copy that
+  // cannot run against the check comes back noticed — by the corpus — which is how a pass grades every
+  // mutation of a check it never ran against (W105's adequacy reader, in check-wiring-selftest.mjs). The
+  // `SELF` entry *the META control handed a copy that cannot run* is its checked-in case, and **removing
+  // this block is visible**: `metaControl` is read by the verdict below.
+  const metaControl = gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY]);
+  if (metaControl.ok || metaControl.outcome !== 'caught') {
+    console.log(`  FAIL  the control: an UNMUTATED copy of check-source.mjs is graded ` +
+      `${metaControl.ok ? 'NOTICED' : 'not caught'} (outcome "${metaControl.outcome ?? '(none)'}"${metaControl.why}). ` +
+      'Nothing is broken, so the probe must still catch what it declares — every verdict below would be a ' +
+      'fact about the harness rather than about the check.');
+    rmSync(dir, { recursive: true, force: true });
+    return 1;
+  }
+  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)\n');
+  for (const [i, entry] of META.entries()) {
+    const { ok, why, corpus } = gradeMeta(i, entry);
+    if (ok) { noticed++; if (corpus) byCorpus++; }
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${entry[0]}${ok ? '' : why}`);
     // Same reason as the probe loop's break: a SELF child is read for its exit
     // code alone, so once a grading has failed the remaining spawns are waste.
     if (nestedSelf && !ok) break;
@@ -1558,17 +1633,40 @@ export async function selfTest(root) {
   // than a probe, and not what the entry claims.
   console.log(`\n${noticed}/${META.length} noticed` +
     (byCorpus ? ` — ${noticed - byCorpus} by the named probe, ${byCorpus} by the corpus.` : '.'));
-  if (noticed !== META.length) { rmSync(dir, { recursive: true, force: true }); return 1; }
+  if (noticed !== META.length || metaControl.outcome !== 'caught') { rmSync(dir, { recursive: true, force: true }); return 1; }
   if (nestedSelf) { rmSync(dir, { recursive: true, force: true }); return 0; }
 
   // --- the SELF pass: does the probe LIST have a bound? ------------------------
   const selfSource = readFileSync(join(root, 'scripts', 'check-source-selftest.mjs'), 'utf8');
+  /**
+   * **The first application of a SELF entry, and the two vacuity verdicts — a function since W143** so
+   * the guard case below reaches the SAME expression the loop does.
+   */
+  const selfVacuity = (mutate) => {
+    const { out: broken, misses } = applyMutation(mutate, selfSource);
+    if (broken === selfSource) return { why: ' — the mutation matched nothing' };
+    if (misses > 0) return { why: ` — ${missWhy(misses)}` };
+    return { broken };
+  };
+  // **Q434's case for THIS pass, in process** — a `SELF` child skips the `SELF` pass, so no `SELF` entry
+  // can provoke it. `SELF[0]`'s real mutation followed by a dead second edit must be refused by
+  // `selfVacuity` before anything is spawned.
+  {
+    const v = selfVacuity((t) => SELF[0][1](t).replace('\u0000W143: no such anchor', ''));
+    if (!v.why?.includes('matched NOTHING')) {
+      console.log('\n  FAIL  GUARD CASE a compound SELF entry whose second edit matches nothing — Q434 — ' +
+        `wanted a refusal naming "matched NOTHING", got ${v.why ?? 'a mutation to run'}`);
+      rmSync(dir, { recursive: true, force: true });
+      return 1;
+    }
+    console.log('\n  ok    GUARD CASE a compound SELF entry whose second edit matches nothing — Q434');
+  }
   let bounded = 0;
   console.log(`\nand against a shortened probe list — ${SELF.length} mutations of this file\n`);
-  for (const [i, [name, mutate]] of SELF.entries()) {
-    const broken = mutate(selfSource);
-    if (broken === selfSource) {
-      console.log(`  FAIL  ${name} — the mutation matched nothing`);
+  for (const [i, [name, mutate, reason]] of SELF.entries()) {
+    const { broken, why: vacuous } = selfVacuity(mutate);
+    if (vacuous) {
+      console.log(`  FAIL  ${name}${vacuous}`);
       continue;
     }
     // **Named for this check, because `dev-dist/` is a SHARED namespace.** ADR 0039
@@ -1598,6 +1696,12 @@ export async function selfTest(root) {
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       ok = r.status !== 0 && SELF_RAN(out);
       if (r.status !== 0 && !ok) why = ' — the child never got as far as running: a broken file, not a fired floor';
+      // **An entry that names its REASON is graded on it** — W143, as `check-policies-selftest.mjs` has
+      // since W131: a guard case must go red BECAUSE its guard fired, not merely go red.
+      else if (ok && reason !== undefined && !out.includes(reason)) {
+        ok = false;
+        why = ` — the child went red, but not for the reason this entry names ("${reason}"); it said: ${(out.split('\n').find((l) => /FAIL|ABORT|Error/.test(l)) ?? `exit ${r.status}, no FAIL line`).trim().slice(0, 200)}`;
+      }
     } finally { rmSync(path, { force: true }); }
     if (ok) bounded++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : (why || ' — the floor did not fire')}`);
