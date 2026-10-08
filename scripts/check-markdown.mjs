@@ -416,6 +416,14 @@ export function deriveFloors(files, root) {
     }
     out[id] = { floor, from };
   }
+  // **What each tree measured, so the self-test can hold the in-memory tree to the REAL one**: it runs
+  // each tree as a fixture and compares that run's own counts with these. Without it, links into a
+  // removed path counted ALIVE in memory cost nothing — 73 anchored where the fixture holds 56, a floor
+  // of 74 for 71 and every verdict unchanged (W144's rule 8, `d6`).
+  out.measured = Object.fromEntries(Object.keys(PROBE_TREES).map((name) => {
+    const m = measureOf(name);
+    return [name, `${m.files} / ${m.sources} / ${m.anchored}`];
+  }));
   return out;
 }
 
@@ -552,7 +560,11 @@ console.log(`markdown check — ${r.files} documents, ${r.links} relative links 
 // **The derived floors are PRINTED**, for the reason `sources` is: a floor whose value is not in the
 // report is one a reader cannot check the check against, and these move with every document.
 console.log(`floors derived from the probe trees — M3 ${floors.M3.floor}, M4 ${floors.M4.floor}, ` +
-  `M5 ${floors.M5.floor}\n`);
+  `M5 ${floors.M5.floor}`);
+for (const [name, m] of Object.entries(floors.measured)) {
+  console.log(`  probe tree "${name}" measured in memory: ${m}`);
+}
+console.log('');
 for (const c of checks) {
   const id = c.slice(0, c.indexOf(' '));
   const bad = failures.filter((f) => f.startsWith(id + ':'));

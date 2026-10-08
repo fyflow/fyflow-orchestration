@@ -644,7 +644,7 @@ const SELF_RAN = (out) => /self-test — /.test(out);
 
 const MIN_PROBES = 44;
 /** The same floor for `META`. */
-const MIN_META = 50;
+const MIN_META = 51;
 /** And for `SELF`. */
 const MIN_SELF = 7;
 
@@ -875,6 +875,9 @@ const META = [
   ['the strip NOT applied in memory — the upstream tree is the whole walk',
     'an EXTERNAL link that does not resolve locally — must trip nothing',
     (t) => t.replace('    return rewrite ? rewrite(abs, t) : t;', '    return t;')],
+  ['links into a removed path counted ALIVE in memory — the derived tree is not the probe`s',
+    'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
+    (t) => t.replace('  const exists = (abs) => !gone(abs) && existsSync(abs);', '  const exists = (abs) => existsSync(abs);')],
   ['M9 disabled',
     'a link to a markdown file the walk does not read — M9',
     (t) => t.replace("for (const d of r.unwalked) fail('M9', d);", "for (const d of []) fail('M9', d);")],
@@ -1101,7 +1104,26 @@ export async function selfTest(root) {
    * exits non-zero and reports nothing, which every grading here used to read as a
    * catch. `runs: 'spec'` is exempt, because the header it prints is `check-spec`'s.
    */
+  /**
+   * **The check run ONCE on the untouched fixture, cached** — for the inertness test below, and for
+   * what the check says each probe tree measured IN MEMORY, which a `tree` probe then holds its own
+   * fixture's counts to (W144). A floor derived from a tree that differs from the tree its probe builds
+   * is a floor derived from nothing the probe tests.
+   */
+  let clean = null;
+  const cleanRun = () => {
+    if (clean === null) {
+      const r = spawnSync(process.execPath, [scriptInTree], { cwd: tree, encoding: 'utf8', timeout: 300_000 });
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      const measured = new Map([...out.matchAll(/^ {2}probe tree "(.+)" measured in memory: (\d+ \/ \d+ \/ \d+)$/gm)]
+        .map((m) => [m[1], m[2]]));
+      clean = { status: r.status, measured };
+    }
+    return clean;
+  };
+
   const runOne = (probe) => {
+    const want = probe.tree === undefined ? null : (cleanRun().measured.get(probe.tree) ?? '(not printed)');
     // A `tree` probe reads its removed paths, or its strip, from the script under test (W144).
     const def = probe.tree === undefined ? null : PROBE_TREES[probe.tree];
     if (probe.tree !== undefined && !def) {
@@ -1163,16 +1185,22 @@ export async function selfTest(root) {
       : [...out.matchAll(/^ {2}(ok {2}|FAIL) {2}(M\d+) /gm)].filter((m) => m[1] === 'FAIL')
         .map((m) => m[2]).sort();
     const agree = rows === null || rows.join(',') === tripped.join(',');
+    // **The fixture's own counts against the in-memory tree's** — `files / sources / anchored`, read off
+    // the check's banner. Equal, or the derivation is not of this tree.
+    const banner = out.match(/^markdown check — (\d+) documents, \d+ relative links in (\d+) of them, (\d+) links anchored/m);
+    const got = banner ? `${banner[1]} / ${banner[2]} / ${banner[3]}` : '(no banner)';
+    const measuredAgrees = want === null || got === want;
     // **An empty declared set means the run must be GREEN**, and both halves are
     // asserted: exit 0 AND nothing reported. Exit 0 alone would pass a run that
     // reported under an id this harness does not know.
-    const refused = agree && (declared.length === 0
+    const refused = agree && measuredAgrees && (declared.length === 0
       ? (r.status === 0 && tripped.length === 0)
       : (r.status !== 0 && tripped.join(',') === declared.join(',')));
     return {
-      refused, ran: RAN(out), declared, tripped, agree, status: r.status,
+      refused, ran: RAN(out), declared, tripped, agree, measuredAgrees, status: r.status,
       msg: `exited ${r.status}, wanted [${declared.join(',')}], got [${tripped.join(',')}]` +
-        `${agree ? '' : `, report rows said [${rows.join(',')}]`}`,
+        `${agree ? '' : `, report rows said [${rows.join(',')}]`}` +
+        `${measuredAgrees ? '' : `, the probe tree measured ${got} and the derivation ${want}`}`,
     };
   };
 
@@ -1193,7 +1221,7 @@ export async function selfTest(root) {
     const r = probe.runs === 'spec'
       ? spawnSync(process.execPath, [join(tree, 'scripts', 'check-spec.mjs')],
         { cwd: tree, encoding: 'utf8', timeout: 300_000 })
-      : spawnSync(process.execPath, [scriptInTree], { cwd: tree, encoding: 'utf8', timeout: 300_000 });
+      : cleanRun();
     return r.status === 0;
   };
 
@@ -1250,6 +1278,8 @@ export async function selfTest(root) {
       // and it is the only thing that sees a mutation to the report — the set of ids
       // is unchanged, so no set comparison can.
       : !v.agree ? 'disagreed'
+        // The derivation built a different tree from the one the probe built (W144).
+        : !v.measuredAgrees ? 'measured'
         // Right set, wrong exit path: the check found everything and told the shell
         // it was fine.
         : v.status === 0 && v.tripped.length ? 'exit0'
@@ -1311,7 +1341,7 @@ export async function selfTest(root) {
     if (!/^ {2}ran: yes$/m.test(out)) return { ok: false, why: ' — the mutant did not run: this is a crash, not a detection' };
     if (outcome === 'caught') return { ok: false, why: ` — "${probeName}" is STILL CAUGHT against a check that does not check` };
     if (outcome === 'noisy') return { ok: false, why: ` — "${probeName}" still reports every id it declared; the mutant only got NOISIER, which is not a detection` };
-    if (['disappeared', 'fires', 'disagreed', 'exit0'].includes(outcome)) return { ok: true, why: '' };
+    if (['disappeared', 'fires', 'disagreed', 'exit0', 'measured'].includes(outcome)) return { ok: true, why: '' };
     return { ok: false, why: ` — the child reported outcome "${outcome || '(none)'}", which grades nothing` };
   };
 
