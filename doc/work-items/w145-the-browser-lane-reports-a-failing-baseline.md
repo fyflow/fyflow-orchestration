@@ -39,11 +39,15 @@ Outputs:    (1) the measurement, BEFORE any edit to run-browser-tests.mjs, each 
                 stated in the Record
             (4) test/provocations/q541.ts, runnable as `node test/provocations/q541.ts`: under a
                 per-process scratch root it runs a BYTE COPY of the real script (asserted
-                identical) in each case — A, the real runner plus throws-on-import.ts (ran and
-                failed); B, no runner (could not run); C, a green baseline and a bundle that
-                throws on import (if (3) is made); D, a control, a green baseline and a bundle
-                that reports, EXIT 0 — and compares each case's full SET of report lines, rule 7
-                (a)-(c). Node only: run-browser-tests.mjs is a Node script
+                identical) in each case and compares each case's full SET of report lines, rule 7
+                (a)-(c). Node only: run-browser-tests.mjs is a Node script. *Amended at the fix
+                round (the conformity reader's finding 2: the four letters declared here no longer
+                matched the file).* The cases as built: A, the real runner plus
+                throws-on-import.ts (ran and failed); B, no runner (could not run); C, a runner
+                that dies before its count line (advice); D, exit 0 and no count line ("could not
+                read"); E, a green baseline and a bundle that throws on import; F, the CONTROL,
+                EXIT 0; G, a console error that must not shorten the wait; H, a page error from a
+                suite that goes on to report, whose report must be kept
             (5) Q541 resolved, `resolved-by` starting "P31 W145 —"
 Depends on: W141 (P31 decision 5: serial on one tree)
 Blocks:     W144

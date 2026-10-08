@@ -67,7 +67,7 @@ const baselineOut = baseline.stdout ?? '';
 const countLine = /^ {2}\d+ file\(s\), (\d+) assertions, on /m.exec(baselineOut);
 if (countLine && baseline.status !== 0) {
   console.error(
-    `the Node baseline RAN and exited ${baseline.status}: \`node test/runner.ts\` failed, so no ` +
+    `the Node baseline RAN and exited ${baseline.status ?? baseline.signal}: \`node test/runner.ts\` failed, so no ` +
       'browser was started. Its own report names each failure:',
   );
   console.error(baselineOut.slice(countLine.index).trimEnd() + '\n');
@@ -84,6 +84,8 @@ if (!countLine) {
 const expected = Number(countLine[1]);
 
 const ENGINES = { chromium, firefox, webkit };
+/** How long a suite may still report after a page error before the wait ends (W145). */
+const PAGE_ERROR_GRACE_MS = 5_000;
 const asked = process.argv.slice(2).filter((a) => a in ENGINES);
 const engines = asked.length ? asked : ['chromium'];
 
@@ -92,11 +94,13 @@ for (const name of engines) {
   const browser = await ENGINES[name].launch();
   const page = await browser.newPage();
   const pageErrors = [];
-  // **A page error ends the wait** — W145, Q541's second clause. The bundle is ONE module, so a suite
+  // **A page error shortens the wait** — W145, Q541's second clause. The bundle is ONE module, so a suite
   // that throws while it is imported stops its evaluation and the result is never set: before W145 that
-  // was a 60 s timeout. An uncaught page error fails the engine whenever it comes, so stopping at the
-  // first one changes no verdict, and a run with none waits exactly as before. A console error does
-  // not stop it: it is no evidence that evaluation stopped.
+  // was a 60 s timeout. A page error is no proof that evaluation stopped — a stray async throw in a suite
+  // that goes on to report is one too — so after the first, the wait goes on for PAGE_ERROR_GRACE_MS
+  // more, and a suite that reports inside it is reported in full (W145's conformity reader, finding 1).
+  // A page error fails the engine either way, so no exit code moves; a run with none waits exactly as
+  // before. A console error does not shorten it.
   let pageErrorSeen;
   const stoppedByPageError = new Promise((r) => {
     pageErrorSeen = r;
@@ -117,7 +121,17 @@ for (const name of engines) {
     const reported = page
       .waitForFunction(() => '__FYFLOW_RESULT__' in globalThis, null, { timeout: 60_000 })
       .then(() => 'reported');
-    const first = await Promise.race([reported, stoppedByPageError]);
+    let first = await Promise.race([reported, stoppedByPageError]);
+    if (first === 'page error') {
+      let grace;
+      first = await Promise.race([
+        reported,
+        new Promise((r) => {
+          grace = setTimeout(() => r('page error'), PAGE_ERROR_GRACE_MS);
+        }),
+      ]);
+      clearTimeout(grace);
+    }
     result = first === 'reported'
       ? await page.evaluate(() => globalThis.__FYFLOW_RESULT__)
       : { passed: 0, failures: ['the suite never reported: a page error stopped it (PAGE ERROR below)'], suites: 0 };
