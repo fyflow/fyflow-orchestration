@@ -17,6 +17,7 @@
  * | **D** | a fixture runner that exits 0 with no count line | reports | **1** | `could not read an assertion count`, and nothing else |
  * | **E** | a fixture runner whose count line says 2 and exits 0 | **throws on import** | **1** | chromium's count line, `PARITY FAIL`, the never-reported `FAIL` naming a page error, the `PAGE ERROR` naming the fixture's error, the failure count — and well inside the 60 s wait |
  * | **F** | the same green fixture runner — the CONTROL | reports 2 passed | **0** | chromium's count line and `all passed (parity with node: 2)` |
+ * | **G** | the same green fixture runner | logs a CONSOLE error, then reports 2 passed | **1** | chromium's count line, the `PAGE ERROR` naming that console text, the failure count — and NO never-reported `FAIL` and no `PARITY FAIL`: a console error does not stop the wait |
  *
  * Rule 7's three requirements: **(a)** this file; **(b)** each input is asserted to be what its case
  * says — the copy byte-identical to the script, `throws-on-import.ts` throwing when imported, and the
@@ -50,6 +51,9 @@ process.on('exit', () => rmSync(SCRATCH, { recursive: true, force: true }));
 
 /** The fixtures, each hand-written from the contract it stands in for. */
 const BUNDLE_REPORTS = 'globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 };\n';
+/** A console error, and the result set LATER, so the console event has arrived before the suite reports. */
+const BUNDLE_CONSOLE = "console.error('a console error, not a page error');\n" +
+  'setTimeout(() => { globalThis.__FYFLOW_RESULT__ = { passed: 2, failures: [], suites: 1 }; }, 300);\n';
 /** A fixture read at MODULE SCOPE that does not parse — the shape W132's provocation throws, now in a bundle. */
 const BUNDLE_THROWS = `const fixture = JSON.parse('{ "cases": 2, this is not JSON }');\n` +
   'globalThis.__FYFLOW_RESULT__ = { passed: fixture.cases, failures: [], suites: 1 };\n';
@@ -163,6 +167,14 @@ check(e.ms < 30_000, `E: it reports well inside the 60 s wait (${e.ms} ms; the b
 const f = run('F', caseRoot('f', BUNDLE_REPORTS, RUNNER_GREEN));
 check(f.status === 0, `F: the control exits 0 (got ${f.status})`);
 kindsAre('F', f.kinds, ['all-passed', 'engine-count']);
+
+// G — a CONSOLE error is a failure, but no evidence that evaluation stopped: the wait goes on and the suite reports.
+const g = run('G', caseRoot('g', BUNDLE_CONSOLE, RUNNER_GREEN));
+check(g.status === 1, `G: exits 1 (got ${g.status})`);
+kindsAre('G', g.kinds, ['engine-count', 'page-error', 'engine-failures']);
+const gPage = g.lines.filter((l) => KINDS[6]![1].test(l)).map((l) => l.trim());
+check(JSON.stringify(gPage) === JSON.stringify(['PAGE ERROR  a console error, not a page error']),
+  `G: the one PAGE ERROR is the console text (got ${JSON.stringify(gPage)})`);
 
 console.log(problems.length
   ? `\n  q541 provocation — ${problems.length} clause(s) did not hold\n`
