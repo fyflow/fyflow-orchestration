@@ -16,7 +16,8 @@ Spec:       none changes. P31 decision 3 fixes all three directions as each ques
             `ran:` carries a checked-in case that makes the guard fire. Workflow section 5 rule 7
             (a)-(c) binds each new guard; ADR 0072 (a scratch path carries its process) binds every new
             scratch path; ADR 0089 is free and used only if an answer needs it
-Owns:       scripts/*-selftest.mjs (P31's W143 row) — eleven files on e952ac3; this file
+Owns:       scripts/*-selftest.mjs (P31's W143 row) — eleven files on e952ac3; scripts/selftest-guards.mjs
+            (new, by the maintainer's YES — Exceptions); this file
 Inputs:     the tree at e952ac3 (W140, W142, W141, W145, W144 done); Q434, Q437 and Q536's files;
             W105's Record (the instrumented replace's origin, Q434); W125's rows for Q434 and Q437 (the
             measured scope at P29); W131's Record (Q536); check-wiring-selftest.mjs's `applyMutation`
@@ -55,12 +56,15 @@ Reserves:   Q568-Q570 (P31's block Q553-Q567 is wholly reserved by W140-W145, wh
             skipped, never reissued); ADR 0089 only if a stop-and-ask answer needs it. No W beyond W143
 ```
 
-**Exceptions**: none at declaration. **A shared helper module is a stop-and-ask, declared here before it
-exists**: P31's W143 row Owns `scripts/*-selftest.mjs`, and a module every self-test imports (for example
-`scripts/selftest-guards.mjs`) is outside that glob. It is asked with the measurement (output 1) under
-workflow section 1 rule 6, and its YES or NO is written here before any edit. Without a YES, each file
-carries its own copy. Any other file edited outside `Owns` and outside the record step is asked first and
-its YES written here before the edit. **The drag files, checked up front:**
+**Exceptions**: one, asked under workflow section 1 rule 6 and answered **YES by the maintainer on
+2026-10-08 (option A)**, written here before the file exists: **`scripts/selftest-guards.mjs`, a new
+module**, joins `Owns`. It exports `applyMutation(mutate, src) -> { out, misses }`, instrumenting
+`String.prototype.replace` AND `replaceAll` for the duration of the `mutate` call only; each self-test loads
+it by a root-derived dynamic import (a SELF child runs a mutated copy from dev-dist/, where a relative static
+import does not resolve); check-wiring-selftest.mjs's own copy is replaced by the import. Only the
+instrumentation is shared — each META control and each `ran:` case stays in its own file. *Not chosen*: (B)
+a copy per file. Any other file edited outside `Owns` and outside the record step is asked first and its
+YES written here before the edit. **The drag files, checked up front:**
 
 | file | why it should not move |
 |---|---|
