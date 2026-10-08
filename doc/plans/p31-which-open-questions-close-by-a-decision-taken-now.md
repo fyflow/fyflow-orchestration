@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141 done 2026-10-08 (Record below)
+**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141 and W145 done 2026-10-08 (Record below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -192,3 +192,19 @@ passes; this section names what the PLAN needs from it.
 - **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are untouched.
 - **Overlap**: THREE shared subjects, the eighty-sixth measurement.
 - **The confirming gate**: `npm run gate:item` EXIT 0 on `511a009`, once, on a still tree (decision 4).
+
+**W145 — done 2026-10-08.** Its own Record covers the gate, the measurement, the reader and the rule-8
+passes; this section names what the PLAN needs from it.
+
+- **Closed: Q541**, its `resolved-by` naming P31 W145. **Raised: none** (Q562-Q564 unused). Prediction 1
+  held for W145. On W145's tree `npm run q -- --where status=open --count` prints **9**.
+- **Prediction 2 held**: no ADR; ADR 0089 is unused. **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md`
+  and `doc/concept.md` are untouched.
+- **Workflow section 1 rule 6 did not fire**: no fix needed a file outside `Owns`.
+- **Q541's second clause**: the baseline fix does not reach a bundle that throws on import — after a failed
+  baseline no browser starts. Chromium's own 60 s wait was fixed separately, inside `Owns`: a page error
+  shortens it to a 5 s grace (about 62 s to about 6 s).
+- **Counts:** L1-L5 unchanged at **1580** in node, deno and chromium; L6 unchanged at **164** runs.
+- **What W144 inherits**: nothing in its files. `test/provocations/q541.ts` is a new `test/` file outside
+  every glob.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `ff61ff6`, once, on a still tree (decision 4).
