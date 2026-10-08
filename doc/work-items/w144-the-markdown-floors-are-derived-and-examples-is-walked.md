@@ -25,8 +25,13 @@ Outputs:    (1) the measurement, BEFORE any edit: M3, M4 and M5's literals, what
                 window and from which side — shown on the self-test, not only by arithmetic; and how
                 many relative links examples/README.md carries and how many are broken
             (2) the floors derived from the probe trees, in check-markdown.mjs, with no hand-tuned
-                literal left in M3-M5 — the form fixed by the answer to stop-and-ask (c) if one is
-                needed (see Scope 2)
+                literal left in M3-M5. *Amended in place on 2026-10-08 by the maintainer's answer to
+                P31 stop-and-ask (c), option (A) plus M9*: each floor is the largest measure among the
+                probe trees that must fire it, plus 1, computed in memory from ONE exported
+                probe-tree definition that the self-test's removes probes read; a definition emptied
+                or misnamed is RED; and a new clause, M9 — the walk reads every markdown file a
+                walked document links to — takes over noticing documents that leave the walk, landing
+                with examples/ joining the walk (output 5)
             (3) check-markdown-selftest.mjs: the removes probes and the derivation read ONE definition
                 of each probe tree; every new or moved clause provoked at birth (rule 7); META entries
                 showing the derivation can fail — a floor derived to 0, or a derivation made vacuous,
@@ -71,7 +76,8 @@ decision 7), and its YES is written here before the edit.
 1. **Measure first**, output (1), on `fb64b63`, in staged copies under dev-dist/w144-16309/.
 2. **Q142**, outputs (2)-(4). If no derivation from the probe trees is stable — it still lets ordinary
    documents close the window, or it makes a floor vacuous — this is P31's stop-and-ask (c), and it goes up
-   with the options before any edit to the floors.
+   with the options before any edit to the floors. **It went up on 2026-10-08 and the maintainer answered
+   (A) plus M9** (P31's stop-and-ask table).
 3. **Q337**, output (5), on top of the derived floors.
 4. Rule 8 on every output in a harness under dev-dist/w144-16309/.
 5. Grep for `W144`, `Q142`, `Q337` and every withdrawn floor value and sentence, excluding dev-dist/.
