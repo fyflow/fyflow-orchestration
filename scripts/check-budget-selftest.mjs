@@ -37,7 +37,7 @@ import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /** This file's own path, so a SOURCE clause can read the harness as well as the check. */
 const SELF_PATH = fileURLToPath(import.meta.url);
@@ -61,7 +61,7 @@ const MIN_PROBES = 20;   // AT the list's length (20 since W131, Q490 and its re
 // so the single free slot bought a second weakening. *A floor one below its list is a permission to
 // delete the entry nobody has named.*
 const MIN_META = 19;   // AT the list's length (19 since W131, Q490); it carried TWO of slack, and had since W112
-const MIN_SELF = 15;   // AT the list's length, and W115 adds the SOURCE entry below
+const MIN_SELF = 18;   // AT the list's length, and W115 adds the SOURCE entry below; W143 three guard cases
 // **`SOURCE` gets a floor for the same reason `PROBES` and `META` have one, and the
 // reason it was added LAST is the finding.** Emptying it removed five guards whose
 // CASES do not exist on a correct tree, so the child stayed green and the entry read
@@ -566,6 +566,27 @@ const SELF = [
   ['the coverage bound`s id set re-sourced to this file, so the CHECK stops being its authority',
     (t) => t.replace(".matchAll(/\\bfail\\('(B\\d)'/g)].map((m) => m[1]))].sort();",
       ".matchAll(/\\bfail\\('(B\\d)'/g)].map((m) => m[1]))].sort().slice(0, 0);")],
+
+  // --- W143: two guards' own cases, each graded on its REASON (this file grades on no `ran:` line) ---
+  //
+  // **Q434, in the META pass and in a probe's DECLARATION.** A dead second edit added to a real
+  // mutation: the text still changes, so the whole-text guard passes it, and only the instrumented count
+  // refuses it. Each child must go red on that entry's own `matched NOTHING` line.
+  ['a META entry made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("    (t) => t.replace('if (!st || !st.isFile()) {', 'if (false) {')],",
+      "    (t) => t.replace('if (!st || !st.isFile()) {', 'if (false) {').replace('W143: no such anchor', '')],"),
+    "META B1`s readable-file clause disabled — ABORT: 1 of this mutation's `replace` calls matched NOTHING"],
+  ['a PROBE`s declaration made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("    declare: (t) => t.replace('    target: 25 * 1024,', '    target: 26 * 1024,')",
+      "    declare: (t) => t.replace('W143: no such anchor', '').replace('    target: 25 * 1024,', '    target: 26 * 1024,')"),
+    "so the SUM is unchanged — ABORT: 1 of this mutation's `replace` calls matched NOTHING"],
+  // **Q437: the META control handed a copy that cannot run.** Its source gets a first line that throws,
+  // so the copy fails on the clean tree — and the control, not any entry, must be what turns the child
+  // red. The anchor is SPLIT, because the line it edits sits BELOW this list.
+  ['the META control handed a copy that cannot run — Q437',
+    (t) => t.replace("gradeMeta(['the control: an UNMUTATED copy', META[0][1], IDENTITY]" + ');',
+      "gradeMeta(['the control: an UNMUTATED copy', META[0][1], IDENTITY], 'throw new Error(\"W143: this copy cannot run\");\\n' + realSrc);"),
+    'META CONTROL — an UNMUTATED copy of check-budget.mjs graded "corpus"'],
 ];
 
 // ==============================================================================
@@ -875,6 +896,21 @@ function verdict(probe, r, staged) {
 }
 
 export async function selfTest(root) {
+  // **The shared instrumented replace — W143, Q434.** Loaded by the ROOT rather than by `./`, because
+  // a SELF child runs a mutated copy of this file from dev-dist/ (scripts/selftest-guards.mjs's header).
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(root, 'scripts', 'selftest-guards.mjs')).href);
+  /**
+   * **A declaration applied, instrumented** — `{ src, why }`, `why` null when it may run. One expression
+   * for single-probe mode, the probe pass, the grader controls and the META pass's re-declaration, so a
+   * compound `declare` whose second edit matches nothing is refused in all four (W143, Q434).
+   */
+  const declared = (probe, base) => {
+    if (!probe.declare) return { src: base, why: null };
+    const { out, misses } = applyMutation(probe.declare, base);
+    if (out === base) return { src: out, why: 'the declaration mutation matched nothing' };
+    if (misses > 0) return { src: out, why: missWhy(misses) };
+    return { src: out, why: null };
+  };
   if (NODE_MAJOR < MIN_NODE_MAJOR) {
     console.log(`check-budget self-test — ABORT: node ${process.versions.node}, and the rungs ` +
       `here need >= ${MIN_NODE_MAJOR}. A rung that cannot start is indistinguishable in this ` +
@@ -1063,8 +1099,8 @@ export async function selfTest(root) {
   if (only !== undefined) {
     const probe = [...PROBES, ...GRADER_CONTROLS].find((p) => p.name === only);
     if (!probe) { console.log(`  ABORT  no probe is named "${only}"`); return 3; }
-    const src = probe.declare ? probe.declare(realSrc) : realSrc;
-    if (probe.declare && src === realSrc) { console.log('  ABORT  the declaration mutation matched nothing'); return 3; }
+    const { src, why: dWhy } = declared(probe, realSrc);
+    if (dWhy) { console.log(`  ABORT  ${dWhy}`); return 3; }
     let useScript = script;
     if (probe.declare) {
       useScript = mutantPath('only-declared');
@@ -1094,9 +1130,9 @@ export async function selfTest(root) {
   let caught = 0, cleanControls = 0, probeIndex = -1;
   for (const probe of PROBES) {
     probeIndex++;
-    const src = probe.declare ? probe.declare(realSrc) : realSrc;
-    if (probe.declare && src === realSrc) {
-      failures.push(`${probe.name} — ABORT: the declaration mutation matched nothing (rule 7 (b))`);
+    const { src, why: dWhy } = declared(probe, realSrc);
+    if (dWhy) {
+      failures.push(`${probe.name} — ABORT: ${dWhy} (rule 7 (b))`);
       continue;
     }
     let useScript = script;
@@ -1126,9 +1162,9 @@ export async function selfTest(root) {
   // --- the grader's own controls ------------------------------------------------
   let graderOk = 0;
   for (const g of GRADER_CONTROLS) {
-    const src = g.declare ? g.declare(realSrc) : realSrc;
-    if (g.declare && src === realSrc) {
-      failures.push(`${g.name} — ABORT: the declaration mutation matched nothing`);
+    const { src, why: dWhy } = declared(g, realSrc);
+    if (dWhy) {
+      failures.push(`${g.name} — ABORT: ${dWhy}`);
       continue;
     }
     let useScript = script;
@@ -1153,42 +1189,77 @@ export async function selfTest(root) {
 
   // --- pass 2: META -------------------------------------------------------------
   let noticed = 0, byCorpus = 0;
-  if (meta) {
-    for (const [what, probeName, mutate] of META) {
-      const mutated = mutate(realSrc);
-      if (mutated === realSrc) {
-        failures.push(`META ${what} — ABORT: the mutation matched nothing (rule 7 (b))`);
-        continue;
-      }
-      const mutant = mutantPath('meta');
-      writeFileSync(mutant, mutated);
+  /** The control's mutation: it changes nothing, and `gradeMeta` skips the vacuity guard for it alone. */
+  const IDENTITY = (t) => t;
+  /**
+   * **One META entry, graded — a function since W143** so the control below goes through the SAME path
+   * as every entry. Returns `{ outcome, failure }`: `outcome` is `abort`, `corpus`, or the named probe's
+   * verdict against the mutant; `failure` is the line this file reports, or null.
+   */
+  const gradeMeta = ([what, probeName, mutate], source = realSrc) => {
+    // **Instrumented — W143, Q434.**
+    const { out: mutated, misses } = applyMutation(mutate, source);
+    if (mutated === source && mutate !== IDENTITY) {
+      return { outcome: 'abort', failure: `META ${what} — ABORT: the mutation matched nothing (rule 7 (b))` };
+    }
+    if (misses > 0) return { outcome: 'abort', failure: `META ${what} — ABORT: ${missWhy(misses)}` };
+    const mutant = mutantPath('meta');
+    writeFileSync(mutant, mutated);
+    try {
       // **Is the mutated check INERT on the untouched tree?** A mutant that fails
       // there is noticed — by the corpus, more strongly than by any probe — but its
       // probe verdict is noise.
       const cleanRun = runCheck(root, mutant, null);
-      const inert = cleanRun.status === 0;
-      if (!inert) { byCorpus++; continue; }
+      if (cleanRun.status !== 0) return { outcome: 'corpus', failure: null };
       const probe = PROBES.find((p) => p.name === probeName);
-      const src = probe.declare ? probe.declare(mutated) : mutated;
+      const { src, why: dWhy } = declared(probe, mutated);
+      if (dWhy) return { outcome: 'abort', failure: `META ${what} — ABORT: "${probeName}"'s declaration: ${dWhy}` };
       let useScript = mutant;
       if (probe.declare) { useScript = mutantPath('meta-declared'); writeFileSync(useScript, src); }
       const staged = stageTree(root, dir, probe.sizes);
       const r = staged === null ? { out: '', status: 0 } : runCheck(root, useScript, staged);
       if (useScript !== mutant) rmSync(useScript, { force: true });
       const v = verdict(probe, r, staged);
-      if (v.outcome === 'caught') {
-        // **The failure COUNT discriminates CO-FIRING from MASKING** — W29. Same id and
-        // same count is masking and is undetectable by set equality; same id and a
-        // lower count is co-firing and the clause IS detected.
-        failures.push(`META ${what} — STILL CAUGHT by "${probeName}", so the clause is not what caught it`);
-      } else noticed++;
-      rmSync(mutant, { force: true });
+      // **The failure COUNT discriminates CO-FIRING from MASKING** — W29. Same id and
+      // same count is masking and is undetectable by set equality; same id and a
+      // lower count is co-firing and the clause IS detected.
+      return {
+        outcome: v.outcome,
+        failure: v.outcome === 'caught' ? `META ${what} — STILL CAUGHT by "${probeName}", so the clause is not what caught it` : null,
+      };
+    } finally { rmSync(mutant, { force: true }); }
+  };
+  // **The CONTROL for this pass — W143, Q437.** An UNMUTATED copy of the check, staged where every
+  // mutant is and driven through the same `gradeMeta`, naming `META[0]`'s probe. Nothing is broken, so
+  // the copy must be inert on the clean tree and the probe must still catch what it declares — `caught`,
+  // which for an entry is STILL CAUGHT. A copy that cannot run comes back `corpus`, which is how a pass
+  // grades every mutation of a check it never ran against (W105's adequacy reader). The `SELF` entry
+  // *the META control handed a copy that cannot run* is its checked-in case, and **removing this block
+  // is visible**: `metaControl` is read by the verdict below.
+  let metaControl = { outcome: 'not run' };
+  if (meta) {
+    metaControl = gradeMeta(['the control: an UNMUTATED copy', META[0][1], IDENTITY]);
+    if (metaControl.outcome !== 'caught') {
+      failures.push(`META CONTROL — an UNMUTATED copy of check-budget.mjs graded "${metaControl.outcome}" against ` +
+        `"${META[0][1]}", where nothing is broken and the probe must still catch it: every META verdict is ` +
+        'then a fact about the harness rather than about the check');
+    }
+    console.log(`  meta control: an unmutated copy graded ${metaControl.outcome} (must be caught)`);
+  }
+  if (meta && metaControl.outcome === 'caught') {
+    for (const entry of META) {
+      const g = gradeMeta(entry);
+      if (g.outcome === 'corpus') byCorpus++;
+      else if (g.failure) failures.push(g.failure);
+      else noticed++;
     }
     if (byCorpus > MAX_CORPUS) {
       failures.push(`META: ${byCorpus} mutant(s) were not inert and MAX_CORPUS is ${MAX_CORPUS} — ` +
         'a corpus grading says the mutant is noticed and says nothing about the probe');
     }
     console.log(`  meta: ${noticed}/${META.length} noticed by the named probe, ${byCorpus} by the corpus`);
+  } else if (meta) {
+    console.log('  meta: NOT RUN — its control failed');
   } else {
     console.log('  meta: skipped — this run is already a META child');
   }
@@ -1197,10 +1268,30 @@ export async function selfTest(root) {
   let bounded = 0;
   if (meta && !nestedSelf) {
     const selfSrc = readFileSync(join(root, 'scripts', 'check-budget-selftest.mjs'), 'utf8');
-    for (const [what, mutate] of SELF) {
-      const mutated = mutate(selfSrc);
-      if (mutated === selfSrc) {
-        failures.push(`SELF ${what} — ABORT: the mutation matched nothing (rule 7 (b))`);
+    /**
+     * **The first application of a SELF entry and its two vacuity verdicts — a function since W143** so
+     * the guard case below reaches the SAME expression the loop does.
+     */
+    const selfVacuity = (mutate) => {
+      const { out, misses } = applyMutation(mutate, selfSrc);
+      if (out === selfSrc) return { why: 'the mutation matched nothing (rule 7 (b))' };
+      if (misses > 0) return { why: missWhy(misses) };
+      return { out };
+    };
+    // **Q434's case for THIS pass, in process** — a `SELF` child skips the `SELF` pass, so no `SELF`
+    // entry can provoke it.
+    {
+      const v = selfVacuity((t) => SELF[0][1](t).replace('\u0000W143: no such anchor', ''));
+      if (!v.why?.includes('matched NOTHING')) {
+        failures.push('GUARD CASE a compound SELF entry whose second edit matches nothing — Q434 — wanted a ' +
+          `refusal naming "matched NOTHING", got ${v.why ?? 'a mutation to run'}`);
+      }
+      console.log(`  self guard case (Q434): ${v.why?.includes('matched NOTHING') ? 'refused, as it must be' : 'NOT REFUSED'}`);
+    }
+    for (const [what, mutate, reason] of SELF) {
+      const { out: mutated, why: vacuous } = selfVacuity(mutate);
+      if (vacuous) {
+        failures.push(`SELF ${what} — ABORT: ${vacuous}`);
         continue;
       }
       const mutant = mutantPath('self');
@@ -1213,6 +1304,10 @@ export async function selfTest(root) {
         failures.push(`SELF ${what} — the mutant did not run: this is a crash, not a detection`);
       } else if (r.status === 0) {
         failures.push(`SELF ${what} — exited 0: the mutation costs nothing`);
+      } else if (reason !== undefined && !out.includes(reason)) {
+        // **An entry that names its REASON is graded on it** — W143: a guard case must go red BECAUSE
+        // its guard fired, not merely go red.
+        failures.push(`SELF ${what} — the child went red, but not for the reason this entry names ("${reason}"); it said: ${(out.split('\n').find((l) => /FAIL|ABORT|Error/.test(l)) ?? `exit ${r.status}, no FAIL line`).trim().slice(0, 200)}`);
       } else bounded++;
       rmSync(mutant, { force: true });
     }

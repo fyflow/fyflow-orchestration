@@ -648,7 +648,7 @@ const MIN_PROBES = 44;
 /** The same floor for `META`. */
 const MIN_META = 52;
 /** And for `SELF`. */
-const MIN_SELF = 7;
+const MIN_SELF = 11;
 
 /** The ids a run reported under, read out of the run's own output — no allowlist. */
 const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}([A-Z]\d+): /gm)].map((m) => m[1]))].sort();
@@ -949,7 +949,8 @@ const SELF = [
   // closed [Q144](../doc/questions/q144.md), and `check-policies-selftest.mjs`'s `SELF`
   // list carries the case, rebased by W131 on a mutant that throws before any report
   // line — but no entry in this file produces one, so here the guard is unprovoked and
-  // is on the ceiling list.
+  // is on the ceiling list. *(Until W143: `M1`'s report loop gives one, and it is the
+  // `ran:` case at the end of this list; Q536.)*
   //
   // What this entry provokes instead is rule 7 (b) at the META layer.
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',
@@ -959,6 +960,38 @@ const SELF = [
   ['the rule 7 (b) guard disabled, and one probe made a no-op',
     (t) => t.replace('    if (mutated === original) {', '    if (false) {')
       .replace("      '# Documentation index\\n\\nSee [nowhere](#).\\n'),", "      '# Documentation index'),")],
+
+  // --- W143: the three guards' own cases, each graded on its REASON ----------------
+  //
+  // **Q536: the `ran:` case the comment above said this file did not have.** `M1`'s report loop runs only
+  // for a dead link, so a dereference of a property a string does not have is INERT on the clean fixture
+  // and THROWS under *a link to a file that does not exist* — before the report line, so the grandchild
+  // prints `ran: no` and the injected entry must FAIL naming *the mutant did not run*.
+  ['a META entry inert on the clean tree and FATAL under its probe — the `ran:` case, Q536',
+    (t) => t.replace("  ['M1 disabled',\n    'a link to a file that does not exist',",
+      "  ['M1`s report loop made to THROW on a dead link',\n    'a link to a file that does not exist'," +
+      " (t) => t.replace(\"for (const d of r.dead) fail('M1', d);\", \"for (const d of r.dead) fail('M1', d.absent.trim());\")],\n" +
+      "  ['M1 disabled',\n    'a link to a file that does not exist',"),
+    'M1`s report loop made to THROW on a dead link — the mutant did not run'],
+  // **Q434, in the META pass and in the PROBES pass.** A dead second edit appended to a real mutation:
+  // the text still changes, so the whole-text guard passes it, and only the instrumented count refuses
+  // it. Each child must go red on that entry's own `matched NOTHING` line.
+  ['a META entry made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("(t) => t.replace(\"for (const d of r.deadAnchors) fail('M2', d);\", \"for (const d of []) fail('M2', d);\")],",
+      "(t) => t.replace(\"for (const d of r.deadAnchors) fail('M2', d);\", \"for (const d of []) fail('M2', d);\").replace('W143: no such anchor', '')],"),
+    "M2 disabled — 1 of this mutation's `replace` calls matched NOTHING"],
+  ['a PROBE made a COMPOUND whose second edit matches nothing — Q434',
+    (t) => t.replace("    mutate: (t) => t.replace('](workflow.md)', '](workflow-v2.md)'),",
+      "    mutate: (t) => t.replace('](workflow.md)', '](workflow-v2.md)').replace('W143: no such anchor', ''),"),
+    "a link to a file that does not exist  — 1 of this mutation's `replace` calls matched NOTHING"],
+  // **Q437: the META control handed a copy that cannot run.** The control's source gets a first line
+  // that throws, so the copy fails on the clean fixture as a copy at the wrong depth did at W105 — and
+  // the control, not any entry, must be what turns the child red. The anchor is SPLIT, because the line
+  // it edits sits BELOW this list and an unsplit quote here would be the first match.
+  ['the META control handed a copy that cannot run — Q437',
+    (t) => t.replace("META.find(([, , , w]) => w !== 'spec')[1], IDENTITY]" + ');',
+      "META.find(([, , , w]) => w !== 'spec')[1], IDENTITY], 'throw new Error(\"W143: this copy cannot run\");\\n' + checkSource);"),
+    'FAIL  the control: an UNMUTATED copy of check-markdown.mjs is graded'],
 
 ];
 
@@ -977,6 +1010,9 @@ const SELF = [
 // for no extra grading.
 
 export async function selfTest(root) {
+  // **The shared instrumented replace — W143, Q434.** Loaded by the ROOT rather than by `./`, because
+  // a SELF child runs a mutated copy of this file from dev-dist/ (scripts/selftest-guards.mjs's header).
+  const { applyMutation, missWhy } = await import(pathToFileURL(join(root, 'scripts', 'selftest-guards.mjs')).href);
   // **Per-process, not per-repository.** W25's conformity reader hit two concurrent
   // top-level runs sharing one fixture path — once as `ENOENT … tree/doc/README.md`
   // mid-probe, once as `4/18 probes caught` with spurious M1s. The sharing argument
@@ -1152,10 +1188,13 @@ export async function selfTest(root) {
     const mutate = probe.mutate ?? ((t) => t.replace(def.strips.pattern, def.strips.with));
     const target = join(tree, file);
     const original = readFileSync(target, 'utf8');
-    const mutated = mutate(original);
+    const { out: mutated, misses } = applyMutation(mutate, original);
     if (mutated === original) {
       return { refused: false, ran: false, msg: 'the mutation matched nothing' };
     }
+    // **And EVERY edit of it matched** (W143, Q434): a compound whose second edit lands nowhere still
+    // changes the document, so the guard above passes it.
+    if (misses > 0) return { refused: false, ran: false, msg: missWhy(misses) };
     // **`adds`: files the probe needs that the tree does not have**, written before the run and removed
     // after. A path that already exists is refused rather than overwritten — it would not be restored.
     for (const a of probe.adds ?? []) {
@@ -1374,16 +1413,81 @@ export async function selfTest(root) {
     return { ok: false, why: ` — the child reported outcome "${outcome || '(none)'}", which grades nothing` };
   };
 
+  /** The control's mutation: it changes nothing, and `gradeMeta` skips the vacuity guard for it alone. */
+  const IDENTITY = (t) => t;
+  /**
+   * **One check-markdown META entry, graded — a function since W143** so the control below goes through
+   * the SAME path as every entry. Returns `grade`'s verdict plus the child's `outcome`. `source` is the
+   * text the mutation is applied to: the real check, except where a `SELF` entry provokes the control.
+   */
+  const gradeMeta = (i, [name, probeName, mutate, , corpusIds], source = checkSource) => {
+    // **Instrumented — W143, Q434.**
+    const { out: broken, misses } = applyMutation(mutate, source);
+    if (broken === source && mutate !== IDENTITY) return { ok: false, why: ' — the mutation matched nothing' };
+    if (misses > 0) return { ok: false, why: ` — ${missWhy(misses)}` };
+    const path = join(base, `.meta-${i < 0 ? 'control' : String(i).padStart(2, '0')}.mjs`);
+    writeFileSync(path, broken);
+    try {
+      const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-markdown.mjs'), '--self-test'],
+        { cwd: root, encoding: 'utf8', timeout: 900_000,
+          env: { ...process.env, CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
+            CHECK_MARKDOWN_PROBE: probeName } });
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      return { ...grade(probeName, r, corpusIds), outcome: (out.match(/^ {2}outcome: (\w+)$/m) ?? [, ''])[1] };
+    } finally { rmSync(path, { force: true }); }
+  };
+
+  // **The CONTROL for this pass — W143, Q437.** An UNMUTATED copy of the check, driven through the same
+  // `gradeMeta` every entry takes, naming the first check-markdown entry's probe. Nothing is broken, so
+  // the probe must still catch what it declares (`outcome: caught`) and the entry must NOT be graded
+  // noticed. A copy that cannot run against the check comes back noticed — by the corpus — which is how
+  // a pass grades every mutation of a check it never ran against (W105's adequacy reader). The `SELF`
+  // entry *the META control handed a copy that cannot run* is its checked-in case, and **removing this
+  // block is visible**: `metaControl` is read by the verdict below.
+  const metaControl = gradeMeta(-1, ['the control: an UNMUTATED copy',
+    META.find(([, , , w]) => w !== 'spec')[1], IDENTITY]);
+  if (metaControl.ok || metaControl.outcome !== 'caught') {
+    console.log(`  FAIL  the control: an UNMUTATED copy of check-markdown.mjs is graded ` +
+      `${metaControl.ok ? 'NOTICED' : 'not caught'} (outcome "${metaControl.outcome || '(none)'}"${metaControl.why}). ` +
+      'Nothing is broken, so the probe must still catch what it declares — every verdict below would be a ' +
+      'fact about the harness rather than about the check.');
+    if (!shared) rmSync(base, { recursive: true, force: true });
+    return 1;
+  }
+  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)\n');
+
+  /**
+   * **The C5 lift's two edits, instrumented — a function since W143** so its own case below reaches the
+   * same expression the `spec` entry does. It is the one compound here that is CODE rather than an entry.
+   */
+  const liftC5 = (s) => applyMutation((t) => t
+    .replace("for (const d of linkResult.dead) fail('C5', d);", '')
+    .replace("for (const d of linkResult.deadAnchors) fail('C5', d);", ''), s);
+  // **Its case, in process** (Q434): on a check-spec whose second anchor has gone, the lift must count
+  // one miss — the text still changes, so the whole-text guard alone would have graded it.
+  {
+    const gone = specSource.replace("for (const d of linkResult.deadAnchors) fail('C5', d);", '');
+    const v = liftC5(gone);
+    if (gone === specSource || v.out === gone || v.misses !== 1) {
+      console.log(`  FAIL  GUARD CASE the C5 lift with its second anchor gone — Q434 — ${v.misses} miss(es) counted`);
+      if (!shared) rmSync(base, { recursive: true, force: true });
+      return 1;
+    }
+    console.log('  ok    GUARD CASE the C5 lift with its second anchor gone — Q434');
+  }
+
   for (const [i, [name, probeName, mutate, which, corpusIds]] of META.entries()) {
     let broken, path;
     if (which === 'spec') {
       // The lift's wiring: the import stays and the call goes, which is the shape
       // a refactor produces and which leaves check-markdown entirely green.
-      broken = specSource
-        .replace("for (const d of linkResult.dead) fail('C5', d);", '')
-        .replace("for (const d of linkResult.deadAnchors) fail('C5', d);", '');
+      // **A COMPOUND, and the one this file had with no per-edit guard — W143, Q434.** Either half
+      // matching nothing still changes the text, so the whole-text guard alone would grade it.
+      const lift = liftC5(specSource);
+      broken = lift.out;
       path = join(base, `.meta-spec-${i}.mjs`);
       if (broken === specSource) { console.log(`  FAIL  ${name} — the mutation matched nothing`); continue; }
+      if (lift.misses > 0) { console.log(`  FAIL  ${name} — ${missWhy(lift.misses)}`); continue; }
       // **This mutant is under NO depth constraint, and the comment here said the opposite — W105.**
       // `check-spec.mjs` does derive `ROOT` from its own location, so a copy that is RUN must sit one
       // directory below the repository root; this copy is never run from where it is written. It is
@@ -1406,18 +1510,7 @@ export async function selfTest(root) {
       console.log(`  ${v.ok ? 'ok  ' : 'FAIL'}  ${name}${v.why}`);
       continue;
     }
-    broken = mutate(checkSource);
-    if (broken === checkSource) { console.log(`  FAIL  ${name} — the mutation matched nothing`); continue; }
-    path = join(base, `.meta-${String(i).padStart(2, '0')}.mjs`);
-    writeFileSync(path, broken);
-    let v = { ok: false, why: '' };
-    try {
-      const r = spawnSync(process.execPath, [join(root, 'scripts', 'check-markdown.mjs'), '--self-test'],
-        { cwd: root, encoding: 'utf8', timeout: 900_000,
-          env: { ...process.env, CHECK_MARKDOWN_SCRIPT: path, CHECK_MARKDOWN_FIXTURE: tree,
-            CHECK_MARKDOWN_PROBE: probeName } });
-      v = grade(probeName, r, corpusIds);
-    } finally { rmSync(path, { force: true }); }
+    const v = gradeMeta(i, [name, probeName, mutate, which, corpusIds]);
     if (v.ok) noticed++;
     if (v.corpus) byCorpus++;
     console.log(`  ${v.ok ? 'ok  ' : 'FAIL'}  ${name}${v.why}`);
@@ -1432,18 +1525,41 @@ export async function selfTest(root) {
   // six of them here.
   console.log(`\n${noticed}/${META.length} noticed` +
     (byCorpus ? ` — ${noticed - byCorpus} by the named probe, ${byCorpus} by the corpus.` : '.'));
-  if (noticed !== META.length) { if (!shared) rmSync(base, { recursive: true, force: true }); return 1; }
+  if (noticed !== META.length || metaControl.outcome !== 'caught') { if (!shared) rmSync(base, { recursive: true, force: true }); return 1; }
   // A SELF child has now run META, which is what it is for; it must not go on to
   // run SELF as well, or the recursion has no bottom.
   if (nestedSelf) { if (!shared) rmSync(base, { recursive: true, force: true }); return 0; }
 
   // --- SELF: does the probe LIST have a bound? --------------------------------
   const selfSource = readFileSync(join(root, 'scripts', 'check-markdown-selftest.mjs'), 'utf8');
+  /**
+   * **The first application of a SELF entry, and the two vacuity verdicts — a function since W143** so
+   * the guard case below reaches the SAME expression the loop does.
+   */
+  const selfVacuity = (mutate) => {
+    const { out: broken, misses } = applyMutation(mutate, selfSource);
+    if (broken === selfSource) return { why: ' — the mutation matched nothing' };
+    if (misses > 0) return { why: ` — ${missWhy(misses)}` };
+    return { broken };
+  };
+  // **Q434's case for THIS pass, in process** — a `SELF` child skips the `SELF` pass, so no `SELF` entry
+  // can provoke it. `SELF[0]`'s real mutation followed by a dead second edit must be refused by
+  // `selfVacuity` before anything is spawned.
+  {
+    const v = selfVacuity((t) => SELF[0][1](t).replace('\u0000W143: no such anchor', ''));
+    if (!v.why?.includes('matched NOTHING')) {
+      console.log('\n  FAIL  GUARD CASE a compound SELF entry whose second edit matches nothing — Q434 — ' +
+        `wanted a refusal naming "matched NOTHING", got ${v.why ?? 'a mutation to run'}`);
+      if (!shared) rmSync(base, { recursive: true, force: true });
+      return 1;
+    }
+    console.log('\n  ok    GUARD CASE a compound SELF entry whose second edit matches nothing — Q434');
+  }
   let bounded = 0;
   console.log(`\nand against a shortened probe list — ${SELF.length} mutations of this file\n`);
-  for (const [i, [name, mutate]] of SELF.entries()) {
-    const broken = mutate(selfSource);
-    if (broken === selfSource) { console.log(`  FAIL  ${name} — the mutation matched nothing`); continue; }
+  for (const [i, [name, mutate, reason]] of SELF.entries()) {
+    const { broken, why: vacuous } = selfVacuity(mutate);
+    if (vacuous) { console.log(`  FAIL  ${name}${vacuous}`); continue; }
     const path = join(base, `.self-${String(i).padStart(2, '0')}.mjs`);
     writeFileSync(path, broken);
     let ok = false, why = '';
@@ -1459,6 +1575,12 @@ export async function selfTest(root) {
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       ok = r.status !== 0 && SELF_RAN(out);
       if (r.status !== 0 && !ok) why = ' — the child never got as far as running: a broken file, not a fired floor';
+      // **An entry that names its REASON is graded on it** — W143, as `check-policies-selftest.mjs` has
+      // since W131: a guard case must go red BECAUSE its guard fired, not merely go red.
+      else if (ok && reason !== undefined && !out.includes(reason)) {
+        ok = false;
+        why = ` — the child went red, but not for the reason this entry names ("${reason}"); it said: ${(out.split('\n').find((l) => /FAIL|ABORT|Error/.test(l)) ?? `exit ${r.status}, no FAIL line`).trim().slice(0, 200)}`;
+      }
     } finally { rmSync(path, { force: true }); }
     if (ok) bounded++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : (why || ' — the floor did not fire')}`);
