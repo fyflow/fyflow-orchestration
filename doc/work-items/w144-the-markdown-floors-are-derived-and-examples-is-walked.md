@@ -324,3 +324,12 @@ code's own statement of the reach; the in-memory trees equal staged copies (168/
 
 The record step changed files three checks read (doc/questions/**, doc/decisions/**, the plan, this file,
 TEMPLATE.md and the self-test's comments), so each was re-run on the final tree:
+
+| re-run on `b8f6c63` | verdict | notes |
+|---|---|---|
+| `npm run check:markdown` | RAN, **EXIT 0** | `cm-record.log` |
+| `npm run check:register` | RAN, **EXIT 0** | `reg-record.log`; its first run was EXIT 1 on `R8` — Q142's `resolved-by` named ADR 0076 and ADR 0078, whose `resolves` do not list it; the names were taken out of the field (the notes are in the ADRs) |
+| `npm run check:markdown:selftest` | RAN, **EXIT 0** | 44/44, 52/52 (30 by the named probe, 22 by the corpus), 7/7 (`md-selftest-record.log`) |
+| `npm run gate` | RAN, **EXIT 0** | 1580 in node, deno and chromium (`all passed (parity with node: 1580)`); 164 L6 runs in node and deno (`gate-record.log`) |
+
+*This file's own last edit — this table — is the one edit after those runs, and it adds no link.*
