@@ -18,7 +18,9 @@ or `doc/plans`, which is exactly what `check-markdown`'s second `removes` probe 
 here closes `M6`'s gap in that probe's tree, so the probe reports `[M1,M3,M4,M5,M6]` against its
 declared `[M1,M3,M4,M5]` and `check:markdown:selftest` exits 1 — while `check:markdown` itself stays
 green. `M6`'s own durability argument says the gap "cannot close while the templates exist"; it
-closes if a template gains a link.*
+closes if a template gains a link. **(Both halves are W114-era history and no longer hold — W144:** that
+probe tree held fifteen link-free documents on the tree W144 started from (134 files, 119 carrying a link), and since W144 the `M3`-`M5` floors are derived
+from the probe trees, so a link here moves no verdict. The placeholder reason above stands.)*
 
 ```
 Spec:       spec/<file>.md section _        (or: none - this item defines it)
