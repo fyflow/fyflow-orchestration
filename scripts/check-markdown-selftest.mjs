@@ -81,7 +81,8 @@
 // ---------------------------------------------------------------------------
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const UPSTREAM = 'doc/scheduler-upstream.md';
@@ -470,9 +471,16 @@ const PROBES = [
   },
 
   // --- M3 / M4 / M5: the walk covers the tree --------------------------------
+  // **The `removes` and the strip below are NOT written here since
+  // [W144](../doc/work-items/w144-the-markdown-floors-are-derived-and-examples-is-walked.md)**: a probe
+  // naming a `tree` takes its removed paths — or, for a strip, its file and its edit — from the
+  // `PROBE_TREES` of the SCRIPT UNDER TEST, which `deriveFloors` builds the floors from. One definition
+  // read twice, so the window between a floor and its probe is the same object on both sides, and no
+  // ordinary document can close it ([Q142](../doc/questions/q142.md)). The figures in the comments below
+  // are the literal floors' history, kept as dated history; `check-markdown.mjs` says where the rest is.
   {
     name: 'doc/decisions removed from the tree — the FILE floor, alone',
-    file: README, check: 'M1', also: ['M3'], removes: ['doc/decisions', 'doc/questions'],
+    file: README, check: 'M1', also: ['M3'], tree: 'decisions removed',
     // **`doc/questions` joined both fixtures at [W116](../doc/work-items/w116-a-question-is-a-file.md)**:
     // 384 files arrived in a directory neither probe cut, so this fixture read 530 against any floor
     // a whole tree of 579 could pass. Cutting the register takes its growth out of the lower edge;
@@ -501,7 +509,7 @@ const PROBES = [
   {
     name: 'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
     file: README, check: 'M1', also: ['M3', 'M4', 'M5'],
-    removes: ['doc/decisions', 'doc/plans', 'doc/questions'],
+    tree: 'decisions and plans removed',
     // **`M5` joined this set at [W113](../doc/work-items/w113-the-register-is-a-reference.md), and
     // the sentence below it — *the anchors are untouched, because all 78 live in `doc/`'s top
     // level* — stopped being true when the register's 440 self-links went.** Measured on the tree
@@ -540,7 +548,9 @@ const PROBES = [
 
   {
     name: 'the anchor-carrying links all removed, so M2 would pass on nothing',
-    file: UPSTREAM, check: 'M5',
+    // **The file and the edit come from `PROBE_TREES`' strip since W144** (see above), so `mutate` is
+    // absent here: `M5`'s floor is derived from this very tree, and the two cannot drift apart.
+    check: 'M5', tree: 'upstream stripped of its anchors',
     // **Wrong at birth, then right for four plans, then wrong again — and the subject has now moved
     // BACK to where it started.** It first emptied `doc/scheduler-upstream.md`, which held 14 of the
     // corpus's 76 anchored links — leaving 62, well above the floor, so the run stayed green and the
@@ -564,7 +574,26 @@ const PROBES = [
     // that holds most of them, the corpus drops under the anchored floor and `M2` becomes true of
     // the walk. `](.)` is a link to a directory, which `resolveLinks` skips rather than resolving,
     // so this probe moves `anchored` alone and trips neither `M1` nor `M2`.
-    mutate: (t) => t.replace(/\]\(#[a-z0-9-]+\)/g, '](.)'),
+  },
+
+  // --- M9 and examples/: what W144 adds -------------------------------------
+  {
+    name: 'a link to a markdown file the walk does not read — M9',
+    // **`adds` writes a file the probe needs and removes it after**, because every markdown file in the
+    // fixture is walked once `examples/` is: the case M9 exists for cannot be made by editing a walked
+    // document alone. `dist` is a directory NAME the walk skips, so a file under it exists and is not
+    // read. Before W144 the corpus held exactly one such target, `examples/README.md`.
+    file: README, check: 'M9',
+    adds: [{ file: 'doc/dist/w144-unwalked.md', text: '# not walked\n' }],
+    mutate: (t) => t.replace('# Documentation index',
+      '# Documentation index\n\nSee [the unwalked note](dist/w144-unwalked.md).\n'),
+  },
+  {
+    name: 'a dead link in examples/README.md — the walk reads examples/ (Q337)',
+    file: 'examples/README.md', check: 'M1',
+    // [Q337](../doc/questions/q337.md): the file carries L6's link table and nothing read its links.
+    // Anchored on the SHAPE of a link into the register, so no one row of that table dates it.
+    mutate: (t) => t.replace('](../doc/questions/q', '](../doc/questions/no-such-q'),
   },
 
   // --- C5's lift, which nothing else proves is wired --------------------------
@@ -613,9 +642,9 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
  */
 const SELF_RAN = (out) => /self-test — /.test(out);
 
-const MIN_PROBES = 42;
+const MIN_PROBES = 44;
 /** The same floor for `META`. */
-const MIN_META = 41;
+const MIN_META = 50;
 /** And for `SELF`. */
 const MIN_SELF = 7;
 
@@ -668,7 +697,8 @@ const META = [
   // it fired rather than by it firing.**
   ['M5`s anchored floor disabled — the entry name said M3 until W28, and it edits r.anchored',
     'the anchor-carrying links all removed, so M2 would pass on nothing',
-    (t) => t.replace(/if \(r\.anchored < \d+\)/, 'if (false)')],
+    // **Since W144 the floor is `floors.M5.floor`, derived** — no number to be agnostic about.
+    (t) => t.replace('if (r.anchored < floors.M5.floor)', 'if (false)')],
   ['M1 and M2 swapped, so every count still matches and no set does',
     'a link to a file that does not exist',
     (t) => t.replaceAll("fail('M1'", "fail('MX'").replaceAll("fail('M2'", "fail('M1'").replaceAll("fail('MX'", "fail('M2'")],
@@ -716,7 +746,7 @@ const META = [
     // property of the link floor. It stayed pinned for three plans because `M3`
     // never moved; the moment it did, this reported *"the mutation matched nothing"*
     // and would have graded a live floor as unmutatable. [Q142](../doc/questions/q142.md).
-    (t) => t.replace(/if \(r\.files < \d+\) fail\('M3'/, "if (false) fail('M3'")],
+    (t) => t.replace("if (r.files < floors.M3.floor) fail('M3'", "if (false) fail('M3'")],
   ['M4`s link floor disabled',
     // **The probe's NAME moved at [W113](../doc/work-items/w113-the-register-is-a-reference.md) and
     // this entry ABORTED on it** — `no probe is named "…with the anchors left alone"`, in the
@@ -738,7 +768,7 @@ const META = [
     // ([ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)),
     // and an anchor still pinned to `r.links` would have reported *"the mutation matched nothing"* —
     // rule 7 (b) firing correctly, exactly as the pinned literal did twice before.
-    (t) => t.replace(/if \(r\.\w+ < \d+\) fail\('M4'/, "if (false) fail('M4'")],
+    (t) => t.replace("if (r.sources < floors.M4.floor) fail('M4'", "if (false) fail('M4'")],
   ['AGENTS.md dropped from the root file list',
     'a dead link in AGENTS.md — the file Q121 named, and it could leave the walk',
     (t) => t.replace("  ...['README.md', 'AGENTS.md', 'CLAUDE.md']", "  ...['README.md', 'CLAUDE.md']")],
@@ -814,6 +844,43 @@ const META = [
     'an S-id anchor in doc/scheduler-upstream.md broken again', (t) => t.replace('const fail = (check, msg) => failures.push(`${check}: ${msg}`);', 'const fail = () => {};')],
   ['the non-zero exit removed',
     'a link to a RENAMED work item — the defect Q121 says this repository produces', (t) => t.replace('  process.exit(1);', '  process.exitCode = 0;')],
+  // --- W144: the DERIVED floors, M9 and M10 ------------------------------------------------
+  // **A floor derived to nothing must be RED, and these are how that is shown.** The first two break the
+  // DERIVATION and name the probe tree that must stop firing; the next five break the DEFINITION or the
+  // in-memory tree and name a `{}` probe, so the only way they can be noticed is by the mutant failing on
+  // the corpus — which is the claim: a definition emptied, misnamed or pointing at nothing is RED on the
+  // real tree, not merely different.
+  ['every derived floor forced to 0 — a floor derived to nothing',
+    'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
+    (t) => t.replace('    out[id] = { floor, from };', '    out[id] = { floor: 0, from };')],
+  ['the derivation made VACUOUS — every probe tree measured as empty, so every floor is 1',
+    'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
+    (t) => t.replace('      const m = measureOf(name)[measure];', '      const m = 0;')],
+  ['a probe tree`s removes EMPTIED — the tree is the whole walk, and so is its floor plus 1',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace("  'decisions removed': { removes: ['doc/decisions', 'doc/questions'] },",
+      "  'decisions removed': { removes: [] },")],
+  ['a probe tree path MISNAMED — it removes nothing, and only M10 sees it',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace("  'decisions removed': { removes: ['doc/decisions', 'doc/questions'] },",
+      "  'decisions removed': { removes: ['doc/decision', 'doc/questions'] },")],
+  ['a floor`s probe-tree list EMPTIED — derived from no tree at all',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace("  M4: { measure: 'sources', trees: ['decisions and plans removed'] },",
+      "  M4: { measure: 'sources', trees: [] },")],
+  ['a floor naming a probe tree that is NOT DEFINED',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace("  M4: { measure: 'sources', trees: ['decisions and plans removed'] },",
+      "  M4: { measure: 'sources', trees: ['decisions and plans gone'] },")],
+  ['the strip NOT applied in memory — the upstream tree is the whole walk',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace('    return rewrite ? rewrite(abs, t) : t;', '    return t;')],
+  ['M9 disabled',
+    'a link to a markdown file the walk does not read — M9',
+    (t) => t.replace("for (const d of r.unwalked) fail('M9', d);", "for (const d of []) fail('M9', d);")],
+  ['examples/ dropped from the walk — Q337 undone',
+    'a dead link in examples/README.md — the walk reads examples/ (Q337)',
+    (t) => t.replace("  ...markdownIn(join(SCAN_ROOT, 'examples')),\n", '')],
   ['C5`s lift removed from check-spec — the import kept and the call dropped',
     'a dead link inside spec/, which check-spec must still refuse as C5',
     (t) => t, 'spec'],
@@ -980,6 +1047,29 @@ export async function selfTest(root) {
   const nestedSelf = !!process.env.CHECK_MARKDOWN_SELFTEST;
   const nested = nestedScript || nestedSelf;
 
+  /**
+   * **The probe trees are read from the SCRIPT UNDER TEST**, never from a second copy here — W144. A
+   * META child's script is a mutant, so a mutation of the definition reaches the probes and the floors
+   * together, which is what makes it ONE definition rather than two that agree today.
+   */
+  let PROBE_TREES;
+  try {
+    // **A QUERY on the URL, because the script under test is usually the ENTRY module** — still inside
+    // its own top-level `await selfTest(...)`, so importing it by its own URL waits on itself for ever
+    // (Node: *unsettled top-level await*, exit 13, the first run of this). A distinct URL is a fresh
+    // instance whose `IS_ENTRY` is false, so it evaluates its exports and nothing else.
+    ({ PROBE_TREES } = await import(`${pathToFileURL(script).href}?probe-trees`));
+  } catch (e) {
+    console.log(`check-markdown self-test — the script under test could not be imported: ${e.message}`);
+    if (!shared) rmSync(base, { recursive: true, force: true });
+    return 1;
+  }
+  if (!PROBE_TREES || typeof PROBE_TREES !== 'object') {
+    console.log('check-markdown self-test — the script under test exports no PROBE_TREES.');
+    if (!shared) rmSync(base, { recursive: true, force: true });
+    return 1;
+  }
+
   if (PROBES.length < MIN_PROBES || META.length < MIN_META || SELF.length < MIN_SELF) {
     console.log(`check-markdown self-test — ${PROBES.length} probes (floor ${MIN_PROBES}), ` +
       `${META.length} meta (floor ${MIN_META}), ${SELF.length} self (floor ${MIN_SELF}).`);
@@ -1012,21 +1102,41 @@ export async function selfTest(root) {
    * catch. `runs: 'spec'` is exempt, because the header it prints is `check-spec`'s.
    */
   const runOne = (probe) => {
-    const target = join(tree, probe.file);
+    // A `tree` probe reads its removed paths, or its strip, from the script under test (W144).
+    const def = probe.tree === undefined ? null : PROBE_TREES[probe.tree];
+    if (probe.tree !== undefined && !def) {
+      return { refused: false, ran: false, msg: `the script under test defines no probe tree "${probe.tree}"` };
+    }
+    const file = probe.file ?? def.strips.file;
+    const mutate = probe.mutate ?? ((t) => t.replace(def.strips.pattern, def.strips.with));
+    const target = join(tree, file);
     const original = readFileSync(target, 'utf8');
-    const mutated = probe.mutate(original);
+    const mutated = mutate(original);
     if (mutated === original) {
       return { refused: false, ran: false, msg: 'the mutation matched nothing' };
+    }
+    // **`adds`: files the probe needs that the tree does not have**, written before the run and removed
+    // after. A path that already exists is refused rather than overwritten — it would not be restored.
+    for (const a of probe.adds ?? []) {
+      if (existsSync(join(tree, a.file))) {
+        return { refused: false, ran: false, msg: `the probe would overwrite ${a.file}, which exists` };
+      }
     }
     // **`removes` takes DIRECTORIES OUT OF THE FIXTURE**, which is the only way to
     // move the counts `M3` and `M4` bound. Every other probe edits one document's
     // text, so the file count and the link count could not be reached from here at
     // all — W25's adequacy reader replaced both floors with `if (false)` for 0.
     // Restored from the source tree afterwards rather than from memory.
-    const removed = probe.removes ?? [];
+    const removed = def?.removes ?? [];
+    const addedDirs = [];
     writeFileSync(target, mutated);
     let r;
     try {
+      for (const a of probe.adds ?? []) {
+        const dir = dirname(join(tree, a.file));
+        if (!existsSync(dir)) { mkdirSync(dir, { recursive: true }); addedDirs.push(dir); }
+        writeFileSync(join(tree, a.file), a.text);
+      }
       for (const d of removed) rmSync(join(tree, d), { recursive: true, force: true });
       r = probe.runs === 'spec'
         ? spawnSync(process.execPath, [join(tree, 'scripts', 'check-spec.mjs')],
@@ -1034,6 +1144,8 @@ export async function selfTest(root) {
         : spawnSync(process.execPath, [scriptInTree], { cwd: tree, encoding: 'utf8', timeout: 300_000 });
     } finally {
       for (const d of removed) cpSync(join(root, d), join(tree, d), { recursive: true });
+      for (const a of probe.adds ?? []) rmSync(join(tree, a.file), { force: true });
+      for (const d of addedDirs) rmSync(d, { recursive: true, force: true });
       writeFileSync(target, original);
     }
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
