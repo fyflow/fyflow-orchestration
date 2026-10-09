@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08 (Record below)
+**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 done 2026-10-09 (Record below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -229,3 +229,25 @@ reader and the rule-8 passes; this section names what the PLAN needs from it.
   `PROBE_TREES`, holds each tree probe's fixture to the in-memory measure, and lets a META entry graded
   `corpus` declare its ids (a 5th element). Its lane is the slowest: about 12.7 min alone, 1302.6 s in the gate.
 - **The confirming gate**: `npm run gate:item` EXIT 0 on `8bbb662`, once, on a still tree (decision 4).
+
+**W143 — done 2026-10-09.** Its own Record covers the gate, the per-self-test table before and after, the reader and
+the rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q434, Q437 and Q536**, each `resolved-by` starting "P31 W143 —". **Raised: none** (Q568-Q570 unused;
+  P31's own block was wholly reserved by W140-W145). Prediction 1 held for W143. On W143's tree
+  `npm run q -- --where status=open --count` prints **4**.
+- **Prediction 2 held**: no ADR; ADR 0089 is unused. **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and
+  `doc/concept.md` are untouched.
+- **Workflow section 1 rule 6 fired once**: scripts/selftest-guards.mjs, a shared helper outside the row's
+  `scripts/*-selftest.mjs`, answered **YES (option A)** by the maintainer on 2026-10-08 and written into W143's
+  Exceptions before the file existed. Not on this plan's W143 row.
+- **A second stop-and-ask, on the wall**: the first form of the guard cases (nine as SELF entries) put the
+  `gate:item` self-test wall at 1600.1 s against W144's 1316.1 s. The maintainer chose **(B)** on 2026-10-09: those
+  nine run in process, one level less end-to-end. On `f722ffa` the wall is **1277.9 s**.
+- **Q434 was live**: the shared instrumented replace found a dead first edit in check-policies-selftest.mjs on its
+  first run. Two further in-Owns defects were fixed (the scheduler self-test's junction branch; the source
+  self-test's vacuous returns).
+- **Counts:** L1-L5 unchanged at **1580** in node, deno and chromium; L6 unchanged at **164** runs, 2487 assertions.
+- **What W146 inherits**: nothing in its files. `check:markdown:selftest` alone reads 742 s on `f722ffa`.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `f722ffa`, once, on a still tree (decision 4); and, because
+  check-register-selftest.mjs moved, `npm run check:register:selftest` EXIT 0 on the same tree, once.
