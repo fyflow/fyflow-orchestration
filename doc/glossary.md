@@ -69,7 +69,7 @@ The tables below are parsed (W119's `term`), so this section is the contract:
 | conformity reader | the reader that reads the spec first and the code second, and asks whether it does what the spec says; it reports and does not fix | [doc/workflow.md section 6](workflow.md#6-verify-the-three-passes) |
 | exceptions table | what a serial item declares before it starts: every file it edits outside its `Owns` and the record step, with the reason | [doc/workflow.md section 7](workflow.md#7-parallel-work) |
 | exit artifact | what a plan ends in, something a human can look at: a run that routed correctly, a measured number, a rendered trace | [doc/workflow.md section 2](workflow.md#2-the-unit-of-work) |
-| gate | the commands: `npm run gate` is the ladder, `npm run gate:full` is `npm run gate` followed by the self-tests, and `npm run gate:item` leaves out the register self-test | [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md#decision) |
+| gate | the commands: `npm run gate` is the ladder and `npm run gate:full` is `npm run gate` followed by the self-tests; `npm run gate:item` is a confirming gate, its own row | [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md#decision) |
 | gate | a work item's verification gate: stated before the item starts, and an item that cannot state one is not ready to start | [doc/workflow.md section 1](workflow.md#1-the-loop) |
 | ladder | the verification levels L0-L7, climbed from L0 and stopped at the first failure | [doc/workflow.md section 4](workflow.md#4-the-verification-ladder) |
 | overlap | the findings an item's two readers share — a shared subject, on which the two findings need not be the same finding | [doc/workflow.md section 6](workflow.md#6-verify-the-three-passes) |
@@ -92,7 +92,8 @@ The tables below are parsed (W119's `term`), so this section is the contract:
 Terms in use whose only definition is outside the three homes, or nowhere. Each is a question until
 a heading defines it:
 
-- *gate* is three senses, each a row above; whether one is renamed is [Q508](questions/q508.md).
+- *gate* is not a missing term: it is three senses, each a row above, and all three stay — P31 decision 2,
+  which resolved [Q508](questions/q508.md).
 - *declared ceiling* — [Q509](questions/q509.md).
 - *survivor* — [Q510](questions/q510.md).
 - *META entry* — [Q511](questions/q511.md).
