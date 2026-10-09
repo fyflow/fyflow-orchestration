@@ -306,7 +306,7 @@ and the real-scheduler runs in Node and Deno.
 
 | | |
 |---|---|
-| [AGENTS.md](AGENTS.md) | the complete reference, with every example executed by the gate |
+| [AGENTS.md](AGENTS.md) | the complete reference: every snippet in it is typechecked by the gate, each one tagged `run` is executed, and a snippet tagged `check` is typechecked only |
 | [doc/concept.md](doc/concept.md) | what this is and why it is shaped this way |
 | [spec/](spec/) | the normative rules — the flow grammar, run state, join policies, task ids |
 | [doc/README.md](doc/README.md) | the development index: plans, work items, decisions, open questions |
