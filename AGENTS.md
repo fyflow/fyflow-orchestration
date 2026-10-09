@@ -1364,7 +1364,7 @@ flow, and the class says which document to open.
 (W66): `GroupUnusable` — a group factory returned something the scheduler cannot use, naming the
 member and the group's key; `GroupNotBuildable` — a group type with no `create`; `LanguageNotBuilt` —
 `start` was given a flow that transforms on a type no pool was built for; and, since W89, `RunIdInUse`
-— a `start` or `resume` naming a run id a driver of that runtime already holds (`RN-R25`). A bare
+— a `start` or `resume` naming a run id that runtime has already built a driver for, a finished run's included (`RN-R25`, ADR 0091). A bare
 `RuntimeError` is the fifth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
 document names nowhere. **They are not exported from the package ROOT**, so the enumeration below —
 which walks the root's own exports — does not see them, and `BootstrapError` has never been there

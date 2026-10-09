@@ -153,7 +153,7 @@ suite(SUITE, (test) => {
     const sc = seams();
     const c = runtimeOn(sc, STRICT);
     throws(() => c.start(LINEAR, { nope: 1 }, { runId: 'bx' }), 'BoundaryRefused', 'the ARRANGEMENT: FD-R4 refuses this start');
-    equal(inUse(() => c.start(LINEAR, { must: 1 }, { runId: 'bx' })).at, 'bx', 'and the id of a start FD-R4 refused is in use too — its driver still listens');
+    equal(inUse(() => c.start(LINEAR, { must: 1 }, { runId: 'bx' })).at, 'bx', 'and the id of a start FD-R4 refused is in use too — a driver was built for it, and ADR 0091 keeps the id after releasing the driver');
     ok(resumed.driver.runId === 'r2', 'the CONTROL: the resumed run itself is untouched by any of it');
   });
 
