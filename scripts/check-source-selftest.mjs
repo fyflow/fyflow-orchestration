@@ -812,7 +812,7 @@ const MIN_PROBES = 60;
 const MIN_META = 40;
 
 /** And for `SELF`. */
-const MIN_SELF = 14;
+const MIN_SELF = 10;
 
 /**
  * **How many META entries may take the `wide` exemption from the two anchor guards.**
@@ -1122,8 +1122,8 @@ const SELF = [
   // itself, which is true and is stronger than a probe. The `ran:` guard stays as
   // defence in depth for a mutant that is inert on the clean tree and dies only on
   // the probe's input, and **no such mutation exists in this file**, so its
-  // provocation is out of reach here. *(W143 found one — `S15`'s jsonata read — and it is
-  // the `ran:` case at the end of this list; Q536.)* It is provoked in `check-markdown`, where the
+  // provocation is out of reach here. *(W143 found one — `S15`'s jsonata read — and it is a
+  // GUARD CASE beside the META pass, in process; Q536.)* It is provoked in `check-markdown`, where the
   // readers measured it at a cost of 2, and it is on this file's ceiling list.
   //
   // What this entry provokes instead is rule 7 (b) at the META layer: a mutation
@@ -1162,39 +1162,6 @@ const SELF = [
     (t) => t.replace("(t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')",
       "(t) => t.replace('a string this file does not contain', 'nor this one')")],
 
-  // --- W143: the three guards' own cases, each graded on its REASON ----------------
-  //
-  // **Q536: the `ran:` case this file said it could not have.** The comment above said *no such
-  // mutation exists in this file*; one does. `S15` reads `deno.json`'s jsonata mapping, and with
-  // `.trim()` added to that read the mutant is INERT on the clean tree (the mapping is a string) and
-  // THROWS under *deno.json`s jsonata mapping REMOVED* (it is `undefined`) — before the report line, so
-  // the grandchild prints `ran: no` and the injected entry must FAIL naming *the mutant did not run*.
-  ['a META entry inert on the clean tree and FATAL under its probe — the `ran:` case, Q536',
-    (t) => t.replace("  ['S12 disabled',\n",
-      "  ['S15`s jsonata read made to THROW on a missing mapping',\n" +
-      "    'deno.json`s jsonata mapping REMOVED — Deno then resolves through package.json (Q252`s shape), and only S15 sees it',\n" +
-      "    (t) => t.replace('const mapped = denoJson.imports?.jsonata;', 'const mapped = denoJson.imports?.jsonata.trim();')],\n" +
-      "  ['S12 disabled',\n"),
-    'S15`s jsonata read made to THROW on a missing mapping — the mutant did not run'],
-  // **Q434, in the META pass and in the PROBES pass.** A dead second edit appended to a real mutation:
-  // the text still changes, so the whole-text guard passes it, and only the instrumented count refuses
-  // it. Each child must go red on that entry's own `matched NOTHING` line.
-  ['a META entry made a COMPOUND whose second edit matches nothing — Q434',
-    (t) => t.replace("'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {')],",
-      "'a runtime dropped from the gate chain — Q126, reproduced', (t) => t.replace('    if (unreadable.length === 0) {', '    if (false) {').replace('W143: no such anchor', '')],"),
-    "S12 disabled — 1 of this mutation's `replace` calls matched NOTHING"],
-  ['a PROBE made a COMPOUND whose second edit matches nothing — Q434',
-    (t) => t.replace("    mutate: (t) => t.replace('\"gate\": \"npm run lint && ', '\"gate\": \"'),",
-      "    mutate: (t) => t.replace('\"gate\": \"npm run lint && ', '\"gate\": \"').replace('W143: no such anchor', ''),"),
-    "lint dropped from the gate chain  — 1 of this mutation's `replace` calls matched NOTHING"],
-  // **Q437: the META control handed a copy that cannot run.** The control's source gets a first line
-  // that throws, so the copy fails on the clean tree as a copy at the wrong depth did at W105 — and the
-  // control, not any entry, must be what turns the child red. The anchor is SPLIT, because the line it
-  // edits sits BELOW this list and an unsplit quote here would be the first match.
-  ['the META control handed a copy that cannot run — Q437',
-    (t) => t.replace("gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY]" + ');',
-      "gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY], 'throw new Error(\"W143: this copy cannot run\");\\n' + checkSource);"),
-    'FAIL  the control: an UNMUTATED copy of check-source.mjs is graded'],
 ];
 
 export async function selfTest(root) {
@@ -1609,10 +1576,12 @@ export async function selfTest(root) {
   // catch what it declares (`outcome: caught`) and the entry must NOT be graded noticed. A copy that
   // cannot run against the check comes back noticed — by the corpus — which is how a pass grades every
   // mutation of a check it never ran against (W105's adequacy reader, in check-wiring-selftest.mjs). The
-  // `SELF` entry *the META control handed a copy that cannot run* is its checked-in case, and **removing
+  // GUARD CASE *the control handed a copy that cannot run* below is its checked-in case, and **removing
   // this block is visible**: `metaControl` is read by the verdict below.
+  /** **What it means for the control to HOLD**, one expression for the control and for its own case. */
+  const controlHolds = (g) => !g.ok && g.outcome === 'caught';
   const metaControl = gradeMeta(-1, ['the control: an UNMUTATED copy', META[0][1], IDENTITY]);
-  if (metaControl.ok || metaControl.outcome !== 'caught') {
+  if (!controlHolds(metaControl)) {
     console.log(`  FAIL  the control: an UNMUTATED copy of check-source.mjs is graded ` +
       `${metaControl.ok ? 'NOTICED' : 'not caught'} (outcome "${metaControl.outcome ?? '(none)'}"${metaControl.why}). ` +
       'Nothing is broken, so the probe must still catch what it declares — every verdict below would be a ' +
@@ -1620,7 +1589,50 @@ export async function selfTest(root) {
     rmSync(dir, { recursive: true, force: true });
     return 1;
   }
-  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)\n');
+  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)');
+
+  // **The three guards' own cases, IN PROCESS — W143, the maintainer's (B) of 2026-10-09.** They were
+  // four `SELF` entries, each a child that re-ran the probe pass and part of META to reach its case, and
+  // together they cost the lane about 70 s alone. Each now calls the pass's own `gradeMeta` or `runOne`
+  // directly — one level less end-to-end than a `SELF` child, which is the trade the maintainer took —
+  // and is graded on its guard's own line. A `SELF` child does not run them: they are about the guards,
+  // which a child's mutation of this file does not reach.
+  if (!nestedSelf) {
+    const cases = [
+      // Q434: `META[0]`'s mutation with a dead second edit — the text still changes, so only the
+      // instrumented count can refuse it. Spawns nothing.
+      ['a compound META entry whose second edit matches nothing — Q434', () => gradeMeta(META.length,
+        [`${META[0][0]}, then a dead second edit`, META[0][1], (t) => META[0][2](t).replace('\u0000W143: no such anchor', '')]),
+        (g) => !g.ok && g.why.includes('matched NOTHING')],
+      // Q536: the `ran:` case this file said it could not have. `S15` reads deno.json's jsonata mapping;
+      // with `.trim()` added the mutant is INERT on the clean tree (the mapping is a string) and THROWS
+      // under *deno.json`s jsonata mapping REMOVED* (it is `undefined`), before the report line.
+      ['a mutant inert on the clean tree and FATAL under its probe — the `ran:` case, Q536', () => gradeMeta(META.length,
+        ['S15`s jsonata read made to THROW on a missing mapping',
+          'deno.json`s jsonata mapping REMOVED — Deno then resolves through package.json (Q252`s shape), and only S15 sees it',
+          (t) => t.replace('const mapped = denoJson.imports?.jsonata;', 'const mapped = denoJson.imports?.jsonata.trim();')]),
+        (g) => !g.ok && g.why.includes('the mutant did not run')],
+      // Q437: the control handed a copy that cannot run must NOT hold.
+      ['the control handed a copy that cannot run — Q437', () => gradeMeta(-1,
+        ['the control: a copy that cannot run', META[0][1], IDENTITY], 'throw new Error("W143: this copy cannot run");\n' + checkSource),
+        (g) => !controlHolds(g)],
+      // Q434 in the PROBES pass: a probe whose second edit matches nothing returns before it writes or spawns.
+      ['a compound PROBE whose second edit matches nothing — Q434', () => {
+        const i = PROBES.findIndex((x) => x.name === 'lint dropped from the gate chain');
+        return runOne(i, { ...PROBES[i], mutate: (t) => PROBES[i].mutate(t).replace('\u0000W143: no such anchor', '') });
+      }, (v) => v.vacuous && `${v.msg}`.includes('matched NOTHING')],
+    ];
+    for (const [label, run, holds] of cases) {
+      const g = run();
+      if (!holds(g)) {
+        console.log(`  FAIL  GUARD CASE ${label} — got ${g.ok ? 'ok' : 'FAIL'}${g.why ?? ''}${g.msg ? ` ${g.msg}` : ''}`);
+        rmSync(dir, { recursive: true, force: true });
+        return 1;
+      }
+      console.log(`  ok    GUARD CASE ${label}`);
+    }
+  }
+  console.log('');
   for (const [i, entry] of META.entries()) {
     const { ok, why, corpus } = gradeMeta(i, entry);
     if (ok) { noticed++; if (corpus) byCorpus++; }
@@ -1635,7 +1647,7 @@ export async function selfTest(root) {
   // than a probe, and not what the entry claims.
   console.log(`\n${noticed}/${META.length} noticed` +
     (byCorpus ? ` — ${noticed - byCorpus} by the named probe, ${byCorpus} by the corpus.` : '.'));
-  if (noticed !== META.length || metaControl.outcome !== 'caught') { rmSync(dir, { recursive: true, force: true }); return 1; }
+  if (noticed !== META.length || !controlHolds(metaControl)) { rmSync(dir, { recursive: true, force: true }); return 1; }
   if (nestedSelf) { rmSync(dir, { recursive: true, force: true }); return 0; }
 
   // --- the SELF pass: does the probe LIST have a bound? ------------------------
@@ -1665,7 +1677,7 @@ export async function selfTest(root) {
   }
   let bounded = 0;
   console.log(`\nand against a shortened probe list — ${SELF.length} mutations of this file\n`);
-  for (const [i, [name, mutate, reason]] of SELF.entries()) {
+  for (const [i, [name, mutate]] of SELF.entries()) {
     const { broken, why: vacuous } = selfVacuity(mutate);
     if (vacuous) {
       console.log(`  FAIL  ${name}${vacuous}`);
@@ -1698,12 +1710,6 @@ export async function selfTest(root) {
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       ok = r.status !== 0 && SELF_RAN(out);
       if (r.status !== 0 && !ok) why = ' — the child never got as far as running: a broken file, not a fired floor';
-      // **An entry that names its REASON is graded on it** — W143, as `check-policies-selftest.mjs` has
-      // since W131: a guard case must go red BECAUSE its guard fired, not merely go red.
-      else if (ok && reason !== undefined && !out.includes(reason)) {
-        ok = false;
-        why = ` — the child went red, but not for the reason this entry names ("${reason}"); it said: ${(out.split('\n').find((l) => /FAIL|ABORT|Error/.test(l)) ?? `exit ${r.status}, no FAIL line`).trim().slice(0, 200)}`;
-      }
     } finally { rmSync(path, { force: true }); }
     if (ok) bounded++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : (why || ' — the floor did not fire')}`);
