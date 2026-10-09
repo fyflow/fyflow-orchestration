@@ -48,7 +48,19 @@ Reserves:   Q571-Q573 (P31's block Q553-Q567 is wholly reserved by W140-W145 and
             W143, every unused id skipped and never reissued); no ADR. No W beyond W146
 ```
 
-**Exceptions**: none at declaration. Any file edited outside `Owns` and outside the record step is
+**Exceptions**: none at declaration. **Three, asked under workflow section 1 rule 6 after the conformity
+reader and answered by the maintainer on 2026-10-09, each written here before its edit:**
+
+| file | the edit | answer |
+|---|---|---|
+| `doc/scheduler-upstream.md` | two sentences only: "ALL NINE items are now closed, deferred, or declined" (about line 27) and "Nothing on this list is now waiting to be raised" (about line 481), each corrected to say S10 is not raised, writing no count | **A: YES** |
+| `CLAUDE.md` | one sentence, line 18: "Every snippet in it is extracted and executed by `npm run gate`" corrected to every snippet typechecked, those tagged `run` executed, those tagged `check` typechecked only — roughly byte-neutral, `check:budget` kept green. **This reverses P31 prediction 6 by the maintainer's decision** | **B (ii): YES** |
+| `README.md` | line 309's "every example executed by the gate", corrected at the record step (a record-step file) with doc/README.md's wording | **B (i): YES** |
+
+B (iii), doc/decisions/README.md:29, is left by the answer. C: **(b)** — the glossary commands row drops its
+`gate:item` clause and says exactly what ADR 0070 says; the `confirming gate` row carries `gate:item`.
+
+Any other file edited outside `Owns` and outside the record step is
 asked first under workflow section 1 rule 6, and its YES written here before the edit. `CLAUDE.md`,
 `doc/workflow.md` and `doc/concept.md` are not edited (prediction 6). **The drag files, checked up front:**
 
