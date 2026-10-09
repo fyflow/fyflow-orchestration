@@ -332,7 +332,7 @@ all three the same day.
 3. **The scheduler's cap: document only, no change.** As left: ADR 0091's Context and rule 2, and AGENTS.md section
    12, name `scheduler.tasks` and `RuntimeOptions.createScheduler`.
 
-**Gate after the answers:** @GATE@
+**Gate after the answers:** `npm run gate > dev-dist/w151-27362/gate-answers.log 2>&1` on `27671b3` read **EXIT 1** — the L6 cross-row byte-walk clause alone, its `DRIVER_FIELDS` missing `deaf`. Fixed in `2d51bc2`, and the same command, once, on a still tree at `2d51bc2` (`gate-answers2.log`) read **EXIT 0**: L1-L5 1593 cases in node, deno and chromium (+1, the DEAF case), L6 2487 in node and deno (unchanged). `check:register` re-run after this paragraph: EXIT 0. `gate:item` was not re-run: the maintainer asked for `npm run gate`.
 
 ### Questions closed and raised (workflow section 1 rule 6)
 
