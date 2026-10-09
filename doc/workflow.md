@@ -339,8 +339,8 @@ ever, came from two briefs naming the same obligations and the same specifics; *
 differed its two and got three**.* So the overlap measures the briefs as much as the readers.
 **The band's denominator is NOT the ordinal, and conflating them is how the band went false** —
 three measurements are outside it (6, 6, 7) and each had a shared priming. **It counts measurements
-TAKEN, not items reviewed, and the ORDINAL is that count: eighty-three, so the next is the
-EIGHTY-FOURTH.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
+TAKEN, not items reviewed, and the ORDINAL is that count: eighty-six, so the next is the
+EIGHTY-SEVENTH.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
 why three published ordinals were short by one.* **An item's RECORD states its own overlap — its own
 file, always legal — and only a retro carries the total forward** (v0.26; v0.27).
 
