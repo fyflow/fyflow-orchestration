@@ -648,7 +648,7 @@ const MIN_PROBES = 44;
 /** The same floor for `META`. */
 const MIN_META = 52;
 /** And for `SELF`. */
-const MIN_SELF = 11;
+const MIN_SELF = 7;
 
 /** The ids a run reported under, read out of the run's own output — no allowlist. */
 const trippedIn = (out) => [...new Set([...out.matchAll(/^ {2}([A-Z]\d+): /gm)].map((m) => m[1]))].sort();
@@ -949,8 +949,8 @@ const SELF = [
   // closed [Q144](../doc/questions/q144.md), and `check-policies-selftest.mjs`'s `SELF`
   // list carries the case, rebased by W131 on a mutant that throws before any report
   // line — but no entry in this file produces one, so here the guard is unprovoked and
-  // is on the ceiling list. *(Until W143: `M1`'s report loop gives one, and it is the
-  // `ran:` case at the end of this list; Q536.)*
+  // is on the ceiling list. *(Until W143: `M1`'s report loop gives one, and it is a GUARD
+  // CASE beside the META pass, in process; Q536.)*
   //
   // What this entry provokes instead is rule 7 (b) at the META layer.
   ['one META mutation made VACUOUS — rule 7 (b) at the grading layer',
@@ -960,38 +960,6 @@ const SELF = [
   ['the rule 7 (b) guard disabled, and one probe made a no-op',
     (t) => t.replace('    if (mutated === original) {', '    if (false) {')
       .replace("      '# Documentation index\\n\\nSee [nowhere](#).\\n'),", "      '# Documentation index'),")],
-
-  // --- W143: the three guards' own cases, each graded on its REASON ----------------
-  //
-  // **Q536: the `ran:` case the comment above said this file did not have.** `M1`'s report loop runs only
-  // for a dead link, so a dereference of a property a string does not have is INERT on the clean fixture
-  // and THROWS under *a link to a file that does not exist* — before the report line, so the grandchild
-  // prints `ran: no` and the injected entry must FAIL naming *the mutant did not run*.
-  ['a META entry inert on the clean tree and FATAL under its probe — the `ran:` case, Q536',
-    (t) => t.replace("  ['M1 disabled',\n    'a link to a file that does not exist',",
-      "  ['M1`s report loop made to THROW on a dead link',\n    'a link to a file that does not exist'," +
-      " (t) => t.replace(\"for (const d of r.dead) fail('M1', d);\", \"for (const d of r.dead) fail('M1', d.absent.trim());\")],\n" +
-      "  ['M1 disabled',\n    'a link to a file that does not exist',"),
-    'M1`s report loop made to THROW on a dead link — the mutant did not run'],
-  // **Q434, in the META pass and in the PROBES pass.** A dead second edit appended to a real mutation:
-  // the text still changes, so the whole-text guard passes it, and only the instrumented count refuses
-  // it. Each child must go red on that entry's own `matched NOTHING` line.
-  ['a META entry made a COMPOUND whose second edit matches nothing — Q434',
-    (t) => t.replace("(t) => t.replace(\"for (const d of r.deadAnchors) fail('M2', d);\", \"for (const d of []) fail('M2', d);\")],",
-      "(t) => t.replace(\"for (const d of r.deadAnchors) fail('M2', d);\", \"for (const d of []) fail('M2', d);\").replace('W143: no such anchor', '')],"),
-    "M2 disabled — 1 of this mutation's `replace` calls matched NOTHING"],
-  ['a PROBE made a COMPOUND whose second edit matches nothing — Q434',
-    (t) => t.replace("    mutate: (t) => t.replace('](workflow.md)', '](workflow-v2.md)'),",
-      "    mutate: (t) => t.replace('](workflow.md)', '](workflow-v2.md)').replace('W143: no such anchor', ''),"),
-    "a link to a file that does not exist  — 1 of this mutation's `replace` calls matched NOTHING"],
-  // **Q437: the META control handed a copy that cannot run.** The control's source gets a first line
-  // that throws, so the copy fails on the clean fixture as a copy at the wrong depth did at W105 — and
-  // the control, not any entry, must be what turns the child red. The anchor is SPLIT, because the line
-  // it edits sits BELOW this list and an unsplit quote here would be the first match.
-  ['the META control handed a copy that cannot run — Q437',
-    (t) => t.replace("META.find(([, , , w]) => w !== 'spec')[1], IDENTITY]" + ');',
-      "META.find(([, , , w]) => w !== 'spec')[1], IDENTITY], 'throw new Error(\"W143: this copy cannot run\");\\n' + checkSource);"),
-    'FAIL  the control: an UNMUTATED copy of check-markdown.mjs is graded'],
 
 ];
 
@@ -1441,12 +1409,14 @@ export async function selfTest(root) {
   // `gradeMeta` every entry takes, naming the first check-markdown entry's probe. Nothing is broken, so
   // the probe must still catch what it declares (`outcome: caught`) and the entry must NOT be graded
   // noticed. A copy that cannot run against the check comes back noticed — by the corpus — which is how
-  // a pass grades every mutation of a check it never ran against (W105's adequacy reader). The `SELF`
-  // entry *the META control handed a copy that cannot run* is its checked-in case, and **removing this
+  // a pass grades every mutation of a check it never ran against (W105's adequacy reader). The GUARD
+  // CASE *the control handed a copy that cannot run* below is its checked-in case, and **removing this
   // block is visible**: `metaControl` is read by the verdict below.
-  const metaControl = gradeMeta(-1, ['the control: an UNMUTATED copy',
-    META.find(([, , , w]) => w !== 'spec')[1], IDENTITY]);
-  if (metaControl.ok || metaControl.outcome !== 'caught') {
+  /** **What it means for the control to HOLD**, one expression for the control and for its own case. */
+  const controlHolds = (g) => !g.ok && g.outcome === 'caught';
+  const controlProbe = META.find(([, , , w]) => w !== 'spec')[1];
+  const metaControl = gradeMeta(-1, ['the control: an UNMUTATED copy', controlProbe, IDENTITY]);
+  if (!controlHolds(metaControl)) {
     console.log(`  FAIL  the control: an UNMUTATED copy of check-markdown.mjs is graded ` +
       `${metaControl.ok ? 'NOTICED' : 'not caught'} (outcome "${metaControl.outcome || '(none)'}"${metaControl.why}). ` +
       'Nothing is broken, so the probe must still catch what it declares — every verdict below would be a ' +
@@ -1454,7 +1424,49 @@ export async function selfTest(root) {
     if (!shared) rmSync(base, { recursive: true, force: true });
     return 1;
   }
-  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)\n');
+  console.log('  ok    the control: an unmutated copy is NOT graded as noticed (outcome caught)');
+
+  // **The three guards' own cases, IN PROCESS — W143, the maintainer's (B) of 2026-10-09.** They were
+  // four `SELF` entries, each a child that re-ran the probe pass and part of META to reach its case, and
+  // together they cost this — the longest — lane about 190 s alone. Each now calls the pass's own
+  // `gradeMeta` or `runOne` directly — one level less end-to-end than a `SELF` child, which is the trade
+  // the maintainer took — and is graded on its guard's own line. A `SELF` child does not run them.
+  if (!nestedSelf) {
+    const m2 = META.find(([n]) => n === 'M2 disabled');
+    const deadLink = PROBES.find((x) => x.name === 'a link to a file that does not exist');
+    const cases = [
+      // Q434: a real mutation with a dead second edit — the text still changes, so only the instrumented
+      // count can refuse it. Spawns nothing.
+      ['a compound META entry whose second edit matches nothing — Q434', () => gradeMeta(META.length,
+        [`${m2[0]}, then a dead second edit`, m2[1], (t) => m2[2](t).replace('\u0000W143: no such anchor', '')]),
+        (g) => !g.ok && g.why.includes('matched NOTHING')],
+      // Q536: `M1`'s report loop runs only for a dead link, so a dereference of a property a string does
+      // not have is INERT on the clean fixture and THROWS under *a link to a file that does not exist*,
+      // before the report line — the child prints `ran: no`.
+      ['a mutant inert on the clean tree and FATAL under its probe — the `ran:` case, Q536', () => gradeMeta(META.length,
+        ['M1`s report loop made to THROW on a dead link', deadLink.name,
+          (t) => t.replace("for (const d of r.dead) fail('M1', d);", "for (const d of r.dead) fail('M1', d.absent.trim());")]),
+        (g) => !g.ok && g.why.includes('the mutant did not run')],
+      // Q437: the control handed a copy that cannot run must NOT hold.
+      ['the control handed a copy that cannot run — Q437', () => gradeMeta(-1,
+        ['the control: a copy that cannot run', controlProbe, IDENTITY], 'throw new Error("W143: this copy cannot run");\n' + checkSource),
+        (g) => !controlHolds(g)],
+      // Q434 in the PROBES pass: `runOne` returns before it writes anything when an edit missed.
+      ['a compound PROBE whose second edit matches nothing — Q434',
+        () => runOne({ ...deadLink, mutate: (t) => deadLink.mutate(t).replace('\u0000W143: no such anchor', '') }),
+        (v) => !v.refused && `${v.msg}`.includes('matched NOTHING')],
+    ];
+    for (const [label, run, holds] of cases) {
+      const g = run();
+      if (!holds(g)) {
+        console.log(`  FAIL  GUARD CASE ${label} — got ${g.ok ? 'ok' : 'FAIL'}${g.why ?? ''}${g.msg ? ` ${g.msg}` : ''}`);
+        if (!shared) rmSync(base, { recursive: true, force: true });
+        return 1;
+      }
+      console.log(`  ok    GUARD CASE ${label}`);
+    }
+  }
+  console.log('');
 
   /**
    * **The C5 lift's two edits, instrumented — a function since W143** so its own case below reaches the
@@ -1546,7 +1558,7 @@ export async function selfTest(root) {
   // six of them here.
   console.log(`\n${noticed}/${META.length} noticed` +
     (byCorpus ? ` — ${noticed - byCorpus} by the named probe, ${byCorpus} by the corpus.` : '.'));
-  if (noticed !== META.length || metaControl.outcome !== 'caught') { if (!shared) rmSync(base, { recursive: true, force: true }); return 1; }
+  if (noticed !== META.length || !controlHolds(metaControl)) { if (!shared) rmSync(base, { recursive: true, force: true }); return 1; }
   // A SELF child has now run META, which is what it is for; it must not go on to
   // run SELF as well, or the recursion has no bottom.
   if (nestedSelf) { if (!shared) rmSync(base, { recursive: true, force: true }); return 0; }
@@ -1578,7 +1590,7 @@ export async function selfTest(root) {
   }
   let bounded = 0;
   console.log(`\nand against a shortened probe list — ${SELF.length} mutations of this file\n`);
-  for (const [i, [name, mutate, reason]] of SELF.entries()) {
+  for (const [i, [name, mutate]] of SELF.entries()) {
     const { broken, why: vacuous } = selfVacuity(mutate);
     if (vacuous) { console.log(`  FAIL  ${name}${vacuous}`); continue; }
     const path = join(base, `.self-${String(i).padStart(2, '0')}.mjs`);
@@ -1596,12 +1608,6 @@ export async function selfTest(root) {
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       ok = r.status !== 0 && SELF_RAN(out);
       if (r.status !== 0 && !ok) why = ' — the child never got as far as running: a broken file, not a fired floor';
-      // **An entry that names its REASON is graded on it** — W143, as `check-policies-selftest.mjs` has
-      // since W131: a guard case must go red BECAUSE its guard fired, not merely go red.
-      else if (ok && reason !== undefined && !out.includes(reason)) {
-        ok = false;
-        why = ` — the child went red, but not for the reason this entry names ("${reason}"); it said: ${(out.split('\n').find((l) => /FAIL|ABORT|Error/.test(l)) ?? `exit ${r.status}, no FAIL line`).trim().slice(0, 200)}`;
-      }
     } finally { rmSync(path, { force: true }); }
     if (ok) bounded++;
     console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${name}${ok ? '' : (why || ' — the floor did not fire')}`);

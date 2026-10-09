@@ -36,8 +36,8 @@
 //   SELF    break THIS FILE and require it to stop reporting success. W31's shape, and
 //           W38's adequacy reader asked for it by name: without one, the verdict line
 //           becomes `return 0` for **zero** failures, and the floor is lowerable to
-//           nothing, printing `0/0 probes caught` at exit 0. **Six until W143, and seven
-//           since**: its entry is a probe made a compound whose second edit matches nothing (Q434).
+//           nothing, printing `0/0 probes caught` at exit 0. **Six.** *(W143's PROBES-pass case for
+//           Q434 was a seventh until the maintainer's (B) moved it in process, beside the probe pass.)*
 //
 // **`G7` (W139) adds a family to each pass and states no count here**, since the counts above are the
 // defect they describe: manifests of `gate:item` and mutations of the runner's `--without` in PROBES,
@@ -779,7 +779,7 @@ const PROBES = [...G1_PROBES, ...G1_ONLY, ...G2_PROBES, ...G3_PROBES, ...G4_PROB
 /** Vacuous at zero, which is the floor `check-policies-selftest.mjs` taught. */
 const MIN_PROBES = 54;
 const MIN_META = 24;
-const MIN_SELF = 7;
+const MIN_SELF = 6;
 
 // **`G5` had to be added here as well as to the check, and forgetting it is
 // [Q43](../doc/questions/q43.md)'s class** — a closed allowlist makes a new id's
@@ -926,13 +926,6 @@ const SELF = [
   // and again at W119, whose `lookup` is.
   ['CHECKS drops a check the manifest has an entry for',
     (t) => t.replace(/, 'lookup'\];/, '];')],
-  // **W143, Q434 in the PROBES pass.** A dead second edit appended to a real probe mutation: the staged
-  // file still changes, so `stage()`'s whole-file guard passes it, and only the instrumented count
-  // refuses it. The child runs the probe pass, so the evidence is that probe's own `matched NOTHING` line.
-  ['a PROBE made a COMPOUND whose second edit matches nothing — Q434',
-    (t) => t.replace("    mutate: (t) => t.replace('let ok = results.every((r) => r.code === 0);', 'let ok = true;'),",
-      "    mutate: (t) => t.replace('let ok = results.every((r) => r.code === 0);', 'let ok = true;').replace('W143: no such anchor', ''),"),
-    (out) => out.includes("the runner never reads what its children returned  — 1 of this mutation's `replace` calls matched NOTHING")],
 ];
 
 // **What a `SELF` list buys nothing against here, stated rather than padded around.**
@@ -1348,6 +1341,19 @@ export async function selfTest(root) {
   console.log(`\n${PROBES.length - bad}/${PROBES.length} probes caught.`);
 
   if (!meta) return done(bad ? 1 : 0);
+
+  // **Q434's case for the PROBES pass, IN PROCESS — W143, the maintainer's (B) of 2026-10-09.** It was a
+  // `SELF` entry whose child re-ran the whole probe pass to reach one line. A real probe's mutation with a
+  // dead second edit, through `runProbe` itself: `stage()` refuses it before it writes or spawns anything.
+  {
+    const p = PROBES.find((x) => x.name === 'the runner never reads what its children returned');
+    const v = runProbe({ ...p, mutate: (t) => p.mutate(t).replace('\u0000W143: no such anchor', '') });
+    if (!v.vacuous || !`${v.why}`.includes('matched NOTHING')) {
+      console.log(`  FAIL  GUARD CASE a compound PROBE whose second edit matches nothing — Q434 — got ${v.why ?? 'a verdict'}`);
+      return done(1);
+    }
+    console.log('  ok    GUARD CASE a compound PROBE whose second edit matches nothing — Q434');
+  }
 
   // --- META: break the check, require the named probe to stop noticing ----------
   console.log('\n  and against a broken check:');
