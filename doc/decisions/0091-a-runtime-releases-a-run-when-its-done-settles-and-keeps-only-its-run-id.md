@@ -28,8 +28,14 @@ kept**, heap after two forced collections, node 24:
 |---|---|---|---|---|---|---|
 | heap above base, MiB | 17.51 | 41.53 | 81.34 | 160.91 | 240.57 | 319.81 |
 
-**About 160 KiB per finished run, linear and unbounded.** What holds it is the runtime's router
-(`settlementRouter` in `src/scheduler/runtime.ts`), which ADR 0088 rule 5 keeps for the runtime's life:
+**About 160 KiB per finished run, linear and unbounded, and two holders share it.** About **123 KiB** of it is
+the runtime's router (`settlementRouter` in `src/scheduler/runtime.ts`), which ADR 0088 rule 5 keeps for the
+runtime's life — the table below. The other **~37 KiB** is the SCHEDULER's: a `FyflowScheduler` keeps every
+completed task in `scheduler.tasks` unless `maxCompletedTasks` caps it, and `createRuntime` builds it uncapped.
+*(The split is W151's measurement on the tree this decision ships: the same script reads 72.54 MiB at 2000 runs
+after the release, and `examples/retention.ts release 1000 4 4 keep-tasks` reads 37 497 B per finished run with the
+tasks kept against ~430 B with them evicted. This paragraph credited the router with all of it until W151's
+conformity reader, finding 1.)* This decision is about the router's share:
 
 | structure | holds | reaches |
 |---|---|---|
@@ -54,8 +60,9 @@ that is true of a run and false of a runtime holding many.
    own**: the microtask at which `settleIfTerminal` finds the stepped state terminal, which is a quiescent
    point (`RN-R12`), and never an input that merely LOOKS terminal mid-turn.
 2. **The run id is KEPT, for the runtime's life.** `inUse` keeps it, so `start` and `resume` naming it throw
-   `RunIdInUse` and the minted counter skips it, exactly as before (`RN-R25`). A runtime's memory is then
-   bounded by its **live** runs plus one string per run it ever opened.
+   `RunIdInUse` and the minted counter skips it, exactly as before (`RN-R25`). What the RUNTIME holds is then
+   bounded by its **live** runs plus one string per run it ever opened; the scheduler's `scheduler.tasks` is the
+   scheduler's, and is bounded only where `maxCompletedTasks` caps it (through `RuntimeOptions.createScheduler`).
 3. **A run that has not settled is not released.** `running` and `awaiting_action` are the two outcomes
    `isTerminal` calls not terminal, so a run parked on a person keeps its routing: `resolve()` on its driver
    and every later settlement under its id work as before.
@@ -95,8 +102,13 @@ Rules 1-4, 6 and 7 are unchanged.
 Unchanged in meaning: both are about a driver that is HANDED a settlement, and a released driver is handed
 none. Rule 3's silence holds a fortiori. Rule 4 / tier 2 still refuses our run id on an undispatched task for
 every LIVE run. **What no longer happens**: a finished run's driver turned `stopped` after the fact by a
-settlement under its id for a task it never dispatched — W89's measured collision, which made the stored run's
-checkpoint change after it completed. That run's `RunState` is now fixed once `done` has it.
+settlement under its id — for a task it never dispatched (tier 2's `UndispatchedTask`), or, in W89's measured
+collision, for a task it HAD dispatched, whose second settlement routed it again into `DuplicateTaskId` (`ID-R1`)
+and changed the stored run's checkpoint after it completed. That run's `RunState` is now fixed once `done` has it.
+*(This named W89's collision as the tier-2 case; it was the `ID-R1` one — W151's conformity reader, finding 2.)*
+**Before `done` has it, the run is still routed**: a settlement arriving in the same synchronous turn as the run's
+terminal input, before `done`'s microtask, is handed to the driver and can still move the outcome — to `stopped`, for
+one — and `done` resolves with the state at its microtask (rule 1's moment; W151's adequacy reader, C6).
 
 **For [ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) and `ID-R5`.**
 Unchanged in every rule: an id that does not parse is still decided at a driver's tier 0 and reported by every
@@ -104,8 +116,9 @@ driver it is handed to, each under its own run id. After `done`, a finished run'
 called — the work nobody minted is still reported by every live run, and a runtime with no live run reports it
 to nobody, as a runtime that never started one always did.
 
-**For [ADR 0058](0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md).** The handle is unchanged
-and *the runtime keeps* `done` until it settles, which is what that ADR's title says. Its own cost paragraph —
+**For [ADR 0058](0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md).** The handle is unchanged,
+and the runtime, not the driver, still produces `done` — which is what that ADR's *the runtime keeps* is about; this
+decision adds only how long the runtime holds the run afterwards. Its own cost paragraph —
 *bounded per RETAINED HANDLE rather than per live run* — is TRUE from this decision on; before it, the router
 retained every handle's driver whatever the caller kept.
 
@@ -126,7 +139,7 @@ refusal produces by construction, and `isTerminal`'s own comment says every othe
 only when nothing is live.
 
 **For [Q19](../questions/q19.md) and [Q513](../questions/q513.md).** Per-run state is bounded by the run, and a
-runtime's by its live runs plus one id each. Q513 closes here, by the maintainer, departing from P29 decision 7
+runtime's own by its live runs plus one id each (the scheduler's `scheduler.tasks` beside it is the scheduler's, rule 2). Q513 closes here, by the maintainer, departing from P29 decision 7
 for this question as [ADR 0090](0090-a-run-is-driven-on-one-scheduler-and-a-run-id-is-unique-per-runtime.md)
 did for Q20. **The collector's own history stays fyflow-react-components' Q14**, answered there by that
 repository; nothing is written in the sibling from here. If it answers differently, Q513 is reopened with that

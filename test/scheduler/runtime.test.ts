@@ -23,7 +23,8 @@ import type { GateType } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 import { arrivalCount, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import { canonical, describeFindings } from '../../src/definition/schema.ts';
-import { Driver } from '../../src/driver/driver.ts';
+import { Driver, ResumeRefused } from '../../src/driver/driver.ts';
+import type { Checkpoint } from '../../src/driver/driver.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { ResourceGroup } from 'fyflow-scheduler';
 import { emptyState, fold, isTerminal, step } from '../../src/fold/run-state.ts';
@@ -2224,7 +2225,8 @@ suite('W77 — `done` on a real scheduler, and `done` belongs to a RUN', (test) 
  * run id a driver of the runtime holds is HANDED to that driver and no other; a parseable id no driver holds is handed to
  * none; an id `parseTaskId` refuses is handed to every driver, which each reports through `onUnmintedTask` under its own
  * run id (ADR 0027 rule 3, `ID-R5`); our run id on a task we never dispatched still stops that run (`ID-R4` tier 2); a
- * finished run's driver still hears its id (`RN-R25`); and a driver built by hand on `runtime.scheduler` is not routed
+ * finished run's driver is RELEASED at its `done` and hears nothing more (ADR 0091, amending rule 5 — this said it still
+ * heard its id until W151); and a driver built by hand on `runtime.scheduler` is not routed
  * (rule 7).
  *
  * **What a driver is HANDED is read at its ENTRY**, the instance's `onEvent`, shadowed non-enumerably as
@@ -2636,5 +2638,90 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     equal([late.handed, late.unminted], [['r3:a:-:0', 'nightly-cleanup'], ['nightly-cleanup']],
       'and the new run is handed its own settlement and the unminted id, once each');
     equal(runs.map((x) => x.handed), [['r1:a:-:0'], ['r2:a:-:0']], 'and neither released run hears either');
+  });
+  // **The four cases below are the adequacy reader's survivors, W151's fix round** (M03, M22 and M24, M21 and M23, M20):
+  // each was a way to break ADR 0091 with L1-L5 still green, because every probe after a release used `task.completed`
+  // on a STARTED run that COMPLETED, and no case could see a driver the caller was never handed.
+  /** Every driver's entry, recorded at the PROTOTYPE, so a driver no caller holds — a refused resume's — is seen too. */
+  function everyEntry(): { log: string[]; restore(): void } {
+    const proto = Driver.prototype as unknown as { onEvent: (n: string, x: unknown) => void };
+    const original = proto.onEvent;
+    const log: string[] = [];
+    proto.onEvent = function (this: { runId: string }, n: string, x: unknown) {
+      const id = (x as { id?: unknown } | undefined)?.id;
+      log.push(`${this.runId} ${n} ${typeof id === 'string' ? id : '(no string id)'}`);
+      return original.call(this, n, x);
+    };
+    return { log, restore() { proto.onEvent = original; } };
+  }
+  /** A run of TWO on ANOTHER runtime, stored by position and cut with `a` settled and `b` in flight. */
+  function storedTwo(runId: string): Checkpoint {
+    const s = routedSeams();
+    const other = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const store: FoldInput[] = [];
+    const h = other.start(TWO, { x: 1 }, { runId, onFoldInput: (i, seq) => { store[seq] = structuredClone(i); } });
+    s.done(`${runId}:a:-:0`);
+    return { header: h.header, events: store.slice() };
+  }
+
+  test('rule 4, the RESUME door: a resume refused DURING its replay leaves no driver in the routing, and its id in use', () => {
+    const cp = storedTwo('q');
+    const tampered: Checkpoint = { header: cp.header, events: cp.events.map((x, k) => (k === 0 ? { kind: 'dispatched', taskId: 'q:b:-:0' } as FoldInput : x)) };
+    const { s, r } = onRuntime();
+    // Started bare, not through `open`: its instance `onEvent` is not shadowed, so the prototype instrument sees it too.
+    r.start(FLOW, { x: 1 }, { runId: 'live' });
+    let refused: unknown;
+    try { r.resume(TWO, tampered); } catch (e) { refused = e; }
+    ok(refused instanceof ResumeRefused && refused.reason === 'diverged', 'the ARRANGEMENT: refused mid-replay, so the caller holds no handle on its driver');
+    const entry = everyEntry();
+    try {
+      s.done('nightly-cleanup');
+      s.done('q:b:-:0');
+    } finally { entry.restore(); }
+    equal(entry.log, ['live task.completed nightly-cleanup'],
+      'only the live driver is handed anything — the refused resume`s driver, spent and deaf (RN-R23), is not even handed: ADR 0091 rule 4');
+    equal(inUseAt(() => r.resume(TWO, storedTwo('q'))), 'q', 'and its id is spent, as RN-R25 says of a refusal during the replay');
+  });
+
+  test('rule 1 on every door and outcome: a FAILED run, and a RESUMED run, are released when done settles', async () => {
+    const { s, r, open } = onRuntime();
+    const failed = open('f1');
+    s.emit('task.failed', s.detail('f1:a:-:0', 'failed'));
+    equal((await w77Settlement(failed.done)).outcome, 'failed', 'the ARRANGEMENT: a task settled failed on a node with no failure edge');
+    const resumed = r.resume(TWO, storedTwo('k'));
+    const handedResumed = handed(resumed.driver);
+    s.done('k:b:-:0');
+    equal((await w77Settlement(resumed.done)).outcome, 'completed', 'the ARRANGEMENT: the resumed run completes on its in-flight task');
+    s.done('f1:a:-:0');
+    s.done('k:b:-:0');
+    s.done('nightly-cleanup');
+    equal([failed.handed, handedResumed], [['f1:a:-:0'], ['k:b:-:0']], 'each was handed its settlement before done and nothing after');
+    equal(failed.unminted, [], 'and the failed run reports no unminted id after done');
+  });
+
+  test('rule 1 on every event NAME: after release, task.failed and task.user_action reach the released run neither by its id nor unminted', async () => {
+    const { s, open } = onRuntime();
+    const done1 = open('r1');
+    const live = open('r2');
+    s.done('r1:a:-:0');
+    await w77Settlement(done1.done);
+    s.emit('task.failed', s.detail('r1:a:-:0', 'failed'));
+    s.emit('task.failed', s.detail('r1:a:-:0', 'user_action'));
+    s.emit('task.user_action', s.detail('r1:a:-:0', 'user_action'));
+    s.emit('task.failed', s.detail('cleanup-f', 'failed'));
+    s.emit('task.user_action', s.detail('cleanup-u', 'user_action'));
+    equal(done1.handed, ['r1:a:-:0'], 'r1 is handed nothing after done on either of the other two event names (its byRun entry is gone for all three)');
+    equal([done1.unminted, live.unminted], [[], ['cleanup-f', 'cleanup-u']], 'and the unminted ids on both reach the live r2 alone (every list of every name)');
+  });
+
+  test('rule 5: after a release the remaining drivers are handed an unminted id IN SUBSCRIPTION ORDER', async () => {
+    const { s, open } = onRuntime();
+    const runs = [open('r1'), open('r2'), open('r3')];
+    const together: string[] = [];
+    for (const x of runs) onDeliveryInto(x.driver, (id) => together.push(`${x.driver.runId} ${id}`));
+    s.done('r2:a:-:0');
+    await w77Settlement(runs[1]!.done);
+    s.done('nightly-cleanup');
+    equal(together, ['r2 r2:a:-:0', 'r1 nightly-cleanup', 'r3 nightly-cleanup'], 'r1 then r3 — the order they subscribed in, r2 released between them');
   });
 });

@@ -540,7 +540,7 @@ export function createRuntime(
     },
     resume(flow, checkpoint, resumeOptions = {}) {
       // **The header is refused BEFORE a driver is built** — the one function `Driver.resume` calls too, so the two cannot
-      // disagree, and a checkpoint refused here has cost no run id (a driver, once built, is subscribed for good).
+      // disagree, and a checkpoint refused here has cost no run id (a driver, once built, spends its id for the runtime's life: RN-R25, ADR 0091 rule 2).
       const refused = resumeRefusal(flow, checkpoint);
       if (refused !== null) throw refused;
       // **And an entry payload the clone refuses, before a driver exists too** — W89's conformity reader, finding 7: thrown

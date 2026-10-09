@@ -548,6 +548,10 @@ async function release(runs: number, arity: number, sizeKib: number, evict: bool
   if (perHeld !== null && perHeld < HELD_FLOOR) {
     wrong.push(`CONTROL: ${HELD} held handles grew the heap by ${(perHeld / 1024).toFixed(1)} KiB each, under ${HELD_FLOOR / 1024} KiB — the instrument cannot see a held run`);
   }
+  // **Too few runs cannot separate a per-run cost from a constant**: measured on the shipped code, a ~0.4 MiB one-off
+  // growth after the warm-up mark reads 1721 B a run over 270 runs and ~430 B over 900 (W151's adequacy reader). So the
+  // mode refuses to grade below 900 runs past its mark rather than report a figure that is noise.
+  if (evict && runs - warm < 900) wrong.push(`${runs - warm} runs past the warm-up mark are too few to grade ADR 0091 — pass at least 1000`);
   if (evict && perRun !== null && perRun > PER_RUN_CEILING) {
     wrong.push(`ADR 0091: the heap grew by ${perRun.toFixed(0)} B per FINISHED run, over ${PER_RUN_CEILING} B — the runtime is keeping finished runs`);
   }
