@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** in progress — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 done 2026-10-09 (Record below)
+**Status:** complete — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro is not yet run
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -251,3 +251,41 @@ the rule-8 passes; this section names what the PLAN needs from it.
 - **What W146 inherits**: nothing in its files. `check:markdown:selftest` alone reads 742 s on `f722ffa`.
 - **The confirming gate**: `npm run gate:item` EXIT 0 on `f722ffa`, once, on a still tree (decision 4); and, because
   check-register-selftest.mjs moved, `npm run check:register:selftest` EXIT 0 on the same tree, once.
+
+**W146 — done 2026-10-09.** Its own Record covers the gate, each claim before and after, the glossary rows, the reader
+and the rule-8 passes; this section names what the PLAN needs from it.
+
+- **Closed: Q542 and Q508**, each `resolved-by` starting "P31 W146 —". **Raised: none** (Q571-Q573 unused; P31's
+  block and Q568-Q570 were wholly reserved). Prediction 1 held for W146.
+- **Q542**: every claim it lists was still present and false on `c9f0918`; each is deleted or corrected in
+  doc/README.md. The per-plan history table was DELETED to `git` rather than brought to P31 (P27 decisions 2 and 4;
+  Q466), its last form cited at the public `2b48046`.
+- **Q508**: all three senses of *gate* stay (decision 2). The commands row had named `gate:item` against ADR 0070,
+  which never mentions it; by the maintainer's answer the row now says exactly what ADR 0070 says, and `gate:item`
+  is the `confirming gate` row's.
+- **Workflow section 1 rule 6 fired three times, each answered by the maintainer on 2026-10-09**, written into W146's
+  Exceptions before the edit: (A) doc/scheduler-upstream.md's two sentences now say S10 is not raised; (B) the
+  false *every snippet executed* sentence corrected in README.md and CLAUDE.md, doc/decisions/README.md:29 left;
+  (C) the glossary row above. None is on this plan's W146 row.
+- **Prediction 5 held**: the derived floors moved with their measures through W146's edits, and with sixty
+  ordinary linking documents added on its tree `check:markdown:selftest` EXITed 0.
+- **Prediction 6 REVERSED, by the maintainer's decision (B (ii)) rather than by its named mechanism**: CLAUDE.md's
+  one false sentence about AGENTS.md's snippets was corrected, +55 bytes, `check:budget` green. `doc/workflow.md` and
+  `doc/concept.md` are untouched.
+- **Prediction 2 held**: no ADR; ADR 0089 is unused.
+- **Counts:** L1-L5 unchanged at **1580** in node, deno and chromium; L6 unchanged at **164** runs, 2487 assertions.
+- **The confirming gate — the plan's**: `npm run gate:full` **EXIT 0** on `c99e930`, once, on a still tree
+  (decision 4): 2413 s, the self-tests 11/11 ok at **2272.1 s wall**, `check:register:selftest` included.
+
+### The exit artifact, measured on the final tree
+
+- **`npm run gate:full`: EXIT 0** on `c99e930` (above). The record step then changed only documents and question
+  files; `check:register`, `check:markdown` and `npm run gate` were re-run on the record step's tree and EXITed 0.
+- **`npm run q -- --where "resolved-by~P31" --fields id,status,resolved-by`** lists **thirteen**, each `resolved` and
+  naming its item: Q142 (W144), Q244 (W142), Q266 (W141), Q283 (W141), Q337 (W144), Q434 (W143), Q437 (W143), Q487
+  (W144), Q508 (W146), Q533 (W140), Q536 (W143), Q541 (W145), Q542 (W146). **That is decision 1's twelve plus Q487**,
+  which W144 closed by the maintainer's answer of 2026-10-08 (deferred, waiting on Q142's decision). No other difference.
+- **`npm run q -- --where status=open --count`: 2**, Q20 and Q513, the two decision 1 put Out. No item raised a question.
+- **The answer to the plan's question**: all twelve of decision 1's questions closed inside this repository, each when
+  its fix landed, and a thirteenth with them. Prediction 1 held for every item: seven items, zero questions raised;
+  workflow section 1 rule 6 fired in five of the seven items, every time answered rather than raised.
