@@ -230,10 +230,50 @@ export function markdownIn(dir) {
 
 const LINK = /\]\(([^)\s]+)\)/g;
 
+/**
+ * **ONE read cache and ONE existence cache, shared by the walk and its three probe trees** —
+ * [W150](../doc/work-items/w150-check-markdown-reads-each-file-once.md), P31's Retro proposal B. Since
+ * W144 the script calls `resolveLinks` four times, the walk and then once per probe tree, and each call
+ * re-read every file and re-tested every target: the check went from ~820 ms to ~2130 ms on the
+ * retro's machine, and the self-test pays that once per probe and META child.
+ *
+ * **It holds only what the DISK says**: a file's RAW text, and a path's kind — `'file'`, `'other'`, or
+ * `null` for nothing there — from one `stat`, which answers both `exists` and `isMarkdownFile`. **A
+ * probe tree is NOT in it.** `absent` is asked BEFORE the cache, so a removed path is never served the
+ * walk's answer and a probe tree's removal is never stored for the next; `rewrite` is applied ABOVE it,
+ * to the raw text it returns, so a strip is never served to the walk and the walk's text is never served
+ * past a strip. Either way round the in-memory tree would differ from the staged one — W144's `d6` —
+ * and the self-test's META entries *the cache answers for a removed path*, *a probe tree's removal
+ * stored in the cache* and *the rewritten text cached* are its birth provocations.
+ */
+export function fileCache() {
+  return { text: new Map(), kind: new Map() };
+}
+
+/** The path's kind through the cache: `'file'`, `'other'` (a directory), or `null` if nothing is there. */
+function kindOf(cache, abs) {
+  let k = cache.kind.get(abs);
+  if (k === undefined) {
+    try { k = statSync(abs).isFile() ? 'file' : 'other'; } catch { k = null; }
+    cache.kind.set(abs, k);
+  }
+  return k;
+}
+
+/** The file's RAW text through the cache — never a probe tree's rewrite of it. */
+function rawText(cache, abs) {
+  let t = cache.text.get(abs);
+  if (t === undefined) {
+    t = readFileSync(abs, 'utf8');
+    cache.text.set(abs, t);
+  }
+  return t;
+}
+
 /** A readable `.md` file, which is the only thing an anchor can be resolved against. */
-function isMarkdownFile(abs) {
+function isMarkdownFile(abs, cache) {
   if (!abs.endsWith('.md')) return false;
-  try { return statSync(abs).isFile(); } catch { return false; }
+  return kindOf(cache, abs) === 'file';
 }
 
 /**
@@ -261,7 +301,7 @@ function isMarkdownFile(abs) {
  * makes `M1` non-vacuous is how much of the corpus it resolved links from, and a prose
  * cut removes citations rather than documents.
  */
-export function resolveLinks(files, root, { absent = [], rewrite = null } = {}) {
+export function resolveLinks(files, root, { absent = [], rewrite = null, cache = fileCache() } = {}) {
   const dead = [], deadAnchors = [], unwalked = [];
   let links = 0, anchored = 0;
   // A document counts once however many links it carries, so this is a SET rather than
@@ -275,18 +315,21 @@ export function resolveLinks(files, root, { absent = [], rewrite = null } = {}) 
   // [W144](../doc/work-items/w144-the-markdown-floors-are-derived-and-examples-is-walked.md). A path
   // under an `absent` prefix does not exist, exactly as it does not in a fixture whose `removes`
   // deleted it; `rewrite` is the edit a content probe makes. The floors are derived from these.
+  // **`cache` is SHARED across the walk and the probe trees (W150), and it is consulted only BELOW both**:
+  // `gone` is asked first, and `rewrite` is applied to the raw text it returns — `fileCache` says why.
   const gone = (abs) => absent.some((a) => abs === a || abs.startsWith(a + sep));
-  const exists = (abs) => !gone(abs) && existsSync(abs);
+  const exists = (abs) => !gone(abs) && kindOf(cache, abs) !== null;
   const read = (abs) => {
-    const t = readFileSync(abs, 'utf8');
+    const t = rawText(cache, abs);
     return rewrite ? rewrite(abs, t) : t;
   };
-  const cache = new Map();
+  // Per CALL, unlike `cache`: what a target's headings slug to depends on this tree's `rewrite`.
+  const anchorCache = new Map();
   const anchorsFor = (abs) => {
-    if (!cache.has(abs)) {
-      cache.set(abs, exists(abs) ? anchorsOf(read(abs)) : null);
+    if (!anchorCache.has(abs)) {
+      anchorCache.set(abs, exists(abs) ? anchorsOf(read(abs)) : null);
     }
-    return cache.get(abs);
+    return anchorCache.get(abs);
   };
   const rel = (p) => relative(root, p).replace(/\\/g, '/');
 
@@ -317,7 +360,7 @@ export function resolveLinks(files, root, { absent = [], rewrite = null } = {}) 
       }
       // **`M9`: a markdown file the walk links to and does not READ** — its links are checked by
       // nothing. Measured at W144's declaration: exactly one, `examples/README.md` (Q337).
-      if (path !== '' && isMarkdownFile(abs) && !walked.has(abs)) {
+      if (path !== '' && isMarkdownFile(abs, cache) && !walked.has(abs)) {
         unwalked.push(`${rel(p)} links to ${target}, a markdown file the walk does not read`);
       }
       if (!anchor) continue;
@@ -326,7 +369,7 @@ export function resolveLinks(files, root, { absent = [], rewrite = null } = {}) 
       // Ten directory links exist today and all ten are unanchored. An anchor into
       // anything that is not a readable markdown file is not something this check can
       // resolve, so it is skipped rather than guessed at.
-      if (!isMarkdownFile(abs)) continue;
+      if (!isMarkdownFile(abs, cache)) continue;
       anchored++;
       const have = anchorsFor(abs);
       if (have && !have.has(anchor)) {
@@ -392,8 +435,14 @@ export const probeTreePaths = () => [...new Set(Object.values(PROBE_TREES)
  * **A floor with no tree, or naming a tree that is not defined, is `Infinity`**, so it fires on every
  * tree rather than on none: `Math.max()` of nothing is `-Infinity`, and a floor of `-Infinity + 1` is a
  * floor nothing can fail. *A floor derived to nothing must be RED, never vacuous.*
+ *
+ * **`cache` is the WALK's, and it is required** (W150): every probe tree reads through it, below its own
+ * `absent` and `rewrite`, so the files the walk read are not read again. **A caller that forgets it is
+ * REFUSED here**, because `resolveLinks` would otherwise take `undefined` as "use the default" and give
+ * each tree a fresh cache — every verdict right and four walks' I/O paid in silence (W150's rule 8, `x1`).
  */
-export function deriveFloors(files, root) {
+export function deriveFloors(files, root, cache) {
+  if (!cache) throw new Error('deriveFloors needs the walk`s fileCache() — W150: one cache for the walk and every probe tree');
   const memo = new Map();
   const measureOf = (name) => {
     if (!memo.has(name)) {
@@ -402,7 +451,7 @@ export function deriveFloors(files, root) {
       const inAbsent = (f) => absent.some((a) => resolve(f) === a || resolve(f).startsWith(a + sep));
       const strip = t.strips ? resolve(root, t.strips.file) : null;
       const rewrite = strip ? (abs, text) => (abs === strip ? text.replace(t.strips.pattern, t.strips.with) : text) : null;
-      memo.set(name, resolveLinks(files.filter((f) => !inAbsent(f)), root, { absent, rewrite }));
+      memo.set(name, resolveLinks(files.filter((f) => !inAbsent(f)), root, { absent, rewrite, cache }));
     }
     return memo.get(name);
   };
@@ -457,7 +506,9 @@ const files = [
   ...['README.md', 'AGENTS.md', 'CLAUDE.md'].map((f) => join(SCAN_ROOT, f)).filter(existsSync),
 ];
 
-const r = resolveLinks(files, SCAN_ROOT);
+// **ONE cache for the walk and every probe tree** — W150; `fileCache` says what it holds and what it never does.
+const cache = fileCache();
+const r = resolveLinks(files, SCAN_ROOT, { cache });
 for (const d of r.dead) fail('M1', d);
 for (const d of r.deadAnchors) fail('M2', d);
 
@@ -474,7 +525,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // (ADR 0078 decision 2's suite, read from the side that still binds). *The other side no longer does*:
 // a probe tree that must stay QUIET constrains nothing on the real tree, because each fixture derives its
 // own floors — the conformity reader's finding 1; the quiet verdicts are held by the probes' declared sets.
-const floors = deriveFloors(files, SCAN_ROOT);
+const floors = deriveFloors(files, SCAN_ROOT, cache);
 // **M3 — the walk covers the tree.** A walk that reads no file has a floor of 1 and fails it.
 if (r.files < floors.M3.floor) fail('M3', `only ${r.files} markdown file(s) were scanned, no more than ` +
   `${floors.M3.from}, so M1 and M2 are true of the walk rather than of the tree`);

@@ -645,8 +645,8 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 const SELF_RAN = (out) => /self-test — /.test(out);
 
 const MIN_PROBES = 44;
-/** The same floor for `META`. */
-const MIN_META = 52;
+/** The same floor for `META` — 55 since W150, which added the cache's three birth provocations. */
+const MIN_META = 55;
 /** And for `SELF`. */
 const MIN_SELF = 7;
 
@@ -887,7 +887,43 @@ const META = [
     (t) => t.replace('    return rewrite ? rewrite(abs, t) : t;', '    return t;'), undefined, ['M5']],
   ['links into a removed path counted ALIVE in memory — the derived tree is not the probe`s',
     'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
-    (t) => t.replace('  const exists = (abs) => !gone(abs) && existsSync(abs);', '  const exists = (abs) => existsSync(abs);')],
+    // **Anchored on the cache's call since W150** — the clause is unchanged: `gone` asked, or not.
+    (t) => t.replace('  const exists = (abs) => !gone(abs) && kindOf(cache, abs) !== null;',
+      '  const exists = (abs) => kindOf(cache, abs) !== null;')],
+  // --- W150: ONE cache shared by the walk and the probe trees, and its birth provocations ---------------
+  // **A cache that ignores `absent` or `rewrite` goes RED** — P31's Retro section 10, the maintainer's
+  // answer adopting proposal B. Each entry is a way a SHARED cache lets one tree's answer reach another, and
+  // each verdict is derived from the order the script makes its four calls: the WALK first, then the probe
+  // trees in `FLOORS` order — "decisions removed", "decisions and plans removed", "upstream stripped of its
+  // anchors". *The order is the mechanism*: a cache that leaked the other way round would leak nothing here.
+  // **And it is why one leak has no entry**: the strip tree's rewritten text WRITTEN BACK to the cache reaches
+  // no later tree, because none runs after it, so it is green on every probe. Moving `M5` first in `FLOORS`
+  // makes it reach the removed trees, and `measured` then sees it — W150's rule 8, `r3` and `r3b`.
+  //
+  // (1) The walk's answer SERVED to a removed path: every link into `doc/decisions`, `doc/plans` and
+  // `doc/questions` was resolved by the walk, so the removed trees count those links ALIVE — the in-memory
+  // tree differs from the probe's fixture, which is W144's `d6` and what `measured` (cmp2) sees.
+  ['the cache answers for a removed path — the walk`s existence served before `absent` is asked',
+    'doc/decisions AND doc/plans removed — the LINK floor, and since W113 the ANCHOR floor too',
+    (t) => t.replace('  const exists = (abs) => !gone(abs) && kindOf(cache, abs) !== null;',
+      '  const exists = (abs) => (cache.kind.has(abs) ? cache.kind.get(abs) !== null : !gone(abs) && kindOf(cache, abs) !== null);')],
+  // (2) A probe tree's removal STORED for the next: the two removed trees mark `doc/decisions`, `doc/plans`
+  // and `doc/questions` as missing in the shared map — but the walk had already filled it, so the stored
+  // answer only reaches a path the walk never asked about. **The strip tree runs last and removes nothing,
+  // and every path it asks about the walk asked first**, so this one is written to overwrite: the removal is
+  // stored whatever the map holds, and the strip tree then counts every link into those paths DEAD.
+  ['a probe tree`s removal STORED in the cache — the strip tree, run last, finds those paths missing',
+    'the anchor-carrying links all removed, so M2 would pass on nothing',
+    (t) => t.replace('  const exists = (abs) => !gone(abs) && kindOf(cache, abs) !== null;',
+      '  const exists = (abs) => { if (gone(abs)) { cache.kind.set(abs, null); return false; } return kindOf(cache, abs) !== null; };')],
+  // (3) The REWRITTEN text cached, so the raw text is served past the strip: the walk cached every file's
+  // raw text first, so the strip tree reads `doc/scheduler-upstream.md` unstripped and measures the whole
+  // walk — its floor is the whole walk's anchored count plus 1, and `M5` fails on the real tree.
+  ['the cache holds the REWRITTEN text — the walk`s raw text served past the strip',
+    'an EXTERNAL link that does not resolve locally — must trip nothing',
+    (t) => t.replace('    const t = rawText(cache, abs);\n    return rewrite ? rewrite(abs, t) : t;',
+      "    if (!cache.text.has(abs)) cache.text.set(abs, rewrite ? rewrite(abs, readFileSync(abs, 'utf8')) : readFileSync(abs, 'utf8'));\n    return cache.text.get(abs);"),
+    undefined, ['M5']],
   ['M9 disabled',
     'a link to a markdown file the walk does not read — M9',
     (t) => t.replace("for (const d of r.unwalked) fail('M9', d);", "for (const d of []) fail('M9', d);")],
