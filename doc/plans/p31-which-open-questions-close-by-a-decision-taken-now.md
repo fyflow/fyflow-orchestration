@@ -581,6 +581,10 @@ check-markdown timing in `dev-dist/p31r-25787/` (copies only, never the tree), a
   provocation (section 5 rule 7): a cache that ignores `absent` or `rewrite` goes red. It keeps the
   self-test's comparison of each tree probe's fixture with the in-memory measure. It measures the
   `gate:item` wall before and after, because section 5's ~7 minutes is an estimate.
+- **2026-10-09: B landed at W150**, an item outside any plan (doc/work-items/w150-check-markdown-reads-each-file-once.md).
+  It took one run of the check from 1425 to 519 ms, with a byte-identical report. `gate:item`'s self-test
+  wall went from 1351.5 to 885.1 s, about 7.8 minutes saved against the estimate's 7, and the markdown
+  lane went from 1335.2 to 727.8 s. Most of the saving is the existence cache, not the read cache.
 - **C — the next plan's declaration says it**: an item that edits `scripts/check-register*.mjs`,
   `scripts/state.mjs` or `doc/questions/README.md` runs `gate:full`, as v0.29 says. It does not run
   `gate:item` and then the register lane after it.
