@@ -1212,6 +1212,14 @@ export class Driver {
   private replay: Replay | null = null;
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */
   private failed = false;
+  /**
+   * **A resume refused because its replay regenerated a STOP in the lost tail** — `RN-R23`: that driver keeps the
+   * stopped run (its `header`, so a store may take its checkpoint) and still hears NOTHING. `onEvent`'s other test,
+   * *started with no header*, cannot see it, because this refusal is the one that keeps its header: until W151 such a
+   * driver built by hand appended and delivered a later settlement and reported an unminted id (W151's conformity
+   * reader, finding 6). A driver stopped by `failRun` on a run it started is NOT deaf: `OR-R10` stops routing only.
+   */
+  private deaf = false;
 
   /** The registry's node types, normalised once (W59; entries the document or the class form since W65). Read at dispatch for the type's retry default and its settings defaults. */
   private readonly nodeTypes: ReadonlyMap<string, NodeTypeEntry>;
@@ -1569,6 +1577,7 @@ export class Driver {
     // **`stopped` regenerated PAST the stored events** — the lost tail held the run's stop. The
     // elements were delivered (the consumer's store now holds the stop); the run is not resumed.
     if (this.failed) {
+      this.deaf = true;
       const at = this.inputs.findIndex((e) => e.kind === 'stopped');
       throw new ResumeRefused('stopped', at,
         `ResumeRefused (stopped): replaying run "${this.runId}" regenerated its STOP at position ${at} — past the ${stored.length} ` +
@@ -1800,7 +1809,7 @@ export class Driver {
     // refused holds no run (`header` reset, `started` set) and yet stayed subscribed, so a settlement under its run id was
     // appended to its partial replay and delivered to its `onFoldInput`, another reached `onRunFailure` as `UndispatchedTask`,
     // and with `failed` unset it would even have ROUTED (the adequacy reader's a22). It has no run to refuse anything for.
-    if (this.started && this.header === null) return;
+    if (this.deaf || (this.started && this.header === null)) return;
     // The listener boundary is also the FAILURE boundary: a throw from here is
     // discarded by dispatchEvent, so it is caught, reported, and the run stops.
     //

@@ -208,6 +208,7 @@ const DECLARED_CASES = [
   'RN-R24 — a dead join the replay regenerates is reported only past the stored length',
   'RN-R23 — the header refusals, each by name, before anything is replayed or dispatched',
   'RN-R23 — a run STOPPED in the lost tail is refused, after that tail is delivered',
+  'RN-R23 — a run STOPPED in the lost tail, once refused, is DEAF: nothing appended, delivered or reported after',
   'RN-R22 — `resumed` is appended after the replay and BEFORE the first re-dispatch, and the fold records it',
   'RN-R22 — a resumed run resumes again: a stored `resumed` is fed and CHECKED',
   'RN-R24 — the consumer is handed the DRIVER`s positions from the stored length on, and every callback only past it',
@@ -487,6 +488,41 @@ suite(SUITE, (test) => {
     equal(failures, ['UnresolvedMapArity'], 'and onRunFailure hears it once — it is past the stored events');
     equal(s.added.length, 0, 'nothing was re-dispatched');
     equal(d.checkpoint().events.at(-1)?.kind, 'stopped', 'the driver holds the STOPPED run, whose checkpoint a store may take');
+  });
+
+  // **W151 — the maintainer's YES, 2026-10-09 (W151's conformity reader, finding 6).** The case above shows the tail-stop
+  // refusal keeps the STOPPED run; RN-R23 says the same refused driver *hears nothing from its scheduler: no settlement
+  // is appended, routed, delivered or reported, and resolve() is refused*. It kept its header, so the `started` with no
+  // header test in `onEvent` did not cover it, and a driver built by hand went on hearing.
+  test('RN-R23 — a run STOPPED in the lost tail, once refused, is DEAF: nothing appended, delivered or reported after', () => {
+    const s0 = new FakeScheduler();
+    const inside: Checkpoint[] = [];
+    const ref = {} as { d: Driver };
+    ref.d = plainDriver(INGEST_THEN_MAP, 'tl', s0, { onFoldInput: (_i: FoldInput, seq: number) => { inside[seq] = ref.d.checkpoint(); } });
+    ref.d.start({});
+    s0.settle('tl:ingest:-:0', 'done', { result: { nothing: true } });
+    const cut = inside[ref.d.foldInputs().findIndex((e) => e.kind === 'outcome')]!;
+    const delivered: number[] = [];
+    const failures: string[] = [];
+    const unminted: unknown[] = [];
+    const s = new FakeScheduler();
+    const d = plainDriver(INGEST_THEN_MAP, 'tl', s, {
+      onFoldInput: (_i: FoldInput, seq: number) => { delivered.push(seq); },
+      onRunFailure: (f: { kind: string }) => { failures.push(f.kind); },
+      onUnmintedTask: (u: { taskId: unknown }) => { unminted.push(u.taskId); },
+    });
+    equal(refusal(() => d.resume(cut)).reason, 'stopped', 'the ARRANGEMENT: refused as `stopped`, its lost tail regenerated a stop');
+    const held = d.checkpoint();
+    const after = { delivered: delivered.length, failures: failures.length };
+    // Under its run id: the task the replay settled, again; a task it never dispatched; and an id nobody minted.
+    s.settle('tl:ingest:-:0', 'done', { result: { nothing: true } });
+    s.settle('tl:zz:-:0', 'done', { result: {} });
+    s.settle('tl:ingest:-:0', 'failed', { error: 'boom' });
+    s.settle('nightly-cleanup', 'done', { result: {} });
+    equal(d.checkpoint(), held, 'nothing was appended: the stopped run`s checkpoint is the one it was refused with');
+    equal([delivered.length, failures.length, unminted], [after.delivered, after.failures, []],
+      'nothing was delivered, nothing reached onRunFailure, and the unminted id was not reported — the driver hears nothing');
+    equal(s.added.length, 0, 'and nothing was handed to a scheduler');
   });
 
   test('RN-R22 — `resumed` is appended after the replay and BEFORE the first re-dispatch, and the fold records it', () => {
