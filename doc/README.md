@@ -1,8 +1,8 @@
 # Documentation index
 
 **What each document here is for, and where the state of the work is.** This file is the
-documentation index: a reading order, one status row per document, the sibling map, and the plan
-history. **It does NOT carry an item's status**, and it is no longer part of the record step —
+documentation index: a reading order, one status row per document, the sibling map, and where the plan
+history is. **It does NOT carry an item's status**, and it is no longer part of the record step —
 [Q466](questions/q466.md), answered by the maintainer at
 [W115](work-items/w115-the-exit-artifact-and-the-budget-met.md), which
 [ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md) consequence 4 left
@@ -42,7 +42,7 @@ declares. **A claim about an item's status is read from that item's own file, ne
 | [plans/p15-...](plans/p15-what-a-run-retains-and-what-a-result-may-be.md) | *What does a run retain, and what may a result be?* — [Q19](questions/q19.md) and [Q22](questions/q22.md) as one question, and the first plan to take the measured run both rows have asked for since P1. Its *what was measured* section is the part to read: **half of a region-bearing run's footprint is a second copy nothing reads**, and removing it is invisible to every rung |
 | [../AGENTS.md](../AGENTS.md) | **The consumer reference** — the only document that describes this library from outside. Every snippet in it is typechecked by the gate, and each one tagged `run` is executed (`scripts/check-docs.mjs`); a snippet tagged `check` is typechecked only |
 | [questions/](questions/README.md), and [open-questions.md](open-questions.md), a pointer to it | The register, **one file per question** since [W116](work-items/w116-a-question-is-a-file.md); look one up with `npm run q -- Q17`. **`npm run check:register` holds each file's FORMAT** ([ADR 0079](decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md)); **nothing checks that what a question says is true**, which W5 found the hard way ([Q43](questions/q43.md)) |
-| [scheduler-upstream.md](scheduler-upstream.md) | The wants from `fyflow-scheduler`, one `S` id each, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us**: every want states what we do without it. Each want's state is in its own section there |
+| [scheduler-upstream.md](scheduler-upstream.md) | The wants from `fyflow-scheduler`, one `S` id each, plus **the S-id map for reading `RESOURCE_EVENTS_PLAN.md`**, which uses `fyflow-react-components`' numbering. **Nothing here blocks us**: every want states what we do without it. Each want's state is in that file's Index |
 | [../spec/README.md](../spec/README.md) | **The normative layer.** The normative documents beside this index, with their hand-written examples and numbered rules, an example corpus, and the rules for changing it. Five written by W1, [run-state.md](../spec/run-state.md) by W2. |
 | [work-items/](work-items/) | One file per work item, each carrying its own `**Status:**` line, which `npm run state` reads — **an item's status is not written here** ([ADR 0077](decisions/0077-an-item-does-not-write-its-status-into-claude-md.md), [Q466](questions/q466.md)). **W7, W8 and W11 are skipped and never reissued; W10 is held for `check-owns.mjs`**, which P2's retro named. [TEMPLATE.md](work-items/TEMPLATE.md) |
 
@@ -55,7 +55,7 @@ declares. **A claim about an item's status is read from that item's own file, ne
 | `workflow.md` | live | **Its version is its own header's, and which retro made each version is its version index**; each retro's argument is in its own plan's Record and in `git` ([P27](plans/p27-what-a-register-row-is.md) stop-and-ask (b)). *This cell was a v0.3-v0.12 changelog, stale since v0.13, and is deleted to `git`* |
 | `decisions/` | all accepted | **0023 carries the second in-place *Correction* in this repository** — its rule 1 placed the ownership test after `normalizeEvent`, which made its own rule 3 false. **Which rules a later ADR supersedes is derived**: `npm run adr -- --fields id,superseded-by`. **0003 answers Q4** and carries this repository’s first in-place *Correction*. **W5 wrote 0013-0015 and is the first item to spend its whole ADR block** — one from measuring an environment, one from a gate that could not otherwise be written honestly, one from a register entry being wrong |
 | `plans/p1` | **complete — question answered and exit artifact produced** | All five work items built. [ADR 0003](decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) is the answer; `examples/l6.ts` is the artifact. **279 assertions in five runtimes plus 72 at L6 in two.** W4 used Q42-Q50 and ADR 0003; **W5 used Q51-Q52 and ADR 0013-0015** |
-| `scheduler-upstream.md` | live | **Each want states its own state and what we do without it**, in its own section there, so no count of them is written here. **[S9](scheduler-upstream.md) is the only item this register has ever raised, and it was fixed the same day** in `fyflow-scheduler` 0.5.2 ([W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)) |
+| `scheduler-upstream.md` | live | **Each want's state is in that file's Index**, so no count of them is written here. **[S9](scheduler-upstream.md) is the only item this register has ever raised, and it was fixed the same day** in `fyflow-scheduler` 0.5.2 ([W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)) |
 | `spec/` | live | `flow-definition`, `task-id`, `outcome-record`, `join-policy`, `runtime-targets`, `run-state`, plus `README.md` itself — and a registry DOCUMENT |
 
 ## Sibling repositories
@@ -92,12 +92,12 @@ Deliberate overlaps, which are coordination points rather than duplication:
 
 ## Plan history
 
-Each plan is one file under `doc/plans/`, carrying its own question, `**Status:**` line, Record and
-Retro; `npm run state` reads the last five plans' state from their own files. **No per-plan table is
+Each plan is one file under `doc/plans/`, carrying its own question and its own account of how it
+ended; `npm run state` reads the most recent plans' state from their own files. **No per-plan table is
 kept here.** The one that stood here, one row per closed plan from P1 to P26, stopped behind the plans
 it indexed three times — at P5, at P9 and at P26 — and once this file left the record step
 ([Q466](questions/q466.md)) nothing was obliged to append to it. Every row summarised a plan file that
-still carries its own Record, so it is deleted to `git` (its last form is at `4f284ff`):
+still exists, so it is deleted to `git` (its last form is at `2b48046`, already public):
 [P27](plans/p27-what-a-register-row-is.md) decision 2, *a cut thing keeps a one-line entry and its
 commit*, and decision 4, *a fact the tree COMPUTES is not written down* — the list of plans is the
 directory.
