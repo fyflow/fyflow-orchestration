@@ -10824,6 +10824,9 @@ if (rowCosts.length !== EXPECTED.length) {
     // `RN-R13`'s fourth term, empty on every run here since no L6 row runs a gate — and the gate types, whose
     // `fn` is a FUNCTION, SKIPPED as `languages` is. A declared exception of W93's, seeded by P24.
     'gateMemory', 'gateTypes',
+    // `deaf` since W151 (`RN-R23`): one boolean, set when a resume is refused for a stop regenerated in the lost tail —
+    // WALKED beside `failed` and `started`, and false on every run here. Found by W151's gate after the maintainer's YES.
+    'deaf',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

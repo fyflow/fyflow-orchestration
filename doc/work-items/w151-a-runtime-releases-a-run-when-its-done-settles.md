@@ -84,7 +84,7 @@ here before the edit.
 | file | the edit | why |
 |---|---|---|
 | test/definition/l4-corpus.test.ts | one suite name appended to `LATE_SUITES` | output (4) is a new suite in test/scheduler/runtime.test.ts, and the L1 census holds suite names both ways |
-| src/driver/driver.ts, and a case in test/driver/*.test.ts | **YES, the maintainer, 2026-10-09, written here before the edit (workflow section 1 rule 6):** the guard in `onEvent` that makes a refused resume's driver deaf, widened to the refusal whose replay regenerated a stop in the lost tail, plus a test that such a hand-built Driver hears nothing afterwards. **Its drag, found by the control:** test/driver/retention.test.ts's `DRIVER_FIELDS` gains `deaf` (RN-R13's field ratchet), and test/definition/l4-corpus.test.ts's W89 census moves 19 to 20 | the conformity reader's finding 6: `onEvent`'s guard is `started && header === null`, and that refusal keeps its header (the stopped run's checkpoint is one a store may take), so the driver appended and reported later events — against RN-R23's *a refused resume ... hears nothing from its scheduler* |
+| src/driver/driver.ts, and a case in test/driver/*.test.ts | **YES, the maintainer, 2026-10-09, written here before the edit (workflow section 1 rule 6):** the guard in `onEvent` that makes a refused resume's driver deaf, widened to the refusal whose replay regenerated a stop in the lost tail, plus a test that such a hand-built Driver hears nothing afterwards. **Its drag, found by the control:** test/driver/retention.test.ts's `DRIVER_FIELDS` gains `deaf` (RN-R13's field ratchet), and test/definition/l4-corpus.test.ts's W89 census moves 19 to 20; and examples/l6.ts's own `DRIVER_FIELDS` (the cross-row byte-walk clause, the same ratchet at L6, as W89 and W93 each declared) gains `deaf` — found by the gate after the answers, which exited 1 on that clause alone. No L6 count moves | the conformity reader's finding 6: `onEvent`'s guard is `started && header === null`, and that refusal keeps its header (the stopped run's checkpoint is one a store may take), so the driver appended and reported later events — against RN-R23's *a refused resume ... hears nothing from its scheduler* |
 | examples/l6.ts, examples/README.md | `DECLARED_TOTAL` / `DECLARED_RUNS` and the two X10 copies — **ONLY if** an L6 row has to move | none is planned: no L6 row reads a finished run through the runtime as far as the declaration step found. A row that DOES is a stop (the brief's third), not an exception |
 
 **The record step** (section 1 rule 5): `doc/questions/q513.md` (resolved), `doc/decisions/**` — ADR
@@ -321,7 +321,8 @@ all three the same day.
      unchanged, `onFoldInput` and `onRunFailure` hear nothing, `onUnmintedTask` reports nothing, nothing is added.
    - **Its drag**, found by the control and added to the YES row: test/driver/retention.test.ts's `DRIVER_FIELDS`
      gains `deaf` (RN-R13's field ratchet, a boolean walked beside `failed` and `started`), and
-     test/definition/l4-corpus.test.ts's W89 census moves 19 to 20.
+     test/definition/l4-corpus.test.ts's W89 census moves 19 to 20. A third, examples/l6.ts's `DRIVER_FIELDS`, was
+     found by the gate after the answers (EXIT 1 on the cross-row byte-walk clause alone, `gate-answers.log`) and added.
    - **Provoked** (dev-dist/w151-27362/rule8-deaf.mjs, 6 probes, 0 against declaration, digest `31b641c9cd4ef83b`
      identical): c0 GREEN; **d-revert** (the guard back to its pre-W151 form) and **d-unset** (the flag never set)
      each CAUGHT by the new case alone; **d-too-wide** (deaf on every failed run, `failRun` included) CAUGHT by
