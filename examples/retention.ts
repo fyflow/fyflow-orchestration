@@ -10,6 +10,8 @@
  * node --expose-gc examples/retention.ts scale 200 4 1
  * node --expose-gc examples/retention.ts topology 800 4 1      # W142: runtime.start alone, shared
  * node --expose-gc examples/retention.ts topology 800 4 1 own  # and on a runtime per run
+ * node --expose-gc examples/retention.ts release 1000 4 4       # W151: runs one after another, nothing kept
+ * node --expose-gc examples/retention.ts release 1000 4 4 keep-tasks  # with the scheduler's own retention in
  * deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env \
  *   --v8-flags=--expose-gc examples/retention.ts
  * ```
@@ -482,7 +484,92 @@ async function topology(runs: number, arity: number, sizeKib: number, shared: bo
   }
 }
 
-if (argv[0] === 'scale') {
+// --- the release mode: N runs ONE AFTER ANOTHER on one runtime, and no handle kept -------------------------
+
+/**
+ * **What a long-lived runtime keeps of the runs it FINISHED — W151, and it is ADR 0091's measurement.**
+ *
+ * ADR 0088 rule 5 kept every driver in the runtime's router for the runtime's life, so a runtime that ran runs one
+ * after another and kept no handle grew by ~160 KiB a finished run, unbounded and unreachable through its surface
+ * (Q513). ADR 0091 releases a run's driver when its `done` settles and keeps only its id. This mode runs `runs` runs of
+ * `map-alias` SEQUENTIALLY on one runtime through `runtime.start` and `await done`, keeps nothing of any of them, and
+ * weighs the heap after a forced collection.
+ *
+ * **The scheduler's own retention is taken out, by default, and it is not this library's.** A `FyflowScheduler` keeps
+ * every completed task in `scheduler.tasks` unless `maxCompletedTasks` caps it (its `AGENTS.md`), and `createRuntime`
+ * builds its scheduler with no cap — so a figure with the tasks in is the library's AND the scheduler's. This file
+ * may not build a scheduler by hand (`l6.ts`'s construction clause), so after each run the mode deletes that run's
+ * dispatched ids from `scheduler.tasks`, which is what the cap does. `keep-tasks` leaves them, and is the figure Q513
+ * was measured with.
+ *
+ * **What it refuses to print a figure for** — a run that did not complete; a heap observer that produced nothing; and
+ * **a CONTROL that fails where the claim would be vacuous**: after the sequential runs it starts `HELD` more and KEEPS
+ * their handles, and the heap must grow by at least `HELD_FLOOR` bytes per held run. An instrument that cannot see a
+ * driver someone holds cannot see one the runtime holds either, and *flat* from it would mean nothing. **The claim**,
+ * evicting the scheduler's tasks: the growth per finished run, from the warm-up mark to the end, is at most
+ * `PER_RUN_CEILING` bytes — the run id ADR 0091 rule 2 keeps, and the allocator's noise.
+ */
+const HELD = 50;
+const HELD_FLOOR = 16 * 1024;
+const PER_RUN_CEILING = 1024;
+async function release(runs: number, arity: number, sizeKib: number, evict: boolean): Promise<void> {
+  const rt = buildRuntime(false, [MAL], undefined, 0);
+  const payload = payloadFor(arity, sizeKib);
+  const wrong: string[] = [];
+  const warm = Math.max(1, Math.floor(runs / 10));
+  const marks = new Map<number, number | null>();
+  marks.set(0, heapUsed());
+  let tasks = 0;
+  for (let i = 0; i < runs; i++) {
+    if (i === warm) marks.set(warm, heapUsed());
+    const { driver, done } = rt.start(MAL, payload, { joinPolicy: POLICIES['live-token'] });
+    const state = await done;
+    if (state.outcome !== 'completed') wrong.push(`run ${i}: outcome ${state.outcome}`);
+    const ids = driver.dispatchedIds();
+    tasks += ids.length;
+    if (evict) for (const id of ids) rt.scheduler.tasks.delete(id);
+  }
+  marks.set(runs, heapUsed());
+  // THE CONTROL: the same runs, their handles KEPT.
+  const held = [];
+  for (let i = 0; i < HELD; i++) {
+    const h = rt.start(MAL, payload, { joinPolicy: POLICIES['live-token'] });
+    await h.done;
+    if (evict) for (const id of h.driver.dispatchedIds()) rt.scheduler.tasks.delete(id);
+    held.push(h);
+  }
+  const heldEnd = heapUsed();
+  await rt.shutdown();
+  const w0 = marks.get(warm) ?? null;
+  const w1 = marks.get(runs) ?? null;
+  if (w0 === null || w1 === null || heldEnd === null) wrong.push('observer 2 produced nothing — run with --expose-gc');
+  const perRun = w0 === null || w1 === null ? null : (w1 - w0) / (runs - warm);
+  const perHeld = w1 === null || heldEnd === null ? null : (heldEnd - w1) / HELD;
+  if (perHeld !== null && perHeld < HELD_FLOOR) {
+    wrong.push(`CONTROL: ${HELD} held handles grew the heap by ${(perHeld / 1024).toFixed(1)} KiB each, under ${HELD_FLOOR / 1024} KiB — the instrument cannot see a held run`);
+  }
+  if (evict && perRun !== null && perRun > PER_RUN_CEILING) {
+    wrong.push(`ADR 0091: the heap grew by ${perRun.toFixed(0)} B per FINISHED run, over ${PER_RUN_CEILING} B — the runtime is keeping finished runs`);
+  }
+  console.log(`\n  release — ${runs} runs one after another on ONE runtime, no handle kept, on ${runtime}\n`);
+  console.log(`    arity ${arity}, result ~${sizeKib} KiB, ${tasks} tasks, scheduler.tasks ${evict ? 'EVICTED per run' : 'KEPT (keep-tasks)'}`);
+  for (const [n, h] of [...marks].sort(([a], [b]) => a - b)) {
+    const b0 = marks.get(0) ?? null;
+    console.log(`    after ${String(n).padStart(6)} runs   ${h === null || b0 === null ? '     n/a' : `${mib(h - b0)} MiB above base`}`);
+  }
+  console.log(`    per finished run          ${perRun === null ? 'n/a' : `${perRun.toFixed(0)} B`}  (warm-up mark ${warm} to ${runs})`);
+  console.log(`    per HELD run (control)    ${perHeld === null ? 'n/a' : `${(perHeld / 1024).toFixed(1)} KiB`}  (${held.length} handles kept)\n`);
+  if (wrong.length) {
+    console.log('  FAIL  the relation this mode exists to report does not hold:');
+    for (const w of wrong.slice(0, 8)) console.log(`    ${w}`);
+    console.log('');
+    exit(1);
+  }
+}
+
+if (argv[0] === 'release') {
+  await release(Number(argv[1] ?? 1000), Number(argv[2] ?? 4), Number(argv[3] ?? 4), argv[4] !== 'keep-tasks');
+} else if (argv[0] === 'scale') {
   await scale(Number(argv[1] ?? 100), Number(argv[2] ?? 4), Number(argv[3] ?? 1), argv[4] !== 'own');
 } else if (argv[0] === 'topology') {
   await topology(Number(argv[1] ?? 100), Number(argv[2] ?? 4), Number(argv[3] ?? 1), argv[4] !== 'own');

@@ -511,14 +511,15 @@ export function createRuntime(
 
   let minted = 0;
   /**
-   * **Every run id a driver of THIS runtime holds** — `RN-R25`, [Q364](../../doc/questions/q364.md), P23 stop-and-ask (b),
-   * answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's**, and that is a
-   * measurement rather than caution: a driver subscribes at construction and `SchedulerLike` has no way to unsubscribe it —
-   * since [ADR 0088](../../doc/decisions/0088-a-runtime-routes-each-settlement-to-the-driver-holding-its-run-id.md) to this
-   * runtime's ROUTER, which keeps it for the runtime's life (rule 5) — so a completed run's driver still hears every
-   * settlement carrying its run id: a second run under that id would have its settlements appended to the first run's
-   * sequence, and the first run's checkpoint would change after it completed. So *live* here means *a driver of this runtime
-   * holds it*, which is every run it started or resumed.
+   * **Every run id a driver of THIS runtime was ever built for** — `RN-R25`, [Q364](../../doc/questions/q364.md), P23
+   * stop-and-ask (b), answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's —
+   * and since [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
+   * it is the ONLY thing the runtime keeps of a finished run.** The router drops the driver when `done` settles (rule 1) and
+   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `stopped` run by construction —
+   * whose settlements carry its id: a second run under it would be handed them, refused by `ID-R4` tier 2, or accepted as
+   * its own where it minted the same task id. *(This said the id was held because a completed run's driver still HEARD every
+   * settlement under it, and its checkpoint changed after it completed — true until ADR 0091, which released that driver.)*
+   * One string per run ever opened: the residue W151 measured.
    */
   const inUse = new Set<string>();
   /** **ADR 0088** — every driver this runtime builds hears its own run's settlements and no other run's. */
@@ -582,9 +583,9 @@ export function createRuntime(
     }
     const runId = startOptions.runId ?? mint();
     if (inUse.has(runId)) {
-      throw new RunIdInUse(runId, `run id ${q(runId)} is in use on this runtime — a driver it built holds it, and a driver cannot be detached ` +
-        'from its scheduler, so a second run under that id would be heard by both (RN-R25, Q364). Resume or start it on a fresh runtime, ' +
-        'or omit runId and let the runtime mint one (the counter skips ids in use).');
+      throw new RunIdInUse(runId, `run id ${q(runId)} is in use on this runtime — it built a driver for that id, and keeps the id after ` +
+        'the run ends, so the late settlements of the first run cannot reach a second one (RN-R25, Q364, ADR 0091). Resume or start it ' +
+        'on a fresh runtime, or omit runId and let the runtime mint one (the counter skips ids in use).');
     }
 
     // **The run's END, kept by the RUNTIME** — ADR 0058, W77, Q293. `done` resolves with the
@@ -633,10 +634,16 @@ export function createRuntime(
     // `isTerminal` the instant an input arrives can report a terminal state with the run still
     // going — `AGENTS.md`'s own prose calls this "load-bearing rather than decoration" and
     // `RN-R12` claims its predicate at rest. Stepping, by contrast, is correct at every prefix.
+    //
+    // **And the same moment RELEASES the run** — [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
+    // rule 1. Once `done` has the terminal state, nothing the runtime holds may reach this driver: the router drops it, and
+    // `inUse` keeps the id (rule 2). Here and not on the input: a mid-turn prefix can read terminal while the run is live
+    // (`RN-R12`), and `awaiting_action` never reaches this line (rule 3).
     const settleIfTerminal = () => {
       if (settled || !isTerminal(state)) return;
       settled = true;
       settle(state);
+      router.release(runId);
     };
     // **The whole of `registry`, spread** — which is what makes decision 14's claim true: a
     // consumer who writes this line by hand passes the same object, `predicates` included.
@@ -680,11 +687,18 @@ export function createRuntime(
       ...(startOptions.onNonconformingResult !== undefined ? { onNonconformingResult: startOptions.onNonconformingResult } : {}),
       ...(startOptions.now !== undefined ? { now: startOptions.now } : {}),
     });
-    // **In use from the moment the driver EXISTS**, before it starts or resumes: it has subscribed, and a `start` refused by
-    // `FD-R4` or a resume refused mid-replay leaves a driver that still hears this run id (RN-R25).
+    // **In use from the moment the driver EXISTS**, before it starts or resumes, and for the runtime's life (RN-R25).
     inUse.add(runId);
-    if (from === null) driver.start(payload);
-    else driver.resume(from);
+    // **An opening that THROWS releases the driver too** — ADR 0091 rule 4. A resume refused during its replay is spent and
+    // deaf (`RN-R23`) and its `done` never settles, so `settleIfTerminal` would never release it; a start `FD-R4` refused
+    // is released here, and its `done` then finds nothing left to release. The id stays in use either way.
+    try {
+      if (from === null) driver.start(payload);
+      else driver.resume(from);
+    } catch (e) {
+      router.release(runId);
+      throw e;
+    }
     // **The header is the DRIVER's, read back — not assembled here from `flow`, `payload` and
     // `runId`** (ADR 0064 rule 5, P23 decision 4). Assembling it would agree on every field but
     // one: the entry payload would be the caller's own object, which the caller can still mutate.
@@ -704,7 +718,16 @@ export function createRuntime(
  * Then (rule 4): a run id some driver here holds goes to that run's listeners and to no other; a run id none holds goes
  * nowhere, which is what every driver's tier 1 did with it; and an id that does not parse — or is not a string — goes to
  * EVERY driver subscribed to that event, in subscription order, so each still reports it through `onUnmintedTask` under
- * its own run id (ADR 0027 rule 3). Nothing is ever removed (rule 5, `RN-R25`).
+ * its own run id (ADR 0027 rule 3).
+ *
+ * **`release(runId)` is the one removal, and it removes a DRIVER, never a subscription** —
+ * [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md),
+ * which amends ADR 0088 rule 5 (*a driver stays in the routing for the runtime's life*). The run's `byRun` entry goes, and
+ * its listeners are filtered out of each `every` list it filed in — copy-on-write, so a broadcast already iterating a list
+ * finishes on the list it read. A list left EMPTY stays in `every`: its presence is what says the scheduler is already
+ * subscribed to that name (rule 2), and deleting it would subscribe the scheduler again on the next run's first listener.
+ * After it, a settlement under that run id is rule 4's second row — parses, no driver holds it — and goes nowhere.
+ * Idempotent: a run id with nothing filed releases nothing.
  *
  * **Why `parseTaskId` and not the cheaper `split(':')[0]`.** `pc:ingest:x:0` has a run-id-shaped first segment and does
  * not parse: split would route it to `pc` alone and every other driver would stop reporting it. L6's second pair row
@@ -721,7 +744,7 @@ export function createRuntime(
  * that calls listeners directly — took the process down: the throw that used to unwind to the double's caller became an
  * uncaught exception.)*
  */
-function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): SchedulerLike } {
+function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): SchedulerLike; release(runId: string): void } {
   type Listener = (e: object) => void;
   /** run id -> event name -> the listeners filed under it. */
   const byRun = new Map<string, Map<string, Listener[]>>();
@@ -767,6 +790,15 @@ function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): Sc
           if (all === undefined) scheduler.addEventListener(name, deliver(name));
         },
       };
+    },
+    release(runId) {
+      const mine = byRun.get(runId);
+      if (mine === undefined) return;
+      byRun.delete(runId);
+      for (const [name, listeners] of mine) {
+        const gone = new Set(listeners);
+        every.set(name, (every.get(name) ?? []).filter((l) => !gone.has(l)));
+      }
     },
   };
 }

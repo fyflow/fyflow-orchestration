@@ -13,7 +13,9 @@ resolves: Q244
 # ADR 0088 — A runtime routes each settlement to the driver holding its run id, and broadcasts only an id no driver minted
 
 **Status:** accepted — P31 decision 2, the maintainer's direction for [Q244](../questions/q244.md)
-(2026-10-07), written and measured by W142. *`resolves` was filled at W142's record step, with Q244's
+(2026-10-07), written and measured by W142. **Rule 5 amended 2026-10-09 by
+[ADR 0091](0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)**: a run's driver
+leaves the routing when its `done` settles, and its run id stays in use. *`resolves` was filled at W142's record step, with Q244's
 `resolved-by`: `check:register`'s `R8` compares the two both ways, so the one could not be written before
 the other.*
 
@@ -73,7 +75,12 @@ to its prediction-3 stop — and W55's command reads 68.0 MiB and 868 ms at N = 
    | parses, and no driver of this runtime holds its run id | **no driver** — silently, which is what every driver's tier 1 did with it before |
    | does not parse, or is not a string | **every driver of this runtime subscribed to that event**, in the order they subscribed — so each still reports it through `onUnmintedTask` under its own run id ([ADR 0027](0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md) rule 3, `ID-R5`) |
 
-5. **A driver stays in the routing for the runtime's life.** `RN-R25` is unchanged: *in use means
+5. ***Amended 2026-10-09 by [ADR 0091](0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
+   (W151, the maintainer's decision on Q513): a driver stays in the routing until its run's `done` settles, or the
+   `start` or `resume` that built it throws; then the runtime releases it and keeps only its run id. The rule as
+   written below is the text this decision shipped with, kept because the id it states is still in use for the
+   runtime's life, and because what it says of a finished run's driver is what that ADR withdraws.***
+   **A driver stays in the routing for the runtime's life.** `RN-R25` is unchanged: *in use means
    held by a driver*, and a finished run's driver, or a refused start's, still hears every settlement
    under its id — and stays among *every driver* for rule 4's third row. A refused resume's driver is
    HANDED them too and, spent, does nothing with them (`RN-R23`: it *hears nothing* in the sense that
@@ -144,5 +151,5 @@ stays true of the seam: on a runtime, the `EventTarget` behind the view is the s
 | **Filter by run id at the top of `Driver.onEvent`** | still N listener calls per settlement — the cost is the delivery, not the check |
 | **Route inside `Driver`, through a registry keyed by scheduler** | module-level state shared by every driver in a process, and the driver would learn about other drivers, which `SchedulerLike`'s two methods deliberately do not let it do |
 | **Read the run id with `split(':')[0]`** | cheaper, and wrong: `pc:ingest:x:0` has a run-id-shaped first segment and does not parse, so it would be routed to `pc` alone and `pd` would stop reporting it — ADR 0027 rule 3 lost for every driver but one |
-| **Drop the routing entry when a run reaches a terminal outcome** | changes `RN-R25`'s text (*a finished run's driver still hears every settlement under its id*), and a run that is `awaiting_action` is not terminal and must keep hearing |
+| **Drop the routing entry when a run reaches a terminal outcome** | changes `RN-R25`'s text (*a finished run's driver still hears every settlement under its id*), and a run that is `awaiting_action` is not terminal and must keep hearing. ***Taken 2026-10-09, in a narrower form**, by [ADR 0091](0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md): at `done`'s quiescent point rather than at an outcome read mid-turn, with `RN-R25`'s text moved at v0.14, and `awaiting_action` not released* |
 | **Route in the scheduler** | the scheduler has no notion of a run, and the fix is writable here — so it is not an upstream want ([doc/scheduler-upstream.md](../scheduler-upstream.md) takes a want with the workaround stated, and this IS the workaround) |

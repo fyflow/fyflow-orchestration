@@ -87,7 +87,7 @@ const DECLARED_CASES = [
   'runtime.resume hands back { driver, done, header }: the stored header, and done the WHOLE run',
   'the consumer`s onFoldInput receives the DRIVER`s positions from the stored length on — where a runtime counter would start at 0',
   'RN-R25 — a run id in use is refused whatever its run is doing, and the minted counter skips it',
-  'RN-R25 — why a finished run`s id stays in use: its driver still hears every settlement under it',
+  'RN-R25 v0.14 — a finished run`s id stays in use after its driver is RELEASED: the collision built by hand no longer reaches it',
   'RN-R25 — a checkpoint refused by its HEADER costs no run id; one refused mid-replay does',
   '`done` is the WHOLE run across three processes — a store carrying an earlier resume, a tail delivered first',
   'every case this suite declares actually ran — a deleted case fails naming itself',
@@ -157,7 +157,11 @@ suite(SUITE, (test) => {
     ok(resumed.driver.runId === 'r2', 'the CONTROL: the resumed run itself is untouched by any of it');
   });
 
-  test('RN-R25 — why a finished run`s id stays in use: its driver still hears every settlement under it', async () => {
+  // **This case said the opposite until W151** — *why a finished run's id stays in use: its driver still hears every
+  // settlement under it*, the finished run's sequence GROWING under the collision built by hand. ADR 0091 releases that
+  // driver when its `done` settles, so RN-R25 v0.14 withdraws the reason and keeps the refusal: the sequence stays as it
+  // was, the hand-built driver hears what it hears, and the runtime still refuses the id.
+  test('RN-R25 v0.14 — a finished run`s id stays in use after its driver is RELEASED: the collision built by hand no longer reaches it', async () => {
     const s = seams();
     const r = runtimeOn(s);
     const h = r.start(LINEAR, {}, { runId: 'q' });
@@ -169,9 +173,10 @@ suite(SUITE, (test) => {
     const second = new Driver(LINEAR, { ...r.registry, runId: 'q', scheduler: r.scheduler, joinPolicy: liveToken, onRunFailure: () => {} });
     second.start({ again: true });
     s.settle('q:a:-:0', { a: 'the second run' });
-    ok(h.driver.foldInputs().length > finished,
-      `the FINISHED run's sequence grew from ${finished} to ${h.driver.foldInputs().length} — its checkpoint changed after it completed, which is what RunIdInUse refuses`);
-    equal(inUse(() => r.start(LINEAR, {}, { runId: 'q' })).at, 'q', 'and the runtime refuses to build that collision itself');
+    equal(second.foldInputs().filter((i) => i.kind === 'outcome').length, 1, 'the CONTROL: the settlement WAS dispatched, and the hand-built driver took it');
+    equal(h.driver.foldInputs().length, finished,
+      `the FINISHED run's sequence did not grow — released at done, it is handed nothing, so its checkpoint is the one it completed with`);
+    equal(inUse(() => r.start(LINEAR, {}, { runId: 'q' })).at, 'q', 'and the runtime still refuses to build that collision itself');
   });
 
   test('RN-R25 — a checkpoint refused by its HEADER costs no run id; one refused mid-replay does', () => {
