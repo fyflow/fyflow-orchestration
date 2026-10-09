@@ -1,7 +1,7 @@
 # Workflow
 
-**Status:** v0.30 — **run to completion THIRTY times**, by P1 through P30, four of whose retros
-adopted nothing (P8, P25, P28 and P29), which is section 6 pass 3 rule 1's expected verdict rather than
+**Status:** v0.30 — **run to completion THIRTY-ONE times**, by P1 through P31, five of whose retros
+adopted nothing (P8, P25, P28, P29 and P31), which is section 6 pass 3 rule 1's expected verdict rather than
 a failure to run it; v0.29 is the maintainer's answer to P30's proposal, and v0.30 is section 1 rule 6, the maintainer's direction. **Read this before starting any work item.** Paths are relative to the repo root unless they
 are markdown links.
 
