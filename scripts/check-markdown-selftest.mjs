@@ -645,8 +645,8 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 const SELF_RAN = (out) => /self-test — /.test(out);
 
 const MIN_PROBES = 44;
-/** The same floor for `META` — 55 since W150, which added the cache's three birth provocations. */
-const MIN_META = 55;
+/** The same floor for `META` — 56 since W150, which added the cache's four birth provocations. */
+const MIN_META = 56;
 /** And for `SELF`. */
 const MIN_SELF = 7;
 
@@ -898,7 +898,8 @@ const META = [
   // anchors". *The order is the mechanism*: a cache that leaked the other way round would leak nothing here.
   // **And it is why one leak has no entry**: the strip tree's rewritten text WRITTEN BACK to the cache reaches
   // no later tree, because none runs after it, so it is green on every probe. Moving `M5` first in `FLOORS`
-  // makes it reach the removed trees, and `measured` then sees it — W150's rule 8, `r3` and `r3b`.
+  // runs the strip tree second, before "decisions removed" — the one tree it then reaches — and `measured`
+  // sees it: entry (4) below, which is W150's rule 8 `r3b` checked in at its conformity reader's finding 2.
   //
   // (1) The walk's answer SERVED to a removed path: every link into `doc/decisions`, `doc/plans` and
   // `doc/questions` was resolved by the walk, so the removed trees count those links ALIVE — the in-memory
@@ -924,6 +925,16 @@ const META = [
     (t) => t.replace('    const t = rawText(cache, abs);\n    return rewrite ? rewrite(abs, t) : t;',
       "    if (!cache.text.has(abs)) cache.text.set(abs, rewrite ? rewrite(abs, readFileSync(abs, 'utf8')) : readFileSync(abs, 'utf8'));\n    return cache.text.get(abs);"),
     undefined, ['M5']],
+  // (4) The rewritten text WRITTEN BACK, with `M5` moved first in `FLOORS` so a tree runs after the strip:
+  // "decisions removed" then reads `doc/scheduler-upstream.md` stripped, and its in-memory anchored count
+  // falls below its fixture's. A COMPOUND of three edits; without the reorder the write-back is green (above).
+  ['the rewritten text WRITTEN BACK to the cache, with M5 first in FLOORS — a later tree reads the strip',
+    'doc/decisions removed from the tree — the FILE floor, alone',
+    (t) => t.replace('    const t = rawText(cache, abs);\n    return rewrite ? rewrite(abs, t) : t;',
+      '    const t = rawText(cache, abs);\n    const w = rewrite ? rewrite(abs, t) : t;\n    cache.text.set(abs, w);\n    return w;')
+      .replace("  M5: { measure: 'anchored', trees: ['decisions and plans removed', 'upstream stripped of its anchors'] },\n", '')
+      .replace("  M3: { measure: 'files', trees:",
+        "  M5: { measure: 'anchored', trees: ['decisions and plans removed', 'upstream stripped of its anchors'] },\n  M3: { measure: 'files', trees:")],
   ['M9 disabled',
     'a link to a markdown file the walk does not read — M9',
     (t) => t.replace("for (const d of r.unwalked) fail('M9', d);", "for (const d of []) fail('M9', d);")],

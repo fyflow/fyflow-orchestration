@@ -243,8 +243,9 @@ const LINK = /\]\(([^)\s]+)\)/g;
  * walk's answer and a probe tree's removal is never stored for the next; `rewrite` is applied ABOVE it,
  * to the raw text it returns, so a strip is never served to the walk and the walk's text is never served
  * past a strip. Either way round the in-memory tree would differ from the staged one — W144's `d6` —
- * and the self-test's META entries *the cache answers for a removed path*, *a probe tree's removal
- * stored in the cache* and *the rewritten text cached* are its birth provocations.
+ * and the self-test's META entries *the cache answers for a removed path*, *a probe tree`s removal
+ * STORED in the cache*, *the cache holds the REWRITTEN text* and *the rewritten text WRITTEN BACK* are
+ * its birth provocations.
  */
 export function fileCache() {
   return { text: new Map(), kind: new Map() };
