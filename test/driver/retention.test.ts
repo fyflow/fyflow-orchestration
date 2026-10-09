@@ -271,6 +271,9 @@ const DRIVER_FIELDS = [
   // `RN-R13`'s FOURTH term. `gateTypes`: the gate types, normalised once — configuration, in `NOT_RUN_STATE`.
   // The ratchet fired by name on W93's first L1 run, naming both.
   'gateMemory', 'gateTypes',
+  // W151 — `deaf`: one boolean, set when a resume is refused because its replay regenerated a stop in the lost tail
+  // (`RN-R23`). It holds no result; WALKED beside `failed` and `started`. The ratchet fired as designed.
+  'deaf',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

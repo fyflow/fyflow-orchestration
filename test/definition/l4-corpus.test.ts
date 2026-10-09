@@ -701,7 +701,7 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // own `DECLARED_CASES` check with it, and this count does not go with it.
   test('W89`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('W89 — what RESUMING is: RN-R19 to RN-R24'), 19, 'test/driver/resume.test.ts registers its nineteen cases');
+    equal(count('W89 — what RESUMING is: RN-R19 to RN-R24'), 20, 'test/driver/resume.test.ts registers its twenty cases (W151 added the tail-stop DEAF case)');
     equal(count('W89 — resuming through the runtime: runtime.resume, the positions, and run ids in use'), 7, 'test/scheduler/resume.test.ts registers its seven');
   });
 
