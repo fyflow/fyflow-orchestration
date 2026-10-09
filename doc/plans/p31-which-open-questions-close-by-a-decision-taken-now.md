@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** complete — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro is not yet run
+**Status:** complete — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-09 (Retro below) and its proposals wait on the maintainer
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -186,6 +186,8 @@ passes; this section names what the PLAN needs from it.
   sentence, and `scripts/build-browser-tests.mjs`'s one corpus line. Neither is on this plan's W141 row.
 - **One ask is outstanding for the maintainer**: `spec/flow-definition.md` section 2's single-task F1 sentence
   does not reproduce on 0.5.2 (a single task with no retry settles; several tasks, or a retry, hang).
+  *Answered by the maintainer on 2026-10-08: the sentence corrected as `spec/flow-definition.md` v0.29, `b9dd0c8`,
+  its old reading kept. This retro's correction (pass 3 rule 6): the line said outstanding after the answer.*
 - **Counts:** L1-L5 went from 1538 to **1580** in node, deno and chromium; L6 from 2474 / 162 to **2487 / 164**
   in node and deno — the setup-fails block's two runs.
 - **What W145 inherits**: `scripts/build-browser-tests.mjs` gained one corpus line (`src/definition/registry.ts`).
@@ -289,3 +291,284 @@ and the rule-8 passes; this section names what the PLAN needs from it.
 - **The answer to the plan's question**: all twelve of decision 1's questions closed inside this repository, each when
   its fix landed, and a thirteenth with them. Prediction 1 held for every item: seven items, zero questions raised;
   workflow section 1 rule 6 fired in five of the seven items, every time answered rather than raised.
+
+## Retro
+
+*Pass 3 ran on 2026-10-09 over `c47087a`, with the working tree clean before it. Scratch
+`dev-dist/p31r-25787/` (the retro shell's pid). Every figure is read from the items' logs under
+`dev-dist/w140-2595/`, `w142-4000/`, `w141-12912/`, `w145-14690/`, `w144-16309/`, `w143-19571/` and
+`w146-23759/`, and from their Records. Ids in this Retro are bare text, as in the Record. **Proposals
+B-D wait on the maintainer; nothing in `doc/workflow.md`, `CLAUDE.md`, an ADR or `package.json` has
+been edited.***
+
+### 1. Workflow section 1 rule 6 (v0.30): what it did
+
+**Closed and raised, per item**, with every decision put to the maintainer while the item ran. A
+*rule-6 ask* is a widening of `Owns` asked before the edit; an *other stop* is any other mid-item
+question. *Rounds* are distinct answer sittings, read from the Exceptions commits and the Records.
+
+| item | closed | raised | rule-6 asks, each with its answer | other stops, each with its answer | questions | rounds |
+|---|---|---|---|---|---|---|
+| W140 | Q533 | 0 | `test/harness.ts` — **(A)**, `throws` matches `${name}: ${message}`; `test/definition/map.test.ts` comment — YES; `test/driver/nested-regions.test.ts` comment — YES | — | 3 | 2 |
+| W142 | Q244 | 0 | — | prediction 3's stop — **(B)**, route the L6 harness too, which put `examples/run-flow.ts` into `Owns` | 1 | 1 |
+| W141 | Q266, Q283 | 0 | `AGENTS.md` section-20 sentence — YES (A); `scripts/build-browser-tests.mjs` corpus line — YES (B, option 1) | the spec's single-task F1 sentence — corrected as `spec/flow-definition.md` v0.29 (`b9dd0c8`), a spec change of its own | 3 | 2 |
+| W145 | Q541 | 0 | — | — | 0 | 0 |
+| W144 | Q142, Q337, Q487 | 0 | `doc/work-items/TEMPLATE.md` note and `scripts/check-spec-selftest.mjs:31` — YES (one ask, two files) | stop-and-ask (c) — **(A) plus M9**; the ADR note — **(a)**, dated notes, no ADR 0089; Q487 — close it here | 4 | 2 |
+| W143 | Q434, Q437, Q536 | 0 | `scripts/selftest-guards.mjs`, a new shared file — YES (option A) | the +22% wall — **(B)**, nine guard cases in process | 2 | 2 |
+| W146 | Q542, Q508 | 0 | doc/scheduler-upstream.md — **A**: YES; `CLAUDE.md` and `README.md` — **B**: (i) and (ii) YES, (iii) leave doc/decisions/README.md:29; the glossary row — **C (b)** | — | 3 | 1 |
+| **P31** | **13** | **0** | **10 asks, 10 answered, 0 NO** | **6** | **16** | **10** |
+
+**Against P30**: P30 closed 13 and its items raised 4 (Q533, Q536, Q541, Q542; Q534 was raised and
+closed inside it), with **five** mid-plan answers over four items (P30's Retro section 5 (d)). **P31
+closed 13 and raised 0, with sixteen questions in ten sittings over seven items** — about 2.3
+questions per item against P30's 1.25. Open questions went 14 → 2, the two decision 1 put Out.
+
+**Did it work as intended? Yes, on its own measure.** Its trigger was *a unit may open more questions
+than it closes*; no P31 item opened one. **What it cost is the sixteen answers**, every one of which
+blocked a serial plan until it came; how long each wait was is **not measured** — nothing records
+when a question went up, only when its answer was written down.
+
+**Three asks were more than *one simple decision*:**
+
+1. **W146's B** came back in three parts and moved the always-read set: (ii) edited `CLAUDE.md`, which
+   reversed prediction 6. A decision about the always-read set is the maintainer's anyway, so asking
+   was right; it was not *simple*.
+2. **W141's F1 sentence** could not be a rule-6 widening at all: a spec change is its own change
+   (CLAUDE.md, *Working rules*). It was answered the next morning by `b9dd0c8`, and **neither W141's
+   Record nor P31's recorded the answer** — both still said *outstanding*. This retro corrected both
+   (section 9).
+3. **W143's helper** was asked as a widening and was a NEW module that ten self-tests import. The
+   answer was a YES, but the fix was not *small* in rule 6's sense, and rule 6 says such a fix is a
+   question raised.
+
+**And rule 6's NO branch has never run**: ten asks, ten YESes or chosen options. *A question is
+raised only on a NO* is untested. **Verdict: no change.** Each of the three is one occurrence of its
+own kind (pass 3 rule 2).
+
+### 2. Gate cost
+
+**The confirming gate per item**, each `gate:item` or `gate:full` EXIT 0, from the `selftests —`
+summary line of each log. The ladder ahead of it is ~140 s every time (W144 1455 s minus 1316 s;
+W146 2413 s minus 2272 s).
+
+| item | log | self-test wall | serial-equivalent | binding lane |
+|---|---|---|---|---|
+| W139 (for reference) | `w139-1638/item.log` | 845.8 s | 3975.2 s | wiring 832.5 |
+| W140 | `item.log` | 845.0 s | 3940.1 s | wiring 830.8 |
+| W142 | `item.log` | 846.7 s | 3972.9 s | wiring 832.4 |
+| W141 | `item.log` | 879.4 s | 4151.6 s | wiring 863.8 |
+| W145 | `item.log` | 850.7 s | 3967.8 s | wiring 836.6 |
+| W144 | `item.log` | **1316.1 s** | 4660.2 s | **markdown 1302.6** |
+| W143, first form | `item.log` (`0b2d8c3`) | **1600.1 s** | 5332.9 s | markdown 1585.4 |
+| W143, after (B) | `item2.log` (`f722ffa`) | 1277.9 s | 4646.8 s | markdown 1263.0 |
+| W143, the register lane alone after it | `register.log` | 1720 s | — | — |
+| W146 (`gate:full`) | `full.log` | 2272.1 s | 7184.4 s | register 2257.3 |
+
+**Per lane** (s), as the runner prints it, nine lanes in `gate:item`, ten in `gate:full`:
+
+| lane | W140 | W142 | W141 | W145 | W144 | W143 (B) | W146 full |
+|---|---|---|---|---|---|---|---|
+| `check:markdown:selftest` | 614.5 | 622.0 | 648.1 | 622.0 | **1302.6** | **1263.0** | **1385.4** |
+| `check:wiring:selftest` | 830.8 | 832.4 | 863.8 | 836.6 | 851.1 | 845.0 | 895.3 |
+| `check:docs:selftest` | 806.5 | 799.7 | 835.0 | 807.1 | 807.0 | 836.7 | 875.3 |
+| `check:source:selftest` | 775.5 | 785.8 | 817.7 | 790.9 | 787.7 | 730.9 | 768.1 |
+| `lookup:selftest` | 568.3 | 573.3 | 600.1 | 569.8 | 561.5 | 560.8 | 586.9 |
+| `check:spec:selftest` | 150.9 | 159.7 | 171.1 | 149.4 | 159.1 | 171.3 | 177.9 |
+| `check:budget:selftest` | 91.9 | 97.5 | 108.6 | 91.4 | 90.6 | 121.9 | 123.5 |
+| `check:policies:selftest` | 38.8 | 39.7 | 41.4 | 38.4 | 38.8 | 53.1 | 50.8 |
+| `check:workers:selftest` | 48.7 | 48.6 | 50.3 | 48.3 | 48.3 | 49.2 | 49.3 |
+| `check:scheduler:selftest` (alone) | 14.0 | 14.1 | 15.5 | 13.9 | 13.5 | 14.8 | 14.7 |
+| `check:register:selftest` | left out | left out | left out | left out | left out | 1720 alone | 2257.3 |
+
+**What `gate:item` saved, measured.** The counterfactual for each item is `gate:full`'s self-test
+wall; W146's **2272.1 s** is used, the lower of the two P31-era runs (W139's was 2515.8 s).
+
+| item | `gate:item` self-test wall | saved against 2272.1 s |
+|---|---|---|
+| W140, W142, W141, W145 | 845.0 / 846.7 / 879.4 / 850.7 s | **1427 / 1425 / 1393 / 1421 s** (~23.5 min each) |
+| W144 | 1316.1 s | **956 s** (~16 min) |
+| W143 | 1277.9 s, then 1720 s for the register lane alone | **−726 s**: it cost 12 minutes MORE |
+| W146 | ran `gate:full`, the plan's last item | 0 |
+| **P31** | | **5896 s, about 98 minutes** |
+
+P30's retro estimated ~1550 s (26 min) per item. **It measured 1393-1427 s while markdown was not the
+binding lane, and 956 s after.**
+
+- **W143 lost time by following P31 decision 4's wording.** The decision said *runs the register lane
+  too*, so W143 ran it after `gate:item`, one lane after the other: 2998 s against a ~2272 s
+  `gate:full`, in which it runs alongside the others. Workflow v0.29 says *runs `gate:full` too*.
+  The plan's paraphrase cost the difference. *(W143 also paid 1600 s for its first-form gate, which
+  was the measurement behind its stop-and-ask, not a cost of the rule.)*
+- **The markdown lane went up at W144 and stayed up**: about 620 s inside `gate:item` before, then
+  1302.6, 1263.0 and 1385.4 s. It is now `gate:item`'s binding lane, 420-450 s above wiring, so
+  **the gate's wall rose 51-55%** (848 → 1278-1316 s). Alone, it reads 763 s (W144's `st3.log`) and
+  742 s (W143 after (B)), so concurrency adds ~1.7×. **The cause, measured here:**
+  `check-markdown.mjs` since W144 calls `resolveLinks` FOUR times per run: the walk, then once per
+  probe tree in `deriveFloors`. Each call re-reads every file and re-tests every target's existence.
+  The self-test runs the check once per probe and META child, so it pays that factor each time. One
+  machine, five warm samples each, `dev-dist/p31r-25787/`:
+
+  | `node scripts/check-markdown.mjs` on | median | samples (ms) |
+  |---|---|---|
+  | a `git archive` of `fb64b63` (before W144) | **~820 ms** | 1110, 588, 656, 1069, 824 (and 637-1138 in a second set) |
+  | a `git archive` of `HEAD` | **~2130 ms** | 2125, 2210, 1808, 2104, 2921 |
+  | the same, with ONE read cache and ONE `existsSync` cache shared across the four calls (`cache-probe.mjs`) | **~1170 ms** | 1032, 1899, 1510, 1170, 1045 — **report byte-identical** to HEAD's |
+
+- **The register lane did NOT go up.** It read 2502.4 s inside W139's `gate:full` and 1915 s alone
+  before W143. W143 made a SELF child stop at its first red after META, which brought it to 1717-1720 s
+  alone, and it read 2257.3 s inside W146's `gate:full`. **The 1720 against 2257 is the arrangement,
+  not growth** (~1.31× under ten concurrent lanes), which is section 8's own warning that *a per-lane
+  wall measured in one arrangement does not predict the wall in another*. `gate:full`'s self-test
+  wall FELL from 2515.8 s (W139) to 2272.1 s (W146).
+- **W143's guards cost the cheap lanes**: budget 91 → 122 s, policies 39 → 53 s. The four large lanes
+  are flat or lower after (B).
+
+**Yield**: eight confirming gates, **81 lane runs, 0 red**. That is the second plan running with no
+self-test red inside a confirming gate. Every self-test red the Records report came from a lane the
+item itself was editing (section 5 rule 7): W144's markdown, and W143's.
+
+### 3. Rules followed that failed, and the candidates (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by (the rung) | verdict |
+|---|---|---|---|
+| **(a) every item's rule-8 grader mis-declared probes** | FOLLOWED | rule 8's exact-set match, every time; no product defect | **No change** (below) |
+| **(b) heredoc corruption, W143 twice and W146 once** | **BROKEN**: both wrote an edit script through a heredoc against CLAUDE.md's *write the script with the Write tool and run it by path* | W143: `node --check`, and `grep` reporting a binary file. W146: its own no-op controls graded CRASH (23/28), then `node --check`. All before L0 and before any verdict was read | **No change** |
+| **(c) `check:register` R8 refused a `resolved-by` naming ADR 0076 and ADR 0078 at W144**, with the warning in the brief, and P30's W131 the same | FOLLOWED: the check ran at the record step | `check:register` in `gate`, on its first run, before the commit | **No change**: the rung costs seconds and caught both. Prose would be one more thing to read |
+| **(d) W143's first form raised the `gate:item` wall 22%** | FOLLOWED: v0.29 confirming gate | **no rung**. Section 8 sets no budget for proving the checks can fail. The author caught it by comparing with W144's wall, and it went up as a stop-and-ask | **No change**: the stop-and-ask did the work, and (B) stated its loss (guard cases one level less end-to-end) |
+
+**(a) in numbers.** Gradings that came back against their declaration, from each Record:
+
+| item | gradings | against declaration: the DECLARATION's | the CODE's | extra re-run passes |
+|---|---|---|---|---|
+| W140 | 73 | 3 | 0 | 1 (1b) |
+| W142 | 66 | 15 (the Record's count; p-forget twice) | 0 | 2 (1b, 2b) |
+| W141 | 178 | 4 | 0 | 1 |
+| W145 | 48 | 5 probes (p8, p9, t1, t2, r2) | 1 (p14) | 1 (2b) |
+| W144 | 74 | 4, plus 2 RED where a survivor was declared (r7, r7b) | 1 (d6) | 2 |
+| W143 | 135 | 2 (s7, g-wrongb), plus 1 harness abort (wk2) | 0 | 0 |
+| W146 | 76 | **0**: every `must` copied from a failure line SEEN first | 0 | 0, plus 5 CRASH from (b) |
+
+**35 declaration errors in 650 gradings, against P30's 24 over four items.** Each one was caught by
+the exact-set match (section 5 rule 7 (c)). **No re-declaration turned a CAUGHT into a survivor**:
+every Record names each re-declaration and the line it was read from.
+
+**W146 is the one item whose Record says every `must` was copied from a failure line seen BEFORE
+the pass, and it is the one item with zero.** That is one occurrence. It is also what section 5's
+existing (f) row, *graded every pass on its clause's own failure line*, already asks, so it is the
+existing rule followed early, not a second mechanism. **Followed, and it worked, for the second plan
+running; the cost is the extra passes in the table.**
+
+**Rule 5 over P31's other defects**, grouped by who caught them:
+
+| caught by | the defects |
+|---|---|
+| a rung in `gate` | W144's R8 (above); W142's enumerable observer (L6's cross-row byte census); W142's first router taking the L1 process down (L1); W142 breaking W76's binding on the `new Driver` literal (L1); W141's corpus line (`test:browser`, chromium, *fixture not inlined*) |
+| a self-test inside a confirming gate | **0** |
+| the item's own new guard (rule 7 at birth) | W143's Q434 helper found a dead first edit in check-policies-selftest.mjs on its first run |
+| rule 8, the code's | W145 p14 (a rejection handler guarding nothing); W144 d6 (the in-memory tree differing from the real one, every verdict unchanged) |
+| the conformity readers | W141 2 blocking, W143 1 blocking, and the should-fix findings of every item. Sharpest: W141's order of kinds, W143's controls deletable at exit 0, W146's glossary row claiming what ADR 0070 does not say |
+| the adequacy readers (W140-W142) | W141's prototype-key defect (Rl, older than the item, found by construction); W142's unrouted resume (M22); W140's superstring `name` |
+| a measurement, before any rung | W142's harness O(N²) (prediction 3); W141's F1 premise; W143's wall |
+| this retro | two stale claims in the reviewed items' files (section 9) |
+
+**The readers are still the mechanism, for the sixth plan running.** Every defect a rung could have
+caught, a rung in `gate` caught.
+
+### 4. The predictions, scored
+
+| | prediction | measured |
+|---|---|---|
+| 1 | every item closes what it takes and raises at most one | **HELD**: 13 closed, 0 raised, in all seven items |
+| 2 | W142 is the only item needing an ADR | **HELD**: ADR 0088 only. W144 chose dated notes over ADR 0089 |
+| 3 | W142 measures N runs on one scheduler as linear | **HELD after a stop**: the library 6N² → 6N handed events; W55's command linear after (B), 904 ms and 68.0 MiB at N = 800 against 13 652 ms and 879 MiB. **A residual N × 6N walk in `examples/run-flow.ts`'s `poolOfTask`** is stated, not removed (W142, conformity finding 9). It is the harness's, and N = 800 did not show it |
+| 4 | W140 changes no L1-L6 count except its own assertions | **HELD**: 1528 cases unchanged; L6 2465 → 2466 |
+| 5 | W144's derived floors hold through W146's edits | **HELD**: the floors moved with their measures (M3 170 → 171), and with sixty documents added `check:markdown:selftest` EXITed 0 |
+| 6 | the always-read set does not grow | **REVERSED** by W146's B (ii): CLAUDE.md +55 bytes, `check:budget` green |
+
+**On 6, this retro differs from W146's Record.** The Record says it was reversed *by the maintainer's
+decision rather than by its named mechanism*. The named mechanism was *a fix whose only home is one of
+them*, and CLAUDE.md:18's false sentence is exactly that: it lives only in CLAUDE.md. The maintainer's
+YES was rule 6's permission for the edit, **not a different cause**. Five of six held, and the sixth
+was reversed for the reason it named.
+
+### 5. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE.** Rule 6 did what it was adopted to do (section 1);
+`gate:item` saved ~98 minutes (section 2); no rule followed in P31 failed in a way that a new rule
+would fix (section 3).
+
+**B. Recommended, as a WORK ITEM rather than a rule: `check-markdown.mjs` shares one read and one
+existence cache across the walk and its three probe trees.**
+
+- **Replaces**: nothing in `doc/workflow.md`. Inside `resolveLinks`, the per-call reads and existence
+  tests become shared ones.
+- **Saves**: measured on one machine, the check's run falls from ~2130 ms to ~1170 ms with the report
+  byte-identical. If the lane scales with the check's run, `check:markdown:selftest` drops back under
+  wiring, and `gate:item`'s wall falls from ~1280-1316 s to ~850 s: **about 7 minutes per item**.
+  *That scaling is an estimate, not a measurement*. The work item measures it on `gate:item` itself.
+- **Costs**: one small item. It owns `scripts/check-markdown.mjs` and its self-test, with a rule-7
+  provocation at birth: **a cache that ignores `absent` or `rewrite` must go red**.
+- **Would no longer catch**: nothing, if the observer W144 built stays. The risk is W144's d6 class
+  again: an in-memory tree that differs from the real one while every verdict holds. The self-test's
+  per-run comparison of each tree probe's fixture with the in-memory measure (cmp2) is that observer.
+  The cache must sit BELOW `rewrite`, as `cache-probe.mjs` places it.
+
+**C. For the NEXT plan's declaration, not the workflow: an item that edits the register's machinery
+runs `gate:full`, as v0.29 says, not `gate:item` followed by the register lane.**
+
+- **Replaces**: P31 decision 4's paraphrase.
+- **Saves**: ~726 s per such item (W143).
+- **Costs**: nothing.
+- **Would no longer catch**: nothing, because the same eleven lanes run.
+
+**D. Optional, for the maintainer: CLAUDE.md's heredoc count.**
+
+- **The change**: *seven occurrences across three items* → *ten across five* (W143's two and W146's
+  one).
+- **Costs**: about 0 bytes, but it edits the always-read set, which is the maintainer's call.
+- **What leaving it costs**: a stale count. **The warning's prescription is correct and was broken,
+  not followed and failed**, so the count is the only thing that moves.
+
+### 6. Refusals
+
+- **A check over `doc/` — the 30th time, P2-P31.** Section 9's first correction is P31's Record and
+  W141's saying an ask was *outstanding* a day after `b9dd0c8` answered it, and this retro is what
+  found them. W146's six declared survivors (s1-s6) are the same class. The only mechanical observer
+  is a check that prose is true, refused on the row's standing ground.
+- **No other ledger row is re-raised.** Every late file in P31 was asked before its edit, so *an
+  `Owns` pre-declaration rule* has no miscount to answer.
+
+### 7. The overlap
+
+**W140 4, W142 4, W141 3** — the eighty-fourth, eighty-fifth and eighty-sixth measurements, each
+inside the 0-4 band with briefs written apart. W145, W144, W143 and W146 ran one reader each, as
+decision 6 declared, so they took none. **The ordinal is now EIGHTY-SIX and the next measurement is
+the EIGHTY-SEVENTH.** The band's *fifty-nine* stays: P28's and P29's retros held it as the band's
+denominator, not the ordinal.
+
+### 8. Ids
+
+- **Issued**: W140-W146 and ADR 0088. **No Q was issued**.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3):
+  - W147, W148 and W149 CLOSED unissued;
+  - Q553-Q573 SPENT: P31's block of Q553-Q567, W143's Q568-Q570 and W146's Q571-Q573. None exists in
+    the tree;
+  - ADR 0089 SKIPPED.
+
+**The next plan starts at W150, Q574 and ADR 0090.**
+
+*`npm run state` before this section printed the tree's W147 / Q553 / ADR 0089 against the ledger's
+W140 / Q553 / ADR 0088, the ledger being W139's sentence. P30's retro chose W139 on the same rule, and
+P29's chose W128-W130 and ADR 0083-0084.*
+
+### 9. What the retro changed and ran
+
+| file | why |
+|---|---|
+| this plan | the Status line; W141's *one ask is outstanding* bullet in the Record, given its answer (pass 3 rule 6); this Retro |
+| doc/work-items/w141-… | its *One ask outstanding* bullet, given the same answer (pass 3 rule 6) |
+| doc/work-items/w146-… | *an eighth occurrence* annotated as the tenth, counting W143's two (pass 3 rule 6) |
+
+Ran, each redirected with `$?` read in the same command: `npm run state` (before and after), the
+check-markdown timing in `dev-dist/p31r-25787/` (copies only, never the tree), and on the final tree
+`check:markdown`, `check:register` and `npm run gate`.

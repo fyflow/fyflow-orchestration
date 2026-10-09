@@ -324,5 +324,7 @@ check that changes a verdict, not one that adds a refusal.
 - **One ask outstanding, put to the caller rather than raised**: `spec/flow-definition.md` section 2's
   single-task F1 sentence (*the task stays `pending` with `attempts: 0` …*) does not reproduce on 0.5.2 —
   correct the sentence to the measured mechanism (several tasks on a failing worker, or a retry), or leave it
-  as F1's historical measurement. A spec text, so a change of its own.
+  as F1's historical measurement. A spec text, so a change of its own. *Answered on 2026-10-08: the sentence
+  corrected, its old reading kept, as `spec/flow-definition.md` v0.29 (`b9dd0c8`) — P31's retro, which
+  corrected this line under workflow section 6 pass 3 rule 6.*
 - **Stated limits, not questions**: Ri / Rh above.
