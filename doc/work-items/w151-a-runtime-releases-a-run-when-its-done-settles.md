@@ -1,6 +1,6 @@
 # W151 — A runtime releases a run when its `done` settles: the driver and its routing entries go, the run id stays (Q513, ADR 0091)
 
-**Status:** in progress — declared 2026-10-09 on `bb612da`, before any file under `Owns` was edited.
+**Status:** done 2026-10-09 — see the Record. Declared on `bb612da` (committed `282427a`), before any file under `Owns` was edited.
 **Plan:** none — an item outside any plan, on W98's, W139's and W150's precedent. Its source is the
 maintainer's decision of 2026-10-09 on Q513 (*release on done*), taken after the main session measured
 one long-lived runtime keeping every finished run.
@@ -141,4 +141,169 @@ and `README.md` if it carries a copy of anything moved.
 
 ## Record
 
-*Filled in when the item is done.*
+*Filled in 2026-10-09 on `1159ccb`, the tree the confirming gate ran on, held still from rule 8's last pass to the gate.*
+Scratch is dev-dist/w151-27362/ (this item's shell pid); every log and script named below is there. Node v24.20.0 by
+`fnm use 24` in every shell. Every rung was redirected and its EXIT read in the same command, never piped. Ids are bare
+text, as the header says.
+
+### Gate
+
+| command | EXIT | reading |
+|---|---|---|
+| `npm run gate:item > dev-dist/w151-27362/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `1159ccb`, after both readers' fixes and rule 8's last pass |
+| — L0 (lint, typecheck) | 0 | inside the gate |
+| — L1-L5 | 0 | node, deno and chromium; the W151 suite's **twelve** cases in one new suite named in `LATE_SUITES`, and two existing cases rewritten (below) |
+| — L6 | 0 | **2487** assertions, unchanged: no L6 row reads a finished run through the runtime, so `DECLARED_TOTAL`, `DECLARED_RUNS` and examples/README.md were not touched (the declared exception row was not used) |
+| — self-tests | 0 | `check:register:selftest` left out (workflow v0.29); this item edits none of the files that bring it back |
+
+L7 did not run: no person looked at a trace.
+
+### The heap, before and after — the same command, two trees
+
+`node --expose-gc dev-dist/w151-27362/q513-measure.ts 2000 4` (the main session's script, copied byte for byte):
+map-alias run sequentially on one runtime, arity 4, ~4 KiB results, no handle kept, heap above base after two
+forced collections.
+
+| finished runs | 100 | 250 | 500 | 1000 | 1500 | 2000 |
+|---|---|---|---|---|---|---|
+| **before**, `bb612da` (`before.log`) | 17.51 | 41.53 | 81.34 | 160.91 | 240.57 | 319.81 MiB |
+| **after**, `e45646e` (`after.log`) | 5.19 | 10.56 | 19.42 | 37.04 | 54.96 | 72.54 MiB |
+
+**About 160 KiB a run before; about 37 KiB a run after, and the 37 KiB is the SCHEDULER's**, not this library's: a
+`FyflowScheduler` keeps every completed task in `scheduler.tasks` unless `maxCompletedTasks` caps it, and
+`createRuntime` builds it uncapped. The second observer separates the two —
+`node --expose-gc examples/retention.ts release N 4 4 [keep-tasks]` (W151's new mode, which deletes each finished
+run's tasks from `scheduler.tasks` unless told to keep them):
+
+| | per finished run | held-handle control |
+|---|---|---|
+| `release 1000 4 4 keep-tasks` | 37 497 B | 177.4 KiB per held run |
+| `release 1000 4 4` (tasks evicted) | 433-486 B over four runs | 141.8 KiB |
+| `release 2000 4 4` | **26 B** | 141.6 KiB |
+
+**The library's own residue, with no scheduler at all** (`residue.ts`, the seam): **79 B per finished run at 20 000
+runs** (140 B at 5 000), of which a `Set` of such ids alone is **57 B per id**. That is ADR 0091 rule 2's one string per
+run. So the heap is flat in finished runs for what the RUNTIME holds; the scheduler's share is named in ADR 0091's
+Context, AGENTS.md section 12 and below as an ask.
+
+### Outputs
+
+| | output | where | what fails without it |
+|---|---|---|---|
+| (1) | the before figure, and what holds a finished run | `before.log`; ADR 0091's Context table (`byRun`, `every`, `inUse`) | — a measurement |
+| (2) | ADR 0091 | doc/decisions/0091-*.md | `check:register` (front matter, R6, R8 with Q513); the rule (3)-(5) are graded against |
+| (3) | the release | src/scheduler/runtime.ts: `settleIfTerminal`, `openRun`'s `try`/`catch`, `settlementRouter.release` | p-keep, p-keep-every, p-keep-byrun, p-mid-turn, p-throw-keep, p-wrong-run, p-release-all, p-empty-delete, d-first-name, d-last-name, a-M21, a-M22, a-M23, a-M24, a-M20 (all CAUGHT) |
+| (4) | the W151 suite (twelve cases) and the two rewritten cases | test/scheduler/runtime.test.ts, test/scheduler/resume.test.ts; the suite's name in test/definition/l4-corpus.test.ts | every probe in (3), and p-drop-id, p-drop-id-throw, p-id-after-start, p-release-parked, p-release-running; b-instrument (the `handed` instrument made blind: 13 cases fail) |
+| (5) | the after figure; the `release` mode | above; examples/retention.ts | b-rel-control (its control fires), p-keep / d-last-name / a-M21 (its predicate fires); b-rel-off is its declared ceiling |
+| (6) | RN-R25 v0.14, spec/README.md's column; AGENTS.md sections 9, 12 and 18 | spec/, AGENTS.md | `check:spec` C8 (version column) and `check:docs` EXIT 0 |
+| (7) | Q513 resolved | doc/questions/q513.md; ADR 0091's `resolves` | `check:register` R8 both ways |
+
+### Exceptions, reconciled to `git status --short` and `git diff --name-only bb612da..HEAD` to the path
+
+**Eleven paths** in `git diff --name-only bb612da..1159ccb`, and `git status --short` was empty when the gate ran.
+- **Owns: 10.** src/scheduler/runtime.ts, test/scheduler/runtime.test.ts, test/scheduler/resume.test.ts,
+  examples/retention.ts, doc/decisions/0091-*.md, doc/decisions/0088-*.md (the dated notes), AGENTS.md (sections 9, 12
+  and 18 — what a runtime keeps and how long a run's id lives), spec/run-state.md and spec/README.md (v0.14, its own
+  `spec:` commit), and this file.
+- **Exceptions: 1, declared at the start.** test/definition/l4-corpus.test.ts, one `LATE_SUITES` name. The second
+  row (l6.ts and examples/README.md) was **not used**: L6 stayed at 2487.
+- **Record step: 3.** doc/questions/q513.md (resolved), ADR 0091's `resolves`, and a dated note on ADR 0065 (fact 5
+  and its rejected alternative rest on the measurement ADR 0091 withdraws). README.md was not edited: it carries no copy
+  of anything this item moved.
+- **Not edited, on purpose:** src/driver/driver.ts (outside Owns; its two *cannot be detached* comments are still true
+  of a Driver), doc/questions/q371.md (asked, below).
+- **Re-runs after the record step**, because it changed files the checks read: `check:register`, `check:markdown`, `check:budget`, `check:docs` and `check:spec` each EXIT 0, then `npm run gate` EXIT 0 (`gate-final.log`) on the tree with the Record and the record step in it.
+
+### Rule 8 — an observe pass, two graded passes, the last on the tree that shipped
+
+dev-dist/w151-27362/rule8.mjs, adapted from W142's: an anchor must match ONCE in the CURRENT text and the edit must
+change it, else the probe aborts and undoes; each touched file is restored to its FIRST snapshot and compared back byte
+for byte; a digest over every tracked and untracked-unignored file before and after; node 24 asserted; a no-op control
+`c0`, a CRASH grader `g-crash` and a WRONG-REASON grader `g-wrong`; every `must` copied from a failure line an observe
+pass printed (`--observe` runs the set ungraded). Rungs: L1-L5 in node (`t`), the runtime suite alone (`trt`), the
+release mode at 1000 runs (`rel`), the refused-resume heap observer (`rr`, dev-dist/w151-27362/refused-resumes.ts), L6.
+
+```
+pass 0  (observe) 22 probes                                         digest 6645b645c00efeca IDENTICAL
+pass 1            22 probes: 22 as declared, 0 against declaration  digest 6645b645c00efeca IDENTICAL
+pass 2  (observe) 31 probes, after the readers' fixes
+pass 2            31 probes: 31 as declared, 0 against declaration  digest 39148d6a78901110 IDENTICAL
+```
+
+**What the observe pass changed in the set before it was graded:** c0's release rung FAILED at 300 runs (1721 B a run
+on correct code — a constant spread over too few runs), so the rung runs 1000; and p-mid-turn was caught at L1-L5 only
+by a HANG (exit 13, W88's case) before the W151 suite was reached, so it also runs the runtime suite alone (`trt`),
+where `rule 1's MOMENT` fails by name.
+
+**The probes the brief asked for, by id:** the driver KEPT after done — p-keep, p-keep-every, p-keep-byrun,
+d-first-name, d-last-name, a-M21, a-M23 (the leak returns; the release mode reads ~130 KB a run on each that keeps a
+table); a PARKED or running run released — p-release-parked, p-release-running; the id DROPPED too — p-drop-id,
+p-drop-id-throw, p-id-after-start (RunIdInUse lost). All CAUGHT.
+
+**Declared survivors, by id:** a-M06 (release before `settle`), a-M15 (`every` filtered in place), a-M17 (the `settled`
+guard removed) — each EQUIVALENT, with the adequacy reader's reason in the probe; b-rel-off — the release mode's own
+predicate off, a declared ceiling (a measurement, not a rung; L1 is the route). **CRASH-graded, by id:** g-crash (the
+grader control) and a-M16 (the release's guard removed: a TypeError out of a microtask, no named failure — the
+adequacy reader's own grading).
+
+### The readers — fresh contexts, ADR and spec first, the tree still, briefs written apart
+
+brief-conformity.md and brief-adequacy.md. Both ran on `e45646e`, after rule 8's pass 1; `git status` stayed clean.
+
+**Conformity** (8 findings: 3 should-fix, 5 notes, no blocking; ID-R4, ID-R5, OR-R10 and RN-R23 byte-identical to
+`bb612da`, RN-R25's refusal set unchanged; every expected value it checked derives from ADR 0091 or the spec).
+1. ADR 0091 credited the router with the whole ~160 KiB; ~37 KiB is `scheduler.tasks`. **Fixed** in the Context and
+   rule 2, and the Q19 consequence qualified.
+2. ADR 0091 named W89's collision as tier 2; it was `ID-R1` (`DuplicateTaskId`). **Fixed.**
+3. Three stale sentences in owned files (runtime.ts `resume`, the W142 suite's doc, a resume.test message). **Fixed.**
+4. Stale sentences outside Owns: AGENTS.md's `RunIdInUse` definition (**fixed** — AGENTS.md is owned where it says
+   how long a run lives); src/driver/driver.ts:345 and :1544 (*nothing can detach it*) — **left**: still true of a
+   Driver, and the id is still spent; outside Owns. ADR 0065 — the record step's note. Q371 — **asked** (below).
+5. ADR 0091's reading of ADR 0058's *the runtime keeps*. **Fixed.**
+6. A pre-existing RN-R23 deviation in src/driver/driver.ts: a hand-built driver whose resume is refused by a stop
+   regenerated in the tail is not deaf. Not W151's code; W151 makes the runtime path hold. **Asked** (below).
+7. Rule 4's resume doors untested. **Fixed** with the adequacy reader's M03 (the same subject).
+8. Q513 not yet closed — the record step.
+
+**Adequacy** (24 mutations in an isolated `cp -r` copy at C:\Users\matij\Documents\dev\w151-adequacy-28150, node_modules
+copied; `find -type l` and the ReparsePoint scan empty before and after; the copy left in place): 15 killed, 5
+survived, 3 equivalent, 1 crashed; seven constructed inputs.
+- **M03** (a resume refused mid-replay never released), **M22** (a failed run kept), **M24** (a resumed run kept),
+  **M21 / M23** (only `task.completed` released), **M20** (order after a release) — **all fixed** by four new cases
+  (the refused-resume door through a PROTOTYPE instrument, a failed and a resumed run, every event name, one shared
+  order log), and each checked back in as a probe (a-M20 to a-M24; M03 is p-throw-keep-resume, now caught at L1 too).
+- **The release mode failed at 300 runs on correct code.** **Fixed**: it refuses to grade fewer than 900 runs past its
+  warm-up mark.
+- M05 caught by a hang in the full ladder — **stated** (the rule-8 rung `trt` is the named route).
+- M16 a crash — **graded CRASH** (a-M16).
+- C6, a settlement in the same synchronous turn as the terminal input is handed and can still move the outcome —
+  **stated** in ADR 0091 (rule 1's moment).
+
+**The overlap is TWO shared subjects, the eighty-seventh measurement:** (1) rule 4's resume door untested
+(conformity 7; adequacy M03); (2) the scheduler's share of the heap figure (conformity 1; adequacy's release-mode
+finding, which is the same constant seen from the measuring side). The briefs were written apart and named no shared
+obligation.
+
+### What broke
+
+1. **The first heap observer measured a pending microtask queue.** refused-resumes.ts read 77 KiB per refusal with the
+   fix in, because the loop was synchronous and every run's `settleIfTerminal` microtask still held its driver at the
+   weighing. A macrotask before the heap read fixed it; the bisect is leak-bisect.ts.
+2. **The release mode's ceiling was graded at a run count where a constant reads as a per-run cost**: the observe
+   pass's control and the adequacy reader both caught it.
+3. **A prototype instrument cannot see a driver whose instance `onEvent` is already shadowed** — the first version of
+   the refused-resume case read `[]` for the live run.
+
+### What this taught
+
+- **A heap figure taken through a runtime is the library's AND the scheduler's.** Q513's 160 KiB was 123 + 37.
+- **An observer of a run's release must outlast the run's microtasks**, or it weighs the queue.
+
+### Questions closed and raised (workflow section 1 rule 6)
+
+- **Closed: Q513**, `resolved-by` naming ADR 0091, whose `resolves` lists it.
+- **Raised: none.** Q577-Q579 are unissued. Three ASKS go up instead, each a decision this item may not take (rule 6;
+  the brief's stop-and-ask): Q371's closing on ADR 0091 rule 2; the RN-R23 deviation in src/driver/driver.ts; and
+  `createRuntime`'s uncapped scheduler (the remaining ~37 KiB a finished run).
+- **Ids.** Issued: W151 and ADR 0091. Q577-Q579 were reserved and are SPENT, unused. **The next plan starts at W152,
+  Q580 and ADR 0092.**

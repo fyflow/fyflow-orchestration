@@ -7,7 +7,7 @@ item: W151
 raised-by: Q513
 supersedes: ""
 amends: ADR 0088 rule 5
-resolves: ""
+resolves: Q513
 ---
 
 # ADR 0091 — A runtime releases a run when its `done` settles, and keeps only its run id
@@ -152,7 +152,7 @@ O(live runs) per release, against an unbounded heap. One `string` per run ever o
 
 | | why not |
 |---|---|
-| **Keep every driver for the runtime's life, and document it** (ADR 0088 rule 5 as written) | ~160 KiB per finished run, linear and unbounded, and unreachable: no member of `Runtime` reads a past run, so it is memory with no postmortem value. A consumer's only remedy would be a runtime per batch of runs, which gives up the shared pools P18 decision 10 put on the runtime |
+| **Keep every driver for the runtime's life, and document it** (ADR 0088 rule 5 as written) | ~123 KiB per finished run in the router (of Q513's ~160), linear and unbounded, and unreachable: no member of `Runtime` reads a past run, so it is memory with no postmortem value. A consumer's only remedy would be a runtime per batch of runs, which gives up the shared pools P18 decision 10 put on the runtime |
 | **Keep them, with a lookup and a clear-up action** (`runtime.runs`, `runtime.release(runId)`) | two new `Runtime` members, and the default is still the leak: a consumer that never calls the clear-up grows without bound. Everything a lookup would return is already on the `RunHandle` the caller chose to keep or drop |
 | **Free the run id with the driver** | `RunIdInUse` lost for a finished run: a second run under the id is handed the first run's late settlements and, where it mints the same task id, accepts them as its own; the scheduler overwrites a reused task id (Q13). Rule 2's reason |
 | **Release at the first input that folds to a terminal outcome** | mid-turn prefixes read terminal while the run is live — 7 of 14 prefixes of a real `fanout-join` run (`RN-R12`'s quiescence block) — so a live run would lose its routing between a settlement and the dispatch it causes |

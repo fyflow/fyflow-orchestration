@@ -16,6 +16,13 @@ resolves: Q38
 stop-and-asks (a)-(c), taken by [W89](../work-items/w89-what-resuming-is.md); [Q15](../questions/q15.md)'s
 second half, [Q364](../questions/q364.md)
 
+***Noted 2026-10-09, W151:** fact 5 below (a finished run's driver still hears its run id, its sequence growing) is
+true of the tree it was measured on and false since
+[ADR 0091](0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md), which releases a run's
+driver when its `done` settles. Rule 9 stands as written — the id is still in use for the runtime's life — and so does
+the rejected alternative "freeing a run id when its run finishes", now for ADR 0091 rule 2's reason (a run can end with
+tasks in flight whose settlements carry its id) rather than fact 5's.*
+
 ## Context
 
 [ADR 0064](0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md) says what a
