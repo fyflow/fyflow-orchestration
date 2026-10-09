@@ -15,9 +15,9 @@ ends of the range and corrected the provenance.)*
 Full context: [doc/concept.md](doc/concept.md). Do not re-derive it — read it.
 
 **[AGENTS.md](AGENTS.md) is the consumer reference** — what the library looks like from outside, and
-the only document that does. **Every snippet in it is extracted and executed by `npm run gate`**
-(`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference does. If you change
-the public surface, that check is what tells you the reference is now wrong.
+the only document that does. **Every snippet in it is typechecked by `npm run gate`, each tagged `run`
+executed, each tagged `check` typechecked only** (`scripts/check-docs.mjs`), so it cannot rot the way a hand-maintained reference
+does. If you change the public surface, that check is what tells you the reference is now wrong.
 
 ## Where the work is
 
