@@ -7,7 +7,7 @@ item: W151
 raised-by: Q513
 supersedes: ""
 amends: ADR 0088 rule 5
-resolves: Q513
+resolves: Q513, Q371
 ---
 
 # ADR 0091 — A runtime releases a run when its `done` settles, and keeps only its run id

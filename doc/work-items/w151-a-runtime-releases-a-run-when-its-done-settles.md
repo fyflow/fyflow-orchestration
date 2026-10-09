@@ -211,8 +211,9 @@ Context, AGENTS.md section 12 and below as an ask.
 - **Record step: 3.** doc/questions/q513.md (resolved), ADR 0091's `resolves`, and a dated note on ADR 0065 (fact 5
   and its rejected alternative rest on the measurement ADR 0091 withdraws). README.md was not edited: it carries no copy
   of anything this item moved.
-- **Not edited, on purpose:** src/driver/driver.ts (outside Owns; its two *cannot be detached* comments are still true
-  of a Driver), doc/questions/q371.md (asked, below).
+- **Not edited at the confirming gate, on purpose:** src/driver/driver.ts (outside Owns then; its two *cannot be
+  detached* comments are still true of a Driver) and doc/questions/q371.md (asked). Both moved AFTER the maintainer's
+  answers — the section below.
 - **Re-runs after the record step**, because it changed files the checks read: `check:register`, `check:markdown`, `check:budget`, `check:docs` and `check:spec` each EXIT 0, then `npm run gate` EXIT 0 (`gate-final.log`) on the tree with the Record and the record step in it.
 
 ### Rule 8 — an observe pass, two graded passes, the last on the tree that shipped
@@ -262,7 +263,8 @@ brief-conformity.md and brief-adequacy.md. Both ran on `e45646e`, after rule 8's
    Driver, and the id is still spent; outside Owns. ADR 0065 — the record step's note. Q371 — **asked** (below).
 5. ADR 0091's reading of ADR 0058's *the runtime keeps*. **Fixed.**
 6. A pre-existing RN-R23 deviation in src/driver/driver.ts: a hand-built driver whose resume is refused by a stop
-   regenerated in the tail is not deaf. Not W151's code; W151 makes the runtime path hold. **Asked** (below).
+   regenerated in the tail is not deaf. Not W151's code; W151 makes the runtime path hold. **Asked; the maintainer
+   said FIX IT, and it is fixed** (below).
 7. Rule 4's resume doors untested. **Fixed** with the adequacy reader's M03 (the same subject).
 8. Q513 not yet closed — the record step.
 
@@ -300,11 +302,41 @@ obligation.
 - **A heap figure taken through a runtime is the library's AND the scheduler's.** Q513's 160 KiB was 123 + 37.
 - **An observer of a run's release must outlast the run's microtasks**, or it weighs the queue.
 
+### After the maintainer's three answers (2026-10-09) — the asks, acted on
+
+The Record above was written on `1159ccb`. The three asks went up through the coordinator; the maintainer answered
+all three the same day.
+
+1. **Q371: close it on ADR 0091.** Done — `resolved-by` names ADR 0091 (W151); ADR 0091's `resolves` is
+   `Q513, Q371`. `check:register` EXIT 0 (R8 both ways; the first try wrote `Q513; Q371` and R7 refused the
+   separator, which is `, `).
+2. **The RN-R23 deviation: fix it.** The YES is in Exceptions above, committed (`cf76f19`) before the edit.
+   - **The fix** (`cc23eaf`): a `deaf` flag on `Driver`, set where `resume()` refuses a stop regenerated in the lost
+     tail, and read in `onEvent` beside the old *started with no header* test. That refusal keeps its header — the
+     stopped run's checkpoint is one a store may take — so the old test could not see it.
+   - **The test**, in test/driver/resume.test.ts: `RN-R23 — a run STOPPED in the lost tail, once refused, is DEAF:
+     nothing appended, delivered or reported after`. Expected values from RN-R23's *no settlement is appended,
+     routed, delivered or reported*. A hand-built Driver resumes the existing tail-stop arrangement, then is handed
+     its settled task again (done and failed), a task it never dispatched, and an unminted id: the checkpoint is
+     unchanged, `onFoldInput` and `onRunFailure` hear nothing, `onUnmintedTask` reports nothing, nothing is added.
+   - **Its drag**, found by the control and added to the YES row: test/driver/retention.test.ts's `DRIVER_FIELDS`
+     gains `deaf` (RN-R13's field ratchet, a boolean walked beside `failed` and `started`), and
+     test/definition/l4-corpus.test.ts's W89 census moves 19 to 20.
+   - **Provoked** (dev-dist/w151-27362/rule8-deaf.mjs, 6 probes, 0 against declaration, digest `31b641c9cd4ef83b`
+     identical): c0 GREEN; **d-revert** (the guard back to its pre-W151 form) and **d-unset** (the flag never set)
+     each CAUGHT by the new case alone; **d-too-wide** (deaf on every failed run, `failRun` included) CAUGHT by
+     `the stopped position is the stop's own` — OR-R10 stops routing, not appending; g-wrong graded WRONG; g-crash
+     (a syntax error: 67 suites fail to import, 8 censuses cascade) graded WRONG against a declared catch of the new
+     case, so a breakage cannot pass as a catch.
+3. **The scheduler's cap: document only, no change.** As left: ADR 0091's Context and rule 2, and AGENTS.md section
+   12, name `scheduler.tasks` and `RuntimeOptions.createScheduler`.
+
+**Gate after the answers:** @GATE@
+
 ### Questions closed and raised (workflow section 1 rule 6)
 
-- **Closed: Q513**, `resolved-by` naming ADR 0091, whose `resolves` lists it.
-- **Raised: none.** Q577-Q579 are unissued. Three ASKS go up instead, each a decision this item may not take (rule 6;
-  the brief's stop-and-ask): Q371's closing on ADR 0091 rule 2; the RN-R23 deviation in src/driver/driver.ts; and
-  `createRuntime`'s uncapped scheduler (the remaining ~37 KiB a finished run).
+- **Closed: Q513 and Q371**, each `resolved-by` naming ADR 0091, whose `resolves` lists both.
+- **Raised: none.** Q577-Q579 are unissued. Three ASKS went up instead (rule 6), and the maintainer answered all three
+  on 2026-10-09: close Q371 on ADR 0091; fix the RN-R23 deviation; document the scheduler's cap only.
 - **Ids.** Issued: W151 and ADR 0091. Q577-Q579 were reserved and are SPENT, unused. **The next plan starts at W152,
   Q580 and ADR 0092.**
