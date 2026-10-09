@@ -276,7 +276,8 @@ Rule 8 was re-run (pass 2) with every edit the reader caused checked in.
   the budget and docs runners was written through a heredoc, and their regexes lost every backslash, so every
   grading on them was CRASH. The controls graded CRASH before any probe could be misread as a catch.
 - **The same patch wrote a `\n` in a probe anchor as a REAL newline.** This is CLAUDE.md's heredoc warning, an eighth
-  occurrence; `node --check` caught it before anything ran.
+  occurrence; `node --check` caught it before anything ran. *(P31's retro, pass 3 rule 6: W143's Record reports
+  the same class twice before this, so on CLAUDE.md's seven this patch is the TENTH, not the eighth.)*
 - **W146's first wording copied a fact the tree computes** (*the last five plans*) while deleting such copies. The
   reader found it.
 
