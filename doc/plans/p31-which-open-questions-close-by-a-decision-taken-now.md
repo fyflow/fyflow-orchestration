@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** complete — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-09 (Retro below) and its proposals wait on the maintainer
+**Status:** complete and retro'd 2026-10-09 — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-09 and the maintainer answered A, B and C the same day, declining D (Retro below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -297,9 +297,8 @@ and the rule-8 passes; this section names what the PLAN needs from it.
 *Pass 3 ran on 2026-10-09 over `c47087a`, with the working tree clean before it. Scratch
 `dev-dist/p31r-25787/` (the retro shell's pid). Every figure is read from the items' logs under
 `dev-dist/w140-2595/`, `w142-4000/`, `w141-12912/`, `w145-14690/`, `w144-16309/`, `w143-19571/` and
-`w146-23759/`, and from their Records. Ids in this Retro are bare text, as in the Record. **Proposals
-B-D wait on the maintainer; nothing in `doc/workflow.md`, `CLAUDE.md`, an ADR or `package.json` has
-been edited.***
+`w146-23759/`, and from their Records. Ids in this Retro are bare text, as in the Record. **Sections 1-9
+are the proposal as it went up; section 10 is the maintainer's answer and the edits it allowed.***
 
 ### 1. Workflow section 1 rule 6 (v0.30): what it did
 
@@ -572,3 +571,40 @@ P29's chose W128-W130 and ADR 0083-0084.*
 Ran, each redirected with `$?` read in the same command: `npm run state` (before and after), the
 check-markdown timing in `dev-dist/p31r-25787/` (copies only, never the tree), and on the final tree
 `check:markdown`, `check:register` and `npm run gate`.
+
+### 10. The maintainer's answer, 2026-10-09: A, B and C; D declined
+
+- **A — no change to any rule in `doc/workflow.md`.** v0.30 stands.
+- **B — ADOPTED AS A WORK ITEM, not built here.** `check-markdown.mjs` shares one read cache and one
+  existence cache across its walk and the three probe trees. **It is the first item of the next plan,
+  or an item outside any plan; the maintainer chooses when it starts.** Its gate carries a birth
+  provocation (section 5 rule 7): a cache that ignores `absent` or `rewrite` goes red. It keeps the
+  self-test's comparison of each tree probe's fixture with the in-memory measure. It measures the
+  `gate:item` wall before and after, because section 5's ~7 minutes is an estimate.
+- **C — the next plan's declaration says it**: an item that edits `scripts/check-register*.mjs`,
+  `scripts/state.mjs` or `doc/questions/README.md` runs `gate:full`, as v0.29 says. It does not run
+  `gate:item` and then the register lane after it.
+  - **No workflow text changes. This retro's judgment is that v0.29's wording is ambiguous enough to
+    have contributed.** *runs `gate:full` too* can be read as *in addition to `gate:item`*.
+  - P31 decision 4 paraphrased it as *runs the register lane too*, which is that reading, and W143
+    followed the decision.
+  - The cure is the declaration's sentence, as answered, and not a workflow edit.
+- **D — declined.** `CLAUDE.md` is untouched.
+
+**The held bookkeeping, made in `doc/workflow.md`, one commit each:**
+- the refusal ledger's first row: 30 times, P2-P31;
+- the Status line: THIRTY-ONE times, P1 through P31;
+- section 6: eighty-six, so the next is the EIGHTY-SEVENTH.
+
+**P31 joins the Status line's *adopted nothing* list, which now reads P8, P25, P28, P29 and P31.**
+- The judgment is that the list's sense is *adopted no workflow change*: B is a work item, C is a
+  sentence in a declaration, and neither moves a rule.
+- *One inconsistency, noted and not acted on*: P29 is on the list, yet its retro's option 1 became
+  v0.28. That is the list's own history; this retro does not re-judge it.
+
+**No new version.** `doc/workflow.md` moved only by bookkeeping, and its version index gains no
+entry. This follows P28's retro, which adopted nothing, changed the ordinal and took no version; the
+index runs v0.27 P27, then v0.28 P29.
+
+Ran after the edits, each redirected with `$?` read in the same command: `check:budget` and
+`npm run gate` (`dev-dist/p31r-25787/`).
