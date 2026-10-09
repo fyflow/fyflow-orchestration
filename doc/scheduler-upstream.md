@@ -24,7 +24,7 @@ So `@fyflow/scheduler` **is** on JSR, which `spec/runtime-targets.md` section 1 
 had checked; it is only **0.3.0** that is unpublished, on either. That is what forces
 [ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
 
-**ALL NINE items are now closed, deferred, or declined, and [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+**Every item but [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) is closed, deferred, or declined — S10 is not raised — and [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
 is the ONLY ONE THIS REGISTER HAS EVER RAISED - and it was fixed the same day.** 0.3.0 settled four
 without us asking - S4 implemented, S7 fixed, S8 declined and documented - and S1 was answered
 directly by the maintainer on 2026-08-30. S5 stays deferred with a costless workaround; S2 and S6
@@ -478,7 +478,7 @@ was the one to raise, it was raised on 2026-09-07, and it was FIXED in 0.5.2 the
 *(The paragraph this replaces read *"is the one to raise, and it is ready"*, and the plan it
 described is what was sent: both halves in one report, on the ground that they are the same fact
 about Node's type stripping seen from two sides. It worked, so it is recorded rather than deleted.)*
-**Nothing on this list is now waiting to be raised.**
+**S10 is not raised.**
 
 1. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
    Do not raise it on principle — and P1 is what would produce the number.
