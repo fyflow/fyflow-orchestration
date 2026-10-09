@@ -1381,7 +1381,7 @@ reported, which is why the rule is about the stack:
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
 | `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `stopped` because its replay regenerated a stop in the lost tail: that driver keeps the STOPPED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
-| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — the driver exists and cannot be detached, so that runtime answers the id with `RunIdInUse` from then on; one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — a driver was built for it, so that runtime answers the id with `RunIdInUse` from then on (ADR 0091 keeps the id after it releases the driver); one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -2005,8 +2005,22 @@ not routed, and both are yours to size:
 - **A listener of your own** on `runtime.scheduler` — a dashboard, a logger — hears every event of
   every run. Key it on `detail.id` and do O(1) work per event, or N such listeners are N² again.
 
-A task id that does not parse — work this library did not mint — still reaches EVERY driver, which
-each report it through `onUnmintedTask` (section 9): nobody owns it, so everybody says so.
+A task id that does not parse — work this library did not mint — still reaches EVERY live run's
+driver, which each report it through `onUnmintedTask` (section 9): nobody owns it, so everybody says so.
+
+**A runtime keeps a run until its `done` settles, and then only its run id** —
+[ADR 0091](doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md).
+At that moment the runtime drops the run's driver from its routing, so one long-lived runtime's memory
+is bounded by its LIVE runs plus one id string per run it ever opened. A run that is `running` or
+parked `awaiting_action` is kept — `resolve()` works as before. **The runtime has no way to reach a
+past run, so a postmortem is what YOU keep**: the `RunHandle` (`driver.foldInputs()`, `snapshot()`,
+`checkpoint()`, the `RunState` `done` resolved with), or what your `onFoldInput` stored. Drop the
+handle and the run is gone. After `done`, a released run is handed nothing — not its own run id, not
+an unminted one — so a `stopped` run's tasks still in flight settle into no driver; listen on
+`runtime.scheduler` yourself if you want their results. **The id stays in use**: `start` or `resume`
+naming it on the same runtime throws `RunIdInUse`, because those late settlements carry it. And the
+SCHEDULER keeps every completed task in `scheduler.tasks` unless `maxCompletedTasks` caps it (its own
+`AGENTS.md`); `createRuntime` builds it uncapped, so pass `createScheduler` to cap it.
 
 **The long way, and it is the same objects.** You can build the scheduler yourself and hand the
 `Driver` the registry sets — which is what the runtime does, and what ladder L2-L5 here do with a
@@ -3246,9 +3260,9 @@ await third.shutdown();
   resumable**: the refusal that stopped it would stop it again. A completed or `stuck` run resumes to
   itself and dispatches nothing.
 - **A refused resume may SPEND its run id.** Refused by its header, nothing exists and the id is still
-  free; refused during its replay, the runtime built a driver, and a driver cannot be detached from its
-  scheduler — so that runtime refuses the id with `RunIdInUse` from then on, as it refuses any id a
-  driver of it holds, a finished run's included. Resume on a fresh runtime
+  free; refused during its replay, the runtime built a driver for it — so that runtime refuses the id
+  with `RunIdInUse` from then on, as it refuses any id it ever built a driver for, a finished run's
+  included, long after it released the driver (section 12). Resume on a fresh runtime
   ([Q371](doc/questions/q371.md)).
 - **`shutdown()` is not a kill.** It DRAINS: measured in node and deno, a run one settlement in
   completes inside it, while a retry waiting on its backoff never runs. It waits while tasks are RUNNING

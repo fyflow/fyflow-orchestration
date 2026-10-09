@@ -14,7 +14,7 @@
 import { AssertionError, collected, deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import {
   BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable,
-  LanguageNotBuilt, RuntimeError,
+  LanguageNotBuilt, RunIdInUse, RuntimeError,
 } from '../../src/scheduler/runtime.ts';
 import type { StartOptions } from '../../src/scheduler/runtime.ts';
 import { bootstrap, ENVELOPE_WORKER_URL } from '../../src/scheduler/bootstrap.ts';
@@ -2412,20 +2412,23 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     equal(runs.map((x) => x.failures), [['UndispatchedTask'], [], []], 'r1 stops with UndispatchedTask; r2 and r3 hear nothing of it');
   });
 
-  test('rule 5, RN-R25: a FINISHED run`s driver still hears its own run id', async () => {
+  // **This case said the opposite until W151**: *rule 5, RN-R25: a FINISHED run's driver still hears its own run id* —
+  // handed again after it completed, its sequence growing, and still among every driver for row 3 (the adequacy reader's
+  // M16). ADR 0091 amends rule 5: the runtime RELEASES a run when its `done` settles, so each of those three now reads
+  // the other way, and the W151 suite below carries the rest of the rule.
+  test('rule 5 as ADR 0091 amends it: a FINISHED run`s driver is released — handed nothing more, its own run id nor an unminted one', async () => {
     const { s, runs } = threeRuns();
     s.done('r2:a:-:0');
     const state = await w77Settlement(runs[1]!.done);
     equal(state.outcome, 'completed', 'the CONTROL: r2 finished');
     const before = runs[1]!.driver.foldInputs().length;
     s.done('r2:a:-:0');
-    equal(handedBy(runs), [[], ['r2:a:-:0', 'r2:a:-:0'], []], 'handed again after it completed — the routing keeps it for the runtime`s life');
-    ok(runs[1]!.driver.foldInputs().length > before, 'and its sequence grows, which is RN-R25`s measured reason a run id stays in use');
-    // And it is still among EVERY driver for rule 4 row 3 — a finished run that left the broadcast would stop reporting
-    // what no driver minted, which no other case here sees (the adequacy reader's M16).
+    equal(handedBy(runs), [[], ['r2:a:-:0'], []], 'handed its settlement once, before done, and NOT again after — ADR 0091 rule 1');
+    equal(runs[1]!.driver.foldInputs().length, before, 'so its sequence does not grow after it completed — RN-R25 v0.14');
+    // Rule 4 row 3 reaches every driver the runtime still HOLDS: the two live runs, and not the released r2.
     s.done('after-the-end');
-    equal(runs.map((x) => x.unminted.map((u) => u.taskId)), [['after-the-end'], ['after-the-end'], ['after-the-end']],
-      'the finished r2 still reports an unminted id, as r1 and r3 do');
+    equal(runs.map((x) => x.unminted.map((u) => u.taskId)), [['after-the-end'], [], ['after-the-end']],
+      'an unminted id is reported by the live r1 and r3, and by the finished r2 no longer');
   });
 
   test('rule 7: a Driver built BY HAND on runtime.scheduler is not routed — it subscribes to the scheduler and hears every settlement', () => {
@@ -2452,5 +2455,186 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     r.start(FLOW, { x: 1 }, { runId: 'r2', onUnmintedTask: (u) => { reports.push(`${u.runId} ${String(u.taskId)}`); } });
     throws(() => s.done('nightly-cleanup'), 'escaped', 'the first throw reaches whoever dispatched the event, synchronously, as it did before');
     equal(reports, ['r2 nightly-cleanup'], 'and r2, after r1 in subscription order, was still handed the event and reported it');
+  });
+});
+
+/**
+ * **ADR 0091 — a runtime RELEASES a run when its `done` settles, keeps its run id, and keeps every run that has not
+ * settled** — [W151](../../doc/work-items/w151-a-runtime-releases-a-run-when-its-done-settles.md), ladder L1-L2, over the
+ * W142 suite's scheduler seam and instrument.
+ *
+ * **Every expected value is a rule of ADR 0091 or of a rule it names**: rule 1 (released at `done`'s quiescent point, from
+ * both of the router's tables), rule 2 (the id kept: `RunIdInUse`, the counter skipping it — `RN-R25`), rule 3 (`running`
+ * and `awaiting_action` are not released), rule 4 (an opening that throws is released), rule 5 (ADR 0088 rule 4's second
+ * row for a released id, its third row reaching only live drivers) and rule 6 (a kept handle reads what it read). **What a
+ * released driver is handed is the claim, and it is read at the driver's ENTRY** (`handed`, as the W142 suite reads it): a
+ * settlement the driver then ignores would leave its fold as it is, so only the entry sees a release. The heap — what the
+ * release is FOR — is the second observer, `examples/retention.ts release`, outside the ladder.
+ */
+suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps its run id, and keeps every run that has not settled', (test) => {
+  /** Two task nodes in sequence, so a mid-turn prefix exists: `a` settled and `b` not yet dispatched. */
+  const TWO: FlowDefinition = {
+    flowId: 'two', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'b' }] },
+      { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  /** A turn of the event loop: every microtask queued so far — `settleIfTerminal`'s among them — has run. */
+  const turn = () => new Promise<void>((r) => setTimeout(r, 0));
+  function onRuntime(doc: RegistryDocument = DOC) {
+    const s = routedSeams();
+    const r = createRuntime(doc, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const open = (runId: string | undefined, flow: FlowDefinition = FLOW, extra: StartOptions = {}) => {
+      const unminted: unknown[] = [];
+      const failures: string[] = [];
+      const h = r.start(flow, { x: 1 }, {
+        ...extra,
+        ...(runId !== undefined ? { runId } : {}),
+        onUnmintedTask: (u) => { unminted.push(u.taskId); },
+        onRunFailure: (f) => { failures.push(f.kind); },
+      });
+      return { ...h, unminted, failures, handed: handed(h.driver) };
+    };
+    return { s, r, open };
+  }
+  const inUseAt = (fn: () => unknown): string => {
+    try { fn(); } catch (e) { if (e instanceof RunIdInUse) return e.at; throw e; }
+    throw new AssertionError('expected RunIdInUse, nothing was thrown');
+  };
+
+  test('rule 1: a finished run is released from BOTH tables — its own run id reaches no driver, an unminted id only the live runs', async () => {
+    const { s, open } = onRuntime();
+    const [r1, r2, r3] = [open('r1'), open('r2'), open('r3')];
+    s.done('r1:a:-:0');
+    s.done('r3:a:-:0');
+    equal([(await w77Settlement(r1.done)).outcome, (await w77Settlement(r3.done)).outcome], ['completed', 'completed'],
+      'the ARRANGEMENT: r1 and r3 finished, r2 is running');
+    const lengths = [r1, r3].map((x) => x.driver.foldInputs().length);
+    // `byRun`: a settlement under a released run id — the task it ran, and one it never dispatched.
+    s.done('r1:a:-:0');
+    s.done('r3:b:-:0');
+    // `every`: an id nobody minted.
+    s.done('nightly-cleanup');
+    equal([r1.handed, r2.handed, r3.handed], [['r1:a:-:0'], ['nightly-cleanup'], ['r3:a:-:0']],
+      'r1 and r3 were handed their own settlement before done and NOTHING after; r2, live, the unminted id');
+    equal([r1.unminted, r2.unminted, r3.unminted], [[], ['nightly-cleanup'], []],
+      'so only the live r2 reports what nobody minted (ADR 0088 rule 4 row 3 reaches the drivers the runtime still holds)');
+    equal(r3.failures, [], 'and r3 is not stopped AFTER it completed by its own run id on a task it never dispatched — ID-R4 tier 2 reaches live runs only');
+    equal([r1, r3].map((x) => x.driver.foldInputs().length), lengths, 'neither finished sequence grew');
+    equal([r1, r3].map((x) => fold(x.driver.foldInputs()).outcome), ['completed', 'completed'], 'and both runs are still what done said they were');
+    s.done('r2:a:-:0');
+    equal((await w77Settlement(r2.done)).outcome, 'completed', 'the CONTROL: the live run beside them was routed throughout and completes');
+  });
+
+  test('rule 3: a run that has not settled is NOT released — a running run, and a run parked on a person, which resolve() then completes', async () => {
+    const { s, open } = onRuntime();
+    const running = open('run');
+    const parked = open('park');
+    // A non-optional task out of retries: `task.failed` THEN `task.user_action`, one object (ADR 0007 rule 2).
+    s.emit('task.failed', s.detail('park:a:-:0', 'user_action'));
+    s.emit('task.user_action', s.detail('park:a:-:0', 'user_action'));
+    await turn();
+    equal([fold(running.driver.foldInputs()).outcome, fold(parked.driver.foldInputs()).outcome], ['running', 'awaiting_action'],
+      'the ARRANGEMENT: one run running, one parked — the two outcomes isTerminal calls not terminal');
+    s.done('nightly-cleanup');
+    equal([running.unminted, parked.unminted], [['nightly-cleanup'], ['nightly-cleanup']], 'both are still among every driver after a full turn');
+    ok(parked.driver.resolve('park:a:-:0', 'done', { actor: 'a-person', result: { ok: true } }), 'the person`s resolution is accepted');
+    equal((await w77Settlement(parked.done)).outcome, 'completed', 'and the parked run completes');
+    s.done('run:a:-:0');
+    equal(running.handed, ['nightly-cleanup', 'run:a:-:0'], 'the running run, untouched, was handed its own settlement');
+    equal((await w77Settlement(running.done)).outcome, 'completed', 'and completes');
+  });
+
+  test('rule 1`s MOMENT: released at done`s quiescent point, never at a prefix that reads terminal mid-turn', () => {
+    const { s, open } = onRuntime();
+    const two = open('t', TWO);
+    s.done('t:a:-:0');
+    // The arrangement that makes this case discriminate: the prefix ending at `a`'s outcome, before `b` is dispatched,
+    // READS terminal (`RN-R12`'s quiescence block) — so a release on the first terminal-looking input releases here.
+    const inputs = two.driver.foldInputs();
+    const atA = inputs.findIndex((i) => i.kind === 'outcome');
+    ok(atA >= 0 && isTerminal(fold(inputs.slice(0, atA + 1))),
+      `the ARRANGEMENT: the prefix ending at a's outcome reads ${atA >= 0 ? fold(inputs.slice(0, atA + 1)).outcome : 'nothing'}`);
+    equal(s.added.map((t) => t.id), ['t:a:-:0', 't:b:-:0'], 'and the same turn dispatched b — the run is live');
+    s.done('t:b:-:0');
+    equal(two.handed, ['t:a:-:0', 't:b:-:0'], 'b`s settlement was HANDED: the run was not released mid-turn');
+    equal(fold(two.driver.foldInputs()).outcome, 'completed', 'so the run completes');
+  });
+
+  test('rule 2: a released run`s id stays IN USE — start and resume refuse it, and the minted counter skips it', async () => {
+    const { s, r, open } = onRuntime();
+    const first = open('r1');
+    s.done('r1:a:-:0');
+    equal((await w77Settlement(first.done)).outcome, 'completed', 'the ARRANGEMENT: r1 finished');
+    s.done('probe');
+    equal(first.unminted, [], 'the CONTROL that it IS released: an unminted id no longer reaches it');
+    const before = s.added.length;
+    equal(inUseAt(() => r.start(FLOW, { x: 1 }, { runId: 'r1' })), 'r1', 'a start naming the released id is refused, naming it');
+    equal(inUseAt(() => r.resume(FLOW, first.driver.checkpoint())), 'r1', 'and so is resuming the released run`s own checkpoint on this runtime');
+    equal(s.added.length, before, 'both refused before any driver was built: nothing reached the scheduler');
+    equal(open(undefined).driver.runId, 'r2', 'the minted counter SKIPS the released r1 — a counter that consulted live drivers alone would mint it');
+    const fresh = routedSeams();
+    const elsewhere = createRuntime(DOC, {}, { createPool: fresh.createPool, createScheduler: fresh.createScheduler });
+    equal(elsewhere.resume(FLOW, first.driver.checkpoint()).driver.runId, 'r1', 'and the checkpoint resumes on a FRESH runtime, as RN-R25 says');
+  });
+
+  test('rule 4: an opening that THROWS releases its driver — a start FD-R4 refused hears nothing after, and its id stays in use', () => {
+    const strict = edited((d) => { d.workers!.w!.inputSchema = { type: 'object', required: ['must'] }; });
+    const { s, r } = onRuntime(strict);
+    const reported: unknown[] = [];
+    throws(() => r.start(FLOW, { x: 1 }, { runId: 'bx', onUnmintedTask: (u) => { reported.push(u.taskId); } }), 'BoundaryRefused',
+      'the ARRANGEMENT: FD-R4 refuses this start');
+    s.done('nightly-cleanup');
+    equal(reported, [], 'its driver is not among every driver: before ADR 0091 its tier 0 reported this id, refused run or not');
+    equal(inUseAt(() => r.start(FLOW, { must: 1 }, { runId: 'bx' })), 'bx', 'and its id is in use all the same (RN-R25)');
+  });
+
+  test('a STOPPED run`s task still in flight settles into nobody once done has the stop — and done`s state is unchanged', async () => {
+    const { s, open } = onRuntime();
+    const run = open('r1');
+    // Our run id on a task we never dispatched: `ID-R4` tier 2 stops the run with `a` still in flight.
+    s.done('r1:b:-:0');
+    const state = await w77Settlement(run.done);
+    equal([state.outcome, run.failures], ['stopped', ['UndispatchedTask']], 'the ARRANGEMENT: stopped, with a still running');
+    const length = run.driver.foldInputs().length;
+    s.done('r1:a:-:0');
+    equal(run.handed, ['r1:b:-:0'], 'a`s late settlement was handed to no driver (ADR 0091, its stopped-run consequence)');
+    equal(run.driver.foldInputs().length, length, 'so it is not appended to the stopped run`s sequence, where before ADR 0091 it was');
+    equal(fold(run.driver.foldInputs()), state, 'and the fold of what the run holds is still exactly what done resolved with');
+  });
+
+  test('rule 6: a caller that KEPT its handle reads everything after the release — the sequence, the log, the checkpoint and done', async () => {
+    const { s, open } = onRuntime();
+    const stored: FoldInput[] = [];
+    // What a store keeps, built as AGENTS.md section 18 builds one: every element `onFoldInput` hands over, by position.
+    const kept = open('keep', FLOW, { onFoldInput: (i, seq) => { stored[seq] = structuredClone(i); } });
+    s.done('keep:a:-:0');
+    const end = await w77Settlement(kept.done);
+    s.done('nightly-cleanup');
+    equal([end.outcome, kept.unminted], ['completed', []], 'the ARRANGEMENT: the run finished and its runtime released it — the unminted id did not reach it');
+    equal(kept.driver.foldInputs(), stored, 'foldInputs() is every element the store was handed, after the release');
+    equal(fold(kept.driver.foldInputs()), end, 'and folds to what done resolved with');
+    equal(kept.driver.checkpoint().events, stored, 'checkpoint() holds the same events');
+    equal(kept.driver.checkpoint().header, kept.header, 'and the header the handle carries');
+    equal(kept.driver.snapshot().length, stored.filter((i) => i.kind === 'outcome').length, 'snapshot() is the record subsequence of what was stored');
+    equal(await kept.done, end, '`done` still resolves with the same state — a promise keeps its resolution');
+  });
+
+  test('a release keeps the scheduler`s subscriptions: a run opened after EVERY run was released is routed, and nothing subscribes again', async () => {
+    const { s, open } = onRuntime();
+    const runs = [open('r1'), open('r2')];
+    for (const x of runs) s.done(`${x.driver.runId}:a:-:0`);
+    for (const x of runs) await w77Settlement(x.done);
+    const subscribed = [...s.subscriptions];
+    equal(subscribed.length, 3, 'the ARRANGEMENT: one subscription per settlement event, and every run released');
+    const late = open('r3');
+    s.done('r3:a:-:0');
+    s.done('nightly-cleanup');
+    equal(s.subscriptions, subscribed, 'the scheduler was not subscribed again — an emptied list still says it is subscribed (ADR 0088 rule 2)');
+    equal([late.handed, late.unminted], [['r3:a:-:0', 'nightly-cleanup'], ['nightly-cleanup']],
+      'and the new run is handed its own settlement and the unminted id, once each');
+    equal(runs.map((x) => x.handed), [['r1:a:-:0'], ['r2:a:-:0']], 'and neither released run hears either');
   });
 });
