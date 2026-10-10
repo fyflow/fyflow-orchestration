@@ -30,7 +30,7 @@ deno add jsr:@fyflow/orchestration                  # Deno
 
 npm carries an esbuild bundle per platform (`dist/node`, `dist/browser`) and the type declarations;
 JSR carries the TypeScript source. Both carry this README, [AGENTS.md](AGENTS.md) — the complete
-reference — and the [LICENSE](LICENSE).
+reference — and the `LICENSE` file.
 
 The scheduler is a **peer dependency**, so your installer resolves it rather than this library
 bundling it: `fyflow-scheduler` is pinned to **0.5.2** and installed from npm, and under Deno it comes
@@ -317,4 +317,4 @@ and the real-scheduler runs in Node and Deno.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE), which both registries carry beside the code.
+MIT — the `LICENSE` file at the repository root, which both registries carry beside the code.

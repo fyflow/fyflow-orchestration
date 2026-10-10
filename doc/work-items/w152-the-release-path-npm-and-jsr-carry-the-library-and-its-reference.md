@@ -1,6 +1,6 @@
 # W152 — The release path: npm and JSR each carry the library, its types, its licence and `AGENTS.md`
 
-**Status:** todo — declared 2026-10-10 on `dbc8996`, before any file under `Owns` was edited
+**Status:** done 2026-10-10 — see the Record. Declared on `dbc8996` (committed `cd2bc26`), before any file under `Owns` was edited.
 **Plan:** none — an item outside any plan, on W98's, W139's, W150's and W151's precedent. Its source is
 the maintainer's release-readiness review of 2026-10-10 and the maintainer's direction that
 **`AGENTS.md` must be part of the released package**, on both registries.
@@ -196,4 +196,134 @@ Outputs (12)'s *"does only the JSR dry run and `deno task jsr:smoke`"* also runs
 
 ## Record
 
-*Filled in when the item is done.*
+*Filled in 2026-10-10. The scratch directory is dev-dist/w152-33578/, named for this item's shell pid,
+and every log named below is there. Node v24.20.0 came from `fnm use 24` in every shell, and Deno was
+2.9.6. Every rung was redirected and its EXIT read in the same command, never piped. Ids are bare
+text, as the header says.*
+
+### Gate
+
+| command | EXIT | reading |
+|---|---|---|
+| `npm run gate` on `5f32a27` (`gate1.log`) | **0** | the ladder once the build landed. The conformity reader re-ran it on `333d0e6` and got EXIT 0, 2487 assertions, 0 failed |
+| `npm run build`, through `prepack` | 0 | 4 files per platform (three entries and one shared chunk) and 25 declaration files. All 9 paths package.json names exist |
+| `npm pack --dry-run` (`pack-after.log`) | 0 | 37 files (the listing is below) |
+| `deno publish --dry-run --allow-dirty` (`jsr-after.log`) | 0 | 27 files. The only warnings are the three declared `unanalyzable-dynamic-import` ones |
+| `npm run pack:smoke` (`pack3.log`) | 0 | P1-P11 all ok |
+| `deno task jsr:smoke` / `deno task jsr:smoke:test` | 0 / 0 | J1-J6 ok / 10 of 10 tests |
+| actionlint v1.7.12 on the three workflows (`dev-dist/w152-33578/wf-check.mjs`, W1) | 0 | actionlint was not on the PATH, so it was run as `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes=`. **No `run:` step names `gate:full`** (W2). Comments name it in order to say why it is not run |
+| `npm run gate:full` on `a7932d2` (`full.log`) | **1** | the ladder passed (2487 assertions, 0 failed). **One lane was red: `check:markdown:selftest`, 16 of 44 probes.** See *What broke* |
+| `npm run check:markdown:selftest`, alone, after the fix | 0 | the red lane re-run by itself, as workflow section 4 says |
+| `npm run gate:full` on the final tree | see the last line of this Record | the confirming gate for the release tree, Outputs (8) |
+
+L7 did not run: no person looked at a trace. **`pack:smoke` is not in the gate**, as Out says. It
+runs here, in `publish.yml`, and by the release step.
+
+### The listings, before and after
+
+| | before, on `dbc8996`+ (`pack-before.log`, `jsr-before.log`) | after, on `a7932d2` |
+|---|---|---|
+| `npm pack --dry-run` | **2 files**: `README.md`, `package.json`. 8.2 kB packed | **37 files**: `AGENTS.md`, `LICENSE`, `README.md`, `package.json`, `dist/node/{index,scheduler/index,jsonata/index}.js` plus one `chunks/` file, the same four under `dist/browser/`, and 25 under `dist/types/` (the `src/` tree's declarations plus `index.d.ts`, `scheduler/index.d.ts` and `jsonata/index.d.ts`). 350.7 kB packed, 1.2 MB unpacked |
+| `deno publish --dry-run` | 25 files: `README.md`, `deno.json`, `index.ts` and 22 `src/` files | **27 files**: the same, plus `AGENTS.md` and `LICENSE` |
+
+### Outputs
+
+| | what was built | what would fail without it |
+|---|---|---|
+| (1) | `scripts/build.mjs` and `tsconfig.build.json`; `"build"`, with `"prepack": "npm run build"`. esbuild, ESM, **code-split** across the three entries, `fyflow-scheduler` and `jsonata` external (the build fails if its metafile shows either was inlined), then a tsc declaration-only emit with `.ts` rewritten to `.js` in every specifier, and the two sub-path `.d.ts` entries written as re-exports (the default re-exported only where one exists, which is jsonata). The build fails if any path the `exports` map names was not emitted | K1, K3, K4 (the build's own refusals); K1b, K1c, K3b, K4b (with the build's guard off, pack:smoke sees them); R1a, R1b (no prepack, or a build that does nothing). **K6: without splitting, a `RegistryError` thrown by `./scheduler` is not `instanceof` the one `.` exports** |
+| (2) | `files`: `dist/**/*`, `README.md`, `AGENTS.md`, `LICENSE` | K2 (no AGENTS.md: P2 and P8), K2c (`src/` added: P2). **K2b is a declared survivor**: npm packs a root `LICENSE` whether or not `files` names it, so dropping it from `files` stays green. That is correct, and it is listed so nobody reads the `files` entry as load-bearing |
+| (3) | `deno.json`'s allowlist gains `!AGENTS.md` and `!LICENSE` | JA and JL: the dry run stays EXIT 0 and jsr:smoke J2 is RED |
+| (4) | `scripts/pack-smoke.mjs`, run as `npm run pack:smoke`, with P1-P11, and its `--provoke` mode (`pack:smoke:provoke`). Expected values come from the three entry files, compared both ways at runtime (P5) and at type level through TypeScript's checker (P6), and from the spec's transform rule (P7: `HELLO WORLD !`) | every K and R row |
+| (5) | `LICENSE`: the MIT text, `Copyright (c) 2026 FyFlow Team`, byte-identical to `fyflow-scheduler`'s | R5a (holder), R5b (not MIT): P8 |
+| (6) | `repository`, `homepage`, `bugs` and `keywords` in the scheduler's shape (`author` was left out, since it is not declared) | R6a-R6d: P10 |
+| (7) | README: the status line, the install section (npm and `deno add`, plus what each registry carries) and the licence section | R7 is a **declared survivor**, run against `check:docs`: README reverted to *"Not published yet"* is EXIT 0, because no check reads prose (the refusal ledger's first row). X9 still holds the version sentence |
+| (8) | `gate:full` | see Gate |
+| (9) | **The envelope worker, without editing the source**: an esbuild `onLoad` plugin replaces the single `new URL('./envelope-worker.ts', import.meta.url).href` in `bootstrap.ts` with the worker bundled on its own, as a `data:` URL on Node and a `Blob` URL in the browser. The build fails if the expression occurs anything other than exactly once, and if any output still holds a string naming `envelope-worker.ts` | K5 (the build's guard). K5b (guard off): P7 and P11, threaded and inline, *"the run did not settle"*. K5d (the browser branch pointed back at a file beside the bundle): P11 alone |
+| (10) | `scripts/jsr-smoke.ts` (J1-J6) and `scripts/publish-output.ts`, with `scripts/publish-output_test.ts` (10 tests, POSIX and Windows branches on any host); tasks `jsr:smoke` and `jsr:smoke:test`, both `--no-lock`. Unlike the scheduler's version, there is no `jsr:@std` import, because `deno.lock` is tracked and not owned here. J4 holds the published imports to exactly `deno.json`'s two, both ways | JA, JL, JE, JS; R10a-R10g |
+| (11) | `.github/workflows/publish.yml`: **v\* tag only**. It checks the versions and the tag (and refuses a run that is not a tag push), `npm ci`, chromium, `npm run gate`, the parser tests, `jsr:smoke`, `pack:smoke`, then `deno publish` (OIDC). The npm job `needs: jsr`: it skips a version already on npm, runs `npm pack --dry-run`, then `npm publish --provenance --access public` | R11a, R11d, R11e. **R11b (`needs: jsr` removed) and R11c (the version check made a no-op) are declared survivors**: no rung reads a workflow's job graph or a step's body. They were run against the workflow rung and came back EXIT 0 |
+| (12) | `gate.yml`'s step is `npm run gate`, and its comments say why; `ci.yml` on every push runs the parser tests, the JSR dry run and `jsr:smoke`; ADR 0070 has a dated note | R12a. **R12b (ci.yml loses jsr:smoke) is a declared survivor**, for the same reason |
+
+### Exceptions — reconciled to `git diff --name-only b541d8d..HEAD`, path by path
+
+Every changed path is in `Owns` or in the record step: the three workflows, `LICENSE`, `README.md`,
+`deno.json`, `package.json`, `scripts/{build,pack-smoke}.mjs`, `scripts/{jsr-smoke,publish-output,publish-output_test}.ts`,
+`tsconfig.build.json`, this file and `doc/decisions/0070-*` (all `Owns`), and `doc/questions/q261.md`,
+`q580.md` and `q581.md` (record step). **No exception**. Neither `src/scheduler/bootstrap.ts` nor
+`AGENTS.md` was edited (see Q580). `git status --short` is empty.
+
+### Rule 8 — `node scripts/pack-smoke.mjs --provoke --probes dev-dist/w152-33578/rule8-probes.mjs`
+
+**Final pass, on `a7932d2`: 49 of 49 as declared, with the digest `c7e1ebcda901` equal before and after
+(`rule8-final2.log`).**
+- **The set:** 21 checked-in probes (C0, K1-K6 and their compound variants, J0, JA, JL, JE, JS, GX, GW) and 28 in the item's file (R*, W0).
+- **The harness:**
+  - every anchor is checked against the CURRENT text and must match exactly once, or the probe aborts. Three did on the first run, two of them because the probe list quotes its own anchor;
+  - every edit must change its input;
+  - every written file is restored to its FIRST snapshot and compared byte for byte;
+  - the tree's digest covers what git can see.
+- **Controls:** C0, J0 and W0 come back clean.
+- **Grader controls:** GX (a syntax error in pack-smoke itself) is graded CRASH, and GW (a catch deliberately mis-declared) is graded WRONG-REASON.
+- **Each CAUGHT must:**
+  - have EXACTLY its declared id set;
+  - carry a `must` copied from a failure line seen.
+- **Declared survivors, by id:**
+  - **K2b** (npm's own LICENSE rule);
+  - **R4t** (P5 made a tautology passes a correct tarball, and P6 still holds the type level);
+  - **R7** (README prose);
+  - **R11b, R11c, R12b** (workflow structure).
+  Each was run against the rung its reason names.
+
+Earlier passes were 45/47 on `333d0e6` and 46/49 on `00a9f8d`. Each miss was a declaration fixed to what the harness saw, not a probe weakened:
+- **R4d** co-fired P6 because the consumer file hard-coded `m2`; it is now derived from ENTRIES.
+- **R11c** used `if: false`, which actionlint itself refuses.
+- **K5b, R1a, R1b**: once P11 existed it co-fires, correctly.
+
+### The conformity reader — one, a fresh context, spec first, reported without fixing
+
+| # | finding | what was done |
+|---|---|---|
+| 1 | the `JE` premise in Outputs (10)/Tests is false: envelope-worker.ts is in the module graph, so the dry run itself refuses its exclusion | **measured as the reader said** (JE: dry run EXIT 1). The declaration carries the correction under its amendment. JA and JL are the cases only jsr:smoke sees |
+| 2 | gate.yml and publish.yml cite an ADR 0070 dated note that did not exist | the note was written (`a252b3e`) |
+| 3 | W152 made four sentences false: AGENTS.md:2654, bootstrap.ts:53-56, RT-R12's tail, Q261's title for the npm half | stop-and-ask. **The maintainer answered (b), 2026-10-10: leave them and raise questions.** **Q580** carries the three envelope-worker sentences. **AGENTS.md therefore ships on both registries with a sentence that is false for the npm dist (*"like the envelope worker itself — has to be served beside your bundle"*), by the maintainer's choice, and Q580 is the question that carries it.** Q261 gains a dated note: its npm half is settled, and it stays deferred for source bundles |
+| 4 | nothing ran the browser branch (the Blob URL) | **P11**: dist/browser in Chromium, threaded and inline. Provoked by K5d |
+| 5 | gate:full not yet run; rule 8 at 45/47 | done; see Gate and Rule 8 |
+| 6 | publish.yml's `workflow_dispatch` could publish with no tag | removed, and the version step now refuses anything that is not a tag push. Probe R11e (the reader's exact edit) is caught by W4 |
+| 7 | ci.yml also runs the parser tests, which Outputs (12) did not list | kept, and stated in the declaration's amendment |
+| 8 | the scratch paths are `dev-dist/pack-smoke-<pid>`, `pack-smoke-provoke-<pid>` and `jsr-smoke-<pid>`, not `w152-<pid>` | noted. Each carries its pid (G6), and a script naming a work item would be a stale name the day the item closes |
+| 9 | README's release sentence is true only from the tag onward; ADR 0073 rule 2 lists *"nothing is published yet"* | the first is what Outputs (7) asks for. The second is **Q581**, by the maintainer's answer (b) |
+| 10 | relative `doc/` links in the shipped `.d.ts`, AGENTS.md and README are dead on the registries | noted, not acted on: cosmetic, and neither registry ships `doc/` |
+
+**The reader also measured these correct:**
+- the bundle runs on Node 22.16, threaded and inline, so the `engines` floor holds;
+- `require()` of all three sub-paths works;
+- four consumer tsconfig shapes typecheck with no diagnostic in this package's `.d.ts`;
+- `git status` stays clean after the gate and both smoke tests.
+
+### What broke, and what this taught
+
+1. **The declared name `check:pack` could not exist beside Out.** S11 and G3 bind every `check:*`
+   name to a `:selftest` reached from `gate:full`. The answer (a) renamed it `pack:smoke`.
+   **A name is a binding.** In this repository the `check:` prefix is a claim two checks enforce.
+2. **The first `gate:full` was RED on a lane no ladder rung covers.**
+   - `check:markdown:selftest` copies a fixed list of trees and root files into its stage, and `LICENSE` is not on that list. README's two new `[LICENSE](LICENSE)` links were dead in every staged copy, so every probe gained an `M1` (16 of 44 caught).
+   - `npm run gate` and `check:markdown` were green, since the link resolves in the real tree.
+   - Fixed within Owns: the two links became the code span `` `LICENSE` ``. The lane was re-run alone (EXIT 0), then `gate:full` once more.
+   - *The alternative, adding `'LICENSE'` to the COPY list in `scripts/check-markdown-selftest.mjs`, is outside Owns and was not needed.*
+   - **This is ADR 0070 consequence 2 measured once more: the self-tests see what the ladder cannot, and since this item nothing on GitHub runs them.**
+3. **Run in one process, a hanging mode takes the other mode's verdict with it.** With the envelope URL broken, the threaded run never settled, Node exited 13, and the inline mode reported *"no verdict"*. Each mode now runs in its own process with a 30 s bound.
+4. **esbuild renames on a collision** (`jsonata3`), so the first marker for an inlined jsonata matched nothing (K1c, WRONG-REASON) until it allowed the suffix.
+5. **The `JE` premise was copied from the scheduler, whose `workerWrapper.ts` is reached ONLY by `new URL()`.** Here the same file is also re-exported. *A reference implementation's reason transfers only with its precondition.*
+
+### Questions closed and raised
+
+- **Raised:** **Q580** (the envelope-worker sentences, including the AGENTS.md sentence that ships) and **Q581** (ADR 0073 rule 2 against the README's release status), both `open`, `raised-by: "W152"`, each by the maintainer's answer (b). **Q582** was reserved and not issued; it is skipped.
+- **Closed:** none. **Q261** keeps `deferred`, with a dated note that W152 settles its npm half.
+- **ADR 0092** was reserved and not used.
+- **Ids.** Issued: W152, Q580 and Q581. Q582 and ADR 0092 were reserved and are SPENT, unused.
+  **The next item starts at W153, Q583 and ADR 0093.**
+
+### The release, the maintainer's steps (Out)
+
+1. On jsr.io: create `@fyflow/orchestration` in the `@fyflow` scope and link it to `fyflow/fyflow-orchestration`.
+2. On npmjs.com: add a trusted publisher for `fyflow-orchestration`, this repository, workflow `.github/workflows/publish.yml`. The first publish of a new package name may need the package created by hand first.
+3. Push the commits, then `git tag v0.7.0 && git push origin v0.7.0`. publish.yml then verifies and publishes JSR first, then npm.
