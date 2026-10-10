@@ -41,7 +41,9 @@ Owns:       package.json (scripts build/prepack, files, repository, homepage, bu
             scripts/jsr-smoke.ts and scripts/publish-output.ts (new: the JSR smoke test and its
             dry-run parser) with the parser's tests, deno.json's tasks (jsr:smoke),
             .github/workflows/publish.yml (new: the tag-triggered publish),
-            .github/workflows/gate.yml (ONLY the added JSR dry-run and JSR smoke steps),
+            .github/workflows/gate.yml (its one step becomes `npm run gate`, and its comments say
+            why), .github/workflows/ci.yml (new: the JSR dry run and jsr:smoke on push),
+            doc/decisions/0070-* (a dated note, a record-step file),
             src/scheduler/bootstrap.ts (ONLY if the envelope worker's URL needs a build-time
             variant, Outputs (9); prefer an esbuild plugin that leaves the source untouched),
             LICENSE (new), README.md (status, install and licence sections), AGENTS.md (only if a
@@ -84,12 +86,17 @@ Outputs:    (1) `npm run build` produces dist/node, dist/browser and dist/types 
                 parser is unit-tested on POSIX and Windows paths, the branch that broke the
                 scheduler's CI
             (11) .github/workflows/publish.yml in fyflow-scheduler's shape: on a v* tag, check that
-                deno.json, package.json and the tag agree on the version; re-run the checks and both
-                smoke tests; publish to JSR (OIDC, no secret); then, only if JSR succeeded, publish to
+                deno.json, package.json and the tag agree on the version; re-run `npm run gate` (the
+                ladder, NEVER gate:full) and both smoke tests; publish to JSR (OIDC, no secret); then, only if JSR succeeded, publish to
                 npm with trusted publishing and --provenance, skipping a version already on npm and
                 running `npm pack --dry-run` first. NOT triggered by this item: no tag is pushed
-            (12) .github/workflows/gate.yml gains the JSR dry run and `deno task jsr:smoke` on every
-                push, as fyflow-scheduler's ci.yml runs them
+            (12) NO WORKFLOW RUNS gate:full (the maintainer, 2026-10-10: it takes far too long).
+                .github/workflows/gate.yml stays manual-only and its step becomes `npm run gate`; the
+                self-tests then run only locally (a plan's last item, and an item that edits register
+                files, workflow v0.29). ADR 0070 gains a dated note: its *proving the checks can fail
+                belongs to CI* no longer holds anywhere. A new .github/workflows/ci.yml runs on every
+                push and does only the JSR dry run and `deno task jsr:smoke`, a minute or two, as
+                fyflow-scheduler's ci.yml runs them
 Depends on: nothing
 Blocks:     the first publish, which is the maintainer's separate, explicit step
 Tests:      (4) is the test: its expected values are the export names the three entry files declare and
@@ -101,7 +108,7 @@ Tests:      (4) is the test: its expected values are the export names the three 
             envelope-worker.ts dropped from deno.json's allowlist turns jsr:smoke RED while the dry
             run stays green (the case jsr:smoke exists for)
 Gate:       L0-L6 via `npm run gate`; the build and both dry runs EXIT 0; check:pack and jsr:smoke
-            EXIT 0 with their provocations checked in; publish.yml and gate.yml parse (actionlint, or
+            EXIT 0 with their provocations checked in; publish.yml, ci.yml and gate.yml parse, and none names gate:full (actionlint, or
             a YAML parse where actionlint is absent); one conformity reader; `npm run gate:full` EXIT 0, once, on a
             still tree
 Reserves:   Q580-Q582, ADR 0092. ADR 0092 is used only if an answer needs one
