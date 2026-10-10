@@ -18,10 +18,12 @@
 
 name: publish
 
+# **A `v*` tag is the ONLY trigger.** No `workflow_dispatch`: a manual run on a branch would publish
+# both registries with no tag to compare against (W152's conformity reader, finding 6), and a version
+# cannot be withdrawn. The tag check below refuses anything that is not a tag push, as a second lock.
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -62,14 +64,15 @@ jobs:
             echo "::error::deno.json ($DENO_VERSION) and package.json ($NPM_VERSION) disagree. They are one release on two registries."
             exit 1
           fi
-          # A tag push only; workflow_dispatch has no tag.
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-            echo "tag:          $TAG_VERSION"
-            if [ "$TAG_VERSION" != "$DENO_VERSION" ]; then
-              echo "::error::Tag ${GITHUB_REF_NAME} does not match the manifests' version $DENO_VERSION. Bump the manifests or retag."
-              exit 1
-            fi
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::error::publish.yml runs on a v* tag only, and ${GITHUB_REF} is not one."
+            exit 1
+          fi
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "tag:          $TAG_VERSION"
+          if [ "$TAG_VERSION" != "$DENO_VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the manifests' version $DENO_VERSION. Bump the manifests or retag."
+            exit 1
           fi
 
       - name: Install (lockfile exact)

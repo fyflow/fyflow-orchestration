@@ -169,6 +169,17 @@ editing those two checks (outside `Owns`). The new name binds neither check, and
 `S11` and `G3`. **The same names in Owns, Outputs (4), Tests, Gate and Verification were changed in
 place.**
 
+**A premise of Outputs (10) and Tests is FALSE, measured at the build (and confirmed by the
+conformity reader, finding 1), and is left in place above so the correction has a subject.**
+*"envelope-worker.ts dropped from deno.json's allowlist turns jsr:smoke RED while the dry run stays
+green"* holds for `fyflow-scheduler`'s `workerWrapper.ts` and not here: `src/scheduler/index.ts`
+re-exports `EnvelopeWorker` from `./envelope-worker.ts`, so the file is in the module graph and
+`deno publish --dry-run` refuses its exclusion itself (`error[excluded-module]`, EXIT 1; probe `JE`).
+**The case `jsr:smoke` alone sees is a file that is NOT a module**: `AGENTS.md` or `LICENSE` dropped
+from the allowlist leaves the dry run EXIT 0 and turns `jsr:smoke` RED (`J2`; probes `JA`, `JL`).
+Outputs (12)'s *"does only the JSR dry run and `deno task jsr:smoke`"* also runs the parser's tests
+(`deno task jsr:smoke:test`), Outputs (10)'s own tests, on the Linux host where that parser broke.
+
 ## Verification
 
 - `npm run build > dev-dist/w152-<pid>/build.log 2>&1; echo "EXIT=$?"`, then
