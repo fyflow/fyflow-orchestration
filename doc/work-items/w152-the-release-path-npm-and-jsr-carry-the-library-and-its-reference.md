@@ -84,6 +84,11 @@ Reserves:   Q580-Q582, ADR 0092. ADR 0092 is used only if an answer needs one
    on the declared tree, and take `fyflow-scheduler`'s published package shape (its `files`,
    `exports` and `dist` layout) as the reference.
 2. The build, Outputs (1). One script, two esbuild platforms, and a `tsc` declaration emit.
+   **Run from `prepack`, by the maintainer's choice on 2026-10-10**: one hook builds for both
+   `npm pack` and `npm publish`, so the tarball `check:pack` tests is built exactly as the one a
+   publish uploads. *Not chosen*: `prepublishOnly`, `fyflow-scheduler`'s hook, which leaves `npm pack`
+   unbuilt; `prepare`, which builds on every development install; and an unhooked build guarded at
+   publish.
 3. The packaging, Outputs (2), (3), (5) and (6), including **`AGENTS.md` in both registries** (the
    maintainer's direction).
 4. The smoke test, Outputs (4), with its provocations.
