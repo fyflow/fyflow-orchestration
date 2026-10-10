@@ -18,16 +18,19 @@ The scheduler runs tasks. This library decides **which task runs next, and why**
 `fyflow-scheduler` has no dependency graph of its own, so sequence, decision, fan-out and join are
 built here rather than wrapped from below. See [doc/concept.md](doc/concept.md) for the reasoning.
 
-**Not published yet; no version has been released.** The manifests read `0.7.0`.
+**0.7.0 is the first release**, on npm as `fyflow-orchestration` and on JSR as `@fyflow/orchestration`.
+The manifests read `0.7.0`.
 
 ## Install
 
-**Nothing is on a registry yet, so this does not work today** — clone the repository and run
-`npm install` instead. Once it is published:
-
 ```bash
-npm install fyflow-orchestration fyflow-scheduler
+npm install fyflow-orchestration fyflow-scheduler    # Node, and a browser bundler
+deno add jsr:@fyflow/orchestration                  # Deno
 ```
+
+npm carries an esbuild bundle per platform (`dist/node`, `dist/browser`) and the type declarations;
+JSR carries the TypeScript source. Both carry this README, [AGENTS.md](AGENTS.md) — the complete
+reference — and the [LICENSE](LICENSE).
 
 The scheduler is a **peer dependency**, so your installer resolves it rather than this library
 bundling it: `fyflow-scheduler` is pinned to **0.5.2** and installed from npm, and under Deno it comes
@@ -314,4 +317,4 @@ and the real-scheduler runs in Node and Deno.
 
 ## Licence
 
-MIT, as declared in `package.json` and `deno.json`. **There is no `LICENSE` file yet.**
+MIT — see [LICENSE](LICENSE), which both registries carry beside the code.

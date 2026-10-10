@@ -1,0 +1,70 @@
+# The JSR checks, on every push — W152 Outputs (12), in fyflow-scheduler's ci.yml shape.
+#
+# A minute or two, and deliberately NOTHING ELSE: the ladder is `gate.yml` (manual) and the local
+# `npm run gate`; the self-tests run only locally (doc/workflow.md v0.29). What this adds is the one
+# thing development on Windows cannot see — the LINUX branch of `scripts/publish-output.ts`, which is
+# the branch that broke fyflow-scheduler's CI while passing on its Windows development machine
+# (`README.md` was staged as `EADME.md`). The parser's own tests run both branches on any host; this
+# runs the real thing on the host where it broke.
+#
+# Nothing here pipes a step (doc/workflow.md section 4): each step's exit status is its verdict.
+
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+# A newer push to the same ref supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  jsr:
+    name: JSR - dry run and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Node major from `.node-version`, so `jsr:smoke`'s type-stripping step runs (it needs
+      # Node >= 22.18 and skips without it) and `npm ci` below matches the lockfile's engine.
+      - name: Node from .node-version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # The Deno version is READ from `.deno-version`, as gate.yml does, so the pin has one source.
+      - name: Read .deno-version
+        id: deno
+        run: echo "version=$(cat .deno-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Deno from .deno-version
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ steps.deno.outputs.version }}
+
+      # `deno publish` reads package.json beside deno.json, so the tree is installed as it is
+      # locally. `--ignore-scripts`: nothing here needs a lifecycle script.
+      - name: Install (lockfile exact)
+        run: npm ci --ignore-scripts
+
+      # The dry-run parser's tests, POSIX and Windows branches both, on this host.
+      - name: Parser tests
+        run: deno task jsr:smoke:test
+
+      # Publishability: the module graph, the allowlist, slow types.
+      - name: JSR publish dry run
+        run: deno publish --dry-run --allow-dirty
+
+      # Stronger than the dry run: stages EXACTLY the files the dry run lists and runs a real flow
+      # there, a typed node threaded and inline. It is the only check that sees LICENSE or AGENTS.md
+      # dropped from the allowlist, since neither is a module.
+      - name: JSR smoke test
+        run: deno task jsr:smoke
