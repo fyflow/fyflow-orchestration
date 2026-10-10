@@ -15,7 +15,9 @@
 //
 //   P1  `npm pack` (and so the build) exits 0 and reports a file list
 //   P2  the tarball holds dist/**, README.md, LICENSE, AGENTS.md and package.json, and NOTHING ELSE
-//   P3  every path package.json's `exports` (and main/browser/types) names is in the tarball
+//   P3  every path package.json's `exports` (and main/browser/types) names is in the tarball, and
+//       the sub-paths this file tests ARE the `exports` keys, both ways — so a sub-path added to the
+//       map is not one P5-P7 and P9 silently never reach
 //   P4  fyflow-scheduler and jsonata are EXTERNAL: no bundle defines the scheduler's classes or
 //       jsonata's engine, and each sub-path that reaches them imports them by bare specifier
 //   P5  installed beside fyflow-scheduler at the peer pin, each sub-path's RUNTIME exports are exactly
@@ -27,9 +29,15 @@
 //       inline, with a jsonata transform — which is what breaks if the envelope worker's URL still
 //       names a `.ts` file (Outputs (9)) — and a `RegistryError` thrown by `./scheduler` is
 //       `instanceof` the class `.` exports (one module instance across entries)
-//   P8  AGENTS.md and LICENSE are in node_modules/fyflow-orchestration/, byte-identical to the tree's
+//   P8  AGENTS.md and LICENSE are in node_modules/fyflow-orchestration/, byte-identical to the tree's,
+//       and the LICENSE is MIT with fyflow-scheduler's copyright line (Outputs (5): the same holder)
 //   P9  each sub-path bundles for the browser with esbuild (platform browser) from the installed
 //       package, and resolves to dist/browser
+//   P10 the packed package.json carries `repository`, `homepage`, `bugs` and `keywords`
+//       (Outputs (6)) — `repository` naming this GitHub repository, which npm provenance requires
+//
+// **`dist/` is DELETED before packing**, so the tarball holds only what `prepack` built on this run:
+// with a stale `dist/` from an earlier build in the tree, a missing `prepack` packed it green.
 //
 // Exit 0 green, 1 with `pack:smoke: FAIL` after the failing ids, 2 on a crash of this script.
 
@@ -73,6 +81,7 @@ async function smoke() {
   };
 
   // --- P1 ------------------------------------------------------------------------------------
+  rmSync(join(ROOT, 'dist'), { recursive: true, force: true });
   const packed = sh(NPM, ['pack', '--json', '--pack-destination', scratch], ROOT);
   let listing;
   try {
@@ -108,6 +117,12 @@ async function smoke() {
   const absent = [...named].filter((p) => !files.includes(p));
   if (absent.length) fail('P3', `package.json names ${absent.join(', ')}, which the tarball does not contain`);
   else ok('P3', `all ${named.size} paths package.json's exports names are in the tarball`);
+  const keys = Object.keys(pkg.exports ?? {}).map((k) => k === '.' ? pkg.name : `${pkg.name}/${k.replace(/^\.\//, '')}`).sort();
+  const tested = ENTRIES.map(([s]) => s).sort();
+  const untested = keys.filter((k) => !tested.includes(k));
+  const unexported = tested.filter((k) => !keys.includes(k));
+  if (untested.length) fail('P3', `package.json exports ${untested.join(', ')}, which this smoke test does not test`);
+  if (unexported.length) fail('P3', `this smoke test tests ${unexported.join(', ')}, which package.json does not export`);
 
   // --- install -----------------------------------------------------------------------------
   const consumer = join(scratch, 'consumer');
@@ -191,7 +206,7 @@ async function smoke() {
     `const rt = createRuntime(registry, { languages: { jsonata } }, { base: import.meta.url });`,
     `const done: Promise<RunState> = rt.start(flow, {}).done;`,
     `const c: { evaluate: unknown } = compileExpression('1');`,
-    `export { m0, m1, m2, done, c };`,
+    `export { ${ENTRIES.map((_, i) => `m${i}`).join(', ')}, done, c };`, // derived from ENTRIES, so a row dropped there is P3's finding alone
   ].join('\n'));
   const opts = { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, target: ts.ScriptTarget.ES2022,
     strict: true, noEmit: true, skipLibCheck: false, lib: ['lib.es2022.d.ts'], types: ['node'], // a Node consumer: fyflow-scheduler's own .d.ts need @types/node (EventTarget, Worker)
@@ -310,7 +325,12 @@ if (mode === 'threaded' || mode === 'inline') {
     if (!existsSync(p)) { p8 += 1; fail('P8', `node_modules/fyflow-orchestration/${f} is not there`); }
     else if (!readFileSync(p).equals(readFileSync(join(ROOT, f)))) { p8 += 1; fail('P8', `node_modules/fyflow-orchestration/${f} differs from the tree's`); }
   }
-  if (!p8) ok('P8', 'AGENTS.md and LICENSE are installed, byte-identical to the tree`s');
+  const lic = existsSync(join(ROOT, 'LICENSE')) ? readFileSync(join(ROOT, 'LICENSE'), 'utf8') : '';
+  const theirs = readFileSync(join(consumer, 'node_modules', 'fyflow-scheduler', 'LICENSE'), 'utf8');
+  const holder = (s) => (/^Copyright \(c\) .+$/m.exec(s) ?? [''])[0].trim();
+  if (!/^MIT License\b/.test(lic) || !lic.includes('Permission is hereby granted, free of charge')) { p8 += 1; fail('P8', 'LICENSE is not the MIT text both manifests declare'); }
+  if (!holder(lic) || holder(lic) !== holder(theirs)) { p8 += 1; fail('P8', `LICENSE's holder line "${holder(lic)}" is not fyflow-scheduler's "${holder(theirs)}"`); }
+  if (!p8) ok('P8', 'AGENTS.md and LICENSE are installed, byte-identical to the tree`s; MIT, fyflow-scheduler`s holder');
 
   // --- P9 ------------------------------------------------------------------------------------
   const esbuild = await import(pathToFileURL(join(ROOT, 'node_modules', 'esbuild', 'lib', 'main.js')).href);
@@ -329,6 +349,18 @@ if (mode === 'threaded' || mode === 'inline') {
     }
   }
   if (!p9) ok('P9', 'each sub-path bundles for the browser from the installed package, from dist/browser');
+
+  // --- P10 -----------------------------------------------------------------------------------
+  const shipped = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf8'));
+  const REPO = 'github.com/fyflow/fyflow-orchestration';
+  const meta = [
+    ['repository', typeof shipped.repository?.url === 'string' && shipped.repository.url.includes(REPO)],
+    ['homepage', typeof shipped.homepage === 'string' && shipped.homepage.includes(REPO)],
+    ['bugs', typeof shipped.bugs?.url === 'string' && shipped.bugs.url.includes(REPO)],
+    ['keywords', Array.isArray(shipped.keywords) && shipped.keywords.length > 0],
+  ].filter(([, good]) => !good).map(([k]) => k);
+  if (meta.length) fail('P10', `the packed package.json lacks, or points away from ${REPO} in: ${meta.join(', ')}`);
+  else ok('P10', `repository, homepage and bugs name ${REPO}; keywords present`);
 
   return finish();
 }
@@ -443,14 +475,15 @@ function digestTree() {
   return h.digest('hex');
 }
 
-function runSmoke(kind) {
+function runSmoke(kind, cmd) {
+  if (cmd) return sh(cmd[0], cmd.slice(1), ROOT, { shell: false, timeout: 600_000 });
   if (kind === 'pack') return sh(process.execPath, [join(ROOT, 'scripts', 'pack-smoke.mjs')], ROOT, { shell: false, timeout: 600_000 });
   return sh('deno', ['task', 'jsr:smoke'], ROOT, { timeout: 600_000 });
 }
 
 function grade(p, r) {
   const out = `${r.stdout || ''}\n${r.stderr || ''}`;
-  const summary = /^(pack|jsr):smoke: FAIL/m.test(out);
+  const summary = /^[\w-]+:smoke: FAIL/m.test(out);
   const ids = [...new Set([...out.matchAll(/^ {2}FAIL {2}([A-Z]\d+)\b/gm)].map((m) => m[1]))].sort();
   if (r.status === 0) return { verdict: p.want === 'CLEAN' ? 'CLEAN' : 'SURVIVED', ids };
   if (r.status !== 1 || !summary) return { verdict: 'CRASH', ids };
@@ -493,7 +526,7 @@ async function provoke(argv) {
       let dry;
       if (abort) g = { verdict: 'ABORT', ids: [] };
       else {
-        const r = runSmoke(p.smoke);
+        const r = runSmoke(p.smoke, p.cmd);
         writeFileSync(join(log, `${p.id}.log`), `${r.stdout || ''}\n${r.stderr || ''}`);
         g = grade(p, r);
         if (p.dry !== undefined) dry = sh('deno', ['publish', '--dry-run', '--allow-dirty'], ROOT).status;
