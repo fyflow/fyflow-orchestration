@@ -37,7 +37,9 @@
       "!src/scheduler/runtime.ts",
       "!src/scheduler/envelope-worker.ts",
       "!src/jsonata/index.ts",
-      "!README.md"
+      "!README.md",
+      "!AGENTS.md",
+      "!LICENSE"
     ]
   },
   "compilerOptions": {
@@ -51,6 +53,8 @@
     "check:source": "deno run --allow-read scripts/check-source.mjs",
     "lint": "deno lint src/ test/ examples/ index.ts",
     "test": "deno run --allow-read test/runner.ts",
-    "test:l6": "deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env examples/l6.ts"
+    "test:l6": "deno run --import-map=examples/deno-import-map.json --allow-read --allow-net --allow-env examples/l6.ts",
+    "jsr:smoke": "deno run --no-lock --allow-read --allow-write --allow-run --allow-net --allow-env scripts/jsr-smoke.ts",
+    "jsr:smoke:test": "deno test --no-lock scripts/publish-output_test.ts"
   }
 }

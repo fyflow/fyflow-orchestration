@@ -1,10 +1,17 @@
-# The gate, on a MANUAL trigger only.
+# The gate, on a MANUAL trigger only — and since W152 it is the LADDER, `npm run gate`.
 #
 # It ran on every push and every pull request from `da7e6c7` until the maintainer
-# asked for this. Nothing else about it changes: the same `gate:full`, the same
-# runner, the same exit code. What changes is who decides when, and that is a
-# real reduction in what CI guarantees — see the `on:` block below for what it
-# costs and what still holds.
+# asked for this. What changed then was who decides when, and that is a real
+# reduction in what CI guarantees — see the `on:` block below for what it costs and
+# what still holds.
+#
+# **No workflow runs `gate:full`** — the maintainer, 2026-10-10 (W152 Outputs (12)): it
+# takes far too long. Until W152 this step ran `gate:full`, the ladder plus the
+# self-tests that prove the checks can fail. Those now run ONLY LOCALLY: a plan's last
+# item, and an item that edits the register files (doc/workflow.md v0.29). ADR 0070's
+# *proving the checks can fail belongs to CI* no longer holds anywhere, and that ADR
+# carries a dated note saying so. The JSR checks run on every push in ci.yml, and the
+# ladder runs again inside publish.yml before anything is published.
 #
 # `npm run gate` is ONE step on purpose. It is an `&&` chain — its length is
 # package.json's, and the count that stood here went stale at W116's seventeenth entry — that
@@ -28,13 +35,13 @@ name: gate
 # the guarantee ADR 0070 bought — it moved the self-tests OFF the local ladder on
 # the argument that CI is where proving the checks can fail belongs, *because
 # nobody is watching and it runs on every commit*. The second half of that reason
-# no longer holds, so the self-tests are now something a person chooses to run,
-# locally via `npm run gate:full` or here.
+# no longer holds, and since W152 neither half does: the self-tests run only
+# locally, via `npm run gate:full`, and never here.
 #
 # What still holds: `npm run gate` is the local ladder and is unchanged, so lint,
-# typecheck, the eight static checks and L1-L6 in three runtimes are still what a
-# commit is made behind. What is no longer automatic is the ~20 minutes of
-# self-tests that prove those checks can fail.
+# typecheck, the static checks and L1-L6 in three runtimes are still what a commit is
+# made behind, and it is what this workflow runs. The self-tests that prove those
+# checks can fail are not run by any workflow (see the header).
 on:
   workflow_dispatch:
 
@@ -50,9 +57,8 @@ permissions:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    # Locally the whole chain is 390-460 s on twenty cores; a four-core runner
-    # with `selftests` running seven self-tests concurrently is the long pole.
-    timeout-minutes: 60
+    # The ladder alone; the self-tests that made this the long pole are no longer here.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -95,12 +101,7 @@ jobs:
       - name: Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      # `gate:full` is the ladder AND the self-tests (ADR 0070). The local `gate` is
-      # the ladder alone, because the self-tests are ~93% of its wall clock and a
-      # human waiting on them was paying that to prove the checks can fail. CI is
-      # where that proof belonged: nobody is watching. *(ADR 0070's other half of
-      # that reason was **and it runs on every commit**, which is no longer true —
-      # this workflow is manual since the maintainer asked for it. Corrected in that
-      # ADR in place rather than left standing here.)*
-      - name: npm run gate:full
-        run: npm run gate:full
+      # The LADDER, one step, its exit status the verdict. NOT `gate:full`: no workflow
+      # runs the self-tests (the header, and ADR 0070's dated note of 2026-10-10).
+      - name: npm run gate
+        run: npm run gate

@@ -1,0 +1,155 @@
+# The release — W152 Outputs (11), in fyflow-scheduler's publish.yml shape.
+#
+# On a `v*` tag: check that deno.json, package.json and the tag agree; re-run the ladder and both
+# smoke tests on this exact commit; publish to JSR; then, ONLY if JSR succeeded, publish to npm.
+# A published version cannot be replaced or withdrawn the way a commit can, so everything that can
+# refuse runs BEFORE the first publish, rather than trusting that a gate was green on this SHA.
+#
+# **The ladder is `npm run gate`, never `gate:full`** — the maintainer, 2026-10-10: the self-tests
+# take far too long for a workflow, and they run locally (a plan's last item, and an item that edits
+# the register files; doc/workflow.md v0.29). See gate.yml and ADR 0070's dated note.
+#
+# One-time setup, the maintainer's and not this file's:
+#   - jsr.io: the `@fyflow/orchestration` package in the `@fyflow` scope, LINKED to the
+#     fyflow/fyflow-orchestration GitHub repository. The link is what makes the OIDC token below
+#     sufficient — no token or secret is stored here.
+#   - npmjs.com: a TRUSTED PUBLISHER for `fyflow-orchestration` pointing at this repository and this
+#     workflow file, `.github/workflows/publish.yml`. Renaming this file breaks that trust.
+
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jsr:
+    name: Verify, then publish to JSR
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write   # JSR's OIDC publish
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node from .node-version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Read .deno-version
+        id: deno
+        run: echo "version=$(cat .deno-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Deno from .deno-version
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ steps.deno.outputs.version }}
+
+      - name: Check the versions agree
+        run: |
+          DENO_VERSION=$(node -p "require('./deno.json').version")
+          NPM_VERSION=$(node -p "require('./package.json').version")
+          echo "deno.json:    $DENO_VERSION"
+          echo "package.json: $NPM_VERSION"
+          if [ "$DENO_VERSION" != "$NPM_VERSION" ]; then
+            echo "::error::deno.json ($DENO_VERSION) and package.json ($NPM_VERSION) disagree. They are one release on two registries."
+            exit 1
+          fi
+          # A tag push only; workflow_dispatch has no tag.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            echo "tag:          $TAG_VERSION"
+            if [ "$TAG_VERSION" != "$DENO_VERSION" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} does not match the manifests' version $DENO_VERSION. Bump the manifests or retag."
+              exit 1
+            fi
+          fi
+
+      - name: Install (lockfile exact)
+        run: npm ci
+
+      # `test:browser` launches chromium only.
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      # The LADDER, one step, as gate.yml runs it: lint, typecheck, the static checks, L1-L5 in
+      # three runtimes, L6 in Node and Deno. NEVER gate:full.
+      - name: npm run gate
+        run: npm run gate
+
+      - name: JSR parser tests
+        run: deno task jsr:smoke:test
+
+      - name: JSR smoke test
+        run: deno task jsr:smoke
+
+      # The npm half's smoke test runs HERE, before anything is published to either registry: it
+      # packs (prepack builds), installs the tarball beside fyflow-scheduler, and runs a real flow.
+      - name: npm pack smoke test
+        run: npm run pack:smoke
+
+      # `deno publish` refuses a dirty tree; this step only SHOWS what would make it dirty, so a
+      # refusal below arrives with its cause in the log.
+      - name: Show the working tree before publishing
+        run: git status --porcelain
+
+      - name: Publish to JSR
+        run: deno publish
+
+  npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only if JSR succeeded, so the two registries cannot drift apart on a release: the version
+    # check, the ladder and both smoke tests have already passed on this commit.
+    needs: jsr
+    permissions:
+      contents: read
+      id-token: write   # trusted publishing and provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      # registry-url wires npm up for the OIDC exchange; trusted publishing needs npm >= 11.5.1,
+      # which Node 24 (`.node-version`) ships.
+      - name: Node from .node-version
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      # esbuild and typescript are devDependencies, and `prepack` runs the build with them.
+      - name: Install (lockfile exact)
+        run: npm ci
+
+      # npm, unlike JSR, hard-errors when republishing an existing version, so a re-run of this
+      # workflow on an unchanged version would fail an otherwise correct release.
+      - name: Skip if this version is already on npm
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./package.json').name")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm - nothing to do."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$NAME@$VERSION is not on npm yet."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # `prepack` builds, so this lists exactly what `npm publish` uploads.
+      - name: Show the tarball before publishing
+        if: steps.check.outputs.publish == 'true'
+        run: npm pack --dry-run
+
+      # No NPM_TOKEN: the trusted publisher on npmjs.com, and provenance from the OIDC token.
+      - name: Publish to npm
+        if: steps.check.outputs.publish == 'true'
+        run: npm publish --provenance --access public

@@ -2,6 +2,25 @@
   "name": "fyflow-orchestration",
   "version": "0.7.0",
   "description": "Flow orchestration over fyflow-scheduler: sequence, decision, fan-out and join",
+  "keywords": [
+    "workflow",
+    "orchestration",
+    "flow",
+    "dag",
+    "fan-out",
+    "join",
+    "scheduler",
+    "worker",
+    "typescript"
+  ],
+  "homepage": "https://github.com/fyflow/fyflow-orchestration#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fyflow/fyflow-orchestration.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fyflow/fyflow-orchestration/issues"
+  },
   "type": "module",
   "main": "./dist/node/index.js",
   "browser": "./dist/browser/index.js",
@@ -46,9 +65,15 @@
   },
   "files": [
     "dist/**/*",
-    "README.md"
+    "README.md",
+    "AGENTS.md",
+    "LICENSE"
   ],
   "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "npm run build",
+    "pack:smoke": "node scripts/pack-smoke.mjs",
+    "pack:smoke:provoke": "node scripts/pack-smoke.mjs --provoke",
     "check:spec": "node scripts/check-spec.mjs",
     "check:spec:selftest": "node scripts/check-spec.mjs --self-test",
     "check:source": "node scripts/check-source.mjs",
