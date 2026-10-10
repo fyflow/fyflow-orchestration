@@ -500,10 +500,10 @@ const PROBES = [
   { id: 'K5', name: 'the envelope worker`s URL is left pointing at envelope-worker.ts: the build`s guard stops the pack',
     smoke: 'pack', edits: [[BUILD, "contents: source.replace(ENVELOPE_EXPR, '__fyflowEnvelopeWorkerUrl') +", 'contents: source +']],
     want: ['P1'], must: 'envelope-worker.ts' },
-  { id: 'K5b', name: 'the envelope worker`s URL left at the .ts file AND the build`s guard gone: the typed flow fails, threaded and inline',
+  { id: 'K5b', name: 'the envelope worker`s URL left at the .ts file AND the build`s guard gone: the typed flow fails, threaded and inline, on Node (P7) and in Chromium (P11)',
     smoke: 'pack', edits: [[BUILD, "contents: source.replace(ENVELOPE_EXPR, '__fyflowEnvelopeWorkerUrl') +", 'contents: source +'],
       [BUILD, "    if (/['\"`][^'\"`\\n]*envelope-worker\\.ts['\"`]/.test(", "    if (false && /['\"`][^'\"`\\n]*envelope-worker\\.ts['\"`]/.test("]],
-    want: ['P7'], must: 'typed flow did not complete' },
+    want: ['P7', 'P11'], must: 'typed flow did not complete' }, // both platforms' bundles lose the envelope worker
   { id: 'K5d', name: 'the BROWSER branch of the envelope-worker plugin points at a file beside the bundle instead of a Blob: only P11 runs it',
     smoke: 'pack', edits: [[BUILD, "        : `export default URL.createObjectURL(new Blob([${JSON.stringify(code)}], { type: 'text/javascript' }));\\n`;",
       "        : `export default new URL('./envelope-worker.js', import.meta.url).href;\\n`;"]],
