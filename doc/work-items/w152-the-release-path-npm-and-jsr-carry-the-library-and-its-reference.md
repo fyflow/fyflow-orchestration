@@ -38,6 +38,12 @@ Owns:       package.json (scripts build/prepack, files, repository, homepage, bu
             scripts/build.mjs (new: the esbuild bundles and the declaration emit),
             tsconfig.build.json (new: declaration-only emit into dist/types),
             scripts/check-pack.mjs (new: the packed-artifact smoke test) and its provocations,
+            scripts/jsr-smoke.ts and scripts/publish-output.ts (new: the JSR smoke test and its
+            dry-run parser) with the parser's tests, deno.json's tasks (jsr:smoke),
+            .github/workflows/publish.yml (new: the tag-triggered publish),
+            .github/workflows/gate.yml (ONLY the added JSR dry-run and JSR smoke steps),
+            src/scheduler/bootstrap.ts (ONLY if the envelope worker's URL needs a build-time
+            variant, Outputs (9); prefer an esbuild plugin that leaves the source untouched),
             LICENSE (new), README.md (status, install and licence sections), AGENTS.md (only if a
             sentence states that it does not ship, or states an install line that becomes false),
             this file
@@ -63,15 +69,40 @@ Outputs:    (1) `npm run build` produces dist/node, dist/browser and dist/types 
                 licence section names the file. The release itself is NOT done by this item
             (8) `npm run gate:full` EXIT 0 on the final tree, the confirming gate for the release
                 tree, because W150 and W151 landed after the last one
+            (9) THE ENVELOPE WORKER SURVIVES BUNDLING. src/scheduler/bootstrap.ts:57 builds
+                ENVELOPE_WORKER_URL as new URL('./envelope-worker.ts', import.meta.url); in an esbuild
+                bundle that names a .ts file absent beside dist/node/scheduler/index.js, which would
+                break every typed node type for an npm consumer. fyflow-scheduler solves the same
+                case with an esbuild worker plugin (a data: URL on Node, a Blob URL in the browser).
+                check:pack's real flow uses a TYPED node, threaded and inline, so it fails if this
+                breaks
+            (10) `deno task jsr:smoke`, in fyflow-scheduler's style (its scripts/jsr-smoke.ts and
+                publishOutput.ts): parse `deno publish --dry-run`'s file list, stage EXACTLY those
+                files in a scratch directory, and run a real flow there, a typed node threaded
+                included. The dry run cannot see envelope-worker.ts going missing from the
+                allowlist, because the runtime reaches it by new URL() and not by an import. The
+                parser is unit-tested on POSIX and Windows paths, the branch that broke the
+                scheduler's CI
+            (11) .github/workflows/publish.yml in fyflow-scheduler's shape: on a v* tag, check that
+                deno.json, package.json and the tag agree on the version; re-run the checks and both
+                smoke tests; publish to JSR (OIDC, no secret); then, only if JSR succeeded, publish to
+                npm with trusted publishing and --provenance, skipping a version already on npm and
+                running `npm pack --dry-run` first. NOT triggered by this item: no tag is pushed
+            (12) .github/workflows/gate.yml gains the JSR dry run and `deno task jsr:smoke` on every
+                push, as fyflow-scheduler's ci.yml runs them
 Depends on: nothing
 Blocks:     the first publish, which is the maintainer's separate, explicit step
 Tests:      (4) is the test: its expected values are the export names the three entry files declare and
             the outcome spec/run-state.md section 3 gives the flow, never a snapshot of a run.
             Provoked at birth (section 5 rule 7): a bundle that inlines fyflow-scheduler, a files list
             without AGENTS.md, an exports entry pointing at a path the build does not emit, and a
-            .d.ts emit that is missing one sub-path each turn check:pack RED, by name
-Gate:       L0-L6 via `npm run gate`; the build and both dry runs EXIT 0; check:pack EXIT 0 with its
-            provocations checked in; one conformity reader; `npm run gate:full` EXIT 0, once, on a
+            .d.ts emit that is missing one sub-path each turn check:pack RED, by name; the envelope
+            worker's URL left pointing at a .ts file turns check:pack's typed flow RED; and
+            envelope-worker.ts dropped from deno.json's allowlist turns jsr:smoke RED while the dry
+            run stays green (the case jsr:smoke exists for)
+Gate:       L0-L6 via `npm run gate`; the build and both dry runs EXIT 0; check:pack and jsr:smoke
+            EXIT 0 with their provocations checked in; publish.yml and gate.yml parse (actionlint, or
+            a YAML parse where actionlint is absent); one conformity reader; `npm run gate:full` EXIT 0, once, on a
             still tree
 Reserves:   Q580-Q582, ADR 0092. ADR 0092 is used only if an answer needs one
 ```
@@ -93,18 +124,26 @@ Reserves:   Q580-Q582, ADR 0092. ADR 0092 is used only if an answer needs one
    maintainer's direction).
 4. The smoke test, Outputs (4), with its provocations.
 5. The README, Outputs (7).
-6. Rule 8 on every output, one conformity reader, then `gate:full` once (Outputs (8)).
+6. **fyflow-scheduler's release style, by the maintainer's answer on 2026-10-10**: the JSR smoke
+   test and its parser, Outputs (10); the tag-triggered publish workflow, Outputs (11); and the JSR
+   checks in CI, Outputs (12). *Not adopted*: its build script's exact shape (`esbuild.config.js` at
+   the root) and its `prepare` + `prepublishOnly` hooks; this item keeps `scripts/build.mjs` and
+   `prepack`. Outputs (9), the envelope worker's URL, was found while reading its build: the
+   scheduler's worker plugin exists for the same reason.
+7. Rule 8 on every output, one conformity reader, then `gate:full` once (Outputs (8)).
 
 **Out** — named rather than left implicit
 
-- **Publishing.** `npm publish` and `deno publish` are the maintainer's explicit step after this item.
-  A pushed version cannot be withdrawn the way a commit can.
+- **Publishing.** Pushing the `v0.7.0` tag that triggers publish.yml is the maintainer's explicit step
+  after this item, and so is the one-time setup it needs: the `@fyflow/orchestration` package on
+  jsr.io linked to this GitHub repository, and a trusted publisher for `fyflow-orchestration` on
+  npmjs.com pointing at `.github/workflows/publish.yml`. A published version cannot be withdrawn the
+  way a commit can.
 - **Wiring `check:pack` into `gate` or `gate:full`.** That changes what the gate runs (W139's
   `gate:item`, ADR 0070) and binds `check-wiring`'s gate-manifest clauses. It is a stop-and-ask
   (rule 6) if the reader or the maintainer wants it in the gate; until then it is a standalone
   script run by this item and by the release step.
-- **A publish workflow in `.github/`**, provenance, and a version bump past 0.7.0. Each is a
-  separate decision.
+- **A version bump past 0.7.0.** 0.7.0 is the first release.
 - **A `CHANGELOG`.** `fyflow-scheduler` has none either (CLAUDE.md), and nothing here asks for one.
 
 ## Verification
