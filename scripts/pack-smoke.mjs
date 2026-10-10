@@ -36,6 +36,13 @@
 //   P10 the packed package.json carries `repository`, `homepage`, `bugs` and `keywords`
 //       (Outputs (6)) — `repository` naming this GitHub repository, which npm provenance requires
 //
+//   P11 the BROWSER bundle RUNS: the installed dist/browser, bundled for a page and loaded in
+//       Chromium, completes a typed node threaded and inline, serving only the consumer's own worker.
+//       It is the only clause that executes the envelope-worker plugin's Blob-URL branch (Outputs (9));
+//       P9 bundles and runs nothing. W152's conformity reader, finding 4. The worker is `.js`, since
+//       nothing in a browser executes TypeScript, and there is no transform: a jsonata worker half in a
+//       browser has to be served beside the bundle (AGENTS.md), which is the consumer's arrangement.
+//
 // **`dist/` is DELETED before packing**, so the tarball holds only what `prepack` built on this run:
 // with a stale `dist/` from an earlier build in the tree, a missing `prepack` packed it green.
 //
@@ -46,6 +53,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SEP = String.fromCharCode(92);
@@ -362,6 +370,63 @@ if (mode === 'threaded' || mode === 'inline') {
   if (meta.length) fail('P10', `the packed package.json lacks, or points away from ${REPO} in: ${meta.join(', ')}`);
   else ok('P10', `repository, homepage and bugs name ${REPO}; keywords present`);
 
+  // --- P11 -----------------------------------------------------------------------------------
+  // **Derived**: the worker appends ' ' + settings.say to input.text, so 'hello' -> 'hello world'.
+  const page = `
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+const out = [];
+for (const inline of [false, true]) {
+  const mode = inline ? 'inline' : 'threaded';
+  try {
+    const registry = { workers: { greeter: { url: './worker.js' } }, nodeTypes: { Greeter: { worker: 'greeter', inline } } };
+    const flow = { flowId: 'browser', version: 1, entry: 'greet', nodes: [
+      { id: 'greet', kind: 'task', type: 'Greeter', settings: { say: 'world' }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' } ] };
+    const rt = createRuntime(registry, {}, { base: location.href, flows: [flow] });
+    const st = await Promise.race([rt.start(flow, { text: 'hello' }).done,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('the run did not settle in 20 s')), 20000))]);
+    await rt.shutdown();
+    const g = Object.values(st.nodes).find((n) => n.nodeId === 'greet');
+    out.push(st.outcome === 'completed' && g?.result?.text === 'hello world' ? 'FLOW_OK ' + mode
+      : 'FLOW_BAD ' + mode + ' outcome=' + st.outcome + ' result=' + JSON.stringify(g?.result) + ' ' + (g?.error ?? ''));
+  } catch (e) { out.push('FLOW_BAD ' + mode + ' threw ' + e.message); }
+}
+window.__done = out;
+`;
+  let p11 = 0;
+  let browser;
+  let server;
+  try {
+    const app = (await esbuild.build({ stdin: { contents: page, resolveDir: consumer, loader: 'js' }, absWorkingDir: consumer,
+      bundle: true, platform: 'browser', format: 'esm', write: false, logLevel: 'silent' })).outputFiles[0].text;
+    const WORKER = 'export default class Greeter { run(e) { return { text: e.input.text + " " + e.settings.say }; } }';
+    server = createServer((req, res) => {
+      const js = req.url === '/app.js' ? app : req.url === '/worker.js' ? WORKER : undefined;
+      res.writeHead(200, { 'content-type': js === undefined ? 'text/html' : 'text/javascript' });
+      res.end(js ?? '<!doctype html><script type="module" src="/app.js"></script>');
+    });
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    const { chromium } = await import(pathToFileURL(join(ROOT, 'node_modules', 'playwright', 'index.mjs')).href);
+    browser = await chromium.launch();
+    const pg = await browser.newPage();
+    const pageErrors = [];
+    pg.on('pageerror', (e) => pageErrors.push(e.message));
+    await pg.goto(`http://127.0.0.1:${server.address().port}/`);
+    const done = await pg.waitForFunction(() => window.__done, null, { timeout: 60_000 }).then((h) => h.jsonValue()).catch(() => undefined);
+    for (const mode of ['threaded', 'inline']) {
+      if (!done?.includes(`FLOW_OK ${mode}`)) {
+        p11 += 1;
+        fail('P11', `the ${mode} typed flow did not complete in Chromium from dist/browser: ${done?.find((l) => l.includes(mode)) ?? `no verdict ${pageErrors.slice(0, 2).join(' | ')}`}`);
+      }
+    }
+  } catch (e) {
+    p11 += 1; fail('P11', `the browser run could not be staged: ${(e && e.message || String(e)).split('\n')[0]}`);
+  } finally {
+    await browser?.close().catch(() => {});
+    server?.close();
+  }
+  if (!p11) ok('P11', 'dist/browser ran a typed node threaded and inline in Chromium, the envelope worker from its Blob URL');
+
   return finish();
 }
 
@@ -439,6 +504,10 @@ const PROBES = [
     smoke: 'pack', edits: [[BUILD, "contents: source.replace(ENVELOPE_EXPR, '__fyflowEnvelopeWorkerUrl') +", 'contents: source +'],
       [BUILD, "    if (/['\"`][^'\"`\\n]*envelope-worker\\.ts['\"`]/.test(", "    if (false && /['\"`][^'\"`\\n]*envelope-worker\\.ts['\"`]/.test("]],
     want: ['P7'], must: 'typed flow did not complete' },
+  { id: 'K5d', name: 'the BROWSER branch of the envelope-worker plugin points at a file beside the bundle instead of a Blob: only P11 runs it',
+    smoke: 'pack', edits: [[BUILD, "        : `export default URL.createObjectURL(new Blob([${JSON.stringify(code)}], { type: 'text/javascript' }));\\n`;",
+      "        : `export default new URL('./envelope-worker.js', import.meta.url).href;\\n`;"]],
+    want: ['P11'], must: 'did not complete in Chromium' },
   { id: 'K6', name: 'no code splitting: each entry carries its own RegistryError',
     smoke: 'pack', edits: [[BUILD, '    splitting: true,', '    splitting: false,']], want: ['P7'], must: 'is not instanceof' },
   // --- jsr:smoke ---

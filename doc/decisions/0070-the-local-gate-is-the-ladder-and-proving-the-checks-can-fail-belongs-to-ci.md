@@ -99,6 +99,18 @@ ADR 0039 explicitly did not decide.
    watching, and it runs on every commit*, has lost its second clause; consequence 2 below already prices
    exactly this case and is now the live reading rather than a hypothetical one.)*
 
+   **Dated note, 2026-10-10 — W152, by the maintainer's direction: NO WORKFLOW RUNS `gate:full`.**
+   `.github/workflows/gate.yml`'s one step is now `npm run gate`, the ladder, because `gate:full` takes
+   far too long for a workflow. **This ADR's title clause — *proving the checks can fail belongs to CI*
+   — therefore holds NOWHERE.** The self-tests run only locally: a plan's last item runs `gate:full`, an
+   item that edits the register files runs it too, and every other item runs `gate:item`
+   (`doc/workflow.md` v0.29). Rules 1-3 stand unchanged, and rule 4's *nothing is deleted and no bound
+   is lowered* still holds of the manifest: all eight self-tests remain reachable from `gate:full`.
+   **Consequence 2 is now the permanent reading rather than a contingency**: nothing on GitHub proves
+   the checks can fail, and `S11` and `G4` still read only the manifest. What CI runs since W152 is
+   `.github/workflows/ci.yml` on every push (the JSR dry run and `deno task jsr:smoke`) and, on a `v*`
+   tag, `.github/workflows/publish.yml`, which runs the ladder and both smoke tests before it publishes.
+
 ## Consequences
 
 1. **A human's loop is the ladder.** 245 s measured here, against 1571 s for both halves; on a machine
