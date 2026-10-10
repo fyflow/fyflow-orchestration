@@ -214,7 +214,7 @@ text, as the header says.*
 | actionlint v1.7.12 on the three workflows (`dev-dist/w152-33578/wf-check.mjs`, W1) | 0 | actionlint was not on the PATH, so it was run as `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes=`. **No `run:` step names `gate:full`** (W2). Comments name it in order to say why it is not run |
 | `npm run gate:full` on `a7932d2` (`full.log`) | **1** | the ladder passed (2487 assertions, 0 failed). **One lane was red: `check:markdown:selftest`, 16 of 44 probes.** See *What broke* |
 | `npm run check:markdown:selftest`, alone, after the fix | 0 | the red lane re-run by itself, as workflow section 4 says |
-| `npm run gate:full` on the final tree | see the last line of this Record | the confirming gate for the release tree, Outputs (8) |
+| `npm run gate:full` on `9f7ace3` (`full2.log`) | **0** | **the confirming gate for the release tree, Outputs (8).** The tree was held still from start to EXIT. Node, Deno and Chromium ran 1593 assertions each. L6 ran 2487 assertions with 0 failed, in Node and in Deno. All 11 self-test lanes were ok: 2310.5 s wall over 10 lanes. Only this Record's own lines changed after it. On the tree with them, `check:markdown`, `check:register` and `check:budget` each EXIT 0, and so does `npm run gate` (`gate-final.log`) |
 
 L7 did not run: no person looked at a trace. **`pack:smoke` is not in the gate**, as Out says. It
 runs here, in `publish.yml`, and by the release step.
