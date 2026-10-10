@@ -37,7 +37,7 @@ Owns:       package.json (scripts build/prepack, files, repository, homepage, bu
             NOT the gate chains, see Out), deno.json (publish allowlist gains AGENTS.md and LICENSE),
             scripts/build.mjs (new: the esbuild bundles and the declaration emit),
             tsconfig.build.json (new: declaration-only emit into dist/types),
-            scripts/check-pack.mjs (new: the packed-artifact smoke test) and its provocations,
+            scripts/pack-smoke.mjs (new: the packed-artifact smoke test) and its provocations (its --provoke mode),
             scripts/jsr-smoke.ts and scripts/publish-output.ts (new: the JSR smoke test and its
             dry-run parser) with the parser's tests, deno.json's tasks (jsr:smoke),
             .github/workflows/publish.yml (new: the tag-triggered publish),
@@ -59,7 +59,7 @@ Outputs:    (1) `npm run build` produces dist/node, dist/browser and dist/types 
                 else (no src/, test/, doc/, dev-dist/ or examples/)
             (3) `deno publish --dry-run` lists LICENSE and AGENTS.md beside the source, and
                 EXITs 0 with no warning other than the three declared dynamic-import ones
-            (4) `npm run check:pack`: packs the tarball, installs it with fyflow-scheduler@0.5.2 into a
+            (4) `npm run pack:smoke`: packs the tarball, installs it with fyflow-scheduler@0.5.2 into a
                 scratch project under dev-dist/w152-<pid>/, and in Node 24 imports each sub-path,
                 checks every named export index.ts, src/scheduler/index.ts and src/jsonata/index.ts declare, runs one real flow to `completed`,
                 typechecks a consumer file against the shipped .d.ts, and finds AGENTS.md and LICENSE
@@ -76,7 +76,7 @@ Outputs:    (1) `npm run build` produces dist/node, dist/browser and dist/types 
                 bundle that names a .ts file absent beside dist/node/scheduler/index.js, which would
                 break every typed node type for an npm consumer. fyflow-scheduler solves the same
                 case with an esbuild worker plugin (a data: URL on Node, a Blob URL in the browser).
-                check:pack's real flow uses a TYPED node, threaded and inline, so it fails if this
+                pack:smoke's real flow uses a TYPED node, threaded and inline, so it fails if this
                 breaks
             (10) `deno task jsr:smoke`, in fyflow-scheduler's style (its scripts/jsr-smoke.ts and
                 publishOutput.ts): parse `deno publish --dry-run`'s file list, stage EXACTLY those
@@ -103,11 +103,11 @@ Tests:      (4) is the test: its expected values are the export names the three 
             the outcome spec/run-state.md section 3 gives the flow, never a snapshot of a run.
             Provoked at birth (section 5 rule 7): a bundle that inlines fyflow-scheduler, a files list
             without AGENTS.md, an exports entry pointing at a path the build does not emit, and a
-            .d.ts emit that is missing one sub-path each turn check:pack RED, by name; the envelope
-            worker's URL left pointing at a .ts file turns check:pack's typed flow RED; and
+            .d.ts emit that is missing one sub-path each turn pack:smoke RED, by name; the envelope
+            worker's URL left pointing at a .ts file turns pack:smoke's typed flow RED; and
             envelope-worker.ts dropped from deno.json's allowlist turns jsr:smoke RED while the dry
             run stays green (the case jsr:smoke exists for)
-Gate:       L0-L6 via `npm run gate`; the build and both dry runs EXIT 0; check:pack and jsr:smoke
+Gate:       L0-L6 via `npm run gate`; the build and both dry runs EXIT 0; pack:smoke and jsr:smoke
             EXIT 0 with their provocations checked in; publish.yml, ci.yml and gate.yml parse, and none names gate:full (actionlint, or
             a YAML parse where actionlint is absent); one conformity reader; `npm run gate:full` EXIT 0, once, on a
             still tree
@@ -123,7 +123,7 @@ Reserves:   Q580-Q582, ADR 0092. ADR 0092 is used only if an answer needs one
    `exports` and `dist` layout) as the reference.
 2. The build, Outputs (1). One script, two esbuild platforms, and a `tsc` declaration emit.
    **Run from `prepack`, by the maintainer's choice on 2026-10-10**: one hook builds for both
-   `npm pack` and `npm publish`, so the tarball `check:pack` tests is built exactly as the one a
+   `npm pack` and `npm publish`, so the tarball `pack:smoke` tests is built exactly as the one a
    publish uploads. *Not chosen*: `prepublishOnly`, `fyflow-scheduler`'s hook, which leaves `npm pack`
    unbuilt; `prepare`, which builds on every development install; and an unhooked build guarded at
    publish.
@@ -146,18 +146,34 @@ Reserves:   Q580-Q582, ADR 0092. ADR 0092 is used only if an answer needs one
   jsr.io linked to this GitHub repository, and a trusted publisher for `fyflow-orchestration` on
   npmjs.com pointing at `.github/workflows/publish.yml`. A published version cannot be withdrawn the
   way a commit can.
-- **Wiring `check:pack` into `gate` or `gate:full`.** That changes what the gate runs (W139's
+- **Wiring `pack:smoke` into `gate` or `gate:full`.** That changes what the gate runs (W139's
   `gate:item`, ADR 0070) and binds `check-wiring`'s gate-manifest clauses. It is a stop-and-ask
   (rule 6) if the reader or the maintainer wants it in the gate; until then it is a standalone
   script run by this item and by the release step.
 - **A version bump past 0.7.0.** 0.7.0 is the first release.
 - **A `CHANGELOG`.** `fyflow-scheduler` has none either (CLAUDE.md), and nothing here asks for one.
 
+**Amended 2026-10-10, by the maintainer's answer (a) to a stop-and-ask raised during the build:
+`check:pack` is renamed `pack:smoke`, run by `scripts/pack-smoke.mjs`, with its provocations as a
+`--provoke` mode that restores the tree byte for byte.** The declared name could not stand beside
+this section's first bullet. **Any `check:*` name is bound by two existing checks:**
+
+- `scripts/check-source.mjs` **`S11`** requires every `check:*` entry to be reached from
+  `npm run gate:full` and to have a `check:*:selftest` sibling;
+- `scripts/check-wiring.mjs` **`G3`** requires every `scripts/check-*.mjs` on disk to have both
+  entries, both reachable from `gate:full`, and `G1`/`G2` then grade its `--self-test` dispatch.
+
+So a standalone `check:pack` left three choices: a red gate, wiring it into the gate (Out, above), or
+editing those two checks (outside `Owns`). The new name binds neither check, and it mirrors
+`jsr:smoke`. *Not chosen*: (b) wiring it into `gate:full` with a self-test, and (c) exempting it in
+`S11` and `G3`. **The same names in Owns, Outputs (4), Tests, Gate and Verification were changed in
+place.**
+
 ## Verification
 
 - `npm run build > dev-dist/w152-<pid>/build.log 2>&1; echo "EXIT=$?"`, then
   `npm pack --dry-run` and `deno publish --dry-run --allow-dirty`, each redirected and its EXIT read.
-- `npm run check:pack > dev-dist/w152-<pid>/pack.log 2>&1; echo "EXIT=$?"`, and its provocations
+- `npm run pack:smoke > dev-dist/w152-<pid>/pack.log 2>&1; echo "EXIT=$?"`, and its provocations
   run as a checked-in harness that restores the tree byte for byte.
 - `npm run gate > …; echo "EXIT=$?"` after the build lands, and `npm run gate:full > …; echo "EXIT=$?"`
   once on the final, still tree.
