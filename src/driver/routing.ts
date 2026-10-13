@@ -149,9 +149,10 @@ export function eligibleEdges(node: FlowNode, terminalState: TerminalState): Edg
  * **The ONE edge a gate takes for a route** — `spec/flow-definition.md` section 2's gate,
  * [ADR 0066](../../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
  * rule 4, [W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md). An edge carries the route it names,
- * and **an edge with no `route` carries the type's DEFAULT route** — never every route, and not the first.
- * Pure, as `selectEdge` is: the caller has already held `route` to the type's declared routes (`FD-R5`), and
- * `FD-V41` wires every declared route by exactly one edge, so this is total over what reaches it — `null` is
+ * and **an edge with no `route` carries the gate's DEFAULT route** — never every route, and not the first.
+ * `defaultRoute` is the GATE's resolved set's (`routesOf`, ADR 0092 rule 3), never read off the type here.
+ * Pure, as `selectEdge` is: the caller has already held `route` to the gate's resolved routes (`FD-R5`), and
+ * `FD-V41` wires every route of that set by exactly one edge, so this is total over what reaches it — `null` is
  * the assertion that `FD-V41` held, and the driver stops the run on it rather than routing nowhere.
  */
 export function gateEdge(node: GateNode, defaultRoute: string, route: string): Edge | null {

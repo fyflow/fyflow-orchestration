@@ -75,7 +75,7 @@
  */
 import { describeFindings, findings, type JsonSchema } from './schema.ts';
 import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry } from './types.ts';
-import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, workersOf } from './validate.ts';
+import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
 import { allRegions, branchPathOf, buildGraph, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
@@ -350,6 +350,13 @@ class Wiring {
   private readonly workers: ReturnType<typeof workersOf>;
   private readonly types: ReturnType<typeof nodeTypesOf>;
   private readonly gateTypes: ReadonlyMap<string, GateType>;
+  /**
+   * **Each gate's RESOLVED route set, by gate id — or nothing** (ADR 0092 rule 3): `routesOf` over the gate's
+   * type and settings, asked once here. This check does not run the validator first, so an unknown type and a
+   * `routesOf` problem (it is total: a malformed set, a throwing `routesFor`) both leave the gate with NO set — no default
+   * route and no guarantee, the arcs reported as they are, which is what an unknown type always got.
+   */
+  private readonly gateRoutes = new Map<string, { readonly defaultRoute: string; readonly keyResolvedRoutes?: readonly string[] }>();
   // Explicit fields, never parameter properties: Node's type stripping refuses those (`RT-R9`, `S4`),
   // which is how P18's own sample failed to load (W67's declaration step).
   constructor(
@@ -375,13 +382,17 @@ class Wiring {
       // NO arrival and its arcs VANISHED from the report (W92's declaration-step census), and that half
       // is unchanged: the arc exists, and only what it carries has learned anything.
       //
-      // **The ROUTE is carried here and resolved against the type's `defaultRoute` where the edge
+      // **The ROUTE is carried here and resolved against the GATE's `defaultRoute` (v0.30: its resolved set's, ADR 0092) where the edge
       // declares none** — not treated as a route named `(default)`. `distinct`'s default IS one of its
       // key-resolved routes, so a set holding a placeholder would have been right for the only type that
       // exists and wrong for a type whose default is its unresolved route, in silence (W99's declaration
       // step, correction 3; `doc/workflow.md` v0.23's selection clause).
       if (n.kind === 'gate') {
-        const dflt = this.gateTypes.get(n.type)?.defaultRoute;
+        const type = this.gateTypes.get(n.type);
+        const resolved = type === undefined ? undefined : routesOf(type, n.settings ?? {});
+        if (resolved !== undefined && !('problem' in resolved)) this.gateRoutes.set(n.id, resolved);
+        // The NODE's default (ADR 0092): for a derived type two gates of one type may have two.
+        const dflt = this.gateRoutes.get(n.id)?.defaultRoute;
         for (const e of n.edges ?? []) add(e.to, n.id, 'gate', e.route ?? dflt);
       }
       if (n.kind === 'fanout') for (const b of n.branches) add(b, n.id, 'branch');
@@ -564,7 +575,7 @@ class Wiring {
         const gate = this.byId.get(from) as GateNode;
         const key = this.keyOf(gate);
         const resolved = key !== '' && route !== undefined
-          && (this.gateTypes.get(gate.type)?.keyResolvedRoutes ?? []).includes(route);
+          && (this.gateRoutes.get(gate.id)?.keyResolvedRoutes ?? []).includes(route);
         for (const a of this.arrivals(from)) {
           if (!resolved || a.schema === undefined) { raw.push({ ...a }); continue; }
           const refused = this.keyPathRefusal(a.schema, key, gate.id, route!);

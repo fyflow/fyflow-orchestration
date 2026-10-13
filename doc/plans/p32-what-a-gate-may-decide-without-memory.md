@@ -1,7 +1,7 @@
 # P32 — What may a gate decide without memory, and from what the flow declares?
 
 **Status:** in progress — declared 2026-10-13 on `06a45ca`; stop-and-asks (a)-(d) ANSWERED by the
-maintainer 2026-10-13, all four as recommended; W153 declared
+maintainer 2026-10-13, all four as recommended; W153 done 2026-10-13
 **Question this plan answers:** *can a flow route the value that reaches a node by a declared
 condition (`if`) and by a declared table of values (`switch`), with no worker before the decision and
 no code registered for it — and what must the gate interface give up to let a type's routes come from
@@ -125,8 +125,8 @@ precedent named beside them.*
    keyResolvedRoutes? }`; a type carries either the three static members or `routesFor`, and
    `gateTypeProblem` refuses both and neither (`FD-V39`). The library calls `routesFor` **once per gate,
    at instantiation, after `FD-V40` passed**, holds the result to `gateTypeProblem`'s existing route
-   clauses, and every reader in fact 2 reads that resolved set — **one function, `routesOf(gate)`,
-   between them and the type**. A `routesFor` that throws or returns a malformed set is the GATE's
+   clauses, and every reader in fact 2 reads that resolved set — **one function, `routesOf(type, settings)`,
+   between them and the type** *(this read `routesOf(gate)` until W153's declaration step fixed the signature)*. A `routesFor` that throws or returns a malformed set is the GATE's
    refusal, by rule id, at load. **Stop-and-ask (a).**
 
 3. **A type may declare `settingsProblem(settings): string | null`**, run by `FD-V40` after the schema
@@ -190,7 +190,7 @@ precedent named beside them.*
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| W153 | **A gate type's routes may come from its node** — `routesFor`, `settingsProblem`, `routesOf(gate)` behind every reader in fact 2; ADR 0092 amending ADR 0066 rules 1 and 2 | `src/definition/types.ts`, `src/definition/validate.ts`, `src/definition/wiring.ts`, `src/driver/driver.ts`, `src/driver/routing.ts`, `spec/flow-definition.md`, `spec/README.md`, `AGENTS.md` (its `GateType` sections), `test/definition/gate.test.ts`, `test/definition/wiring.test.ts`, `test/driver/gate.test.ts`, `doc/decisions/0092-*` | — | `gate:item`; L1 a derived-route type refused by each `gateTypeProblem` clause, L2 one run routing on a derived route, and `distinct`'s suites UNMOVED |
+| W153 | **A gate type's routes may come from its node** — `routesFor`, `settingsProblem`, `routesOf(type, settings)` behind every reader in fact 2; ADR 0092 amending ADR 0066 rules 1 and 2 | `src/definition/types.ts`, `src/definition/validate.ts`, `src/definition/wiring.ts`, `src/driver/driver.ts`, `src/driver/routing.ts`, `spec/flow-definition.md`, `spec/README.md`, `AGENTS.md` (its `GateType` sections), `test/definition/gate.test.ts`, `test/definition/wiring.test.ts`, `test/driver/gate.test.ts`, `doc/decisions/0092-*` | — | `gate:item`; L1 a derived-route type refused by each `gateTypeProblem` clause, L2 one run routing on a derived route, and `distinct`'s suites UNMOVED |
 | W154 | **The built-in `if` and `switch`** — `BUILT_IN_GATE_TYPES` grows two; the spec rows; the example corpus; `AGENTS.md`'s gate section | `src/definition/validate.ts`, `spec/flow-definition.md`, `spec/examples/**`, `AGENTS.md`, `test/definition/gate-builtins.test.ts`, `test/driver/gate-builtins.test.ts` | W153 | `gate:item`; L1 each over a table of values — absent, `null`, wrong type, boundary, a two-case value — L2 every route of both taken, and an entry `if` held by `FD-R4` to the target it chooses |
 | W155 | **The exit artifact** — one flow through both, on real workers | `examples/flows/**`, `examples/l6.ts` | W154 | **`gate:full`** (the plan's last item); L6 in node 24 and deno |
 | W156 | *reserved, expected unused* | | | |

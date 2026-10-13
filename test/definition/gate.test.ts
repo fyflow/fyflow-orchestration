@@ -24,7 +24,7 @@ import { collected, equal, ok, readText, ROOT, suite, throws } from '../harness.
 import { typesFor } from '../registry-fixture.ts';
 import {
   BUILT_IN_GATE_TYPES, distinct, GATE_TYPE_KEYS, gateTypeCollisions, gateTypeProblem, gateTypesOf, KEY_PATH_RE, keyPathProblem,
-  NODE_KEYS_DECLARED, readKeyPath, validateDefinition, violatedRules,
+  NODE_KEYS_DECLARED, readKeyPath, routesOf, validateDefinition, violatedRules,
 } from '../../src/definition/validate.ts';
 import { checkRegistry, GateTypeRefused, NameCollision } from '../../src/definition/registry.ts';
 import { allRegions, branchPathOf, buildGraph } from '../../src/definition/regions.ts';
@@ -555,5 +555,479 @@ suite(SUITE, (test) => {
     equal(declared.filter((n) => !ran.includes(n)), [], 'a declared case did not run — it was deleted, renamed, or its suite stopped loading');
     equal(ran.filter((n) => !declared.includes(n)), [], 'a case ran that this list does not name. Add it here in the same commit');
     equal(ran.length, DECLARED_CASES.length, 'and the COUNT beside the membership, which catches a duplicated name');
+  });
+});
+
+// ---- W153 — a gate type's routes may come from its NODE (v0.30, ADR 0092) ----
+
+/**
+ * **What the suite below reads its expected values from** — `spec/flow-definition.md` v0.30: section 2's gate
+ * subsection (*A gate's routes are the GATE's, resolved once*), section 3's *Gate types* table (`routesFor`,
+ * `settingsProblem`, and the `GateTypeRefused` row), and section 5's `FD-V39`-`FD-V41` rows;
+ * [ADR 0092](../../doc/decisions/0092-a-gate-types-routes-are-declared-statically-or-derived-from-its-node.md);
+ * [W153](../../doc/work-items/w153-a-gate-types-routes-may-come-from-its-node.md). Every expected value is a rule
+ * id, a gate id or a route name the spec's text and this file's fixtures fix, never the validator's output.
+ *
+ * | what is selected | the right one | the wrong ones, and the fixture where each differs |
+ * |---|---|---|
+ * | the routes `FD-V41` counts at a gate | THAT gate's resolved set | the type's members (a derived type has none); the FIRST gate's set; every gate's routes together — `gA` and `gB` share `red` and differ in `blue` and `green`, so each wrong reading refuses a different edge |
+ * | the default an edge with no `route` carries | the gate's set's `defaultRoute` | its FIRST route — `byCases` puts the default LAST |
+ * | when `routesFor` is asked | once `FD-V40` found nothing on the gate | before the settings are checked — a call counter, and a throwing `routesFor` behind refused settings |
+ */
+const W153_SUITE = 'W153 — a gate type`s routes may come from its NODE: routesFor, settingsProblem, routesOf, FD-V39 to FD-V41 per gate';
+
+/** Every settings object `byCases.routesFor` was handed, in order — read to count the calls and to see the COPY. */
+const byCasesAsked: Record<string, unknown>[] = [];
+/** Every settings object `byCases.settingsProblem` was handed. */
+const byCasesChecked: Record<string, unknown>[] = [];
+
+/**
+ * **`byCases` — a DERIVED type**: a gate's routes are its `cases` followed by its `fallback`, which is the
+ * DEFAULT — LAST in `routes`, never first, so the default and the first route differ at every gate. Its schema
+ * says what the subset can say; `settingsProblem` says the one thing it cannot — a fallback that is also a case.
+ * The cases are the key-resolved routes: `fn` returns a case only where the key resolved to that case's name.
+ */
+const byCases: GateType = {
+  settingsSchema: {
+    type: 'object', required: ['cases', 'fallback'],
+    properties: { cases: { type: 'array', items: { type: 'string' } }, fallback: { type: 'string' }, key: { type: 'string' } },
+    additionalProperties: false,
+  },
+  settingsProblem: (s) => {
+    byCasesChecked.push(s as Record<string, unknown>);
+    return (s.cases as string[]).includes(s.fallback as string) ? `fallback ${JSON.stringify(s.fallback)} is also a case` : null;
+  },
+  routesFor: (s) => {
+    byCasesAsked.push(s as Record<string, unknown>);
+    (s as Record<string, unknown>).written = 'BY ROUTESFOR';   // handed a COPY: this must reach no definition
+    const cases = s.cases as string[];
+    return { routes: [...cases, s.fallback as string], defaultRoute: s.fallback as string, keyResolvedRoutes: [...cases] };
+  },
+  fn: (ctx) => (typeof ctx.key === 'string' && (ctx.settings.cases as string[]).includes(ctx.key) ? ctx.key : ctx.settings.fallback as string),
+};
+
+/** **`echo` — a derived type that returns, or throws, whatever its gate's settings say**: the malformed-set fixture. */
+const echo: GateType = {
+  routesFor: (s) => {
+    if (s.throws === true) throw new Error('echo cannot derive a set here');
+    return s.set as never;
+  },
+  fn: () => 'a',
+};
+
+/** `picky` — a STATIC type with a `settingsProblem` that throws, or returns a non-message, when its settings say so. */
+const picky: GateType = {
+  routes: ['a'], defaultRoute: 'a',
+  settingsProblem: (s) => {
+    if (s.mode === 'throw') throw new Error('picky threw');
+    if (s.mode === 'number') return 5 as unknown as string;
+    return s.mode === 'refuse' ? 'mode refuse is refused' : null;
+  },
+  fn: () => 'a',
+};
+
+const derivedRegistry: Registry = { ...registry, gateTypes: { threshold, byCases, echo, picky } };
+
+/**
+ * **Two gates of ONE derived type, each with its own route set** — `gA` routes `red`, `blue` and its default
+ * `other`; `gB`, reached on `gA`'s `blue`, routes `red`, `green` and its default `other`. `gA` and `gB` share
+ * `red` and the default's NAME, and differ in `blue` and `green`.
+ */
+const TWO_GATES = (gB: Record<string, unknown> = {}, gA: Record<string, unknown> = {}) => ({
+  flowId: 'two-derived-gates', version: 1, entry: 'identify',
+  nodes: [
+    { id: 'identify', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'gA' }] },
+    { id: 'gA', kind: 'gate', type: 'byCases', settings: { cases: ['red', 'blue'], fallback: 'other', key: 'colour' },
+      edges: [{ route: 'red', to: 'setup' }, { route: 'blue', to: 'gB' }, { to: 'dropped' }], ...gA },
+    { id: 'gB', kind: 'gate', type: 'byCases', settings: { cases: ['red', 'green'], fallback: 'other', key: 'colour' },
+      edges: [{ route: 'red', to: 'setup' }, { route: 'green', to: 'setup' }, { to: 'dropped' }], ...gB },
+    { id: 'setup', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
+    { id: 'dropped', kind: 'end', outcome: 'dropped' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+}) as unknown as FlowDefinition;
+
+/** Every finding as `rule@at`, sorted — the whole document's, so a finding at the OTHER gate is visible too. */
+const findingsOf = (d: FlowDefinition, r: Registry = derivedRegistry) => validateDefinition(d, r).map((f) => `${f.rule}@${f.at}`).sort();
+const detailsOf = (d: FlowDefinition, r: Registry = derivedRegistry) => validateDefinition(d, r).map((f) => f.detail);
+
+/** A one-gate flow over `echo` or `picky`, the gate `g` wired by one edge with no route — every node reachable (`FD-V11`). */
+const ONE_GATE = (type: string, settings: Record<string, unknown>, edges: readonly Record<string, unknown>[] = [{ to: 'setup' }]) => ({
+  flowId: 'one-gate', version: 1, entry: 'identify',
+  nodes: [
+    { id: 'identify', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'g' }] },
+    { id: 'g', kind: 'gate', type, settings, edges },
+    { id: 'setup', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+}) as unknown as FlowDefinition;
+
+const W153_CASES: readonly string[] = [
+  'the exactly-one rule: static routes OR routesFor — both refused, neither refused, each beside its accepted neighbour, at the registry and at the gate',
+  'FD-V41 counts each gate against ITS OWN set: a route wired on gA and missing on gB is refused at gB alone, and the default is the set`s, not its first route',
+  'routesFor that throws or returns a malformed set is FD-V39 at the GATE, and nothing is counted against a set that did not resolve',
+  'settingsProblem: a message is FD-V40, a throw or a non-message is FD-V39, and it runs only on settings the schema accepted',
+  'routesFor is asked only once FD-V40 found nothing on the gate, with a COPY of the settings',
+  'routesOf is pure and TOTAL: a set or a problem, never a throw, and a frozen copy of what routesFor returned',
+  // The reader passes' items, approved 2026-10-13 (W153's Exceptions).
+  'nothing a type returns or throws makes validation THROW — a BigInt, a cycle, settings that are not an object (conformity C1, adequacy M11)',
+  'settings that cannot be COPIED are the SETTINGS` defect, FD-V40 — never the type having thrown (conformity C2)',
+  'settingsProblem`s argument is a COPY, and so is routesFor`s — a write at the top or nested moves nothing (adequacy M27, M58, M60)',
+  'settingsProblem returning undefined is the TYPE`s defect, and returning an empty string is a refusal that says so (adequacy M30, M31; conformity C5)',
+  'gateTypeProblem: routesFor on a STATIC type in any shape, a derived type with no fn, and a derived settingsSchema outside the subset (adequacy M07, M08, M09)',
+  'settingsProblem runs after a KEY refusal too, and a THROWING settingsProblem blocks route resolution (adequacy M63, M32; conformity C4)',
+  'every case this suite declares actually ran — a deleted case fails naming itself',
+];
+
+suite(W153_SUITE, (test) => {
+  test('the exactly-one rule: static routes OR routesFor — both refused, neither refused, each beside its accepted neighbour, at the registry and at the gate', () => {
+    // The accepted neighbours: a derived type alone, a static type alone, and one carrying settingsProblem.
+    equal([gateTypeProblem(byCases), gateTypeProblem(echo), gateTypeProblem(picky), gateTypeProblem(threshold)], [null, null, null, null],
+      'a derived type, a static type with settingsProblem, and a static type without: each a GateType');
+    checkRegistry({ gateTypes: { byCases, echo, picky } });
+    // BOTH forms: routesFor beside ANY static member — routes and defaultRoute, or keyResolvedRoutes alone.
+    const both: [string, unknown][] = [
+      ['routes and defaultRoute', { ...byCases, routes: ['a'], defaultRoute: 'a' }],
+      ['routes alone', { ...byCases, routes: ['a'] }],
+      ['keyResolvedRoutes alone', { ...byCases, keyResolvedRoutes: [] }],
+      ['a static type given routesFor', { ...threshold, routesFor: () => ({ routes: ['a'], defaultRoute: 'a' }) }],
+    ];
+    // NEITHER: no route form at all.
+    const neither: [string, unknown][] = [
+      ['fn alone', { fn: () => 'a' }],
+      ['fn and a settingsSchema', { settingsSchema: { type: 'object' }, fn: () => 'a' }],
+    ];
+    const malformedMember: [string, unknown, string][] = [
+      ['routesFor not a function', { routesFor: ['a'], fn: () => 'a' }, 'routesFor'],
+      ['settingsProblem not a function, on a static type', { ...threshold, settingsProblem: 'no' }, 'settingsProblem'],
+      ['settingsProblem not a function, on a derived type', { ...byCases, settingsProblem: {} }, 'settingsProblem'],
+    ];
+    const cases: [string, unknown, string][] = [
+      ...both.map(([n, t]): [string, unknown, string] => [`both: ${n}`, t, 'routesFor AND']),
+      ...neither.map(([n, t]): [string, unknown, string] => [`neither: ${n}`, t, 'neither']),
+      ...malformedMember,
+    ];
+    for (const [name, t, says] of cases) {
+      const problem = gateTypeProblem(t);
+      ok(problem !== null && problem.includes(says), `${name}: gateTypeProblem refuses it naming ${JSON.stringify(says)} — ${problem}`);
+      let err: unknown;
+      try { checkRegistry({ gateTypes: { bad: t as GateType } }); } catch (e) { err = e; }
+      ok(err instanceof GateTypeRefused && (err as GateTypeRefused).at === 'bad', `${name}: GateTypeRefused at construction, naming the entry — ${String(err)}`);
+      // Reached through a flow with no registry check — FD-V39 at the gate, and NOTHING else at it: no routes counted.
+      const d = ONE_GATE('bad', {});
+      equal(findingsOf(d, { ...registry, gateTypes: { bad: t as GateType } }), ['FD-V39@g'], `${name}: FD-V39 at the gate that names it, alone`);
+    }
+    equal(cases.length, 9, 'four BOTH shapes, two NEITHER, three malformed members — the membership above, by count');
+    // The interface's member list names both new members, so neither is refused as an extra key.
+    ok(GATE_TYPE_KEYS.includes('routesFor') && GATE_TYPE_KEYS.includes('settingsProblem'), 'GATE_TYPE_KEYS declares routesFor and settingsProblem');
+    // `distinct` is unchanged by the rule: a static type, and still a GateType.
+    equal([gateTypeProblem(distinct), (distinct as { routesFor?: unknown }).routesFor], [null, undefined], 'distinct stays static: no routesFor, still a GateType');
+  });
+
+  test('FD-V41 counts each gate against ITS OWN set: a route wired on gA and missing on gB is refused at gB alone, and the default is the set`s, not its first route', () => {
+    // The accepted neighbour: each gate wired for its own set, each default by an edge with no route. A type-level
+    // read has no routes to count, the FIRST gate's set would refuse gB's `green` and miss its `blue`, and every
+    // gate's routes together would miss `blue` on gB and `green` on gA.
+    equal(findingsOf(TWO_GATES()), [], 'both gates wired for their own sets: clean');
+    // gB leaves `green` — its own case — unwired. Refused at gB, naming green, and NOTHING at gA.
+    const missing = TWO_GATES({ edges: [{ route: 'red', to: 'setup' }, { to: 'dropped' }] });
+    equal(findingsOf(missing), ['FD-V41@gB'], 'green unwired on gB: FD-V41 at gB alone');
+    ok(detailsOf(missing)[0]!.includes('"green"') && detailsOf(missing)[0]!.includes('has no edge'), `naming the route gB's set holds: ${detailsOf(missing)[0]}`);
+    // gB wires `blue` — gA's route, NOT gB's — beside its own three: an undeclared route at gB's edge.
+    const borrowed = TWO_GATES({ edges: [{ route: 'red', to: 'setup' }, { route: 'green', to: 'setup' }, { route: 'blue', to: 'setup' }, { to: 'dropped' }] });
+    equal(findingsOf(borrowed), ['FD-V41@gB#edge2'], 'blue on gB is undeclared THERE, although gA declares it');
+    ok(detailsOf(borrowed)[0]!.includes('"blue"'), `naming the route: ${detailsOf(borrowed)[0]}`);
+    // And gA wiring gB's `green`: the other direction, refused at gA's edge.
+    const borrowedA = TWO_GATES({}, { edges: [{ route: 'red', to: 'setup' }, { route: 'blue', to: 'gB' }, { route: 'green', to: 'setup' }, { to: 'dropped' }] });
+    equal(findingsOf(borrowedA), ['FD-V41@gA#edge2'], 'green on gA is undeclared there, although gB declares it');
+    // THE DEFAULT is the set's `defaultRoute` — `other`, LAST in byCases' routes. Naming it explicitly is the same
+    // wiring; naming the FIRST route (`red`) on the routeless edge's place leaves `other` unwired and `red` twice.
+    equal(findingsOf(TWO_GATES({ edges: [{ route: 'red', to: 'setup' }, { route: 'green', to: 'setup' }, { route: 'other', to: 'dropped' }] })), [],
+      'the default named explicitly is the same wiring: clean');
+    const twoRouteless = TWO_GATES({ edges: [{ route: 'green', to: 'setup' }, { to: 'setup' }, { to: 'dropped' }] });
+    const fs = validateDefinition(twoRouteless, derivedRegistry);
+    equal(fs.map((f) => `${f.rule}@${f.at}`).sort(), ['FD-V41@gB', 'FD-V41@gB'], 'two routeless edges and no red: other wired twice and red unwired');
+    ok(fs.some((f) => f.detail.includes('"other"') && f.detail.includes('2 edges')) && fs.some((f) => f.detail.includes('"red"') && f.detail.includes('has no edge')),
+      `the routeless edges count for OTHER, the set's default, and never for red, its first route: ${fs.map((f) => f.detail).join(' | ')}`);
+    // A gate's set may be ONE route — the smallest a set may be: one routeless edge wires it.
+    equal(findingsOf(TWO_GATES({ settings: { cases: [], fallback: 'only' }, edges: [{ to: 'dropped' }] })), [], 'a set of one route, its default, wired by one routeless edge');
+  });
+
+  test('routesFor that throws or returns a malformed set is FD-V39 at the GATE, and nothing is counted against a set that did not resolve', () => {
+    const good = { routes: ['a', 'b'], defaultRoute: 'b', keyResolvedRoutes: ['a'] };
+    // The accepted neighbour: echo handing back a well-formed set, both routes wired.
+    equal(findingsOf(ONE_GATE('echo', { set: good }, [{ route: 'a', to: 'setup' }, { to: 'done' }])), [], 'a well-formed derived set, fully wired: clean');
+    // Each malformed set — every one of the clauses a static type is held to, plus the shape and an extra key — is
+    // FD-V39 at the gate ALONE: the edges are not counted, because there is no set to count them against.
+    const malformed: [string, unknown, string][] = [
+      ['not an object', 'a', 'routesFor returned'],
+      ['an array', ['a'], 'routesFor returned'],
+      ['null', null, 'routesFor returned'],
+      ['routes empty', { routes: [], defaultRoute: 'a' }, 'non-empty'],
+      ['routes absent', { defaultRoute: 'a' }, 'non-empty'],
+      ['a route outside the charset', { routes: ['a b'], defaultRoute: 'a b' }, '"a b"'],
+      ['a route that is not a string', { routes: ['a', 7], defaultRoute: 'a' }, 'route 7'],
+      ['a repeated route', { routes: ['a', 'a'], defaultRoute: 'a' }, 'repeats'],
+      ['a default outside the routes', { routes: ['a'], defaultRoute: 'z' }, 'defaultRoute'],
+      ['no default', { routes: ['a'] }, 'defaultRoute'],
+      ['keyResolvedRoutes not an array', { routes: ['a'], defaultRoute: 'a', keyResolvedRoutes: 'a' }, 'must be an array'],
+      ['keyResolvedRoutes naming a non-route', { routes: ['a'], defaultRoute: 'a', keyResolvedRoutes: ['z'] }, 'not one of its routes'],
+      ['keyResolvedRoutes repeating a route', { routes: ['a'], defaultRoute: 'a', keyResolvedRoutes: ['a', 'a'] }, 'repeats'],
+      ['a key beside the three', { routes: ['a'], defaultRoute: 'a', fn: 'x' }, '"fn"'],
+    ];
+    for (const [name, set, says] of malformed) {
+      const d = ONE_GATE('echo', { set }, [{ to: 'setup' }]);
+      equal(findingsOf(d), ['FD-V39@g'], `${name}: FD-V39 at the gate, and no FD-V41 beside it`);
+      ok((detailsOf(d)[0] ?? '').includes(says) && (detailsOf(d)[0] ?? '').includes('"echo"'), `${name}: naming the type and ${JSON.stringify(says)} — ${detailsOf(d)[0]}`);
+    }
+    equal(malformed.length, 14, 'three shapes, seven route and default clauses, three keyResolvedRoutes clauses and an extra key — by count');
+    // A throwing routesFor: FD-V39 at the gate, the thrown message in it, and the validator itself does not throw.
+    const threw = ONE_GATE('echo', { throws: true });
+    equal(findingsOf(threw), ['FD-V39@g'], 'routesFor threw: FD-V39 at the gate');
+    ok(detailsOf(threw)[0]!.includes('echo cannot derive a set here'), `carrying what it threw: ${detailsOf(threw)[0]}`);
+    // Reported at the GATE whose settings broke it, and at no other gate of the same type.
+    const twoEchoes = {
+      flowId: 'two-echoes', version: 1, entry: 'identify', nodes: [
+        { id: 'identify', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'g1' }] },
+        { id: 'g1', kind: 'gate', type: 'echo', settings: { set: good }, edges: [{ route: 'a', to: 'g2' }, { to: 'dropped' }] },
+        { id: 'g2', kind: 'gate', type: 'echo', settings: { throws: true }, edges: [{ to: 'dropped' }] },
+        { id: 'dropped', kind: 'end', outcome: 'dropped' },
+      ],
+    } as unknown as FlowDefinition;
+    equal(findingsOf(twoEchoes), ['FD-V39@g2'], 'the gate whose settings broke routesFor, alone — g1 of the same type is clean');
+  });
+
+  test('settingsProblem: a message is FD-V40, a throw or a non-message is FD-V39, and it runs only on settings the schema accepted', () => {
+    // byCases: the fallback also a case is the one thing its schema cannot say.
+    const clash = TWO_GATES({ settings: { cases: ['red', 'green'], fallback: 'green', key: 'colour' } });
+    equal(findingsOf(clash), ['FD-V40@gB'], 'a fallback that is also a case: FD-V40 at gB alone — and no FD-V41, since a derived set is not asked of refused settings');
+    ok(detailsOf(clash)[0]!.includes('fallback "green" is also a case'), `the type's own message, reported under FD-V40: ${detailsOf(clash)[0]}`);
+    // The accepted neighbour is TWO_GATES() — clean, above and here.
+    equal(findingsOf(TWO_GATES()), [], 'settingsProblem returning null: clean');
+    // A schema refusal FIRST: settingsProblem is not asked of settings the schema refused — one FD-V40, the schema's.
+    byCasesChecked.length = 0;
+    const schemaBad = TWO_GATES({ settings: { cases: 'red', fallback: 'other' } });
+    const fs = validateDefinition(schemaBad, derivedRegistry);
+    equal(fs.map((f) => `${f.rule}@${f.at}`), ['FD-V40@gB'], 'cases not an array: FD-V40 once, the schema`s');
+    ok(fs[0]!.detail.includes('settingsSchema'), `reported as the schema's: ${fs[0]!.detail}`);
+    equal(byCasesChecked.map((s) => JSON.stringify(s.cases)), ['["red","blue"]'], 'settingsProblem was asked of gA`s settings and NOT of gB`s, which the schema refused');
+    // On a STATIC type too: its routes are counted whatever FD-V40 found, and settingsProblem's message is FD-V40.
+    equal(findingsOf(ONE_GATE('picky', { mode: 'ok' })), [], 'picky passing: clean');
+    equal(findingsOf(ONE_GATE('picky', { mode: 'refuse' })), ['FD-V40@g'], 'picky returning a message: FD-V40');
+    ok(detailsOf(ONE_GATE('picky', { mode: 'refuse' }))[0]!.includes('mode refuse is refused'), 'carrying its message');
+    // (edges `[]` leaves `setup` and `done` unreachable, `FD-V11`, which is not this clause — read at the gate.)
+    equal(findingsOf(ONE_GATE('picky', { mode: 'refuse' }, [])).filter((f) => f.endsWith('@g')), ['FD-V40@g', 'FD-V41@g'], 'a STATIC type`s routes are still counted beside its FD-V40 — the v0.23 behaviour, unchanged');
+    // The TYPE's defect: a throw, and a return that is neither a message nor null.
+    equal(findingsOf(ONE_GATE('picky', { mode: 'throw' })), ['FD-V39@g'], 'settingsProblem threw: FD-V39 — the type`s defect');
+    ok(detailsOf(ONE_GATE('picky', { mode: 'throw' }))[0]!.includes('picky threw'), 'carrying what it threw');
+    equal(findingsOf(ONE_GATE('picky', { mode: 'number' })), ['FD-V39@g'], 'settingsProblem returned 5: FD-V39');
+  });
+
+  test('routesFor is asked only once FD-V40 found nothing on the gate, with a COPY of the settings', () => {
+    byCasesAsked.length = 0;
+    const d = TWO_GATES();
+    validateDefinition(d, derivedRegistry);
+    equal(byCasesAsked.map((s) => JSON.stringify(s.cases)), ['["red","blue"]', '["red","green"]'], 'asked ONCE per gate, each with its own settings');
+    // It wrote into what it was handed; the definition's settings carry nothing it wrote.
+    const nodeSettings = (d.nodes.find((n) => n.id === 'gA') as { settings: Record<string, unknown> }).settings;
+    equal(Object.keys(nodeSettings).sort(), ['cases', 'fallback', 'key'], 'a COPY: the gate`s own settings are unmoved by routesFor writing into its argument');
+    // Refused settings — a key outside the grammar, a schema refusal, a settingsProblem message — mean NO call.
+    for (const [why, settings] of [
+      ['a key outside the grammar', { cases: ['red'], fallback: 'other', key: 'a[0]' }],
+      ['the schema refuses', { cases: ['red'], fallback: 'other', extra: 1 }],
+      ['settingsProblem refuses', { cases: ['red'], fallback: 'red' }],
+      ['settings not a plain object', ['red']],
+    ] as [string, unknown][]) {
+      byCasesAsked.length = 0;
+      const fsr = validateDefinition(TWO_GATES({ settings }), derivedRegistry).map((f) => `${f.rule}@${f.at}`);
+      equal([fsr, byCasesAsked.length], [['FD-V40@gB'], 1], `${why}: FD-V40 at gB alone, and routesFor asked for gA only`);
+    }
+  });
+
+  test('routesOf is pure and TOTAL: a set or a problem, never a throw, and a frozen copy of what routesFor returned', () => {
+    // A static type resolves to its own members — `distinct`'s, unchanged.
+    equal(routesOf(distinct, { key: 'k' }), { routes: ['first', 'duplicate', 'nokey'], defaultRoute: 'first', keyResolvedRoutes: ['first', 'duplicate'] }, 'distinct resolves to its own three members');
+    // A derived type resolves per SETTINGS.
+    equal(routesOf(byCases, { cases: ['x'], fallback: 'y' }), { routes: ['x', 'y'], defaultRoute: 'y', keyResolvedRoutes: ['x'] }, 'byCases over one setting');
+    equal(routesOf(byCases, { cases: ['p', 'q'], fallback: 'r' }), { routes: ['p', 'q', 'r'], defaultRoute: 'r', keyResolvedRoutes: ['p', 'q'] }, 'and over another: two gates, two sets');
+    // TOTAL: each defect is a problem, never a throw.
+    for (const [why, type, settings] of [
+      ['routesFor throws', echo, { throws: true }],
+      ['routesFor returns nothing', echo, {}],
+    ] as [string, GateType, unknown][]) {
+      let r: unknown;
+      let threw: unknown;
+      try { r = routesOf(type, settings); } catch (e) { threw = e; }
+      equal(threw, undefined, `${why}: routesOf does not throw`);
+      ok(typeof (r as { problem?: unknown }).problem === 'string', `${why}: it returns a problem — ${JSON.stringify(r)}`);
+    }
+    // A COPY out: a routesFor that hands back an array it later mutates moves nothing a reader holds.
+    const shared = { routes: ['a', 'b'], defaultRoute: 'a', keyResolvedRoutes: ['a'] };
+    // `holder` hands back the SAME object every call — `echo` could not show this, since it returns a part of the
+    // settings COPY routesOf made, which nothing else holds.
+    const holder: GateType = { routesFor: () => shared, fn: () => 'a' };
+    const resolved = routesOf(holder, {}) as { routes: readonly string[]; keyResolvedRoutes?: readonly string[] };
+    shared.routes.push('c');
+    shared.keyResolvedRoutes.push('b');
+    equal([resolved.routes, resolved.keyResolvedRoutes], [['a', 'b'], ['a']], 'the resolved set is a COPY of what routesFor returned');
+    ok(Object.isFrozen(resolved) && Object.isFrozen(resolved.routes), 'and frozen');
+    // A set with no keyResolvedRoutes resolves with none — absent is no guarantee, never an empty one invented.
+    ok(!('keyResolvedRoutes' in (routesOf(echo, { set: { routes: ['a'], defaultRoute: 'a' } }) as object)), 'absent stays absent');
+  });
+
+  test('nothing a type returns or throws makes validation THROW — a BigInt, a cycle, settings that are not an object (conformity C1, adequacy M11)', () => {
+    // `holder` returns whatever this case puts in `held` — a CONSTANT of the settings, so the problem below is the
+    // RETURNED value's and never the settings' (the adequacy reader's M11: `echo` turned either input into a problem
+    // by itself, so the old settings cases could not fail).
+    let held: unknown;
+    const holder: GateType = { routesFor: () => held as never, fn: () => 'a' };
+    const cyclic: unknown[] = ['a'];
+    cyclic.push(cyclic);
+    const selfDefault: Record<string, unknown> = { routes: ['a'] };
+    selfDefault.defaultRoute = selfDefault;
+    const returned: [string, unknown][] = [
+      ['a BigInt', 1n],
+      ['routes a BigInt', { routes: 1n, defaultRoute: 'a' }],
+      ['routes holding a cycle', { routes: cyclic, defaultRoute: 'a' }],
+      ['a default that is a cycle', selfDefault],
+    ];
+    for (const [why, value] of returned) {
+      held = value;
+      let r: unknown;
+      let threw: unknown;
+      try { r = routesOf(holder, {}); } catch (e) { threw = e; }
+      ok(threw === undefined && typeof (r as { problem?: unknown }).problem === 'string', `routesFor returning ${why}: a problem, never a throw — ${String(threw ?? (r as { problem: string }).problem)}`);
+      // …and through the validator, the driver and the wiring check, each of which resolves the same way.
+      threw = undefined;
+      let fs: string[] = [];
+      try { fs = findingsOf(ONE_GATE('holder', {}), { ...registry, gateTypes: { holder } }); } catch (e) { threw = e; }
+      equal([threw, fs], [undefined, ['FD-V39@g']], `${why}: validateDefinition reports FD-V39 at the gate and does not throw`);
+    }
+    equal(returned.length, 4, 'four returned shapes, by count');
+    // Settings that are not a plain object, with a CONSTANT routesFor — the problem is the settings' alone.
+    held = { routes: ['a'], defaultRoute: 'a' };
+    equal(typeof (routesOf(holder, {}) as { routes?: unknown }).routes, 'object', 'the CONTROL: the same holder over {} resolves');
+    for (const settings of ['x', null, 1n, ['a']]) {
+      let r: unknown;
+      let threw: unknown;
+      try { r = routesOf(holder, settings); } catch (e) { threw = e; }
+      ok(threw === undefined && typeof (r as { problem?: unknown }).problem === 'string', `routesOf over ${typeof settings} settings: a problem, never a throw — ${String(threw ?? (r as { problem: string }).problem)}`);
+    }
+    // settingsProblem returning a BigInt or a cycle: the TYPE's defect, FD-V39, described rather than thrown.
+    const cycle: Record<string, unknown> = {};
+    cycle.self = cycle;
+    for (const [why, said] of [['a BigInt', 1n], ['a cycle', cycle]] as [string, unknown][]) {
+      const liar: GateType = { routes: ['a'], defaultRoute: 'a', settingsProblem: () => said as never, fn: () => 'a' };
+      let threw: unknown;
+      let fs: string[] = [];
+      try { fs = findingsOf(ONE_GATE('liar', {}), { ...registry, gateTypes: { liar } }); } catch (e) { threw = e; }
+      equal([threw, fs], [undefined, ['FD-V39@g']], `settingsProblem returning ${why}: FD-V39, no throw`);
+    }
+    // A gate-type VALUE that is a BigInt, at the registry and through a flow.
+    ok((gateTypeProblem(1n) ?? '').includes('1n'), `gateTypeProblem(1n) describes it: ${gateTypeProblem(1n)}`);
+    let err: unknown;
+    try { checkRegistry({ gateTypes: { bad: 1n as unknown as GateType } }); } catch (e) { err = e; }
+    ok(err instanceof GateTypeRefused, `checkRegistry refuses a BigInt by name, not with a TypeError: ${String(err)}`);
+    // The driver: a malformed derived set at construction is InvalidDefinition naming FD-V39 — never a raw TypeError.
+    held = 1n;
+    err = undefined;
+    try {
+      new Driver(ONE_GATE('holder', {}), {
+        runId: 'r', scheduler: { addTask: () => {}, addEventListener: () => {} } as never, predicates: new Map(), createTask: (c: unknown) => c as never,
+        ...typesFor(['ExtractWorker', 'ScoreWorker']), gateTypes: { holder },
+      } as never);
+    } catch (e) { err = e; }
+    ok(err instanceof InvalidDefinition && (err as InvalidDefinition).rules.includes('FD-V39'), `new Driver: InvalidDefinition with FD-V39, not a TypeError: ${String(err)}`);
+  });
+
+  test('settings that cannot be COPIED are the SETTINGS` defect, FD-V40 — never the type having thrown (conformity C2)', () => {
+    const uncopyable = { cases: ['red'], fallback: 'other', fn: () => 1 } as unknown as Record<string, unknown>;
+    // A derived type: FD-V40, routesFor never asked, and no FD-V39 blaming the type.
+    const counting = { asked: 0, checked: 0 };
+    const derived: GateType = {
+      settingsProblem: () => { counting.checked++; return null; },
+      routesFor: () => { counting.asked++; return { routes: ['a'], defaultRoute: 'a' }; },
+      fn: () => 'a',
+    };
+    const fs = validateDefinition(ONE_GATE('derived', uncopyable), { ...registry, gateTypes: { derived } });
+    equal(fs.map((f) => `${f.rule}@${f.at}`), ['FD-V40@g'], 'a derived type over settings holding a function: FD-V40 alone');
+    ok(fs[0]!.detail.includes('cannot be copied') && !fs[0]!.detail.includes('threw'), `named as the settings', not as a throw: ${fs[0]!.detail}`);
+    equal(counting, { asked: 0, checked: 0 }, 'and neither settingsProblem nor routesFor was asked');
+    // A static type with settingsProblem: the same, and its routes still counted (the gate is wired here).
+    const staticChecked: GateType = { routes: ['a'], defaultRoute: 'a', settingsProblem: () => { counting.checked++; return null; }, fn: () => 'a' };
+    equal(findingsOf(ONE_GATE('staticChecked', { f: () => 1 } as unknown as Record<string, unknown>), { ...registry, gateTypes: { staticChecked } }), ['FD-V40@g'],
+      'a static type with settingsProblem: FD-V40, settingsProblem not asked');
+    equal(counting.checked, 0, 'settingsProblem was not asked of settings it could not be handed a copy of');
+    // routesOf itself, asked directly: a problem naming the COPY, not a throw by routesFor.
+    const p = (routesOf(derived, uncopyable) as { problem: string }).problem;
+    ok(p.includes('cannot be copied') && !p.includes('routesFor threw'), `routesOf: the copy's problem — ${p}`);
+    // The CONTROL: the same type over copyable settings is clean, and asked once each.
+    equal(findingsOf(ONE_GATE('derived', { cases: ['red'] }), { ...registry, gateTypes: { derived } }), [], 'the same type over plain settings: clean');
+    equal(counting, { asked: 1, checked: 1 }, 'and both members asked once');
+  });
+
+  test('settingsProblem`s argument is a COPY, and so is routesFor`s — a write at the top or nested moves nothing (adequacy M27, M58, M60)', () => {
+    const seenByRoutesFor: unknown[] = [];
+    const scribbler: GateType = {
+      settingsProblem: (s) => {
+        (s as Record<string, unknown>).top = 'WRITTEN BY settingsProblem';
+        ((s as { nested: Record<string, unknown> }).nested).deep = 'WRITTEN BY settingsProblem';
+        return null;
+      },
+      routesFor: (s) => {
+        seenByRoutesFor.push(structuredClone(s));
+        ((s as { nested: { list: string[] } }).nested.list).push('WRITTEN BY routesFor');
+        return { routes: ['a'], defaultRoute: 'a' };
+      },
+      fn: () => 'a',
+    };
+    const settings = { nested: { list: ['x'] } };
+    const d = ONE_GATE('scribbler', settings);
+    equal(findingsOf(d, { ...registry, gateTypes: { scribbler } }), [], 'clean');
+    equal((d.nodes[1] as unknown as { settings: unknown }).settings, { nested: { list: ['x'] } }, 'the node`s settings are unmoved by either member writing into its argument, top-level or nested');
+    equal(seenByRoutesFor, [{ nested: { list: ['x'] } }], 'and routesFor saw the settings as the document has them, not settingsProblem`s writes');
+  });
+
+  test('settingsProblem returning undefined is the TYPE`s defect, and returning an empty string is a refusal that says so (adequacy M30, M31; conformity C5)', () => {
+    const says = (ret: unknown): GateType => ({ routes: ['a'], defaultRoute: 'a', settingsProblem: () => ret as never, fn: () => 'a' });
+    equal(findingsOf(ONE_GATE('t', {}), { ...registry, gateTypes: { t: says(undefined) } }), ['FD-V39@g'], 'undefined is neither a message nor null: FD-V39');
+    const empty = validateDefinition(ONE_GATE('t', {}), { ...registry, gateTypes: { t: says('') } });
+    equal(empty.map((f) => `${f.rule}@${f.at}`), ['FD-V40@g'], 'an empty string is a message: FD-V40');
+    ok(empty[0]!.detail.includes('EMPTY message'), `and the message says the type gave none: ${empty[0]!.detail}`);
+    equal(findingsOf(ONE_GATE('t', {}), { ...registry, gateTypes: { t: says(null) } }), [], 'the CONTROL: null passes');
+  });
+
+  test('gateTypeProblem: routesFor on a STATIC type in any shape, a derived type with no fn, and a derived settingsSchema outside the subset (adequacy M07, M08, M09)', () => {
+    ok((gateTypeProblem({ ...threshold, routesFor: 'x' }) ?? '').includes('routesFor AND'), 'a static type carrying a NON-function routesFor carries both forms');
+    const noFn = { routesFor: byCases.routesFor };
+    ok((gateTypeProblem(noFn) ?? '').includes('fn'), `a derived type with no fn is refused naming fn: ${gateTypeProblem(noFn)}`);
+    ok((gateTypeProblem({ ...byCases, settingsSchema: { type: 'object', pattern: 'x' } }) ?? '').includes('settingsSchema'), 'a derived type`s settingsSchema is held to the subset as a static type`s is');
+    equal(gateTypeProblem({ routesFor: byCases.routesFor, fn: byCases.fn }), null, 'the CONTROL: routesFor and fn alone are a gate type');
+  });
+
+  test('settingsProblem runs after a KEY refusal too, and a THROWING settingsProblem blocks route resolution (adequacy M63, M32; conformity C4)', () => {
+    // A bad key AND a fallback that is a case: both are FD-V40, the second from settingsProblem.
+    const both = validateDefinition(TWO_GATES({ settings: { cases: ['red', 'green'], fallback: 'green', key: 'a[0]' } }), derivedRegistry);
+    equal(both.map((f) => `${f.rule}@${f.at}`), ['FD-V40@gB', 'FD-V40@gB'], 'the key grammar and settingsProblem, two FD-V40 findings');
+    ok(both.some((f) => f.detail.includes('also a case')), `one of them settingsProblem's: ${both.map((f) => f.detail).join(' | ')}`);
+    // A throwing settingsProblem on a derived type whose wiring is WRONG: FD-V39 alone — routesFor not asked,
+    // nothing counted. The control is the same type with a passing settingsProblem: FD-V41 on the same edges.
+    let asked = 0;
+    const thrower = (throws: boolean): GateType => ({
+      settingsProblem: () => { if (throws) throw new Error('no'); return null; },
+      routesFor: () => { asked++; return { routes: ['a', 'b'], defaultRoute: 'a' }; },
+      fn: () => 'a',
+    });
+    equal(findingsOf(ONE_GATE('t', {}), { ...registry, gateTypes: { t: thrower(true) } }), ['FD-V39@g'], 'a throw: FD-V39 alone, b`s missing edge not counted');
+    equal(asked, 0, 'and routesFor was not asked');
+    equal(findingsOf(ONE_GATE('t', {}), { ...registry, gateTypes: { t: thrower(false) } }), ['FD-V41@g'], 'the CONTROL: no throw, and b`s missing edge is FD-V41');
+  });
+
+  test('every case this suite declares actually ran — a deleted case fails naming itself', () => {
+    const ran = collected().filter((s) => s.suite === W153_SUITE).flatMap((s) => s.cases.map((c) => c.name)).sort();
+    const declared = [...W153_CASES].sort();
+    equal(declared.filter((n) => !ran.includes(n)), [], 'a declared case did not run — it was deleted, renamed, or its suite stopped loading');
+    equal(ran.filter((n) => !declared.includes(n)), [], 'a case ran that this list does not name. Add it here in the same commit');
+    equal(ran.length, W153_CASES.length, 'and the COUNT beside the membership, which catches a duplicated name');
   });
 });

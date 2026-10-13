@@ -84,9 +84,11 @@ export class NameMissing extends RegistryError {}
 export class DerivationRefused extends RegistryError {}
 /**
  * **A registered GATE type is not a `GateType`** — v0.23 (W92, ADR 0066): not an object; a key beside the
- * interface's five; `routes` empty, repeated or outside `FD-V16`'s charset; a `defaultRoute` that is not one
- * of them; a `settingsSchema` outside the subset; a `keyResolvedRoutes` that is not an array of its own
- * routes, or repeats one (v0.25); or no `fn`. `gateTypeProblem` is the predicate, shared with
+ * interface's seven; **static routes AND `routesFor`, or neither** (v0.30, ADR 0092); a `routesFor` or a
+ * `settingsProblem` that is not a function (v0.30); `routes` empty, repeated or outside `FD-V16`'s charset; a
+ * `defaultRoute` that is not one of them; a `settingsSchema` outside the subset; a `keyResolvedRoutes` that is not
+ * an array of its own routes, or repeats one (v0.25); or no `fn`. What a derived type's `routesFor` RETURNS is
+ * held at the gate, `FD-V39`, since only a gate has settings. `gateTypeProblem` is the predicate, shared with
  * `FD-V39`'s second clause, so the registry and the validator cannot disagree about what a gate type IS.
  */
 export class GateTypeRefused extends RegistryError {}

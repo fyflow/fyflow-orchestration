@@ -271,6 +271,10 @@ const DRIVER_FIELDS = [
   // `RN-R13`'s FOURTH term. `gateTypes`: the gate types, normalised once — configuration, in `NOT_RUN_STATE`.
   // The ratchet fired by name on W93's first L1 run, naming both.
   'gateMemory', 'gateTypes',
+  // W153 — `gateRoutes`: each gate's RESOLVED route set by gate id (ADR 0092 rule 3), built once at construction from
+  // the definition and the gate types. Route NAMES, constant in the task count, no result. WALKED, which costs nothing
+  // for a structure that holds no result. The ratchet fired by name on W153's first L1 run (stop-and-ask (e), YES).
+  'gateRoutes',
   // W151 — `deaf`: one boolean, set when a resume is refused because its replay regenerated a stop in the lost tail
   // (`RN-R23`). It holds no result; WALKED beside `failed` and `started`. The ratchet fired as designed.
   'deaf',

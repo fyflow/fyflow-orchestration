@@ -682,14 +682,56 @@ export interface GateContext {
  * (P24 decision 2, ADR 0066). Code, not a document entry: `fn` is a function, which a JSON registry
  * cannot carry (ADR 0002 rule 1), so a consumer's types are registered in `Registry.gateTypes` the way
  * a language adapter's `compile` is supplied in code.
+ *
+ * **Its routes are declared STATICALLY or DERIVED from the gate's own settings — exactly one of the two**
+ * ([ADR 0092](../../doc/decisions/0092-a-gate-types-routes-are-declared-statically-or-derived-from-its-node.md),
+ * v0.30): a `StaticGateType` carries `routes`, `defaultRoute` and `keyResolvedRoutes?`, the same for every
+ * gate naming it; a `DerivedGateType` carries `routesFor(settings)` IN PLACE of the three, so two gates of
+ * one type may have two route sets. Every reader of a gate's routes reads the gate's RESOLVED set
+ * (`routesOf`), never the type's members. A value carrying both, or neither, is refused (`FD-V39`,
+ * `GateTypeRefused`).
  */
-export interface GateType {
+export type GateType = StaticGateType | DerivedGateType;
+
+/** **A gate type whose routes are its NODE's** — `routesFor` in place of `routes`, `defaultRoute` and `keyResolvedRoutes` (ADR 0092). */
+export interface DerivedGateType {
+  /**
+   * **The routes of ONE gate, from that gate's settings** — `{ routes, defaultRoute, keyResolvedRoutes? }`,
+   * held to the clauses a static type's three members are. Called once per gate at instantiation, after
+   * `FD-V40` passed, with a COPY of the settings (`{}` when the gate declares none); every reader — `FD-V41`'s
+   * count, the default edge, `FD-R5`, the wiring check's guarantee — reads what it returned. **A pure function
+   * of the settings**, as `fn` is of its context (Q9): the validator and each driver ask it separately, and a
+   * resume asks it again. A throw or a malformed set is refused at the GATE, `FD-V39`.
+   */
+  routesFor(settings: Readonly<Record<string, unknown>>): Pick<StaticGateType, 'routes' | 'defaultRoute' | 'keyResolvedRoutes'>;
+  readonly routes?: never;
+  readonly defaultRoute?: never;
+  readonly keyResolvedRoutes?: never;
+  /** What a gate's `settings` must satisfy, in the built-in subset (ADR 0053). Absent means UNCHECKED (P18 decision 3). */
+  readonly settingsSchema?: JsonSchema;
+  /**
+   * **What the settings must satisfy beyond the schema** — a message naming what is wrong, or `null`. Run by
+   * `FD-V40` once the settings are a plain object the `settingsSchema` accepts, with a COPY of them; a message
+   * is reported under `FD-V40`, and a throw or a return that is neither a string nor `null` under `FD-V39`
+   * (ADR 0092). The subset cannot state a grammar (ADR 0053), so a type that needs one states it here.
+   */
+  settingsProblem?(settings: Readonly<Record<string, unknown>>): string | null;
+  /** The decision: one of THIS GATE's routes, synchronously — a route outside the set `routesFor` returned for the gate STOPS the run (`FD-R5`). */
+  fn(ctx: GateContext): string;
+}
+
+/** **A gate type whose routes are the same for every gate naming it** — the interface as ADR 0066 wrote it; `distinct` is one. */
+export interface StaticGateType {
   /** Every route `fn` may return, each in `FD-V16`'s charset, distinct, at least one. Every one must be wired by exactly one edge (`FD-V41`). */
   readonly routes: readonly string[];
   /** What an edge with no `route` carries. One of `routes` — and NOT necessarily the first. */
   readonly defaultRoute: string;
+  /** Absent on a static type: its routes are declared, not derived (ADR 0092). */
+  readonly routesFor?: never;
   /** What a gate's `settings` must satisfy, in the built-in subset (ADR 0053). Absent means UNCHECKED (P18 decision 3). */
   readonly settingsSchema?: JsonSchema;
+  /** As `DerivedGateType.settingsProblem`: run by `FD-V40` after the schema, its message reported under it. */
+  settingsProblem?(settings: Readonly<Record<string, unknown>>): string | null;
   /**
    * **The routes on which the gate's KEY PATH resolved** — a subset of `routes` (`FD-V39`'s second clause, as every
    * other malformed member of this interface is), OPTIONAL, and
@@ -771,7 +813,8 @@ export interface Registry {
    * **A consumer's GATE types, beside the built-ins** — the sixth set, v0.23 (W92, ADR 0066). **Absent
    * means the BUILT-INS ALONE** — `distinct` is always there, so this set only ever ADDS; a name that
    * is a built-in's is refused (`NameCollision` at construction, `FD-V39` reached here directly). The
-   * validator reads `routes`, `defaultRoute` and `settingsSchema`; the driver reads `fn` too. **A driver
+   * validator reads each gate's route set (`routesOf` — the static members, or `routesFor` over the gate's
+   * settings, v0.30), `settingsSchema` and `settingsProblem`; the driver reads `fn` too. **A driver
    * is handed the set as `DriverOptions.gateTypes`** since W93 — the runtime's road is
    * `runtime.registry.gateTypes`, from `RegistryCode.gateTypes`. *(Until W93 no driver carried it and
    * every gate flow was refused at construction.)*

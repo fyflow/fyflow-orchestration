@@ -14,6 +14,11 @@ resolves: ""
 
 **Status:** accepted 2026-09-25 — **rule 7 SUPERSEDED by [ADR 0067](0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md)**
 (W93, the same day): a gate RUNS, and `new Driver` constructs a flow holding one. Rules 1-6 stand.
+**Rules 1 and 2 amended 2026-10-13 by
+[ADR 0092](0092-a-gate-types-routes-are-declared-statically-or-derived-from-its-node.md)** (W153): a gate is a
+node that routes by a registered type, memory being something a type MAY use; and a type declares its routes
+statically or derives them from its gate's settings by `routesFor`, exactly one of the two, every reader reading
+the gate's resolved set.
 **Plan:** [P24](../plans/p24-what-a-node-may-remember-across-a-runs-branches.md) — *what may a node
 REMEMBER across a run's branches?*
 **Supersedes:** nothing. **Answers:** P24 decisions 1-4 and stop-and-asks (c) and (d) as a DEFINITION;
