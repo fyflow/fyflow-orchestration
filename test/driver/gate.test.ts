@@ -812,3 +812,172 @@ const W92_CHECKPOINT = {
     {"kind": "region", "event": {"type": "branch.arrived", "regionId": "split", "regionPath": "-", "branchPath": "0"}},
   ],
 };
+
+// ---- W153 — a gate whose routes come from its NODE, in a run (v0.30, ADR 0092) ----
+
+/**
+ * Ladder L2 for [W153](../../doc/work-items/w153-a-gate-types-routes-may-come-from-its-node.md): `spec/flow-definition.md`
+ * v0.30, section 2's *A gate's routes are the GATE's, resolved once*, step 2 of *What RUNNING a gate does*, and
+ * `FD-R5`'s row. Expected values are read off that text and the settlements this suite delivers.
+ *
+ * | what is selected | the right one | the wrong ones, and the fixture where each differs |
+ * |---|---|---|
+ * | the edge for the DEFAULT | the edge with no `route`, carrying the gate's set's `defaultRoute` | the type's `defaultRoute` — `colour` has none, so the routeless edge would match nothing and the run would stop |
+ * | the routes `FD-R5` holds a returned route to | the GATE's resolved set | the type's members (none); the first gate's set; every gate's routes — `gB` is handed `blue`, which `gA`'s set holds and `gB`'s does not |
+ * | when `routesFor` is asked | once per gate at construction | per decision — the counter does not move while the run decides |
+ */
+const W153_SUITE = 'W153 — a gate whose routes come from its NODE, in a run: the derived route, its default, FD-R5 against the NODE`s set';
+
+/** How many times `colour.routesFor` was asked, and with which `cases`. */
+const colourAsked: string[] = [];
+
+/**
+ * **`colour` — a DERIVED type**: a gate's routes are its `cases` and `other`, the DEFAULT. `fn` returns the key
+ * VERBATIM where it is a string and `other` where it is not — so it can return a route outside its gate's set,
+ * which is what `FD-R5` is for.
+ */
+const colour: GateType = {
+  routesFor: (s) => {
+    colourAsked.push(JSON.stringify(s.cases));
+    return { routes: [...(s.cases as string[]), 'other'], defaultRoute: 'other' };
+  },
+  fn: (ctx) => (typeof ctx.key === 'string' ? ctx.key : 'other'),
+};
+
+/**
+ * `first` settles; `gA` routes `red`, `blue` and its default `other`; `gB`, on `gA`'s `blue`, routes `red` and its
+ * default `other`. Every edge leads to its own task, so the route taken is read off the one task dispatched.
+ */
+const DERIVED_FLOW: FlowDefinition = {
+  flowId: 'derived', version: 1, entry: 'first',
+  nodes: [
+    { id: 'first', kind: 'task', type: 'Work', edges: [{ to: 'gA' }] },
+    { id: 'gA', kind: 'gate', type: 'colour', settings: { cases: ['red', 'blue'], key: 'colour' }, edges: [
+      { route: 'red', to: 'aRed' }, { route: 'blue', to: 'gB' }, { to: 'aOther' }] },
+    { id: 'gB', kind: 'gate', type: 'colour', settings: { cases: ['red'], key: 'colour' }, edges: [
+      { route: 'red', to: 'bRed' }, { to: 'bOther' }] },
+    { id: 'aRed', kind: 'task', type: 'Other', edges: [{ to: 'done' }] },
+    { id: 'aOther', kind: 'task', type: 'Other', edges: [{ to: 'done' }] },
+    { id: 'bRed', kind: 'task', type: 'Other', edges: [{ to: 'done' }] },
+    { id: 'bOther', kind: 'task', type: 'Other', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+
+const W153_CASES: readonly string[] = [
+  'a run routes on a DERIVED route, and an edge with no route carries the GATE`s default — the type has none',
+  'FD-R5 holds a returned route to the NODE`s set: blue, declared at gA, stops the run at gB',
+  'routesFor is asked once per gate when the driver is constructed, and not again while the run decides',
+  // The reader passes' items, approved 2026-10-13 (W153's Exceptions).
+  'FD-R4 through a DERIVED ENTRY gate holds the payload to the target the GATE`s set chooses — its default, which is not its first route (adequacy M51, M52)',
+  'a derived gate with NO settings constructs and routes by its default (adequacy M43)',
+  'every case this suite declares actually ran — a deleted case fails naming itself',
+];
+
+suite(W153_SUITE, (test) => {
+  test('a run routes on a DERIVED route, and an edge with no route carries the GATE`s default — the type has none', () => {
+    // red: a case of gA's set — the edge naming red.
+    const red = harness(DERIVED_FLOW, { gateTypes: { colour } });
+    red.driver.start({});
+    red.scheduler.settle('R:first:-:0', 'done', { colour: 'red' });
+    equal(red.ids(), ['R:first:-:0', 'R:aRed:-:0'], 'colour red: the edge naming red, gA`s derived route');
+    equal(red.inputOf('R:aRed:-:0'), { colour: 'red' }, 'carrying what reached the gate');
+    equal(red.gated().map((g) => [g.gateId, g.route, g.key]), [['gA', 'red', 'red']], 'and the decision recorded with its route');
+    equal(red.failures, [], 'nothing reported');
+    // A key that is not a string: `fn` returns `other`, the SET's default, and the edge with no route carries it.
+    // A driver reading the TYPE's default reads nothing there, matches no edge, and stops the run.
+    const other = harness(DERIVED_FLOW, { gateTypes: { colour } });
+    other.driver.start({});
+    other.scheduler.settle('R:first:-:0', 'done', { colour: 5 });
+    equal(other.ids(), ['R:first:-:0', 'R:aOther:-:0'], 'a non-string key: other, the default, by the edge with no route');
+    equal(other.gated().map((g) => [g.gateId, g.route]), [['gA', 'other']], 'recorded as the route other');
+    equal(other.failures, [], 'nothing reported');
+    // Through BOTH gates: blue at gA, then red at gB — two sets, each read where its gate decides.
+    const both = harness({ ...DERIVED_FLOW, nodes: DERIVED_FLOW.nodes.map((n) => n.id === 'gB'
+      ? { ...n, settings: { cases: ['red', 'blue'], key: 'colour' }, edges: [{ route: 'red', to: 'bRed' }, { route: 'blue', to: 'bRed' }, { to: 'bOther' }] } : n) } as FlowDefinition,
+    { gateTypes: { colour } });
+    both.driver.start({});
+    both.scheduler.settle('R:first:-:0', 'done', { colour: 'blue' });
+    equal([both.ids(), both.gated().map((g) => `${g.gateId}:${g.route}`)], [['R:first:-:0', 'R:bRed:-:0'], ['gA:blue', 'gB:blue']],
+      'the control for the next case: where gB`s set holds blue too, blue passes both gates');
+    equal(fold(both.driver.foldInputs()).outcome, 'running', 'and the run goes on');
+  });
+
+  test('FD-R5 holds a returned route to the NODE`s set: blue, declared at gA, stops the run at gB', () => {
+    const h = harness(DERIVED_FLOW, { gateTypes: { colour } });
+    h.driver.start({});
+    h.scheduler.settle('R:first:-:0', 'done', { colour: 'blue' });
+    // gA decides blue — its own route — and the branch enters gB with the same value, where `fn` returns blue
+    // again. gB's set is red and other: blue is undeclared THERE, whatever gA declares.
+    equal(h.failures.map((f) => f.kind), ['UndeclaredRoute'], 'stopped once, by name');
+    const msg = h.failures[0]!.message;
+    ok(msg.startsWith('FD-R5') && msg.includes('"gB"') && msg.includes('"blue"') && msg.includes('its routes are "red", "other"'),
+      `naming the rule, the gate, what was returned and THE GATE's routes: ${msg.slice(0, 260)}`);
+    equal(h.gated().map((g) => `${g.gateId}:${g.route}`), ['gA:blue'], 'gA`s decision recorded, and nothing for gB');
+    equal(h.ids(), ['R:first:-:0'], 'nothing past gB dispatched');
+    equal(fold(h.driver.foldInputs()).outcome, 'stopped', 'the run is stopped');
+  });
+
+  test('routesFor is asked once per gate when the driver is constructed, and not again while the run decides', () => {
+    colourAsked.length = 0;
+    const h = harness(DERIVED_FLOW, { gateTypes: { colour } });
+    // Construction: the validator asks it once per gate (`FD-V41`) and the driver once per gate (its cache) —
+    // two gates, so four, each with its own gate's cases.
+    equal(colourAsked.slice().sort(), ['["red","blue"]', '["red","blue"]', '["red"]', '["red"]'], 'at construction: once per gate by the validator, once per gate by the driver');
+    const atConstruction = colourAsked.length;
+    h.driver.start({});
+    h.scheduler.settle('R:first:-:0', 'done', { colour: 'red' });
+    h.scheduler.settle('R:aRed:-:0', 'done', {});
+    equal(fold(h.driver.foldInputs()).outcome, 'completed', 'the run decided at gA and completed');
+    equal(colourAsked.length, atConstruction, 'and asked routesFor NOTHING while it decided — the set is the one resolved at construction');
+  });
+
+  test('FD-R4 through a DERIVED ENTRY gate holds the payload to the target the GATE`s set chooses — its default, which is not its first route (adequacy M51, M52)', () => {
+    // `colour` over cases [red]: routes red, other — the DEFAULT `other` is LAST. A payload with no string colour
+    // is routed `other`, by the edge with no route, to `fix`, whose schema it fails. A boundary walk reading the
+    // TYPE's default reads nothing and holds nothing; one reading the FIRST route holds `work`, which it fits.
+    const workers: Record<string, WorkerEntry> = {
+      work: { url: 'test://work', inputSchema: { type: 'object', required: ['colour'] } },
+      fix: { url: 'test://fix', inputSchema: { type: 'object', required: ['fixme'] } },
+    };
+    const types = typesFor([], { Work: { worker: 'work' }, Fix: { worker: 'fix' } }, workers);
+    const flow = { flowId: 'derived-entry', version: 1, entry: 'g', nodes: [
+      { id: 'g', kind: 'gate', type: 'colour', settings: { cases: ['red'], key: 'colour' }, edges: [{ route: 'red', to: 'work' }, { to: 'fix' }] },
+      { id: 'work', kind: 'task', type: 'Work', edges: [{ to: 'done' }] },
+      { id: 'fix', kind: 'task', type: 'Fix', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ] } as unknown as FlowDefinition;
+    const h = harness(flow, { ...types, gateTypes: { colour } });
+    let err: unknown;
+    try { h.driver.start({ colour: 5 }); } catch (e) { err = e; }
+    ok(err instanceof BoundaryRefused && (err as BoundaryRefused).nodeId === 'fix', `start() refused by fix, the DEFAULT edge's target: ${String(err)}`);
+    equal(h.ids(), [], 'nothing dispatched');
+    // The CONTROL: a payload `fix` accepts, routed the same way, starts and dispatches fix.
+    const ok2 = harness(flow, { ...types, gateTypes: { colour } });
+    ok2.driver.start({ colour: 5, fixme: true });
+    equal(ok2.ids(), ['R:fix:-:0'], 'the same route with a payload fix accepts: started, fix dispatched');
+  });
+
+  test('a derived gate with NO settings constructs and routes by its default (adequacy M43)', () => {
+    const bare: GateType = { routesFor: () => ({ routes: ['first', 'other'], defaultRoute: 'other' }), fn: () => 'other' };
+    const flow = { flowId: 'bare', version: 1, entry: 'first', nodes: [
+      { id: 'first', kind: 'task', type: 'Work', edges: [{ to: 'g' }] },
+      { id: 'g', kind: 'gate', type: 'bare', edges: [{ route: 'first', to: 'toFirst' }, { to: 'toOther' }] },
+      { id: 'toFirst', kind: 'task', type: 'Other', edges: [{ to: 'done' }] },
+      { id: 'toOther', kind: 'task', type: 'Other', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ] } as unknown as FlowDefinition;
+    const h = harness(flow, { gateTypes: { bare } });
+    h.driver.start({});
+    h.scheduler.settle('R:first:-:0', 'done', {});
+    equal([h.ids(), h.failures], [['R:first:-:0', 'R:toOther:-:0'], []], 'no settings is {}: the gate`s set resolves and the edge with no route carries other');
+  });
+
+  test('every case this suite declares actually ran — a deleted case fails naming itself', () => {
+    const ran = collected().filter((s) => s.suite === W153_SUITE).flatMap((s) => s.cases.map((c) => c.name)).sort();
+    const declared = [...W153_CASES].sort();
+    equal(declared.filter((n) => !ran.includes(n)), [], 'a declared case did not run — it was deleted, renamed, or its suite stopped loading');
+    equal(ran.filter((n) => !declared.includes(n)), [], 'a case ran that this list does not name. Add it here in the same commit');
+    equal(ran.length, W153_CASES.length, 'and the COUNT beside the membership, which catches a duplicated name');
+  });
+});

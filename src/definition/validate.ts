@@ -14,7 +14,7 @@
  *
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, StaticGateType, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
 import { PREDICATE_OPS, PREDICATE_ROOTS } from './types.ts';
 import { describeFindings, findings, schemaProblem } from './schema.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
@@ -281,11 +281,24 @@ export function readKeyPath(value: unknown, path: string): unknown {
   return v;
 }
 
-/** A gate type's own members — the interface's five, and no other own key (a typo is the silent kind). */
-export const GATE_TYPE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'settingsSchema', 'keyResolvedRoutes', 'fn'];
+/**
+ * A gate type's own members — the interface's seven, and no other own key (a typo is the silent kind).
+ * `routesFor` and `settingsProblem` since v0.30 (ADR 0092): a type carries `routes` and `defaultRoute`
+ * (`keyResolvedRoutes?` beside them) OR `routesFor`, exactly one of the two.
+ */
+export const GATE_TYPE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'settingsSchema', 'keyResolvedRoutes', 'routesFor', 'settingsProblem', 'fn'];
 
-/** Which of `GATE_TYPE_KEYS` may be absent — the `?` the message below prints. */
-const GATE_TYPE_OPTIONAL: ReadonlySet<string> = new Set(['settingsSchema', 'keyResolvedRoutes']);
+/** The members a STATIC type declares its routes by — a type carrying any of them beside `routesFor` carries both (ADR 0092). */
+const STATIC_ROUTE_KEYS: readonly string[] = ['routes', 'defaultRoute', 'keyResolvedRoutes'];
+
+/** The members of a resolved ROUTE SET — what `routesFor` returns, and no other own key. */
+const ROUTE_SET_KEYS: readonly string[] = STATIC_ROUTE_KEYS;
+
+/**
+ * Which of `GATE_TYPE_KEYS` may be absent ALWAYS — the `?` the message below prints. `routes`,
+ * `defaultRoute` and `routesFor` are printed bare and the message says which two forms they make.
+ */
+const GATE_TYPE_OPTIONAL: ReadonlySet<string> = new Set(['settingsSchema', 'keyResolvedRoutes', 'settingsProblem']);
 
 /**
  * **The interface's shape, as a sentence, DERIVED from `GATE_TYPE_KEYS`** rather than restated beside it.
@@ -295,7 +308,67 @@ const GATE_TYPE_OPTIONAL: ReadonlySet<string> = new Set(['settingsSchema', 'keyR
  * found at [W99](../../doc/work-items/w99-what-a-route-guarantees.md)'s declaration step before the member
  * was added. Adding a key to the list now moves the message with it.
  */
-const GATE_TYPE_SHAPE = `{ ${GATE_TYPE_KEYS.map((k) => (GATE_TYPE_OPTIONAL.has(k) ? `${k}?` : k)).join(', ')} }`;
+const GATE_TYPE_SHAPE = `{ ${GATE_TYPE_KEYS.map((k) => (GATE_TYPE_OPTIONAL.has(k) ? `${k}?` : k)).join(', ')} }` +
+  ' with its routes declared STATICALLY by routes and defaultRoute (keyResolvedRoutes beside them) or DERIVED by routesFor, exactly one of the two';
+
+/**
+ * **A value a gate type handed back, as text — and it CANNOT THROW** (W153, conformity reader C1). Every message
+ * about a gate type describes values the TYPE produced — what `routesFor` or `settingsProblem` returned, what it
+ * threw — and `JSON.stringify` throws on a BigInt and on a cycle, which turned a malformed type into a raw
+ * `TypeError` out of `validateDefinition`, `new Driver` and `checkWiring`. JSON where JSON works, so every message
+ * that described a JSON value reads as it did; otherwise `String`, and failing that the value's `typeof`.
+ */
+function describeValue(v: unknown): string {
+  try {
+    const j = JSON.stringify(v);
+    if (j !== undefined) return j;
+  } catch { /* a BigInt, a cycle, a throwing toJSON — described below */ }
+  try {
+    return typeof v === 'bigint' ? `${v}n` : String(v);
+  } catch {
+    return `an unprintable ${typeof v}`;
+  }
+}
+
+/** What a gate type THREW, as text — an `Error`'s message, or the thrown value described; never a throw itself. */
+function describeThrown(e: unknown): string {
+  try {
+    if (e instanceof Error) return String(e.message);
+  } catch { /* a throwing message getter — described below */ }
+  return describeValue(e);
+}
+
+/**
+ * **Why a ROUTE SET is malformed, or `null`** — `FD-V39`'s route clauses, one function for a static type's
+ * three members and for what a derived type's `routesFor` returned (ADR 0092), so the two cannot be held to
+ * different rules. The messages are the ones v0.23 and v0.25 wrote.
+ */
+function routeSetProblem(routes: unknown, defaultRoute: unknown, keyResolvedRoutes: unknown): string | null {
+  if (!Array.isArray(routes) || routes.length === 0) return `routes must be a non-empty array of route names, got ${describeValue(routes)}`;
+  for (const r of routes) {
+    if (typeof r !== 'string' || !ID_RE.test(r)) return `route ${describeValue(r)} is not [A-Za-z0-9_-]{1,64}`;
+  }
+  if (new Set(routes).size !== routes.length) return 'routes repeats a route';
+  if (typeof defaultRoute !== 'string' || !(routes as string[]).includes(defaultRoute)) {
+    return `defaultRoute ${describeValue(defaultRoute)} is not one of its routes (${(routes as string[]).join(', ')}) — an edge with no route would carry a route the type never returns`;
+  }
+  // **`FD-V39`'s second clause** — the routes on which the key path resolved are a SUBSET of `routes`,
+  // without repeats. No id of its own: this predicate IS that clause, and `C4` refused a separate one by
+  // asking for a case in `spec/examples/invalid/` that cannot exist, a gate type being CODE (W99).
+  // A name that is not a route is the silent kind twice over: the check would never match it, so the
+  // guarantee would simply never apply and the type would read as making one (W99, ADR 0068 rule 4).
+  if (keyResolvedRoutes !== undefined) {
+    const kr = keyResolvedRoutes;
+    if (!Array.isArray(kr)) return `keyResolvedRoutes must be an array of route names, got ${describeValue(kr)}`;
+    for (const r of kr) {
+      if (typeof r !== 'string' || !(routes as string[]).includes(r)) {
+        return `keyResolvedRoutes names ${describeValue(r)}, which is not one of its routes (${(routes as string[]).join(', ')}) — a guarantee on a route the type never returns applies to nothing`;
+      }
+    }
+    if (new Set(kr as string[]).size !== kr.length) return 'keyResolvedRoutes repeats a route';
+  }
+  return null;
+}
 
 /**
  * **Why a value is not a `GateType`, or `null`** — one predicate for the validator (`FD-V39`'s second
@@ -303,47 +376,94 @@ const GATE_TYPE_SHAPE = `{ ${GATE_TYPE_KEYS.map((k) => (GATE_TYPE_OPTIONAL.has(k
  * so the two cannot disagree about what a gate type IS. `distinct` is held to it like any other.
  */
 export function gateTypeProblem(t: unknown): string | null {
-  if (typeof t !== 'object' || t === null || Array.isArray(t)) return `a gate type is an object ${GATE_TYPE_SHAPE}, got ${JSON.stringify(t)}`;
+  if (typeof t !== 'object' || t === null || Array.isArray(t)) return `a gate type is an object ${GATE_TYPE_SHAPE}, got ${describeValue(t)}`;
   const o = t as Record<string, unknown>;
   const extra = Object.keys(o).filter((k) => !GATE_TYPE_KEYS.includes(k));
-  if (extra.length) return `it carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a gate type does not declare; it is ${GATE_TYPE_SHAPE}`;
-  const routes = o.routes;
-  if (!Array.isArray(routes) || routes.length === 0) return `routes must be a non-empty array of route names, got ${JSON.stringify(routes)}`;
-  for (const r of routes) {
-    if (typeof r !== 'string' || !ID_RE.test(r)) return `route ${JSON.stringify(r)} is not [A-Za-z0-9_-]{1,64}`;
+  if (extra.length) return `it carries ${extra.map((k) => describeValue(k)).join(', ')}, which a gate type does not declare; it is ${GATE_TYPE_SHAPE}`;
+  // **Exactly one of the two route forms** — ADR 0092 rule 2. Checked BEFORE either form's own clauses, so a
+  // type carrying both is told so rather than that one half is malformed.
+  const staticKeys = STATIC_ROUTE_KEYS.filter((k) => o[k] !== undefined);
+  const derived = o.routesFor !== undefined;
+  if (derived && staticKeys.length) {
+    return `it carries routesFor AND ${staticKeys.join(', ')} — a gate type declares its routes statically or derives them from its gate's settings, exactly one of the two`;
   }
-  if (new Set(routes).size !== routes.length) return 'routes repeats a route';
-  if (typeof o.defaultRoute !== 'string' || !(routes as string[]).includes(o.defaultRoute)) {
-    return `defaultRoute ${JSON.stringify(o.defaultRoute)} is not one of its routes (${(routes as string[]).join(', ')}) — an edge with no route would carry a route the type never returns`;
+  if (!derived && staticKeys.length === 0) {
+    return 'it declares its routes neither statically (routes, defaultRoute) nor by routesFor — a gate type declares exactly one of the two';
+  }
+  if (derived) {
+    if (typeof o.routesFor !== 'function') return 'routesFor must be a function (settings) => { routes, defaultRoute, keyResolvedRoutes? }';
+  } else {
+    const p = routeSetProblem(o.routes, o.defaultRoute, o.keyResolvedRoutes);
+    if (p !== null) return p;
   }
   if (o.settingsSchema !== undefined) {
     const p = schemaProblem(o.settingsSchema);
     if (p !== null) return `its settingsSchema is not in the built-in subset — ${p}`;
   }
-  // **`FD-V39`'s second clause** — the routes on which the key path resolved are a SUBSET of `routes`,
-  // without repeats. No id of its own: this predicate IS that clause, and `C4` refused a separate one by
-  // asking for a case in `spec/examples/invalid/` that cannot exist, a gate type being CODE (W99).
-  // A name that is not a route is the silent kind twice over: the check would never match it, so the
-  // guarantee would simply never apply and the type would read as making one (W99, ADR 0068 rule 4).
-  if (o.keyResolvedRoutes !== undefined) {
-    const kr = o.keyResolvedRoutes;
-    if (!Array.isArray(kr)) return `keyResolvedRoutes must be an array of route names, got ${JSON.stringify(kr)}`;
-    for (const r of kr) {
-      if (typeof r !== 'string' || !(routes as string[]).includes(r)) {
-        return `keyResolvedRoutes names ${JSON.stringify(r)}, which is not one of its routes (${(routes as string[]).join(', ')}) — a guarantee on a route the type never returns applies to nothing`;
-      }
-    }
-    if (new Set(kr as string[]).size !== kr.length) return 'keyResolvedRoutes repeats a route';
-  }
+  if (o.settingsProblem !== undefined && typeof o.settingsProblem !== 'function') return 'settingsProblem must be a function (settings) => string | null';
   if (typeof o.fn !== 'function') return 'fn must be a function (ctx) => route';
   return null;
 }
 
 /**
+ * **A gate's RESOLVED route set, or why it has none** — ADR 0092 rule 3, the ONE function between a gate's
+ * routes and every reader of them: `FD-V41`'s count, `FD-R5`'s undeclared-route stop, the edge an edge with no
+ * `route` carries (`gateEdge`), and the wiring check's default and guarantee. A `StaticGateType` resolves to
+ * its own three members; a `DerivedGateType` to what its `routesFor` returns for THIS gate's settings.
+ *
+ * **Pure and TOTAL**: it never throws. Settings that are not a plain object, a `routesFor` that throws, and a
+ * set that fails `FD-V39`'s route clauses (`routeSetProblem`, the predicate a static type is held to) or
+ * carries a key beside the three are each a `{ problem }`. `routesFor` is handed a COPY of the settings, so a
+ * type writing into them moves nothing in the definition, and what it returned is copied and frozen, so a
+ * type mutating its own result later moves nothing a reader cached. Call it with the type `gateTypeProblem`
+ * accepted — the validator, the driver and the wiring check each do.
+ */
+export function routesOf(
+  type: GateType,
+  settings: unknown,
+): Pick<StaticGateType, 'routes' | 'defaultRoute' | 'keyResolvedRoutes'> | { readonly problem: string } {
+  let set: unknown;
+  if (typeof type.routesFor === 'function') {
+    if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) {
+      return { problem: `routesFor is asked over settings that are a plain object, got ${describeValue(settings)}` };
+    }
+    // The COPY is taken BEFORE the call and outside its `try` (conformity reader C2): settings that cannot be
+    // copied are the SETTINGS' defect, which the validator refuses as `FD-V40` before it ever asks `routesFor`,
+    // and must not read here as the type having thrown.
+    let copy: Readonly<Record<string, unknown>>;
+    try {
+      copy = structuredClone(settings) as Readonly<Record<string, unknown>>;
+    } catch (e) {
+      return { problem: `the gate's settings cannot be copied for routesFor — ${describeThrown(e)}` };
+    }
+    try {
+      set = type.routesFor(copy);
+    } catch (e) {
+      return { problem: `routesFor threw: ${describeThrown(e)}` };
+    }
+    if (typeof set !== 'object' || set === null || Array.isArray(set)) {
+      return { problem: `routesFor returned ${describeValue(set)}, which is not { routes, defaultRoute, keyResolvedRoutes? }` };
+    }
+    const extra = Object.keys(set).filter((k) => !ROUTE_SET_KEYS.includes(k));
+    if (extra.length) return { problem: `routesFor returned ${extra.map((k) => describeValue(k)).join(', ')}, which a route set does not declare; it is { routes, defaultRoute, keyResolvedRoutes? }` };
+  } else {
+    set = type;
+  }
+  const s = set as Record<string, unknown>;
+  const p = routeSetProblem(s.routes, s.defaultRoute, s.keyResolvedRoutes);
+  if (p !== null) return { problem: typeof type.routesFor === 'function' ? `routesFor returned a malformed route set: ${p}` : p };
+  const routes = Object.freeze([...(s.routes as string[])]);
+  const defaultRoute = s.defaultRoute as string;
+  return s.keyResolvedRoutes === undefined
+    ? Object.freeze({ routes, defaultRoute })
+    : Object.freeze({ routes, defaultRoute, keyResolvedRoutes: Object.freeze([...(s.keyResolvedRoutes as string[])]) });
+}
+
+/**
  * **`distinct` — the one BUILT-IN gate type, and it is written against the public interface and nothing
  * else** (P24 decision 2): nothing in the validator, the wiring check or the driver names it; they read
- * `routes`, `defaultRoute`, `settingsSchema`, `keyResolvedRoutes` and `fn` off whatever type a gate names. It
- * keeps the FIRST
+ * the gate's route set through `routesOf`, and `settingsSchema`, `settingsProblem` and `fn`, off whatever type
+ * a gate names. A `StaticGateType` — its routes are the same for every gate (ADR 0092). It keeps the FIRST
  * branch to reach the gate per key and routes every later one with the same key to `duplicate`.
  *
  * - `first` (the DEFAULT) — the key has not been seen at this gate in this run;
@@ -357,7 +477,7 @@ export function gateTypeProblem(t: unknown): string | null {
  * key. Memory holds one entry per key seen; `fn` writes it and nothing else does. Its life is the RUN's —
  * one memory per gate, created empty with the driver and rebuilt by replay on resume (W93, `RN-R26`).
  */
-export const distinct: GateType = Object.freeze({
+export const distinct: StaticGateType = Object.freeze({
   routes: Object.freeze(['first', 'duplicate', 'nokey']),
   defaultRoute: 'first',
   settingsSchema: Object.freeze({
@@ -1002,26 +1122,74 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // the key is the LIBRARY's, not the type's), and the type's `settingsSchema` over them, `{}` when absent
       // (only once `FD-V39` passed — an unknown type has no schema to ask).
       const settings = nd.settings;
+      // Whether `FD-V40` found anything on THIS gate — a derived type's routes are asked only once it found
+      // nothing (ADR 0092 rule 3), so `routesFor` may assume the settings its schema and `settingsProblem` accept.
+      let settingsRefused = false;
       if (settings !== undefined && (typeof settings !== 'object' || settings === null || Array.isArray(settings))) {
-        add('FD-V40', where, `settings must be a plain object, got ${JSON.stringify(settings)}`);
+        add('FD-V40', where, `settings must be a plain object, got ${describeValue(settings)}`);
+        settingsRefused = true;
       } else {
         const s = (settings ?? {}) as Record<string, unknown>;
         if (Object.prototype.hasOwnProperty.call(s, 'key')) {
           const kp = keyPathProblem(s.key);
-          if (kp !== null) add('FD-V40', where, kp);
+          if (kp !== null) { add('FD-V40', where, kp); settingsRefused = true; }
         }
+        let schemaRefused = false;
         if (usable?.settingsSchema !== undefined) {
           const fs = findings(usable.settingsSchema, s);
-          if (fs.length) add('FD-V40', where, `settings ${JSON.stringify(s)} fail gate type "${typeName}"'s settingsSchema: ${describeFindings(fs)}`);
+          if (fs.length) { add('FD-V40', where, `settings ${describeValue(s)} fail gate type "${typeName}"'s settingsSchema: ${describeFindings(fs)}`); schemaRefused = true; settingsRefused = true; }
+        }
+        // **The type's own check, AFTER its schema accepted** — ADR 0092 rule 4, P32 decision 3: the subset
+        // cannot state a grammar (ADR 0053), so a type that needs one states it as a function. Handed a COPY.
+        // A message is the SETTINGS' defect (`FD-V40`); a throw, or a return that is neither a message nor
+        // `null`, is the TYPE's (`FD-V39`) — split by what an author fixes, `FD-V28`'s precedent.
+        // **Settings a type's own code is handed must COPY** — conformity reader C2. Asked only where the type
+        // carries `settingsProblem` or `routesFor`, the two members handed a copy at instantiation, and refused
+        // here as the SETTINGS' defect (`FD-V40`): copied inside either call's `try`, an uncloneable value read as
+        // the TYPE having thrown. One clone per such gate, at instantiation.
+        let uncopyable = false;
+        if (usable !== undefined && (usable.settingsProblem !== undefined || typeof usable.routesFor === 'function')) {
+          try { structuredClone(s); } catch (e) {
+            add('FD-V40', where, `settings cannot be copied for gate type "${typeName}" — they must survive structuredClone, as a JSON document's do: ${describeThrown(e)}`);
+            uncopyable = true;
+            settingsRefused = true;
+          }
+        }
+        if (usable?.settingsProblem !== undefined && !schemaRefused && !uncopyable) {
+          let said: unknown;
+          let threw = false;
+          const copy = structuredClone(s);   // cannot throw: `uncopyable` above
+          try { said = usable.settingsProblem(copy); } catch (e) {
+            threw = true;
+            add('FD-V39', where, `type "${typeName}"'s settingsProblem threw: ${describeThrown(e)}`);
+          }
+          if (!threw && said !== null) {
+            if (typeof said === 'string') {
+              add('FD-V40', where, `settings ${describeValue(s)} fail gate type "${typeName}"'s settingsProblem: ` +
+                (said === '' ? 'it returned an EMPTY message — a refusal with no reason given (null is the pass)' : said));
+            } else add('FD-V39', where, `type "${typeName}"'s settingsProblem returned ${describeValue(said)}, which is neither a message nor null`);
+          }
+          // A THROW blocks resolution as a refusal does (conformity reader C4): `routesFor` may assume settings
+          // `settingsProblem` passed, and a throw passed nothing.
+          if (threw || said !== null) settingsRefused = true;
         }
       }
-      // **`FD-V41`'s WIRING half** — every route the type declares is wired by EXACTLY ONE edge, an edge with no
-      // `route` carrying the type's DEFAULT route (never *every* route: an edge with no `on` means `done` only),
-      // and no edge names a route the type does not declare. **Only once the type is usable**: with no type
-      // there are no routes to count. The per-edge half — a `route` that is not a string, `when`/`on`/`needs`
+      // **The gate's ROUTE SET, resolved once** — ADR 0092 rule 3. A static type's three members, or what a
+      // derived type's `routesFor` returns for THIS gate's settings, asked only once `FD-V40` passed on the
+      // gate. A throw or a malformed set is the TYPE's, reported at the gate under `FD-V39`.
+      let routeSet: ReturnType<typeof routesOf> | undefined;
+      if (usable !== undefined && !(typeof usable.routesFor === 'function' && settingsRefused)) {
+        routeSet = routesOf(usable, settings ?? {});
+        if ('problem' in routeSet) add('FD-V39', where, `type "${typeName}" resolves no route set for this gate: ${routeSet.problem}`);
+      }
+      // **`FD-V41`'s WIRING half** — every route of the gate's RESOLVED set is wired by EXACTLY ONE edge, an edge
+      // with no `route` carrying the set's DEFAULT route (never *every* route: an edge with no `on` means `done`
+      // only), and no edge names a route outside the set. **Only once the set resolved**: with no type, or a
+      // derived type whose settings were refused, there are no routes to count — and each GATE is counted
+      // against its OWN set (ADR 0092). The per-edge half — a `route` that is not a string, `when`/`on`/`needs`
       // on a gate edge, `route` on any other node's edge — is in the edge loop below, and needs no registry.
-      if (usable !== undefined && Array.isArray(nd.edges)) {
-        const gate = usable;
+      if (routeSet !== undefined && !('problem' in routeSet) && Array.isArray(nd.edges)) {
+        const gate = routeSet;
         const count = new Map<string, number>(gate.routes.map((r) => [r, 0]));
         (nd.edges as unknown[]).forEach((e, i) => {
           if (e === null || typeof e !== 'object') return;          // FD-V21's
@@ -1029,7 +1197,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           if (r !== undefined && typeof r !== 'string') return;     // the edge loop's
           const route = r === undefined ? gate.defaultRoute : r;
           if (!count.has(route)) {
-            add('FD-V41', `${where}#edge${i}`, `route "${route}" is not a route gate type "${typeName}" declares (it declares ${gate.routes.map((x) => `"${x}"`).join(', ')})`);
+            add('FD-V41', `${where}#edge${i}`, `route "${route}" is not one of this gate's routes — the routes gate type "${typeName}" declares for it are ${gate.routes.map((x) => `"${x}"`).join(', ')}`);
             return;
           }
           count.set(route, count.get(route)! + 1);
@@ -1037,9 +1205,9 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         for (const [route, n] of count) {
           const how = route === gate.defaultRoute ? ' (the default route — an edge with no `route` carries it)' : '';
           if (n === 0) {
-            add('FD-V41', where, `route "${route}"${how} of gate type "${typeName}" has no edge; every declared route is wired exactly once — a drop is an edge to an \`end\` node, because a route left unwired would be dropped in silence the day the type grows one`);
+            add('FD-V41', where, `route "${route}"${how} of this gate (gate type "${typeName}") has no edge; every route of the gate is wired exactly once — a drop is an edge to an \`end\` node, because a route left unwired would be dropped in silence the day the type grows one`);
           } else if (n > 1) {
-            add('FD-V41', where, `route "${route}"${how} of gate type "${typeName}" is wired by ${n} edges; exactly one`);
+            add('FD-V41', where, `route "${route}"${how} of this gate (gate type "${typeName}") is wired by ${n} edges; exactly one`);
           }
         }
       }

@@ -244,7 +244,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
-| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). **Not run by any driver yet** | its `type` is not a registered gate type (`FD-V39`); its `settings` are not a plain object its type's schema accepts, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
+| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node must have an edge that can be taken when it succeeds.** A node whose only edge is
 `{ when: { predicate: 'p' }, to: 'x' }` is refused at construction — it is the mistake the format most invites, and
@@ -3303,6 +3303,7 @@ rest, while every file gets a thumbnail* — had nowhere to keep that memory.
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
 import type { FlowDefinition, GateType, RegistryDocument } from 'fyflow-orchestration';
+import { validateDefinition } from 'fyflow-orchestration';
 
 const registry: RegistryDocument = {
   workers: {
@@ -3412,6 +3413,33 @@ console.log(stopped.outcome, kinds);                            // stopped [ 'Un
 if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopped.gated.length !== 0) {
   throw new Error(`an undeclared route stops the run by name, recording nothing: ${stopped.outcome} ${kinds.join()}`);
 }
+
+// A type whose routes are its GATE's — v0.30, ADR 0092. `routesFor` IN PLACE of `routes` and `defaultRoute`: each
+// gate's routes come from its OWN settings, so FD-V41 counts each gate against its own — a case left unwired is
+// refused at load naming the case. `settingsProblem` says what a settingsSchema cannot (FD-V40).
+const byCase: GateType = {
+  settingsProblem: (s) => (Array.isArray(s.cases) && s.cases.every((c) => typeof c === 'string') ? null : 'cases is a list of route names'),
+  routesFor: (s) => ({ routes: [...(s.cases as string[]), 'other'], defaultRoute: 'other' }),
+  fn: (ctx) => (typeof ctx.key === 'string' && (ctx.settings.cases as string[]).includes(ctx.key) ? ctx.key : 'other'),
+};
+const sorter = (edges: { to: string; route?: string }[]): FlowDefinition => ({
+  flowId: 'sorter', version: 1, entry: 'sort',
+  nodes: [
+    { id: 'sort', kind: 'gate', type: 'byCase', settings: { key: 'kind', cases: ['video', 'audio'] }, edges },
+    { id: 'kept', kind: 'end', outcome: 'kept' },
+    { id: 'rest', kind: 'end', outcome: 'rest' },
+  ],
+});
+const withByCase = { predicates: [], gateTypes: { byCase } };
+const wired = validateDefinition(sorter([{ route: 'video', to: 'kept' }, { route: 'audio', to: 'kept' }, { to: 'rest' }]), withByCase);
+if (wired.length !== 0) throw new Error(`every case wired, and the default by an edge with no route: ${JSON.stringify(wired)}`);
+const forgot = validateDefinition(sorter([{ route: 'video', to: 'kept' }, { to: 'rest' }]), withByCase);
+console.log(forgot.map((f) => `${f.rule} ${f.at}`));        // [ 'FD-V41 sort' ]
+if (forgot.length !== 1 || forgot[0]!.rule !== 'FD-V41' || !forgot[0]!.detail.includes('"audio"')) {
+  throw new Error(`the unwired case is refused at load, by name: ${JSON.stringify(forgot)}`);
+}
+const malformed = validateDefinition({ ...sorter([{ to: 'rest' }]), nodes: [{ id: 'sort', kind: 'gate', type: 'byCase', settings: { cases: [1] }, edges: [{ to: 'rest' }] }, { id: 'rest', kind: 'end', outcome: 'rest' }] }, withByCase);
+if (malformed.map((f) => f.rule).join() !== 'FD-V40') throw new Error(`settingsProblem's message is FD-V40: ${JSON.stringify(malformed)}`);
 ```
 
 **What the snippet cannot show, and you need:**
@@ -3436,6 +3464,15 @@ if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopp
   route is what arrived with `required` added along the gate's key path, at every step. So a worker after `first`
   that REQUIRES the key `fits`. *It read `no` there until v0.25, which is [Q391](doc/questions/q391.md) and is
   [ADR 0068](doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md).*
+- **A type's routes may come from its GATE — v0.30.** A gate type declares `routes` and `defaultRoute`
+  (`keyResolvedRoutes` beside them) as `distinct` does, OR `routesFor(settings)` returning
+  `{ routes, defaultRoute, keyResolvedRoutes? }` for one gate — exactly one of the two; both or neither is
+  `GateTypeRefused`. `GateType` is `StaticGateType | DerivedGateType`, so code that READS `type.routes` off a
+  `GateType` gets `readonly string[] | undefined`: ask `routesOf(type, settings)`, which returns the gate's set or
+  a `{ problem }` and never throws. `routesFor` is asked once per gate at load, after its settings passed, and
+  once per gate by each driver — keep it the pure function of its settings `fn` is of its context. A throw or a
+  malformed set is `FD-V39` at that gate; a message from `settingsProblem` is `FD-V40`
+  ([ADR 0092](doc/decisions/0092-a-gate-types-routes-are-declared-statically-or-derived-from-its-node.md)).
 - **A route that guarantees something else guarantees nothing a check can use.** A type declaring no
   `keyResolvedRoutes`, a gate naming no `key`, and a route the type does not name each pass the value through
   exactly as before — and the guarantee is PRESENCE along the path, never the leaf's TYPE, which is the type's own

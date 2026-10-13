@@ -22,7 +22,7 @@ import {
   allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
+import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, routesOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -949,8 +949,9 @@ export interface DriverOptions {
    * ([W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md), ADR 0067). Absent, the built-ins alone
    * (`distinct`); the set only ever ADDS, a name that is a built-in's is refused (`NameCollision`) and a
    * value that is not a `GateType` is `GateTypeRefused` — both by `checkRegistry`, at construction. The
-   * validator reads each type's `routes`, `defaultRoute` and `settingsSchema` (`FD-V39`-`FD-V41`); the driver
-   * reads `fn`, where a branch enters a gate. **The runtime's road is `runtime.registry.gateTypes`**, from
+   * validator reads each gate's route set through `routesOf` (a static type's members, or a derived type's
+   * `routesFor` over the gate's settings — ADR 0092), `settingsSchema` and `settingsProblem` (`FD-V39`-`FD-V41`);
+   * the driver resolves each gate's set once at construction and reads `fn` where a branch enters a gate. **The runtime's road is `runtime.registry.gateTypes`**, from
    * `RegistryCode.gateTypes` — code registered once per runtime, as `languages` is (W76's road (b)).
    */
   gateTypes?: GateTypes;
@@ -1230,6 +1231,11 @@ export class Driver {
   /** The gate types — the built-ins and the registry's — normalised once (W93). Read where a branch enters a gate, and at `start()` for an ENTRY gate's `FD-R4` target. */
   private readonly gateTypes: ReadonlyMap<string, GateType>;
   /**
+   * **Each gate's RESOLVED route set, by gate id** — ADR 0092 rule 3: `routesOf` asked once per gate at
+   * construction, after validation passed, and read by every decision. Never the type's members.
+   */
+  private readonly gateRoutes: ReadonlyMap<string, Exclude<ReturnType<typeof routesOf>, { readonly problem: string }>>;
+  /**
    * **Each gate's MEMORY: one per gate per RUN, the driver's, and never written down** — `RN-R26`,
    * [ADR 0067](../../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md),
    * P24 decision 6 and stop-and-ask (a). Keyed by gate node id ALONE — never by region instance or map item —
@@ -1352,6 +1358,24 @@ export class Driver {
     // and everything a DOCUMENT can do wrong is `FD-V39`-`FD-V41`, above. *(`test/driver/needs.test.ts`
     // asserted the refusal on `gated-map` where it RUNS every other region-bearing corpus flow, so that this
     // lift would fail it rather than pass in silence.)*
+    //
+    // **Each gate's ROUTE SET, resolved ONCE, here** — ADR 0092 rule 3, W153. A static type's own members, or
+    // what a derived type's `routesFor` returns for the gate's settings: `routesOf`, the function the validator
+    // just asked, so a definition it accepted resolves. Every later read — `FD-R5`'s declared check, the default
+    // edge, `FD-R4`'s entry walk — reads THIS cache, so within one run a gate's routes have one answer; a resume
+    // is a new driver and asks again, from the same settings by the same function.
+    const gateRoutes = new Map<string, Exclude<ReturnType<typeof routesOf>, { readonly problem: string }>>();
+    for (const n of definition.nodes) {
+      if (n.kind !== 'gate') continue;
+      const resolved = routesOf(this.gateTypes.get(n.type)!, n.settings ?? {});
+      // Unreachable for a type that is the pure function of its settings ADR 0092 asks it to be: the
+      // validator asked the same function a moment ago. Loud rather than a gate with no routes.
+      if ('problem' in resolved) {
+        throw new InvalidDefinition(['FD-V39'], `gate "${n.id}"'s type "${n.type}" resolved no route set at construction, after validation accepted one — FD-V39: ${resolved.problem}`);
+      }
+      gateRoutes.set(n.id, resolved);
+    }
+    this.gateRoutes = gateRoutes;
     this.def = definition;
     this.opts = opts;
     this.now = opts.now ?? (() => Date.now());
@@ -2556,17 +2580,17 @@ export class Driver {
       case 'gate': {
         const decided = this.decideGate(node, received, this.memoryOf(nodeId));
         if ('threw' in decided) throw decided.threw;
-        const type = decided.type;
+        const set = decided.set;
         if (!decided.declared) {
           throw new UndeclaredRoute(
             `FD-R5 — run "${runId}" reached gate "${nodeId}" and its type "${node.type}" returned ` +
-              `${describeRoute(decided.route)}, which it does not declare; its routes are ${type.routes.map((r) => JSON.stringify(r)).join(', ')}. ` +
+              `${describeRoute(decided.route)}, which it does not declare; its routes are ${set.routes.map((r) => JSON.stringify(r)).join(', ')}. ` +
               'A route only running the type reveals cannot be refused at load (FD-V41 wires every DECLARED route), so the run stops ' +
               'here rather than routing nowhere. The type is the CODE registered under that name, not the document.',
           );
         }
         const route = decided.route as string;
-        const edge = gateEdge(node, type.defaultRoute, route);
+        const edge = gateEdge(node, set.defaultRoute, route);
         // `FD-V41` wires every declared route by exactly one edge, so this cannot miss; if it could, the branch
         // would end with no event, which is the silent stop section 3 refuses by name — so loud instead.
         if (edge === null) {
@@ -2676,7 +2700,7 @@ export class Driver {
     node: GateNode,
     value: unknown,
     memory: Map<string, unknown>,
-  ): { type: GateType; route: unknown; declared: boolean; key: unknown } | { threw: unknown } {
+  ): { set: Exclude<ReturnType<typeof routesOf>, { readonly problem: string }>; route: unknown; declared: boolean; key: unknown } | { threw: unknown } {
     // `FD-V39` at construction: every gate names a registered gate type, so this cannot miss.
     const type = this.gateTypes.get(node.type)!;
     const settings = (node.settings ?? {}) as Readonly<Record<string, unknown>>;
@@ -2695,8 +2719,11 @@ export class Driver {
     } catch (threw) {
       return { threw };
     }
-    const declared = typeof route === 'string' && type.routes.includes(route);
-    return { type, route, declared, key: recorded };
+    // **The GATE's resolved set, not the type's members** (ADR 0092 rule 3): for a derived type, a route another
+    // gate of the same type declares is still undeclared HERE, and stops the run by `FD-R5`.
+    const set = this.gateRoutes.get(node.id)!;
+    const declared = typeof route === 'string' && set.routes.includes(route);
+    return { set, route, declared, key: recorded };
   }
 
   /**
@@ -2710,7 +2737,7 @@ export class Driver {
   private boundaryEdges(gate: GateNode, value: unknown): readonly Edge[] {
     const decided = this.decideGate(gate, value, new Map<string, unknown>());
     if ('threw' in decided || !decided.declared) return [];
-    const edge = gateEdge(gate, decided.type.defaultRoute, decided.route as string);
+    const edge = gateEdge(gate, decided.set.defaultRoute, decided.route as string);
     return edge === null ? [] : [edge];
   }
 

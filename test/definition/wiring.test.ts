@@ -1060,3 +1060,120 @@ suite('W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no
     }
   });
 });
+
+suite('W153 — the wiring check reads a DERIVED gate`s routes off its NODE: the default edge and keyResolvedRoutes', (test) => {
+  // `spec/flow-definition.md` v0.30, section 2's *A gate's routes are the GATE's, resolved once* — *an edge with no
+  // `route` carries the set's default … and the wiring check's guarantee is the set's `keyResolvedRoutes`* — and
+  // [ADR 0092](../../doc/decisions/0092-a-gate-types-routes-are-declared-statically-or-derived-from-its-node.md)
+  // rule 3. **The two `wiring.ts` sites the compiler cannot see** (W153 re-take 1): both read through `?.`, so a
+  // site left reading the TYPE typechecks and reads `undefined` — no default and no guarantee. Every expected
+  // `fits` below is one only the NODE's set can give, so a type-level read turns it `no`.
+  //
+  // The producer DESCRIBES `series.id` and requires neither (W99's adequacy reader, F1), and every consumer
+  // REQUIRES `series`, so an arc fits exactly where its route is key-resolved on the gate's key path.
+  const producer = {
+    type: 'object', required: ['name'],
+    properties: { name: { type: 'string' }, series: { type: 'object', properties: { id: { type: 'string' } } } },
+    examples: [{ name: 'n', series: { id: 's1' } }],
+  } as unknown as JsonSchema;
+  const wantsSeries = { type: 'object', required: ['series'] } as unknown as JsonSchema;
+  /** `byNode`: a DERIVED type whose default and key-resolved routes are its gate's `dflt` and `resolved`. */
+  const byNode: GateType = {
+    routesFor: (s) => {
+      if (s.throws === true) throw new Error('byNode cannot derive');
+      return { routes: ['plain', 'keyed'], defaultRoute: s.dflt as string, keyResolvedRoutes: s.resolved as string[] };
+    },
+    fn: (ctx) => (typeof ctx.key === 'string' ? 'keyed' : 'plain'),
+  };
+  const reg = {
+    workers: { p: { url: 'test://p', outputSchema: producer }, c: { url: 'test://c', inputSchema: wantsSeries } },
+    nodeTypes: { P: { worker: 'p' }, C: { worker: 'c' } },
+    gateTypes: { byNode },
+  } as unknown as Parameters<typeof checkWiring>[0];
+  /** One gate, two consumers: `onA` on the edge with NO route, `onB` on the edge naming `route`. */
+  const flow = (settings: Record<string, unknown>, route: string) => ({
+    flowId: 'derived-wiring', version: 1, entry: 'produce', nodes: [
+      { id: 'produce', kind: 'task', type: 'P', edges: [{ to: 'gate' }] },
+      { id: 'gate', kind: 'gate', type: 'byNode', settings: { key: 'series.id', ...settings }, edges: [{ to: 'onA' }, { route, to: 'onB' }] },
+      { id: 'onA', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'onB', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition);
+  const kinds = async (f: FlowDefinition) => {
+    const report = await checkWiring(reg, f);
+    return ['onA', 'onB'].map((c) => `${c}:${report.verdicts.find((v) => v.consumer === c)?.kind ?? 'none'}`);
+  };
+
+  test('the DEFAULT edge carries the NODE`s defaultRoute — a derived type has none of its own', async () => {
+    // The gate's default is `keyed`, which its set calls key-resolved: the routeless edge FITS. Read off the type,
+    // the default is undefined, the arc carries no route, and it is `no`.
+    equal(await kinds(flow({ dflt: 'keyed', resolved: ['keyed'] }, 'plain')), ['onA:fits', 'onB:no'],
+      'the routeless edge is the node`s default, keyed, and fits; the edge naming plain does not');
+    // The same type, the default now `plain`: the routeless edge is `no` and the edge naming keyed fits — the
+    // verdict follows the NODE's settings, so nothing fixed on the type can produce both rows.
+    equal(await kinds(flow({ dflt: 'plain', resolved: ['keyed'] }, 'keyed')), ['onA:no', 'onB:fits'],
+      'with the node`s default plain, the routeless edge is no and the edge naming keyed fits');
+  });
+
+  test('keyResolvedRoutes is read off the NODE`s set: two settings, two guarantees, from one type', async () => {
+    // One type, the explicit edge on `plain`, and the gate's set naming WHICH route is key-resolved.
+    equal(await kinds(flow({ dflt: 'keyed', resolved: ['plain'] }, 'plain')), ['onA:no', 'onB:fits'],
+      'resolved [plain]: the edge naming plain fits and the default keyed does not');
+    equal(await kinds(flow({ dflt: 'keyed', resolved: ['plain', 'keyed'] }, 'plain')), ['onA:fits', 'onB:fits'],
+      'resolved [plain, keyed]: both fit');
+    equal(await kinds(flow({ dflt: 'keyed', resolved: [] }, 'plain')), ['onA:no', 'onB:no'],
+      'resolved []: neither — the CONTROL, a set that guarantees nothing, through the same type and flow');
+  });
+
+  test('a set that does not resolve is treated as an unknown type: no default, no guarantee, the arcs reported as they are', async () => {
+    // routesFor throws: `routesOf` returns a problem, and the check neither throws nor guesses.
+    equal(await kinds(flow({ throws: true }, 'keyed')), ['onA:no', 'onB:no'], 'routesFor threw: both arcs pass through unrefined');
+    // A malformed set — a default that is not a route — likewise.
+    equal(await kinds(flow({ dflt: 'nope', resolved: ['keyed'] }, 'keyed')), ['onA:no', 'onB:no'], 'a malformed set: both arcs pass through unrefined');
+  });
+
+  test('two gates of ONE derived type with DIFFERENT defaults in one flow: their routeless arcs get different verdicts (adequacy M45)', async () => {
+    const twoGates = {
+      flowId: 'derived-wiring-two', version: 1, entry: 'produce', nodes: [
+        { id: 'produce', kind: 'task', type: 'P', edges: [{ to: 'g1' }] },
+        // g1's default is keyed — key-resolved — and its explicit `plain` edge leads on to g2.
+        { id: 'g1', kind: 'gate', type: 'byNode', settings: { key: 'series.id', dflt: 'keyed', resolved: ['keyed'] }, edges: [{ to: 'onA' }, { route: 'plain', to: 'g2' }] },
+        // g2's default is plain — NOT key-resolved — over the same type and the same key.
+        { id: 'g2', kind: 'gate', type: 'byNode', settings: { key: 'series.id', dflt: 'plain', resolved: ['keyed'] }, edges: [{ to: 'onB' }, { route: 'keyed', to: 'onC' }] },
+        { id: 'onA', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+        { id: 'onB', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+        { id: 'onC', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const report = await checkWiring(reg, twoGates);
+    const v = (c: string) => report.verdicts.find((x) => x.consumer === c)?.kind ?? 'none';
+    equal([v('onA'), v('onB'), v('onC')], ['fits', 'no', 'fits'],
+      'g1`s routeless arc carries keyed and fits; g2`s carries plain and does not — one type, two NODES, two defaults');
+  });
+
+  test('a derived gate with NO settings: validated clean, constructed, routed by its default, and the wiring check asks routesFor over {} (adequacy M36, M43, M46)', async () => {
+    const asked: unknown[] = [];
+    const bare: GateType = {
+      routesFor: (s) => { asked.push(s); return { routes: ['first', 'other'], defaultRoute: 'other' }; },
+      fn: () => 'other',
+    };
+    const f = {
+      flowId: 'bare', version: 1, entry: 'produce', nodes: [
+        { id: 'produce', kind: 'task', type: 'P', edges: [{ to: 'gate' }] },
+        { id: 'gate', kind: 'gate', type: 'bare', edges: [{ to: 'onA' }, { route: 'first', to: 'onB' }] },
+        { id: 'onA', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+        { id: 'onB', kind: 'task', type: 'C', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const r = { ...(reg as object), gateTypes: { bare } } as unknown as Parameters<typeof checkWiring>[0];
+    equal(validateDefinition(f, { predicates: [], ...(r as object), gateTypes: { bare } } as never).map((x) => `${x.rule}@${x.at}`), [], 'validateDefinition: clean — no settings is {}');
+    ok(asked.length === 1 && JSON.stringify(asked[0]) === '{}', `and routesFor was asked over {}: ${JSON.stringify(asked)}`);
+    asked.length = 0;
+    const report = await checkWiring(r, f);
+    ok(asked.length === 1 && JSON.stringify(asked[0]) === '{}', `checkWiring asked routesFor over {} — a gate with no settings still has a set: ${JSON.stringify(asked)}`);
+    equal(report.verdicts.map((x) => x.consumer).sort(), ['onA', 'onB'], 'and both arcs are reported');
+  });
+});
