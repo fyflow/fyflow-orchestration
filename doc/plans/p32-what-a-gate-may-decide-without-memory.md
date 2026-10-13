@@ -1,7 +1,7 @@
 # P32 — What may a gate decide without memory, and from what the flow declares?
 
 **Status:** in progress — declared 2026-10-13 on `06a45ca`; stop-and-asks (a)-(d) ANSWERED by the
-maintainer 2026-10-13, all four as recommended; W153 done 2026-10-13
+maintainer 2026-10-13, all four as recommended; W153 and W154 done 2026-10-13
 **Question this plan answers:** *can a flow route the value that reaches a node by a declared
 condition (`if`) and by a declared table of values (`switch`), with no worker before the decision and
 no code registered for it — and what must the gate interface give up to let a type's routes come from
@@ -204,6 +204,7 @@ not the declaration.
 |---|---|---|
 | [Q582](../questions/q582.md) | a loop: may a flow revisit a node? | no owner — deferred |
 | [Q583](../questions/q583.md) | a join that fires before every branch settles | no owner — deferred |
+| [Q589](../questions/q589.md) | the wiring check's refinement along an `if`'s `then` route — priced at W154's declaration | no owner — deferred |
 
 ## Record
 

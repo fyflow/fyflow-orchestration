@@ -1,0 +1,14 @@
+{
+  "flowId": "fd-v41-switch",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",    "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "byStatus" } ] },
+    { "id": "byStatus", "kind": "gate", "type": "switch",
+      "settings": { "key": "status", "cases": { "approved": "approved", "rework": [ "rejected", "needs-changes" ] } },
+      "edges": [ { "route": "approved", "to": "publish" }, { "to": "review" } ] },
+    { "id": "publish",  "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "review",   "kind": "task", "type": "ReviewWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",     "kind": "end",  "outcome": "completed" }
+  ]
+}

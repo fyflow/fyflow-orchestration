@@ -1,0 +1,17 @@
+{
+  "flowId": "if-and-switch",
+  "version": 1,
+  "entry": "triage",
+  "nodes": [
+    { "id": "triage", "kind": "gate", "type": "if",
+      "settings": { "when": { "path": "input.priority", "op": "gte", "value": 5 } },
+      "edges": [ { "route": "then", "to": "byStatus" }, { "to": "queued" } ] },
+    { "id": "byStatus", "kind": "gate", "type": "switch",
+      "settings": { "key": "status", "cases": { "approved": "approved", "rework": [ "rejected", "needs-changes" ] } },
+      "edges": [ { "route": "approved", "to": "escalated" }, { "route": "rework", "to": "returned" }, { "to": "unsorted" } ] },
+    { "id": "escalated", "kind": "end", "outcome": "escalated" },
+    { "id": "returned",  "kind": "end", "outcome": "returned" },
+    { "id": "unsorted",  "kind": "end", "outcome": "unsorted" },
+    { "id": "queued",    "kind": "end", "outcome": "queued" }
+  ]
+}

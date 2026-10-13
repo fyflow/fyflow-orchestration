@@ -381,11 +381,11 @@ suite(SUITE, (test) => {
   });
 
   test('distinct is registered THROUGH the interface: one predicate, one registry road, a second type the same way', () => {
-    equal([...gateTypesOf(undefined).keys()], ['distinct'], 'absent: the built-ins alone, and distinct is the only one');
-    equal(Object.keys(BUILT_IN_GATE_TYPES), ['distinct'], 'the built-in set');
+    equal([...gateTypesOf(undefined).keys()], ['distinct', 'if', 'switch'], 'absent: the built-ins alone — distinct, and since W154 if and switch');
+    equal(Object.keys(BUILT_IN_GATE_TYPES), ['distinct', 'if', 'switch'], 'the built-in set — if and switch since W154');
     equal(gateTypeProblem(distinct), null, 'distinct passes the SAME predicate a consumer`s type passes');
     equal(gateTypeProblem(threshold), null, 'and so does the second type registered here');
-    equal([...gateTypesOf({ threshold }).keys()], ['distinct', 'threshold'], 'a consumer`s type is ADDED beside the built-ins');
+    equal([...gateTypesOf({ threshold }).keys()], ['distinct', 'if', 'switch', 'threshold'], 'a consumer`s type is ADDED beside the built-ins');
     equal(gateTypesOf({ distinct: threshold }).get('distinct'), distinct, 'a consumer type named as a built-in is NOT merged — the built-in stays');
     equal(gateTypeCollisions({ distinct: threshold, threshold }), ['distinct'], 'and the collision is named');
     // **A copy of distinct under ANOTHER name validates exactly as distinct does** — nothing names distinct.

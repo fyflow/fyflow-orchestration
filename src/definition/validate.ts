@@ -14,10 +14,15 @@
  *
  * ADR 0002 rule 3: this runs in full, at instantiation, before any task is queued.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, StaticGateType, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, WorkerEntry, Workers } from './types.ts';
+import type { DerivedGateType, Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, StaticGateType, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, When, WorkerEntry, Workers } from './types.ts';
 import { PREDICATE_OPS, PREDICATE_ROOTS } from './types.ts';
 import { describeFindings, findings, schemaProblem } from './schema.ts';
 import { allRegions, buildGraph, certainlySettled } from './regions.ts';
+// **The built-in `if` gate answers by the evaluator a task edge's `when` uses** (P32 decision 4) — the pure
+// declared-comparison evaluator, in `./condition.ts` since W154's exception (p), where `routing.ts`' `evaluateWhen` reaches
+// it too. Nothing in `src/definition` imports `src/driver`.
+import { evaluateDeclared } from './condition.ts';
+export { readKeyPath } from './condition.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 // `gate` since v0.23 (W92, ADR 0066) — and adding it HERE alone made this validator THROW: `NODE_KEYS[nd.kind]!`
@@ -254,32 +259,8 @@ export function keyPathProblem(v: unknown): string | null {
     'no array index, no wildcard, no expression (a key that must be computed is computed in the task before the gate)';
 }
 
-/**
- * **What a key path NAMES on a value — the meaning of stop-and-ask (d)'s grammar**, one definition for the
- * driver that resolves it (W93, where a branch enters a gate) and the tests that pin it. Each segment is an OWN key of a plain object
- * (`hasOwnProperty`, never `in`, which walks the prototype — W65's conformity reader, three keyword sites);
- * anything else — a missing key, `null`, an ARRAY mid-path (no index, by (d)), a primitive — is
- * `undefined`, which is what `distinct` routes to `nokey`. The value at the end is returned whatever it is.
- */
-export function readKeyPath(value: unknown, path: string): unknown {
-  let v = value;
-  for (const seg of path.split('.')) {
-    if (typeof v !== 'object' || v === null) return undefined;
-    // **A PLAIN object** — its prototype `Object.prototype` or none. An ARRAY is not one (so no index, by (d)), nor
-    // is a class instance, a `Map` or a `Date`, whatever its own fields hold. *(An `Array.isArray` guard stood above
-    // this and was removed once this made it unreachable — rule 8's `a13` measured it survive.)* W92's conformity
-    // reader (finding 10) found the first cut reading a class instance's own field while the spec says *own key of
-    // a plain object*. Reachable through a run since W93, where it IS the driver's resolution — over the value AS A
-    // CLONE CARRIES IT, so a caller's class instance is plain by the time a gate reads it (W93's conformity reader,
-    // finding 1: reading the original made a run and its replay resolve different keys); stated here so the
-    // resolution cannot be wider than the grammar.
-    const proto = Object.getPrototypeOf(v);
-    if (proto !== Object.prototype && proto !== null) return undefined;
-    if (!Object.prototype.hasOwnProperty.call(v, seg)) return undefined;
-    v = (v as Record<string, unknown>)[seg];
-  }
-  return v;
-}
+// `readKeyPath` — what a key path NAMES on a value — lives in `./condition.ts` since W154 (exception (p)), beside the
+// declared-comparison evaluator that reads by it; re-exported above, so the public name does not move.
 
 /**
  * A gate type's own members — the interface's seven, and no other own key (a typo is the silent kind).
@@ -501,8 +482,124 @@ export const distinct: StaticGateType = Object.freeze({
   },
 });
 
-/** **The built-in gate types, by name** — `distinct` and nothing else (P24 Scope/Out: the interface ships, a second built-in does not). */
-export const BUILT_IN_GATE_TYPES: Readonly<Record<string, GateType>> = Object.freeze({ distinct });
+/** The error the evaluator throws on an operator `FD-V44` should have refused — unreachable through an `if`, whose grammar refuses one at load. */
+const UNKNOWN_OP = (message: string): Error => new Error(message);
+
+/**
+ * **`if` — a gate that routes the value reaching it by a DECLARED condition** (P32 decision 4,
+ * [W154](../../doc/work-items/w154-the-built-in-if-and-switch.md)). Written against the public interface exactly
+ * as `distinct` is, and nothing names it but `BUILT_IN_GATE_TYPES` (P32 decision 1). A `StaticGateType`: routes
+ * **`then`** and **`else`**, the DEFAULT `else`, so an edge with no `route` is the fallback as a task's edge with
+ * no `when` is (P32 stop-and-ask (b)).
+ *
+ * Its settings are `{ when }`: a COMPARISON or a FLAT GROUP — `FD-V42`-`FD-V45`'s grammar MINUS the NAME shape,
+ * whose ONE root is **`input`**, the value that reached the gate as the driver's clone carries it (`settingsProblem`,
+ * reported under `FD-V40`). `fn` asks the evaluator a task edge's `when` uses over `{ input }`, and reads
+ * nothing else — no memory, no key, no clock (`FD-C8`). **No `keyResolvedRoutes`**: its path is inside `when`, not
+ * `settings.key`, and the refinement that would need is priced in W154's declaration and not built.
+ */
+const ifGate: StaticGateType = Object.freeze({
+  routes: Object.freeze(['then', 'else']),
+  defaultRoute: 'else',
+  // The KEYS only: the grammar is not the subset's to state (P32 fact 3), and `when`'s TYPE is left to
+  // `settingsProblem` so a bare string gets the grammar's own message rather than the schema's.
+  settingsSchema: Object.freeze({
+    type: 'object',
+    required: ['when'],
+    properties: { when: {} },
+    additionalProperties: false,
+  }) as JsonSchema,
+  settingsProblem(settings: Readonly<Record<string, unknown>>): string | null {
+    const p = gateConditionProblem(settings.when);
+    return p === null ? null : `${p.message} (${p.rule}'s grammar, which an if gate's condition is held to)`;
+  },
+  fn(ctx: GateContext): string {
+    // `{ input }` is a PLAIN object, so `readKeyPath` over it at `input.a.b` is `readKeyPath(input, 'a.b')` — the
+    // value as the driver's clone carries it, the reading a gate's key gets (ADR 0067).
+    return evaluateDeclared(ctx.settings.when as When, { input: ctx.input }, UNKNOWN_OP) ? 'then' : 'else';
+  },
+});
+
+/**
+ * **`switch` — a gate that routes the value reaching it by a DECLARED table of values** (P32 decision 5, W154). A
+ * `DerivedGateType` (ADR 0092): its routes are its GATE's — every case name, plus **`default`**, the DEFAULT — so
+ * `FD-V41` refuses a case left unwired, naming it, which an edge chain of `{ op: "eq" }` cannot.
+ *
+ * Its settings are `{ key, cases }`: `key` is the library's KEY PATH (`FD-V40`), resolved by the driver over what
+ * reached the gate and handed to `fn` as `ctx.key`; `cases` maps a ROUTE NAME (`FD-V16`'s charset, `default`
+ * reserved) to a SCALAR or a non-empty array of scalars. **Matching is type-strict `===`** — `FD-C7`'s *no
+ * coercion*, so `"1"` and `1` are two values — and a value named by two cases is refused at load. A key that does not
+ * resolve, or matches no case, takes `default`. **`keyResolvedRoutes` is every case**: no case value is `undefined`,
+ * so a case route is taken only where the key path resolved, and the wiring check refines along it (ADR 0068).
+ */
+const switchGate: DerivedGateType = Object.freeze({
+  settingsSchema: Object.freeze({
+    type: 'object',
+    required: ['key', 'cases'],
+    properties: { key: { type: 'string', minLength: 1 }, cases: { type: 'object' } },
+    additionalProperties: false,
+  }) as JsonSchema,
+  settingsProblem(settings: Readonly<Record<string, unknown>>): string | null {
+    const cases = settings.cases as Record<string, unknown>;   // a plain object: the schema ran first
+    const seen: { value: unknown; name: string }[] = [];
+    // **An EMPTY table is refused** — W154 stop-and-ask (l), the maintainer's answer: a switch with no case routes
+    // every value to `default`, which is "always default" written as a question (`FD-V45`'s empty-group reading).
+    if (Object.keys(cases).length === 0) return 'cases is empty — a switch with no case routes every value to default, which is "always default" written as a question';
+    for (const name of Object.keys(cases)) {
+      if (!ID_RE.test(name)) return `cases names the case ${JSON.stringify(name)}, which is not [A-Za-z0-9_-]{1,64} — a case name is a ROUTE name (FD-V16's charset)`;
+      if (name === 'default') return 'cases names a case "default", which is the route a key matching no case takes — the name is reserved';
+      const v = cases[name];
+      if (Array.isArray(v) && v.length === 0) return `cases.${name} is an empty array; a case names a scalar or a non-empty array of scalars — a case no value can reach is a route no run can take`;
+      for (const x of Array.isArray(v) ? v : [v]) {
+        if (!isScalar(x)) {
+          return `cases.${name} ${Array.isArray(v) ? 'holds' : 'is'} ${scalarName(x)}; a case names a SCALAR — null, a boolean, a finite number or a string — or a non-empty array of them`;
+        }
+        // **By `===`** — the relation `fn` matches by, so "1" and 1 are two values here as there. Across two cases a
+        // value would take two routes; INSIDE one case it is a repeat, refused too — W154 stop-and-ask (l), the
+        // maintainer's answer, on the precedent of `routes repeats a route` and `FD-V31`'s repeated group.
+        const other = seen.find((s) => s.value === x);
+        if (other !== undefined && other.name === name) {
+          return `cases.${name} repeats the value ${caseValue(x)} — a case names each of its values once`;
+        }
+        if (other !== undefined) {
+          // `0` and `-0` are ONE value by `===` and JSON prints both `0`, so the message names each as written (reader item R3).
+          if (!Object.is(other.value, x)) {
+            return `the values ${caseValue(other.value)} in case "${other.name}" and ${caseValue(x)} in case "${name}" are one value by === — a value takes one route`;
+          }
+          return `the value ${caseValue(x)} is named by two cases, "${other.name}" and "${name}" — a value takes one route (matching is ===, so "1" and 1 are two values)`;
+        }
+        seen.push({ value: x, name });
+      }
+    }
+    return null;
+  },
+  routesFor(settings: Readonly<Record<string, unknown>>) {
+    const cases = settings.cases;
+    // Asked only once `settingsProblem` passed — by the validator and the driver; the wiring check asks over the
+    // settings as given, and a throw there is a set that does not resolve (ADR 0092 rule 3).
+    if (typeof cases !== 'object' || cases === null || Array.isArray(cases)) throw new Error(`cases is ${scalarName(cases)}, not an object of case names`);
+    const names = Object.keys(cases);
+    return { routes: [...names, 'default'], defaultRoute: 'default', keyResolvedRoutes: names };
+  },
+  fn(ctx: GateContext): string {
+    const key = ctx.key;
+    // A key that did not resolve, or is not a scalar, can equal no case: every case value is a scalar.
+    if (key === undefined || (typeof key === 'object' && key !== null)) return 'default';
+    const cases = ctx.settings.cases as Record<string, unknown>;
+    for (const name of Object.keys(cases)) {
+      const v = cases[name];
+      if (Array.isArray(v) ? v.some((x) => x === key) : v === key) return name;
+    }
+    return 'default';
+  },
+});
+
+/**
+ * **The built-in gate types, by name** — `distinct` (P24), and since W154 `if` and `switch` (P32 decision 1), all
+ * three written against the public interface a consumer's type is. A consumer type named as any of them is refused,
+ * never merged (`NameCollision`, `FD-V39`).
+ */
+export const BUILT_IN_GATE_TYPES: Readonly<Record<string, GateType>> = Object.freeze({ distinct, if: ifGate, switch: switchGate });
 
 /**
  * **Every gate type a flow may name: the built-ins, then the consumer's** — `Registry.gateTypes`' own
@@ -549,6 +646,9 @@ function predicateShapeOf(o: Record<string, unknown>): 'name' | 'leaf' | 'group'
   return marks[0]!;
 }
 
+/** A case value as a message prints it — `-0` as `-0`, which `JSON.stringify` prints `0` (W154 reader item R3). Error paths only. */
+const caseValue = (v: unknown): string => (Object.is(v, -0) ? '-0' : JSON.stringify(v));
+
 const isScalar = (v: unknown): v is null | boolean | number | string =>
   v === null || typeof v === 'boolean' || typeof v === 'string' || (typeof v === 'number' && Number.isFinite(v));
 
@@ -571,7 +671,37 @@ const STRING_OPS: ReadonlySet<string> = new Set(['startsWith']);
  * formed*. Returns the rule id with the message, because one value spans two rules and reporting it
  * under one of them would make the other's fixture a lie.
  */
-function leafProblem(o: Record<string, unknown>, where: string): { rule: string; message: string } | null {
+/**
+ * **Where a comparison is asked, and so which ROOTS its path may start at** — W154. A task's or a join's edge asks
+ * it over a `DecisionContext`, whose members are `outcome` and `needs` (`PREDICATE_ROOTS`, `FD-V43`, UNMOVED); an
+ * `if` gate asks it over the value that reached the gate, under the ONE root `input` (P32 decision 4). Two scopes
+ * and not one wider list, because `input.x` on a task edge would resolve to nothing in silence — `FD-V43`'s own
+ * class (W154 re-take 3). The messages are the scope's, so a task edge's read byte-for-byte as before.
+ */
+interface ComparisonScope {
+  readonly roots: readonly string[];
+  /** Why a first segment outside `roots` is refused — the tail of `FD-V43`'s root message. */
+  readonly foreignRoot: (root: string) => string;
+  /** Why a root ALONE is refused — the tail of `FD-V43`'s root-alone message. */
+  readonly rootAlone: (root: string) => string;
+}
+
+const EDGE_SCOPE: ComparisonScope = {
+  roots: PREDICATE_ROOTS,
+  foreignRoot: () => `which a decision cannot see — a predicate's roots are ${PREDICATE_ROOTS.map((r) => JSON.stringify(r)).join(' and ')}, and any other first segment would resolve to nothing in silence`,
+  rootAlone: (root) => `and names no value — ${JSON.stringify(root)} is a container, so a comparison against it could only ever be no match`,
+};
+
+/** The one root an `if` gate's condition may start at: what reached the gate. Private — no new public name (W154). */
+const GATE_CONDITION_ROOTS: readonly string[] = ['input'];
+
+const GATE_SCOPE: ComparisonScope = {
+  roots: GATE_CONDITION_ROOTS,
+  foreignRoot: () => 'which an if gate cannot see — its one root is "input", the value that reached the gate; a gate has no outcome and no edge needs, and any other first segment would resolve to nothing in silence',
+  rootAlone: () => 'and names no key — a gate\'s path names a key INSIDE the value that reached it, as every gate\'s key path does; a value that must be compared whole is wrapped by the task before the gate',
+};
+
+function leafProblem(o: Record<string, unknown>, where: string, scope: ComparisonScope = EDGE_SCOPE): { rule: string; message: string } | null {
   const extra = Object.keys(o).filter((k) => !PREDICATE_LEAF_KEYS.includes(k));
   if (extra.length) {
     return { rule: 'FD-V42', message: `${where} carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a comparison does not declare; it is { ${PREDICATE_LEAF_KEYS.join(', ')} }` };
@@ -585,11 +715,11 @@ function leafProblem(o: Record<string, unknown>, where: string): { rule: string;
     return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is not a key path — dot-separated object keys, each [A-Za-z0-9_-]{1,64}; no array index, no wildcard, no expression` };
   }
   const root = path.split('.')[0]!;
-  if (!(PREDICATE_ROOTS as readonly string[]).includes(root)) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} starts at ${JSON.stringify(root)}, which a decision cannot see — a predicate's roots are ${PREDICATE_ROOTS.map((r) => JSON.stringify(r)).join(' and ')}, and any other first segment would resolve to nothing in silence` };
+  if (!scope.roots.includes(root)) {
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} starts at ${JSON.stringify(root)}, ${scope.foreignRoot(root)}` };
   }
   if (path.split('.').length < 2) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is a root alone and names no value — ${JSON.stringify(root)} is a container, so a comparison against it could only ever be no match` };
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is a root alone ${scope.rootAlone(root)}` };
   }
   // ---- FD-V44: the operator, the literal, and the two modifiers ----
   const op = o.op;
@@ -668,18 +798,26 @@ export function predicateProblem(v: unknown): { rule: string; message: string } 
     return null;
   }
   if (shape === 'leaf') return leafProblem(o, 'when');
-  // ---- FD-V45: a FLAT group, whose members are LEAVES ----
+  return groupProblem(o, 'when', EDGE_SCOPE);
+}
+
+/**
+ * **`FD-V45`: a FLAT group, whose members are LEAVES** — shared by a task edge's `when` and an `if` gate's
+ * condition (W154), so the two cannot disagree about what a group IS; `label` and `scope` are the only difference,
+ * and a task edge passes the values this read before it was a function.
+ */
+function groupProblem(o: Record<string, unknown>, label: string, scope: ComparisonScope): { rule: string; message: string } | null {
   const extra = Object.keys(o).filter((k) => !PREDICATE_GROUP_KEYS.includes(k));
-  if (extra.length) return { rule: 'FD-V42', message: `when is a group and also carries ${extra.map((k) => JSON.stringify(k)).join(', ')}; a group is { all } or { any } and nothing else` };
-  if ('all' in o && 'any' in o) return { rule: 'FD-V45', message: 'when carries both "all" and "any"; a group is one or the other, because a document that says both says neither' };
+  if (extra.length) return { rule: 'FD-V42', message: `${label} is a group and also carries ${extra.map((k) => JSON.stringify(k)).join(', ')}; a group is { all } or { any } and nothing else` };
+  if ('all' in o && 'any' in o) return { rule: 'FD-V45', message: `${label} carries both "all" and "any"; a group is one or the other, because a document that says both says neither` };
   const which = 'all' in o ? 'all' : 'any';
   const members = o[which];
   if (!Array.isArray(members) || members.length === 0) {
-    return { rule: 'FD-V45', message: `when ${which} is ${Array.isArray(members) ? 'empty' : scalarName(members)}; it is a non-empty array of comparisons — an empty group is "always true" or "always false" written as a question` };
+    return { rule: 'FD-V45', message: `${label} ${which} is ${Array.isArray(members) ? 'empty' : scalarName(members)}; it is a non-empty array of comparisons — an empty group is "always true" or "always false" written as a question` };
   }
   for (let i = 0; i < members.length; i++) {
     const m: unknown = members[i];
-    const at = `when ${which}[${i}]`;
+    const at = `${label} ${which}[${i}]`;
     if (typeof m !== 'object' || m === null || Array.isArray(m)) {
       return { rule: 'FD-V45', message: `${at} is ${scalarName(m)}; a group's members are comparisons` };
     }
@@ -693,10 +831,37 @@ export function predicateProblem(v: unknown): { rule: string; message: string } 
     if (ms === null || ms === 'ambiguous') {
       return { rule: 'FD-V45', message: `${at} carries ${Object.keys(m as object).map((k) => JSON.stringify(k)).join(', ') || 'no keys'} and is not a comparison` };
     }
-    const p = leafProblem(m as Record<string, unknown>, at);
+    const p = leafProblem(m as Record<string, unknown>, at, scope);
     if (p) return p;
   }
   return null;
+}
+
+/**
+ * **Why an `if` gate's `settings.when` is not a condition, or `null`** — W154, P32 decision 4: `FD-V42`-`FD-V45`'s
+ * grammar MINUS the NAME shape, over the ONE root `input`. The rule returned is the grammar's own, for the message;
+ * the finding is `FD-V40`, the gate's settings, because `if`'s `settingsProblem` is what asks (P32 decision 7).
+ * **A NAME is refused, with the reason**: a registered predicate is handed a `DecisionContext` — an `outcome` and an
+ * edge's `needs` — and a gate has neither; a decision that needs code is a gate type of its own (P32 Scope/Out).
+ */
+function gateConditionProblem(v: unknown): { rule: string; message: string } | null {
+  const label = 'settings.when';
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    return { rule: 'FD-V42', message: `${label} is ${scalarName(v)}; it is an object — a comparison { ${PREDICATE_LEAF_KEYS.join(', ')} } or a flat group { all } or { any }, over the root "input"` };
+  }
+  const o = v as Record<string, unknown>;
+  const shape = predicateShapeOf(o);
+  if (shape === null) {
+    return { rule: 'FD-V42', message: `${label} carries ${Object.keys(o).map((k) => JSON.stringify(k)).join(', ') || 'no keys'} and is neither a comparison { ${PREDICATE_LEAF_KEYS.join(', ')} } nor a flat group { all } or { any }` };
+  }
+  if (shape === 'ambiguous') {
+    return { rule: 'FD-V42', message: `${label} carries ${Object.keys(o).map((k) => JSON.stringify(k)).join(', ')} and matches more than one shape — a comparison and a group are told apart by which keys are present, so an object may mark only one` };
+  }
+  if (shape === 'name') {
+    return { rule: 'FD-V42', message: `${label} names a registered predicate, which an if gate cannot ask — a predicate is handed a decision's outcome and its edge's needs, and a gate has neither. Write a comparison over "input", or register a gate type of your own` };
+  }
+  if (shape === 'leaf') return leafProblem(o, label, GATE_SCOPE);
+  return groupProblem(o, label, GATE_SCOPE);
 }
 
 /** Every registered predicate NAME a `when` reaches, so `FD-V4` can be asked of each — `[]` for a declared one. */

@@ -5,8 +5,8 @@
  * Eligibility is checked BEFORE the `when` evaluation, and only over the eligible
  * edges (ADR 0004 rule 2).
  */
-import type { Edge, FlowNode, GateNode, PredicateLeaf, TerminalState, When } from '../definition/types.ts';
-import { readKeyPath } from '../definition/validate.ts';
+import type { Edge, FlowNode, GateNode, TerminalState, When } from '../definition/types.ts';
+import { evaluateDeclared } from '../definition/condition.ts';
 import type { OutcomeRecord } from './log.ts';
 
 /**
@@ -43,74 +43,8 @@ export type PredicateRegistry = ReadonlyMap<string, Predicate>;
 
 export class NoMatchingEdge extends Error {}
 
-/**
- * **A DECLARED comparison, evaluated — v0.27,
- * [ADR 0074](../../doc/decisions/0074-a-predicate-is-a-registered-name-or-a-declared-comparison-over-the-context.md).**
- *
- * **Synchronous, total, and a pure function of its argument** — which is the whole reason the subset
- * exists rather than reusing `transform`'s declared expressions: W108's declaration step re-measured
- * that `jsonata`'s only evaluation entry returns a Promise and that `src/driver/driver.ts` holds ZERO
- * `async`/`await` in code, so an expression cannot be evaluated where a decision is made without
- * reaching [ADR 0014](../../doc/decisions/0014-the-driver-produces-the-folds-ordered-input-sequence.md)'s
- * ordered fold-input sequence.
- *
- * **It reads `ctx` and nothing else.** There is no clock here, no random source, no I/O and no
- * closure over anything — so a declared predicate **CANNOT** be impure, which is strictly stronger
- * than [Q9](../../doc/questions/q9.md)'s measured result for a function (evaluating twice caught
- * 1 impurity shape of 4) and is asserted rather than argued.
- *
- * **Total by construction**, because `FD-V42`-`FD-V45` refuse everything this does not handle at
- * `new Driver`. The `default:` arm below is the assertion that they held.
- */
-function evalLeaf(ctx: DecisionContext, p: PredicateLeaf): boolean {
-  // The key path is read by `readKeyPath` — the DRIVER's own resolution, the same one a gate's
-  // `settings.key` gets. W108 measured it unchanged at this scope: `ctx.outcome`, `ctx.outcome.result`
-  // and `ctx.needs` are all plain objects, and `ctx.needs` being FROZEN does not change a prototype.
-  let v = readKeyPath(ctx, p.path);
-  // **Absent is NO MATCH, and `default` is what makes the comparisons closed under negation**
-  // (W108 stop-and-ask (d)): without it both `x > t` and `x <= t` are false for an absent path, so
-  // no pair of operators complements and `!p` has no declared form. Substituted BEFORE `length`.
-  //
-  // **A path resolving to `null` takes the default too, and that is BOTH readers' shared finding.**
-  // `readKeyPath` returns a terminal `null` as a resolved value, so a `v === undefined` test alone
-  // left `gt` and `lte` BOTH false on a null-valued key — the pair not complementary, and the
-  // declared form not reproducing `(r?.score ?? 0) > 0.5`, which five documents said it was.
-  // `??` is nullish, so this is: where a `default` is declared, it stands in for `undefined` AND
-  // for `null`. **Where NONE is declared a resolved `null` stays `null`**, so `eq null` is still a
-  // scalar comparison that holds — a blanket `v == null -> no match` would break that, which is
-  // why the two halves are separate statements.
-  if (v === undefined && !('default' in p)) return false;
-  if ((v === undefined || v === null) && 'default' in p) v = p.default as unknown;
-  if (p.length === true) {
-    // An array or a string has a length; anything else is no match, which is the absent rule's own
-    // reading one step along rather than a second convention.
-    if (Array.isArray(v)) v = v.length;
-    else if (typeof v === 'string') v = v.length;
-    else return false;
-  }
-  const w = p.value;
-  switch (p.op) {
-    // **Type-STRICT, and it is a departure measured rather than assumed.** Under JS comparison
-    // `{confidence: "0.4"} < 0.5` is true and every `typeof`-guarded predicate in this tree is false;
-    // measured over 1800 contexts, a type-strict form reproduces those three EXACTLY and differs from
-    // `resume.test.ts`'s unguarded `isHigh` on `{score: "9"}`, where the JS body coerces. That is
-    // `FD-V30`'s own argument — *a string `maxRetries` retries by coercion* — one rule over.
-    case 'eq': return v === w;
-    case 'ne': return v !== w;
-    case 'lt': return typeof v === 'number' && typeof w === 'number' && v < w;
-    case 'lte': return typeof v === 'number' && typeof w === 'number' && v <= w;
-    case 'gt': return typeof v === 'number' && typeof w === 'number' && v > w;
-    case 'gte': return typeof v === 'number' && typeof w === 'number' && v >= w;
-    case 'startsWith': return typeof v === 'string' && typeof w === 'string' && v.startsWith(w);
-    default: {
-      // `FD-V44` refuses every other operator at construction; this is the assertion that it held,
-      // and it is a THROW rather than a `false` because a predicate silently answering no is the
-      // plausible-wrong-answer class `FD-R2` exists for.
-      const never: never = p.op;
-      throw new NoMatchingEdge(`operator "${String(never)}" is not in the subset; FD-V44 should have caught this at instantiation`);
-    }
-  }
-}
+/** The error a declared comparison throws on an operator `FD-V44` should have refused — this module's own class, made once. */
+const UNKNOWN_OP = (message: string): Error => new NoMatchingEdge(message);
 
 /**
  * **What a `when` ANSWERS** — the one place the three shapes are told apart, shared by `selectEdge`
@@ -123,9 +57,9 @@ export function evaluateWhen(when: When, ctx: DecisionContext, predicates: Predi
     if (!p) throw new NoMatchingEdge(`predicate "${when.predicate}" is not registered; FD-V4 should have caught this at instantiation`);
     return p(ctx);
   }
-  if ('all' in when && Array.isArray(when.all)) return when.all.every((m) => evalLeaf(ctx, m));
-  if ('any' in when && Array.isArray(when.any)) return when.any.some((m) => evalLeaf(ctx, m));
-  return evalLeaf(ctx, when as PredicateLeaf);
+  // A COMPARISON or a GROUP: the pure evaluator, which lives in the definition layer since W154 (exception (p)) so
+  // the built-in `if` gate asks the SAME one without `src/definition` importing this module back.
+  return evaluateDeclared(when, ctx, UNKNOWN_OP);
 }
 
 export type RoutingResult =

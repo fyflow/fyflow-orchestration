@@ -722,7 +722,8 @@ if (written.length) {
 // is **P26's exit artifact as a reference section**: a whole flow validated with NO predicate registered
 // and the `unchecked` residue of a transform-only node asserted rather than described. Raised in the
 // commit that adds the snippet.
-const RUN_FLOOR = 34;
+// **Raised 34 -> 35 by [W154](../doc/work-items/w154-the-built-in-if-and-switch.md)**, section 19's `if`/`switch` snippet — exception (o).
+const RUN_FLOOR = 35;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
