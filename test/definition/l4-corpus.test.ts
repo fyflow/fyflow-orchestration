@@ -438,6 +438,10 @@ const LATE_SUITES = [
   'W153 — a gate type`s routes may come from its NODE: routesFor, settingsProblem, routesOf, FD-V39 to FD-V41 per gate',
   'W153 — the wiring check reads a DERIVED gate`s routes off its NODE: the default edge and keyResolvedRoutes',
   'W153 — a gate whose routes come from its NODE, in a run: the derived route, its default, FD-R5 against the NODE`s set',
+  // W154 — P32 decisions 4-6, the built-in `if` and `switch`: L1 in `test/definition/gate-builtins.test.ts`, L2 in
+  // `test/driver/gate-builtins.test.ts`.
+  'W154 — the built-in if and switch: registered through the interface, their grammar, and what each decides',
+  'W154 — the built-in if and switch in a run: every route taken, FD-R4 through an entry if, no memory, no code registered',
   // W109 — the BUILT-IN node type and `FD-V46`, in `test/definition/node-type.test.ts`; the no-inner
   // arm on real pools, in `test/scheduler/transform.test.ts`.
   'W109 — the BUILT-IN node type: nameable with no nodeTypes declared, and FD-V46 when it has nothing to do',

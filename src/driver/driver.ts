@@ -947,7 +947,7 @@ export interface DriverOptions {
   /**
    * **A consumer's GATE types, beside the built-ins — the sixth set, and the TWENTIETH member**
    * ([W93](../../doc/work-items/w93-what-a-gate-does-in-a-run.md), ADR 0067). Absent, the built-ins alone
-   * (`distinct`); the set only ever ADDS, a name that is a built-in's is refused (`NameCollision`) and a
+   * (`distinct`, `if`, `switch`); the set only ever ADDS, a name that is a built-in's is refused (`NameCollision`) and a
    * value that is not a `GateType` is `GateTypeRefused` — both by `checkRegistry`, at construction. The
    * validator reads each gate's route set through `routesOf` (a static type's members, or a derived type's
    * `routesFor` over the gate's settings — ADR 0092), `settingsSchema` and `settingsProblem` (`FD-V39`-`FD-V41`);

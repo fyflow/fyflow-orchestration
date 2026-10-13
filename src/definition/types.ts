@@ -640,7 +640,7 @@ export interface EndNode {
 export interface GateNode {
   id: string;
   kind: 'gate';
-  /** A registered GATE type's name — a built-in (`distinct`) or `Registry.gateTypes`' (`FD-V39`). */
+  /** A registered GATE type's name — a built-in (`distinct`, `if`, `switch`) or `Registry.gateTypes`' (`FD-V39`). */
   type: string;
   /**
    * **What the gate's type is configured with** — a plain object its type's `settingsSchema` accepts

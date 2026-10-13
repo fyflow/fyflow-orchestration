@@ -1,0 +1,13 @@
+{
+  "flowId": "fd-v40-if",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",  "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "triage" } ] },
+    { "id": "triage", "kind": "gate", "type": "if",
+      "settings": { "when": { "path": "outcome.result.confidence", "op": "lt", "value": 0.5 } },
+      "edges": [ { "route": "then", "to": "review" }, { "to": "done" } ] },
+    { "id": "review", "kind": "task", "type": "ReviewWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",   "kind": "end",  "outcome": "completed" }
+  ]
+}

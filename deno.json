@@ -18,6 +18,7 @@
       "!src/definition/types.ts",
       "!src/definition/regions.ts",
       "!src/definition/validate.ts",
+      "!src/definition/condition.ts",
       "!src/definition/schema.ts",
       "!src/definition/registry.ts",
       "!src/definition/witness.ts",

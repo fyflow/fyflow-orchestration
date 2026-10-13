@@ -150,10 +150,11 @@ a wire.
 > one** — `spec/flow-definition.md` v0.23-v0.24,
 > [ADR 0066](doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md)
 > and [ADR 0067](doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md),
-> [W92](doc/work-items/w92-what-a-gate-is.md). A gate is a decision WITH MEMORY: it routes the branch that
-> reaches it by what the run's other branches have already shown it — `distinct`, the one built-in type,
-> sends the FIRST branch per key down its default route `first` and every later one down `duplicate` — and it
-> hands on exactly what reached it. The driver evaluates it where a branch reaches it — the gate's memory is
+> [W92](doc/work-items/w92-what-a-gate-is.md). A gate routes the branch that reaches it by a registered TYPE
+> and hands on exactly what reached it. Three types are built in: `distinct` decides WITH MEMORY — by what the
+> run's other branches have already shown it, the FIRST branch per key down its default route `first` and every
+> later one down `duplicate` — and since v0.31 `if` and `switch` decide WITHOUT any, by a declared condition and a
+> declared table of values (section 19). The driver evaluates it where a branch reaches it — the gate's memory is
 > ONE per gate per RUN, the driver's, rebuilt by replay on a resume — records each decision as a `gated` fold
 > input (`RunState.gated`), and stops the run with an `UndeclaredRoute` if a type returns a route it does not
 > declare (`FD-R5`). *(Until W93 `new Driver` refused a flow holding one, at construction.)* Every route its
@@ -244,7 +245,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
-| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
+| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). Built in: `distinct`, `if` and `switch`. Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node must have an edge that can be taken when it succeeds.** A node whose only edge is
 `{ when: { predicate: 'p' }, to: 'x' }` is refused at construction — it is the mistake the format most invites, and
@@ -1355,7 +1356,7 @@ five — `ConfigRefused`, `TypeDefaultRefused`, `GroupTypeMissing`, `GroupConfig
 supplies its predicates, languages, group types and node-type classes, by `createRuntime` (which
 calls that resolver first — section 12), and by the bootstrap helper before it builds a pool. The
 twelfth, **`GateTypeRefused`** (v0.23), is thrown by `checkRegistry` when a gate type it holds is not
-a `GateType` — the built-in `distinct` on every call, and any the registry adds in `gateTypes` — and a gate
+a `GateType` — the built-ins `distinct`, `if` and `switch` on every call, and any the registry adds in `gateTypes` — and a gate
 type named as a built-in is `NameCollision` — at `new Driver`, which since W93 takes yours as `gateTypes`, and
 at `createRuntime`, which takes them as `code.gateTypes` and hands them to every run (section 3). None is `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
 flow, and the class says which document to open.
@@ -3292,7 +3293,7 @@ rest, while every file gets a thumbnail* — had nowhere to keep that memory.
 
 | | |
 |---|---|
-| **it names a gate TYPE** | `distinct` is built in: routes `first` (its DEFAULT), `duplicate` and `nokey`, keyed by `settings.key` — a DOTTED path of object keys over the value that reached the gate, no index, no wildcard, no expression. A key a flow needs COMPUTED is computed by the task before the gate |
+| **it names a gate TYPE** | `distinct` is built in: routes `first` (its DEFAULT), `duplicate` and `nokey`, keyed by `settings.key` — a DOTTED path of object keys over the value that reached the gate, no index, no wildcard, no expression. A key a flow needs COMPUTED is computed by the task before the gate. `if` and `switch` are built in too, and remember nothing (the end of this section) |
 | **every route is wired, exactly once** | an edge with no `route` carries the type's DEFAULT route, never every route; a DROP is an edge to an `end`, and each is refused at load if it is missing (`FD-V41`) |
 | **it computes nothing** | the branch leaves on the chosen route with EXACTLY the value that reached the gate |
 | **its memory is ONE per gate per RUN** | shared by every branch that reaches it, whatever map item or region instance it comes from — and it starts empty with the run and ends with it |
@@ -3477,6 +3478,92 @@ if (malformed.map((f) => f.rule).join() !== 'FD-V40') throw new Error(`settingsP
   `keyResolvedRoutes`, a gate naming no `key`, and a route the type does not name each pass the value through
   exactly as before — and the guarantee is PRESENCE along the path, never the leaf's TYPE, which is the type's own
   judgement (`distinct` wants a string or a finite number, and no static tool derives that).
+
+### Routing with NO code — the built-in `if` and `switch`
+
+**A gate need not remember anything.** Since `spec/flow-definition.md` v0.31
+([P32](doc/plans/p32-what-a-gate-may-decide-without-memory.md), [W154](doc/work-items/w154-the-built-in-if-and-switch.md))
+two more types are built in, and they route the value that reached the gate by its SETTINGS alone — so a flow can
+route its ENTRY payload, or the value straight after a gate, with no worker before the decision and nothing
+registered:
+
+| | `if` | `switch` |
+|---|---|---|
+| **settings** | `{ when }` — a comparison or a flat `all`/`any` group, section 4's grammar, whose paths start at **`input`**: the value that reached the gate | `{ key, cases }` — `key` a key path as `distinct`'s, `cases` a map from a CASE NAME to a scalar or a non-empty array of scalars |
+| **routes** | `then`, and `else` — the DEFAULT, so an edge with no `route` is the fallback | every case name, then `default` — the DEFAULT. So a case left unwired is refused at load, NAMING the case (`FD-V41`) |
+| **matches** | `when` holds over `{ input }`, by the evaluator a task edge's `when` uses — the same operators, absent rule, `default` and `length` | the case one of whose values is `===` the resolved key: `"1"` and `1` are two values, and a value in two cases is refused at load |
+| **refused at load (`FD-V40`)** | a registered predicate NAME (a gate has no outcome to hand it), a root other than `input` — or `input` alone — and every `when` defect section 4 refuses, named | a case named `default` or outside the route charset, a value that is not a scalar, an empty array, a value in two cases or twice in one, an empty `cases` |
+
+- **Neither reads the gate's memory**: two branches with one key take the same route at a `switch`, where
+  `distinct` sends the second to `duplicate`.
+- **`input` is an `if`'s root and nobody else's.** A task's edge still roots at `outcome` and `needs`; `input.x`
+  there is `FD-V43`.
+- **`switch`'s cases are key-resolved routes** (ADR 0068), so `checkWiring` refines what leaves on a case along
+  the key, as it does for `distinct`'s `first`. **An `if` guarantees nothing**: a task after `then` that requires
+  the key the condition compared reads `no` against a producer that does not REQUIRE it.
+- **Neither has a named export** — `if` and `switch` are words a `const` cannot carry. Reach them as a flow does,
+  by name: `BUILT_IN_GATE_TYPES.if`, `BUILT_IN_GATE_TYPES.switch`. A type of your own may not take either name
+  (`NameCollision`).
+
+```ts run
+import { Driver, fold, liveToken, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+// The ENTRY is an `if` over the payload; `classify` runs only on the escalated road, and a `switch` routes its
+// result. No predicate and no gate type is registered anywhere below.
+const flow: FlowDefinition = {
+  flowId: 'triage', version: 1, entry: 'triage',
+  nodes: [
+    { id: 'triage', kind: 'gate', type: 'if', settings: { when: { path: 'input.priority', op: 'gte', value: 5 } },
+      edges: [{ route: 'then', to: 'classify' }, { to: 'queue' }] },                       // no route: else, the default
+    { id: 'classify', kind: 'task', type: 'Work', edges: [{ to: 'byStatus' }] },
+    { id: 'byStatus', kind: 'gate', type: 'switch',
+      settings: { key: 'status', cases: { approved: 'approved', rework: ['rejected', 'needs-changes'] } },
+      edges: [{ route: 'approved', to: 'publish' }, { route: 'rework', to: 'revise' }, { to: 'review' }] },
+    { id: 'queue', kind: 'task', type: 'Work', edges: [{ to: 'done' }] },
+    { id: 'publish', kind: 'task', type: 'Work', edges: [{ to: 'done' }] },
+    { id: 'revise', kind: 'task', type: 'Work', edges: [{ to: 'done' }] },
+    { id: 'review', kind: 'task', type: 'Work', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// One run per payload, on the twelve-line fake scheduler section 12 explains.
+function run(payload: unknown, classified?: unknown): string[] {
+  const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+  const added: string[] = [];
+  const failures: string[] = [];
+  const scheduler = {
+    addTask(task: unknown) { added.push((task as { id: string }).id); },
+    addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+  };
+  const driver = new Driver(flow, {
+    runId: 'r', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken,
+    workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } },
+    onRunFailure: (f) => { failures.push(f.kind); },
+  });
+  driver.start(payload);
+  if (classified !== undefined) for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id: 'r:classify:-:0', state: 'done', result: classified } });
+  if (failures.length) throw new Error(`the run reported ${failures.join(', ')}`);
+  const gated = fold(driver.foldInputs()).gated.map((d) => `${d.gateId}:${d.route}`);
+  return [...gated, ...added.map((id) => id.split(':')[1]!)];
+}
+
+console.log(run({ priority: 2 }));                                       // [ 'triage:else', 'queue' ]
+console.log(run({ priority: 7 }, { status: 'needs-changes' }));          // [ 'triage:then', 'byStatus:rework', 'classify', 'revise' ]
+if (run({ priority: 2 }).join() !== 'triage:else,queue') throw new Error('priority 2 is below 5: else');
+if (run({ priority: '9' }).join() !== 'triage:else,queue') throw new Error('"9" is not a number: no coercion, so else');
+if (run({ priority: 7 }, { status: 'approved' }).join() !== 'triage:then,byStatus:approved,classify,publish') throw new Error('approved');
+if (run({ priority: 7 }, { status: 'needs-changes' }).join() !== 'triage:then,byStatus:rework,classify,revise') throw new Error('a value in an array case');
+if (run({ priority: 7 }, { status: 'pending' }).join() !== 'triage:then,byStatus:default,classify,review') throw new Error('no case: default');
+
+// A case left unwired is refused at LOAD, naming it — the forgotten case an edge chain of comparisons cannot catch.
+// (`revise` goes too, or it is unreachable and FD-V11 says so beside it.)
+const forgot = { ...flow, nodes: flow.nodes.filter((n) => n.id !== 'revise')
+  .map((n) => (n.id === 'byStatus' ? { ...n, edges: [{ route: 'approved', to: 'publish' }, { to: 'review' }] } : n)) } as FlowDefinition;
+const found = validateDefinition(forgot, { predicates: [], workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } } });
+console.log(found.map((f) => `${f.rule} ${f.at}`));                     // [ 'FD-V41 byStatus' ]
+if (found.length !== 1 || found[0]!.rule !== 'FD-V41' || !found[0]!.detail.includes('"rework"')) throw new Error(`the unwired case, by name: ${JSON.stringify(found)}`);
+```
 
 **`0.6.0` is BREAKING in four ways, all of them for code that enumerates or matches.** `FlowNode` has a SIXTH kind,
 `GateNode` ([Q381](doc/questions/q381.md)), so a `switch` exhaustive over `node.kind` no longer compiles;
