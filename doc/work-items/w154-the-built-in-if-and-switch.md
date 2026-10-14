@@ -259,7 +259,8 @@ has no task id; a nested fan-out (Q6) — not applicable.
 ## Record
 
 *Written 2026-10-13 on `afd91e6` with the item's changes UNCOMMITTED, after the Exceptions' edits. The reader
-passes have NOT run.*
+passes have NOT run.* *(P32's retro, 2026-10-14, pass 3 rule 6: both readers RAN later the same day — the
+gate table's rows and items R1-R4. This line and* What this taught *are as first written.)*
 
 **The stop-and-asks.** (j)-(o) were answered by the maintainer on 2026-10-13, all as recommended, and (p) is the
 coordinator's, approved — the Exceptions table above, written before the edits. **(k): no ADR 0093** — P32
@@ -380,7 +381,9 @@ an unused import after (p), each fixed before its gate. (3) `check:docs:selftest
 `S6`** — (q), fixed: (p)'s new module was not in `deno.json`'s publish allowlist. Re-take 7 read what `check:spec`
 and `check:docs` demand of new files and not what `check:source` demands of a new MODULE.
 
-**What this taught.** Nothing about the method yet; the readers have not run.
+**What this taught.** Nothing about the method yet; the readers have not run. *(FALSE since the readers ran,
+2026-10-13 — P32's retro, pass 3 rule 6. What they taught is in P32's Retro: the four gaps sat at JavaScript's number
+edges, one of them (`ne` as loose `!=`) a gap since W108 that `if` inherited.)*
 
 **Questions raised.** **[Q589](../questions/q589.md)** — the wiring refinement along an `if`'s `then` path,
 deferred (re-take 6's pricing). **Q590-Q593 unused, skipped.** ADR 0093 unused. (j)-(q) were ASKED rather than

@@ -17,6 +17,14 @@ resolves: Q444
 **Spec:** [spec/flow-definition.md](../../spec/flow-definition.md) v0.27 — section 3's `when`
 subsection, `FD-C7`, and `FD-V42`-`FD-V45`
 
+*A dated note, 2026-10-14, P32's record step: **since spec v0.31 a second context reads this
+comparison grammar** — the built-in `if` gate's condition, over ONE root, `input`, the value that
+reached the gate (spec/flow-definition.md section 3's *The `input` root*, `FD-C8`;
+[P32](../plans/p32-what-a-gate-may-decide-without-memory.md) decisions 4 and 6,
+[W154](../work-items/w154-the-built-in-if-and-switch.md)). Rule 4's roots, `outcome` and `needs`, are
+a task edge's and do not move. **No ADR restates it**: W154's stop-and-ask (k) was answered NO, so
+P32 and spec v0.31 are the record and this note is the pointer that answer named.*
+
 ## Context
 
 A flow definition is **data** and a predicate is **a name registered in code**

@@ -3,7 +3,7 @@
 **Status:** done 2026-10-14 — **`npm run gate:item` EXIT 0** on the final tree after both readers' items, one command, its first
 run; `npm run gate:full` EXIT 0 on the pre-reader tree (Record); stop-and-asks (r) and (s) ANSWERED YES by the maintainer
 2026-10-14 and acted on, with the readers' items R1-R7 (Exceptions); Q594 raised deferred; the census-site correction
-(re-take 2) confirmed by the conformity reader and not objected to by the maintainer; both reader passes RUN (gate table); declared 2026-10-13 on `334851d`, declaration step RUN the same day
+(re-take 2) confirmed by the conformity reader and CONFIRMED by the maintainer 2026-10-14 (P32's retro, (v)); both reader passes RUN (gate table); declared 2026-10-13 on `334851d`, declaration step RUN the same day
 in a byte copy of `334851d`, written before any edit outside this file
 **Plan:** [P32](../plans/p32-what-a-gate-may-decide-without-memory.md) — *may a gate decide by a declared condition
 or a declared value table, without memory?* — and this is its LAST item and its EXIT ARTIFACT.
@@ -173,7 +173,8 @@ other part of the item is independent of it and is done.*
 | **(r)** YES, option 1 — answered by the maintainer 2026-10-14, citing the per-decision path as unaffected (this is test code) | `examples/l6.ts` (W110's cross-row block, :10972 at `334851d`) | `uiRows` narrowed to `EXPECTED.filter((e) => e.uiRegistry === true && (e.definition === UI \|\| e.definition === UIN))`; every literal in W110's block unchanged |
 
 *The census-site correction (`test/definition/wiring.test.ts` :225/:273/:275/:311 moved, :441 unmoved — re-take 2) is
-recorded as measured and is NOT yet confirmed by the maintainer.*
+recorded as measured and is NOT yet confirmed by the maintainer.* *(A dated note, 2026-10-14: **CONFIRMED by the
+maintainer**, answering P32's retro stop-and-ask (v). The sentence before this note is as first written.)*
 
 **The readers' items — each APPROVED by the maintainer 2026-10-14, recorded here before its edit.** Constraint: none
 touches `src/**` or the per-decision path.
@@ -219,7 +220,8 @@ fan-out (Q6) — not applicable.
 
 *Written 2026-10-14 with the item's changes UNCOMMITTED on `334851d`. Stop-and-ask (r) was first unanswered, and every lane
 of `gate:full` was run SEPARATELY (W154's precedent); the maintainer then answered YES, the line went in (Exceptions), and
-`npm run gate:full` ran ONCE on the still tree. The reader passes have NOT run.*
+`npm run gate:full` ran ONCE on the still tree. The reader passes have NOT run.* *(P32's retro, 2026-10-14, pass 3
+rule 6: both readers RAN later that day — the gate table's rows and the Exceptions' R1-R7. This line is as first written.)*
 
 **Gate — what ran.** Baseline (re-take 1): L1-L5 58 / 1635, L6 2487 / 164, `check:spec` 7 / 75 / 133.
 
