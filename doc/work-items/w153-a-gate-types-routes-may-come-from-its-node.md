@@ -176,6 +176,8 @@ a gate never settles; no matching decision edge (Q10) — FD-R5's road is in Tes
 ## Record
 
 *Written 2026-10-13 on `5adf7ec` with the item's changes UNCOMMITTED. The reader passes have not run.*
+*(P32's retro, 2026-10-14, pass 3 rule 6: both readers RAN later the same day — the gate table's rows and
+the reader items below. This line and* What this taught *are as first written.)*
 
 **The stop-and-asks, all outside `Owns`. (e), (e′), (f) and (g) were answered YES by the maintainer on 2026-10-13, with (h) added, and are recorded in Exceptions above. (i) was answered by the maintainer the same day — LEFT WALKED, as recommended, so no edit follows from it:**
 
@@ -295,7 +297,9 @@ Consequences).
    included. A static type's gates are counted as before.
 5. `routesOf` refuses settings that are not a plain object.
 
-**What this taught.** Nothing about the method yet. The readers have not run.
+**What this taught.** Nothing about the method yet. The readers have not run. *(FALSE since the readers ran,
+2026-10-13 — P32's retro, pass 3 rule 6. What they taught is in P32's Retro: the adequacy reader's 14 gaps sat where
+the author's 15 provocations never reached, and Output (4)'s* total *was false until C1.)*
 
 **Questions raised.** None. Q584-Q588 unused. (e), (e′), (f), (g), (h) and (i) are ASKED rather than raised
 (`doc/workflow.md` section 1 rule 6).

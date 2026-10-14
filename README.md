@@ -286,6 +286,7 @@ snippet is extracted and executed on every `npm run gate`, so none of it can dri
 | Fanning out **per item** — a region inside a `map` region | section 17 |
 | **Saving** a run and **resuming** it from the stored events | section 18 |
 | What a node may **remember** across branches — a `gate` | section 19 |
+| Routing with **no code** — the built-in `if` and `switch` gates | section 19 |
 | Wiring a gate **before it runs** | section 20 |
 
 Runnable programs live in [examples/](examples/) — including
