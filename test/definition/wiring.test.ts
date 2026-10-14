@@ -222,7 +222,7 @@ suite('W73 — the wiring fixture corpus IS what section 7 says it is, and every
  * after W74's eight guards and W101's nine.
  *
  * **Guards 3-5 already had a second observer and guards 1-2 had none.** The `unchecked` residue is
- * counted by the census below (`unchecked: 14` over 30 flows); *a UI-emitted flow validates with NO
+ * counted by the census below (`unchecked: 14` over 31 flows since W155, 30 at W110); *a UI-emitted flow validates with NO
  * predicate registered* and *the registry really is empty* were asserted in `AGENTS.md` and nowhere
  * else, because `examples/flows/**` is reached by `validateDefinition` in no L1-L5 suite — only by
  * that census and by `result-value.test.ts`'s `needs` count, neither of which validates. **W101's
@@ -270,9 +270,9 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
   const registry = { workers: l6Registry.workers, nodeTypes: l6Registry.nodeTypes, languages: { jsonata } } as unknown as Parameters<typeof checkWiring>[0];
   const options = { workerHalf: { jsonata: compileExpression } };
   let reports: WiringReport[] = [];
-  test('the census: 75 fit, 1 no, 5 transform-passes, 2 transform-fails, 14 unchecked over 30 flows', async () => {
+  test('the census: 76 fit, 1 no, 5 transform-passes, 2 transform-fails, 14 unchecked over 31 flows', async () => {
     const names = (await listDir(flowsDir)).filter((n) => n.endsWith('.flow.json')).sort();
-    ok(names.length === 30, `30 L6 flows, got ${names.length}`);
+    ok(names.length === 31, `31 L6 flows, got ${names.length}`);
     reports = [];
     for (const n of names) reports.push(await checkWiring(registry, JSON.parse(await readText(`${flowsDir}/${n}`)) as FlowDefinition, options));
     const counts: Record<VerdictKind, number> = { 'fits': 0, 'no': 0, 'transform-passes': 0, 'transform-fails': 0, 'unchecked': 0 };
@@ -308,7 +308,10 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // unchecked in every flow that has one — and the ONE fit per flow is `intake -> rate`, the only arc
     // neither end of which is that node, which is what says the residue is LOCAL to it rather than general.
     // *The census carried W99's fix as a number; it carries this item's residue as one.*
-    equal(counts, { 'fits': 75, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 14 }, 'the L6 census');
+    // **+1 fit and +1 flow at W155** — P32's exit artifact, `if-then-switch.flow.json`, a declared census move. Its ONE
+    // arc is `score -> publish` THROUGH the `switch` on its `certain` route, and it FITS; the `if` at the entry has no
+    // producer, and its targets are entry targets (`score`, `shelve`), so no arc is counted for them.
+    equal(counts, { 'fits': 76, 'no': 1, 'transform-passes': 5, 'transform-fails': 2, 'unchecked': 14 }, 'the L6 census');
     // The one `no` is the FD-R2 prediction — map-no-array's `over: "rows"` on a producer that never emits it.
     const no = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'no'));
     equal(no.map((v) => `${v.through ?? v.producer}:${v.consumer}`), ['split:score'], 'the one no');

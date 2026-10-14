@@ -791,6 +791,14 @@ export interface RunReport {
    */
   predicateNames: readonly string[];
   /**
+   * **The GATE-TYPE names the driver was handed, read off `runtime.registry.gateTypes` — W155**, beside
+   * `predicateNames` and for the same reason: P32's exit artifact claims NO gate type is registered, so its rows
+   * assert this EMPTY on their OWN runtime. Absent on the registry is `[]` — the built-ins are the driver's own
+   * and are not in it. *(W155 first read this off a sibling runtime built by the same call; its adequacy reader's
+   * M11 put a gate type into the rows' runtime and L6 stayed green — the readers' C1/S5.)*
+   */
+  gateTypeNames: readonly string[];
+  /**
    * **What every pool the runtime BUILT was built with, read off the scheduler — W67, P18 fact 7.**
    *
    * A `WorkerManager` exposes `inline`, `maxThreads`, `idleTimeout`, `groups`, `residentGroups` and
@@ -2404,6 +2412,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
     registryTypes: Object.keys(runtime.registry.nodeTypes ?? {}).sort(),
     // W110: the registry `FD-V4` was applied against. A `Map` on every road `createRuntime` takes.
     predicateNames: [...((runtime.registry.predicates ?? new Map()) as ReadonlyMap<string, unknown>).keys()].sort(),
+    // W155: the gate types the runtime REGISTERED — `[]` where the code supplied none.
+    gateTypeNames: Object.keys(runtime.registry.gateTypes ?? {}).sort(),
     derivedPools,
     poolOfTask,
     poolLanguages,

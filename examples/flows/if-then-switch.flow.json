@@ -1,0 +1,24 @@
+{
+  "flowId": "l6-if-then-switch",
+  "version": 1,
+  "entry": "triage",
+  "nodes": [
+    { "id": "triage", "kind": "gate", "type": "if",
+      "settings": { "when": { "path": "input.confidence", "op": "gte", "value": 0.5 } },
+      "edges": [{ "route": "then", "to": "score" }, { "to": "shelve" }] },
+
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [{ "to": "grade" }] },
+
+    { "id": "grade", "kind": "gate", "type": "switch",
+      "settings": { "key": "score", "cases": { "certain": 100, "likely": [80, 90] } },
+      "edges": [{ "route": "certain", "to": "publish" }, { "route": "likely", "to": "accepted" }, { "to": "review" }] },
+
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [{ "to": "published" }] },
+    { "id": "shelve", "kind": "task", "type": "PublishWorker", "edges": [{ "to": "shelved" }] },
+
+    { "id": "published", "kind": "end", "outcome": "published" },
+    { "id": "accepted", "kind": "end", "outcome": "accepted" },
+    { "id": "review", "kind": "end", "outcome": "held-for-review" },
+    { "id": "shelved", "kind": "end", "outcome": "shelved" }
+  ]
+}
