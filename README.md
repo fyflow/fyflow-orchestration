@@ -18,8 +18,8 @@ The scheduler runs tasks. This library decides **which task runs next, and why**
 `fyflow-scheduler` has no dependency graph of its own, so sequence, decision, fan-out and join are
 built here rather than wrapped from below. See [doc/concept.md](doc/concept.md) for the reasoning.
 
-**0.7.0 is the first release**, on npm as `fyflow-orchestration` and on JSR as `@fyflow/orchestration`.
-The manifests read `0.7.0`.
+**0.7.0 was the first release**, on npm as `fyflow-orchestration` and on JSR as `@fyflow/orchestration`.
+The manifests read `0.8.0`.
 
 ## Install
 
