@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's** and **P24's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's** and **P32's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -82,6 +82,7 @@
  * | **W94 — `tv-ingest` arranged LAST-first, FIRST-first, and threaded** | **P24's EXIT ARTIFACT: a TV library's files through a `map` whose branch fetches each file and fans out BESIDE — a thumbnail for every file, and `identify` then a `distinct` GATE keyed on `series.id`.** The FIRST file of each series to ARRIVE opens the per-series work and every other file ends at an `end` (`duplicate`, or `nokey` for a file whose name carries no series); both joins fire and the run completes. **No assertion names which file won** (P24 decision 7): the gate clause reads the run's own `gated` elements — one `first` per series, the first of its series to arrive, the per-series task for exactly those branches, what reached the gate handed on. The sizes ARRANGE the order ([Q379](../doc/questions/q379.md)): LAST-first makes first-to-arrive differ from the lowest index and the first dispatched, FIRST-first is its pair (a different file opens each multi-file series, the same series once each), and the threaded row at equal work names no order at all. **The per-series road ends at its own `end`**, so every `beside` instance ends the same way whatever wins |
  * | **W94 — block (2h), the TV ingest KILLED and RESUMED** | **P24's exit artifact, its second half**: block (2g)'s kill — the consumer's store frozen mid-step, the runtime shut down (it DRAINS) — at EVERY one of the run's 25 kill points, resumed on a fresh runtime and IDENTICAL to a run nobody killed on outcome, every node, every branch's decision and the gate's MEMORY, which the replay rebuilt (`RN-R26`). Fifteen kill points lie BEFORE the first decision — [Q386](../doc/questions/q386.md)'s case — and the sweep is shown to DISCRIMINATE the rebuilt memory from a fresh one and from the killed process's, both derived from the killed run |
  * | **W141 — `setup fails`, inline and threaded** | **Q266 on a real scheduler: a TYPE's worker whose `setup()` throws, and the run ENDS.** Three optional nodes of that type in a fanout, each with an `on: ["failed"]` edge to an end, joined under `live-token` — the arrangement that hung for ever before W141 (the pool requeued the tasks of its failing worker until its restart limit, six of six measured). Since W141 the envelope worker remembers the failure and fails every task from `run()`: each node FAILS with the setup error, each failure ROUTES (ADR 0004), the join fires over three exited branches and the run COMPLETES — inside a bounded race, with the scheduler's own task states as the second observer. Its registry is written in the block, not `registry.json` |
+ * | **W155 — `if-then-switch` at 1, 0.9, 0.5 and 0.2** | **P32's EXIT ARTIFACT: a flow whose ENTRY is the built-in `if` over the PAYLOAD and which routes a TASK's result through the built-in `switch`, with no predicate and no gate type registered.** `triage` (`input.confidence gte 0.5`) sends three payloads to `score` and one, by the edge with no `route`, to `shelve`; `grade` routes `score`'s result by its `score` key — `certain` (a scalar case) to `publish`, `likely` (an array case) and `default` each to their own `end`. One payload per route the `switch` can take plus the `if`'s `else`, the 0.5 row being the `if`'s BOUNDARY and the `switch`'s no-case row at once. Each row asserts its decisions IN PLACE among its dispatches, settlements and path end; the cross-row block asserts every route of both taken by exactly those payloads, against the routes each gate declares, and the same document with one `switch` case left unwired refused at LOAD by `FD-V41` naming the case |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -125,6 +126,12 @@ import {
   // **W94**: the route-coverage clause reads the routes the built-in TYPE declares — a second source beside the file
   // table the TV rows derive their counts from — through the package ROOT, as a consumer would.
   distinct,
+  // **W155, P32's EXIT ARTIFACT**: its route-coverage control reads the routes each built-in gate DECLARES for its own
+  // settings through `routesOf` — the one function every reader of a gate's routes goes through (ADR 0092) — and its
+  // load clause names the refusal a document with an unwired case gets. Through the package ROOT, as a consumer would.
+  BUILT_IN_GATE_TYPES,
+  InvalidDefinition,
+  routesOf,
   // **W90, P23's EXIT ARTIFACT**: block (2g) resumes runs through `runtime.resume` and names the refusal a
   // wrongly-keyed store gets, the header it stores and the driver it reads back — through the package ROOT.
   ResumeRefused,
@@ -166,6 +173,9 @@ import {
   // shared document's; `UI_NAMED_PREDICATES` is the one name the paired flow needs, and the only
   // predicate FUNCTION this artifact reaches.
   UI_REGISTRY_DOCUMENT, UI_NAMED_PREDICATES,
+  // **W155**: the runtime its rows run on, built by the SAME call `runFlow` makes for a `uiRegistry` row, so its
+  // cross-row block can read what that runtime was handed and start the unwired document on it.
+  buildUiRuntime,
   type ForeignTask, type PairFacts, type Retention, type RunReport,
 } from './run-flow.ts';
 /** W110: a row may carry its own predicate registry, so `Expectation` needs the type. */
@@ -322,6 +332,10 @@ import tvIngest from './flows/tv-ingest.flow.json' with { type: 'json' };
 // makes a pair differ is itself a claim (`doc/workflow.md` rule 8's fourth requirement on the set).
 import uiEmitted from './flows/ui-emitted.flow.json' with { type: 'json' };
 import uiEmittedNamed from './flows/ui-emitted-named.flow.json' with { type: 'json' };
+// **W155 — P32's EXIT ARTIFACT**: a flow whose ENTRY is the built-in `if` over the payload and which later routes a TASK's
+// result through the built-in `switch` — with no predicate and no gate type registered, so it runs on the UI registry,
+// whose document declares neither ([W155](../doc/work-items/w155-an-if-and-a-switch-on-real-workers.md)).
+import ifThenSwitch from './flows/if-then-switch.flow.json' with { type: 'json' };
 import failureEdge from '../spec/examples/valid/failure-edge.flow.json' with { type: 'json' };
 
 /**
@@ -824,6 +838,19 @@ interface Expectation {
      */
     realm: 'harness' | 'thread';
   };
+  /**
+   * **What the run's built-in `if` and `switch` decided, and WHERE each decision sits — W155, P32's exit artifact.**
+   *
+   * The run's `gated`, `dispatched`, `outcome` and `pathEnded` fold inputs IN ORDER, each rendered as one string: a
+   * decision as `gate <id>@<branchPath> → <route>`, with ` (key <json>)` only where the gate resolved a key (`switch`
+   * does, over `settings.key`; an `if` declares none) — so the route, the key and the decision's POSITION are one
+   * comparison. The branch path is `-` outside every region (`spec/task-id.md` section 1; RN-R26 derives a gate's as a
+   * task's). **The order is a fact and not a completion order**: each run here is one path, and
+   * `spec/flow-definition.md` section 2's *What RUNNING a gate does*, step 3, records a decision BEFORE anything its
+   * route leads to — so `gate grade` sits after `score` SETTLED and before `publish` is dispatched. Written from
+   * section 2's built-in table and the worker's declared behaviour, never from a run.
+   */
+  steps?: readonly string[];
 }
 
 const FJ = fanoutJoin as unknown as FlowDefinition;
@@ -1310,6 +1337,25 @@ const UIN = uiEmittedNamed as unknown as FlowDefinition;
 
 /** An empty predicate registry, written once so the four rows that use it cannot disagree about it. */
 const NO_PREDICATES: ReadonlyMap<string, Predicate> = new Map();
+
+/**
+ * **W155 — P32's exit artifact: `triage`, an ENTRY `if` over the payload (`input.confidence gte 0.5`), and `grade`, a
+ * `switch` keyed on the `score` a `ScoreWorker` returned (`certain: 100`, `likely: [80, 90]`).** Every route of both is
+ * wired to its own end, so a row's path end names the route it took. The four payloads, one per route the `switch` can
+ * take plus the `if`'s other one — `then` is taken by three of them, because every payload past it reaches the `switch`:
+ *
+ *   | payload | `triage` (`gte 0.5`) | `score` (`round(c * 100)`) | `grade` | ends at |
+ *   |---|---|---|---|---|
+ *   | 1   | then | 100 | `certain` — a SCALAR case | `published`, after `publish` |
+ *   | 0.9 | then | 90  | `likely` — one value of an ARRAY case | `accepted` |
+ *   | 0.5 | then — the BOUNDARY, so `gt` for `gte` moves it | 50 | `default` — no case holds 50 | `review` |
+ *   | 0.2 | **else** — the DEFAULT, by the edge with no `route` | — | — | `shelved`, after `shelve` |
+ *
+ * Every column is derived from `spec/flow-definition.md` section 2's built-in table and the `score` worker's declared
+ * behaviour, never from a run. `publish` and `shelve` are `PublishWorker`s, which echo what they RECEIVED, so the value
+ * that left each gate is read back off the run (ADR 0066 rule 1).
+ */
+const IFS = ifThenSwitch as unknown as FlowDefinition;
 
 /**
  * **The node types the LIBRARY ships, as a LITERAL here** — v0.28, W109, and **HOISTED to module
@@ -4077,6 +4123,74 @@ const EXPECTED: Expectation[] = [
       'and no result reaches the listener. Nothing is reported through onRunFailure and the run is ' +
       'awaiting_action rather than stopped. Measured on 0.5.2 in node and deno before the sentence was written',
   },
+
+  // ---------------------------------------------------------------------------------------------
+  // **W155 — P32's EXIT ARTIFACT. Four rows over ONE document, one payload per route** — `IFS`'s table above.
+  //
+  // Each runs the UI registry with an EMPTY predicate map, and that registry's code supplies no gate type, so the
+  // only types the run can name are the built-ins (the cross-row block asserts both). Every route of both gates is
+  // taken by exactly the payloads the spec's table says, which the cross-row block asserts as a LITERAL and against
+  // the routes each gate DECLARES; a document with one `switch` case left unwired is refused at load there too.
+  {
+    key: 'if-then-switch / 1 — `then`, and a SCALAR case: the score is 100 and `grade` routes `certain` to publish',
+    definition: IFS, policyId: 'live-token', payload: { confidence: 1 }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: null,
+    dispatched: ['r64:score:-:0', 'r64:publish:-:0'],
+    pathEnds: [{ reason: 'end', at: 'published' }],
+    nodeResults: {
+      'r64:score:-:0': { confidence: 1, score: 100 },
+      // **What left `grade` is what reached it** — `score`'s whole result, which neither the gate's key nor its
+      // settings carry (ADR 0066 rule 1, for a gate with no memory).
+      'r64:publish:-:0': { published: true, joinPayload: { confidence: 1, score: 100 } },
+    },
+    steps: ['gate triage@- → then', 'dispatch score', 'settle score done', 'gate grade@- → certain (key 100)',
+      'dispatch publish', 'settle publish done', 'end published'],
+    why: 'W155 — P32`s exit artifact. The ENTRY is an `if` over the payload and no worker runs before it: 1 gte 0.5, so ' +
+      '`then`. `score` returns 100, and the `switch` keyed on `score` matches the SCALAR case `certain` by ===. No ' +
+      'predicate and no gate type is registered',
+  },
+  {
+    key: 'if-then-switch / 0.9 — `then`, and one value of an ARRAY case: the score is 90 and `grade` routes `likely`',
+    definition: IFS, policyId: 'live-token', payload: { confidence: 0.9 }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: null,
+    dispatched: ['r65:score:-:0'],
+    pathEnds: [{ reason: 'end', at: 'accepted' }],
+    nodeResults: { 'r65:score:-:0': { confidence: 0.9, score: 90 } },
+    steps: ['gate triage@- → then', 'dispatch score', 'settle score done', 'gate grade@- → likely (key 90)', 'end accepted'],
+    why: 'W155 — the ARRAY case: 0.9 gte 0.5 is `then`, `score` returns round(0.9 * 100) = 90, and 90 is one of ' +
+      '`likely`s two values, so the `switch` routes `likely` and the run ends at `accepted`',
+  },
+  {
+    key: 'if-then-switch / 0.5 — `then` at the BOUNDARY, and NO case: the score is 50 and `grade` routes `default`',
+    definition: IFS, policyId: 'live-token', payload: { confidence: 0.5 }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: null,
+    dispatched: ['r66:score:-:0'],
+    pathEnds: [{ reason: 'end', at: 'review' }],
+    nodeResults: { 'r66:score:-:0': { confidence: 0.5, score: 50 } },
+    steps: ['gate triage@- → then', 'dispatch score', 'settle score done', 'gate grade@- → default (key 50)', 'end review'],
+    why: 'W155 — two edges at once: 0.5 is the `if`s BOUNDARY, so `gte` takes `then` where `gt` would not, and the ' +
+      'score 50 is in no case, so the `switch` takes `default` by its edge with no `route`',
+  },
+  {
+    key: 'if-then-switch / 0.2 — `else`, the DEFAULT: the `switch` is never reached and the payload itself is shelved',
+    definition: IFS, policyId: 'live-token', payload: { confidence: 0.2 }, threaded: false,
+    uiRegistry: true, predicates: NO_PREDICATES,
+    outcome: 'completed',
+    regionId: null,
+    dispatched: ['r67:shelve:-:0'],
+    pathEnds: [{ reason: 'end', at: 'shelved' }],
+    // **What left `triage` is what reached it** — the run's own PAYLOAD, echoed by the worker it reached.
+    nodeResults: { 'r67:shelve:-:0': { published: true, joinPayload: { confidence: 0.2 } } },
+    steps: ['gate triage@- → else', 'dispatch shelve', 'settle shelve done', 'end shelved'],
+    why: 'W155 — the `if`s other route: 0.2 is below 0.5, so `else`, the DEFAULT, taken by the edge with no `route`. ' +
+      '`score` is never dispatched and the `switch` never decides — one decision in the run, not two',
+  },
 ];
 
 // --- assertions ---------------------------------------------------------------
@@ -4963,6 +5077,27 @@ for (const [i, e] of EXPECTED.entries()) {
     }
   }
 
+  // **W155 — the BUILT-IN `if` and `switch`, from the run's OWN fold inputs** (P32's exit artifact). Two claims on every
+  // row that declares `steps`: the decisions, in order and in place among the dispatches, settlements and path ends; and
+  // the fold's copy of them. The expected side is the row's literal, written from section 2's table.
+  if (e.steps) {
+    const gatedHere = report.inputs.filter((x): x is Extract<FoldInput, { kind: 'gated' }> => x.kind === 'gated');
+    const rendered = report.inputs.flatMap((x): string[] => {
+      if (x.kind === 'gated') return [`gate ${x.gateId}@${x.branchPath} → ${x.route}${'key' in x ? ` (key ${JSON.stringify(x.key)})` : ''}`];
+      if (x.kind === 'dispatched') return [`dispatch ${parseTaskId(x.taskId).nodeId}`];
+      if (x.kind === 'outcome') return [`settle ${parseTaskId(x.record.taskId).nodeId} ${(x.record as { terminalState?: string }).terminalState}`];
+      if (x.kind === 'pathEnded') return [`end ${x.at}`];
+      return [];
+    });
+    check(e.key, 'P32: the run`s built-in gates decided by section 2`s table ALONE — every decision, with its key where the gate ' +
+      'resolves one, in place among the dispatches, settlements and path ends, each recorded BEFORE anything its route leads to',
+      rendered, e.steps);
+    check(e.key, 'P32: and RunState.gated IS those decisions for a gate with NO memory — the fold`s own copy (RN-R26), ' +
+      'a key only where the gate resolved one',
+      report.state.gated.map((d) => [d.gateId, d.branchPath, d.route, 'key' in d ? d.key : '(none)']),
+      gatedHere.map((d) => [d.gateId, d.branchPath, d.route, 'key' in d ? d.key : '(none)']));
+  }
+
   // **Q32 — every dispatched node produces an outcome record.** Cheap insurance
   // since 0.3.0's `_failOrphanedTask` rather than the validity gate P1 wrote it
   // as, and it is the assertion no fixture can make: it is about the scheduler
@@ -5345,7 +5480,9 @@ for (const [i, e] of EXPECTED.entries()) {
     + Object.keys(e.regionEventKeys ?? {}).length
     // W94: seven gate claims on a row that declares `gate` (six, and the realm since the readers), and the arrangement's own
     // effect where it declares one.
-    + (e.gate ? 7 + (e.gate.arranged ? 1 : 0) : 0);
+    + (e.gate ? 7 + (e.gate.arranged ? 1 : 0) : 0)
+    // W155: two claims on a row that declares `steps` — the decisions in place, and the fold's copy of them.
+    + (e.steps ? 2 : 0);
   if (arrivedInRun(e) > 0) {
     // **The OTHER side's size is in the assertion, and it has to be** — W55's
     // adequacy reader, BLOCKING. `peakAliasingLog` is the size of an intersection,
@@ -5715,6 +5852,10 @@ const ROW_KEYS: readonly string[] = [
   'ui-emitted-named / the name road at the lower confidence — the registered function answers FALSE where the group did',
   'ui-emitted / THREADED — the same payload as the first row, with the pool config crossing a clone into a real thread',
   'uncloneable / OR-R6, threaded — the scheduler`s own clone refuses the value first, the task ends user_action and nothing reaches the listener',
+  'if-then-switch / 1 — `then`, and a SCALAR case: the score is 100 and `grade` routes `certain` to publish',
+  'if-then-switch / 0.9 — `then`, and one value of an ARRAY case: the score is 90 and `grade` routes `likely`',
+  'if-then-switch / 0.5 — `then` at the BOUNDARY, and NO case: the score is 50 and `grade` routes `default`',
+  'if-then-switch / 0.2 — `else`, the DEFAULT: the `switch` is never reached and the payload itself is shelved',
 ];
 
 /**
@@ -5779,6 +5920,9 @@ const PER_ROW_SUBJECTS: readonly [string, (rows: readonly Expectation[]) => numb
   ['RunState.gated IS the run`s gated fold inputs', (rows) => rows.filter((e) => e.gate).length],
   ['what LEFT the gate is what REACHED it', (rows) => rows.filter((e) => e.gate).length],
   ['the ARRANGEMENT`s own effect', (rows) => rows.filter((e) => e.gate?.arranged).length],
+  // **W155 — the built-in `if` and `switch`, by name**, so a row that stops asking either fails naming it.
+  ['built-in gates decided by section 2`s table ALONE', (rows) => rows.filter((e) => e.steps).length],
+  ['RunState.gated IS those decisions for a gate with NO memory', (rows) => rows.filter((e) => e.steps).length],
   ['ran in the realm the row asks for', (rows) => rows.filter((e) => e.gate).length],
 ];
 
@@ -5790,6 +5934,19 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W155**: P32's exit-artifact block — its two route claims (the literal and its control from the gates' own
+  // declared routes), the empty registries, the unwired case's control, and its two observers at load.
+  'W155: every route of BOTH built-in gates was taken by EXACTLY the payloads',
+  'W155 CONTROL: and the routes taken ARE every route each gate declares',
+  'W155: each artifact row`s driver was handed an EMPTY predicate registry',
+  'W155: and the runtime those rows run on registers NO gate type',
+  'W155: the shipped document validates with ZERO findings',
+  'W155: and with `grade`s `likely` case left unwired the validator refuses it as FD-V41',
+  'W155: and the RUNTIME refuses it at `start()`',
+  // the readers' items R1, R2 and (s): which rows run the UI registry, the `if`'s condition, each row's own gate types
+  'W155: and exactly these rows run the UI registry',
+  'W155: and `triage`s condition is `input.confidence gte 0.5`',
+  'W155: and each artifact row`s OWN runtime registered NO gate type',
   // **W141**: the setup-fails block's seven subjects — its control (the two pool modes) and its six per-run claims.
   'W141 setup fails: the block ran the scheduler`s TWO pool modes',
   'the run ENDED — `done` won the race',
@@ -9380,7 +9537,15 @@ const PER_PLAIN_ROW = 22;
 // **+13 since W142 — W141's setup-fails block**: its control (the two pool modes) and six claims per run over two runs —
 // the run ended, completed and terminal, the three nodes failed, each error the setup's, each failure routed, and the
 // scheduler holding none pending. All thirteen are cross-row because the block is outside the row loop.
-const CROSS_ROW = 259;
+// **+7 since W141 — W155, P32's EXIT ARTIFACT**: every route of both built-in gates taken by exactly the spec's payloads,
+// and its control from the routes each gate declares; the four rows' empty predicate registries, and the runtime's absent
+// gate types; the unwired document's control (the shipped one validates clean) and its two observers at load — the
+// validator and `runtime.start`. W98's census moves inside its own clause and adds none. *(Written as 7 at the
+// declaration, and 7 at the build.)*
+// **+3 after W155's readers** (approved 2026-10-14): which rows run the UI registry (S1), the `if`'s condition pinned
+// (S2), and each row's OWN runtime's gate types (C1/S5, stop-and-ask (s)). The two load clauses were anchored (C2/S4)
+// and moved no count. *(Written as 269 before the file was re-run.)*
+const CROSS_ROW = 269;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -10933,8 +11098,11 @@ if (rowCosts.length !== EXPECTED.length) {
     // `uiRegistryDocumentFor`, one at a time, all four GREEN.
     // *(815 / 182 for the six rows this item first shipped; the seventh is the THREADED one its
     // adequacy reader's F9 bought, and it adds 10 pairs of which 1 is a turn.)*
+    // **W155 moved one, DERIVED the same way**: its four rows dispatch 2, 1, 1 and 1 ids, so they add
+    // `sum k(k-1)/2 = 1` pair — `score` then `publish` on the `certain` row, a trigger CHAIN through the gate (the
+    // settlement of `score` is what dispatches `publish`). `byCausality` 824 -> 825; `turn` and `free` UNMOVED.
     { byCausality: chain + barrier, turn, free },
-    { byCausality: 824, turn: 183, free: 264 });
+    { byCausality: 825, turn: 183, free: 264 });
   // Its CONTROL, on two constructed sequences no run produces (above): the census's claim passes on this tree and this
   // fails on any `fixes` that answers one relation everywhere, or none.
   check('cross-row', 'W98 CONTROL: and the derivation answers two CONSTRUCTED sequences correctly — three dispatches in ' +
@@ -10970,7 +11138,9 @@ if (rowCosts.length !== EXPECTED.length) {
  * sixty lines under the comment that records the lesson.
  */
 {
-  const uiRows = EXPECTED.filter((e) => e.uiRegistry === true);
+  // **W110's own two documents, by definition — W155's stop-and-ask (r), answered YES**: P32's four rows run this
+  // registry too, and their empty registries are asserted in W155's own block. Every literal below is unchanged.
+  const uiRows = EXPECTED.filter((e) => e.uiRegistry === true && (e.definition === UI || e.definition === UIN));
   const uiReports = uiRows.map((e) => reports[EXPECTED.indexOf(e)]!);
   const dataRows = uiRows.filter((e) => e.definition === UI);
   const nameRows = uiRows.filter((e) => e.definition === UIN);
@@ -11147,6 +11317,131 @@ if (rowCosts.length !== EXPECTED.length) {
       `declare none and NOTHING else, at threaded=${threaded} — \`registryDocumentFor\`'s own clause, which this ` +
       'function\'s docstring claimed and did not have (its adequacy reader, F6)',
       [...new Set(diffs)].sort(), ['ScoreWorker.inline', 'WeighWorker.inline']);
+  }
+}
+
+/**
+ * **W155 — what P32's EXIT ARTIFACT claims about its rows TOGETHER, and the one claim no row can make.**
+ *
+ * P32's exit sentence: *one flow whose ENTRY is an `if` gate over the payload and which later routes a task's result
+ * through a `switch` gate, driven by one payload per route — every route of both gates taken by exactly the payloads the
+ * spec says, with no predicate and no gate type registered; a flow with a `switch` case left unwired refused at load by
+ * `FD-V41` naming the case.* Each of the four rows asserts its own decisions; *every route*, *no gate type* and *the
+ * unwired case* are claims about the set, or about a document no row runs.
+ *
+ * **The unwired document is DERIVED here, not a file under `examples/flows/`**: that directory is the L6 corpus, walked
+ * by the wiring census and by `spec/outcome-record.md`'s task-node census as RUNNABLE documents, and an invalid one
+ * would be the first. It is `IFS` with `grade`'s `likely` edge removed — and the `accepted` end that edge alone reached,
+ * or `FD-V11` would refuse the orphan beside it and the clause could not say the refusal is the case's.
+ */
+{
+  const ifsRows = EXPECTED.filter((e) => e.definition === IFS);
+  const ifsReports = ifsRows.map((e) => reports[EXPECTED.indexOf(e)]!);
+  type Gate = { id: string; kind: string; type?: string; settings?: unknown; edges?: { route?: string; to: string }[] };
+  const gatesOf = (d: FlowDefinition) => (d.nodes as unknown as Gate[]).filter((n) => n.kind === 'gate');
+
+  // (1) **Every route of BOTH gates, by EXACTLY the payloads section 2's table says — a LITERAL.** Read from each run's
+  //     own `RunState.gated`, keyed by the payload that produced it, so a payload routed the wrong way moves its number
+  //     from one line to another rather than a count.
+  const taken = new Map<string, number[]>();
+  ifsRows.forEach((e, i) => {
+    for (const d of ifsReports[i]!.state.gated) {
+      const k = `${d.gateId} → ${d.route}`;
+      taken.set(k, [...(taken.get(k) ?? []), e.payload.confidence ?? Number.NaN]);
+    }
+  });
+  const takenLines = [...taken].map(([k, cs]) => `${k}: ${[...cs].sort((a, b) => a - b).join(', ')}`).sort();
+  check('cross-row', 'W155: every route of BOTH built-in gates was taken by EXACTLY the payloads section 2`s table says — ' +
+    '`triage` (`input.confidence gte 0.5`) `then` at 0.5, 0.9 and 1 and `else` at 0.2; `grade` on round(c * 100) `certain` ' +
+    'at 1 (100), `likely` at 0.9 (90, an array case) and `default` at 0.5 (50, no case)',
+    takenLines,
+    ['grade → certain: 1', 'grade → default: 0.5', 'grade → likely: 0.9', 'triage → else: 0.2', 'triage → then: 0.5, 0.9, 1']);
+  // (2) **Its CONTROL, from a second SOURCE: the routes each gate DECLARES**, asked of the built-in TYPE through
+  //     `routesOf` over the gate's own settings — `switch`'s are its CASES (ADR 0092). Both ways: a route no payload took
+  //     fails naming it, and so does a route the run took that the gate does not declare.
+  const declared = gatesOf(IFS).flatMap((g) => {
+    const set = routesOf(BUILT_IN_GATE_TYPES[g.type ?? '']!, g.settings ?? {});
+    return 'problem' in set ? [`${g.id} PROBLEM ${set.problem}`] : set.routes.map((r) => `${g.id} → ${r}`);
+  }).sort();
+  check('cross-row', 'W155 CONTROL: and the routes taken ARE every route each gate declares — `routesOf` over the built-in ' +
+    'type and the gate`s own settings, both ways, so the literal above cannot be short a route the flow has',
+    [...taken.keys()].sort(), declared);
+
+  // (3) **No predicate and no gate type registered.** The predicate registry each row's driver was handed is read off its
+  //     own runtime (`predicateNames`), one entry per row as a LITERAL; the gate types are read off a runtime built by
+  //     the SAME call `runFlow` makes for these rows — `buildUiRuntime` over the flow and an empty map — whose code
+  //     supplies none, so `runtime.registry.gateTypes` is ABSENT and every gate the run asked was a built-in.
+  check('cross-row', 'W155: each artifact row`s driver was handed an EMPTY predicate registry — four rows, four empty lists',
+    ifsReports.map((r) => r.predicateNames), [[], [], [], []]);
+  // **And the gate types each row's OWN runtime registered** — `RunReport.gateTypeNames`, read off the runtime the row ran
+  // on (stop-and-ask (s), the readers' C1/S5: the sibling-runtime clause below survived a gate type put into the rows'
+  // runtime, M11). Kept beside it, which reads the same function from outside the row loop.
+  check('cross-row', 'W155: and each artifact row`s OWN runtime registered NO gate type — `gateTypeNames` empty on all four, ' +
+    'read off the runtime the row ran on',
+    ifsReports.map((r) => r.gateTypeNames), [[], [], [], []]);
+  // **WHICH rows run the UI registry, as a LITERAL in row order** — the readers' S1. W110's block selected its rows by
+  // this flag and asserted their count; (r) narrowed it to W110's two documents, which dropped the only guard on a row
+  // moving onto the UI registry (M12: the `map` row, green). This replaces that guard: W110's seven, then W155's four.
+  check('cross-row', 'W155: and exactly these rows run the UI registry, in row order — W110`s seven and W155`s four, the guard ' +
+    'the (r) narrowing of W110`s block dropped',
+    EXPECTED.filter((e) => e.uiRegistry === true).map((e) => e.definition.flowId),
+    ['ui-emitted', 'ui-emitted', 'ui-emitted', 'ui-emitted', 'ui-emitted-named', 'ui-emitted-named', 'ui-emitted',
+      'l6-if-then-switch', 'l6-if-then-switch', 'l6-if-then-switch', 'l6-if-then-switch']);
+  // **The `if`'s condition, pinned** — the readers' S2: `value` 0.4 or `gt 0.45` left every row green and made the 0.5
+  // row stop being the boundary. The literal is P32 decision 4's own example's shape on this flow's field, and the
+  // boundary row's payload is held to the condition's own `value`, so the two cannot drift apart.
+  const triageWhen = (gatesOf(IFS).find((g) => g.id === 'triage')?.settings as { when?: unknown } | undefined)?.when;
+  check('cross-row', 'W155: and `triage`s condition is `input.confidence gte 0.5`, with the BOUNDARY row`s payload exactly its ' +
+    '`value` — so the 0.5 row is the boundary, and `gt` or a moved value is red here',
+    { when: triageWhen, boundaryRow: ifsRows.filter((e) => e.payload.confidence === (triageWhen as { value?: unknown } | undefined)?.value).map((e) => e.key.split(' — ')[0]) },
+    { when: { path: 'input.confidence', op: 'gte', value: 0.5 }, boundaryRow: ['if-then-switch / 0.5'] });
+  // **A crash is not a detection** — W141's guard, for the same reason: this block is outside the row loop, so a throw
+  // building the runtime would take the file down with exit 1 and ZERO failure lines.
+  let rt: ReturnType<typeof buildUiRuntime> | null = null;
+  try {
+    rt = buildUiRuntime([IFS], NO_PREDICATES);
+    check('cross-row', 'W155: and the runtime those rows run on registers NO gate type — `registry.gateTypes` is absent, so ' +
+      '`if` and `switch` were the BUILT-INS, reached by name',
+      { gateTypes: rt.registry.gateTypes === undefined ? 'absent' : Object.keys(rt.registry.gateTypes), types: gatesOf(IFS).map((g) => g.type) },
+      { gateTypes: 'absent', types: ['if', 'switch'] });
+
+    // (4) **A `switch` case left unwired is refused at LOAD, by `FD-V41`, NAMING the case — two observers.**
+    const UNWIRED = {
+      ...IFS,
+      nodes: (IFS.nodes as unknown as Gate[]).filter((n) => n.id !== 'accepted')
+        .map((n) => (n.id === 'grade' ? { ...n, edges: (n.edges ?? []).filter((x) => x.route !== 'likely') } : n)),
+    } as unknown as FlowDefinition;
+    const registry = { predicates: [], workers: UI_REGISTRY_DOCUMENT.workers, nodeTypes: UI_REGISTRY_DOCUMENT.nodeTypes, languages: LANGUAGES } as never;
+    check('cross-row', 'W155: the shipped document validates with ZERO findings against the UI registry with no predicate — ' +
+      'the CONTROL, so the refusal below is the unwired case`s and not the registry`s',
+      validateDefinition(IFS, registry).map((f) => `${f.rule} ${f.at}`), []);
+    check('cross-row', 'W155: and with `grade`s `likely` case left unwired the validator refuses it as FD-V41 at `grade`, ' +
+      'NAMING the case — and nothing else, so the forgotten case is the whole of the defect',
+      // **ANCHORED at the start of the detail** — the readers' C2/S4: FD-V41's message lists EVERY route the gate has, so
+      // `.includes('"likely"')` held when the finding named another route (M8). The shape is `validate.ts:1373`'s.
+      validateDefinition(UNWIRED, registry).map((f) => [f.rule, f.at, /^route "likely" of this gate /.test(f.detail)]), [['FD-V41', 'grade', true]]);
+    let thrown: unknown = null;
+    try {
+      rt.start(UNWIRED, { confidence: 0.9 }, { runId: 'w155-unwired' });
+    } catch (err) {
+      thrown = err;
+    }
+    check('cross-row', 'W155: and the RUNTIME refuses it at `start()` — `InvalidDefinition` carrying FD-V41 and naming the ' +
+      'case, with the scheduler holding NO task: refused at load, before anything ran',
+      {
+        cls: thrown instanceof InvalidDefinition ? 'InvalidDefinition' : String(thrown),
+        rules: thrown instanceof InvalidDefinition ? thrown.rules : null,
+        // Anchored too: the driver's message is `definition "<flowId>" is invalid: ` then each finding as
+        // `<rule> at <at>: <detail>` (`driver.ts:1345-1349`); FD-V41 at `grade` naming `likely` must be the FIRST finding.
+        names: thrown instanceof Error && /^definition "l6-if-then-switch" is invalid: FD-V41 at grade: route "likely" of this gate /.test(thrown.message),
+        held: (rt.scheduler.tasks as Map<string, unknown>).size,
+      },
+      { cls: 'InvalidDefinition', rules: ['FD-V41'], names: true, held: 0 });
+  } catch (err) {
+    failures.push(`W155 cross-row\n      the block THREW before its load clauses could run — a crash is not a detection: ` +
+      `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+  } finally {
+    await rt?.shutdown();
   }
 }
 
@@ -11386,14 +11681,20 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2487 / 164 since W141** — +13 and two runs, DERIVED: the setup-fails block's thirteen cross-row assertions (`CROSS_ROW`
 // 246 -> 259) over its two runs, inline and threaded. No row moved. *(The block's first run read 2475 against a derived
 // 2462, and 2475 - 2462 = 13 is the block.)*
-const DECLARED_TOTAL = 2487;
+// **2599 / 168 since W155 — P32's EXIT ARTIFACT, +112 and four runs**, DERIVED before the real tree was edited: four PLAIN
+// rows at `PER_PLAIN_ROW` (22) plus their declared extras — `nodeResults` 2, 1, 1, 1, one `pathEnds` each and two `steps`
+// claims each — 27 + 26 + 26 + 26 = **105**, and `CROSS_ROW` 259 -> 266 is the other **7**. W98's census moved inside its
+// own clause. *(Written as 2599 / 168 at the declaration; the first complete run in a byte copy read exactly that, in
+// node and in deno.)* **2602 after its readers**: `CROSS_ROW` 266 -> 269, the three clauses above it; no row and no run
+// moved. *(Written as 2602 / 168 before the file was re-run.)*
+const DECLARED_TOTAL = 2602;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 164;
+const DECLARED_RUNS = 168;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
