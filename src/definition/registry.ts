@@ -122,8 +122,10 @@ export const WORKER_KEYS: readonly string[] = ['url', 'configSchema', 'settingsS
 export const CHECKED_WORKER_SCHEMAS: readonly string[] = ['configSchema', 'settingsSchema'];
 /** A document node type's keys. */
 export const NODE_TYPE_DECLARATION_KEYS: readonly string[] = ['worker', 'inline', 'config', 'pool', 'groups', 'retryPolicy', 'settings'];
-/** A `PoolSpec`'s keys — what a derivation may return. */
-export const POOL_SPEC_KEYS: readonly string[] = ['config', 'maxThreads', 'maxConcurrentTasks', 'idleTimeout', 'groups', 'residentGroups'];
+/** A `PoolSpec`'s keys — what a derivation may return. `cancelGraceMs` and `messages` since v0.33 (P33 decision 6, W159). */
+export const POOL_SPEC_KEYS: readonly string[] = ['config', 'maxThreads', 'maxConcurrentTasks', 'idleTimeout', 'groups', 'residentGroups', 'cancelGraceMs', 'messages'];
+/** A `PoolSpec.messages` object's keys — the scheduler's `MessageOptions`, v0.33. */
+export const MESSAGE_OPTION_KEYS: readonly string[] = ['flushIntervalMs', 'maxBuffered'];
 /** A document type's `pool` field: the `PoolSpec` minus what the type states beside it. */
 export const DECLARED_POOL_KEYS: readonly string[] = POOL_SPEC_KEYS.filter((k) => k !== 'config' && k !== 'groups');
 /** A pool instance's and a group instance's keys. */
@@ -185,6 +187,12 @@ export function nodeTypeFromDeclaration(decl: NodeTypeDeclaration): NodeTypeDefi
       return {
         ...(merged !== undefined ? { config: merged } : {}),
         ...declaredPool,
+        // `messages` is copied, not aliased, as `groups` is (W159). It is NOT the only declared pool object:
+        // `residentGroups` is one too and is still handed on AS DECLARED on this road — an alias that predates
+        // W159 and is left as found (its Out; the conformity reader's F3). A CLASS derivation's output is handed
+        // on as the class returned it, `messages` included — harmless, since the scheduler spreads it into a
+        // fresh object (the adequacy reader's F7).
+        ...(declaredPool.messages !== undefined ? { messages: { ...declaredPool.messages } } : {}),
         ...(decl.groups !== undefined ? { groups: [...decl.groups] } : {}),
       };
     },
@@ -197,7 +205,20 @@ export function nodeTypeFromDeclaration(decl: NodeTypeDeclaration): NodeTypeDefi
  * (decision 2's *a class cannot compute around a check*). The scheduler coerces or ignores a wrong
  * option in silence exactly as it does a retry policy (`FD-V30`'s measurements), so the shape is
  * pinned here: numbers where numbers, a string list for `groups`, a string list or a `{ key: cost }`
- * record for `residentGroups`, and no key beside the six.
+ * record for `residentGroups`, and no key beside the eight.
+ *
+ * **`cancelGraceMs` and `messages` (v0.33, P33 decision 6, W159) are held to the SCHEDULER's own rules**, read
+ * at the pin in its `validateGraceMs` and `resolveMessageOptions`, where it throws at `new WorkerManager`:
+ * `cancelGraceMs` a number `>= 0` — which `NaN` is not, so no clause of its own refuses it — and `Infinity` admitted, the scheduler's *never force*; `messages` a
+ * plain object of `flushIntervalMs` (finite, `> 0`) and `maxBuffered` (an integer `>= 1`), each optional. **A
+ * `messages` key that is PRESENT is held whatever its value**, `undefined` included, unlike the top-level keys
+ * here: the scheduler reads `cancelGraceMs ?? 2000` but spreads `messages` over its defaults, so a present
+ * `undefined` replaces a default and it throws. A key beside the two is refused, as everywhere in this module —
+ * and it is not merely ignored by the scheduler: the resolved object is carried to every worker, so on a
+ * THREADED pool a stray key holding a value that cannot be cloned fails the task at run time with *could not be
+ * cloned* (W159's conformity reader, F1). Refusing it here moves that failure to construction. **Stricter than
+ * the scheduler, where it is silent**: a `messages` that is not a plain object (it spreads one into its
+ * defaults and reads nothing), and a `cancelGraceMs` of `null` (it reads `?? 2000`), are refused here.
  */
 export function poolSpecProblem(v: unknown): string | null {
   if (!isPlainObject(v)) return `a PoolSpec is a plain object, got ${JSON.stringify(v)}`;
@@ -219,7 +240,57 @@ export function poolSpecProblem(v: unknown): string | null {
       for (const [k, c] of Object.entries(r)) if (!(typeof c === 'number' && Number.isFinite(c) && c > 0)) return `PoolSpec.residentGroups[${q(k)}] must be a cost > 0, got ${JSON.stringify(c)}`;
     } else return `PoolSpec.residentGroups must be an array of group keys or a { key: cost } record, got ${JSON.stringify(r)}`;
   }
+  if (v.cancelGraceMs !== undefined && !(typeof v.cancelGraceMs === 'number' && v.cancelGraceMs >= 0)) {
+    return `PoolSpec.cancelGraceMs must be a number >= 0 (Infinity: never force), got ${shown(v.cancelGraceMs)}`;
+  }
+  if (v.messages !== undefined) {
+    const m = v.messages;
+    // **PLAIN here means its prototype is `Object.prototype` or `null`** — stricter than this module's
+    // `isPlainObject`, which a Map, a Date or a class instance passes, and deliberately LOCAL to `messages`
+    // (W159's readers, conformity F4 = adequacy F6): the module-wide predicate is not changed by this item.
+    // Only a plain object's keys are its OWN ENUMERABLE keys and nothing else, which is the key set both
+    // readers of this value see — the identity derivation's `{ ...messages }` copy and the scheduler's spread
+    // over its defaults — so every clause below reads that set and no other: `Object.keys` for a stray key,
+    // `ownKey` (own AND enumerable) for presence. A non-enumerable own key is invisible to both readers and
+    // so to this check; an inherited one cannot occur, because a non-plain prototype is refused first.
+    if (!isPlainObject(m) || !isPlainPrototype(m)) {
+      return `PoolSpec.messages must be a plain object of ${MESSAGE_OPTION_KEYS.join(', ')} — its prototype Object.prototype or null — got ${describeNonPlain(m)}`;
+    }
+    for (const k of Object.keys(m)) if (!MESSAGE_OPTION_KEYS.includes(k)) return `PoolSpec.messages carries undeclared key ${q(k)}; it declares ${MESSAGE_OPTION_KEYS.join(', ')}`;
+    if (ownKey(m, 'flushIntervalMs') && !(typeof m.flushIntervalMs === 'number' && Number.isFinite(m.flushIntervalMs) && m.flushIntervalMs > 0)) {
+      return `PoolSpec.messages.flushIntervalMs must be a finite number > 0, got ${shown(m.flushIntervalMs)}`;
+    }
+    if (ownKey(m, 'maxBuffered') && !(typeof m.maxBuffered === 'number' && Number.isInteger(m.maxBuffered) && m.maxBuffered >= 1)) {
+      return `PoolSpec.messages.maxBuffered must be an integer >= 1, got ${shown(m.maxBuffered)}`;
+    }
+  }
   return null;
+}
+
+/** `messages`' own plainness test (W159): the prototype is `Object.prototype` or `null`, so no Map, Date, array or class instance. */
+function isPlainPrototype(o: object): boolean {
+  const proto = Object.getPrototypeOf(o);
+  return proto === Object.prototype || proto === null;
+}
+/** An OWN ENUMERABLE key — what a spread and `Object.keys` see, and so what `messages`' readers see. */
+function ownKey(o: object, k: string): boolean {
+  return Object.prototype.propertyIsEnumerable.call(o, k);
+}
+/** A non-plain value named by what it is, since `JSON.stringify` writes a Map as `{}` and a Date as a string. */
+function describeNonPlain(v: unknown): string {
+  if (Array.isArray(v)) return `an array ${shown(v)}`;
+  if (typeof v === 'object' && v !== null) {
+    const proto = Object.getPrototypeOf(v) as { constructor?: { name?: string } } | null;
+    const name = proto?.constructor?.name;
+    return `an object whose prototype is not Object.prototype${name ? ` (a ${name})` : ''}`;
+  }
+  return shown(v);
+}
+
+/** A value for a refusal message: a number as JavaScript writes it (`NaN`, `-Infinity`, which JSON writes as `null`), `undefined` as itself. */
+function shown(v: unknown): string {
+  if (typeof v === 'number' || v === undefined) return String(v);
+  try { return JSON.stringify(v) ?? String(v); } catch { return typeof v; }
 }
 
 /** The group keys a `PoolSpec` names, from both fields — what must exist in `groups`. */

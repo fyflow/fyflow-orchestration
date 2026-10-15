@@ -24,7 +24,7 @@ import * as registryModule from '../../src/definition/registry.ts';
 import {
   BUILT_IN_GROUP_TYPES, ConfigRefused, DECLARED_POOL_KEYS, DerivationRefused, DOCUMENT_KEYS, GroupConfigRefused, GroupTypeMissing,
   groupsNamedBy, INSTANCE_KEYS, isDerivation, mergeConfig, NameCollision, NameMissing, NODE_TYPE_DECLARATION_KEYS, nodeTypeFromDeclaration,
-  POOL_SPEC_KEYS, poolOptionsOf, poolSpecProblem, PoolTypeMissing, RegistryError, resolveRegistry, SchemaRefused, TypeDefaultRefused,
+  MESSAGE_OPTION_KEYS, POOL_SPEC_KEYS, poolOptionsOf, poolSpecProblem, PoolTypeMissing, RegistryError, resolveRegistry, SchemaRefused, TypeDefaultRefused,
   UndeclaredKey, WORKER_KEYS, WorkerMissing, CHECKED_WORKER_SCHEMAS, checkRegistry,
 } from '../../src/definition/registry.ts';
 import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
@@ -190,9 +190,11 @@ suite('the identity derivation reproduces what bootstrap hands WorkerManager tod
     ok(FACT5.Echo !== FACT5.Scorer, 'the pair differs (inline, groups)');
   });
   test('the keys the derivation may emit are exactly WorkerManagerOptions` fields it ever sets — and `inline` is absent when the declaration omits it', () => {
-    const def = nodeTypeFromDeclaration({ worker: 'w', pool: { maxThreads: 1, maxConcurrentTasks: 3, idleTimeout: 5, residentGroups: ['g'] }, groups: ['h'] });
+    const def = nodeTypeFromDeclaration({ worker: 'w', pool: { maxThreads: 1, maxConcurrentTasks: 3, idleTimeout: 5, residentGroups: ['g'], cancelGraceMs: 250, messages: { flushIntervalMs: 5, maxBuffered: 10 } }, groups: ['h'] });
     const opts = poolOptionsOf(def.pool(undefined, 'k'), def.inline, 'u', { path: 'p' });
-    equal(Object.keys(opts).sort(), ['config', 'groups', 'idleTimeout', 'maxConcurrentTasks', 'maxThreads', 'residentGroups'], 'no inline key without a declaration');
+    // `cancelGraceMs` and `messages` since v0.33 (W159): the scheduler's own `WorkerManagerOptions` names, passed as declared.
+    equal(Object.keys(opts).sort(), ['cancelGraceMs', 'config', 'groups', 'idleTimeout', 'maxConcurrentTasks', 'maxThreads', 'messages', 'residentGroups'], 'no inline key without a declaration');
+    equal([opts.cancelGraceMs, opts.messages], [250, { flushIntervalMs: 5, maxBuffered: 10 }], 'the two v0.33 options reach the options bag as declared');
     equal(opts.config, { worker: 'u', config: undefined, languages: { path: 'p' } }, 'the envelope pool config, with languages only when given');
     equal(poolOptionsOf({}, true, 'u'), { inline: true, config: { worker: 'u', config: undefined } }, 'an empty spec with inline: the two keys');
   });
@@ -202,6 +204,11 @@ suite('the identity derivation reproduces what bootstrap hands WorkerManager tod
     equal(def.pool({ model: 'large' }, 'k'), { config: { model: 'large', a: 1 }, maxThreads: 2, groups: ['g'] }, 'merged over');
     equal(def.pool(undefined, 'k'), { config: { model: 'small', a: 1 }, maxThreads: 2, groups: ['g'] }, 'no instance config: the type`s');
     ok(def.pool(undefined, 'k').groups !== decl.groups, 'groups copied, not aliased');
+    // And `messages`, the one declared pool field that is an object the scheduler reads by key (v0.33, W159).
+    const withMessages: NodeTypeDeclaration = { worker: 'w', pool: { messages: { maxBuffered: 4 } } };
+    const derived = nodeTypeFromDeclaration(withMessages).pool(undefined, 'k');
+    equal(derived.messages, { maxBuffered: 4 }, 'messages copied as declared');
+    ok(derived.messages !== withMessages.pool!.messages, 'messages copied, not aliased');
     equal(def.retryPolicy, RETRY, 'retryPolicy carried on the definition for the driver');
     equal(def.settings, { t: 0 }, 'settings defaults carried');
     equal(def.worker, 'w', 'the worker key carried');
@@ -218,12 +225,12 @@ suite('both SHAPES of a node type, every field of both interfaces, under one cla
   const W: RegistryDocument['workers'] = { w: { url: 'u', configSchema: { type: 'object', properties: { model: { type: 'string' } } } } };
   const G: RegistryDocument['groups'] = { g: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, h: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } };
   test('document form: every declaration key reaches the definition or the spec', () => {
-    const decl: NodeTypeDeclaration = { worker: 'w', inline: true, config: { model: 'm' }, pool: { maxThreads: 3, maxConcurrentTasks: 2, idleTimeout: 7, residentGroups: { h: 1 } }, groups: ['g'], retryPolicy: { maxRetries: 2, backoffMs: 1 }, settings: { s: 1 } };
+    const decl: NodeTypeDeclaration = { worker: 'w', inline: true, config: { model: 'm' }, pool: { maxThreads: 3, maxConcurrentTasks: 2, idleTimeout: 7, residentGroups: { h: 1 }, cancelGraceMs: 500, messages: { flushIntervalMs: 10, maxBuffered: 50 } }, groups: ['g'], retryPolicy: { maxRetries: 2, backoffMs: 1 }, settings: { s: 1 } };
     equal(Object.keys(decl).sort(), [...NODE_TYPE_DECLARATION_KEYS].sort(), 'this fixture sets EVERY declaration key');
     equal(Object.keys(decl.pool!).sort(), [...DECLARED_POOL_KEYS].sort(), 'and every declared-pool key');
     const r = resolveRegistry({ workers: W, groups: G, nodeTypes: { T: decl } });
     const p = r.pools.get('T')!;
-    equal(p.spec, { config: { model: 'm' }, maxThreads: 3, maxConcurrentTasks: 2, idleTimeout: 7, residentGroups: { h: 1 }, groups: ['g'] }, 'the spec carries config, the four pool fields and groups');
+    equal(p.spec, { config: { model: 'm' }, maxThreads: 3, maxConcurrentTasks: 2, idleTimeout: 7, residentGroups: { h: 1 }, cancelGraceMs: 500, messages: { flushIntervalMs: 10, maxBuffered: 50 }, groups: ['g'] }, 'the spec carries config, the six pool fields and groups');
     equal(Object.keys(p.spec).sort(), [...POOL_SPEC_KEYS].sort(), 'every PoolSpec key, from the document form');
     equal(p.definition.inline, true, 'inline on the definition');
     equal(p.definition.retryPolicy, { maxRetries: 2, backoffMs: 1 }, 'retryPolicy on the definition');
@@ -235,12 +242,12 @@ suite('both SHAPES of a node type, every field of both interfaces, under one cla
     const cls: NodeTypeDefinition = {
       worker: 'w', inline: false, configSchema: { type: 'object', required: ['n'], properties: { n: { type: 'integer', minimum: 1 } } }, config: { n: 2 },
       retryPolicy: { maxRetries: 3, backoffMs: 2 }, settings: { s: 2 },
-      pool: (c) => ({ config: { model: `m${(c as { n: number }).n}` }, maxThreads: (c as { n: number }).n, maxConcurrentTasks: 1, idleTimeout: 9, groups: ['g'], residentGroups: ['h'] }),
+      pool: (c) => ({ config: { model: `m${(c as { n: number }).n}` }, maxThreads: (c as { n: number }).n, maxConcurrentTasks: 1, idleTimeout: 9, groups: ['g'], residentGroups: ['h'], cancelGraceMs: Infinity, messages: { maxBuffered: (c as { n: number }).n } }),
     };
     equal(Object.keys(cls).sort(), ['config', 'configSchema', 'inline', 'pool', 'retryPolicy', 'settings', 'worker'], 'this fixture sets EVERY definition member');
     const r = resolveRegistry({ workers: W, groups: G, pools: { big: { type: 'C', config: { n: 5 } } } }, { nodeTypes: { C: cls } });
     equal(r.pools.get('C')!.spec.maxThreads, 2, 'the default instance through the class`s own config');
-    equal(r.pools.get('big')!.spec, { config: { model: 'm5' }, maxThreads: 5, maxConcurrentTasks: 1, idleTimeout: 9, groups: ['g'], residentGroups: ['h'] }, 'a named instance through the same derivation');
+    equal(r.pools.get('big')!.spec, { config: { model: 'm5' }, maxThreads: 5, maxConcurrentTasks: 1, idleTimeout: 9, groups: ['g'], residentGroups: ['h'], cancelGraceMs: Infinity, messages: { maxBuffered: 5 } }, 'a named instance through the same derivation — a class may COMPUTE the v0.33 options too');
     equal(Object.keys(r.pools.get('big')!.spec).sort(), [...POOL_SPEC_KEYS].sort(), 'every PoolSpec key, from the class form');
     ok(r.pools.get('C')!.definition === cls, 'the class is the definition');
     // The class's configSchema is applied BEFORE pool() — an instance config it refuses never reaches the derivation.
@@ -462,12 +469,17 @@ suite('the key sets are claims about the spec`s tables — compared both ways', 
     equal(await specTable('#### A worker entry'), [...WORKER_KEYS].sort(), 'worker keys');
     equal(await specTable('#### A node type, in the document'), [...NODE_TYPE_DECLARATION_KEYS].sort(), 'declaration keys');
     equal(await specTable('#### What a derivation returns'), [...POOL_SPEC_KEYS].sort(), 'PoolSpec keys');
+    // v0.33 (W159): the `messages` row names its object's keys as `{ a?, b? }`, compared to the module's list both ways.
+    const spec = await readText(`${ROOT}spec/flow-definition.md`);
+    const row = /^\| `messages` \| optional, `\{ ([^}]*) \}` \|/m.exec(spec.slice(spec.indexOf('#### What a derivation returns')));
+    ok(row !== null, 'the PoolSpec table has a messages row naming its keys');
+    equal(row![1]!.split(',').map((k) => k.trim().replace(/\?$/, '')).sort(), [...MESSAGE_OPTION_KEYS].sort(), 'messages keys');
     equal(await specTable('#### A pool instance, and a group'), [...INSTANCE_KEYS].sort(), 'instance keys');
     equal(await specTable('#### The built-in group types'), Object.keys(BUILT_IN_GROUP_TYPES).sort(), 'the three built-ins by name');
   });
   test('poolSpecProblem and groupsNamedBy — the shape both derivations pass through', () => {
     equal(poolSpecProblem({}), null, 'empty is a spec');
-    equal(poolSpecProblem({ config: 1, maxThreads: 1, maxConcurrentTasks: 1, idleTimeout: 0, groups: ['a'], residentGroups: { b: 2 } }), null, 'every key');
+    equal(poolSpecProblem({ config: 1, maxThreads: 1, maxConcurrentTasks: 1, idleTimeout: 0, groups: ['a'], residentGroups: { b: 2 }, cancelGraceMs: 0, messages: { flushIntervalMs: 1, maxBuffered: 1 } }), null, 'every key');
     ok(poolSpecProblem({ groups: ['a', 'a'] })!.includes('repeats'), 'repeated group');
     ok(poolSpecProblem({ residentGroups: { a: 0 } })!.includes('cost > 0'), 'zero cost');
     ok(poolSpecProblem({ residentGroups: 5 })!.includes('residentGroups'), 'wrong resident shape');
@@ -476,6 +488,95 @@ suite('the key sets are claims about the spec`s tables — compared both ways', 
     equal(groupsNamedBy({ groups: ['a', 'b'], residentGroups: { b: 1, c: 2 } }), ['a', 'b', 'c'], 'union of both fields, deduplicated');
     equal(groupsNamedBy({ residentGroups: ['x'] }), ['x'], 'the list form');
     equal(groupsNamedBy({}), [], 'nothing named');
+  });
+  /**
+   * **v0.33 (W159, P33 decision 6): `cancelGraceMs` and `messages`, each refused on each malformed value, on
+   * all three roads** — `poolSpecProblem` itself, a DOCUMENT type's `pool` through `resolveRegistry`, and a
+   * CLASS derivation's output — and each admitted value admitted on all three. Expected values from the spec's
+   * table (the scheduler's own rules, its reference section 5): `cancelGraceMs` a number `>= 0`, `Infinity`
+   * included; `flushIntervalMs` finite `> 0`; `maxBuffered` an integer `>= 1`; a PRESENT `messages` key held
+   * whatever its value; a key beside the two refused. The scheduler's constructor is the second observer of
+   * the numeric clauses, in `test/scheduler/envelope-worker.test.ts` — this suite builds nothing.
+   */
+  test('v0.33: cancelGraceMs and messages are refused on EVERY malformed value and admitted on every well-formed one — poolSpecProblem, a document type, a class', () => {
+    // **PLAIN for `messages` is its prototype being Object.prototype or null** (W159's readers, conformity F4 =
+    // adequacy F6): each of these passes the module's `isPlainObject` and is refused by `messages`' own test.
+    class WithGetter { get flushIntervalMs(): number { return 9; } }
+    const nonEnumerable = Object.defineProperty({}, 'flushIntervalMs', { value: 0, enumerable: false });
+    const REFUSED: readonly [string, Record<string, unknown>, string][] = [
+      ['cancelGraceMs -1', { cancelGraceMs: -1 }, 'cancelGraceMs'],
+      ['cancelGraceMs -Infinity', { cancelGraceMs: -Infinity }, 'cancelGraceMs'],
+      ['cancelGraceMs -0.5', { cancelGraceMs: -0.5 }, 'cancelGraceMs'],
+      ['cancelGraceMs -Number.MIN_VALUE', { cancelGraceMs: -Number.MIN_VALUE }, 'cancelGraceMs'],
+      ['cancelGraceMs NaN', { cancelGraceMs: NaN }, 'cancelGraceMs'],
+      ['cancelGraceMs a string', { cancelGraceMs: '100' }, 'cancelGraceMs'],
+      ['cancelGraceMs null', { cancelGraceMs: null }, 'cancelGraceMs'],
+      ['cancelGraceMs a boolean', { cancelGraceMs: true }, 'cancelGraceMs'],
+      ['cancelGraceMs an object', { cancelGraceMs: { ms: 1 } }, 'cancelGraceMs'],
+      ['messages null', { messages: null }, 'messages'],
+      ['messages a number', { messages: 5 }, 'messages'],
+      ['messages a string', { messages: 'fast' }, 'messages'],
+      ['messages an array', { messages: [20, 100] }, 'an array'],
+      ['messages an EMPTY array — not plain, though it spreads to nothing', { messages: [] }, 'an array'],
+      ['messages a Map', { messages: new Map([['flushIntervalMs', 20]]) }, 'a Map'],
+      ['messages a Date', { messages: new Date(0) }, 'a Date'],
+      ['messages a class instance whose prototype has a getter', { messages: new WithGetter() }, 'a WithGetter'],
+      ['messages inheriting a key — Object.create({ flushIntervalMs: 9 })', { messages: Object.create({ flushIntervalMs: 9 }) as object }, 'prototype is not Object.prototype'],
+      ['messages an undeclared key', { messages: { flushIntervalMs: 20, maxbuffered: 100 } }, '"maxbuffered"'],
+      ['flushIntervalMs 0', { messages: { flushIntervalMs: 0 } }, 'flushIntervalMs'],
+      ['flushIntervalMs negative', { messages: { flushIntervalMs: -5 } }, 'flushIntervalMs'],
+      ['flushIntervalMs Infinity', { messages: { flushIntervalMs: Infinity } }, 'flushIntervalMs'],
+      ['flushIntervalMs NaN', { messages: { flushIntervalMs: NaN } }, 'flushIntervalMs'],
+      ['flushIntervalMs a string', { messages: { flushIntervalMs: '20' } }, 'flushIntervalMs'],
+      ['flushIntervalMs PRESENT and undefined', { messages: { flushIntervalMs: undefined } }, 'flushIntervalMs'],
+      ['maxBuffered 0', { messages: { maxBuffered: 0 } }, 'maxBuffered'],
+      ['maxBuffered negative', { messages: { maxBuffered: -1 } }, 'maxBuffered'],
+      ['maxBuffered fractional', { messages: { maxBuffered: 1.5 } }, 'maxBuffered'],
+      ['maxBuffered Infinity', { messages: { maxBuffered: Infinity } }, 'maxBuffered'],
+      ['maxBuffered NaN', { messages: { maxBuffered: NaN } }, 'maxBuffered'],
+      ['maxBuffered a string', { messages: { maxBuffered: '100' } }, 'maxBuffered'],
+      ['maxBuffered PRESENT and undefined', { messages: { maxBuffered: undefined } }, 'maxBuffered'],
+    ];
+    const ADMITTED: readonly [string, Record<string, unknown>][] = [
+      ['cancelGraceMs 0', { cancelGraceMs: 0 }],
+      ['cancelGraceMs fractional', { cancelGraceMs: 2.5 }],
+      ['cancelGraceMs Infinity — never force', { cancelGraceMs: Infinity }],
+      ['cancelGraceMs ABSENT as undefined, as every top-level key', { cancelGraceMs: undefined }],
+      ['messages empty — the scheduler`s defaults', { messages: {} }],
+      ['messages ABSENT as undefined', { messages: undefined }],
+      ['flushIntervalMs fractional', { messages: { flushIntervalMs: 0.5 } }],
+      ['maxBuffered 1', { messages: { maxBuffered: 1 } }],
+      ['maxBuffered 2**53 — an integer, however large (the adequacy reader`s F8)', { messages: { maxBuffered: 2 ** 53 } }],
+      ['messages with a null prototype — plain', { messages: Object.assign(Object.create(null) as object, { maxBuffered: 3 }) }],
+      ['a NON-ENUMERABLE own key, even a malformed one: invisible to the copy and to the scheduler`s spread, so to this check', { messages: nonEnumerable }],
+      ['both message keys', { messages: { flushIntervalMs: 20, maxBuffered: 100 } }],
+    ];
+    ok(new Set(REFUSED.map(([l]) => l)).size === REFUSED.length && new Set(ADMITTED.map(([l]) => l)).size === ADMITTED.length, 'labels distinct');
+    // Every non-plain refusal gives the PLAIN reason, not merely a mention of `messages` (the adequacy reader's F2).
+    for (const [label, v] of REFUSED) {
+      const m = (v as { messages?: unknown }).messages;
+      if (typeof m === 'object' && m !== null && Object.getPrototypeOf(m) !== Object.prototype) {
+        ok(poolSpecProblem(v)!.includes('must be a plain object'), `${label}: refused for being non-plain — ${poolSpecProblem(v)}`);
+      }
+    }
+    // Each list covers both keys and both message keys — a membership, so a list narrowed to one key is red here.
+    const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
+    equal([...new Set(REFUSED.flatMap(([, v]) => Object.keys(v)))].sort(), ['cancelGraceMs', 'messages'], 'the refused list exercises both new keys');
+    equal([...new Set(REFUSED.flatMap(([, v]) => isObj(v.messages) && Object.getPrototypeOf(v.messages) === Object.prototype ? Object.keys(v.messages) : []))].sort(), ['flushIntervalMs', 'maxBuffered', 'maxbuffered'], 'and both message keys, and a stray one');
+    const W: RegistryDocument['workers'] = { w: { url: 'u' } };
+    const docType = (pool: Record<string, unknown>) => ({ workers: W, nodeTypes: { T: { worker: 'w', pool } } }) as unknown as RegistryDocument;
+    const classType = (pool: Record<string, unknown>): RegistryCode => ({ nodeTypes: { C: { worker: 'w', pool: () => pool as PoolSpec } } });
+    for (const [label, v, names] of REFUSED) {
+      const p = poolSpecProblem(v);
+      ok(p !== null && p.includes(names), `${label}: poolSpecProblem refuses it, naming ${names} — ${p}`);
+      refused(docType(v), DerivationRefused, ['"T"', names], {}, `${label}, a document type`);
+      refused({ workers: W }, DerivationRefused, ['"C"', 'not a PoolSpec', names], classType(v), `${label}, a class`);
+    }
+    for (const [label, v] of ADMITTED) {
+      equal(poolSpecProblem(v), null, `${label}: poolSpecProblem admits it`);
+      equal(resolveRegistry(docType(v), {}).pools.get('T')!.spec.cancelGraceMs, v.cancelGraceMs, `${label}: a document type resolves, carrying it`);
+      equal(resolveRegistry({ workers: W }, classType(v)).pools.get('C')!.spec.messages, v.messages, `${label}: a class resolves, carrying it`);
+    }
   });
   test('the built-in group types` schemas admit fact 2`s constructor arguments and refuse what the constructors would coerce', () => {
     const r = resolveRegistry({ groups: {

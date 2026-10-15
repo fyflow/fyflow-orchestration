@@ -424,6 +424,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W159 — FD-C5's context and the two v0.33 pool options, through the envelope and on real pools, in
+  // `test/scheduler/envelope-worker.test.ts`.
+  'W159 — a typed worker REACHES context.signal and context.emit through the envelope, and a type`s cancelGraceMs and messages reach its pool',
   // W158 — ADR 0094, a task that ends `cancelled`: L1-L3 and RN-R23 in `test/driver/cancelled.test.ts`, the fold in
   // `test/fold/cancelled.test.ts`, L5 in `test/matrix/cancelled.test.ts`.
   'L1 — OR-R3 and OR-R4: a cancel writes ONE record, keyed on its state; a cancel REQUESTED writes none',
