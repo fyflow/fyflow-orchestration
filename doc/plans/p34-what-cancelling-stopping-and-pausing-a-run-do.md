@@ -37,9 +37,9 @@ request fold. This plan builds the ones it DOES request.
 5. **All three share one mechanism**: the dispatch hold, which exists today for replay only.
 6. **Everything ships in orchestration 0.8.0**, published once after the last of P34-P37 (P33 *Why*
    decision 1, which says *after P37* because P37 was then the last).
-7. **The order is P34, P37, P35, P36** (maintainer, 2026-10-15). P37 runs ahead of P35 and P36 because it
-   needs nothing of P34's run control, and the app's workarounds it removes (#6, #20) get worse at
-   its M2. P35 and P36 build on P34's dispatch hold and stop.
+7. **The order is P37, P34, P35, P36** (maintainer, 2026-10-15). P37 runs first because it needs
+   nothing of this plan's run control, and the app's workarounds it removes (#6, #20) get worse at
+   its M2. P35 and P36 build on this plan's dispatch hold and stop.
 
 ## What fyflow-app asked, to be held against at declaration
 

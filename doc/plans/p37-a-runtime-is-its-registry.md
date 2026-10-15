@@ -46,7 +46,7 @@ options (**#19**); and strips `writeOnly` from every schema before we see it (`w
    `SCHEMA_KEYWORDS`, the subset table in `spec/flow-definition.md`, and `test/definition/schema.test.ts`'s
    two refusal assertions.
 5. **#5, #15 and #17 are answered here** — see below.
-6. **This plan runs SECOND, after P34 and before P35 and P36** (maintainer, 2026-10-15; reasons in
+6. **This plan runs FIRST of P34-P37** (maintainer, 2026-10-15; reasons in
    [P34](p34-what-cancelling-stopping-and-pausing-a-run-do.md) decision 7).
 
 ## Constraints found by the 2026-10-14 evaluation, re-taken at declaration

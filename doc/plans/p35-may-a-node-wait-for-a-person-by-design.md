@@ -21,7 +21,7 @@ answer** — all P1.
 1. **#3 and #4 are scoped to the waiting node**, not to every task: the node's own record carries
    what reached it, and its answer schema is a key on it.
 2. **#12 and #13 are answered here, not built** — see below.
-3. **This plan runs THIRD, after P34 and P37** (maintainer, 2026-10-15;
+3. **This plan runs THIRD, after P37 and P34** (maintainer, 2026-10-15;
    [P34](p34-what-cancelling-stopping-and-pausing-a-run-do.md) decision 7).
 
 ## Constraints found by the 2026-10-14 evaluation, re-taken at declaration
