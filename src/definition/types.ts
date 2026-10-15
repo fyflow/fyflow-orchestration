@@ -340,6 +340,22 @@ export interface PoolSpec {
   groups?: readonly string[];
   /** Group keys held for the WORKER's lifetime rather than per task, at a cost each — never beside `idleTimeout: 0` (decision 9). */
   residentGroups?: readonly string[] | Readonly<Record<string, number>>;
+  /**
+   * **Threaded pools: the ms a cancelled task's worker gets to stop by itself before it is forced** — the
+   * scheduler's own option, declarable since `spec/flow-definition.md` v0.33 (P33 decision 6, W159). Zero or
+   * more, `Infinity` included (the scheduler's *never force*); accepted, and ignored by the scheduler, on an
+   * inline pool.
+   */
+  cancelGraceMs?: number;
+  /**
+   * **The bounds on a worker's `context.emit()`** — the scheduler's `messages` option, declarable since v0.33
+   * (P33 decision 6, W159): events batched for up to `flushIntervalMs` (a finite number > 0), at most
+   * `maxBuffered` (an integer >= 1) per buffer between flushes. Each key optional; a key PRESENT is held to its
+   * rule whatever its value, `undefined` included, because the scheduler spreads this object over its defaults
+   * and a present `undefined` is what it throws on. Written out rather than imported from the scheduler, as
+   * `POOL_SPEC_KEYS` is a literal: a key the scheduler adds is admitted by a version of the spec, not by a bump.
+   */
+  messages?: Readonly<{ flushIntervalMs?: number; maxBuffered?: number }>;
 }
 
 /**

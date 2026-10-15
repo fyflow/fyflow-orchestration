@@ -2531,6 +2531,26 @@ spent per admission and not per task. Both are held at
 construction: a type's policy to `FD-V30` and a type's groups to the registry's `groups` under
 `FD-V31`, naming the type.
 
+**What a type's `pool` may declare, and what its worker is handed beside the envelope** —
+`spec/flow-definition.md` v0.33, [W159](doc/work-items/w159-what-the-pin-adds-that-a-type-reaches.md).
+`pool` takes the scheduler's `maxThreads`, `maxConcurrentTasks`, `idleTimeout` and `residentGroups`, and
+since v0.33 **`cancelGraceMs`** — on a THREADED pool, the ms a cancelled task's worker gets to stop by
+itself before the scheduler forces it (`Infinity` never forces; an inline pool ignores it) — and
+**`messages: { flushIntervalMs?, maxBuffered? }`**, the bounds on a worker's `emit()`. Each is held to the
+scheduler's own rule at construction, `DerivationRefused` naming the type and the key, so a value the
+scheduler would throw on at `new WorkerManager` is refused where the registry is built. Three more are
+refused here where the scheduler says nothing: a `messages` that is not a PLAIN object (a Map, a Date, an
+array or a class instance — the scheduler spreads it into its defaults and reads nothing), a
+`cancelGraceMs` of `null` (the scheduler takes it for absent and uses 2000), and a stray key inside
+`messages` — which the scheduler does not merely ignore: it carries the object to every worker, so on a
+threaded pool a stray value that cannot be cloned fails the task at run time with *could not be cloned*.
+**Your worker's `run(payload, context)` gets the scheduler's own task context as its second argument** —
+the same object the scheduler handed the envelope worker, so `context.signal` (an `AbortSignal`, aborted
+when `scheduler.cancel(taskId)` is called for the task) and `context.emit(name, data)` (a `task.message`
+on the scheduler) work in a typed worker exactly as in one the scheduler loads itself, and its
+constructor gets the worker context. The library reads neither: a `task.message` is yours to listen
+for on `runtime.scheduler`, and what cancelling a task does to its RUN is section 6's.
+
 **A transform — what a node may DO to its input before its worker sees it** — `spec/flow-definition.md`
 v0.18, [ADR 0051](doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md),
 [W61](doc/work-items/w61-what-a-transform-is.md). When the value a typed node receives is not the
@@ -2556,7 +2576,7 @@ produced. The language this package ships is JSONata, as the sub-path `fyflow-or
 — section 14; the snippet below uses a toy one so it loads no engine, and it is the same interface.
 
 ```ts run
-import { validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
+import { DerivationRefused, resolveRegistry, validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
 import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
 
 // A toy language: an expression is a dotted key path into the input, or `$settings.<path>`.
@@ -2618,6 +2638,25 @@ let failed: unknown;
 try { await w.run({ settings: {}, input: { a: 5 }, transform: { lang: 'path', expr: 'a.b' } }); } catch (e) { failed = e; }
 if (!(failed instanceof TransformFailed) || failed.code !== 'P0002') throw new Error('a loud evaluation failure is a TransformFailed carrying the language`s own code — the TASK fails');
 await w.teardown();
+
+// The CONTEXT, passed through (v0.33): a worker that reads its signal and emits. On a real pool the
+// scheduler builds the context; here it is built by hand, which the wrapper cannot tell apart.
+const reads = `data:text/javascript,${encodeURIComponent(`export default class W {
+  run(p, context) { context.emit('seen', { aborted: context.signal.aborted }); return context.signal.reason; } }`)}`;
+const cw = new EnvelopeWorker({ worker: reads });
+await cw.setup();
+const ctl = new AbortController();
+ctl.abort('stopped by its owner');
+const emitted: unknown[] = [];
+const why = await cw.run({ settings: {}, input: null }, { signal: ctl.signal, emit: (name: string, data: unknown) => emitted.push([name, data]) });
+if (why !== 'stopped by its owner' || JSON.stringify(emitted) !== JSON.stringify([['seen', { aborted: true }]])) throw new Error('a typed worker reaches the signal and the emit its task was handed');
+await cw.teardown();
+
+// And the two v0.33 pool options are held to the scheduler's rules where the registry is built.
+let refused: unknown;
+try { resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { cancelGraceMs: -1 } } } }); } catch (e) { refused = e; }
+if (!(refused instanceof DerivationRefused) || !refused.message.includes('cancelGraceMs')) throw new Error('a negative cancelGraceMs is refused, naming the key');
+if (resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { cancelGraceMs: 500, messages: { maxBuffered: 500 } } } } }).pools.get('Scorer')?.spec.cancelGraceMs !== 500) throw new Error('a well-formed one is carried to the pool');
 ```
 
 **What this is not.** What a type says about what its worker EXPECTS and RETURNS — input and
