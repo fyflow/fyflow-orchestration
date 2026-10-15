@@ -28,6 +28,9 @@ the task-id map stays ours.
    ordering, silent on a crash before the header is written); a new ADR says so. The pure
    `checkpointHeaderOf` helper was considered and dropped.
 2. **#11 is answered here, not built** — see below.
+3. **This plan runs LAST of P34-P37** (maintainer, 2026-10-15;
+   [P34](p34-what-cancelling-stopping-and-pausing-a-run-do.md) decision 7), so orchestration 0.8.0 is
+   published after it.
 
 ## Constraints found by the 2026-10-14 evaluation, re-taken at declaration
 
