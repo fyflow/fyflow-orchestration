@@ -424,6 +424,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W163 — ADR 0097, FD-R6 and `defaultRetryPolicy` at construction: L1 on the seams and on a real scheduler, in
+  // `test/scheduler/runtime.test.ts`.
+  'W163 — what start refuses that the flow does not decide: FD-R6, a node reaching a built-in keyed group, and defaultRetryPolicy at construction (ADR 0097)',
+  'W163 — FD-R6 on a REAL scheduler: P37 fact 1`s refusal before addTask, and its createTask road completing on a real keyed group',
   // W159 — FD-C5's context and the two v0.33 pool options, through the envelope and on real pools, in
   // `test/scheduler/envelope-worker.test.ts`.
   'W159 — a typed worker REACHES context.signal and context.emit through the envelope, and a type`s cancelGraceMs and messages reach its pool',

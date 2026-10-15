@@ -14,7 +14,7 @@
 import { AssertionError, collected, deepEqual, equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import {
   BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable,
-  RunIdInUse, RuntimeError,
+  LimitKeyMissing, RunIdInUse, RuntimeError,
 } from '../../src/scheduler/runtime.ts';
 import type { RuntimeRegistry, StartOptions } from '../../src/scheduler/runtime.ts';
 import { bootstrap, ENVELOPE_WORKER_URL } from '../../src/scheduler/bootstrap.ts';
@@ -29,9 +29,10 @@ import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from '.
 import type { Checkpoint } from '../../src/driver/driver.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { ResourceGroup } from 'fyflow-scheduler';
+import { FyflowTask, KeyedRateLimitGroup } from 'fyflow-scheduler';
 import { emptyState, fold, isTerminal, step } from '../../src/fold/run-state.ts';
 import type { FoldInput, RunState } from '../../src/fold/run-state.ts';
-import type { Finding, FlowDefinition, LanguageAdapter, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
+import type { Finding, FlowDefinition, LanguageAdapter, NodeTypeDefinition, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
 /**
  * **`BUILT_INS` is ADDED to the pool and type expectations below rather than written into them** —
@@ -2910,5 +2911,317 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     await w77Settlement(runs[1]!.done);
     s.done('nightly-cleanup');
     equal(together, ['r2 r2:a:-:0', 'r1 nightly-cleanup', 'r3 nightly-cleanup'], 'r1 then r3 — the order they subscribed in, r2 released between them');
+  });
+});
+
+/** A flow on `Plain` alone — no node reaches a keyed group — used by W163's cases as the run that SHOULD start. */
+const FLOW_ON_PLAIN = {
+  flowId: 'plain', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', type: 'Plain', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+
+/**
+ * **W163 — what `start` refuses that the flow does not decide** —
+ * [ADR 0097](../../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), `FD-R6`
+ * (`spec/flow-definition.md` section 6), P37 fact 1 and stop-and-asks (b) and (c), ladder L1.
+ *
+ * **Every expected value is the spec's or P37 fact 1's, never this module's output**: the roads are fact 1's table, one
+ * case per row — the TYPE's pool naming the keyed group, the NODE naming it in `workerGroups`, the keyed node SECOND —
+ * and its two controls, a `RateLimitGroup` in its place and a `createTask` setting `limitKey`; what the refusal names is
+ * ADR 0097 rule 4's list (the node, the group, both working roads, Q248); `FD-V30`'s message on `defaultRetryPolicy` is
+ * the one `new Driver` throws for the same value, read BY HAND. "Before any driver exists" is observed on the scheduler
+ * seam — a driver subscribes to its scheduler, so a refusal that built none leaves it with no listener — beside a
+ * control in which a valid start does subscribe.
+ */
+suite('W163 — what start refuses that the flow does not decide: FD-R6, a node reaching a built-in keyed group, and defaultRetryPolicy at construction (ADR 0097)', (test) => {
+  const WINDOWS = [{ limit: 2, windowMs: 1000 }];
+  /** P37 fact 1's registry: one worker, a group `api` of the BUILT-IN keyed type, a `RateLimitGroup` `flat` for the control. */
+  const KEYED_DOC = {
+    workers: { w: { url: 'https://example.test/w.js' } },
+    groups: {
+      api: { type: 'KeyedRateLimitGroup', config: { windows: WINDOWS } },
+      flat: { type: 'RateLimitGroup', config: { windows: WINDOWS } },
+    },
+    nodeTypes: {
+      Plain: { worker: 'w', inline: true },
+      Keyed: { worker: 'w', inline: true, groups: ['api'] },
+      Flat: { worker: 'w', inline: true, groups: ['flat'] },
+    },
+  } as unknown as RegistryDocument;
+  const flowOf = (flowId: string, nodes: Record<string, unknown>[]): FlowDefinition => ({
+    flowId, version: 1, entry: nodes[0]!.id as string,
+    nodes: [...nodes, { id: 'done', kind: 'end', outcome: 'completed' }],
+  }) as unknown as FlowDefinition;
+  const task = (id: string, type: string, to: string, extra: Record<string, unknown> = {}) => ({ id, kind: 'task', type, ...extra, edges: [{ to }] });
+  /** P37 fact 1's three refused roads: [label, flow, the node FD-R6 is at]. */
+  const ROADS: [string, FlowDefinition, string][] = [
+    ['the TYPE`s pool names `api`, entry node', flowOf('type-pool', [task('a', 'Keyed', 'done')]), 'a'],
+    ['the NODE names `api` in workerGroups, entry node', flowOf('node-groups', [task('a', 'Plain', 'done', { workerGroups: ['api'] })]), 'a'],
+    ['the keyed node is the SECOND node', flowOf('second', [task('a', 'Plain', 'b'), task('b', 'Keyed', 'done')]), 'b'],
+  ];
+  /**
+   * ADR 0097 rule 4: what the refusal names, beside the node — the group, BOTH working roads, and Q248. Each road by a
+   * phrase only its own sentence carries (the adequacy reader's F4: `createTask` and `limitKey` also appear in the
+   * sentence saying why, so deleting the createTask ROAD's sentence passed): `sets limitKey` is the first road's,
+   * `code.groupTypes` and `keyFrom that derives` the second's.
+   */
+  const NAMED = ['"api"', 'createTask', 'sets limitKey', 'keyFrom that derives', 'code.groupTypes', 'Q248'];
+  /** The seams, and how many times the scheduler was SUBSCRIBED to — a driver subscribes, so 0 means none was built. */
+  const watched = () => {
+    const s = seams();
+    let subscribed = 0;
+    const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
+      const sch = s.createScheduler(p, g) as unknown as { addEventListener: (...a: unknown[]) => void };
+      const original = sch.addEventListener.bind(sch);
+      sch.addEventListener = (...a: unknown[]) => { subscribed++; original(...a); };
+      return sch as never;
+    };
+    return { s, createScheduler, subscribed: () => subscribed };
+  };
+  const refusalOf = (fn: () => unknown): unknown => {
+    try { fn(); } catch (e) { return e; }
+    return null;
+  };
+  /** What `new Driver` throws for `defaultRetryPolicy: v` over a good runtime's registry — `start`'s own class and message, by hand. */
+  const inert = { addTask() {}, addEventListener() {} };
+  const driverRefusal = (v: unknown): InvalidDefinition | null => {
+    const good = createRuntime(DOC, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler });
+    try {
+      new Driver(FLOW, { ...good.registry, runId: 'hand', scheduler: inert, joinPolicy: liveToken, defaultRetryPolicy: v as never });
+      return null;
+    } catch (e) {
+      if (e instanceof InvalidDefinition) return e;
+      throw e;
+    }
+  };
+
+  test('FD-R6 on each of P37 fact 1`s three roads: check reports it at the node, and start refuses it as LimitKeyMissing naming the node, the group, both roads and Q248 — before any driver exists, spending no run id', () => {
+    for (const [label, flow, at] of ROADS) {
+      const w = watched();
+      const r = createRuntime(KEYED_DOC, {}, { createPool: w.s.createPool, createScheduler: w.createScheduler });
+      const found = r.check(flow);
+      equal(found.map((f) => [f.rule, f.at]), [['FD-R6', at]], `${label}: check returns ONE finding, FD-R6 at ${at}`);
+      for (const part of NAMED) ok(found[0]!.detail.includes(part), `${label}: the finding names ${part}: ${found[0]!.detail}`);
+      const err = refusalOf(() => r.start(flow, {}));
+      ok(err instanceof LimitKeyMissing, `${label}: start throws LimitKeyMissing — got ${(err as Error)?.constructor?.name}: ${(err as Error)?.message}`);
+      ok(err instanceof RuntimeError && !(err instanceof InvalidDefinition), `${label}: a RuntimeError, and not InvalidDefinition — the flow is a valid definition`);
+      equal((err as LimitKeyMissing).at, at, `${label}: its at is the node`);
+      for (const part of [`"${at}"`, ...NAMED]) ok((err as Error).message.includes(part), `${label}: the message names ${part}`);
+      equal([w.s.added, w.subscribed()], [[], 0], `${label}: nothing dispatched and the scheduler never subscribed to — no driver was built`);
+      equal(r.start(FLOW_ON_PLAIN, {}).driver.runId, 'r1', `${label}: and the next start mints r1 — the refusal spent no run id`);
+      ok(w.subscribed() > 0, `${label}: CONTROL — a start that builds a driver DOES subscribe, so the 0 above can see one`);
+    }
+  });
+
+  test('TWO nodes reaching it: one FD-R6 finding EACH, and LimitKeyMissing`s at is the FIRST in the flow`s order while its message carries both (choice 4)', () => {
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    // The pool road and the node road, one each — and the FIRST is not the entry's successor by accident: `a` is both.
+    const two = flowOf('two', [task('a', 'Keyed', 'b'), task('b', 'Plain', 'done', { workerGroups: ['api'] })]);
+    equal(r.check(two).map((f) => [f.rule, f.at]), [['FD-R6', 'a'], ['FD-R6', 'b']], 'one finding per node, in the flow`s order');
+    const err = refusalOf(() => r.start(two, {}));
+    ok(err instanceof LimitKeyMissing, `LimitKeyMissing — got ${(err as Error)?.constructor?.name}`);
+    equal((err as LimitKeyMissing).at, 'a', 'its at is the FIRST such node');
+    ok((err as Error).message.includes('FD-R6 at a') && (err as Error).message.includes('FD-R6 at b'), `and its message carries BOTH findings: ${(err as Error).message}`);
+  });
+
+  test('the TASK-only guard (the adequacy reader`s F1): a GATE whose type is NAMED like a keyed node type is not FD-R6 — only the task beside it is', () => {
+    // A consumer gate type called `Keyed`, the node type whose pool holds `api`: were the guard gone, the gate's `type`
+    // would be read as a pool key and the gate reported too. A gate dispatches nothing, so it reaches no group.
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, { gateTypes: { Keyed: pickGate } }, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const gated = {
+      flowId: 'gated-keyed', version: 1, entry: 'a',
+      nodes: [
+        { id: 'a', kind: 'task', type: 'Keyed', edges: [{ to: 'g' }] },
+        { id: 'g', kind: 'gate', type: 'Keyed', settings: { key: 'k' }, edges: [{ to: 'toA' }, { route: 'b', to: 'toB' }] },
+        { id: 'toA', kind: 'task', type: 'Plain', edges: [{ to: 'done' }] },
+        { id: 'toB', kind: 'task', type: 'Plain', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    equal(r.check(gated).map((f) => [f.rule, f.at]), [['FD-R6', 'a']], 'FD-R6 at the task alone — the validator clean, the gate not reported');
+  });
+
+  test('the groups a finding NAMES (the adequacy reader`s F3): two built-in keyed groups on one pool are named both, SORTED; one group reached by BOTH roads is named ONCE', () => {
+    const doc = {
+      ...KEYED_DOC,
+      groups: { ...(KEYED_DOC.groups as object), api2: { type: 'KeyedRateLimitGroup', config: { windows: WINDOWS } } },
+      nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Both: { worker: 'w', inline: true, groups: ['api2', 'api'] } },
+    } as unknown as RegistryDocument;
+    const s = seams();
+    const r = createRuntime(doc, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const [two] = r.check(flowOf('two-groups', [task('a', 'Both', 'done')]));
+    ok(two!.detail.includes('keyed groups "api", "api2"'), `declared ['api2', 'api'], named "api", "api2" — sorted: ${two!.detail}`);
+    const [once] = r.check(flowOf('both-roads', [task('a', 'Keyed', 'done', { workerGroups: ['api'] })]));
+    equal(once!.detail.split('"api"').length - 1, 1, `the type's pool AND the node name "api": named once — ${once!.detail}`);
+    ok(once!.detail.includes('keyed group "api",'), 'and in the singular');
+  });
+
+  test('FD-R6`s place in RESUME (the adequacy reader`s F2): a refused header beside a keyed flow and no createTask is ResumeRefused — the header is read first', () => {
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const [, keyed] = ROADS[0]!;
+    const checkpoint = r.start(keyed, {}, { createTask: (c) => ({ ...c, limitKey: 'tenant-a' }) }).driver.checkpoint();
+    // The same keyed node, under ANOTHER flow id: the header refuses it (RN-R23), and FD-R6 is also there to be thrown.
+    const other = { ...keyed, flowId: 'another' } as FlowDefinition;
+    const fresh = createRuntime(KEYED_DOC, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler });
+    equal(fresh.check(other).map((f) => f.rule), ['FD-R6'], 'the flow IS FD-R6, so LimitKeyMissing was available');
+    const err = refusalOf(() => fresh.resume(other, checkpoint));
+    ok(err instanceof ResumeRefused, `ResumeRefused, not LimitKeyMissing — got ${(err as Error)?.constructor?.name}`);
+  });
+
+  test('the pool a node RUNS ON is what is read: a named instance whose class derivation adds the keyed group is FD-R6, the same type`s default instance is not (ADR 0097 rule 1)', () => {
+    const C: NodeTypeDefinition = {
+      worker: 'w', inline: true, configSchema: { type: 'object', properties: { keyed: { type: 'boolean' } } }, config: { keyed: false },
+      pool: (c) => ((c as { keyed?: boolean }).keyed ? { config: {}, groups: ['api'] } : { config: {} }),
+    };
+    const doc = { ...KEYED_DOC, pools: { 'c-keyed': { type: 'C', config: { keyed: true } } } } as unknown as RegistryDocument;
+    const s = seams();
+    const r = createRuntime(doc, { nodeTypes: { C } }, { createPool: s.createPool, createScheduler: s.createScheduler });
+    equal(r.check(flowOf('named', [task('a', 'C', 'done', { pool: 'c-keyed' })])).map((f) => [f.rule, f.at]), [['FD-R6', 'a']],
+      'a node on the named instance whose derived pool names `api` is FD-R6');
+    equal(r.check(flowOf('default', [task('a', 'C', 'done')])), [], 'the same type on its DEFAULT instance, whose pool names nothing, is not');
+  });
+
+  test('the CONTROLS: a RateLimitGroup in its place, a keyed group no node reaches, a keyed group held only as a RESIDENT group, and a CODE group type building a keyed group with a keyFrom — none is FD-R6', () => {
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    equal(r.check(flowOf('flat-type', [task('a', 'Flat', 'done')])), [], 'P37 fact 1`s control: a RateLimitGroup on the type`s pool');
+    equal(r.check(flowOf('flat-node', [task('a', 'Plain', 'done', { workerGroups: ['flat'] })])), [], 'and named by the node');
+    equal(r.check(FLOW_ON_PLAIN), [], 'a keyed group the registry DECLARES and no node reaches — P37 prediction 3`s case');
+    const resident = { ...KEYED_DOC, nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Holds: { worker: 'w', inline: true, pool: { idleTimeout: 1000, residentGroups: ['api'] } } } } as unknown as RegistryDocument;
+    const rr = createRuntime(resident, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler });
+    equal(rr.check(flowOf('resident', [task('a', 'Holds', 'done')])), [], 'a pool holding `api` only as a RESIDENT group — the scheduler resolves no key for one (rule 1)');
+    const coded = { ...KEYED_DOC, groups: { ...(KEYED_DOC.groups as object), tenant: { type: 'KeyedWithKeyFrom', config: {} } } } as unknown as RegistryDocument;
+    const code: RegistryCode = { groupTypes: { KeyedWithKeyFrom: { create: (_c: unknown, key: string) => new KeyedRateLimitGroup(WINDOWS, { id: key, keyFrom: () => 'k' }) as never } } };
+    const rc = createRuntime(coded, code, { createPool: seams().createPool, createScheduler: seams().createScheduler });
+    ok((rc.groups.tenant as unknown as { keyed?: boolean }).keyed === true, 'the code group IS keyed — so what spares it is the factory, not keyedness');
+    equal(rc.check(flowOf('coded', [task('a', 'Plain', 'done', { workerGroups: ['tenant'] })])), [], 'and a node reaching it is not FD-R6 — the working road the scheduler`s own message names');
+    equal(rc.check(flowOf('coded-and-api', [task('a', 'Plain', 'done', { workerGroups: ['tenant', 'api'] })])).map((f) => f.detail.includes('"tenant"')), [false],
+      'CONTROL: a node reaching BOTH is FD-R6 for the built-in one alone, and the finding does not name the code group');
+  });
+
+  test('the createTask road: given a createTask, FD-R6 refuses nothing — the run starts and the task carries the key the factory set; and check still reports it, reading as start with none (stop-and-ask (c))', () => {
+    for (const [label, flow, at] of ROADS) {
+      const s = seams();
+      const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+      const { driver } = r.start(flow, {}, { createTask: (c) => ({ ...c, limitKey: 'tenant-a' }) });
+      equal(driver.runId, 'r1', `${label}: started, under the first minted id`);
+      equal(s.added.map((t) => [t.id, t.limitKey]), [[`r1:${(flow.nodes[0] as { id: string }).id}:-:0`, 'tenant-a']], `${label}: the entry task dispatched, carrying the factory's key`);
+      equal(r.check(flow).map((f) => [f.rule, f.at]), [['FD-R6', at]], `${label}: and check, which has no createTask to read, still reports FD-R6`);
+    }
+  });
+
+  test('a definition defect beside FD-R6 is InvalidDefinition FIRST, and its rules never carry FD-R6 — with a createTask too; its message is new Driver`s', () => {
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const both = flowOf('both', [task('a', 'Keyed', 'b'), task('b', 'Nobody', 'done')]);
+    equal(r.check(both).map((f) => f.rule).sort(), ['FD-R6', 'FD-V32'], 'check returns both: every finding');
+    for (const options of [{}, { createTask: (c: unknown) => c }] as StartOptions[]) {
+      const err = refusalOf(() => r.start(both, {}, options));
+      ok(err instanceof InvalidDefinition, `${options.createTask ? 'with' : 'without'} a createTask: InvalidDefinition — got ${(err as Error)?.constructor?.name}`);
+      equal((err as InvalidDefinition).rules, ['FD-V32'], `${options.createTask ? 'with' : 'without'} a createTask: its rules are the definition's alone`);
+      const hand = refusalOf(() => new Driver(both, { ...r.registry, runId: 'hand', scheduler: inert, joinPolicy: liveToken }));
+      ok(hand instanceof InvalidDefinition, 'new Driver refuses the same flow, by hand');
+      equal((err as Error).message, (hand as Error).message, 'and start`s message is new Driver`s, to the byte');
+    }
+    equal(s.added, [], 'nothing dispatched');
+  });
+
+  test('ORDER: FD-R6 is refused before RunIdInUse and ID-R2 on start, and resume refuses it from the same call — before any driver, with a createTask resuming instead', () => {
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    r.start(FLOW_ON_PLAIN, {}, { runId: 'taken' });
+    const [, keyed] = ROADS[0]!;
+    for (const runId of ['taken', 'a:b']) {
+      ok(refusalOf(() => r.start(keyed, {}, { runId })) instanceof LimitKeyMissing, `run id ${runId}: LimitKeyMissing, not the run id's refusal`);
+    }
+    ok(refusalOf(() => r.start(keyed, {}, { runId: 'taken', createTask: (c) => c })) instanceof RunIdInUse, 'CONTROL: with a createTask the same id is RunIdInUse — so the pair discriminates');
+    const { driver } = r.start(keyed, {}, { createTask: (c) => ({ ...c, limitKey: 'tenant-a' }) });
+    const checkpoint = driver.checkpoint();
+    const w = watched();
+    const fresh = createRuntime(KEYED_DOC, {}, { createPool: w.s.createPool, createScheduler: w.createScheduler });
+    const err = refusalOf(() => fresh.resume(keyed, checkpoint));
+    ok(err instanceof LimitKeyMissing, `resume with no createTask: LimitKeyMissing — got ${(err as Error)?.constructor?.name}`);
+    equal(w.subscribed(), 0, 'and no driver was built');
+    const { driver: again } = fresh.resume(keyed, checkpoint, { createTask: (c) => ({ ...c, limitKey: 'tenant-a' }) });
+    equal(again.runId, checkpoint.header.runId, 'resume WITH a createTask resumes under the stored id — the refusal spent nothing');
+  });
+
+  test('createRuntime holds defaultRetryPolicy to FD-V30 FIRST: each shape new Driver refuses is InvalidDefinition with new Driver`s rules and message, and nothing is built (ADR 0097 rule 5)', () => {
+    // FD-V30's shape (spec section 2): EXACTLY { maxRetries, backoffMs }, an integer >= 0 and a finite number >= 0, no other key.
+    const REFUSED: [string, unknown][] = [
+      ['a string', 'nonsense'], ['{}', {}], ['null', null], ['an extra key', { maxRetries: 1, backoffMs: 0, extra: 1 }],
+      ['a negative maxRetries', { maxRetries: -1, backoffMs: 0 }], ['a fractional maxRetries', { maxRetries: 1.5, backoffMs: 0 }],
+      ['an infinite backoffMs', { maxRetries: 1, backoffMs: Infinity }],
+    ];
+    for (const [label, v] of REFUSED) {
+      const s = seams();
+      const err = refusalOf(() => createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler, defaultRetryPolicy: v as never }));
+      const hand = driverRefusal(v);
+      ok(hand !== null, `${label}: new Driver refuses it, by hand — so the case is FD-V30's`);
+      ok(err instanceof InvalidDefinition, `${label}: createRuntime throws InvalidDefinition — got ${(err as Error)?.constructor?.name ?? String(err)}`);
+      equal((err as InvalidDefinition).rules, ['FD-V30'], `${label}: FD-V30`);
+      equal((err as Error).message, hand!.message, `${label}: new Driver's message, to the byte`);
+      equal([s.pools, s.built], [[], []], `${label}: no pool and no scheduler was built`);
+    }
+    // ORDER: before the document is resolved — a registry defect beside it is not what is thrown.
+    const broken = edited((d) => { d.nodeTypes.Scorer.worker = 'gone'; });
+    ok(refusalOf(() => createRuntime(broken, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler, defaultRetryPolicy: {} as never })) instanceof InvalidDefinition,
+      'a registry defect AND a malformed policy: the policy is refused first');
+    ok(refusalOf(() => createRuntime(broken, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler })) instanceof WorkerMissing,
+      'CONTROL: the same registry defect alone is WorkerMissing');
+  });
+
+  test('a VALID defaultRetryPolicy is accepted at construction and still reaches every task a run dispatches — the control', () => {
+    const s = seams();
+    const policy = { maxRetries: 2, backoffMs: 10 };
+    ok(driverRefusal(policy) === null, 'new Driver accepts it, by hand');
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler, defaultRetryPolicy: policy });
+    equal(r.check(FLOW), [], 'check: nothing');
+    r.start(FLOW, {}, { createTask: (c) => c });
+    equal(s.added.map((t) => t.retryPolicy), [policy], 'the entry task carries the default — the one node declares none and its type none');
+  });
+});
+
+suite('W163 — FD-R6 on a REAL scheduler: P37 fact 1`s refusal before addTask, and its createTask road completing on a real keyed group', (test) => {
+  test(`no createTask is LimitKeyMissing with nothing queued; a createTask setting limitKey completes, the group holding that key; one setting none meets the scheduler's own throw — ${IN_BROWSER ? 'SKIPPED in the browser (RT-R10)' : 'inline pools, no seam'}`, async () => {
+    if (IN_BROWSER) {
+      ok(true, 'skipped: a browser loads no .ts worker file, which is RT-R10');
+      return;
+    }
+    const runtime = createRuntime({
+      workers: { ingest: { url: INGEST_URL } },
+      groups: { api: { type: 'KeyedRateLimitGroup', config: { windows: [{ limit: 5, windowMs: 1000 }] } } },
+      nodeTypes: { Ingest: { worker: 'ingest', inline: true, config: {}, pool: { maxThreads: 1, idleTimeout: 0 }, groups: ['api'] } },
+    }, {}, { base: import.meta.url });
+    const flow = {
+      flowId: 'keyed', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'Ingest', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    try {
+      let refused: unknown = null;
+      try { runtime.start(flow, { confidence: 0.9 }); } catch (e) { refused = e; }
+      ok(refused instanceof LimitKeyMissing && refused.at === 'ingest', `no createTask: LimitKeyMissing at the node — got ${(refused as Error)?.constructor?.name}: ${(refused as Error)?.message}`);
+      equal(runtime.scheduler.tasks.size, 0, 'and the real scheduler holds no task — nothing reached addTask');
+      const { driver, done } = runtime.start(flow, { confidence: 0.9 }, { createTask: (c) => new FyflowTask({ ...c, limitKey: 'tenant-a' }) });
+      equal(driver.runId, 'r1', 'the createTask road starts under r1 — the refusal spent no run id');
+      const state = await Promise.race([done, new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 10000))]);
+      equal(state === 'timeout' ? 'NEVER SETTLED' : state.outcome, 'completed', 'and it COMPLETED on a real keyed group — P37 fact 1`s working road');
+      equal([...(runtime.groups.api as unknown as { keys: Map<string, unknown> }).keys.keys()], ['tenant-a'], 'the group`s active keys are the factory`s — the task was counted under it');
+      let bare: unknown = null;
+      try { runtime.start(flow, { confidence: 0.9 }, { createTask: (c) => new FyflowTask(c) }); } catch (e) { bare = e; }
+      ok(bare instanceof Error && !(bare instanceof RuntimeError) && bare.message.includes('Missing limit key'),
+        `a createTask that sets NO key passes FD-R6 and meets the scheduler's own throw — the factory's to own (ADR 0097 rule 4): ${(bare as Error)?.message}`);
+    } finally {
+      await runtime.shutdown();
+    }
   });
 });

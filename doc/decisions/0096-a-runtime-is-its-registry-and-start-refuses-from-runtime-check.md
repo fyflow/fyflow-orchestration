@@ -78,7 +78,10 @@ measured.
    outside `ID-R2`'s charset before it validates anything, while `start` given an invalid flow AND such an
    id — or an id in use (`RunIdInUse`) — throws `InvalidDefinition`. A driver built by hand keeps rule 3's
    order. `resume` refuses its checkpoint's header (`RN-R23`) and clones its entry payload (`RN-R15`)
-   first, and checks the flow after both.
+   first, and checks the flow after both. *(Amended by [ADR 0097](0097-what-start-refuses-that-the-flow-does-not-decide.md) rules 2-4, W163: `check` also returns `FD-R6`,
+   and `start` throws the findings other than `FD-R6` as `InvalidDefinition` and then, when it was given no `createTask`,
+   the `FD-R6` findings as `LimitKeyMissing` — so a non-empty `check` is what `start` refuses unless the only findings
+   are `FD-R6` and a `createTask` was given.)*
 
 ## Consequences
 
@@ -101,7 +104,8 @@ the runtime that will run it with one call and no run; and the warm-up flows go.
    limit may briefly be exceeded, and a model loaded in a worker's `setup()` is loaded twice (P37 Scope).
    A consequence of rule 1, recorded, not built.
 4. **`defaultRetryPolicy` is still held only at `new Driver`** until W163 (P37 stop-and-ask (b)'s other
-   half), so until then a malformed one passes `check` and every `start` throws `FD-V30`.
+   half), so until then a malformed one passes `check` and every `start` throws `FD-V30`. *(Closed by [ADR 0097](0097-what-start-refuses-that-the-flow-does-not-decide.md)
+   rule 5, W163: `createRuntime` refuses it at construction.)*
 5. **Exactly two shapes THROW rather than report** — `null` or `undefined` in place of the flow, and a
    `nodes` that is present and not iterable — each the validator's own `TypeError`, from `check` as from
    `start` and `new Driver`. Every other value is read and reported: a non-object primitive such as `5`,

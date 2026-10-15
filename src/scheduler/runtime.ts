@@ -74,7 +74,7 @@ import type {
   Finding, FlowDefinition, GroupType, JsonSchema, Languages, NodeTypeDefinition,
   Registry, RegistryCode, RegistryDocument, ResolvedPool, ResolvedRegistry, RetryPolicy, TaskNode, WorkerEntry,
 } from '../definition/types.ts';
-import { languagesOf, nodeTypesOf, poolsOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
+import { languagesOf, nodeTypesOf, poolsOf, retryPolicyProblem, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
 import type { Predicate } from '../driver/routing.ts';
 import { bootstrap } from './bootstrap.ts';
 import type { PoolFactory } from './bootstrap.ts';
@@ -108,6 +108,22 @@ export class GroupNotBuildable extends RuntimeError {}
  * counter skips ids in use.
  */
 export class RunIdInUse extends RuntimeError {}
+/**
+ * **A `start` or a `resume` given no `createTask`, of a flow a node of which reaches a group the BUILT-IN
+ * `KeyedRateLimitGroup` factory built** — `FD-R6`,
+ * [ADR 0097](../../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), P37 fact 1 and
+ * stop-and-ask (c). That factory gives the group no `keyFrom`, so its key is the task's `limitKey`, which nothing here
+ * sets — and the scheduler THROWS in `addTask` for a keyed group with no key. `at` is the first such node in the flow's
+ * order; the message carries every `FD-R6` finding `check` returned. Thrown before a run id is minted or a driver built,
+ * so the refused call costs nothing.
+ */
+export class LimitKeyMissing extends RuntimeError {}
+
+/**
+ * **`FD-R6`'s rule id** — the one finding `check` returns that `validateDefinition` does not, and the one `start` throws
+ * as {@link LimitKeyMissing} rather than as `InvalidDefinition` (ADR 0097 rules 2 and 4).
+ */
+const KEYED_RULE = 'FD-R6';
 
 /**
  * **The three built-in group types' FACTORIES, and they are three different constructors** (P18
@@ -157,7 +173,13 @@ export interface RuntimeOptions {
   createPool?: PoolFactory;
   /** The scheduler seam. Omitted, a real `FyflowScheduler` over the pools and groups this runtime built. */
   createScheduler?: (pools: Record<string, WorkerManager>, groups: Record<string, ResourceGroup>) => FyflowScheduler;
-  /** Applied to every node of every flow this runtime starts that declares no `retryPolicy` and whose type declares none — the driver's option, held to `FD-V30` there. */
+  /**
+   * Applied to every node of every flow this runtime starts that declares no `retryPolicy` and whose type declares none —
+   * the driver's option. **Held to `FD-V30` HERE, at `createRuntime`**, before anything is built — `InvalidDefinition`,
+   * the class and message `new Driver` throws for it ([ADR 0097](../../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md)
+   * rule 5, P37 stop-and-ask (b)): until W163 it was read only by each driver, so a malformed one was accepted here and
+   * every `start` threw.
+   */
   defaultRetryPolicy?: RetryPolicy;
   /** `FD-R4`'s switch, forwarded to every driver this runtime starts (W73): the payload at `start` and a person's resolution at `resolve`, each held to the worker's schema once. Default ON; `false` turns both off runtime-wide, since the schemas are the document's. */
   validateBoundaries?: boolean;
@@ -321,7 +343,11 @@ export interface Runtime {
    * **Every finding `start(flow, payload, {})` would refuse `flow` on that depends on the FLOW and this runtime
    * alone** — [ADR 0096](../../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md)
    * rule 4, P37 stop-and-ask (b). `[]` means `start` will not refuse the flow; a non-empty result is what `start`
-   * throws as `InvalidDefinition`, built from this same call (rule 5). **It never throws for a flow's defect**: every
+   * throws, built from this same call (rule 5): the `FD-V` findings as `InvalidDefinition`, and — since
+   * [ADR 0097](../../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md) — the `FD-R6` findings, a
+   * node reaching a group the built-in `KeyedRateLimitGroup` factory built, as `LimitKeyMissing` when `start` is given
+   * no `createTask`. **`check` reads as `start` given none** (P37 stop-and-ask (c)), so a caller who will pass a
+   * `createTask` setting `limitKey` filters `FD-R6` out by its rule id. **It never throws for a flow's defect**: every
    * finding is returned, as `validateDefinition` returns them, against this runtime's own registry. **Not included,
    * by name**: the PAYLOAD's refusals (`FD-R4`, the entry payload's clone) and the RUN ID's (`ID-R2`, `RunIdInUse`),
    * which depend on what a run is started with. *Register* a flow on a running runtime by calling this, then `start`.
@@ -392,6 +418,15 @@ export function createRuntime(
   code: RegistryCode = {},
   options: RuntimeOptions = {},
 ): Runtime {
+  // (0) **`defaultRetryPolicy`, held to `FD-V30` FIRST** — ADR 0097 rule 5, P37 stop-and-ask (b). The one `RuntimeOptions`
+  //     member a driver refuses, so a runtime that exists has a default every driver accepts and `check` stays a function
+  //     of the flow and the runtime (P37 fact 6: accepted here and thrown by EVERY `start` until W163). The class and the
+  //     message are `new Driver`'s own for the same value, so a caller catching it reads the same thing one call earlier.
+  if (options.defaultRetryPolicy !== undefined) {
+    const problem = retryPolicyProblem(options.defaultRetryPolicy);
+    if (problem !== null) throw new InvalidDefinition(['FD-V30'], `defaultRetryPolicy is not a RetryPolicy — FD-V30: ${problem}`);
+  }
+
   // (1) What the document MEANS. Builds nothing; refuses every name, schema and derivation defect.
   const resolved = resolveRegistry(document, code);
 
@@ -528,7 +563,47 @@ export function createRuntime(
     pools: poolsOf(registry.pools),
     ...(registry.gateTypes !== undefined ? { gateTypes: registry.gateTypes } : {}),
   };
-  const check = (flow: FlowDefinition): Finding[] => validateDefinition(flow, validatorRegistry);
+  // **`FD-R6` — what `check` adds that no validator rule states** (ADR 0097 rules 1-3, P37 fact 1 and stop-and-ask (c)).
+  // The groups the BUILT-IN `KeyedRateLimitGroup` factory built: keyed, with no `keyFrom`, so the scheduler's `addTask`
+  // throws for a task belonging to one unless the task carries a `limitKey` — which only a consumer's `createTask` can
+  // set. A CODE group type's group is never here, keyed or not: its factory is the consumer's and may give it a `keyFrom`.
+  const keyedByBuiltIn = new Set<string>();
+  for (const [key, g] of resolved.groups) if (g.type === 'KeyedRateLimitGroup') keyedByBuiltIn.add(key);
+  /**
+   * **One `FD-R6` finding per task node that REACHES such a group** — rule 1: the node's `workerGroups`, or the `groups`
+   * of the pool it runs on (its `pool`, else its type's default instance) as `resolveRegistry` derived it; the two sets
+   * the scheduler unions for a task (its `_groupsForTask`, at the pin). A pool's `residentGroups` are not read: the
+   * scheduler resolves no key for a resident group. Every shape is guarded rather than trusted — `check` runs this
+   * AFTER `validateDefinition` has reported a malformed node, and must not throw where the validator reported.
+   */
+  const keyedFindings = (flow: FlowDefinition): Finding[] => {
+    const nodes = (flow as { nodes?: unknown } | null | undefined)?.nodes as Iterable<unknown> | null | undefined;
+    if (keyedByBuiltIn.size === 0 || typeof nodes?.[Symbol.iterator] !== 'function') return [];
+    const out: Finding[] = [];
+    for (const node of nodes) {
+      if (typeof node !== 'object' || node === null) continue;
+      const n = node as { id?: unknown; kind?: unknown; type?: unknown; pool?: unknown; workerGroups?: unknown };
+      if (n.kind !== 'task') continue;
+      const poolKey = typeof n.pool === 'string' ? n.pool : typeof n.type === 'string' ? n.type : undefined;
+      const fromPool = poolKey === undefined ? [] : resolved.pools.get(poolKey)?.spec.groups ?? [];
+      const fromNode = Array.isArray(n.workerGroups) ? n.workerGroups.filter((g): g is string => typeof g === 'string') : [];
+      const reached = [...new Set([...fromPool, ...fromNode])].filter((g) => keyedByBuiltIn.has(g)).sort();
+      if (reached.length === 0) continue;
+      const at = typeof n.id === 'string' ? n.id : null;
+      out.push({
+        rule: KEYED_RULE,
+        at,
+        detail: `node ${at === null ? '<unnamed>' : q(at)} reaches keyed group${reached.length > 1 ? 's' : ''} ${reached.map(q).join(', ')}, ` +
+          'built by the built-in KeyedRateLimitGroup factory with no keyFrom — so every task of it needs a limitKey, which ' +
+          `nothing sets unless start is given a createTask, and without one the scheduler's addTask throws "Missing limit key". ` +
+          'Two roads work: pass start a createTask that sets limitKey on the task it builds, or declare the group with a code ' +
+          'group type (code.groupTypes) whose create() builds a KeyedRateLimitGroup with a keyFrom that derives the key. A key ' +
+          'derived from the flow itself is Q248, deferred',
+      });
+    }
+    return out;
+  };
+  const check = (flow: FlowDefinition): Finding[] => [...validateDefinition(flow, validatorRegistry), ...keyedFindings(flow)];
 
   let minted = 0;
   /**
@@ -588,13 +663,22 @@ export function createRuntime(
     // error is the one `new Driver` throws for the same findings — `InvalidDefinition`, the findings' rule ids and the
     // same message — so a caller catching it is unchanged, and `check` and `start` read one call and cannot disagree.
     // `new Driver` below validates again, for a driver built by hand; on this road it finds nothing.
+    // **And `FD-R6` from the SAME call, second** — ADR 0097 rule 4: the definition's findings are thrown first, exactly
+    // as `new Driver` throws them (so `InvalidDefinition` never carries `FD-R6`), and then, when no `createTask` was given,
+    // a node reaching a built-in keyed group is `LimitKeyMissing` — still before a run id is minted or a driver built.
     const findings = check(flow);
-    if (findings.length) {
+    const definition = findings.filter((f) => f.rule !== KEYED_RULE);
+    if (definition.length) {
       throw new InvalidDefinition(
-        violatedRules(findings),
+        violatedRules(definition),
         `definition "${flow.flowId}" is invalid: ` +
-          findings.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
+          definition.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
       );
+    }
+    const keyed = startOptions.createTask === undefined ? findings.filter((f) => f.rule === KEYED_RULE) : [];
+    if (keyed.length) {
+      throw new LimitKeyMissing(keyed[0]!.at ?? '<document>', `flow "${flow.flowId}" cannot start with no createTask — ` +
+        keyed.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; ') + ' (ADR 0097)');
     }
     const runId = startOptions.runId ?? mint();
     if (inUse.has(runId)) {
