@@ -283,7 +283,8 @@ snippet is extracted and executed on every `npm run gate`, so none of it can dri
 
 | | |
 |---|---|
-| Holding a **result** to the schema its worker declares | [AGENTS.md](AGENTS.md) section 16 |
+| A task **cancelled** by its id — the run ends `cancelled` and refuses a resume | [AGENTS.md](AGENTS.md) section 6 |
+| Holding a **result** to the schema its worker declares | section 16 |
 | Fanning out **per item** — a region inside a `map` region | section 17 |
 | **Saving** a run and **resuming** it from the stored events | section 18 |
 | What a node may **remember** across branches — a `gate` | section 19 |
