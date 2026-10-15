@@ -181,11 +181,10 @@ import {
 } from './run-flow.ts';
 /** W110: a row may carry its own predicate registry, so `Expectation` needs the type. */
 import type { Predicate } from '../index.ts';
-// **W63, through the sub-path's ENTRY — the one path the reaches-past-index clause below exempts by
-// name.** The helper's own reading of which types transform in which languages, compared on every
-// L6 definition to a derivation this file makes without it, so the function the pools were built
-// from cannot quietly read a different document than the row runs.
-import { transformLanguagesByType, type RunHandle } from '../src/scheduler/index.ts';
+// **Through the sub-path's ENTRY — the one path the reaches-past-index clause below exempts by name.** W63 imported
+// the helper's own reading of which types transform in which languages here; W162 removed that function with ADR 0051
+// rule 4 (ADR 0096), and the type is what is left.
+import { type RunHandle } from '../src/scheduler/index.ts';
 // **W141**: its block builds a runtime from a registry it writes itself — a worker that cannot set up has no
 // place in the shared document — through the same sub-path entry, as a consumer would.
 import { createRuntime } from '../src/scheduler/index.ts';
@@ -4451,11 +4450,10 @@ const heldWhenOver = (e: Expectation): number =>
 /**
  * **Which types a definition transforms on, in which languages — derived from the DOCUMENT, with no
  * help from the helper** — W63. One `{ type: [lang, …] }` entry per node type some `task` of which
- * declares a `transform`, keys and languages sorted, so it compares as JSON text to
- * `RunReport.poolLanguages` filtered to the pools that carry one. Deliberately not
- * `transformLanguagesByType` from the package: that function is what the helper READ to build the
- * pools, and a clause that compared the pools to their own source would be a sensor corroborating
- * itself (rule 8 obligation (c)'s LIMIT). The cross-row block holds the two derivations to each other.
+ * declares a `transform`, keys and languages sorted. Until W162 the per-row clause compared it to
+ * `RunReport.poolLanguages` (ADR 0051 rule 4) and the cross-row block held it to the package's own
+ * `transformLanguagesByType`; ADR 0096 removed both the rule and the function, and what it is read for
+ * now is the cross-row control that picks out the runs whose flow transforms on NOTHING.
  */
 const transformingTypesOf = (d: FlowDefinition): Record<string, string[]> => {
   const by = new Map<string, Set<string>>();
@@ -4922,17 +4920,17 @@ for (const [i, e] of EXPECTED.entries()) {
       carried !== undefined && carried.length < keys.length && carried.every((k) => keys.includes(k)),
       `live ${JSON.stringify(keys)} against record ${JSON.stringify(carried)}`);
   }
-  // **W63 — ADR 0051 rule 4 on EVERY row: the pools whose config carries a language are exactly the
-  // types some node of THIS row's flow transforms on, in exactly the languages those nodes name,
-  // both ways.** `poolLanguages` is read off the built pools; the other side is derived here from
-  // the definition WITHOUT the helper's own `transformLanguagesByType` (which the cross-row block
-  // holds to this derivation separately), so a helper that wrote the engine into every typed pool —
-  // or into none — is red on the value, and on the forty-two rows that declare no transform the
-  // assertion is that no pool carries one: `Scorer`'s pool loads the engine on a `transformed` run
-  // and not on a `typed` one, which is the discriminating pair the cross-row block names.
-  check(e.key, 'ADR 0051 rule 4: the pools carrying a language are exactly the types this flow transforms on, in the languages it names, both ways',
-    Object.fromEntries(Object.entries(report.poolLanguages).filter(([, ls]) => ls.length > 0).sort(([a], [b]) => a.localeCompare(b))),
-    transformingTypesOf(e.definition));
+  // **W162 — ADR 0096 rule 2 on EVERY row, re-cut from W63's ADR 0051 rule 4: EVERY pool this row's runtime built
+  // carries exactly the languages the registry names, whatever this row's flow transforms on.** `poolLanguages` is
+  // read off the built pools; the other side is `LANGUAGES`, the code the harness supplies, which `createRuntime`
+  // holds BOTH WAYS to the document's `languages` (decision 13) — never the pools' own reading. So the helper this
+  // reverses, which wrote the engine only into the types some node of the flow transformed on, is red here on every
+  // row that does not transform on every type — the forty-odd rows that transform on nothing among them — and a
+  // helper writing a language the registry does not name is red on every row. *(W63's clause asserted the
+  // opposite: on a row declaring no transform, that NO pool carried one.)*
+  check(e.key, 'ADR 0096 rule 2: EVERY pool carries exactly the registry`s languages, whatever this flow transforms on',
+    Object.fromEntries(Object.entries(report.poolLanguages).sort(([a], [b]) => a.localeCompare(b))),
+    Object.fromEntries(Object.keys(report.poolLanguages).sort((a, b) => a.localeCompare(b)).map((k) => [k, Object.keys(LANGUAGES).sort()])));
 
   if (e.regionId === null) {
     // A flow with no fan-out enters no region, and `RN-R10` must therefore not
@@ -6045,7 +6043,8 @@ const CROSS_ROW_SUBJECTS = [
   'the arity-one and arity-two rows are a PAIR',
   'the SAME type carries the engine',
   'the languages the L6 flows NAME are the languages the harness registered',
-  'the helper`s reading of every L6 definition agrees',
+  // W162: re-cut from W63's `the helper`s reading of every L6 definition agrees`, whose function ADR 0096 removed.
+  'a run whose flow transforms on NOTHING still carries the engine',
   'asked of at least one array the ENGINE built',
   'a `transform failed` error occurs in exactly the rows',
   'the reshaping road is removed and not FORBIDDEN',
@@ -7550,7 +7549,7 @@ type ConsumerRoad = {
 };
 let consumerRoad: ConsumerRoad | null = null;
 try {
-  const rt = buildRuntime(false, [FJ, UC]);
+  const rt = buildRuntime(false);
   try {
     // ---- RUN A: a fan-out, and the consumer holds `{ driver, done }` and NOTHING ELSE.
     // The options object is a named const so its key set is an assertion rather than a reading of
@@ -8414,7 +8413,7 @@ try {
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
   /** A run nobody killed. `person` resolves the parked task in-process, as a person would. */
   const referenceRun = async (flow: FlowDefinition, payload: unknown, runId: string, person?: (d: Driver) => Promise<void>) => {
-    const rt = buildRuntime(false, [flow]);
+    const rt = buildRuntime(false);
     try {
       const h = rt.start(flow, payload, { runId });
       runs.push(`${flow.flowId} reference`);
@@ -8431,7 +8430,7 @@ try {
    * can be read AFTER the drain.
    */
   const killedRun = async (flow: FlowDefinition, payload: unknown, runId: string, freezeAt: (i: FoldInput, stimuli: number) => 'now' | 'after-this-turn' | 'no') => {
-    const rt = buildRuntime(false, [flow]);
+    const rt = buildRuntime(false);
     try {
       const store: FoldInput[] = [];
       // Assigned from inside the callback, so declared through a cast: a `let` initialised to `null`
@@ -8470,7 +8469,7 @@ try {
   };
   /** A FRESH runtime resuming from a store. */
   const resumedRun = async (flow: FlowDefinition, header: CheckpointHeader, events: FoldInput[], sink?: (i: FoldInput, seq: number) => void) => {
-    const rt = buildRuntime(false, [flow]);
+    const rt = buildRuntime(false);
     try {
       const ran: string[] = [];
       rt.scheduler.addEventListener('task.running', (e: Event) => ran.push((e as unknown as { detail: { id: string } }).detail.id));
@@ -8561,7 +8560,7 @@ try {
     const p1 = await killedRun(FOPI, TWO_THEN_THREE, 'kr', (_i, n) => (n === 1 ? 'now' : 'no'));
     p1.mid.forEach((e, j) => { byPosition[j] = e; byArrival[arrivals++] = e; });
     // process two, killed again at its third delivered stimulus — its own store frozen by the same rule
-    const rt2 = buildRuntime(false, [FOPI]);
+    const rt2 = buildRuntime(false);
     let resumedIds2: string[] = [];
     let p2froze = false;
     let p2refused = '';
@@ -8599,7 +8598,7 @@ try {
     } catch (err) { r3refused = err instanceof Error ? err.message.slice(0, 160) : String(err); }
     const r3at = r3?.driver?.foldInputs().filter((i) => i.kind === 'resumed') ?? [];
     let arrivalRefused = 'NOT REFUSED';
-    const rt4 = buildRuntime(false, [FOPI]);
+    const rt4 = buildRuntime(false);
     try {
       try { rt4.resume(FOPI, { header: p1.header, events: byArrival.slice() }); } catch (err) {
         arrivalRefused = err instanceof ResumeRefused ? `${err.reason} at ${err.index}` : `a ${err instanceof Error ? err.name : 'non-Error'}`;
@@ -8653,7 +8652,7 @@ try {
       d.resolve(PARKED_ID, 'done', RESOLUTION);
     });
     const k = await killedRun(SR, HIGH, 'kp', (i) => (isPark(i) ? 'after-this-turn' : 'no'));
-    const rt = buildRuntime(false, [SR]);
+    const rt = buildRuntime(false);
     try {
       let h: RunHandle | null = null;
       let refused = '';
@@ -8898,7 +8897,7 @@ try {
   const projection = (st: RunState, d: Driver) =>
     `${st.outcome} ${JSON.stringify(nodesOf(st))} ${JSON.stringify(decisionsOf(st))} ${JSON.stringify(memoryOf(d))}`;
   // The reference: nobody kills it.
-  const rtRef = buildRuntime(false, [TV]);
+  const rtRef = buildRuntime(false);
   let want = '';
   let refMemory = '';
   let stimuli = 0;
@@ -8914,7 +8913,7 @@ try {
   const points: GateKillPoint[] = [];
   for (let K = 1; K <= stimuli; K++) {
     // ---- the KILLED process: the store frozen mid-step at the K-th stimulus, then the runtime shut down (it drains).
-    const rt1 = buildRuntime(false, [TV]);
+    const rt1 = buildRuntime(false);
     const store: FoldInput[] = [];
     let frozen = false;
     let seen = 0;
@@ -8942,7 +8941,7 @@ try {
     let q = killed.findIndex((i, j) => j > p && isStimulus(i));
     if (q < 0) q = killed.length;
     // ---- the RESUME on a fresh runtime.
-    const rt2 = buildRuntime(false, [TV]);
+    const rt2 = buildRuntime(false);
     let got = '';
     let ids: string[] | null = null;
     let prefixRegenerated = false;
@@ -9199,7 +9198,7 @@ try {
   const results: SetupFailsRun[] = [];
   const runs: string[] = [];
   for (const inline of [true, false]) {
-    const rt = createRuntime(setupFailsDoc(inline) as never, {}, { flows: [SETUP_FAILS_FLOW] });
+    const rt = createRuntime(setupFailsDoc(inline) as never, {});
     try {
       const { driver, done } = rt.start(SETUP_FAILS_FLOW, {}, { runId: inline ? 'w141i' : 'w141t' });
       runs.push(SETUP_FAILS_FLOW.flowId);
@@ -9382,7 +9381,7 @@ try {
     ['queued', true, CANCEL_QUEUED_FLOW, 'w160qi'],
   ];
   for (const [road, inline, flow, runId] of ROADS) {
-    const rt = createRuntime(cancelDoc(inline) as never, {}, { flows: [flow] });
+    const rt = createRuntime(cancelDoc(inline) as never, {});
     const hold = rt.groups.hold as unknown as { onStart(): void; onFinish(): void };
     let holding = false;
     let driverRef = null as Driver | null;
@@ -9485,7 +9484,7 @@ try {
   // **The control's run**: `work` FAILS and parks `user_action` — nobody cancels anything — and its checkpoint is taken
   // once the run is waiting on a person, which is a state `done` does not settle on (`isTerminal`), so the wait is bounded
   // by a poll of the caller's own fold.
-  const parkedRt = createRuntime(cancelDoc(true) as never, {}, { flows: [CANCEL_PARKED_FLOW] });
+  const parkedRt = createRuntime(cancelDoc(true) as never, {});
   let parkedCheckpoint: { header: CheckpointHeader; events: readonly FoldInput[] };
   try {
     const p = parkedRt.start(CANCEL_PARKED_FLOW, {}, { runId: 'w160pc' });
@@ -9499,7 +9498,7 @@ try {
   }
   // **The resumes, on ONE FRESH runtime** — so `RunIdInUse` cannot be the refusal, and the scheduler it holds is one
   // nobody else has handed a task: a refusal hands it nothing (ADR 0065), which its task count says.
-  const fresh = createRuntime(cancelDoc(true) as never, {}, { flows: [CANCEL_RUNNING_FLOW, CANCEL_QUEUED_FLOW, CANCEL_PARKED_FLOW] });
+  const fresh = createRuntime(cancelDoc(true) as never, {});
   let control: CancelControl;
   try {
     for (const r of results) {
@@ -9722,6 +9721,8 @@ for (const row of PAIR_ROWS) console.log(`    ${w(row.key, KEY_W)}${row.why}`);
  * **22 and 20 since W63, from 21 and 19**: every row now asserts ADR 0051 rule 4 — the pools
  * carrying a language are exactly the types its flow transforms on — in the base because every
  * row pays it, and on the forty-two rows declaring no transform it says that NO pool carries one.
+ * **Unmoved by W162**, which re-cut that ONE clause to ADR 0096 rule 2 — every pool carries the
+ * registry's languages — in place.
  */
 // **24 since W98**: +2, the dispatch comparison going from one clause (in order) to three (the SET, the pairs the run
 // FIXES, and the per-row control). `unorderedDispatch`'s two extras are gone with it.
@@ -10522,16 +10523,17 @@ if (rowCosts.length !== EXPECTED.length) {
       assertThat('cross-row', 'the arity-one and arity-two rows are a PAIR: two arrivals against one at the join, read from the run, and two different totals',
         two !== undefined && one !== undefined && two !== one && arrivedAt(two) === 2 && arrivedAt(one) === 1,
         `arrived: ${arrivedAt(two)} / ${arrivedAt(one)}`);
-      // **A pool loads an engine because the FLOW says so** (ADR 0051 rule 4): the SAME type,
-      // `Scorer`, carries `jsonata` in every run of the flow whose scorers transform and in NO other
-      // run — including `transform-fails`, where a `Scorer` node runs without a transform beside
-      // two `Echo` nodes that do. The per-row clause says each run's pools match its flow; this says
-      // the two answers for one type were both observed, so the clause was not vacuous everywhere.
-      const scorerPools = reports.map((r) => [r.flowId, r.poolLanguages['Scorer'] ?? []] as const);
+      // **A pool loads an engine because the REGISTRY says so** (ADR 0096 rule 2, W162 — re-cut from W63's ADR 0051
+      // rule 4, *because the FLOW says so*): the SAME type, `Scorer`, carries `jsonata` in EVERY run whose runtime built
+      // it — the `transformed` runs whose scorers transform, AND `typed` and `transform-fails`, where no `Scorer` node
+      // does. The per-row clause says each run's pools carry the registry's languages; this says the runs that used to be
+      // the BARE half of W63's discriminating pair were observed, so that clause was not satisfied only where a flow
+      // transforms. Read over the runs whose registry builds a `Scorer` pool at all — the UI document's runs build none.
+      const scorerPools = reports.filter((r) => r.poolLanguages['Scorer'] !== undefined).map((r) => [r.flowId, r.poolLanguages['Scorer']!] as const);
       const loaded = scorerPools.filter(([, ls]) => ls.includes('jsonata')).map(([f]) => f);
       const bare = scorerPools.filter(([, ls]) => ls.length === 0).map(([f]) => f);
-      assertThat('cross-row', 'the SAME type carries the engine in exactly the runs whose flow transforms on it — Scorer`s pool loads jsonata on every `transformed` run and on no other, `transform-fails` included',
-        loaded.length === 3 && loaded.every((f) => f === TX.flowId) && bare.includes(TF.flowId) && bare.includes(TY.flowId) && loaded.length + bare.length === reports.length,
+      assertThat('cross-row', 'the SAME type carries the engine in EVERY run, transforming on it or not — Scorer`s pool loads jsonata on the `transformed` runs AND on `typed` and `transform-fails`, and is bare in none',
+        bare.length === 0 && loaded.filter((f) => f === TX.flowId).length === 3 && loaded.includes(TF.flowId) && loaded.includes(TY.flowId) && loaded.length === scorerPools.length,
         `loaded in: ${JSON.stringify([...new Set(loaded)])}; bare in ${bare.length} runs`);
       // **Obligation (e) on `Registry.languages`, both ways**: every language a flow document NAMES in
       // a `transform.lang` is one the harness registered, and every registered language is named by
@@ -10544,14 +10546,16 @@ if (rowCosts.length !== EXPECTED.length) {
       })))].sort();
       check('cross-row', 'the languages the L6 flows NAME are the languages the harness registered, both ways — FD-V35`s registry set, and the other direction',
         namedLangs, Object.keys(LANGUAGES).sort());
-      // **The helper's own reading of a definition agrees with this file's, on every L6 definition** —
-      // two derivations of one document, so the function the pools were BUILT from cannot read a
-      // different set of transforming types than the per-row clause derives without it.
-      const disagreeing = EXPECTED.filter((e) => JSON.stringify(
-        Object.fromEntries([...transformLanguagesByType([e.definition])].sort(([a], [b]) => a.localeCompare(b)).map(([t, ls]) => [t, [...ls].sort()])),
-      ) !== JSON.stringify(transformingTypesOf(e.definition))).map((e) => e.key);
-      check('cross-row', 'the helper`s reading of every L6 definition agrees with this file`s own derivation of which types transform in which languages',
-        disagreeing, []);
+      // **W162 — the case ADR 0051 rule 4 FORBADE, observed**: a run whose flow transforms on NO type at all — by this
+      // file's own derivation from the definition, `transformingTypesOf` — and whose pools carry the engine anyway. Re-cut
+      // from W63's clause holding the helper's reading of a definition (`transformLanguagesByType`, removed by ADR 0096)
+      // to this file's; there is no helper reading left to compare, and what the reversal needs is its control: the
+      // per-row clause is not satisfied only on rows that transform, because the rows that do not are many and carry it.
+      const noTransformLoaded = EXPECTED.filter((e, i) => Object.keys(transformingTypesOf(e.definition)).length === 0 &&
+        Object.values(reports[i]!.poolLanguages).some((ls) => ls.includes('jsonata'))).map((e) => e.key);
+      const noTransform = EXPECTED.filter((e) => Object.keys(transformingTypesOf(e.definition)).length === 0).map((e) => e.key);
+      check('cross-row', 'a run whose flow transforms on NOTHING still carries the engine in its pools — every such row, and there are such rows',
+        [noTransformLoaded.length > 0, noTransformLoaded], [true, noTransform]);
       // **The plain-values clause was asked of an ARRAY the engine built, at least once** — otherwise
       // `markedKeys: []` on every `Echo` result is a claim about inputs that carry no array. Read from
       // the settled results: some echoed `input` holds an array at some depth.
@@ -11751,7 +11755,7 @@ if (rowCosts.length !== EXPECTED.length) {
   // building the runtime would take the file down with exit 1 and ZERO failure lines.
   let rt: ReturnType<typeof buildUiRuntime> | null = null;
   try {
-    rt = buildUiRuntime([IFS], NO_PREDICATES);
+    rt = buildUiRuntime(NO_PREDICATES);
     check('cross-row', 'W155: and the runtime those rows run on registers NO gate type — `registry.gateTypes` is absent, so ' +
       '`if` and `switch` were the BUILT-INS, reached by name',
       { gateTypes: rt.registry.gateTypes === undefined ? 'absent' : Object.keys(rt.registry.gateTypes), types: gatesOf(IFS).map((g) => g.type) },

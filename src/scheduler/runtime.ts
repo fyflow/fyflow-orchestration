@@ -50,28 +50,33 @@
  * `bootstrap`, every declared one goes to the scheduler — and direction ONE (a pool naming a group
  * the document lacks) is untouched, refused by the resolver before anything is built.
  *
- * **Why `flows` is an argument here.** A language adapter's worker half reaches a typed pool through
- * that pool's config, and W61 measured that it is written ONLY where a node of that type declares a
- * transform — so the same type carries the engine on one flow and not on another. Pools are built
- * once, at `createRuntime`, so the flows a runtime will run are named there; `start` REFUSES a flow
- * whose transforming type was not accounted for, naming the type, the language and the fix, rather
- * than letting the wrapper meet a transform with nothing to evaluate it.
+ * **Why there is no `flows` argument here, and what `check` is** —
+ * [ADR 0096](../../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md),
+ * [W162](../../doc/work-items/w162-a-runtimes-languages-are-its-registrys-and-runtime-check.md). A runtime IS its
+ * registry: its pools are built once, here, and `fyflow-scheduler` cannot add one later (P37 fact 8). Until W162 a
+ * language reached a pool only where a node of that type transformed in a flow given here as `flows`, and `start`
+ * refused any other flow's transform (`LanguageNotBuilt`) — so a flow published after the runtime started could not
+ * transform on a type no earlier flow had. Now EVERY typed pool carries every language the registry names, and a flow
+ * needs nothing passed in advance. **`check(flow)`** returns every finding `start` would refuse that flow on that
+ * depends on the flow and this runtime alone, and **`start` and `resume` refuse from that same call**, so the two
+ * cannot disagree.
  */
 import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGroup } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { checkGateTypes, groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
-import { Driver, resumeRefusal } from '../driver/driver.ts';
+import { Driver, InvalidDefinition, resumeRefusal } from '../driver/driver.ts';
 import type { Checkpoint, CheckpointHeader, DriverOptions, SchedulerLike } from '../driver/driver.ts';
 import { InvalidTaskId, parseTaskId } from '../driver/ids.ts';
 import { liveToken } from '../fold/policies.ts';
 import { emptyState, isTerminal, step } from '../fold/run-state.ts';
 import type { FoldInput, RunState } from '../fold/run-state.ts';
 import type {
-  FlowDefinition, GroupType, JsonSchema, Languages, NodeTypeDefinition,
-  RegistryCode, RegistryDocument, ResolvedPool, ResolvedRegistry, RetryPolicy, TaskNode, WorkerEntry,
+  Finding, FlowDefinition, GroupType, JsonSchema, Languages, NodeTypeDefinition,
+  Registry, RegistryCode, RegistryDocument, ResolvedPool, ResolvedRegistry, RetryPolicy, TaskNode, WorkerEntry,
 } from '../definition/types.ts';
+import { languagesOf, nodeTypesOf, poolsOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
 import type { Predicate } from '../driver/routing.ts';
-import { bootstrap, transformLanguagesByType } from './bootstrap.ts';
+import { bootstrap } from './bootstrap.ts';
 import type { PoolFactory } from './bootstrap.ts';
 
 /**
@@ -95,8 +100,6 @@ export class RuntimeError extends Error {
 export class GroupUnusable extends RuntimeError {}
 /** A group type named by the document has no factory: a built-in this module does not implement, or a `code.groupTypes` entry `resolveRegistry` admitted and this cannot call. */
 export class GroupNotBuildable extends RuntimeError {}
-/** `start` was given a flow whose transforming type runs on pools this runtime built without that language — the pool would meet the transform with nothing to evaluate it. */
-export class LanguageNotBuilt extends RuntimeError {}
 /**
  * **A `start` or a `resume` naming a run id a driver of THIS runtime already holds** — `RN-R25`,
  * [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
@@ -150,11 +153,6 @@ export interface RuntimeOptions {
    * ([Q261](../../doc/questions/q261.md)), which is why the runtime cannot guess it.
    */
   base?: string;
-  /**
-   * **The flows this runtime will run**, read for WHICH types transform in WHICH languages (W61).
-   * A flow given to `start` that names a transform on a type no pool was built for is refused.
-   */
-  flows?: readonly FlowDefinition[];
   /** The pool seam, as `bootstrap`'s — omitted, a real `WorkerManager`. */
   createPool?: PoolFactory;
   /** The scheduler seam. Omitted, a real `FyflowScheduler` over the pools and groups this runtime built. */
@@ -195,7 +193,7 @@ export interface RuntimeOptions {
  * `createRuntime` could reach** ([Q297](../../doc/questions/q297.md), [W71](../../doc/work-items/w71-the-reference-stops-teaching-a-fake-scheduler.md)).
  * Of the eighteen members AS THEY STOOD a consumer reaches **two** because the runtime supplies them (`runId`,
  * `scheduler`), **six** through `RuntimeRegistry`, **two** through `RuntimeOptions` — and only two,
- * because `base`, `flows`, `createPool` and `createScheduler` are the runtime's own and are not
+ * because `base`, `flows` (as it stood: W162 removed it), `createPool` and `createScheduler` are the runtime's own and are not
  * `DriverOptions` members at all — and **seven** through this `Pick` as it stood. 2 + 6 + 2 + 7 is
  * seventeen; the eighteenth was `onRegionEvent`. *P20 fact 1 states the third road as SIX, which
  * makes its table 21 slots over 18 members and therefore not a partition at all; what survives is
@@ -320,6 +318,16 @@ export interface Runtime {
   /** The group objects this runtime CREATED, keyed as the document declared them. */
   readonly groups: Readonly<Record<string, ResourceGroup>>;
   /**
+   * **Every finding `start(flow, payload, {})` would refuse `flow` on that depends on the FLOW and this runtime
+   * alone** — [ADR 0096](../../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md)
+   * rule 4, P37 stop-and-ask (b). `[]` means `start` will not refuse the flow; a non-empty result is what `start`
+   * throws as `InvalidDefinition`, built from this same call (rule 5). **It never throws for a flow's defect**: every
+   * finding is returned, as `validateDefinition` returns them, against this runtime's own registry. **Not included,
+   * by name**: the PAYLOAD's refusals (`FD-R4`, the entry payload's clone) and the RUN ID's (`ID-R2`, `RunIdInUse`),
+   * which depend on what a run is started with. *Register* a flow on a running runtime by calling this, then `start`.
+   */
+  check(flow: FlowDefinition): Finding[];
+  /**
    * Start one run of `flow` with `payload`, and return its {@link RunHandle} — the `Driver`,
    * already started, and a `done` promise that resolves when the run reaches a terminal
    * outcome. **BREAKING at `0.3.0`**: this returned the `Driver` itself until ADR 0058.
@@ -397,9 +405,9 @@ export function createRuntime(
   // not take: a predicate or an adapter SUPPLIED and named by no document is a registry a consumer
   // believes in and the runtime does not, and the flow that uses it dies at `FD-V4` or `FD-V35` one
   // run in. *(W66's conformity reader, finding 5: the claim was in the plan and in this item's
-  // Outputs and the check ran one way.)* **This is a different pair from [ADR 0051](../../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md)
-  // rule 4's**, which is about an adapter the FLOWS do not name and is deliberately inert: an
-  // adapter the DOCUMENT does not name cannot be reached by any flow this registry admits.
+  // Outputs and the check ran one way.)* **And since [ADR 0096](../../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md)
+  // every adapter the document names reaches every typed pool**, so one it does not name could
+  // only ever be a pool's dead weight — no flow this registry admits can name it.
   for (const [what, named, given] of [
     ['predicate', resolved.predicates, suppliedPredicateNames],
     ['language', new Set(resolved.languages.keys()), Object.keys((code.languages ?? {}) as Readonly<Record<string, unknown>>)],
@@ -443,7 +451,7 @@ export function createRuntime(
   }
 
   // (4) The pools, through the derivation `resolveRegistry` already ran and checked — `bootstrap`
-  //     builds one per instance and writes each type's transforming languages into its config.
+  //     builds one per instance and writes EVERY registered language into its config (ADR 0096 rule 2).
   const nodeTypes: Record<string, NodeTypeDefinition> = {};
   for (const [name, def] of resolved.nodeTypes) nodeTypes[name] = def;
   const pools: Record<string, { type: string; config?: unknown }> = {};
@@ -475,7 +483,6 @@ export function createRuntime(
   const built = bootstrap({ workers, nodeTypes, pools }, namedByPools, {
     ...(options.createPool !== undefined ? { createPool: options.createPool } : {}),
     languages: languages as Languages,
-    flows: options.flows ?? [],
   });
 
   // The scheduler holds every group the document declared, pool-named and node-named alike.
@@ -505,13 +512,23 @@ export function createRuntime(
     ...(code.gateTypes !== undefined ? { gateTypes: code.gateTypes } : {}),
   };
 
-  // **Which languages each type's pools were BUILT with** — what `start` holds an incoming flow to.
-  // Read from `transformLanguagesByType` over the SAME flows `bootstrap` was given: one function,
-  // two callers, one input. *(It read them back off `built.workerPools[name].config` at first, which
-  // is a `WorkerManager` in production and whatever the pool seam returns at ladder L1 — so the
-  // check was blind behind the seam and every transforming flow was refused. Caught on the suite's
-  // first run.)*
-  const builtLanguages = transformLanguagesByType(options.flows ?? []);
+  // **What `check` validates a flow against: the driver's own reading of THIS registry**, derived once
+  // — ADR 0096 rule 4. `new Driver` builds exactly this from the object it is handed (predicates by
+  // NAME, `groups` as a set, the rest through the validator's own normalisers), and every driver this
+  // runtime builds is handed `registry`, so a flow `check` accepts is a flow the driver's validation
+  // accepts. The registry-side checks the driver also makes — `FD-V30` and `FD-V31` on a type,
+  // `checkRegistry`, `FD-V36` on a language — read nothing of a flow, and `resolveRegistry` already
+  // held them above (P37 fact 6).
+  const validatorRegistry: Registry = {
+    predicates: new Set(predicates.keys()),
+    groups: new Set(registry.groups ?? []),
+    nodeTypes: nodeTypesOf(registry.nodeTypes),
+    languages: languagesOf(registry.languages),
+    workers: workersOf(registry.workers),
+    pools: poolsOf(registry.pools),
+    ...(registry.gateTypes !== undefined ? { gateTypes: registry.gateTypes } : {}),
+  };
+  const check = (flow: FlowDefinition): Finding[] => validateDefinition(flow, validatorRegistry);
 
   let minted = 0;
   /**
@@ -539,6 +556,7 @@ export function createRuntime(
     scheduler,
     pools: built.derived,
     groups,
+    check,
     start(flow, payload, startOptions = {}) {
       return openRun(flow, payload, startOptions, null);
     },
@@ -563,27 +581,20 @@ export function createRuntime(
    * **One run opened — by `start` from a payload, or by `resume` from a checkpoint — and the ONE place a runtime builds a
    * `Driver`.** Both doors share it so that every `StartOptions` member reaches a resumed driver by the same road it reaches a
    * started one (`test/scheduler/runtime.test.ts` binds the literal below both ways), and so that the run id in use, the
-   * transform refusal and `done` cannot differ between the two.
+   * flow's refusal and `done` cannot differ between the two.
    */
   function openRun(flow: FlowDefinition, payload: unknown, startOptions: StartOptions, from: Checkpoint | null): RunHandle {
-    // **A transform this runtime built no pool for is refused HERE, not met by the wrapper.** The
-    // languages a pool carries were decided at construction from `options.flows` (W61), so a flow
-    // arriving now with a transform on a type whose pool carries no such adapter would fail every
-    // task of that node with `language "…" is not loaded in this pool`, one run in.
-    for (const [type, langs] of transformLanguagesByType([flow])) {
-      // An UNREGISTERED type is `FD-V32` at `new Driver` and not this refusal's business; a
-      // registered one that transformed in no construction flow carries NOTHING, which is the case
-      // this exists for. *(Read as one `undefined` at first, so the empty case skipped the check
-      // and every unbuilt transform started — caught by this suite's own negative fixture.)*
-      if (!resolved.nodeTypes.has(type)) continue;
-      const carried = builtLanguages.get(type) ?? new Set<string>();
-      for (const lang of langs) {
-        if (!carried.has(lang)) {
-          throw new LanguageNotBuilt(type, `flow ${q(flow.flowId)} declares transform.lang ${q(lang)} on a node of type ${q(type)}, ` +
-            `and this runtime's pools for that type carry ${carried.size ? [...carried].sort().map(q).join(', ') : 'no language'} — ` +
-            'pools are built once, so pass every flow this runtime will run as `flows` to createRuntime');
-        }
-      }
+    // **The flow is refused FROM `check`, before a run id is minted or a driver built** — ADR 0096 rule 5. The
+    // error is the one `new Driver` throws for the same findings — `InvalidDefinition`, the findings' rule ids and the
+    // same message — so a caller catching it is unchanged, and `check` and `start` read one call and cannot disagree.
+    // `new Driver` below validates again, for a driver built by hand; on this road it finds nothing.
+    const findings = check(flow);
+    if (findings.length) {
+      throw new InvalidDefinition(
+        violatedRules(findings),
+        `definition "${flow.flowId}" is invalid: ` +
+          findings.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
+      );
     }
     const runId = startOptions.runId ?? mint();
     if (inUse.has(runId)) {

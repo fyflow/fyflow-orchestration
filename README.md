@@ -252,11 +252,16 @@ const signature = signatureOf('Summarise', SESSION_WORKERS.summarise);
 console.log(signature.split('\n').filter((l) => l.startsWith('export')).join('\n'));
 if (!signature.includes('"text": string;')) throw new Error('the required key is required in the type too');
 
-// STEP 6 — and only now the runtime. Pools are built ONCE, so a flow whose transform was decided
-// during the session has to reach `createRuntime` as `flows`, or `start` throws `LanguageNotBuilt`
-// naming the type. Check, then build.
+// STEP 6 — and only now the runtime. A runtime IS its registry: every typed pool carries every
+// language the registry names, so a flow whose transform was decided during the session needs
+// nothing passed in advance (ADR 0096). Check it against the runtime that will run it, then start
+// it — `start` refuses from that same check.
 const wired: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: good } : n)) };
-const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE, flows: [wired] });
+const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE });
+const refused = runtime.check(wired);
+if (refused.length !== 0) throw new Error(`the runtime refuses the wired flow: ${JSON.stringify(refused)}`);
+const unknownLang: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: { lang: 'nope', expr: '$' } } : n)) };
+if (!runtime.check(unknownLang).some((f) => f.rule === 'FD-V35' && f.at === 'sum')) throw new Error('a language the registry does not name is FD-V35, at check');
 const state = await runtime.start(wired, { source: 'inbox' }).done;
 await runtime.shutdown();
 console.log(state.outcome, Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result);  // completed { words: 3 }

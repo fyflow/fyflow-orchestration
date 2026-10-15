@@ -127,7 +127,7 @@ for (const inline of [false, true]) {
     { id: 'shout', kind: 'task', type: 'Greeter', settings: { say: '!' }, transform: { lang: 'jsonata', expr: '{ "text": $uppercase(text) }' }, edges: [{ to: 'done' }] },
     { id: 'done', kind: 'end', outcome: 'completed' },
   ] };
-  const rt = createRuntime(registry, { languages: { jsonata } }, { base: import.meta.url, flows: [flow] });
+  const rt = createRuntime(registry, { languages: { jsonata } }, { base: import.meta.url });
   const state = await rt.start(flow, { text: 'hello' }).done;
   await rt.shutdown();
   const shout = Object.values(state.nodes).find((n) => n.nodeId === 'shout');

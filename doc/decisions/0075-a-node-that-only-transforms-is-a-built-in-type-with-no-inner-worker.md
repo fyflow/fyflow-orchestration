@@ -219,7 +219,10 @@ occurrences in code).
    P26 prediction 4 says this item does not remove it, and it does not.
 3. **A `Transform` node needs `flows` passed to `createRuntime`**, because it always transforms (fact
    5). Without them `start` refuses with `LanguageNotBuilt` naming the type — loudly, which is the
-   behaviour this ADR relies on rather than changes.
+   behaviour this ADR relies on rather than changes. ***Amended 2026-10-15 by
+   [ADR 0096](0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md) (W162): `flows` and
+   `LanguageNotBuilt` are removed, and the built-in's pool carries every registered language as every
+   typed pool does — a `Transform` node needs nothing passed.***
 4. **`nodeTypesOf`'s reading MOVED**: absent `nodeTypes` was EMPTY and is now the BUILT-INS ALONE. Any
    code or test asserting *absent means no types* is false, and `FD-V32`'s detail now names the built-in
    as what IS registered — so that rule's *the registry declares no node types* arm is DELETED, because

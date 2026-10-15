@@ -11,25 +11,27 @@
  * it is instantiated here member by member, because the rule ENUMERATES its values
  * (`doc/workflow.md` section 5 rule 8 obligation (a) at v0.17).
  */
-import { AssertionError, collected, deepEqual, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { AssertionError, collected, deepEqual, equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
 import {
   BUILT_IN_GROUP_FACTORIES, createRuntime, GROUP_MEMBERS, GroupNotBuildable, GroupUnusable,
-  LanguageNotBuilt, RunIdInUse, RuntimeError,
+  RunIdInUse, RuntimeError,
 } from '../../src/scheduler/runtime.ts';
-import type { StartOptions } from '../../src/scheduler/runtime.ts';
+import type { RuntimeRegistry, StartOptions } from '../../src/scheduler/runtime.ts';
 import { bootstrap, ENVELOPE_WORKER_URL } from '../../src/scheduler/bootstrap.ts';
 import { BUILT_IN_GROUP_TYPES, DerivationRefused, GateTypeRefused, GroupTypeMissing, NameCollision, NameMissing, WorkerMissing } from '../../src/definition/registry.ts';
 import type { GateType } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 import { arrivalCount, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import { canonical, describeFindings } from '../../src/definition/schema.ts';
-import { Driver, ResumeRefused } from '../../src/driver/driver.ts';
+import { BoundaryRefused, Driver, InvalidDefinition, ResumeRefused } from '../../src/driver/driver.ts';
+import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
+import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from '../definition/corpus-types.ts';
 import type { Checkpoint } from '../../src/driver/driver.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { ResourceGroup } from 'fyflow-scheduler';
 import { emptyState, fold, isTerminal, step } from '../../src/fold/run-state.ts';
 import type { FoldInput, RunState } from '../../src/fold/run-state.ts';
-import type { FlowDefinition, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
+import type { Finding, FlowDefinition, LanguageAdapter, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
 /**
  * **`BUILT_INS` is ADDED to the pool and type expectations below rather than written into them** —
@@ -484,7 +486,17 @@ suite('W66 — decision 10: start() mints a run id, defaults the policy, and han
   });
 });
 
-suite('W66 — decision 13: the languages a pool carries come from the FLOWS, and start refuses one it was not built for', (test) => {
+/**
+ * **W162 — a runtime's languages are its REGISTRY's, and `start` refuses from `runtime.check`** —
+ * [ADR 0096](../../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md), P37
+ * decision 3 and stop-and-asks (a) and (b). Re-cut from W66's *decision 13* suite, which asserted the rule this
+ * reverses (a language reached a pool only through the `flows` given at construction, and `start` refused
+ * `LanguageNotBuilt` otherwise). **Expected values are the document and code literals here and the spec's corpus
+ * file names, never the runtime's output**: a pool carries the languages the document names, each the adapter's
+ * worker half; a refused flow's rule is the one its corpus file is named for; and `start`'s refusal is held to the
+ * error `new Driver` throws by hand over `runtime.registry` — a second route, not a second definition.
+ */
+suite('W162 — every typed pool carries the registry`s languages, and start refuses from runtime.check (ADR 0096)', (test) => {
   const TRANSFORMING: FlowDefinition = {
     flowId: 't', version: 1, entry: 'a',
     nodes: [
@@ -494,21 +506,55 @@ suite('W66 — decision 13: the languages a pool carries come from the FLOWS, an
   } as unknown as FlowDefinition;
   const withLang = edited((d) => { (d as Record<string, unknown>).languages = ['path']; });
   const code: RegistryCode = { languages: { path: PATH_LANGUAGE } };
-
-  test('a type some node of which transforms gets the adapter`s WORKER url in its pool config; with no flows, no pool carries one', () => {
-    const withFlows = seams();
-    createRuntime(withLang, code, { createPool: withFlows.createPool, createScheduler: withFlows.createScheduler, flows: [TRANSFORMING] });
-    for (const p of consumerPools(withFlows.pools)) {
-      equal(Object.keys((p.options.config as { languages?: object }).languages ?? {}), ['path'], 'every instance of the transforming type carries the adapter`s worker url');
+  const OTHER: LanguageAdapter = { compile: () => {}, worker: 'test://other-language.js' };
+  const twoLangs = edited((d) => { (d as Record<string, unknown>).languages = ['path', 'other']; });
+  const both: RegistryCode = { languages: { path: PATH_LANGUAGE, other: OTHER } };
+  /** A scheduler that holds nothing — what `new Driver` is handed BY HAND, the second route to the same refusal. */
+  const inert = { addTask() {}, addEventListener() {} };
+  /** What `new Driver` throws for `flow` over `runtime.registry` — the error `start` must reproduce, read by a different road. */
+  const byHand = (registry: RuntimeRegistry, flow: FlowDefinition): InvalidDefinition | null => {
+    try {
+      new Driver(flow, { ...registry, runId: 'hand', scheduler: inert, joinPolicy: liveToken });
+      return null;
+    } catch (e) {
+      if (e instanceof InvalidDefinition) return e;
+      throw e;
     }
-    const noFlows = seams();
-    createRuntime(withLang, code, { createPool: noFlows.createPool, createScheduler: noFlows.createScheduler });
-    for (const p of noFlows.pools) {
-      ok(!('languages' in (p.options.config as object)), 'and with no flows declared, no pool config carries a languages key at all');
+  };
+
+  test('EVERY pool — the default and named instances of the declared type, and the built-in — carries exactly the registry`s languages, both ways with runtime.registry.languages, each the adapter`s worker URL', () => {
+    const s = seams();
+    const r = createRuntime(twoLangs, both, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const registered = Object.keys(r.registry.languages as Record<string, LanguageAdapter>).sort();
+    equal(registered, ['other', 'path'], 'the runtime`s registry names the document`s two languages');
+    equal(s.pools.length, Object.keys(r.pools).length, 'one recorded pool per pool the runtime derived');
+    ok(s.pools.length === BUILT_INS.length + 2, 'the two instances of Scorer plus the built-ins — so the loop below reaches a pool with no inner worker');
+    for (const p of s.pools) {
+      const carried = (p.options.config as { languages?: Record<string, string> }).languages ?? {};
+      const names = Object.keys(carried).sort();
+      equal(registered.filter((n) => !names.includes(n)), [], 'no registered language is missing from a pool');
+      equal(names.filter((n) => !registered.includes(n)), [], 'and no pool carries a language the registry does not name');
+      for (const n of names) equal(carried[n], (both.languages as Record<string, LanguageAdapter>)[n]!.worker, `${n}: the URL is the adapter's worker half`);
     }
   });
 
-  test('F13: a type transforming in TWO languages is held to BOTH — one built is not enough', () => {
+  test('a registry naming NO language builds no pool carrying a `languages` key — the pool options it built before W162 (P18 fact 5`s capture, asserted above, is unmoved)', () => {
+    const s = seams();
+    createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    ok(s.pools.length > 0 && s.pools.every((p) => !('languages' in (p.options.config as object))), 'no pool config carries a languages key');
+    const c = seams();
+    createRuntime(withLang, code, { createPool: c.createPool, createScheduler: c.createScheduler });
+    ok(c.pools.every((p) => 'languages' in (p.options.config as object)), 'CONTROL: the same document naming one language puts the key on every pool');
+  });
+
+  test('a TRANSFORMING flow the runtime was never shown starts — in one language and in two — and `createRuntime` takes no `flows`', () => {
+    const s = seams();
+    const r = createRuntime(withLang, code, { createPool: s.createPool, createScheduler: s.createScheduler });
+    equal(r.check(TRANSFORMING), [], 'check: nothing refused');
+    const { driver: d } = r.start(TRANSFORMING, { confidence: 0.9 });
+    equal(s.added.map((t) => t.id), [`${d.runId}:a:-:0`], 'one task, dispatched');
+    equal(Object.keys(s.added[0]!.payload as object).sort(), ['input', 'settings', 'transform'], 'with the transform as the third key — FD-C6');
+    // W66's F13 case, inverted: a type transforming in TWO languages, neither announced, starts.
     const two = {
       flowId: 'two', version: 1, entry: 'a',
       nodes: [
@@ -517,38 +563,178 @@ suite('W66 — decision 13: the languages a pool carries come from the FLOWS, an
         { id: 'done', kind: 'end', outcome: 'completed' },
       ],
     } as unknown as FlowDefinition;
-    const one = { ...two, nodes: [two.nodes[0]!, two.nodes[2]!] } as unknown as FlowDefinition;
-    const doc = edited((d) => { (d as Record<string, unknown>).languages = ['path', 'other']; });
-    const both: RegistryCode = { languages: { path: PATH_LANGUAGE, other: PATH_LANGUAGE } };
-    // Built for the FIRST language only: the second must still be refused at start, on the same type.
-    const s = seams();
-    const r = createRuntime(doc, both, { createPool: s.createPool, createScheduler: s.createScheduler, flows: [one] });
-    let err: unknown;
-    try { r.start(two, {}); } catch (e) { err = e; }
-    ok(err instanceof LanguageNotBuilt && (err as Error).message.includes('"other"'),
-      'the language the pools do NOT carry is named: ' + ((err as Error)?.message ?? 'nothing'));
-    const okSeams = seams();
-    createRuntime(doc, both, { createPool: okSeams.createPool, createScheduler: okSeams.createScheduler, flows: [two] }).start(two, {});
-    equal(okSeams.added.length, 1, 'and with both flows declared, the flow starts');
+    const t = seams();
+    const r2 = createRuntime(twoLangs, both, { createPool: t.createPool, createScheduler: t.createScheduler });
+    equal(r2.check(two), [], 'check: nothing refused for a flow transforming in both');
+    r2.start(two, {});
+    equal(t.added.length, 1, 'and it starts');
+    // ADR 0096 rule 3: the option is GONE, so passing it fails to COMPILE — the `@ts-expect-error` fails `typecheck`
+    // the day `flows` comes back — and at run time it is an unread key.
+    // @ts-expect-error — `flows` was removed from `RuntimeOptions` by W162
+    const ignored = createRuntime(withLang, code, { createPool: seams().createPool, createScheduler: seams().createScheduler, flows: [] });
+    equal(ignored.check(TRANSFORMING), [], 'and passing it anyway changes nothing');
   });
 
-  test('start REFUSES a transforming flow the runtime built no language for, naming the type, the language and the fix', () => {
+  test('check returns every finding, and start throws exactly them as `new Driver` would — InvalidDefinition, the same rules, the same message — dispatching nothing and spending no run id', () => {
     const s = seams();
     const r = createRuntime(withLang, code, { createPool: s.createPool, createScheduler: s.createScheduler });
+    // Two defects in one flow, so `check` is seen returning ALL of them rather than the first: an unregistered
+    // language (FD-V35) and an unregistered type (FD-V32).
+    const bad = {
+      flowId: 'bad', version: 1, entry: 'a',
+      nodes: [
+        { id: 'a', kind: 'task', type: 'Scorer', transform: { lang: 'nope', expr: 'x' }, edges: [{ to: 'b' }] },
+        { id: 'b', kind: 'task', type: 'Nobody', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    let found: Finding[] = [];
+    let threwFromCheck: unknown = null;
+    try { found = r.check(bad); } catch (e) { threwFromCheck = e; }
+    equal(threwFromCheck, null, 'check does not throw for a flow`s defect');
+    equal(violatedRules(found), ['FD-V32', 'FD-V35'], 'both defects, each under its rule');
+    equal(found.map((f) => f.at).sort(), ['a', 'b'], 'each at its node');
     let err: unknown;
-    try { r.start(TRANSFORMING, {}); } catch (e) { err = e; }
-    ok(err instanceof LanguageNotBuilt && err.at === 'Scorer', `a LanguageNotBuilt naming the type: ${(err as Error)?.constructor?.name}`);
-    const m = (err as Error).message;
-    ok(m.includes('"path"') && m.includes('flows'), `and naming the language and the fix: ${m}`);
-    equal(s.added, [], 'and nothing was dispatched');
+    try { r.start(bad, {}); } catch (e) { err = e; }
+    ok(err instanceof InvalidDefinition, `start throws InvalidDefinition: ${(err as Error)?.constructor?.name}`);
+    const hand = byHand(r.registry, bad);
+    ok(hand !== null, 'and `new Driver` over runtime.registry refuses the same flow');
+    equal((err as InvalidDefinition).rules, violatedRules(found), 'start`s rules are check`s');
+    equal((err as InvalidDefinition).rules, hand!.rules, 'and new Driver`s, by hand');
+    equal((err as Error).message, hand!.message, 'and its message is new Driver`s, to the byte');
+    equal(s.added, [], 'nothing was dispatched');
+    equal(r.start(FLOW, {}).driver.runId, 'r1', 'and the next start mints r1 — the refusal spent no run id');
   });
 
-  test('the same flow, with the runtime told about it, starts', () => {
+  test('`check` EXCLUDES the payload`s refusal (FD-R4) and the run id`s (RunIdInUse) — each is start`s alone, by name', () => {
+    const guarded = edited((d) => { (d.workers.w as Record<string, unknown>).inputSchema = { type: 'object', required: ['text'] }; });
     const s = seams();
-    const r = createRuntime(withLang, code, { createPool: s.createPool, createScheduler: s.createScheduler, flows: [TRANSFORMING] });
-    const { driver: d } = r.start(TRANSFORMING, { confidence: 0.9 });
-    equal(s.added.map((t) => t.id), [`${d.runId}:a:-:0`], 'one task, dispatched');
-    equal(Object.keys(s.added[0]!.payload as object).sort(), ['input', 'settings', 'transform'], 'with the transform as the third key — FD-C6');
+    const r = createRuntime(guarded, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    equal(r.check(FLOW), [], 'check: a flow whose entry worker requires `text` is not refused — no payload is involved');
+    throws(() => r.start(FLOW, {}), 'text', 'start with a payload lacking it is refused');
+    let err: unknown;
+    try { r.start(FLOW, {}); } catch (e) { err = e; }
+    ok(err instanceof BoundaryRefused, `and that refusal is FD-R4's BoundaryRefused: ${(err as Error)?.constructor?.name}`);
+    r.start(FLOW, { text: 'x' }, { runId: 'taken' });
+    equal(r.check(FLOW), [], 'check, after a run id is taken: still nothing — the run id is not the flow`s');
+    let used: unknown;
+    try { r.start(FLOW, { text: 'x' }, { runId: 'taken' }); } catch (e) { used = e; }
+    ok(used instanceof RunIdInUse, `and start naming that id is RunIdInUse: ${(used as Error)?.constructor?.name}`);
+  });
+
+  test('ORDER on start: an invalid flow is InvalidDefinition even with a run id IN USE or outside ID-R2`s charset — check runs before both (the readers` shared finding)', () => {
+    const s = seams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    r.start(FLOW, {}, { runId: 'taken' });
+    const broken = { ...FLOW, nodes: FLOW.nodes.map((n) => (n.id === 'a' ? { ...n, type: 'Nobody' } : n)) } as unknown as FlowDefinition;
+    for (const [label, runId] of [['a run id in use', 'taken'], ['a run id outside ID-R2`s charset', 'a:b']] as const) {
+      let err: unknown;
+      try { r.start(broken, {}, { runId }); } catch (e) { err = e; }
+      ok(err instanceof InvalidDefinition, `${label}: InvalidDefinition, not the run id's refusal — got ${(err as Error)?.constructor?.name}: ${(err as Error)?.message}`);
+      equal((err as InvalidDefinition).rules, ['FD-V32'], `${label}: the flow's rule`);
+    }
+    // CONTROL: the same two run ids on a VALID flow are each refused by their own rule, so the pair above discriminates.
+    throws(() => r.start(FLOW, {}, { runId: 'taken' }), 'in use', 'control: a valid flow with the id in use is RunIdInUse');
+    throws(() => r.start(FLOW, {}, { runId: 'a:b' }), 'a:b', 'control: a valid flow with a bad id is ID-R2`s');
+    let bad: unknown;
+    try { r.start(FLOW, {}, { runId: 'a:b' }); } catch (e) { bad = e; }
+    ok(!(bad instanceof InvalidDefinition), `control: and ID-R2's refusal is not an InvalidDefinition: ${(bad as Error)?.constructor?.name}`);
+  });
+
+  test('`resume` refuses an invalid flow from the same call, before any driver — and the run id is not spent', () => {
+    const s = seams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const { driver } = r.start(FLOW, {});
+    const checkpoint = driver.checkpoint();
+    // Same flow id and version, so the header is not what refuses it; its one node names a type nobody registered.
+    const broken = { ...FLOW, nodes: FLOW.nodes.map((n) => (n.id === 'a' ? { ...n, type: 'Nobody' } : n)) } as unknown as FlowDefinition;
+    const fresh = seams();
+    const r2 = createRuntime(DOC, {}, { createPool: fresh.createPool, createScheduler: fresh.createScheduler });
+    let err: unknown;
+    try { r2.resume(broken, checkpoint); } catch (e) { err = e; }
+    ok(err instanceof InvalidDefinition && err.rules.includes('FD-V32'), `resume throws InvalidDefinition FD-V32: ${(err as Error)?.message}`);
+    equal(err && (err as InvalidDefinition).rules, violatedRules(r2.check(broken)), 'its rules are check`s');
+    const { driver: again } = r2.resume(FLOW, checkpoint);
+    equal(again.runId, checkpoint.header.runId, 'and the same checkpoint resumes on that runtime under its own id — the refusal spent nothing');
+    // **Discriminating (the adequacy reader's F2)**: on the runtime that ALREADY holds the run id, the broken flow is
+    // still InvalidDefinition — `check` runs inside `openRun` before `RunIdInUse`, so a resume that skipped it (and
+    // left the flow to `new Driver`) would be refused RunIdInUse here instead.
+    let held: unknown;
+    try { r.resume(broken, checkpoint); } catch (e) { held = e; }
+    ok(held instanceof InvalidDefinition, `on the runtime holding the id: InvalidDefinition, not RunIdInUse — got ${(held as Error)?.constructor?.name}`);
+    throws(() => r.resume(FLOW, checkpoint), 'in use', 'control: the VALID flow there is RunIdInUse, so the case above discriminates');
+  });
+
+  test('ORDER on resume: the header`s refusal and the entry payload`s clone come BEFORE check — an invalid flow behind either is refused by that, not by InvalidDefinition', () => {
+    const s = seams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const checkpoint = r.start(FLOW, {}).driver.checkpoint();
+    const fresh = () => createRuntime(DOC, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler });
+    // An invalid flow whose flowId is NOT the checkpoint's: the header refuses it first (RN-R23).
+    const otherAndBroken = { ...FLOW, flowId: 'other', nodes: FLOW.nodes.map((n) => (n.id === 'a' ? { ...n, type: 'Nobody' } : n)) } as unknown as FlowDefinition;
+    ok(fresh().check(otherAndBroken).length > 0, 'the flow IS invalid, so InvalidDefinition was available');
+    let h: unknown;
+    try { fresh().resume(otherAndBroken, checkpoint); } catch (e) { h = e; }
+    ok(h instanceof ResumeRefused, `a refused header with an invalid flow: ResumeRefused — got ${(h as Error)?.constructor?.name}`);
+    // An invalid flow with the checkpoint's own id, and an entry payload the clone refuses: DataCloneError first (RN-R15).
+    const broken = { ...FLOW, nodes: FLOW.nodes.map((n) => (n.id === 'a' ? { ...n, type: 'Nobody' } : n)) } as unknown as FlowDefinition;
+    const uncloneable = { ...checkpoint, header: { ...checkpoint.header, entryPayload: { f: () => 1 } } } as unknown as Checkpoint;
+    let c: unknown;
+    try { fresh().resume(broken, uncloneable); } catch (e) { c = e; }
+    ok(c instanceof Error && c.name === 'DataCloneError', `an uncloneable entry payload with an invalid flow: DataCloneError — got ${(c as Error)?.name}: ${(c as Error)?.message}`);
+  });
+
+  test('the removed surface is ABSENT: `LanguageNotBuilt` and `transformLanguagesByType` are exported by neither the scheduler sub-path nor the root (ADR 0096 rule 3)', async () => {
+    const sub = await import('../../src/scheduler/index.ts') as Record<string, unknown>;
+    const rootModule = await import('../../index.ts') as Record<string, unknown>;
+    for (const name of ['LanguageNotBuilt', 'transformLanguagesByType']) {
+      ok(!(name in sub), `${name} is not exported by fyflow-orchestration/scheduler`);
+      ok(!(name in rootModule), `${name} is not exported by the root`);
+    }
+    // CONTROL: the module objects are the real ones — a name each does export is found.
+    ok('createRuntime' in sub && 'RunIdInUse' in sub && 'validateDefinition' in rootModule, 'control: the sub-path and the root are read');
+  });
+
+  test('over the WHOLE spec corpus: check never throws; every invalid flow is refused naming the rule its file is named for, and start throws exactly check`s rules with new Driver`s message; every valid flow checks clean — and equals the L4 validator`s reading', async () => {
+    const EX = `${ROOT}spec/examples`;
+    const doc = JSON.parse(await readText(`${EX}/registry.json`)) as CorpusRegistryDocument;
+    // The corpus's predicates are NAMES; a runtime keys functions, so each is supplied as one that is never called here.
+    const predicates = Object.fromEntries((doc.predicates ?? []).map((n) => [n, () => true]));
+    const s = seams();
+    const r = createRuntime(doc, { predicates, languages: CORPUS_LANGUAGES }, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const l4 = corpusRegistry(doc);
+    const invalid = (await listDir(`${EX}/invalid`)).filter((n) => n.endsWith('.flow.json')).sort();
+    const valid = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort();
+    ok(invalid.length >= 40 && valid.length >= 20, `the corpus is not empty: ${invalid.length} invalid, ${valid.length} valid`);
+    const ran: string[] = [];
+    for (const name of invalid) {
+      const flow = JSON.parse(await readText(`${EX}/invalid/${name}`)) as FlowDefinition;
+      const named = name.slice(0, name.indexOf('--'));
+      let found: Finding[] = [];
+      let threw: unknown = null;
+      try { found = r.check(flow); } catch (e) { threw = e; }
+      equal(threw, null, `${name}: check does not throw`);
+      ok(violatedRules(found).includes(named), `${name}: check reports ${named} — got ${violatedRules(found).join(', ')}`);
+      equal(violatedRules(found), violatedRules(validateDefinition(flow, l4)), `${name}: the same rules the L4 validator reports over the corpus registry`);
+      let err: unknown;
+      try { r.start(flow, {}); } catch (e) { err = e; }
+      ok(err instanceof InvalidDefinition, `${name}: start throws InvalidDefinition`);
+      equal((err as InvalidDefinition).rules, violatedRules(found), `${name}: start's rules are check's`);
+      equal((err as Error).message, byHand(r.registry, flow)?.message, `${name}: and its message is new Driver's, by hand`);
+      ran.push(name);
+    }
+    equal(ran, invalid, 'every invalid corpus file was compared — the loop`s own membership');
+    // **The `at ?? '<document>'` branch of the message is reached by the corpus** (the adequacy reader's F5): a
+    // document-level finding (FD-V10, a cycle) carries `at: null`, and start's message names it `<document>`.
+    const cycle = JSON.parse(await readText(`${EX}/invalid/FD-V10--cycle.flow.json`)) as FlowDefinition;
+    ok(r.check(cycle).some((f) => f.at === null), 'FD-V10--cycle carries a finding at the DOCUMENT (at: null)');
+    throws(() => r.start(cycle, {}), 'FD-V10 at <document>', 'and start`s message names it `<document>`');
+    for (const name of valid) {
+      const flow = JSON.parse(await readText(`${EX}/valid/${name}`)) as FlowDefinition;
+      equal(r.check(flow), [], `${name}: a valid flow checks clean on the runtime built from the corpus registry`);
+      equal(byHand(r.registry, flow), null, `${name}: and new Driver accepts it by hand`);
+    }
+    equal(s.added, [], 'nothing was dispatched by any refused start');
   });
 
   test('BOTH WAYS: an adapter or a predicate SUPPLIED and named by no document is refused too — decision 13 (the conformity reader, finding 5)', () => {
@@ -562,7 +748,7 @@ suite('W66 — decision 13: the languages a pool carries come from the FLOWS, an
     try { createRuntime(DOC, { predicates: { isHigh: () => true } }, { createPool: p.createPool, createScheduler: p.createScheduler }); } catch (e) { perr = e; }
     ok(perr instanceof RuntimeError && (perr as Error).message.includes('"isHigh"'), `and so is the predicate: ${(perr as Error)?.message ?? 'nothing'}`);
     // The no-trip twin: named AND supplied, both ways, is what the whole suite runs on.
-    const okRt = createRuntime(withLang, code, { createPool: seams().createPool, createScheduler: seams().createScheduler, flows: [TRANSFORMING] });
+    const okRt = createRuntime(withLang, code, { createPool: seams().createPool, createScheduler: seams().createScheduler });
     equal([...(okRt.registry.languages as Record<string, unknown> instanceof Map ? [] : Object.keys(okRt.registry.languages as Record<string, unknown>))], ['path'], 'named and supplied: resolved');
   });
 
@@ -1028,7 +1214,7 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
     equal(sorted(s.supplied), ['runId', 'scheduler'], 'road (a): the two the runtime supplies, and nothing else');
     ok(s.registry.includes('predicates'), 'road (b) carries predicates — decision 14');
     equal(sorted(s.runtimeOptions), ['defaultRetryPolicy', 'validateBoundaries'],
-      'road (c) is what start FORWARDS from RuntimeOptions, which is TWO — not the interface`s six, four of which are not DriverOptions members (W76 finding D)');
+      'road (c) is what start FORWARDS from RuntimeOptions, which is TWO — not the interface`s five (six until W162 removed `flows`), three of which are not DriverOptions members (W76 finding D)');
     ok(s.startPick.includes('onRegionEvent'), 'road (d) carries onRegionEvent — Q297, and this item');
     equal(s.startOwn, ['runId'], 'and StartOptions declares exactly one member in its own body');
     ok(s.spreads.length > 0 && s.defaulted.length > 0 && s.composed.length > 0,
@@ -1877,7 +2063,7 @@ suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that
  *
  * | | door | the caller |
  * |---|---|---|
- * | **I** | refused BEFORE the run begins — `InvalidDefinition`, `LanguageNotBuilt`, `BoundaryRefused` at `start` | `runtime.start` throws; `failRun` is never reached; no run exists |
+ * | **I** | refused BEFORE the run begins — `InvalidDefinition` (since W162 thrown from `runtime.check`'s findings), `BoundaryRefused` at `start` (`LanguageNotBuilt` until W162 removed it) | `runtime.start` throws; `failRun` is never reached; no run exists |
  * | **II** | refused DURING `start()` — `failRun(e)` **then `throw e`**, the caller being on the stack | `runtime.start` throws, so the caller **never receives the handle** |
  * | **III** | refused from a LISTENER — `failRun(e)` alone, a throw from a listener being discarded | the caller **holds** the handle |
  *

@@ -295,7 +295,7 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
   // loads an engine — but `createRuntime` requires the flows rather than defaulting them (W63).
   // **`delayMs: 0`** is the document override this mode exists to use: hundreds of runs want none of
   // the per-task delay the document declares for the sake of a causal settling order (W67).
-  const runtime = shared ? buildRuntime(false, [MAL], undefined, 0) : null;
+  const runtime = shared ? buildRuntime(false, undefined, 0) : null;
   const scheduler = runtime?.scheduler ?? null;
   const heap0 = heapUsed();
   const started = Date.now();
@@ -428,8 +428,8 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
 async function topology(runs: number, arity: number, sizeKib: number, shared: boolean): Promise<void> {
   // **Before the runtimes are built**, so the heap figure carries each topology's own runtimes: one, or N.
   const heap0 = heapUsed();
-  const one = shared ? buildRuntime(false, [MAL], undefined, 0) : null;
-  const runtimes = one ? [one] : Array.from({ length: runs }, () => buildRuntime(false, [MAL], undefined, 0));
+  const one = shared ? buildRuntime(false, undefined, 0) : null;
+  const runtimes = one ? [one] : Array.from({ length: runs }, () => buildRuntime(false, undefined, 0));
   const started = Date.now();
   const handles = Array.from({ length: runs }, (_, i) => {
     const rt = one ?? runtimes[i]!;
@@ -513,7 +513,7 @@ const HELD = 50;
 const HELD_FLOOR = 16 * 1024;
 const PER_RUN_CEILING = 1024;
 async function release(runs: number, arity: number, sizeKib: number, evict: boolean): Promise<void> {
-  const rt = buildRuntime(false, [MAL], undefined, 0);
+  const rt = buildRuntime(false, undefined, 0);
   const payload = payloadFor(arity, sizeKib);
   const wrong: string[] = [];
   const warm = Math.max(1, Math.floor(runs / 10));

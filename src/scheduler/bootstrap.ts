@@ -8,7 +8,7 @@
  * decision 5, [W59](../../doc/work-items/w59-what-a-node-type-is.md), [W65](../../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md);
  * **and since v0.18 the place a language adapter's WORKER half reaches a typed pool** —
  * [ADR 0051](../../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md)
- * rule 4, [W61](../../doc/work-items/w61-what-a-transform-is.md).
+ * rule 4, [W61](../../doc/work-items/w61-what-a-transform-is.md) — into EVERY typed pool since ADR 0096 (W162).
  *
  * **This sub-path is the one place the published package CONSTRUCTS a scheduler object** (`RT-R13`;
  * `createRuntime` in `./runtime.ts` is the other module in it, and it constructs the groups and the
@@ -35,17 +35,17 @@
  * nothing. Since W65 a POOL's groups are what its derivation returned (`groups` and `residentGroups`),
  * which for a document type is what the type declared.
  *
- * **The languages are written into a pool's config ONLY for a type some node of which declares a
- * transform, and only the languages those nodes name** (W61, P17 decision 3): the helper reads the
- * `flows` it is given, collects each type's transforming languages, and writes their WORKER-side
- * module URLs (`LanguageAdapter.worker`) into every instance of that type — a FUNCTION could not cross
- * to a thread and a URL can (P17 fact 7). A type whose nodes never transform gets the two-key pool
- * config it had at v0.17, so no pool loads an engine it does not use. Direction one is a refusal;
- * direction two is NOT — an adapter given that no node names is inert (ADR 0051 rule 4's asymmetry).
+ * **Every pool carries every language it is given** — [ADR 0096](../../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md)
+ * rule 2, [W162](../../doc/work-items/w162-a-runtimes-languages-are-its-registrys-and-runtime-check.md),
+ * superseding ADR 0051 rule 4. The helper writes each adapter's WORKER-side module URL
+ * (`LanguageAdapter.worker`) into EVERY pool it builds, under the language's name — a FUNCTION could
+ * not cross to a thread and a URL can (P17 fact 7). It reads no flow: a runtime's pools are built once
+ * and a flow published later may transform on any type, so which types transform is not knowable here.
+ * Given no language, every pool config is the two-key one it had at v0.17 (P18 fact 5).
  */
 import { WorkerManager } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManagerOptions } from 'fyflow-scheduler';
-import type { FlowDefinition, Languages, NodeTypeEntry, NodeTypes, Pools, ResolvedPool, TaskNode, Workers } from '../definition/types.ts';
+import type { Languages, NodeTypeEntry, NodeTypes, Pools, ResolvedPool, Workers } from '../definition/types.ts';
 import { BUILT_IN_NODE_TYPES, languagesOf, nodeTypesOf, poolsOf, workersOf } from '../definition/validate.ts';
 import { checkRegistry, ConfigRefused, derivePool, groupsNamedBy, isDerivation, nodeTypeFromDeclaration, poolOptionsOf, TypeDefaultRefused } from '../definition/registry.ts';
 
@@ -76,15 +76,10 @@ export interface BootstrapOptions {
   createPool?: PoolFactory;
   /**
    * **The registry's languages — the same object the driver is handed** (W61). Read for ONE field,
-   * `worker`, and only for the languages some node in `flows` declares on a node of each type.
+   * `worker`, and written into EVERY pool (ADR 0096 rule 2). Omitted or empty, no pool config carries
+   * a `languages` key. *(A `flows` option sat beside this until W162 and is removed — ADR 0096 rule 3.)*
    */
   languages?: Languages;
-  /**
-   * **The flows these pools will run**, read for WHICH types transform in WHICH languages. Omitted,
-   * or naming no transform, every pool config is exactly what it was at v0.17. A node naming a
-   * type this registry lacks is skipped here — it is the driver's `FD-V32`, not this helper's.
-   */
-  flows?: readonly FlowDefinition[];
 }
 
 export interface BootstrapResult {
@@ -97,26 +92,6 @@ export interface BootstrapResult {
 }
 
 const defaultCreatePool: PoolFactory = (scriptUrl, options) => new WorkerManager(scriptUrl, options);
-
-/**
- * **Which languages each type's nodes transform in, over the flows given** — the one reading of a
- * definition this helper makes. Exported so a test can compare what the helper WROTE into pool
- * configs against what the flows DECLARE, both ways (rule 8 obligation (e) on `Registry.languages`).
- */
-export function transformLanguagesByType(flows: readonly FlowDefinition[]): ReadonlyMap<string, ReadonlySet<string>> {
-  const out = new Map<string, Set<string>>();
-  for (const flow of flows) {
-    for (const n of flow.nodes) {
-      if (n.kind !== 'task') continue;
-      const t = n as TaskNode;
-      if (t.type === undefined || t.transform === undefined) continue;
-      let set = out.get(t.type);
-      if (set === undefined) { set = new Set(); out.set(t.type, set); }
-      set.add(t.transform.lang);
-    }
-  }
-  return out;
-}
 
 export function bootstrap(
   registry: BootstrapRegistry,
@@ -171,28 +146,19 @@ export function bootstrap(
         'a group a NODE names in workerGroups is registered beside this helper`s return value, not through it');
     }
   }
-  // **The languages, per type, from the flows** — W61. Every language a typed node names must
-  // have an adapter with a worker URL, checked for every type before any pool is built, as the
-  // groups are; the URLs are written only where a node declares a transform.
+  // **The languages: every adapter given, into EVERY pool** — ADR 0096 rule 2 (W162), superseding
+  // ADR 0051 rule 4's per-type reading of the flows. Each adapter must name a worker URL, checked
+  // before any pool is built, as the groups are. Sorted by name, so the key order of every pool's
+  // `languages` is the same whatever order the registry gave them in. None given: NO key at all, so a
+  // registry with no language builds exactly the pool options it built at v0.17 (P18 fact 5).
   const adapters = languagesOf(options.languages);
-  const byType = transformLanguagesByType(options.flows ?? []);
-  const languagesFor = new Map<string, Record<string, string>>();
-  for (const [name] of types) {
-    const langs = byType.get(name);
-    if (langs === undefined || langs.size === 0) continue;
-    const urls: Record<string, string> = {};
-    for (const lang of [...langs].sort()) {
-      const adapter = adapters.get(lang);
-      if (adapter === undefined) {
-        throw new BootstrapError(`node type "${name}" has a node declaring transform.lang "${lang}", and no adapter was given for it ` +
-          `(given: ${[...adapters.keys()].sort().map((x) => `"${x}"`).join(', ') || 'none'}) — the wrapper would meet the transform with nothing to evaluate it`);
-      }
-      if (typeof adapter.worker !== 'string' || adapter.worker.length === 0) {
-        throw new BootstrapError(`language "${lang}" names no worker module URL — LanguageAdapter.worker is the URL of the module whose default export compiles and evaluates it; a function cannot cross to a thread`);
-      }
-      urls[lang] = adapter.worker;
+  let languages: Record<string, string> | undefined;
+  for (const lang of [...adapters.keys()].sort()) {
+    const adapter = adapters.get(lang)!;
+    if (typeof adapter?.worker !== 'string' || adapter.worker.length === 0) {
+      throw new BootstrapError(`language "${lang}" names no worker module URL — LanguageAdapter.worker is the URL of the module whose default export compiles and evaluates it; a function cannot cross to a thread`);
     }
-    languagesFor.set(name, urls);
+    (languages ??= {})[lang] = adapter.worker;
   }
   const createPool = options.createPool ?? defaultCreatePool;
   const workerPools: Record<string, WorkerManager> = {};
@@ -200,7 +166,8 @@ export function bootstrap(
     // **`p.worker` is absent exactly when the type only transforms** (ADR 0075): the pool still loads
     // the envelope — every typed pool does — and its config carries no inner worker url, so
     // `EnvelopeWorker.setup()` loads nothing and `run()` returns the transform's own result.
-    workerPools[key] = createPool(ENVELOPE_WORKER_URL, poolOptionsOf(p.spec, p.definition.inline, p.worker?.url, languagesFor.get(p.type)));
+    // Each pool gets its OWN copy of the languages record, so no two pool configs share an object.
+    workerPools[key] = createPool(ENVELOPE_WORKER_URL, poolOptionsOf(p.spec, p.definition.inline, p.worker?.url, languages === undefined ? undefined : { ...languages }));
   }
   return { workerPools, resourceGroups: { ...groups }, derived };
 }

@@ -55,7 +55,10 @@ surface rather than about a mechanism.
 3. **`ID-R2`'s charset refusal moves to the constructor**, throwing `InvalidRunId` before anything is
    validated or queued. It joins `MissingJoinPolicy` there: a definition and a run id are both
    configuration, and ADR 0002 rule 3's argument — *validate in full before anything is queued* —
-   applies one level out.
+   applies one level out. ***Amended 2026-10-15 by
+   [ADR 0096](0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md) (W162) on the
+   RUNTIME road: `runtime.start` and `runtime.resume` refuse an invalid flow from `runtime.check` before
+   any run id is examined, so there the definition comes first. A driver built by hand is unchanged.***
 4. **`ID-R3` becomes "`start()` at most once".** With the id fixed at construction there is no
    second id to name, so `MultipleRuns` is thrown for a second `start()` of any kind.
 5. **`failedRuns` becomes a boolean and `hasFailed()` takes no argument.** A driver has one run, so
