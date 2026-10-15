@@ -1,6 +1,10 @@
 # P33 — What does a run do on `fyflow-scheduler` 0.6.0, where a task can end CANCELLED?
 
-**Status:** planning — drafted 2026-10-14 on `581d0e5`; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-15, all as recommended, (d) with decision 4's stop clause; refined 2026-10-15 against fyflow-app's ADRs (fact 9, decisions 1 and 3, scope 4) and P34-P37 drafted beside it
+**Status:** complete and retro'd 2026-10-15 — drafted 2026-10-14 on `581d0e5`, declared in `3ae2738`; stop-and-asks
+(a)-(e) ANSWERED by the maintainer 2026-10-15, all as recommended, (d) with decision 4's stop clause; refined 2026-10-15
+against fyflow-app's ADRs (fact 9, decisions 1 and 3, scope 4) and P34-P37 drafted beside it; W157, W158, W159 and W160
+done 2026-10-15; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-15 over `0fcccca`,
+and the maintainer answered its stop-and-asks (f)-(i) the same day, all as recommended but (i) (Retro section 8)
 **Question this plan answers:** *what must change so a run driven on `fyflow-scheduler` 0.6.0 folds
 every task state that scheduler can report — including the new terminal `cancelled` — and what does a
 run whose task was cancelled fold to?*
@@ -298,7 +302,325 @@ declaration.
 | [Q18](../questions/q18.md) | what cancelling a run does — **reopened by P34**, not here; both of its deferral triggers are met (S2 shipped upstream as 0.6.0's `cancel()`, and a consumer asked) | P34 |
 | [Q52](../questions/q52.md) | L6 in a browser — what `runtimeCompat`'s browser claim is qualified by | no owner — deferred |
 | [Q599](../questions/q599.md) | three timing-flaky L6 rows — prediction 2 may move them | no owner — deferred |
+| [Q174](../questions/q174.md) | the lock files bound to the pin — **resolved by W157** (`check-scheduler` `D9`) | — |
+| [Q605](../questions/q605.md) | two doors a re-entrant halt does not shut — raised by W158 | P34 |
+| [Q606](../questions/q606.md) | the runtime's `done` and release on `cancelled` — raised by W158; its L6 half met by W160 | P34 |
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Written 2026-10-15 over `0fcccca`, the tree clean before it. Every figure is read from the four items' own files;
+none is re-measured here. Ids are bare text, as in P32's Record.*
+
+**W157 — done 2026-10-15** (`f73ed3c`). Its own Record covers the census, the re-takes, both readers and the gate.
+
+- **Built**: both pins at the new version, exact, in both registries; `deno.lock` written ONCE by `deno check
+  --min-dep-age=0 index.ts src/`, and `test:l6:deno` shown to resolve the pin THROUGH THE LOCK with no flag, its control
+  (`--no-lock`) refused by Deno's minimum age. **`D7` rewritten** by the maintainer's direction (stop-and-ask (4)): the
+  pin's number is written only where something resolves or binds it, every undated statement of it reworded without
+  it, and the five retired pin sentences refused at any version; **`D9`** (after the adequacy reader's A3) binds both
+  lock files to `PIN`. Every undated line citation into the scheduler's source re-taken; `doc/concept.md` sections 2-3
+  re-verified and cut 17,124 → 16,242 bytes to stay inside its ceiling; S2 and S6 brought to what upstream shipped.
+- **Scope 4**: **no `deno.json` key** — there is no `runtimeCompat` field in Deno's config (M8; stop-and-ask (1)); the
+  intended compatibility and the one **Node 26 L6 run** (node 26.11.1, 2602 / 168, EXIT 0, recorded and not gated) are
+  in `AGENTS.md` section 11; jsr.io's setting is the maintainer's own action.
+- **Closed: Q174 resolved** (by `D9`, stop-and-ask (7)); Q3's answer moved. **Raised: none.** Q600-Q604 unused.
+- **Stop-and-asks (1)-(7)**, every one answered before its edit: exceptions E1, E2, E3, E3+, E5, E6, E7 YES (E4 unused);
+  (1) and (4) design.
+- **The readers**: conformity F1-F9, adequacy A1-A7, all acted on. **Overlap: ONE shared subject**, the ninetieth
+  measurement.
+- **Counts**: L1-L5 **58 / 1635 unmoved** in node, deno and chromium; L6 **2602 / 168 unmoved** in node and deno;
+  `check:spec` **7 / 75 / 133** unmoved.
+- **The confirming gate**: `gate:item` RED once on `check:budget:selftest` (the `B7` probe read concept.md's REAL size —
+  E7), then **`gate:item` EXIT 0** on the final tree, 868.7 s.
+
+**W158 — done 2026-10-15** (`c0816d0`). Its own Record covers the declaration step, 14 author provocations and both readers.
+
+- **Built**: ADR 0094; `task.cancelled` subscribed and recorded verbatim (`OR-R3`), `task.cancelling` recorded nowhere
+  (`OR-R4`); `TerminalState`, `NodeState`, `RunOutcome` and `ResumeRefusalReason` widened, each stated BREAKING where it
+  is widened, `RoutableState` not (`FD-V18` unmoved); `withOutcome` ranks `cancelled` below `stopped` and above
+  `awaiting_action` (`RN-R28`, new); the driver's halt a SEPARATE flag from `failRun`; `resumeRefusal`'s sixth reason at
+  the FIRST stored cancel. spec/outcome-record **v0.13**, spec/run-state **v0.15**, spec/join-policy **v0.20**; `AGENTS.md`
+  sections 6-9, 11, 12, 18; amendment notes in ADRs 0007, 0058 and 0065.
+- **Closed: none. Raised: Q605 and Q606**, both open, owner P34. Q607-Q609 unused.
+- **Exceptions E1-E5**, YES: E1-E4 at the declaration step, E5 (`RUN_FLOOR` 35 → 36) after the first `gate:item` went RED.
+  **The maintainer's decision** on the readers' shared finding: the re-entrant halt's two open doors go to P34's dispatch
+  hold (Q605), not patched for the cancel alone.
+- **The readers**: conformity F1-F7, adequacy F1-F7, all acted on or handed on. **Overlap: TWO shared subjects**, the
+  ninety-first measurement.
+- **Counts**: L1-L5 → **61 / 1682** in all three; L6 **2602 / 168** unmoved; `check:spec` → **7 / 75 / 134** (`RN-R28`).
+- **The confirming gate**: `gate:item` RED once on `check:docs:selftest` (X4 — section 6's new `run` snippet made
+  `RUN_FLOOR` stale), then **`gate:item` EXIT 0** on the final tree, 787.5 s.
+
+**W159 — done 2026-10-15** (`db2f4b0`). Its own Record covers the declaration step, 28 provocations and both readers.
+
+- **Built**: `POOL_SPEC_KEYS` gains `cancelGraceMs` and `messages`, held by `poolSpecProblem` to the scheduler's own
+  rules and stricter in two silent places (a non-PLAIN `messages`, `cancelGraceMs: null`), a stray `messages` key refused
+  because a threaded pool fails it at run time; `MESSAGE_OPTION_KEYS`; a declared `messages` copied, not aliased; `FD-C5`
+  amended — the scheduler's task context reaches the inner worker unchanged; spec/flow-definition **v0.33**;
+  `AGENTS.md` section 13.
+- **The plan row's "L6, a typed worker that sees both members" was met at the L1-L5 lanes**, on real pools inline and
+  threaded in node and deno (`test/scheduler/envelope-worker.test.ts`), because L6 is `examples/**` and `examples/l6.ts`
+  was W160's; W160 then took it at L6 too.
+- **Closed: none. Raised: none.** Q610-Q612 unused; no ADR.
+- **Exceptions E1** (`spec/README.md`'s row, `C8`) **and E2** (`LATE_SUITES`), YES, both at the declaration step.
+- **The readers**: conformity F1-F5, adequacy F1-F9. **Overlap: TWO shared subjects**, the ninety-second measurement.
+- **Counts**: L1-L5 → **62 / 1689** in all three; L6 **2602 / 168** unmoved; `check:spec` **7 / 75 / 134** unmoved.
+- **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 824.0 s self-test wall.
+
+**W160 — done 2026-10-15** (`0fcccca`). Its own Record covers the declaration step, 15 provocations in both lanes and both
+readers.
+
+- **Built**: ONE cross-row block in `examples/l6.ts`, W141's shape, on a registry written in the block: a linear flow
+  `work` → `after`, `work`'s worker emitting `started` through `context.emit` and waiting on `context.signal`. Three
+  cancelled runs — RUNNING inline, RUNNING threaded, QUEUED behind a `ConcurrentLimitGroup(1)` the harness holds — each
+  through `runtime.scheduler.cancel(id, { reason })`, and after the readers a FOURTH run, parked `user_action`, as the
+  resume refusal's control. **38 cross-row assertions**, five runs counted. `examples/l6.ts:6947`'s citation re-taken.
+- **Closed: none. Raised: none.** Q613-Q614 unused; ADR 0095 unused; W161 unused.
+- **Exceptions E1** (`examples/README.md`'s `X10` copies and run count) **and E2** (`AGENTS.md` section 12's sentence,
+  false since W158), YES, both at the declaration step. Readers' items R1-R7 directed by the coordinator.
+- **The readers**: no defect from either; conformity F1-F4, adequacy F1-F9. **Overlap: TWO shared subjects**, the
+  ninety-third measurement.
+- **Counts**: L1-L5 **62 / 1689** unmoved; L6 → **2640 / 173** in node and deno; `check:spec` **7 / 75 / 134** unmoved.
+- **The confirming gate**: **`gate:full` EXIT 0** on the final tree, the first run — 11/11 self-test lanes ok,
+  `check:register:selftest` included, 2362.9 s self-test wall, 41 m 41 s in all.
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| on the final tree, with both pins at the new version | W157; `D2`, `D3`, `D8` and `D9` bind it, and `test:l6:deno` resolves it through `deno.lock` | **met** |
+| an L6 run in node 24 and in deno in which a task is cancelled through `runtime.scheduler.cancel(id)` | W160's block, **2640 / 173, 0 failed in node 24.20.0 and deno 2.9.6**, in `npm run gate` and in `gate:full` | **met** |
+| once while RUNNING | two runs, inline and threaded: the cancel sent on the worker's `started`, its `context.signal` aborting with the reason, `forced: false` | **met, on both pool modes** |
+| and once while QUEUED behind a resource group | the cancel sent on `resource.blocked`; `task.cancelled` alone and `resource.unblocked` reason `cancelled`; the task never ran | **met** |
+| each run folds to the outcome decision 3 names | the fold sequence ends at the cancelled settlement, `after` never dispatched — read at `done`, 25 ms later and after shutdown (R2) — outcome `cancelled` | **met** |
+| its `done` settles | `done` WON the race with `cancelled`, terminal, equal to `fold(driver.foldInputs())`, with the scheduler's `task.cancelled` already heard at that callback (R1). **The runtime's RELEASE of the run is NOT asserted** — Q606's other half, P34's | **met**; the release is Q606 |
+| a resume of its checkpoint is refused by the reason decision 4 names | refused `cancelled` at position 1 on ONE fresh runtime, so `RunIdInUse` cannot be the refusal, beside a CONTROL run parked `user_action` that the same instrument resumes to `awaiting_action` (R3) | **met** |
+| every L6 row green at the old pin green at the new | W157: **2602 / 168 unmoved** in both lanes, and in 4 node and 3 deno runs at its declaration step | **met** |
+| `npm run gate:full` EXIT 0 (the LAST item runs it) | W160, ONE command on the final tree after the readers' items — P32-retro sentence C | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **58 / 1635 → 62 / 1689** in node, deno and
+chromium; L6 **2602 / 168 → 2640 / 173** in node and deno; `check:spec` **7 / 75 / 133 → 7 / 75 / 134**.
+
+**What the plan answered.** A run on the new pin **folds every task state that scheduler can report**: `cancelled` is
+the library's sixth task state and fourth terminal one, recorded verbatim and routing no edge; **a run whose task was
+cancelled folds to `cancelled`** — a seventh outcome, below `stopped` and above `awaiting_action` — dispatches nothing
+further, settles its `done` on the first cancel, and refuses a resume. **What had to change** was the listener (one
+event), four unions, the fold's precedence, one driver flag and one refusal reason (ADR 0094), and two pool options a
+type may now declare. **What it did not do** is cancel anything: the library still has no call that cancels, and a
+cancel's `done` settles before the run's other tasks stop — both P34's.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W157 moves no L1-L5 assertion | **CONFIRMED** | 58 / 1635 unmoved in all three runtimes (W157 M6 and its Record) |
+| 2 | at least one L6 row moves, and it is a TIMING row | **FALSIFIED** | no row moved — 2602 / 168 in 4 node and 3 deno runs at W157's declaration step and in its gates; **Q599's three rows did not flake in any P33 run**, W160's author and readers included (below) |
+| 3 | `resource.unblocked`'s new `'cancelled'` reason reaches no assertion | **TRUE through W159, OVERTAKEN at W160** — W160's queued run asserts `resource.unblocked:cancelled` (W160's conformity F2). The half *`src/` switches on no reason* stays true | W160 Out; `examples/l6.ts`'s queued run |
+| 4 | W158's break is LOUD where a type constrains the result, silent where a consumer compares a string | **CONFIRMED in shape, wrong about what the silent half is** — LOUD at one site (a test fake's `settle(state)`, `typecheck`); SILENT at three assertions COUNTING the driver's subscriptions, a suite census, two driver-field ratchets, two comments and a snippet floor. No silent site compared a string | W158 M2-M5 and *What broke* 1 |
+
+**Questions**: raised **Q605** and **Q606** (W158), both open, owner P34; **closed Q174** (W157, resolved by `D9`); Q3's
+answer moved to the new pin. Q18 stays P34's. `npm run q -- --where status=open` lists **Q580, Q581, Q605, Q606**.
+
+**Handed on**, each with its owner — gathered from the four items' Out sections and the readers' notes:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| a re-entrant halt does not shut a fan-out's dispatch loop or `resolve()`'s routing | W158 C-F1 / A-F2 | **P34** | [Q605](../questions/q605.md) |
+| the runtime's RELEASE of a cancelled run (ADR 0091), and a no-worker `done` case | W158 C-F7b / A-F3 | **P34** | [Q606](../questions/q606.md); its L6 `done` half met by W160 (dated note in the file) |
+| the cancel road BEFORE a thread picks the task up (`task.cancelling` with no `task.running`) | W160 A-F9 | **P34** | [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), *Constraints*, by (h) |
+| a cancel during a retry BACKOFF | W160 A-F9 | **P34** | [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), *Constraints*, by (h) |
+| stale doc comments: `src/scheduler/envelope-worker.ts:346` (*"`{ settings, input }` and nothing else"*), `src/scheduler/runtime.ts:285` (`done`'s outcomes) and `:331` (`resume`'s refusals, omitting `cancelled`) | W158 Out, W159 C-F5, W160 Out | **P34**, whose cancel lives on the runtime | [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), *Constraints*, by (h) |
+| `residentGroups` handed on AS DECLARED on the document road — a pre-existing alias | W159 C-F3 / A-F7 | **P37**, which amends the pool options (#19) — W159 named no owner | [P37's draft](p37-a-runtime-is-its-registry.md), *Constraints*, by (h) |
+| `graceMs: 0` on a threaded pool: node reads `forced: false` with the abort arriving, deno `forced: true` | W160 A-F8 | **P34**, to MEASURE at its declaration, writing an S entry if it reproduces | (g) NO S entry now; [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), *Constraints*, by (h) |
+| `messages.flushIntervalMs: 1e300` admitted by the scheduler and by us, and `setTimeout` clamps it to 1 ms | W159 A-F9 | **P37**, to BOUND in `poolSpecProblem` | (g) NO S entry now; [P37's draft](p37-a-runtime-is-its-registry.md), *Constraints*, by (h) |
+| `CLAUDE.md`'s *"Until P33's W158 the listener DROPS a cancelled task … so nothing here calls it"* | W160 Out | **this retro** | corrected at the record step (section 7) |
+
+## Retro
+
+*Pass 3 ran on 2026-10-15 over `0fcccca`, the working tree clean before it, in a subagent at the maintainer's request.
+Every figure is read from the four items' Records; this retro re-ran no gate, no harness and no measurement. **The
+proposals were put to the maintainer in section 8, and the answers are recorded there; none moves a rule in
+`doc/workflow.md`.***
+
+### 1. The asks — every one answered YES
+
+| item | widenings (rule 6), each answered | design, each answered | reader items | raised / closed |
+|---|---|---|---|---|
+| P33's declaration | — | (a)-(e), all as recommended, (d) with the stop clause | — | — |
+| W157 | E1 `AGENTS.md` §11, E2 `run-flow.ts` citation, E3 `CLAUDE.md`, E3+ two `CLAUDE.md` bullets, E5 `AGENTS.md` §18, E6 a `check-docs.mjs` comment, E7 a `check-budget` self-test probe — YES | (1) no `deno.json` key; (4) the pin's number only where it resolves; (7)'s Q174 half | 16 | — / Q174 |
+| W158 | E1 `LATE_SUITES`, E2 `runtime.test.ts`'s subscription counts, E3 L6's `DRIVER_FIELDS`, E4 a `run-flow.ts` comment, E5 `RUN_FLOOR` — YES | the re-entrant doors to P34 | 14 | Q605, Q606 / — |
+| W159 | E1 `spec/README.md`'s row, E2 `LATE_SUITES` — YES | — | 14 | — |
+| W160 | E1 `examples/README.md`'s `X10` copies, E2 `AGENTS.md` §12 — YES | — | R1-R7 | — |
+| **P33** | **16, 16 YES, 0 NO** | **9** | | **2 raised, 1 closed** |
+
+**Rule 6's NO branch has still not run** — the fourth plan running (P31 ten of ten, P32 eleven of eleven, P33 sixteen of
+sixteen). **Sixteen is the most widenings any plan has recorded**, in four items.
+
+### 2. The recurring class — the plan's `Owns` missed the same sites
+
+| class | the exceptions | found |
+|---|---|---|
+| a suite census, `test/definition/l4-corpus.test.ts` `LATE_SUITES` | W158 E1, W159 E2 | declaration step |
+| `spec/README.md`'s version row (`C8`) — owned by W157's and W158's rows, not W159's | W159 E1 | declaration step |
+| `examples/README.md`'s L6 counts (`X10`) | W160 E1 | declaration step |
+| `AGENTS.md` sections outside the item's own | W157 E1, E5; W160 E2 | declaration step |
+| a ratchet or a count in a test or L6 | W158 E2, E3 | declaration step |
+| **a floor or a fixture only a SELF-TEST reads** | **W157 E7** (`check:budget:selftest`'s `B7` probe), **W158 E5** (`RUN_FLOOR`, `check:docs:selftest`) | **the first `gate:item`, RED** |
+| stale prose or a comment | W157 E2, E3, W158 E4 (declaration); **W157 E3+, E6** (the readers) | mixed |
+
+**P32-retro sentence B was FOLLOWED and it worked for every lane** — twelve of sixteen sites found in the byte copy before
+`Owns` was written (P32: late sites three, two, zero). **It did not work for the two floors only a self-test reads**,
+because B's copy runs `npm run gate` and `gate` runs no self-test — W158's *What this taught* says exactly that. **Two
+occurrences, two items** (pass 3 rule 2): proposal B′ below. *The two prose sites the readers found are the class the
+refusal ledger's first row covers.*
+
+**Sentence C was FOLLOWED and held**: each item ran `npm run gate` before its readers and one confirming gate after them.
+**Two of the four confirming gates went RED first**, both on B's gap above, and were paid twice — W157 868.7 s and W158
+787.5 s on the green run. *A self-test red inside a confirming gate: 2*, after three plans at 0. C's own pricing named this
+cost (*"a self-test red is a check's, not the product's"*).
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W157 | F1-F9 | A1-A7 | **1** | 90th |
+| W158 | F1-F7 | F1-F7 | **2** | 91st |
+| W159 | F1-F5 | F1-F9 | **2** | 92nd |
+| W160 | F1-F4, no defect | F1-F9, no defect | **2** | 93rd |
+
+**All four inside the 0-4 band. The ordinal is now NINETY-THREE and the next measurement is the NINETY-FOURTH**; the
+band's *fifty-nine* stays, as P28's-P32's retros held it. **The readers are the mechanism for the eighth plan running**:
+W158's re-entrant doors (Q605) were a CONSTRUCTION no mutation of the item's code could reach; W159's *"a non-object is
+refused"* was false in prose and found by both; W160's declared control could not fail where its claim was vacuous,
+found by both, after the author's eleven provocations passed it.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) B's census misses a self-test floor** (W157 E7, W158 E5) | FOLLOWED | the first `gate:item` | **two occurrences — proposal B′** |
+| **(b) a control cut from the claim's own input** (W160: the checkpoint cut before any settlement) | FOLLOWED section 5 rule 8 (d)'s v0.21 and v0.22 clauses — and missed | both readers | **No change**: one occurrence, and the clause already says it (*a control must fail where its claim is VACUOUS*); W160's *What this taught* is the reading |
+| **(c) a claim read too late to see its own failure** (W160 R1, R2) | — no rule speaks to it | the adequacy reader, by mutation | **No change**: one occurrence; rule 8 (c) PROVENANCE is the nearest clause |
+| **(d) a measurement generalised from one arrangement** (W157 M14, `shutdown()` and a backoff) | BROKEN — section 1 rule 5's *write* direction | the conformity reader | **No change**: the rule exists |
+| **(e) stale prose a correct change makes false** (`CLAUDE.md`'s fact; `runtime.ts`, `envelope-worker.ts` comments; W157 F3, F6) | — | readers, the next item, this retro | **No change**: the class is the ledger's first row, considered and not proposed (section 6) |
+
+**Pass 3 rule 5 over P33's defects**, by what caught them: **a rung in `gate`** — the censuses (L1, L6, `C8`, `X10`),
+`G6` on `D7`'s first form, `B2`/`B3` on concept.md, `typecheck` on W158's fake, `lint` on W160's unused import, chromium's
+page error in W159; **a self-test inside a confirming gate** — W157's `B7`, W158's `X4`; **the conformity readers** — 25
+findings over four items; **the adequacy readers** — 32; **this retro** — `CLAUDE.md`'s scheduler fact, already named by
+W160's Out.
+
+**The flaky rows ([Q599](../questions/q599.md)).** **None went red in any P33 run**: W157's seven declaration runs and its
+gates; W160's ten node and nine deno author runs before the readers, the gates and probe controls after, and the
+adequacy reader's ~28 node and ~13 deno runs. That is a SAMPLE on a quieter machine — Q599's own caveat — and it falsifies
+prediction 2. A dated note is added to Q599; it stays deferred.
+
+### 5. The scheduler observations — not written to `doc/scheduler-upstream.md`
+
+| observation | what we do without it | why not an S entry now |
+|---|---|---|
+| (a) `cancel(id, { graceMs: 0 })` on a threaded pool: node reads `forced: false` with the abort arriving, deno `forced: true` (W160 A-F8) | nothing in `src/` or L6 passes `graceMs`; W160 asserts `forced: false` only under the default 2000 ms grace | **measured once, by a reader, in scratch, and asserted nowhere** — a written claim nobody re-ran. P34's cancel may pass a grace; it measures this at its declaration step |
+| (b) `messages.flushIntervalMs: 1e300` admitted by the scheduler, and `setTimeout` clamps a delay above 2^31-1 to 1 ms — the largest interval flushes fastest (W159 A-F9) | W159's `poolSpecProblem` admits it too; nothing in this repository declares one | **we can refuse it ourselves**, as `poolSpecProblem` already does where the scheduler is silent (W159 choice 3) — P37's pool-option work (#19) |
+
+**An S entry needs an S id, and P33 reserved none.** Both observations satisfy the register's rule — each states what we
+do without it — so writing them is a question, put as stop-and-ask (g).
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE.** Rule 6 did what it was adopted for (section 1); every census a lane reads
+was found before its edit (section 2); no rule followed in P33 failed in a way a new WORKFLOW rule would fix.
+
+**B′. Recommended, for the NEXT plan's declaration, not the workflow: sentence B, amended** — *an item that adds a node, a
+field, a suite, a module, a snippet or a flow builds its change in a byte copy and runs every lane BEFORE writing its
+`Owns` — and, where the change adds or removes an executed snippet or moves the size of an always-read document, the
+self-test that reads that floor (`check:docs:selftest`, `check:budget:selftest`) as well.*
+- **Replaces**: P32-retro sentence B in P34's declaration.
+- **Saves**: the two RED confirming gates of section 2 — each a full `gate:item` repaid — for one self-test lane in the
+  copy, run only when the change is of that kind.
+- **Would no longer catch**: nothing; the confirming gate still runs every self-test.
+
+**C. Recommended, carried UNCHANGED into the next plan's declaration**: *an item runs `npm run gate` (the ladder) before
+its readers, and its confirming gate — `gate:item`, or the last item's `gate:full` — runs ONCE, after the reader items,
+on the final tree.* It held in all four items (section 2).
+
+**D. Recommended, for the NEXT plan's AUTHOR, not the workflow: the plan's index row names, for each item, the census
+sites its kind of change moves** — from section 2's table: a new suite → `test/definition/l4-corpus.test.ts`; a spec
+version → `spec/README.md`'s row; an L6 assertion or run → `examples/README.md`'s `X10` copies; an executed snippet →
+`scripts/check-docs.mjs`'s `RUN_FLOOR`; a driver field → `examples/l6.ts`'s and `test/driver/retention.test.ts`'s
+`DRIVER_FIELDS`; a fact `AGENTS.md` states → **the whole of `AGENTS.md`**, not the item's own sections.
+- **Saves**: about half of P33's sixteen asks, each a maintainer's YES the serial plan waited for.
+- **Ledger**: kin to *an `Owns` pre-declaration rule*, refused 14 times on the ground that a rung finds the late file
+  before its edit — **which held again: every one of the sixteen was found before its edit.** So D is a list in the
+  author's hands, enforced by nothing; **as a rule or a check it would be that row's fifteenth refusal**, and this retro
+  does not propose it as one.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it would be the 32nd refusal, P2-P33.** Section 4 (e) is the class:
+  `CLAUDE.md`'s fact, three source comments and W157's two reader-found prose sites, each made false by a correct change.
+  The row's standing ground holds. **No other ledger row is re-raised**; D is explicitly not the `Owns` row's proposal.
+
+| file | why |
+|---|---|
+| this plan | the Status line; Q174, Q605 and Q606 into *Open questions this plan carries*; this Record and Retro |
+| `CLAUDE.md` | the one scheduler fact W160's Out named — *"Until P33's W158 the listener DROPS a cancelled task and its run never ends, so nothing here calls it"* — corrected to what is true: a cancelled task ends its run, `src/` calls no `cancel`, ladder L6 does. A false fact fixed; no status (ADR 0077) |
+| `doc/questions/q606.md` | a dated note: its L6 clause (*W160's L6 cancel rows await `done`*) is met; the runtime half stays P34's |
+| `doc/questions/q599.md` | a dated note: P33's runs, none red |
+| `README.md` | one row in *More examples*: a task cancelled by its id, `AGENTS.md` section 6 |
+| `doc/workflow.md` | the bookkeeping below, and nothing else |
+
+**The bookkeeping made in `doc/workflow.md`** (P32's precedent: no new version): the Status line, *THIRTY-THREE times, by
+P1 through P33*; section 6, *ninety-three, so the next is the NINETY-FOURTH*; the refusal ledger's first row, *32 times,
+P2-P33*. **P33 does NOT join the Status line's *adopted nothing* list** — the maintainer's answer to (i), section 8.
+
+**Ids.**
+
+- **Issued**: W157, W158, W159, W160; ADR 0094; Q605 and Q606.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3):
+  - W161 CLOSED unissued, as the declaration expected;
+  - Q600-Q604 SPENT (W157's), Q607-Q609 SPENT (W158's), Q610-Q612 SPENT (W159's), Q613-Q614 SPENT (W160's). None exists
+    in the tree;
+  - ADR 0095 SKIPPED — no item needed a second decision.
+
+**The next plan starts at W162, Q615 and ADR 0096.**
+
+*`npm run state` before this section printed the tree's W161 / Q607 / ADR 0095 against the ledger's W157 / Q600 /
+ADR 0094, the ledger being P32's sentence. The tree's maximum is wrong exactly here, because P33 closed W161, Q607-Q614
+and ADR 0095 unissued (P32's precedent for W156 and ADR 0093). If the maintainer's answer to (g) takes an id, it is an
+S id, which this sentence does not carry.*
+
+### 8. Stop-and-asks for the maintainer
+
+| | the question | recommended | the alternative |
+|---|---|---|---|
+| **(f)** | proposals A, B′, C and D (section 6) | **A, B′, C and D** — B′, C and D as sentences in P34's declaration, no workflow edit | any subset; B′ as a workflow rule would amend section 4's *pay once* paragraph |
+| **(g)** | do the two scheduler observations (section 5) become S entries now? | **NO S entry for either now**: (a) goes to P34 to MEASURE at its declaration step — it writes S11 then, reserving the id, if it reproduces; (b) goes to P37, which bounds `flushIntervalMs` in `poolSpecProblem` and decides whether a want remains | write S11 and S12 now, NOT RAISED, on S10's form — this retro would take two S ids no plan reserved, and (a) would rest on one reader's scratch run |
+| **(h)** | the hand-offs of the Record's table that no register file carries. **Exact edits**: P34's draft, *Constraints found by the 2026-10-14 evaluation*, gains four bullets — **the cancel road before a thread picks the task up** (`task.cancelling` with no `task.running`, the scheduler's reference section 6) and **a cancel during a retry backoff**, each a row P34's L2 or L6 exercises (W160 A-F9); **the stale comments** `src/scheduler/envelope-worker.ts:346`, `src/scheduler/runtime.ts:285` and `:331` (W158 Out, W159 C-F5); **`graceMs: 0`'s runtime difference**, measured at declaration (W160 A-F8) — and its *Open questions* table gains Q605 and Q606, owner P34. P37's draft, *Constraints*, gains two — **`residentGroups` aliased on the document road** (W159 C-F3 / A-F7) and **`flushIntervalMs` above 2^31-1** (W159 A-F9) | **YES, those edits and nothing else** — `doc/plans/p34-*` and `p37-*` are outside this retro's files, so it does not make them | leave them in this Record alone, where P34's and P37's authors must find them |
+| **(i)** | P33 onto `doc/workflow.md`'s *adopted nothing* list | **YES, if (f) is answered as recommended** — B′, C and D move no rule (P31 section 10's reading of that list) | no — if any proposal becomes a rule, the version index takes v0.31 instead |
+
+**The maintainer's answer, 2026-10-15: *"as recommended"* — and (i) answered NO.**
+
+- **(f) YES — A, B′, C and D.** **A**: no change to any rule in `doc/workflow.md`; v0.30 stands and takes no index
+  entry. **B′, C and D are ADOPTED FOR THE NEXT PLAN'S DECLARATION, not as rules** — *the author of P34 copies all three
+  into its declaration*, as P33 copied P32's B and C:
+  - **B′ — the census re-take, with the self-test floors**: *an item that adds a node, a field, a suite, a module, a
+    snippet or a flow builds its change in a byte copy and runs every lane BEFORE writing its `Owns` — and, where the
+    change adds or removes an executed snippet or moves the size of an always-read document, the self-test that reads
+    that floor (`check:docs:selftest`, `check:budget:selftest`) as well* (section 2; it replaces P32's B).
+  - **C — one confirming gate per item**, unchanged: *an item runs `npm run gate` (the ladder) before its readers, and
+    its confirming gate — `gate:item`, or the last item's `gate:full` — runs ONCE, after the reader items, on the final
+    tree.*
+  - **D — the census sites in the plan's row**, a note for the plan's AUTHOR and not a rule: *the plan's index row
+    names, for each item, the census sites its kind of change moves — a new suite → `test/definition/l4-corpus.test.ts`;
+    a spec version → `spec/README.md`'s row; an L6 assertion or run → `examples/README.md`'s `X10` copies; an executed
+    snippet → `scripts/check-docs.mjs`'s `RUN_FLOOR`; a driver field → `examples/l6.ts`'s and
+    `test/driver/retention.test.ts`'s `DRIVER_FIELDS`; a fact `AGENTS.md` states → the whole of `AGENTS.md`.* Enforced
+    by nothing; not the `Owns` row's proposal.
+- **(g) NO S entries now.** The `graceMs: 0` difference goes to **P34**, to MEASURE at its declaration and to write an
+  S entry if it reproduces; the `flushIntervalMs` clamp goes to **P37**, to BOUND in `poolSpecProblem`. Both are in the
+  Record's hand-off table with those owners. `doc/scheduler-upstream.md` is unedited.
+- **(h) YES** — the four rows in P34's draft (*Constraints*) and its two question rows (Q605, Q606), and the two rows in
+  P37's draft (*Constraints*), the second being (g)'s `flushIntervalMs` bound. Made at this record step.
+- **(i) NO** — P33 adopted B′ and D, so it does not go on the Status line's *adopted nothing* list. **The maintainer's
+  reading differs from P31 section 10's**, under which declaration sentences moved no rule and P32 joined the list; it
+  is recorded as given, and `doc/workflow.md`'s Status line keeps its six names.

@@ -68,6 +68,19 @@ request fold. This plan builds the ones it DOES request.
 - **A cancelled `FyflowTask` cannot be re-added**; a new one may reuse the id (scheduler 0.6.0
   `AGENTS.md`) — a resume on the SAME runtime after a stop builds new task objects.
 
+*Handed on by [P33](p33-what-a-run-does-when-a-task-ends-cancelled.md)'s Record, by the maintainer's answer to its
+retro's stop-and-ask (h), 2026-10-15:*
+
+- **The cancel road BEFORE a thread picks the task up** — `task.cancelling` with no `task.running` (the scheduler's
+  reference, section 6) — is exercised by no rung; a row at L2 or L6 here (W160's adequacy F9).
+- **A cancel during a retry BACKOFF** is exercised by no rung; a row at L2 or L6 here (W160's adequacy F9).
+- **Three stale doc comments**: `src/scheduler/envelope-worker.ts:346` (*"`{ settings, input }` and nothing else"* —
+  `FD-C5` says the task context is passed too), `src/scheduler/runtime.ts:285` (`done`'s outcomes) and `:331`
+  (`resume`'s refusals, omitting `cancelled`) — W158's Out, W159's conformity F5.
+- **`cancel(id, { graceMs: 0 })` on a threaded pool** read `forced: false` with the abort arriving in node and
+  `forced: true` in deno, once, in a reader's scratch run (W160's adequacy F8). **MEASURED at this declaration**; if it
+  reproduces, this plan writes an S entry in `doc/scheduler-upstream.md`, reserving its id (P33 stop-and-ask (g)).
+
 ## Scope (draft)
 
 **In** — `driver.cancel`, a per-run stop on the `RunHandle` or runtime, `pause`/`unpause`; their fold
@@ -82,6 +95,8 @@ cancelling tasks a worker spawned itself.
 | Q | | Owner |
 |---|---|---|
 | [Q18](../questions/q18.md) | what cancelling a run does — reopened here | P34 |
+| [Q605](../questions/q605.md) | two doors a re-entrant halt does not shut — closed by this plan's dispatch hold | P34 |
+| [Q606](../questions/q606.md) | the runtime's release of a cancelled run, and a no-worker `done` case — its L6 half met by P33's W160 | P34 |
 
 ## Record
 

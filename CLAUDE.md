@@ -256,8 +256,8 @@ this list if it matters.
 - **Reusing a task id overwrites, silently.** Our id scheme is a correctness rule with a refusal
   test, not a convention (Q13).
 - **A task CAN be cancelled at the pin, queued or running** — `scheduler.cancel(id)`
-  ([S2](doc/scheduler-upstream.md), shipped). Until P33's W158 the listener DROPS a cancelled task and its run
-  never ends, so nothing here calls it; what cancelling a RUN does is P34's (Q18).
+  ([S2](doc/scheduler-upstream.md), shipped). A cancelled task ends its run `cancelled` and settles `done`
+  (ADR 0094); `src/` calls no `cancel`, ladder L6 does; what cancelling a RUN does is P34's (Q18).
 - `scheduler.completed` fires **every time the scheduler drains** — with a flow it will fire between
   steps routinely. It is not "the run finished".
 - `onCompleteDescendants()` is **not a join**: transitive over lineage, but a failing descendant does

@@ -58,6 +58,16 @@ options (**#19**); and strips `writeOnly` from every schema before we see it (`w
   rate limit may briefly be exceeded and a model loaded in `setup()` is loaded twice. Recorded as a
   consequence of decision 1, not built.
 
+*Handed on by [P33](p33-what-a-run-does-when-a-task-ends-cancelled.md)'s Record, by the maintainer's answer to its
+retro's stop-and-asks (g) and (h), 2026-10-15:*
+
+- **`residentGroups` is handed on AS DECLARED on the document road** — a declared pool object aliased, not copied, a
+  pre-existing alias W159 left as found and stated in `nodeTypeFromDeclaration`'s comment (W159's conformity F3,
+  adequacy F7). #19 touches that derivation.
+- **`messages.flushIntervalMs` above 2^31-1** is admitted by the scheduler and by `poolSpecProblem`, and `setTimeout`
+  clamps such a delay to 1 ms — the largest interval flushes fastest (W159's adequacy F9). **BOUND it in
+  `poolSpecProblem`** (P33 stop-and-ask (g)); whether a scheduler want remains is decided then.
+
 ## Answered here, not built
 
 | # | ask | answer |
