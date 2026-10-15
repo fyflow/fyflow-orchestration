@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.31 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.32 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -36,6 +36,8 @@ holds something that is not an array"* to W33 by name and reserved no rule id fo
 refusal and shipped it with no rule anywhere in `spec/`; the id is taken now, beside `FD-R1`, which is
 this document's precedent for a rule about what a RUN does. **No `FD-V` changed and no node kind
 changed.**
+
+**v0.32 is [W157](../doc/work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and it moves no rule.** The scheduler pin moved, and `core/FyflowScheduler.ts` is not byte-identical at the new pin, so each UNDATED line citation into it here — a citation at the version we pin, `spec/README.md` rule 6 — is re-taken there: section 2's citation of the `optional` branch (`:894-897` and `:1130-1133` to `:1151-1154` and `:1545-1548`). The CLAIM each supports was re-read and still holds; the lines under it moved, and the file around them changed.
 
 **v0.10 is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under
 [P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it is the OTHER of section 2's two
@@ -507,7 +509,7 @@ run-level outcome vocabulary is run state's, not the definition's ([Q25](../doc/
 
 That is not a convention laid over the library — it is the library's own branch. A task that fails
 with no retries left reaches `state = 'failed'` **only** inside `if (task.optional)`
-(`../fyflow-scheduler/core/FyflowScheduler.ts:894-897`, and again at `:1130-1133`); otherwise it
+(`../fyflow-scheduler/core/FyflowScheduler.ts:1151-1154`, and again at `:1545-1548`); otherwise it
 reaches `user_action` and **suspends** (ADR 0004 rule 3).
 
 **Both kinds of node can route through an `on: ["failed"]` edge, by different roads**, and this is

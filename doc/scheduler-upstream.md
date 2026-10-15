@@ -6,8 +6,13 @@ comment. One row per item, `S1`, `S2`, ... - never reused, never renumbered.
 **Every item must state what we do without it.** An item with no workaround is not a want, it is a
 blocker, and it belongs in a plan instead.
 
-**One item here has been raised by us — S9, and it was fixed the same day.** Pinned to `fyflow-scheduler` **0.5.2** (landed 2026-09-07, pinned 2026-09-08;
-0.3.0 from 2026-08-30 until then).
+**One item here has been raised by us — S9, and it was fixed the same day.** Pinned to one exact
+`fyflow-scheduler` version — `package.json` names it and `npm run state` prints it. **This register
+never says which version is pinned NOW**; every version number in it is a RELEASE — what upstream
+shipped, and when this repository adopted it — and stays as written when the pin moves (W157). The pin
+history: 0.3.0 from 2026-08-30, 0.5.1 from 2026-09-07, 0.5.2 from
+2026-09-08, and 0.6.0 from 2026-10-15
+([W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md)), which shipped [S2](#s2---cancel-a-queued-task).
 Line references are against **0.5.2** unless a row says otherwise — and `core/FyflowScheduler.ts` is
 **byte-identical to 0.3.0**. *(This said `core/threadWrapper.ts` was byte-identical too. **It is not,
 at either version**: `sha256` differs at 0.3.0, 0.5.1 and 0.5.2, and the 0.5.1 file is a 99-line diff
@@ -27,8 +32,9 @@ had checked; it is only **0.3.0** that is unpublished, on either. That is what f
 **Every item but [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) is closed, deferred, or declined — S10 is not raised — and [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
 is the ONLY ONE THIS REGISTER HAS EVER RAISED - and it was fixed the same day.** 0.3.0 settled four
 without us asking - S4 implemented, S7 fixed, S8 declined and documented - and S1 was answered
-directly by the maintainer on 2026-08-30. S5 stays deferred with a costless workaround; S2 and S6
-wait for a real need. **S9 was found by W5**, the first work item to load the library rather than a
+directly by the maintainer on 2026-08-30. S5 stays deferred with a costless workaround; **S2 shipped
+in 0.6.0** without us asking — fyflow-app asked — and S6 waits for P34. S10 is unchanged at 0.6.0
+(W157). **S9 was found by W5**, the first work item to load the library rather than a
 structural stand-in for it, which is the argument for ladder L6 in one sentence.
 
 **S9 was raised on 2026-09-07 and fixed in 0.5.2 the same day** ([W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md)).
@@ -48,11 +54,11 @@ the last section.
 | S | Want | Blocks us? | Status |
 |---|---|---|---|
 | [S1](#s1---spawntaskconfigparents-is-declared-and-never-read) | Remove or implement `SpawnTaskConfig.parents` | no | ✅ **answered - dead, will be removed** |
-| [S2](#s2---cancel-a-queued-task) | Cancel a queued task | no - it caps what "cancel" can mean | not raised |
+| [S2](#s2---cancel-a-queued-task) | Cancel a queued task | no longer | ✅ **shipped in 0.6.0** — `scheduler.cancel(id)`, queued AND running, asked for by fyflow-app's scheduler pass 1; never raised by us. Adopted by [W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md); folded by P33, used by P34 |
 | [S3](#s3---a-join-or-barrier-primitive) | A join/barrier primitive | **declined by us** | will not raise |
 | [S4](#s4---scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **done in 0.3.0** |
 | [S5](#s5---an-event-when-maxcompletedtasks-evicts-a-task) | An event when eviction happens | no | **still deferred at 0.3.0** |
-| [S6](#s6---pause-and-resume) | Pause and resume | no - not in the first set | not raised |
+| [S6](#s6---pause-and-resume) | Pause and resume | no - pause is P34's, at our layer | not raised; **not in 0.6.0** (W157) |
 | [S7](#s7---exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
 | [S8](#s8---freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
 | [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - and the reason CHANGED: Node reads npm's `dist/` because that is what an npm consumer gets, no longer because it *cannot* read the source | **RAISED 2026-09-07 and FIXED in 0.5.2 the same day** - the only item this register has ever raised, closed by [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). *(The rest of this cell is the record as it stood when it was raised.)* Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
@@ -171,6 +177,20 @@ worker interrupt exists) and is **not** part of this - queued-only is the useful
 the run cancelled, and **let in-flight and queued work finish while ignoring its results**. Q18
 exists to make sure we document that rather than claim more.
 
+> **SHIPPED IN 0.6.0, and more than was asked** — measured by
+> [W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) in 0.6.0's own `AGENTS.md` §5
+> and source. `scheduler.cancel(taskId, { reason, graceMs })`: a task still WAITING — queued, blocked
+> on a group, or in a retry backoff — is removed and never runs; a RUNNING one fires
+> `task.cancelling`, has its `context.signal` aborted, and is forced after the pool's
+> `cancelGraceMs` on a threaded pool (an inline run cannot be interrupted). Either way it ends in a
+> sixth state, `cancelled`, with `task.cancelled` alone — no `task.failed`, no retry, no requeue — and
+> its promise rejects with `CancelledError`, an optional task's too. **The running half is the ask
+> above called *a much larger ask* and left out.** It came from fyflow-app's scheduler pass 1, not
+> from this register, so S9 is still the only item we have raised. **What it costs us before P33
+> lands**: the listener does not subscribe `task.cancelled` and its `TERMINAL` set has no
+> `cancelled`, so a cancelled task is DROPPED and its run never ends (P33 fact 1). The *What we do
+> without it* paragraph above is the record of 0.5.2; what a run does with a cancel is P34's.
+
 ## S3 - A join or barrier primitive
 
 **Declined - by us, before asking.** Recorded so it is not re-proposed.
@@ -253,6 +273,13 @@ design.
 **What we do without it.** Pause at our layer: stop dispatching new nodes and hold routing
 decisions. In-flight tasks and anything already queued still run, which is the same partial honesty
 as [S2](#s2---cancel-a-queued-task) and has the same fix.
+
+> **Not in 0.6.0** — measured by [W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md):
+> neither its `AGENTS.md` nor its source has a pause. **What 0.6.0 changes for the workaround**: the
+> second half of the sentence above no longer holds, because [S2](#s2---cancel-a-queued-task) shipped
+> — a pause at our layer could cancel what it queued and re-dispatch it on resume, at the price of a
+> cancelled task's lost progress. Whether it does is P34's (#14), which also decides whether a pause
+> needs this want at all.
 
 ## S7 - exit (c) drops a blocked task silently
 

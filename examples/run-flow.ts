@@ -1154,7 +1154,7 @@ export interface ForeignTask {
    *
    * `ID-R5` at L6 had only ever been reached from `task.completed`, because every
    * foreign task W19 injected ran a worker that returns. Only an **optional** task
-   * can settle `failed` (`core/FyflowScheduler.ts:894-897`), so a foreign task
+   * can settle `failed` (`core/FyflowScheduler.ts:1151-1154`), so a foreign task
    * that throws needs this flag or it ends `user_action` instead — which is a
    * third event name and a different question again.
    */

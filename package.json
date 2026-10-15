@@ -126,12 +126,12 @@
   "devDependencies": {
     "@types/node": "^24.13.3",
     "esbuild": "^0.25.12",
-    "fyflow-scheduler": "0.5.2",
+    "fyflow-scheduler": "0.6.0",
     "playwright": "^1.62.1",
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
-    "fyflow-scheduler": "0.5.2"
+    "fyflow-scheduler": "0.6.0"
   },
   "dependencies": {
     "jsonata": "2.2.2"

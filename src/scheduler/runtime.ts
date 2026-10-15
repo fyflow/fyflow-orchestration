@@ -127,6 +127,10 @@ export const BUILT_IN_GROUP_FACTORIES: Readonly<Record<string, (config: unknown,
  * **What a created group must carry.** The first three are what the scheduler CALLS on the acquire
  * path, the last three what the interface requires and a viewer reads — the union, by the
  * maintainer's decision at W66's declaration step. `EventTarget` is deliberately not required.
+ * **The `why` strings say "measured on 0.5.2" and stay dated**: W157 re-read the current pin's source
+ * rather than re-running the table above — `onStart`/`onFinish` are still optional in
+ * `ResourceGroup` (`groups/resourceGroup.ts:114`, `:117`) and still called unguarded
+ * (`core/FyflowScheduler.ts:894`, `:976`), so S10 stands unchanged.
  */
 export const GROUP_MEMBERS: readonly { readonly name: string; readonly kind: 'function' | 'string'; readonly why: string }[] = [
   { name: 'canRun', kind: 'function', why: 'the scheduler calls it before every admission; a group without it throws on the first task' },

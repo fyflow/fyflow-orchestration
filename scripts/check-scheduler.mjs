@@ -9,8 +9,8 @@
 // TypeScript source, and this file existed to stop the two diverging by a stale
 // build. **Both registries now carry the pin**, so:
 //
-//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@0.5.2  -> dist/
-//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@0.5.2 -> source
+//   Node   node_modules/fyflow-scheduler   npm  fyflow-scheduler@<PIN>  -> dist/
+//   Deno   examples/deno-import-map.json   JSR  @fyflow/scheduler@<PIN> -> source
 //
 // **What that removes.** A published tarball cannot go stale against a source it
 // no longer ships, so the old D3/D4 mtime comparison has nothing to compare and
@@ -43,7 +43,7 @@
 // [Q141](../doc/questions/q141.md), which survived twelve green probes because no
 // probe could supply a `.d.ts` the parse cannot read.
 
-import { existsSync, lstatSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -55,7 +55,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * rather than reading a diff. That reference ships inside the npm package, so it
  * is at `node_modules/fyflow-scheduler/AGENTS.md` rather than next door.
  */
-const PIN = '0.5.2';
+const PIN = '0.6.0';
 
 /** The JSR package Deno resolves the same specifier to. */
 const JSR_NAME = '@fyflow/scheduler';
@@ -63,7 +63,7 @@ const JSR_NAME = '@fyflow/scheduler';
 const failures = [];
 const fail = (check, msg) => failures.push(`${check}: ${msg}`);
 /** Which checks actually executed. See the reporting block at the bottom. */
-const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false, D7: false, D8: false };
+const ran = { D1: false, D2: false, D3: false, D4: false, D5: false, D6: false, D7: false, D8: false, D9: false };
 /** The version the Deno half pins, for the report. `null` until `D3` parses one. */
 let jsrPin = null;
 const rel = (p) => relative(ROOT, p).replace(/\\/g, '/');
@@ -371,86 +371,177 @@ if (process.argv.includes('--self-test')) {
   }
 }
 
-// --- D7: the NORMATIVE layer names the version we actually pin ----------------
+// --- D7: the pin's NUMBER is written only where something resolves it ----------
 //
-// **The hole this closes was measured on this item, before a single document was
-// edited.** The pin moved 0.5.1 -> 0.5.2 in `package.json`, the import map and
-// `PIN`, and `npm run gate` was **`GATE EXIT=0` with zero FAIL lines** — while
-// `spec/README.md` rule 6 still said *"a file and line at 0.5.1, the version we
-// pin"*, `AGENTS.md` still said *"Pin the scheduler at 0.5.1"*, and four more
-// `spec/` documents cited 0.5.1 as current. **`D2` compares `package.json` to
-// `PIN` and stops at the manifest**; nothing carried the pin into the layer that
-// tells a consumer what to install.
+// **W157, the maintainer's direction: "reduce the places where we quote the exact
+// scheduler version".** Until W157 this check bound FIVE sentences to REPEAT the pin —
+// `spec/README.md` rule 6, `AGENTS.md`, `README.md`, `doc/concept.md` and
+// `examples/README.md` — by capture-and-compare (W37, and its adequacy reader's
+// rewrite of an `includes` form that was green when the pin was wrong). That answered
+// *"does every copy agree"* and multiplied the copies: each bump was five more edits,
+// and the eleven documents W37 found naming the old pin were eleven copies nothing
+// bound. **The rule is now the other way round: the number lives where something
+// RESOLVES or BINDS it, and a document names the pin without it** — `package.json`
+// says what it is, and `npm run state` prints it.
 //
-// **Two sentences, chosen because each is a STATEMENT OF THE PIN rather than a
-// mention of a version.** `spec/` is full of legitimate references to 0.3.0 and
-// 0.5.1 — every re-dating paragraph is one — so a check that refused any other
-// version would refuse the record of how we got here. These two say *this is what
-// we pin*, in the two documents a consumer reads first, and nothing else does.
+// **RESOLVING** — the manifests an installer or a runtime reads, and this file's own
+// `PIN`. **RECORDS** — dated by construction: an item, a plan, a decision, a question,
+// and the upstream register, whose rows date what upstream shipped. **SCANNED** — every
+// file at the root, and everything under the six top-level directories this repository
+// writes: `doc/`, `spec/`, `src/`, `test/`, `examples/` and `scripts/`, less the RECORDS.
+// A declared list rather than *everything less a skip list*, because the skip list would
+// name the shared scratch directory — whole-tree COPIES that must never be read as the
+// tree (ADR 0072) — and the installed dependencies; neither is a top-level directory
+// this repository writes. **Its holes, stated**: a NEW top-level directory is not scanned
+// until it is added here; `.github/` exists and is not walked (its workflows are `.yml`,
+// which no extension here admits); and a RESOLVING file is skipped WHOLE except for the
+// free-text fields in `NOTES`, which are read as prose — the import map's `_note` and
+// `package.json`'s `description` (W157's adequacy reader, A2).
 //
-// This is rule 8's obligation (e) in the shape the last three items have been
-// walking into: `D2` binds the manifest, `D3` binds the two pins against each
-// other, `D6` binds the commands that consume them — and none of them binds what
-// the documents SAY the pin is.
-//
-// **CAPTURE AND COMPARE, not `includes` — W37's adequacy reader, BLOCKING, and the
-// first form of this check failed at the thing it was built for.**
-//
-// It asked *does the right sentence appear*. It never asked *does a wrong one*. So
-// with `Pin the scheduler at 0.5.2.` followed by `Pin the scheduler at 0.5.1.` in
-// the same paragraph, `D7` printed **`ok`** — a document holding two contradictory
-// install instructions, which is the **leftover neighbour** this item's own
-// Verification section names as its central risk and its Record admits reproducing
-// within the hour. It also passed when the live statement said 0.5.1 and the
-// phrase was supplied from an HTML comment or a fenced code block, and it **failed**
-// when the live statement was reworded correctly (a comma to an em dash). *Green
-// when the pin was wrong, red when it was right.*
-//
-// So each site declares a PATTERN with the version captured. Every occurrence must
-// equal `PIN`, and there must be at least one — the second clause is what stops an
-// empty file passing, and the first is what stops a stale sibling.
-//
-// **The consequence is a stated constraint: the pin-statement grammar is RESERVED
-// for the live statement.** Recording an old pin is fine and this document is full
-// of it; recording one *in this exact sentence form* is not, because that form is
-// what a consumer reads as an instruction. The failure message says so.
+// **What is refused: the CURRENT pin's number on a line that speaks of the scheduler or
+// the pin.** The line filter is not decoration: this package's OWN version history
+// names numbers the scheduler later reaches — `AGENTS.md`'s own breaking-change
+// paragraphs and `spec/flow-definition.md`'s package-version notes, measured at W157 —
+// and a bare-number rule refuses them. **Its holes, stated rather than closed** (W157's
+// adequacy reader, A4-A6): the pin's number on a line that names neither the scheduler nor
+// the pin passes — and so does one WRAPPED onto the line after the word (*"pinned to"* then
+// the number at the start of the next line); a SHORTENED number (`0.6`, `0.6.x`) is not the
+// pin's token and passes; and the five retired sentences are matched in their exact
+// spelling, so a reworded one passes. The line filter does not name `jsr:` or `npm:`: every
+// specifier of this package carries the word *scheduler* (`fyflow-scheduler`,
+// `@fyflow/scheduler`), so they added no line the word does not. And a DATED claim in a living
+// document cannot name the current pin either — it names the item that measured it,
+// whose file carries the version; once the pin moves on, the old number is history and
+// writable again.
 {
-  const sites = [
-    ['spec/README.md', /at \*\*(\d+\.\d+\.\d+)\*\*, the version we pin/g],
-    ['AGENTS.md', /Pin the scheduler at (\d+\.\d+\.\d+)\./g],
-    // **Three more, added by the same reader.** Each states the pin in a grammar as
-    // bindable as the two above, and each was measured moving to a wrong version for
-    // **0** failures: the repository's front page, the concept document's own
-    // constraint list, and the L6 README that states both halves of the two-road
-    // split. [Q175](../doc/questions/q175.md) had called the first two unbound
-    // *citations*; they are statements, and its enumeration is corrected.
-    ['README.md', /is pinned to \*\*(\d+\.\d+\.\d+)\*\* and installed from/g],
-    ['doc/concept.md', /We pin \*\*(\d+\.\d+\.\d+)\*\* \(Q3\)/g],
-    ['examples/README.md', /Node installs `fyflow-scheduler@(\d+\.\d+\.\d+)` from/g],
+  const RESOLVING = new Set([
+    'package.json', 'package-lock.json', 'deno.json', 'deno.lock', 'examples/deno-import-map.json',
+  ]);
+  const RECORDS = ['doc/work-items/', 'doc/plans/', 'doc/decisions/', 'doc/questions/', 'doc/scheduler-upstream.md'];
+  const SCAN_DIRS = new Set(['doc', 'spec', 'src', 'test', 'examples', 'scripts']);
+  const EXTENSIONS = /\.(md|ts|mjs|js|json|html)$/;
+  const SPEAKS = /scheduler|\bpin/i;
+  const SELF = 'scripts/check-scheduler.mjs';
+  const pinToken = new RegExp(`(^|[^\\d.])${PIN.replace(/\./g, '\\.')}(?![\\d]|\\.\\d)`);
+  // **And the five RETIRED pin sentences, at ANY version.** The number rule above sees
+  // only the CURRENT pin, so after a bump a reinstated *"Pin the scheduler at <old>."* is
+  // invisible to it — which is W37's measured state (the gate green with eleven documents
+  // naming the old pin) arriving by the other road. These are the grammars D7 bound until
+  // W157; each states the pin as an INSTRUCTION, and none is written again.
+  const RETIRED = [
+    /at \*\*\d+\.\d+\.\d+\*\*, the version we pin/,
+    /Pin the scheduler at \d+\.\d+\.\d+/,
+    /is pinned to \*\*\d+\.\d+\.\d+\*\* and installed from/,
+    /We pin \*\*\d+\.\d+\.\d+\*\* \(Q3\)/,
+    /Node installs `fyflow-scheduler@\d+\.\d+\.\d+` from/,
   ];
-  for (const [rel_, re] of sites) {
-    let text = null;
+  const found = [];
+  const retired = [];
+  let scanned = 0;
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join(dir, entry.name);
+      const r = rel(abs);
+      if (entry.isDirectory()) {
+        if ((dir === ROOT && !SCAN_DIRS.has(entry.name)) || RECORDS.includes(`${r}/`)) continue;
+        walk(abs);
+        continue;
+      }
+      if (!entry.isFile() || !EXTENSIONS.test(entry.name)) continue;
+      if (RESOLVING.has(r) || RECORDS.includes(r)) continue;
+      let text;
+      try {
+        text = readFileSync(abs, 'utf8');
+      } catch {
+        continue;
+      }
+      scanned++;
+      text.split(/\r?\n/).forEach((line, i) => {
+        if (r === SELF && /^const PIN = '\d+\.\d+\.\d+';$/.test(line)) return;
+        if (pinToken.test(line) && SPEAKS.test(line)) found.push(`${r}:${i + 1}`);
+        if (RETIRED.some((re) => re.test(line))) retired.push(`${r}:${i + 1}`);
+      });
+    }
+  };
+  walk(ROOT);
+  // **The free-text fields of the RESOLVING files, read as prose** — A2. The import map's
+  // `_note` restated the pin's number until W157, in a file skipped whole as resolving; an
+  // unreadable file is skipped silently, because `D2` and `D3` own that clause.
+  const NOTES = [['examples/deno-import-map.json', '_note'], ['package.json', 'description']];
+  for (const [r, key] of NOTES) {
+    let value;
     try {
-      text = readFileSync(join(ROOT, rel_), 'utf8');
-    } catch (e) {
-      fail('D7', `${rel_} is unreadable, so the pin cannot be checked against it: ${e.message}`);
+      value = JSON.parse(readFileSync(join(ROOT, r), 'utf8'))?.[key];
+    } catch {
       continue;
     }
-    ran.D7 = true;
-    const found = [...text.matchAll(re)].map((m) => m[1]);
-    if (found.length === 0) {
-      fail('D7', `${rel_} states the pin nowhere: nothing matches ${re}. A normative document that ` +
-        'has stopped saying which version to install cannot go stale, and cannot be read either');
-      continue;
+    if (typeof value !== 'string') continue;
+    if (pinToken.test(value) && SPEAKS.test(value)) found.push(`${r} "${key}"`);
+    if (RETIRED.some((re) => re.test(value))) retired.push(`${r} "${key}"`);
+  }
+  ran.D7 = true;
+  // **Vacuous at zero.** A walk that reads nothing passes everything; this tree holds
+  // hundreds of scanned files, so a handful means the walk broke, not that the tree shrank.
+  if (scanned < 100) {
+    fail('D7', `scanned ${scanned} file(s) for the pin's number — the walk is broken, and a check ` +
+      'that reads nothing cannot find a stale copy');
+  }
+  if (retired.length) {
+    fail('D7', `a retired pin STATEMENT is written again, at ${retired.join(', ')} — one of the five ` +
+      'sentence forms that stated the pin with its number until W157. A document names the pin without ' +
+      'its number; an old pin is recorded in prose, never as an instruction');
+  }
+  if (found.length) {
+    fail('D7', `the pin's number ${PIN} is written outside the files that resolve it, on ` +
+      `${found.length} line(s) that speak of the scheduler or the pin: ${found.join(', ')}. ` +
+      'Name the pin without its number — `package.json` says what it is and `npm run state` prints ' +
+      'it — and date a measurement by the item that took it. The number lives in package.json, ' +
+      'package-lock.json, deno.json, deno.lock, the import map and this file\'s PIN, and nowhere else');
+  }
+}
+
+// --- D9: the two LOCK files hold the pin, and nothing else for the scheduler --
+//
+// **W157's adequacy reader, A3.** `D2` binds what `package.json` ASKS for and `D3` what the
+// import map maps; neither reads what the installers WROTE. A stale `deno.lock` is caught today
+// only by Deno's minimum-dependency-age refusal, which lapses a day after a release, and a stale
+// `package-lock.json` only by `npm ci`. So the lock entries are held to `PIN` too: the
+// `@fyflow/scheduler@<v>` keys of `deno.lock`'s `jsr` block — every one, because W37 found the
+// lock had kept two DEAD versions across two bumps (Q174) — and `package-lock.json`'s
+// installed entry.
+{
+  let denoLock = null;
+  try {
+    denoLock = JSON.parse(readFileSync(join(ROOT, 'deno.lock'), 'utf8'));
+  } catch (e) {
+    fail('D9', `deno.lock is unreadable, so the JSR half of the pin has no integrity on record: ${e.message}`);
+  }
+  if (denoLock) {
+    ran.D9 = true;
+    const locked = Object.keys(denoLock.jsr ?? {})
+      .filter((k) => k.startsWith(`${JSR_NAME}@`)).map((k) => k.slice(JSR_NAME.length + 1));
+    if (locked.length === 0) {
+      fail('D9', `deno.lock locks no ${JSR_NAME} version — Deno resolves it afresh, and inside the 24-hour ` +
+        'minimum dependency age it refuses the pin outright (W157)');
     }
-    const wrong = [...new Set(found.filter((v) => v !== PIN))];
-    if (wrong.length) {
-      fail('D7', `${rel_} states the pin as ${wrong.join(', ')} and the pin is ${PIN} ` +
-        `(${found.length} occurrence(s) of that sentence, ${wrong.length} wrong). A normative ` +
-        'document naming a different one sends a consumer to install the wrong version, and the ' +
-        'whole gate is green either way — measured on the bump that added this check. **The ' +
-        'pin-statement sentence is reserved for the LIVE pin**: record an older one in prose, not ' +
-        'in this form, or this check cannot tell your history from your instruction');
+    const stale = locked.filter((v) => v !== PIN);
+    if (stale.length) {
+      fail('D9', `deno.lock locks ${JSR_NAME} at ${stale.join(', ')} and the pin is ${PIN} — a stale or dead ` +
+        'trust anchor; rewrite the lock rather than letting it accumulate (Q174)');
+    }
+  }
+  let npmLock = null;
+  try {
+    npmLock = JSON.parse(readFileSync(join(ROOT, 'package-lock.json'), 'utf8'));
+  } catch (e) {
+    fail('D9', `package-lock.json is unreadable, so what npm installed is not on record: ${e.message}`);
+  }
+  if (npmLock) {
+    ran.D9 = true;
+    const v = npmLock.packages?.['node_modules/fyflow-scheduler']?.version;
+    if (v !== PIN) {
+      fail('D9', `package-lock.json locks fyflow-scheduler at ${v ?? 'nothing'} and the pin is ${PIN} — run ` +
+        '`npm install` after moving the pin, so `npm ci` installs what the gate ran');
     }
   }
 }
@@ -538,8 +629,9 @@ const checks = [
   ['D4', ran.D4, `D4 every artifact \`exports\` selects is present`],
   ['D5', ran.D5, `D5 it loads and exports what its own declarations name`],
   ['D6', ran.D6, `D6 both L6 rungs run examples/l6.ts, and the Deno one reads the Deno pin`],
-  ['D7', ran.D7, `D7 five documents state the pin, and every statement reads ${PIN}`],
+  ['D7', ran.D7, `D7 the pin's number is written only where something resolves it`],
   ['D8', ran.D8, `D8 both PUBLISHED manifests declare the scheduler at ${PIN} — the peer, and the jsr: import`],
+  ['D9', ran.D9, `D9 both LOCK files hold the scheduler at ${PIN}, and no other version of it`],
 ];
 // **Both halves carry a VERSION.** This printed the JSR package NAME with no version
 // at all — the one line where a human sees the two pins side by side, omitting the

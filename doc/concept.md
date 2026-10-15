@@ -46,15 +46,13 @@ constructor that has no such field. The document's *goals* survive - flow templa
 worker plugins - but its premise does not: there is nothing to build "on top of the DAG" because
 there is no DAG.
 
-Verified rather than assumed - originally at 0.2.1, re-verified unchanged at 0.3.0, and
-**re-verified unchanged again at 0.5.1** by
-[W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), **and a THIRD time at 0.5.2** by
-[W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), line by line rather than by reading:
+Verified rather than assumed at every pin since 0.2.1 — the last time by
+[W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) — line by line rather than by reading:
 
 | Claim | Evidence |
 |---|---|
 | No dependency field on `FyflowTask` | No `dependsOn`/`parents` in `core/FyflowScheduler.ts`; the only hits are `spawnedChildren`, which is lineage |
-| `SpawnTaskConfig.parents` exists but is **dead** | Still declared at `core/workerInterface.ts:50` at 0.5.2 — the same line for a third version — read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1468-1473`, **the same lines at 0.3.0, 0.5.1 and 0.5.2**) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
+| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:107` at the pin (`:50` through 0.5.2), read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1930-1935`; `:1468-1473` through 0.5.2) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
 | Spawning is not sequencing | `AGENTS.md` section 7: *"This is lineage, not a dependency: spawning never changes dispatch order."* |
 
 That dead field is the worst kind: it typechecks, it reads like the feature exists, and it does
@@ -70,32 +68,28 @@ control flow at all.
 ## 3. What the scheduler does give us
 
 *Verified against **0.3.0** (landed 2026-08-30). Was 0.2.1 when this section was written; every row
-below was re-checked rather than carried forward.*
-
-*(**Two corrections, both by [W36](work-items/w36-the-scheduler-pin-moves-to-0-5-1.md).** The
-parenthetical read **"on no registry - npm and JSR both stop at 0.2.1, measured by W5"**, which
-[ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
-superseded on 2026-08-31 — both registries have carried 0.3.0 since, and both carry **0.5.2** now.
-**And the pin is 0.5.1, while this table is still dated 0.3.0 deliberately**: W36 re-verified the
-rows this repository actually depends on — the five task states and the `user_action` event pair by
-running them, `detail`-is-the-live-task by its five line citations, and the dead `parents` field —
-and did **not** re-check every row here. The scope is stated rather than the date being moved over
-work that was not done, which is `doc/workflow.md` section 1 rule 5's writing clause.)*
+below was re-checked rather than carried forward. Re-checked at the pin by
+[W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) against the shipped reference's
+diff from 0.5.2's, not by running each row — the first pin since 0.3.0 at which
+`core/FyflowScheduler.ts` is not byte-identical; a row that moved says so.*
 
 | Surface | What we get |
 |---|---|
 | `addTask` / `addTasks` | dispatch, with `{ createPromise: true }` for a settled result. Throws on unknown `workerType` |
 | Events | `task.running`, `task.completed`, `task.failed`, `task.progress`, `task.user_action`, `task.spawn_request`, `scheduler.completed` — **all carrying `timestamp` since 0.3.0** |
-| Events (0.3.0, new) | `resource.acquired` / `.released` / `.blocked` / `.unblocked`, and `getAdmissionQueue()`. **Scheduler-level, not flow-level** — useful for diagnosing a stalled pool, useless for a stuck join |
-| `FyflowTask` after the run | `state`, `result`, `error`, `attempts`, `startTime`, `endTime`, `executionTime` |
+| Events (at the pin, new) | `task.retrying`, `task.cancelling`, `task.cancelled`, `task.message` (and `worker.message`, on the POOL, not the scheduler) — none subscribed yet: `task.cancelled` is W158's, the rest P36's |
+| Events (0.3.0, new) | `resource.acquired` / `.released` / `.blocked` / `.unblocked`, and `getAdmissionQueue()` (a fifth `unblocked` reason, `cancelled`, at the pin). **Scheduler-level, not flow-level** — useful for diagnosing a stalled pool, useless for a stuck join |
+| `FyflowTask` after the run | `state`, `result`, `error`, `attempts`, `startTime`, `endTime`, `executionTime`; at the pin also `attemptNumber`, `cancellation` |
 | Resource groups | `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup` - per-task and per-worker (`residentGroups`) |
-| Retry | `retryPolicy: { maxRetries, backoffMs }`, per task |
+| Retry | `retryPolicy: { maxRetries, backoffMs }`, per task. **At the pin a backoff is held outside the ready queue**; at 0.5.2 another dispatch could start a retry at once (W157, measured) |
+| Cancel (at the pin) | `scheduler.cancel(id)`: a waiting task never runs, a running one is signalled and ends `cancelled`. Not yet folded here — P33 |
 | Spawn | `context.spawnTask()` from inside a worker, plus `onCompleteDescendants()` |
 
 And these constraints, which are design inputs rather than annoyances:
 
 1. **Task states are `pending -> running -> done | failed`, plus `user_action`** for a non-optional
-   task out of retries. Five, not four. A flow that models four is wrong. **And such a task
+   task out of retries. Five, not four. A flow that models four is wrong. **At the pin a sixth,
+   `cancelled`**, which this library drops until W158. **And such a task
    dispatches *two* events** — `task.failed` then `task.user_action`, same object, `state` already
    `user_action` before either. Key on terminal state, not event name
    ([ADR 0007](decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
@@ -103,9 +97,10 @@ And these constraints, which are design inputs rather than annoyances:
 2. **`scheduler.completed` fires every time the scheduler drains.** It is not "the run finished" -
    with a flow, the scheduler will drain between steps routinely.
 3. **Reusing a task id overwrites.** Silently. Our id scheme is a correctness concern (Q13).
-4. **A queued task cannot be cancelled.** Not implemented. So cancelling a run cannot un-queue what
-   is already dispatched ([S2](scheduler-upstream.md)).
-5. **An event's `detail` is a live object.** For the four `task.*` events it *is* the `FyflowTask`,
+4. **A queued task could not be cancelled before the pin.** [S2](scheduler-upstream.md) shipped as
+   `scheduler.cancel(id)`; what cancelling a RUN does is P34's.
+5. **An event's `detail` is a live object.** For the lifecycle `task.*` events (four through 0.5.2, seven
+   at the pin) it *is* the `FyflowTask`,
    `timestamp` included, so a retained reference misreports every field it carries. Documented
    upstream at 0.3.0 as a contract rather than a bug ([S8](scheduler-upstream.md)); handled by
    ADR 0007.
@@ -215,7 +210,8 @@ of leaning produced.
 - **An expression language** for decisions. Registered predicates instead, if Q2 lands that way.
 - **A visual flow editor.** Definitions are authored in code or a document.
 - **Controlling a run from a UI** (pause, cancel, retry a node). Read-only observation first - and
-  [S2](scheduler-upstream.md) is missing anyway.
+  [S2](scheduler-upstream.md) was missing anyway. *(S2 shipped at the pin, and run control is IN —
+  [P34](plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) amends this bullet.)*
   **One exception, added 2026-08-30 and deliberately narrow:
   [ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
   rules 4-6 let an external actor *resolve a suspended `user_action` node*, because a run that stops
@@ -225,21 +221,11 @@ of leaning produced.
   section 5's invariant is untouched.
 - **Ingestion transports.** Kafka and friends from `FLOW_PLANNING.md` are a consumer of this
   library, not part of it.
-- **Supporting more than one `fyflow-scheduler` version.** We pin **0.5.2** (Q3), published
-  **2026-09-07** and adopted here **2026-09-08**, **from both registries**. *(This read *"published
-  2026-09-03 and adopted here 2026-09-07"* — 0.5.1's publish date and 0.5.1's adoption date, left
-  standing when the version beside them moved. npm's `time` says 0.5.2 landed 2026-09-07T16:33Z and
-  it was pinned the next day, because Deno refuses a JSR version under 24 hours old. **The
-  parenthetical below is W36's conformity reader correcting this exact defect on this exact
-  sentence**, and W37 reproduced it in the sentence that correction is attached to. W37's conformity
-  reader.)*
+- **Supporting more than one `fyflow-scheduler` version.** We pin exactly ONE version (Q3), **from
+  both registries** — `package.json` names it; its dates are in
+  [W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md).
   `fyflow-react-components` still pins 0.2.1 and **needs the same bump** - the two repos being on
-  different versions is a coordination point, not a steady state. *(This said 0.5.1 "landed
-  2026-09-07 and not yet on npm": the date was the day the pin MOVED rather than the day the version
-  landed - npm's own `time` field says 2026-09-03 - and "not yet on npm" was carried forward from the
-  0.3.0 sentence while 0.5.1 is npm's `latest`. **Both halves of a re-dated claim, wrong in the way
-  re-dating is wrong**, and `doc/decisions/README.md` already lists "not yet on npm" among the things
-  this repository has got wrong once. W36's conformity reader.)*
+  different versions is a coordination point, not a steady state.
 
 Things we want *from* `fyflow-scheduler` go in [scheduler-upstream.md](scheduler-upstream.md), never
 into a workaround comment.

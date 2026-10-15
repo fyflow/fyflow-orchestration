@@ -260,7 +260,13 @@ const PROBES = [
   // and it leaves `B4` silent by construction.
   {
     name: 'one KiB moved from CLAUDE.md`s target to doc/concept.md`s, so the SUM is unchanged',
-    check: 'B7', sizes: 'real',
+    // **DECLARED sizes, not the real ones — W157, E7.** On real sizes this probe isolated `B7` only
+    // while `doc/concept.md` was over 16 KiB: W157 cut it to 16,279 bytes, the moved 16 KiB target was
+    // then MET with its 17 KiB ceiling above it, and `B5` fired beside `B7` (`gate:item` RED). These
+    // sizes sit under every ceiling and the TOTAL, CLAUDE.md and workflow.md meet targets their
+    // ceilings do not exceed, and concept.md (its size before W157) misses its moved target — so `B7`
+    // is the one clause this edit can trip, whatever the documents weigh.
+    check: 'B7', sizes: { 'CLAUDE.md': 24_000, 'doc/workflow.md': 36_000, 'doc/concept.md': 17_124 },
     declare: (t) => t.replace('    target: 25 * 1024,', '    target: 26 * 1024,')
       .replace('    target: 17 * 1024,', '    target: 16 * 1024,'),
     says: 'the SUM of the targets is not the budget',

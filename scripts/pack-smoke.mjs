@@ -221,7 +221,7 @@ async function smoke() {
     typeRoots: [join(ROOT, 'node_modules', '@types')] };
   const program = ts.createProgram([consumerTs], opts);
   // **Only THIS package's .d.ts and the consumer file are held.** skipLibCheck is off so our
-  // declarations are checked whole; fyflow-scheduler@0.5.2's own .d.ts name DOM types
+  // declarations are checked whole; fyflow-scheduler's own .d.ts (0.5.2's, as W152 measured) name DOM types
   // (`EventListenerOrEventListenerObject`) that neither ES2022 nor @types/node declares — measured at
   // W152, six diagnostics, all in node_modules/fyflow-scheduler/ — and that is the scheduler's to fix,
   // not a defect a consumer of THIS package can see that a consumer of the scheduler alone cannot.

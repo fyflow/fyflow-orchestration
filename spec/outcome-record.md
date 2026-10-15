@@ -1,6 +1,6 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
 **v0.11 is [W133](../doc/work-items/w133-two-spec-sentences-and-one-message.md) under
 [P30](../doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md), and it adds ONE
@@ -35,6 +35,8 @@ for. **`OR-R2` and `OR-R6` are unchanged**, which is
 [P15](../doc/plans/p15-what-a-run-retains-and-what-a-result-may-be.md) prediction 3's conclusion
 confirmed — while its stated REASON, *a driver cannot tell*, is measured FALSE and replaced by one
 about coverage and cost.
+
+**v0.12 is [W157](../doc/work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and it moves no rule.** The scheduler pin moved, and `core/FyflowScheduler.ts` is not byte-identical at the new pin, so each UNDATED line citation into it here — a citation at the version we pin, `spec/README.md` rule 6 — is re-taken there: section 2's live-detail sites (`:857, 907, 909, 1139, 1141` to `:1093, 1164, 1166, 1554, 1556`), the `error` row (`:889` to `:1105`), section 3's `user_action` pair (`:894-910`, `:1130-1142` to `:1151-1167`, `:1545-1557`) and section 6's class declaration (`:212` to `:296`). The CLAIM each supports was re-read and still holds; the lines under it moved, and the file around them changed.
 
 **v0.2 acts on the W1 spec-conformity pass**: the
 resolution record arrives from
@@ -109,8 +111,8 @@ two sources of truth for one string.
 ## 2. Where each outcome field comes from
 
 `e` is the listener's event; `d` is `e.detail`, which for `task.completed`, `task.failed` and
-`task.user_action` **is** the live `FyflowTask` (`../fyflow-scheduler/core/FyflowScheduler.ts:857,
-907, 909, 1139, 1141`; `AGENTS.md` section 6). Every expression below is evaluated **synchronously,
+`task.user_action` **is** the live `FyflowTask` (`../fyflow-scheduler/core/FyflowScheduler.ts:1093,
+1164, 1166, 1554, 1556`; `AGENTS.md` section 6). Every expression below is evaluated **synchronously,
 inside the listener**.
 
 | field | type | source | |
@@ -119,7 +121,7 @@ inside the listener**.
 | `taskId` | string | `d.id` | |
 | `terminalState` | `'done' \| 'failed' \| 'user_action'` | `d.state` | **never** the event name — see `OR-R3` |
 | `result` | structured-cloneable value \| `null` | `terminalState === 'done' ? structuredClone(d.result) : null` | the guard is part of the expression, not a caveat on it. See `OR-R2` and section 4 |
-| `error` | string \| `null` | `d.error ?? null` | already a string on the task — `task.error = error.message` (`core/FyflowScheduler.ts:889`). The `Error` object never reaches a listener |
+| `error` | string \| `null` | `d.error ?? null` | already a string on the task — `task.error = error.message` (`core/FyflowScheduler.ts:1105`). The `Error` object never reaches a listener |
 | `attempts` | number | `d.attempts` | the **scheduler's** retry count, not the flow-level attempt in the id |
 | `schedulerTimestamp` | number | `d.timestamp` | `Date.now()` stamped immediately before dispatch. A **mutable field on the live task** |
 | `observedAt` | number | the driver's own `Date.now()` | ADR 0007 rule 4. Not derived from, and not interchangeable with, `schedulerTimestamp` |
@@ -143,8 +145,9 @@ record with a field named `state`, `payload`, `task` or `detail` is a review fin
 
 ### OR-R3, spelled out, because the event names lie
 
-At 0.5.2 a non-optional task out of retries sets `state = 'user_action'` and then dispatches
-**both** events with the same object (`core/FyflowScheduler.ts:894-910`, and again at `:1130-1142`
+At every pin since 0.3.0 — 0.5.2's lines were `:894-910` and `:1130-1142`, and W157 re-read them at
+the current pin — a non-optional task out of retries sets `state = 'user_action'` and then dispatches
+**both** events with the same object (`core/FyflowScheduler.ts:1151-1167`, and again at `:1545-1557`
 on the orphaned-task path):
 
 | `d.state` at dispatch | events fired | records written |
@@ -481,7 +484,7 @@ A `throw` cannot do that, and until W3's third conformity pass all three were im
 
 Every one of them is reached from inside a `scheduler.addEventListener` callback, and
 `EventTarget.dispatchEvent` **discards a listener throw**. Measured on Node 24 against
-`../fyflow-scheduler/core/FyflowScheduler.ts:212` (`export class FyflowScheduler extends
+`../fyflow-scheduler/core/FyflowScheduler.ts:296` at the pin, `:212` when measured (`export class FyflowScheduler extends
 EventTarget`): the remaining listeners still run, `dispatchEvent` returns normally, and the error
 resurfaces out of band on `process.nextTick`. In a browser it becomes a `window.onerror` report and
 the page carries on.
