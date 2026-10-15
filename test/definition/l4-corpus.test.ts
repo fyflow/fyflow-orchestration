@@ -494,7 +494,8 @@ const LATE_SUITES = [
   'W61 — the untransformed envelope is byte-identical with and without languages registered — P17 decision 8',
   'W61 — the envelope worker evaluates a declared transform in run(), on all four kinds of input FD-C5 names',
   'W61 — a transform on a REAL pool, inline and threaded: the transformed input arrives, and a failure takes a task`s two roads',
-  'W61 — bootstrap writes a language`s worker URL into a typed pool`s config only where a node of the type transforms, both ways',
+  // W162 renamed this W61 suite when ADR 0096 reversed what it asserts (ADR 0051 rule 4).
+  'W162 — bootstrap writes EVERY language it is given into EVERY pool it builds, and reads no flow (ADR 0096 rule 2)',
   'adapter conformance — path (the fake language, a test fixture)',
   'the fake language — what the fixture itself claims',
   // W65 — the registry document, the subset validator and the derivation, in
@@ -537,7 +538,8 @@ const LATE_SUITES = [
   'W66 — decision 4: the group factories, and what a created group is held to',
   'W66 — decision 9 at the runtime: a resident group beside idleTimeout 0 is refused (P18 fact 6, re-run at W66)',
   'W66 — decision 10: start() mints a run id, defaults the policy, and hands the driver this runtime`s registry',
-  'W66 — decision 13: the languages a pool carries come from the FLOWS, and start refuses one it was not built for',
+  // W162 renamed this W66 suite when ADR 0096 reversed decision 13's reading and added `runtime.check`.
+  'W162 — every typed pool carries the registry`s languages, and start refuses from runtime.check (ADR 0096)',
   'W66 — every option start forwards, and every member the runtime exposes, observed',
   'W66 — the sub-path re-exports what this module exports, both ways',
   'W66 — a runtime on REAL pools: a document in, a completed run out',

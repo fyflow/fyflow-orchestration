@@ -294,7 +294,7 @@ if (mode === 'threaded' || mode === 'inline') {
       { id: 'shout', kind: 'task', type: 'Greeter', settings: { say: '!' }, transform: { lang: 'jsonata', expr: '{ "text": $uppercase(text) }' }, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ] };
-    const rt = createRuntime(registry, { languages: { jsonata } }, { base: import.meta.url, flows: [flow] });
+    const rt = createRuntime(registry, { languages: { jsonata } }, { base: import.meta.url });
     let timer;
     const state = await Promise.race([rt.start(flow, { text: 'hello' }).done,
       new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('the run did not settle in 30 s')), 30_000); })]);
@@ -382,7 +382,7 @@ for (const inline of [false, true]) {
     const flow = { flowId: 'browser', version: 1, entry: 'greet', nodes: [
       { id: 'greet', kind: 'task', type: 'Greeter', settings: { say: 'world' }, edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' } ] };
-    const rt = createRuntime(registry, {}, { base: location.href, flows: [flow] });
+    const rt = createRuntime(registry, {}, { base: location.href });
     const st = await Promise.race([rt.start(flow, { text: 'hello' }).done,
       new Promise((_, rej) => setTimeout(() => rej(new Error('the run did not settle in 20 s')), 20000))]);
     await rt.shutdown();

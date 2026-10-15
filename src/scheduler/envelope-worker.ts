@@ -10,8 +10,8 @@
  * A `WorkerManager` loads its worker from a script URL and instantiates the module's default
  * export, so a wrapper cannot be a function around a class — it has to BE the script the pool
  * loads. This module is that script: its pool config names the type's real worker (`worker`, a
- * module URL), that worker's own config (`config`), and — for a type some node of which declares
- * a transform — the worker-side module URL of each language those nodes name (`languages`); this
+ * module URL), that worker's own config (`config`), and the worker-side module URL of every language
+ * the registry names (`languages` — every typed pool's since ADR 0096, W162); this
  * class loads the inner worker and the language modules in `setup()`, evaluates the envelope's
  * `transform` in `run()` when one is present, hands the inner worker **exactly `{ settings, input }`**
  * with `input` REPLACED by the evaluation's result, and tears the inner worker down with itself.
@@ -75,8 +75,8 @@ export interface EnvelopePoolConfig {
   config?: unknown;
   /**
    * **Language name → worker-side module URL** (`LanguageAdapter.worker`), written by the bootstrap
-   * helper ONLY for a type some node of which declares a `transform`, and only for the languages
-   * those nodes name — so a pool whose nodes never transform loads no engine. Loaded in `setup()`,
+   * helper into EVERY pool, for every language it is given — ADR 0096 rule 2 (W162), superseding
+   * ADR 0051 rule 4's *only for a type some node of which declares a transform*. Loaded in `setup()`,
    * once per worker instance; each module's default export is `compile(expr) => { evaluate(input,
    * settings) }`.
    */
@@ -377,7 +377,7 @@ export default class EnvelopeWorker {
     if (compile === undefined) {
       const carried = Object.keys(this.cfg.languages ?? {}).map((x) => `"${x}"`).join(', ') || 'no languages';
       throw new TransformFailed(t, undefined, `language "${t.lang}" is not loaded in this pool (the pool config carries ${carried}) — ` +
-        'the bootstrap helper writes an adapter URL for a type some node of which declares a transform, and needs the flow and the languages to do it');
+        'the bootstrap helper writes every language it is given into every pool, so this one was not in the registry the pool was built from');
     }
     if (compile instanceof Error) {
       // The language was named and its module did not load in setup(): the task's failure, not

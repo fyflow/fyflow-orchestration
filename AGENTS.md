@@ -1448,12 +1448,14 @@ type named as a built-in is `NameCollision` — at `new Driver`, which since W93
 at `createRuntime`, which takes them as `code.gateTypes` and hands them to every run (section 3). None is `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
 flow, and the class says which document to open.
 
-**And four the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
+**And three the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
 (W66): `GroupUnusable` — a group factory returned something the scheduler cannot use, naming the
-member and the group's key; `GroupNotBuildable` — a group type with no `create`; `LanguageNotBuilt` —
-`start` was given a flow that transforms on a type no pool was built for; and, since W89, `RunIdInUse`
-— a `start` or `resume` naming a run id that runtime has already built a driver for, a finished run's included (`RN-R25`, ADR 0091). A bare
-`RuntimeError` is the fifth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
+member and the group's key; `GroupNotBuildable` — a group type with no `create`; and, since W89, `RunIdInUse`
+— a `start` or `resume` naming a run id that runtime has already built a driver for, a finished run's included (`RN-R25`, ADR 0091).
+*(`LanguageNotBuilt` — a flow transforming on a type no pool was built for — was a fourth until W162 removed it
+with `createRuntime`'s `flows`: every typed pool carries every registered language since
+[ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md), section 12.)* A bare
+`RuntimeError` is the fourth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
 document names nowhere. **They are not exported from the package ROOT**, so the enumeration below —
 which walks the root's own exports — does not see them, and `BootstrapError` has never been there
 either.
@@ -1895,6 +1897,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 | not available | instead |
 |---|---|
 | flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
+| **`runtime.register()`** — adding node types, pools, groups or languages to a RUNNING runtime | **declined** — [P37](doc/plans/p37-a-runtime-is-its-registry.md) decision 1, [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md): `fyflow-scheduler` cannot add a pool after construction. A changed registry is a NEW runtime; a run on the old one finishes there or moves by stop-and-resume ([P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)). **A FLOW is not a registry entry**: `runtime.check(flow)`, then `runtime.start(flow, …)`, takes any flow the registry can run, at any time (section 12) |
 | **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or stopped run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
@@ -2079,11 +2082,26 @@ with no `onStart` throws on its first task and one with no `onFinish` leaves eve
 running for ever, while one with no `getMetrics` runs fine —
 [ADR 0055](doc/decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md).)*
 
-**If a flow transforms, tell the runtime about it.** A language adapter's worker half is written
-into a pool's config at construction, and only for the types whose nodes transform (section 13), so
-pass every flow the runtime will run: `createRuntime(registry, code, { base, flows: [flow] })`. A
-flow handed to `start` that transforms on a type no pool was built for is refused there, naming the
-type and the language, rather than failing every task of that node one run in.
+**A runtime is its registry, and a flow needs nothing passed in advance** —
+[ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md). Node
+types, pools, groups and languages are fixed at `createRuntime`, and **every typed pool carries every
+language the registry document names** — the built-in `Transform` and every named instance included —
+so a flow published after the runtime started runs on it, transforming on any type, with nothing extra.
+**`runtime.check(flow)` returns every finding `start` would refuse that flow on** — an array of
+`{ rule, at, detail }`, empty when there is none, and it never throws for a flow's defect — and
+**`start` and `resume` refuse from that same call**, throwing `InvalidDefinition` with exactly those
+rules before any run id is spent, so the two cannot disagree: *register* a flow by checking it, then
+start it. `check` leaves out what depends on a RUN rather than the flow — a payload `FD-R4` refuses,
+and a run id in use. **BREAKING in 0.8.0**: `createRuntime`'s and `bootstrap`'s `flows` option,
+`LanguageNotBuilt` and `transformLanguagesByType` are gone. A caller passing `flows` in an object
+LITERAL fails to compile; one passing an options object held in a variable still compiles, and `flows`
+is then an unread key at run time — so delete it either way, and any warm-up flows written to feed it. **The cost** is a thread's, not a
+bundle's: each worker of a typed pool loads every registered engine in its `setup()` — measured at
+W162, about 22 ms and 6.4 MiB of heap per node thread for JSONata, and nothing measurable inline,
+where registering the language already loaded it. A registry naming no language pays nothing. **A
+changed registry is a NEW runtime** (`runtime.register` is declined, section 11): while two overlap,
+their pools and resource groups are SEPARATE, so a rate limit may briefly be exceeded and a model a
+worker loads in `setup()` is loaded twice.
 
 **Thousands of runs at once: start them all on ONE runtime.** Every run `start` (or `resume`) opens
 shares the runtime's pools and its one scheduler, and the runtime ROUTES each settlement to the driver
@@ -2508,10 +2526,10 @@ declare const typed: FlowDefinition;
 declare const languages: Languages;
 
 // The types' groups are given as OBJECTS here and only here; the helper returns them keyed as given.
-// The languages and the flows are what tells the helper WHICH typed pools need which adapter's
-// worker module — written into a pool's config only where a node of that type transforms (W61).
+// The languages' worker modules are written into EVERY pool's config, whatever a flow transforms on
+// (ADR 0096) — the helper reads no flow.
 const registry = { workers: { ingest, scorer }, nodeTypes: { IngestWorker, Scorer } };
-const built = bootstrap(registry, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [typed] });
+const built = bootstrap(registry, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages });
 const scheduler = new FyflowScheduler(built.workerPools, built.resourceGroups);
 const driver = new Driver(typed, {
   runId: 'run-1', scheduler, predicates: new Map(), joinPolicy: liveToken,
@@ -2624,8 +2642,8 @@ if (!rules(score({ lang: 'path' })).includes('FD-V37')) throw new Error('FD-V37:
 if (!rules(score({ lang: 'path', expr: 'confidence' }, {})).includes('FD-V23')) throw new Error('FD-V23: a transform on a node with no type is a node with no type');
 
 // And what the wrapper does with it — the class the bootstrap helper puts around your worker,
-// driven here directly. The helper writes `languages` into a typed pool's config for you when you
-// pass it the flows and the languages: `bootstrap(registry, groups, { languages: { path }, flows: [flow] })`.
+// driven here directly. The helper writes `languages` into EVERY pool's config for you when you
+// pass it the languages: `bootstrap(registry, groups, { languages: { path } })`.
 const w = new EnvelopeWorker({ worker: echo.url, languages: { path: path.worker } });
 await w.setup();
 const seen = await w.run({ settings: { factor: 10 }, input: { confidence: 0.9, text: 'a bb ccc' }, transform: { lang: 'path', expr: 'confidence' } });
@@ -2691,7 +2709,8 @@ The language this package ships for a `transform` is **JSONata**, at the one exa
 [W62](doc/work-items/w62-the-jsonata-adapter.md). **The engine is a dependency of this package and
 is loaded by that sub-path alone**: the root and `fyflow-orchestration/scheduler` import none of it,
 so a consumer who never transforms pays the install and never the load, and a browser bundle carries
-the engine only where the sub-path is imported (237 KiB). Import it, put it in the registry's
+the engine only where the sub-path is imported (237 KiB). **A runtime whose registry names it loads it
+in every worker of every typed pool** (ADR 0096 — section 12 has the measured cost). Import it, put it in the registry's
 `languages` under the name a flow's `transform.lang` uses, and hand the same object to the
 bootstrap helper:
 
@@ -2707,7 +2726,7 @@ declare const flow: FlowDefinition;
 // The adapter is `{ compile, worker }`: `compile` runs on the main thread at `new Driver` and
 // `worker` is the URL of the SAME module, which the envelope worker imports inside the pool.
 const languages = { jsonata };
-const built = bootstrap(registry, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages, flows: [flow] });
+const built = bootstrap(registry, { scorer: new ConcurrentLimitGroup(4, 'scorer') }, { languages });
 const scheduler = new FyflowScheduler(built.workerPools, built.resourceGroups);
 const driver = new Driver(flow, {
   runId: 'run-1', scheduler, predicates: new Map(), joinPolicy: liveToken,
@@ -2884,11 +2903,16 @@ const signature = signatureOf('Summarise', SESSION_WORKERS.summarise);
 console.log(signature.split('\n').filter((l) => l.startsWith('export')).join('\n'));
 if (!signature.includes('"text": string;')) throw new Error('the required key is required in the type too');
 
-// STEP 6 — and only now the runtime. Pools are built ONCE, so a flow whose transform was decided
-// during the session has to reach `createRuntime` as `flows`, or `start` throws `LanguageNotBuilt`
-// naming the type. Check, then build.
+// STEP 6 — and only now the runtime. A runtime IS its registry: every typed pool carries every
+// language the registry names, so a flow whose transform was decided during the session needs
+// nothing passed in advance (ADR 0096). Check it against the runtime that will run it, then start
+// it — `start` refuses from that same check.
 const wired: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: good } : n)) };
-const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE, flows: [wired] });
+const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE });
+const refused = runtime.check(wired);
+if (refused.length !== 0) throw new Error(`the runtime refuses the wired flow: ${JSON.stringify(refused)}`);
+const unknownLang: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: { lang: 'nope', expr: '$' } } : n)) };
+if (!runtime.check(unknownLang).some((f) => f.rule === 'FD-V35' && f.at === 'sum')) throw new Error('a language the registry does not name is FD-V35, at check');
 const state = await runtime.start(wired, { source: 'inbox' }).done;
 await runtime.shutdown();
 console.log(state.outcome, Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result);  // completed { words: 3 }
@@ -3049,7 +3073,7 @@ if (wiring.counts.no !== 0) throw new Error('the static check has nothing to say
 // authored, no dispatch moves, and the value reaches the next node exactly as it would with the
 // check off.
 const found: NonconformingResult[] = [];
-const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
 const state = await runtime.start(flow, { text: 'one two three four five six seven eight nine ten eleven' }, {
   onNonconformingResult: (f) => { found.push(f); },
 }).done;
@@ -3085,7 +3109,7 @@ if (after.keys.join() !== 'load,words') throw new Error(`the successor received 
 // OMIT THE CALLBACK AND NOTHING IS CHECKED — and the run is the same run. This is the property to
 // rely on: you can turn the reading on in one environment and off in another without changing what
 // the flow DOES, because an instrument that altered what it measures would be useless for auditing.
-const quiet = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const quiet = createRuntime(registry, {}, { base: import.meta.url });
 const same = await quiet.start(flow, { text: 'one two three four five six seven eight nine ten eleven' }).done;
 await quiet.shutdown();
 const shape = (s: typeof state) => JSON.stringify(Object.values(s.nodes).map((n) => [n.nodeId, n.result]));
@@ -3170,7 +3194,7 @@ const flow: FlowDefinition = {
 // A region event now says WHICH INSTANCE it is about. Before 0.4.0 it carried `regionId` alone,
 // which is the same string for every instance of one opener.
 const arrivals: string[] = [];
-const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
 const state = await runtime.start(flow, { region: 'ab c' }, {
   onRegionEvent: (e: RegionEvent) => {
     if (e.type === 'branch.arrived') arrivals.push(`${e.regionId}@${e.regionPath} <- ${e.branchPath}`);
@@ -3297,7 +3321,7 @@ const store: { header?: CheckpointHeader; events: FoldInput[] } = { events: [] }
 let alive = true;
 let die!: () => void;
 const died = new Promise<void>((resolve) => { die = resolve; });
-const first = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const first = createRuntime(registry, {}, { base: import.meta.url });
 const run = first.start(flow, { region: 'ab c' }, {
   onFoldInput: (event, position) => {
     if (!alive) return;                                   // a dead process writes nothing
@@ -3323,7 +3347,7 @@ console.log(`stored ${store.events.length} events, the last one the settlement t
 // keep appending BY POSITION: a resumed run hands you positions from the stored length on, so the
 // same store holds the whole run again.
 const header = store.header!;                            // written once, by process one
-const second = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const second = createRuntime(registry, {}, { base: import.meta.url });
 const resumed = second.resume(flow, { header, events: store.events.slice() }, {
   onFoldInput: (event, position) => { store.events[position] = structuredClone(event); },
 });
@@ -3365,7 +3389,7 @@ try {
   if (!(err instanceof RunIdInUse)) throw err;
 }
 // And a checkpoint is resumed against the definition it was stored under, or not at all.
-const third = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const third = createRuntime(registry, {}, { base: import.meta.url });
 try {
   third.resume({ ...flow, version: 2 }, { header, events: store.events.slice() });
   throw new Error('expected ResumeRefused');
@@ -3503,7 +3527,7 @@ const flow: FlowDefinition = {
 
 const files = ['Dark.S01E01.mkv', 'Lost.S01E01.mkv', 'Dark.S01E02.mkv', 'trailer.mkv', 'Lost.S01E02.mkv']
   .map((name) => ({ name, sizeMB: 1 }));
-const runtime = createRuntime(registry, {}, { base: import.meta.url, flows: [flow] });
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
 const state = await runtime.start(flow, { files }).done;
 await runtime.shutdown();
 
@@ -3556,7 +3580,7 @@ const filter: FlowDefinition = {
     { id: 'done', kind: 'end', outcome: 'completed' },
   ],
 };
-const second = createRuntime(registry, { gateTypes: { sloppy } }, { base: import.meta.url, flows: [filter] });
+const second = createRuntime(registry, { gateTypes: { sloppy } }, { base: import.meta.url });
 const kinds: string[] = [];
 const stopped = await second.start(filter, { name: 'Dark.S01E01.mkv', sizeMB: 1 }, { onRunFailure: (f) => kinds.push(f.kind) }).done;
 await second.shutdown();

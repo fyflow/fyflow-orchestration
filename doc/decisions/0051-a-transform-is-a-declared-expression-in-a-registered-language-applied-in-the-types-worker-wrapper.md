@@ -12,7 +12,7 @@ resolves: Q251
 
 # ADR 0051 — A transform is a declared expression in a registered language, applied in the type's worker wrapper
 
-**Status:** accepted — amended by [ADR 0054](0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) at v0.19 (W65): `FD-V37`'s clause about a node with no `type` retired with the bare road, the rest standing; answers [P17](../plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s
+**Status:** accepted — amended by [ADR 0054](0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md) at v0.19 (W65): `FD-V37`'s clause about a node with no `type` retired with the bare road, the rest standing; **rule 4 superseded by [ADR 0096](0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md) at v0.34 (W162)** — every typed pool carries every registered language and the helper reads no flow, which withdraws consequence 2 and consequence 5's *only where a transform is declared*; answers [P17](../plans/p17-what-a-node-may-do-to-its-input-before-its-worker-sees-it.md)'s
 question, *what may a node DO to its input before its worker sees it?*, on that plan's decisions
 1-10. Amends nothing: [ADR 0049](0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)
 rule 3's `input` — *the value this node receives* — is what leaves the transform a place to sit, and

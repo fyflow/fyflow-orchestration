@@ -189,7 +189,7 @@ function watch(scheduler: { addEventListener(t: string, fn: (e: { detail: unknow
 /** One real run with the check ON, and every settled result paired with the schema its worker declares. */
 async function settledPairs(arity: number, kib: number, refuse = false): Promise<{ rows: Settled[]; outcome: string; reports: number; settledDone: number }> {
   const doc = refuse ? refusingDocument() : registryDocumentFor(false, 0);
-  const rt = createRuntime(doc, codeFor(PREDICATES), { base: BASE, flows: [MAL] });
+  const rt = createRuntime(doc, codeFor(PREDICATES), { base: BASE });
   try {
     let reports = 0;
     const { driver, done } = rt.start(MAL, payloadFor(arity, kib), {
@@ -475,7 +475,7 @@ interface Arm { clones: number; settled: number; resultBytes: number }
 
 /** The road `runtime.start` puts every consumer on: a completion handle, and the `onFoldInput` it needs. */
 async function viaStart(arity: number, kib: number, failed: string[]): Promise<Arm> {
-  const rt = createRuntime(registryDocumentFor(false, 0), codeFor(PREDICATES), { base: BASE, flows: [MAL] });
+  const rt = createRuntime(registryDocumentFor(false, 0), codeFor(PREDICATES), { base: BASE });
   try {
     const settled = watch(rt.scheduler as never);
     const c = countClones();
@@ -523,7 +523,7 @@ async function viaStart(arity: number, kib: number, failed: string[]): Promise<A
  * call. So the opt-out is real and it is for a consumer who does not ask the driver what happened.
  */
 async function viaHandBuiltDriver(arity: number, kib: number, failed: string[]): Promise<Arm> {
-  const rt = createRuntime(registryDocumentFor(false, 0), codeFor(PREDICATES), { base: BASE, flows: [MAL] });
+  const rt = createRuntime(registryDocumentFor(false, 0), codeFor(PREDICATES), { base: BASE });
   try {
     const settled = watch(rt.scheduler as never);
     const c = countClones();
@@ -654,7 +654,7 @@ async function switchPrice(failed: string[]): Promise<void> {
     const readings: Record<string, number> = {};
     for (const mode of ['construction', 'off', 'on'] as const) {
       const counts = { n: 0 };
-      const rt = createRuntime(countingDocument(counts), codeFor(PREDICATES), { base: BASE, flows: [MAL] });
+      const rt = createRuntime(countingDocument(counts), codeFor(PREDICATES), { base: BASE });
       try {
         if (mode === 'construction') { readings[mode] = counts.n; continue; }
         const settled = watch(rt.scheduler as never);

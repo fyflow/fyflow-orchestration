@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.33 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.34 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -40,6 +40,8 @@ changed.**
 **v0.32 is [W157](../doc/work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and it moves no rule.** The scheduler pin moved, and `core/FyflowScheduler.ts` is not byte-identical at the new pin, so each UNDATED line citation into it here — a citation at the version we pin, `spec/README.md` rule 6 — is re-taken there: section 2's citation of the `optional` branch (`:894-897` and `:1130-1133` to `:1151-1154` and `:1545-1548`). The CLAIM each supports was re-read and still holds; the lines under it moved, and the file around them changed.
 
 **v0.33 is [W159](../doc/work-items/w159-what-the-pin-adds-that-a-type-reaches.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md) — two pool options a type may declare, and what its worker's second argument is.** The scheduler at the pin adds two `WorkerManager` options, and the type declaration admitted neither (P33 fact 5): **`cancelGraceMs` and `messages` join the table of what a derivation returns** (section 3), held to the scheduler's own rules as P33 decision 6 says — `cancelGraceMs` a number `>= 0`, `Infinity` included; `messages` an object of `flushIntervalMs` (finite, `> 0`) and `maxBuffered` (an integer `>= 1`), each optional and each held whenever PRESENT, `messages` a PLAIN object — and refused otherwise by `DerivationRefused` or `UndeclaredKey`, as every pool field is. **And `FD-C5` gains its second argument**: the scheduler hands a task's worker a CONTEXT beside its payload — at the pin it carries `signal`, aborted on a cancel, and `emit`, the `task.message` channel (P33 fact 4) — and the envelope worker passes it through to the inner worker unchanged, as it passes its worker context to the inner constructor. That was true since v0.17 and stated nowhere, so whether an inner worker REACHES either member was asserted nowhere either. **No `FD-V` id moves, no rule is added, and no refusal class is added.** *(Why the options ride on the derivation rather than on a new field: a type's `pool` IS the `PoolSpec` minus `config` and `groups`, so a key admitted there is admitted on both forms at once, and a class can compute it.)*
+
+**v0.34 is [W162](../doc/work-items/w162-a-runtimes-languages-are-its-registrys-and-runtime-check.md) under [P37](../doc/plans/p37-a-runtime-is-its-registry.md) — a runtime is its registry, and `start` refuses from `runtime.check`.** [ADR 0096](../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md), superseding [ADR 0051](../doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md) rule 4. **A language's worker half reaches EVERY typed pool** (the `transform` subsection's worker-half sentence): until this version the bootstrap helper wrote it only into the pools of a type some node of which transformed in a flow the runtime was GIVEN at construction, so a flow published later could not transform on a type no earlier flow had, and `start` refused it (`LanguageNotBuilt`, which no rule here named). Now the helper reads no flow and every pool carries every language the registry names; a flow naming one the registry does not name is `FD-V35`, as it always was. **And section 3 gains *A runtime is its registry — check, then start*:** `runtime.check(flow)` returns every finding `start` would refuse a flow on that depends on the flow and the runtime alone, and `start` and `resume` refuse from that same call. **No `FD-V` id moves, no rule is added, and no refusal class is added** — the refusal `start` throws is the one `new Driver` throws for the same findings, `InvalidDefinition`, and the one class it removes, `LanguageNotBuilt`, was the runtime's and never a rule.
 
 **v0.10 is [W34](../doc/work-items/w34-what-a-branch-receives-and-what-a-join-carries.md) under
 [P10](../doc/plans/p10-is-fan-out-one-feature-or-two.md), and it is the OTHER of section 2's two
@@ -744,8 +746,11 @@ nothing and THROWS on an expression the language refuses, with the language's ow
 `FD-V36` reports, with the error's `position` and `code` as detail when the language sets them;
 **`worker`**, the worker half, is the URL of a module whose default export is
 `compile(expr) → { evaluate(input, settings) → Promise<unknown> }`, which the bootstrap helper writes
-into a typed pool's config ONLY for a type some node of which declares a transform, and only for the
-languages those nodes name, and which the envelope worker loads in `setup()` once per worker instance,
+into EVERY typed pool's config, for every language the registry names, whatever any flow transforms on
+(v0.34, [ADR 0096](../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md) —
+until then ONLY for a type some node of which declared a transform in a flow the runtime was given at
+construction, and only for the languages those nodes named: ADR 0051 rule 4, superseded), and which the
+envelope worker loads in `setup()` once per worker instance,
 compiling each distinct expression once per instance rather than per task; **`check`** is RESERVED
 for P18's pre-flight and implemented by nothing — optional, not absent. **The two halves can
 DISAGREE**: one module read twice is one language and two modules, or two versions on the two sides
@@ -1596,7 +1601,7 @@ to the subset, configs held to their schemas, and every derivation RUN with its 
 | `nodeTypes` | object, by name | the document-declared node types — below. A class registered in `code.nodeTypes` is a node type too, and **a name in both is refused** (`NameCollision`): one namespace, one definition per name |
 | `pools` | object, by key | NAMED instances of a node type. **Every type has a DEFAULT instance, implicit, keyed by the type's name and built from the type's own `config`**; a named instance is the same derivation over its own config, and a pool named as a type is refused |
 | `predicates` | array of names | the predicates the flows may name in `when`. `code.predicates` supplies each; one named and not supplied is refused (`NameMissing`) |
-| `languages` | array of names | the languages the flows may name in `transform.lang`. `code.languages` supplies each adapter; one named and not supplied is refused — **the runtime imports NO engine** (ADR 0052 rule 4, decision 13) |
+| `languages` | array of names | the languages the flows may name in `transform.lang`. `code.languages` supplies each adapter; one named and not supplied is refused — **the runtime imports NO engine** (ADR 0052 rule 4, decision 13). **Every typed pool carries every language named here** (v0.34, ADR 0096), so naming one costs each worker of each typed pool its load in `setup()` |
 
 #### A worker entry
 
@@ -1819,6 +1824,27 @@ builds a `Driver` by hand passes the same shape the runtime does. Of a node type
 pool it reads its `type` (`FD-V38`); it constructs nothing and never calls a derivation. **A flow
 references registry keys only, so a flow document is portable across runtimes that agree on keys**
 (decision 10).
+
+#### A runtime is its registry — check, then start — v0.34
+
+[ADR 0096](../doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md),
+[P37](../doc/plans/p37-a-runtime-is-its-registry.md) decisions 1-3 and stop-and-asks (a) and (b). **What a
+runtime is built from is fixed at `createRuntime`** — its node types, pools, groups and languages —
+because the scheduler takes its pools in its constructor and cannot add one later (P37 fact 8); a
+changed registry is a NEW runtime, and nothing adds to a running one. **A FLOW is not part of it**: a
+runtime is given no flows at construction, and it may be asked to run any flow at any time.
+
+| | |
+|---|---|
+| **languages** | every typed pool — every type's default instance, every named instance, the built-in `Transform` — carries the worker half of EVERY language the registry names, under its name. A registry naming none writes no `languages` key, and every pool it builds is what it built before v0.34 |
+| **`check(flow)`** | returns every finding `start(flow, payload, {})` would refuse `flow` on that depends on the FLOW and the runtime alone, as `{ rule, at, detail }` — at v0.34 exactly `validateDefinition`'s findings against the runtime's own registry, the predicates read by name. **It never throws for a flow's defect**: it returns every finding. What THROWS instead is exactly two shapes: `null` or `undefined` in place of the flow, and a `nodes` that is PRESENT and not iterable — each the validator's own `TypeError`, from `check` as from `start`. Any other value is read and reported: a non-object primitive such as `5`, or `{}`, returns `FD-V23` findings |
+| **`start` and `resume`** | each calls `check(flow)` FIRST — before a run id is minted, before `RunIdInUse`, before a driver is built — and a non-empty result is thrown as `InvalidDefinition`, its `rules` the findings' rule ids, sorted and distinct, and its message the one `new Driver` builds from the same findings. So `check` and `start` cannot disagree, and a refused flow spends no run id. `resume` checks once its checkpoint's header is accepted (`RN-R23`) and its entry payload cloned (`RN-R15`), before anything is replayed. **So on the runtime road the FLOW is refused before the RUN ID**: a flow `check` refuses is `InvalidDefinition` even when the run id given is outside `ID-R2`'s charset or already in use — the reverse of `new Driver`'s own order, where `ID-R2` runs before the definition is validated ([ADR 0022](../doc/decisions/0022-a-driver-takes-its-run-at-construction.md) rule 3, which ADR 0096 amends for this road) |
+| **excluded from `check`, by name** | the PAYLOAD's refusals — `FD-R4` and the entry payload's clone (`RN-R15`) — and the RUN ID's — `ID-R2` and `RunIdInUse` (`RN-R25`): each depends on what a run is started with, not on the flow |
+
+*Register* a flow on a running runtime is *check, then start*. **What `check` does not yet cover**: a
+malformed `defaultRetryPolicy` is a `RuntimeOptions` defect `createRuntime` does not read, so every
+`start` throws `FD-V30` from `new Driver` whatever `check` returned (P37 fact 6) — W163 refuses it at
+construction.
 
 #### What the schemas buy an author — the wiring check — v0.21
 

@@ -419,20 +419,16 @@ export function codeFor(predicates: ReadonlyMap<string, Predicate>): RegistryCod
  * resolve beside it — decision 7, and the reason the runtime cannot guess it is that inside a bundle
  * `import.meta.url` is the bundle ([Q261](../doc/questions/q261.md)).
  *
- * `flows` is every definition this runtime will run, because pools are built ONCE and a language
- * adapter's worker half reaches a typed pool through that pool's config (W61): the same type carries
- * the engine on a run of `transformed.flow.json` and not on a run of `typed.flow.json`.
+ * **It takes no flows** — W162, E3: since ADR 0096 every typed pool carries every language the registry names, so
+ * `createRuntime` takes no flows and neither does this. *(Until W162 a `flows` parameter was handed to `createRuntime`
+ * here — the same type carried the engine on a run of `transformed.flow.json` and not on a run of `typed.flow.json`.)*
  */
 export function buildRuntime(
   threaded: boolean,
-  flows: readonly FlowDefinition[],
   predicates: ReadonlyMap<string, Predicate> = PREDICATES,
   delayMs?: number,
 ): Runtime {
-  return createRuntime(registryDocumentFor(threaded, delayMs), codeFor(predicates), {
-    base: import.meta.url,
-    flows,
-  });
+  return createRuntime(registryDocumentFor(threaded, delayMs), codeFor(predicates), { base: import.meta.url });
 }
 
 /**
@@ -485,13 +481,11 @@ export function uiRegistryDocumentFor(
  * code-free flow costs in TypeScript.
  */
 export function buildUiRuntime(
-  flows: readonly FlowDefinition[],
   predicates: ReadonlyMap<string, Predicate> = new Map(),
   threaded = false,
 ): Runtime {
   return createRuntime(uiRegistryDocumentFor(threaded, predicates), { predicates, languages: LANGUAGES }, {
     base: import.meta.url,
-    flows,
   });
 }
 
@@ -842,11 +836,12 @@ export interface RunReport {
    */
   poolOfTask: Readonly<Record<string, string>>;
   /**
-   * **The languages each pool's config carries, by pool name, read off the built pools — W63,
-   * ADR 0051 rule 4.** `[]` for every bare pool and for a typed pool none of whose nodes transform
-   * in this run's flow; the adapter names for a typed pool some node does. `examples/l6.ts` compares
-   * it, on every row, to what the row's DEFINITION declares — derived there independently of the
-   * helper — both ways.
+   * **The languages each pool's config carries, by pool name, read off the built pools — W63, and
+   * since W162 ADR 0096 rule 2.** Every pool carries every language the runtime's registry names,
+   * whatever the run's flow transforms on; `[]` for every pool of a registry that names none.
+   * `examples/l6.ts` compares it, on every row, to the languages the harness supplies — both ways.
+   * *(Until W162, ADR 0051 rule 4: `[]` for a typed pool none of whose nodes transformed in this
+   * run's flow.)*
    */
   poolLanguages: Readonly<Record<string, readonly string[]>>;
   /** How many times `holdGroup`'s slot was released by this harness. `0` when nothing was held. */
@@ -1187,7 +1182,7 @@ export async function runPair(
   if ((a.threaded === true) !== (b.threaded === true)) {
     throw new Error('runPair: both runs share one runtime, so `threaded` must match');
   }
-  const runtime = buildRuntime(a.threaded === true, [a.definition, b.definition], a.predicates ?? PREDICATES);
+  const runtime = buildRuntime(a.threaded === true, a.predicates ?? PREDICATES);
   const scheduler = runtime.scheduler;
 
   // **Everything below is read from the SCHEDULER, before either driver exists.**
@@ -1732,8 +1727,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   // with no predicates gets, which is the ordinary case for a code-free flow; what no rung observes is
   // the default rather than the behaviour.
   const runtime = opts.runtime ?? (opts.uiRegistry === true
-    ? buildUiRuntime([definition], opts.predicates ?? new Map(), opts.threaded === true)
-    : buildRuntime(opts.threaded === true, [definition], opts.predicates ?? PREDICATES, opts.delayMs));
+    ? buildUiRuntime(opts.predicates ?? new Map(), opts.threaded === true)
+    : buildRuntime(opts.threaded === true, opts.predicates ?? PREDICATES, opts.delayMs));
   const scheduler = runtime.scheduler;
   const ownsScheduler = opts.runtime === undefined;
 
@@ -1949,10 +1944,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
   });
   const schedulerGroups = Object.keys(scheduler.groups as Record<string, unknown>).sort();
   const schedulerPools = Object.keys(scheduler.workerPools as Record<string, unknown>).sort();
-  // **W63: which languages each POOL's config carries, read off the built pools** — ADR 0051 rule 4's
-  // only observable at this rung. The helper writes an adapter's worker URL into a typed pool's
-  // `config.languages` for a type some node of the run's flow transforms on and nowhere else; a pool
-  // whose type no node of this run transforms on carries no `languages` key and so reports none.
+  // **W63: which languages each POOL's config carries, read off the built pools** — ADR 0096 rule 2's
+  // only observable at this rung since W162 (ADR 0051 rule 4's until then). The helper writes every
+  // registered adapter's worker URL into EVERY pool's `config.languages`, whatever the run's flow
+  // transforms on; a registry naming no language writes no `languages` key, and so reports none.
   // Read at construction, as the two lists above are, so it is a fact about the scheduler this run
   // was BUILT with. *(This read "a bare `pool()` carries `{ role, delayMs }`" — there has been no
   // bare pool since W65 and no `role` since W67. W67's conformity reader, finding 11.)*
