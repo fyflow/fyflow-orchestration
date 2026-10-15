@@ -33,8 +33,9 @@ JSR carries the TypeScript source. Both carry this README, [AGENTS.md](AGENTS.md
 reference — and the `LICENSE` file.
 
 The scheduler is a **peer dependency**, so your installer resolves it rather than this library
-bundling it: `fyflow-scheduler` is pinned to **0.5.2** and installed from npm, and under Deno it comes
-from JSR at the same version. **Node 24 or a current Deno.** The library's own suites also run in the
+bundling it: `fyflow-scheduler` is pinned EXACTLY — at the version this package's `peerDependencies` names, which
+`npm ls fyflow-scheduler` shows once installed — and installed from npm, and under Deno it comes from JSR at the same
+version. **Node 24 or a current Deno.** The library's own suites also run in the
 browser, but a flow does not: a worker there has to be a bundled `.js` asset, because nothing in a
 browser executes TypeScript.
 

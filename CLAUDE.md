@@ -59,9 +59,9 @@ Two consequences, and both catch people:
    calls the library "the existing FyFlow DAG scheduler" and passes `parents: ['extract']` to a
    constructor with no such field. Its *goals* are still ours; its premise is not. Do not use it as
    a design input without reading `doc/concept.md` section 2 first.
-2. **`SpawnTaskConfig.parents` is declared and dead.** `../fyflow-scheduler/core/workerInterface.ts:50`
-   declares it; nothing reads it; the spawn path (`core/FyflowScheduler.ts:1468-1473`) drops it
-   silently. It typechecks and does nothing. **Confirmed by the maintainer (2026-08-30): it stays
+2. **`SpawnTaskConfig.parents` is declared and dead.** `core/workerInterface.ts:107` declares it at
+   the pinned version; nothing reads it; the spawn path (`core/FyflowScheduler.ts:1930-1935`) drops it
+   silently — re-read at the pin by W157 (`doc/concept.md` section 2 has the line history). It typechecks and does nothing. **Confirmed by the maintainer (2026-08-30): it stays
    dead and will eventually be removed — never pass it.** [S1](doc/scheduler-upstream.md) is closed;
    do not re-raise it.
 
@@ -210,7 +210,8 @@ check, or `npm run state`.
 
 ## Facts about fyflow-scheduler that catch people out
 
-Grounded in its `AGENTS.md` at **0.5.2**, which **ships inside the npm package** — read it at
+Grounded in its `AGENTS.md` at the pinned version (`package.json` names it; `npm run state` prints
+it), which **ships inside the npm package** — read it at
 `node_modules/fyflow-scheduler/AGENTS.md`, not next door. There is **no changelog**, so a version
 bump means re-reading `AGENTS.md` §6 rather than reading a diff. Re-check there rather than trusting
 this list if it matters.
@@ -238,22 +239,25 @@ this list if it matters.
 - **A `user_action` task fires TWO events, and the first is called `task.failed`.** For a
   non-optional task out of retries the scheduler sets `state = 'user_action'` and then dispatches
   `task.failed` *and* `task.user_action` with the same object — in **two** places,
-  `core/FyflowScheduler.ts:896-910` and `1128-1142` (the orphaned-task path), **read at 0.3.0 and
-  still right because that file is byte-identical through 0.5.2** (W36, W37). Key outcomes on
+  `core/FyflowScheduler.ts:1153-1167` and `1543-1557` (the orphaned-task path) at the pinned
+  version — **read at 0.3.0, right through 0.5.2 because that file was byte-identical (W36, W37), and
+  re-read at the pin by W157, where it is not byte-identical and the pair is unchanged**. Key outcomes on
   **terminal state, not event name**, or you double-count and route a human-intervention case down
   an error edge. An *optional* task takes the other branch: `state = 'failed'`, `resolve(null)`, and
-  only `task.failed` fires. **`AGENTS.md` still does not document this for the ordinary path** — it
-  says *"`task.failed` fires once per failed task"*, and only the `orphaned` row records the
-  pairing. Trust ADR 0007 rule 2 over that sentence.
+  only `task.failed` fires. **`AGENTS.md` now records the pair on the ordinary path** — §6's per-task
+  order reads *"`task.failed` (plus `task.user_action`)"* — **but §5 still says *"`task.failed` fires
+  once per failed task"***. Trust ADR 0007 rule 2 over that sentence.
 - **`task.progress`'s detail changed shape in 0.3.0.** It is now the task **spread flat** — the id
   is `id`, *not* `taskId` — and the wrapper's `workerType` (`'inline'`/`'thread'`) overwrites the
   task's own pool key. A 0.2.1 consumer reading `detail.taskId` silently gets `undefined`.
 - Task states are `pending -> running -> done | failed`, **plus `user_action`** for a non-optional
-  task out of retries. Five states, not four, and it is the one every design drops (Q17).
+  task out of retries (the one every design drops, Q17), **plus `cancelled`** at the pin, reached only
+  through `scheduler.cancel(id)` with `task.cancelled` alone. Six states, not four.
 - **Reusing a task id overwrites, silently.** Our id scheme is a correctness rule with a refusal
   test, not a convention (Q13).
-- **A queued task cannot be cancelled.** Not implemented — so "cancel a run" is partial by
-  construction (Q18, [S2](doc/scheduler-upstream.md)).
+- **A task CAN be cancelled at the pin, queued or running** — `scheduler.cancel(id)`
+  ([S2](doc/scheduler-upstream.md), shipped). Until P33's W158 the listener DROPS a cancelled task and its run
+  never ends, so nothing here calls it; what cancelling a RUN does is P34's (Q18).
 - `scheduler.completed` fires **every time the scheduler drains** — with a flow it will fire between
   steps routinely. It is not "the run finished".
 - `onCompleteDescendants()` is **not a join**: transitive over lineage, but a failing descendant does
@@ -300,7 +304,8 @@ Node 16 is what a bare `node` resolves to here, and it fails at `??=`-era syntax
 reaches a test.
 
 **`npm install` is just `npm install`.** The scheduler is a pinned registry dependency
-(`fyflow-scheduler@0.5.2` from npm; Deno reaches `jsr:@fyflow/scheduler@0.5.2`), so nothing needs to
+(`fyflow-scheduler` from npm at the version `package.json` names; Deno reaches `jsr:@fyflow/scheduler`
+at the same version), so nothing needs to
 be checked out beside this repository and **this repo writes nothing outside itself** —
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md).
 

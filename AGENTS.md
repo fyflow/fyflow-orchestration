@@ -1824,6 +1824,14 @@ so you can fold incrementally and see a run finish without polling; `onRegionEve
 opening, arriving, exiting, suspending and resuming; `joinStatusOf()` answers what a join is waiting
 on. What is missing is an agreed envelope shape between the two repositories, not the data.
 
+**Runtime compatibility, as this package intends it: Deno, Node, and the browser for the library but
+not for a flow** — the browser rung is [Q52](doc/questions/q52.md), and a worker there must be a
+bundled `.js` asset. **It is a jsr.io package SETTING, not a manifest field**: measured at W157, Deno's
+`deno.json` schema has no `runtimeCompat` key, `deno publish --dry-run` accepts one and nothing reads
+it, and JSR's API carries it per package. Every lane of the gate runs Node 24; **one L6 run on Node
+26.11.1** — the version fyflow-app's host targets — exited 0 with every assertion passing at W157, and
+is recorded rather than added to the gate.
+
 ---
 
 ## 12. Wiring it to a real scheduler
@@ -2125,20 +2133,29 @@ called the reference stale for nine days and then for one more, in the document 
 a browser build needs the worker emitted as a bundled `.js` asset. `RT-R10` — ladder L6 runs in Node
 and Deno and not in the browser, and the browser rung is [Q52](doc/questions/q52.md).
 
-**Pin the scheduler at 0.5.2.** This library's listener boundary is written against **0.3.0
-semantics, which neither 0.5.1 nor 0.5.2 changes**: `task.progress`'s detail changed shape at 0.3.0 (the id is
-`id`, not `taskId`), the second `task.user_action` dispatch site arrived there, and `task.timestamp`
-did not exist before it. **`core/FyflowScheduler.ts` is byte-identical between 0.3.0, 0.5.1 and 0.5.2**, so
-every one of those still holds; what 0.5.1 added is a `worker.setup.*` / `worker.teardown.*` event
-family this library subscribes to not at all. Install it from a registry — npm and JSR both carry it —
-and **never from a working tree**, which is
+**Pin the scheduler at exactly the version this package's `peerDependencies` names** — read it in
+this package's `package.json`, or run `npm ls fyflow-scheduler` once it is installed. *(Until W157 this sentence carried the
+number, and so did four other documents; each bump was five edits that agreed only by care. The
+number now lives in the manifests and the lock files, and `npm run check:scheduler`'s `D7` refuses it
+anywhere else.)* This library's listener boundary is written against **0.3.0 semantics**:
+`task.progress`'s detail changed shape at 0.3.0 (the id is `id`, not `taskId`), the second
+`task.user_action` dispatch site arrived there, and `task.timestamp` did not exist before it.
+**`core/FyflowScheduler.ts` was byte-identical between 0.3.0, 0.5.1 and 0.5.2**; it is not at the
+current pin, and W157 re-read what this library rests on there rather than inferring it: the
+`user_action` pair is unchanged on both of its paths, and `task.progress` is built from the same
+fields. What 0.5.1 added is a `worker.setup.*` / `worker.teardown.*` event family this library
+subscribes to not at all. **The current pin adds one thing this release does NOT yet handle: a sixth
+task state, `cancelled`, reached only through `scheduler.cancel(id)`.** The listener drops a
+cancelled task and its run never ends — so do not call `cancel` on a task this library dispatched
+until [P33](doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md) lands it. Install the
+scheduler from a registry — npm and JSR both carry it — and **never from a working tree**, which is
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
 superseding [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
 rules 3 and 5. **The manifests say the same thing**, since
 [ADR 0048](doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md):
 `package.json` names it in `peerDependencies` at exactly that version and `deno.json` maps it to
 `jsr:@fyflow/scheduler` at exactly that version, and `npm run check:scheduler`'s `D8` holds both to
-the pin the same way `D7` holds this sentence. *(This read **"pin at 0.3.0 … npm and JSR both stop at 0.2.1, so 0.3.0 is reached from
+the pin. *(This read **"pin at 0.3.0 … npm and JSR both stop at 0.2.1, so 0.3.0 is reached from
 a working tree"** — a live instruction to a consumer, wrong in the version AND in the mechanism, the
 second having been superseded on 2026-08-31. W36's conformity reader.)*
 
@@ -3266,7 +3283,12 @@ await third.shutdown();
   included, long after it released the driver (section 12). Resume on a fresh runtime
   ([Q371](doc/questions/q371.md)).
 - **`shutdown()` is not a kill.** It DRAINS: measured in node and deno, a run one settlement in
-  completes inside it, while a retry waiting on its backoff never runs. It waits while tasks are RUNNING
+  completes inside it, while a retry waiting on its backoff runs only if the backoff ends inside the
+  drain — the drain dispatches like any other moment, and a backoff still pending when it ends is
+  discarded (the current pin's `shutdown()` says so in its source; measured on the scheduler alone by
+  W157 and its conformity reader, in node: a 100 ms backoff beside a 500 ms running task ran its retry
+  in the drain, a 300 ms one with nothing else running did not; at 0.5.2 a retry could also start
+  before its backoff ended). It waits while tasks are RUNNING
   and for at most five seconds, so a run with longer work in flight, or only queued or blocked tasks, is
   left where the wait ended. A crash is what the snippet's
   `alive` flag stands for — the store stops, whatever the process was doing.

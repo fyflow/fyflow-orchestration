@@ -49,15 +49,25 @@
 // correction. A mutant that throws exits non-zero and reports nothing, and an exit
 // code reads that as a catch.
 //
-// **What `D7` leaves unprobed, named rather than omitted — W37.** `D7` has two
-// `fail()` sites: the **pin statement** and the **unreadable document**. Only the
-// first is probed. The second cannot be, for W29's own reason one file across: the
-// `half` mechanism mutates a document and writes it back, so every probe presents a
-// file that IS there and IS readable, and none can present one that is not. It is
-// the same shape as `check-docs`' missing-document refusal, which W29 recorded as
-// reachable by no probe at all. Two probes drive the one clause that can be driven,
-// one per document, because both documents were wrong at once on the bump that added
-// the check.
+// **What `D7` leaves unprobed, named rather than omitted — W157.** `D7` was rewritten
+// by W157 (the pin's NUMBER written only where something resolves it) and has three
+// `fail()` sites: the **number outside a resolving file**, a **retired pin sentence**,
+// and the **vacuity floor** (a walk that scanned almost nothing). The first two are
+// probed — the number into every scanned top-level directory, into the root, into the
+// `.md`, `.ts`, `.mjs` and `.json` kinds, into this check's own file and into the import
+// map's `_note`; and each of the five retired sentences once (W157's adequacy reader, A1-A2). The third cannot be, for W29's own reason: the `half` mechanism
+// mutates a file that IS there, and no probe can shrink the tree under the walk. A
+// META entry that stops the walk descending at all is not inert on the clean tree for
+// the same reason — the floor fires — so total recursion is graded by that floor; a
+// single top-level directory dropped from the scan is graded by a META entry. *(W37's version of this paragraph named the unreadable-document arm of
+// the five-sentence check, retired with it.)*
+//
+// **And what `D7` cannot see at all, stated in the check**: the pin's number on a line
+// that names neither the scheduler nor the pin, or wrapped onto the next line, and any
+// file under the RECORD directories, which are dated by construction. **What no META
+// entry grades, stated**: the vacuity floor's removal, a file ADDED to the resolving or
+// record lists that no probe targets, and the `.js` and `.html` kinds (no probe writes
+// one). `D9`'s five clauses each have a probe and an entry.
 //
 // **What W29 added beyond the contract, and why each was measured first.**
 //
@@ -184,6 +194,16 @@ const MAP_PIN_RE = /jsr:@fyflow\/scheduler@(\d+\.\d+\.\d+)/;
 const MAP_ENTRY_RE = /"fyflow-scheduler": "jsr:@fyflow\/scheduler@\d+\.\d+\.\d+"/;
 const INSTALLED_VERSION_RE = /"version": "(\d+)\.(\d+)\.(\d+)"/;
 
+/**
+ * **The current pin, read from `check-scheduler.mjs`'s `PIN` — W157's `D7` probes.** Not from
+ * `package.json`, and not from any file a `D7` probe mutates: a probe that writes the number it
+ * read from its own target agrees with the target by construction. `0.0.0` if the declaration is
+ * gone, which no line of this tree carries, so every `D7` number probe then goes uncaught and
+ * says so.
+ */
+const PIN_NOW = /^const PIN = '(\d+\.\d+\.\d+)';$/m
+  .exec(readFileSync(new URL('./check-scheduler.mjs', import.meta.url), 'utf8'))?.[1] ?? '0.0.0';
+
 const PROBES = [
   {
     name: 'package.json asks for a RANGE rather than the pin',
@@ -252,54 +272,138 @@ const PROBES = [
     mutate: (t) => t.replace('"test:l6": "node examples/l6.ts"', '"test:l6": "deno run examples/l6.ts"'),
   },
   {
-    name: 'spec/README.md names a version that is not the pin',
-    half: 'spec/README.md', check: 'D7',
-    // **The state this whole item was in for an hour, and the gate was green.**
-    // `package.json`, the import map and `PIN` all said 0.5.2 while five `spec/`
-    // documents and `AGENTS.md` still said 0.5.1 — `D2` compares the manifest to
-    // `PIN` and stops there. The mutation is the pin STATEMENT, not any mention of
-    // a version: `spec/` legitimately cites older versions in every re-dating
-    // paragraph, and a check that refused those would refuse the record.
-    mutate: (t) => t.replace(/at \*\*\d+\.\d+\.\d+\*\*, the version we pin/,
-      'at **9.9.9**, the version we pin'),
-  },
-  {
-    name: 'spec/README.md stops stating the pin at all',
-    half: 'spec/README.md', check: 'D7',
-    // **The clause that stops an empty document passing.** `D7` compares every
-    // captured version to `PIN`; with no capture there is nothing to disagree, so a
-    // document that has stopped saying which version to install would pass a
-    // compare-only check. Deleting the sentence is the case.
-    mutate: (t) => t.replace(/at \*\*\d+\.\d+\.\d+\*\*, the version we pin/, 'at the version we pin'),
-  },
-  {
-    name: 'AGENTS.md names a version that is not the pin',
-    half: 'AGENTS.md', check: 'D7',
-    // The consumer-facing half. `AGENTS.md` is the one document a consumer reads
-    // to know what to install, and it is the one `check-docs` executes — so a wrong
-    // pin here is a wrong `npm install` line with every snippet still passing.
-    mutate: (t) => t.replace(/Pin the scheduler at \d+\.\d+\.\d+\./, 'Pin the scheduler at 9.9.9.'),
-  },
-  {
-    name: 'README.md names a version that is not the pin',
+    name: 'the pin`s number written into README.md beside the word scheduler',
     half: 'README.md', check: 'D7',
-    // **One probe per `D7` site — W37's own rule 8 re-run.** The adequacy reader
-    // added three sites and only the first two had probes, so dropping this one from
-    // `sites` cost **0**: the check stopped reading the repository's front page and
-    // nothing said so. A site with no probe is a site that can leave.
-    mutate: (t) => t.replace(/is pinned to \*\*\d+\.\d+\.\d+\*\* and installed from/,
-      'is pinned to **9.9.9** and installed from'),
+    // **W157's rule in its plainest case**: the repository's front page states the pin's
+    // number again, which is what it did until W157. `D7` refuses the current pin's
+    // number on any line that speaks of the scheduler or the pin, outside the files that
+    // resolve it. The number is read from `check-scheduler.mjs`'s `PIN`, a different file
+    // from the one mutated, so the anchor cannot agree with its target by construction.
+    mutate: (t) => `${t}\nThe scheduler is installed at ${PIN_NOW} here.\n`,
   },
   {
-    name: 'doc/concept.md names a version that is not the pin',
+    name: 'the pin`s number written into a document one directory down',
+    half: 'spec/README.md', check: 'D7',
+    // The walk DESCENDS: a document under `spec/` is scanned as one at the root is.
+    mutate: (t) => `${t}\nW157 nested-dir probe: the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'the pin`s number written into doc/concept.md, beside the record directories it is not',
     half: 'doc/concept.md', check: 'D7',
-    mutate: (t) => t.replace(/We pin \*\*\d+\.\d+\.\d+\*\* \(Q3\)/, 'We pin **9.9.9** (Q3)'),
+    // `doc/` holds the RECORD directories the walk skips (`doc/work-items/`, `doc/plans/`,
+    // `doc/decisions/`, `doc/questions/`); `doc/concept.md` sits beside them and is scanned.
+    // A skip widened from `doc/work-items/` to `doc/` loses this probe.
+    mutate: (t) => `${t}\nW157 doc-dir probe: we pin ${PIN_NOW}.\n`,
   },
   {
-    name: 'examples/README.md names a version that is not the pin',
+    name: 'the pin`s number written into CLAUDE.md as a jsr: specifier',
+    half: 'CLAUDE.md', check: 'D7',
+    // The specifier form, and the guidance file the five-sentence check never bound — it
+    // named the pin in two places W37 found and W157 removed.
+    mutate: (t) => `${t}\nW157 specifier probe: jsr:@fyflow/scheduler@${PIN_NOW}\n`,
+  },
+  {
+    name: 'the pin`s number written into a TypeScript source comment',
+    half: 'src/scheduler/runtime.ts', check: 'D7',
+    // A `.ts` file, not a document: the scanned set is by extension, and the source carries
+    // dated claims about the scheduler that must not become undated ones.
+    mutate: (t) => `${t}\n// W157 source probe: measured on the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'a retired pin sentence written again, at a version that is not the pin',
+    half: 'AGENTS.md', check: 'D7',
+    // **The number rule sees only the CURRENT pin**, so after a bump an OLD instruction is
+    // invisible to it — W37's measured state, eleven documents naming the old pin with the
+    // gate green. The five sentence forms the old `D7` bound are refused at any version.
+    // Split so this line is not itself the sentence: `D7` scans this file too.
+    mutate: (t) => `${t}\n${'Pin the'} scheduler at 9.9.9.\n`,
+  },
+  // **W157's adequacy reader, A1**: one probe per scanned top-level directory and file kind the
+  // first set left unprobed, so a META entry can narrow each and be graded.
+  {
+    name: 'the pin`s number written into examples/README.md',
     half: 'examples/README.md', check: 'D7',
-    mutate: (t) => t.replace(/Node installs `fyflow-scheduler@\d+\.\d+\.\d+` from/,
-      'Node installs `fyflow-scheduler@9.9.9` from'),
+    mutate: (t) => `${t}\nW157 examples-dir probe: the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'the pin`s number written into a test file',
+    half: 'test/runner.ts', check: 'D7',
+    mutate: (t) => `${t}\n// W157 test-dir probe: the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'the pin`s number written into this check`s own file, beside its PIN',
+    half: 'scripts/check-scheduler.mjs', check: 'D7',
+    // A `.mjs` under `scripts/`, and the one file with an exemption: only its `const PIN` line
+    // may carry the number. A comment restating it is a second copy like any other.
+    mutate: (t) => `${t}\n// W157 self probe: the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'the pin`s number written into a JSON file at the root',
+    half: 'tsconfig.json', check: 'D7',
+    mutate: (t) => `${t}\n// W157 json probe: the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'the pin`s number written into the import map`s _note',
+    half: MAP, check: 'D7',
+    // A2: the map is a RESOLVING file and skipped whole, except its free-text `_note`, which
+    // restated the number until W157.
+    mutate: (t) => t.replace('"_note": "The Deno half', `"_note": "The scheduler is at ${PIN_NOW}. The Deno half`),
+  },
+  // The four retired sentences the first set did not drive, one each, so deleting any one of
+  // `RETIRED`'s five patterns loses a probe. Each is split in this source so that this line is not
+  // itself the sentence, because `D7` scans this file too.
+  {
+    name: 'a retired spec/README.md pin sentence written again',
+    half: 'spec/README.md', check: 'D7',
+    mutate: (t) => `${t}\n${'at **9.9.9**, the version'} we pin\n`,
+  },
+  {
+    name: 'a retired README.md pin sentence written again',
+    half: 'README.md', check: 'D7',
+    mutate: (t) => `${t}\n${'is pinned to **9.9.9**'} and installed from npm\n`,
+  },
+  {
+    name: 'a retired doc/concept.md pin sentence written again',
+    half: 'doc/concept.md', check: 'D7',
+    mutate: (t) => `${t}\n${'We pin **9.9.9**'} (Q3)\n`,
+  },
+  {
+    name: 'a retired examples/README.md pin sentence written again',
+    half: 'examples/README.md', check: 'D7',
+    mutate: (t) => `${t}\n${'Node installs `fyflow-scheduler@9.9.9`'} from npm\n`,
+  },
+  // **D9 — A3: the two lock files hold the pin.**
+  {
+    name: 'deno.lock locks the scheduler at a DIFFERENT version',
+    half: 'deno.lock', check: 'D9',
+    mutate: (t) => t.replace(/("@fyflow\/scheduler@)(\d+)\.(\d+)\.(\d+)(": \{)/,
+      (_m, p, a, c, d, s) => `${p}${a}.${c}.${Number(d) + 1}${s}`),
+  },
+  {
+    name: 'deno.lock keeps a DEAD version beside the pin — Q174',
+    half: 'deno.lock', check: 'D9',
+    mutate: (t) => t.replace('  "jsr": {\n', '  "jsr": {\n    "@fyflow/scheduler@0.0.1": {\n      "integrity": "00"\n    },\n'),
+  },
+  {
+    name: 'deno.lock locks no scheduler at all',
+    half: 'deno.lock', check: 'D9',
+    mutate: (t) => t.replace(/"@fyflow\/scheduler@(\d+\.\d+\.\d+)": \{/, '"@fyflow/schedulr@$1": {'),
+  },
+  {
+    name: 'deno.lock is not readable JSON at all',
+    half: 'deno.lock', check: 'D9',
+    mutate: (t) => t.replace('{\n', '{{\n'),
+  },
+  {
+    name: 'package-lock.json locks the scheduler at a DIFFERENT version',
+    half: 'package-lock.json', check: 'D9',
+    mutate: (t) => t.replace(/("node_modules\/fyflow-scheduler": \{\s*"version": ")(\d+)\.(\d+)\.(\d+)/,
+      (_m, p, a, c, d) => `${p}${a}.${c}.${Number(d) + 1}`),
+  },
+  {
+    name: 'package-lock.json is not readable JSON at all',
+    half: 'package-lock.json', check: 'D9',
+    mutate: (t) => t.replace('{\n', '{{\n'),
   },
   {
     name: 'the Node rung deleted from package.json entirely',
@@ -595,7 +699,7 @@ const INSTALL_PROBES = [
 // place the id vocabulary is written down**, which is [Q43](../doc/questions/q43.md)'s
 // class and exactly what W29's declaration killed as a hypothesis for three other
 // self-tests — here it is live.
-const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
+const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9'];
 
 /**
  * **Did the mutated check RUN TO COMPLETION?** A grading requires this, which is
@@ -609,10 +713,10 @@ const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** The floor `check-policies-selftest.mjs` learned to carry: vacuous at zero. */
-const MIN_PROBES = 41;
+const MIN_PROBES = 56;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 36;
+const MIN_META = 57;
 
 /**
  * **The mutations `check-scheduler.mjs` itself is run against.** Every probe above
@@ -774,12 +878,75 @@ const META = [
   // reader: the message went from *"does not state the pin as X"* to *"states the pin
   // as X"*, and this file said so — `a check id with no grading at all` — rather than
   // passing. Rule 7 (b), caught by the one bound here a floor edit cannot satisfy.
-  ['D7`s wrong-version clause disabled — W37',
-    'spec/README.md names a version that is not the pin',
-    (t) => t.replace("fail('D7', `${rel_} states the pin as", "[].push(`${rel_} states the pin as")],
-  ['D7`s no-statement clause disabled — W37, and it is what stops an EMPTY document passing',
-    'spec/README.md stops stating the pin at all',
-    (t) => t.replace("fail('D7', `${rel_} states the pin nowhere", "[].push(`${rel_} states the pin nowhere")],
+  ['D7`s number-outside-a-resolving-file clause disabled — W157',
+    'the pin`s number written into README.md beside the word scheduler',
+    (t) => t.replace("fail('D7', `the pin's number ${PIN} is written outside", "[].push(`the pin's number ${PIN} is written outside")],
+  ['D7`s retired-sentence clause disabled — W157',
+    'a retired pin sentence written again, at a version that is not the pin',
+    (t) => t.replace("fail('D7', `a retired pin STATEMENT is written again", "[].push(`a retired pin STATEMENT is written again")],
+  ['D7`s line filter made to match nothing, so no line speaks of the scheduler — W157',
+    'the pin`s number written into README.md beside the word scheduler',
+    (t) => t.replace('const SPEAKS = /scheduler|\\bpin/i;', 'const SPEAKS = /$^/;')],
+  ['D7`s scanned extensions lose .ts — W157',
+    'the pin`s number written into a TypeScript source comment',
+    (t) => t.replace('const EXTENSIONS = /\\.(md|ts|mjs|js|json|html)$/;', 'const EXTENSIONS = /\\.(md|mjs|js|json|html)$/;')],
+  ['D7`s scanned top-level directories lose spec/ — W157',
+    'the pin`s number written into a document one directory down',
+    (t) => t.replace("const SCAN_DIRS = new Set(['doc', 'spec', 'src',", "const SCAN_DIRS = new Set(['doc', 'src',")],
+  ['D7`s scanned top-level directories lose test/ — A1',
+    'the pin`s number written into a test file',
+    (t) => t.replace("const SCAN_DIRS = new Set(['doc', 'spec', 'src', 'test',", "const SCAN_DIRS = new Set(['doc', 'spec', 'src',")],
+  ['D7`s scanned top-level directories lose examples/ — A1',
+    'the pin`s number written into examples/README.md',
+    (t) => t.replace("'test', 'examples', 'scripts']);", "'test', 'scripts']);")],
+  ['D7`s scanned top-level directories lose scripts/ — A1',
+    'the pin`s number written into this check`s own file, beside its PIN',
+    (t) => t.replace("'examples', 'scripts']);", "'examples']);")],
+  ['D7`s scanned extensions lose .mjs — A1',
+    'the pin`s number written into this check`s own file, beside its PIN',
+    (t) => t.replace('const EXTENSIONS = /\\.(md|ts|mjs|js|json|html)$/;', 'const EXTENSIONS = /\\.(md|ts|js|json|html)$/;')],
+  ['D7`s scanned extensions lose .json — A1',
+    'the pin`s number written into a JSON file at the root',
+    (t) => t.replace('const EXTENSIONS = /\\.(md|ts|mjs|js|json|html)$/;', 'const EXTENSIONS = /\\.(md|ts|mjs|js|html)$/;')],
+  ['D7`s own-file exemption widened from the PIN line to the whole file — A1',
+    'the pin`s number written into this check`s own file, beside its PIN',
+    (t) => t.replace("if (r === SELF && /^const PIN = '\\d+\\.\\d+\\.\\d+';$/.test(line)) return;", 'if (r === SELF) return;')],
+  ['D7`s _note scan loses the import map — A2',
+    'the pin`s number written into the import map`s _note',
+    (t) => t.replace("const NOTES = [['examples/deno-import-map.json', '_note'], ", 'const NOTES = [')],
+  ['D7`s retired spec/README.md sentence deleted — A1',
+    'a retired spec/README.md pin sentence written again',
+    (t) => t.replace('    /at \\*\\*\\d+\\.\\d+\\.\\d+\\*\\*, the version we pin/,\n', '')],
+  ['D7`s retired AGENTS.md sentence deleted — A1',
+    'a retired pin sentence written again, at a version that is not the pin',
+    (t) => t.replace('    /Pin the scheduler at \\d+\\.\\d+\\.\\d+/,\n', '')],
+  ['D7`s retired README.md sentence deleted — A1',
+    'a retired README.md pin sentence written again',
+    (t) => t.replace('    /is pinned to \\*\\*\\d+\\.\\d+\\.\\d+\\*\\* and installed from/,\n', '')],
+  ['D7`s retired doc/concept.md sentence deleted — A1',
+    'a retired doc/concept.md pin sentence written again',
+    (t) => t.replace('    /We pin \\*\\*\\d+\\.\\d+\\.\\d+\\*\\* \\(Q3\\)/,\n', '')],
+  ['D7`s retired examples/README.md sentence deleted — A1',
+    'a retired examples/README.md pin sentence written again',
+    (t) => t.replace('    /Node installs `fyflow-scheduler@\\d+\\.\\d+\\.\\d+` from/,\n', '')],
+  ['D9`s unreadable-deno.lock clause disabled — A3',
+    'deno.lock is not readable JSON at all',
+    (t) => t.replace("fail('D9', `deno.lock is unreadable", "[].push(`deno.lock is unreadable")],
+  ['D9`s no-entry clause disabled — A3',
+    'deno.lock locks no scheduler at all',
+    (t) => t.replace("fail('D9', `deno.lock locks no", "[].push(`deno.lock locks no")],
+  ['D9`s stale-entry clause disabled — A3, and Q174`s dead anchors with it',
+    'deno.lock locks the scheduler at a DIFFERENT version',
+    (t) => t.replace("fail('D9', `deno.lock locks ${JSR_NAME} at", "[].push(`deno.lock locks ${JSR_NAME} at")],
+  ['D9`s unreadable-package-lock clause disabled — A3',
+    'package-lock.json is not readable JSON at all',
+    (t) => t.replace("fail('D9', `package-lock.json is unreadable", "[].push(`package-lock.json is unreadable")],
+  ['D9`s package-lock version clause disabled — A3',
+    'package-lock.json locks the scheduler at a DIFFERENT version',
+    (t) => t.replace("fail('D9', `package-lock.json locks", "[].push(`package-lock.json locks")],
+  ['D7`s record skip widened from doc/work-items/ to the whole of doc/ — W157',
+    'the pin`s number written into doc/concept.md, beside the record directories it is not',
+    (t) => t.replace("const RECORDS = ['doc/work-items/',", "const RECORDS = ['doc/', 'doc/work-items/',")],
   // --- D8 — W57 ---------------------------------------------------------------
   ['D8`s missing-peer clause disabled',
     'package.json declares no peer dependency on the scheduler',
@@ -930,16 +1097,12 @@ export async function selfTest(root) {
     // zero failures across four checks — so it is kept as a probe rather than
     // dropped for being the second of a pair, and the string bounds it.
     ['the Node rung pointed at a module that runs nothing', 'examples/run-flow.ts'],
-    // **W37, and the same reason again.** `D7`'s pin-statement clause is one
-    // `fail()` site inside a loop over two documents, so it takes one `META` entry;
-    // `spec/README.md` cites it and this is `AGENTS.md`. Both were wrong at once on
-    // the bump that added the check, which is why both are probed rather than one.
-    ['AGENTS.md names a version that is not the pin', 'Pin the scheduler at 9.9.9.'],
-    // The other three `D7` sites, for the same reason: one `fail()` site, one `META`
-    // entry, and a probe each so that no site can leave unnoticed.
-    ['README.md names a version that is not the pin', 'is pinned to **9.9.9**'],
-    ['doc/concept.md names a version that is not the pin', 'We pin **9.9.9** (Q3)'],
-    ['examples/README.md names a version that is not the pin', '`fyflow-scheduler@9.9.9`'],
+    // **W157, `D7`.** The specifier form shares the clause the README probe's entry grades,
+    // and no inert mutation separates it, so it is bound by the string it writes.
+    ['the pin`s number written into CLAUDE.md as a jsr: specifier', 'W157 specifier probe: jsr:@fyflow/scheduler@'],
+    // **A3.** The dead-anchor case drives the same stale-entry clause the version probe's entry
+    // grades — Q174's shape, where the pin's own entry is right and an old one stays beside it.
+    ['deno.lock keeps a DEAD version beside the pin — Q174', '"@fyflow/scheduler@0.0.1"'],
     // **W57, `D8`.** Two clauses, one `META` entry each; the second probe of each pair drives
     // the same site from the other declaration shape and is bound by the string it writes.
     ['the peer range is a CARET rather than the pin', '"fyflow-scheduler": "^'],

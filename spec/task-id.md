@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.11 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.11 is [W89](../doc/work-items/w89-what-resuming-is.md)**: `ID-R3`'s text gains `resume()` — the second door into one run ([ADR 0065](../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)) — and nothing else moves. **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -49,6 +49,8 @@ one node mint 500 distinct strings**. So none of the *"every fixture, every log 
 name"* cost this section spends its argument on is paid. **What v0.8 changes is section 1's own
 heading**: inside a `map` region a branch index is a property of the **dispatch**, and `ID-R6` is the
 refusal that keeps a derivation from guessing one.
+
+**v0.12 is [W157](../doc/work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and it moves no rule.** The scheduler pin moved, and `core/FyflowScheduler.ts` is not byte-identical at the new pin, so each UNDATED line citation into it here — a citation at the version we pin, `spec/README.md` rule 6 — is re-taken there: section 1's attempt segment and the scheduler's retry block (`:869-886` to `:1107-1143`) and section 3's eviction (`:1605` to `:2075`); section 2 is DATED, read at 0.5.2, and stays as it was. The CLAIM each supports was re-read and still holds — not the code: the retry block changed, holding its backoff outside the ready queue, and a retry is still counted on the same task's `attempts`.
 
 **v0.9 is [W36](../doc/work-items/w36-the-scheduler-pin-moves-to-0-5-1.md), and it is a VERSION
 re-dating rather than a rule change.** The `fyflow-scheduler` pin moved 0.3.0 to 0.5.1; section 2's *"read in the source at"* is re-dated and gains the byte-identical finding.
@@ -187,7 +189,7 @@ claimed both were unchanged was wrong about the second.
 - **`attempt` counts flow-level retries only** ([Q16](../doc/questions/q16.md)), and P1 always
   emits `0`. It is **not** the scheduler's retry count: `retryPolicy` retries happen *inside* one
   scheduler task and are reported on that task's `attempts` field
-  (`../fyflow-scheduler/core/FyflowScheduler.ts:869-886`, and `AGENTS.md` section 5 —
+  (`../fyflow-scheduler/core/FyflowScheduler.ts:1107-1143`, and `AGENTS.md` section 5 —
   *"`stats.failed` counts tasks that failed... a task with retries counts once"*). Two retry
   counters exist; this segment is ours, and conflating them is what Q16 is about.
 
@@ -350,5 +352,5 @@ bookkeeping is wrong, and continuing past it corrupts the run in the way section
 
 **The driver holds the dispatched-id set, not the scheduler.** Asking `scheduler.tasks.has(id)` is
 not a substitute: `maxCompletedTasks` evicts terminal tasks with no event
-(`core/FyflowScheduler.ts:1605`, `_recordTerminalTask`), so the scheduler's answer is *"not any
+(`core/FyflowScheduler.ts:2075`, `_recordTerminalTask`), so the scheduler's answer is *"not any
 more"* rather than *"never"*.

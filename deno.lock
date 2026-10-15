@@ -1,23 +1,23 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@fyflow/scheduler@0.5.2": "0.5.2"
+    "jsr:@fyflow/scheduler@0.6.0": "0.6.0"
   },
   "jsr": {
-    "@fyflow/scheduler@0.5.2": {
-      "integrity": "af47d408a2b3ef0a351a2ec7e4f8a69890f507ecf73117b7dee39c8f93c221a4"
+    "@fyflow/scheduler@0.6.0": {
+      "integrity": "562ba42249ad8a66eebbdcac32e3e5eef527e64a5e06a6a9e4eeb66f61c8654b"
     }
   },
   "workspace": {
     "dependencies": [
-      "jsr:@fyflow/scheduler@0.5.2",
+      "jsr:@fyflow/scheduler@0.6.0",
       "npm:jsonata@2.2.2"
     ],
     "packageJson": {
       "dependencies": [
         "npm:@types/node@^24.13.3",
         "npm:esbuild@~0.25.12",
-        "npm:fyflow-scheduler@0.5.2",
+        "npm:fyflow-scheduler@0.6.0",
         "npm:jsonata@2.2.2",
         "npm:playwright@^1.62.1",
         "npm:typescript@^5.9.2"

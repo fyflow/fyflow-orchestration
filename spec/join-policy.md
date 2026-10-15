@@ -1,6 +1,6 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.18 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.19 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
 **v0.18 is [W85](../doc/work-items/w85-what-a-nested-region-carries-and-how-it-ends.md) under
 [P22](../doc/plans/p22-what-a-regions-identity-is.md), and it moves TWO `Test:` cells and nothing
@@ -11,6 +11,8 @@ from this document alone would have had to invent the fixtures. **`JP-R12` gains
 depth-three cases**, and **`JP-R10` gains the documents in which the region it names is one INSTANCE
 OF SEVERAL** — at its N = 0 site and at its `unsatisfiable` one, both of which W85 measured costing
 **zero** in that direction before they were written.
+
+**v0.19 is [W157](../doc/work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and it moves no rule.** The scheduler pin moved, and `core/FyflowScheduler.ts` is not byte-identical at the new pin, so each UNDATED line citation into it here — a citation at the version we pin, `spec/README.md` rule 6 — is re-taken there: section 2's `optional`-null row (`:894-897` to `:1151-1154`). The CLAIM each supports was re-read and still holds; the lines under it moved, and the file around them changed.
 
 **`JP-R10` sits INSIDE section 3, so *section 3 is byte-unchanged* is NOT said here — and it was
 already false when v0.17 said it.** That paragraph's *"byte-unchanged for the fifth version
@@ -278,7 +280,7 @@ are not four:
 | Q5's case | what it is here | |
 |---|---|---|
 | a branch task **failed** | `branch.lost` with `reason: 'failed'` | by **either** road — an `optional` node settling, or a human resolving a suspended node `failed` (`RS-R3`). See below |
-| an **`optional`** branch resolving `null` | **the same event.** `state = 'failed'` and `resolve(null)` are two lines of one branch (`../fyflow-scheduler/core/FyflowScheduler.ts:894-897`), and `resolve(null)` is invisible to a listener | |
+| an **`optional`** branch resolving `null` | **the same event.** `state = 'failed'` and `resolve(null)` are two lines of one branch (`../fyflow-scheduler/core/FyflowScheduler.ts:1151-1154`), and `resolve(null)` is invisible to a listener | |
 | a branch ending in **`user_action`** | `branch.suspended` — **not** a loss. The branch is still live and the join keeps waiting | |
 | a branch **routed away** | `branch.exited` | it reached an `end` node — P1's case |
 

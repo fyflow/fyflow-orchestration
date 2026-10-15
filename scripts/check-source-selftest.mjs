@@ -182,6 +182,20 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 /**
+ * **The scheduler pin, DERIVED from `package.json`'s `peerDependencies` — W157.** Three probes below
+ * anchor on the manifest's scheduler entry, and each wrote the version as a literal, so every bump was
+ * three more edits here and a missed one surfaced as *"the mutation matched nothing"*. The number now
+ * lives in the manifests alone (`check-scheduler.mjs` `D7`). It is read from the TEXT the probe is
+ * handed — the manifest it mutates — and not from a path beside this file, because the `SELF` pass runs
+ * a COPY of this file from elsewhere (W157's first form read `new URL('../package.json', import.meta.url)`
+ * and all ten `SELF` children died before running). No match gives `undefined`, so the mutation matches
+ * nothing and the guard says so. The cost, stated: an anchor read from the file it mutates agrees with
+ * that file on the VERSION by construction, so these probes cannot notice a version drift — `D2`, `D3`
+ * and `D8` own that — and they still notice every change to the shape around the entry.
+ */
+const schedPin = (t) => /"peerDependencies": \{\s*"fyflow-scheduler": "([^"]+)"/.exec(t)?.[1];
+
+/**
  * `half` says which file the probe rewrites — `pkg` for the manifest, `check` for
  * `check-source.mjs` itself — and the other is read from the tree. `check` and
  * `also` together are the exact set of checks the run must report under.
@@ -677,8 +691,8 @@ export const p2 = () => new WorkerManager('u', {});
   {
     name: 'jsonata declared as an optional PEER beside dependencies — the adjacent fields W57`s reader found',
     half: 'pkg', check: 'S15',
-    mutate: (t) => t.replace('  "peerDependencies": {\n    "fyflow-scheduler": "0.5.2"\n  },',
-      '  "peerDependencies": {\n    "fyflow-scheduler": "0.5.2",\n    "jsonata": "2.2.2"\n  },\n  "peerDependenciesMeta": { "jsonata": { "optional": true } },'),
+    mutate: (t) => t.replace(`  "peerDependencies": {\n    "fyflow-scheduler": "${schedPin(t)}"\n  },`,
+      `  "peerDependencies": {\n    "fyflow-scheduler": "${schedPin(t)}",\n    "jsonata": "2.2.2"\n  },\n  "peerDependenciesMeta": { "jsonata": { "optional": true } },`),
   },
   {
     name: 'jsonata declared in optionalDependencies alone beside dependencies — its own probe (the adequacy reader, m13)',
@@ -698,7 +712,7 @@ export const p2 = () => new WorkerManager('u', {});
   {
     name: 'jsonata declared in devDependencies as well — a second declaration',
     half: 'pkg', check: 'S15',
-    mutate: (t) => t.replace('    "fyflow-scheduler": "0.5.2",\n    "playwright"', '    "fyflow-scheduler": "0.5.2",\n    "jsonata": "2.2.2",\n    "playwright"'),
+    mutate: (t) => t.replace(`    "fyflow-scheduler": "${schedPin(t)}",\n    "playwright"`, `    "fyflow-scheduler": "${schedPin(t)}",\n    "jsonata": "2.2.2",\n    "playwright"`),
   },
   {
     name: 'package.json`s ./jsonata export removed — nothing but S15 reads the map for it',
@@ -737,7 +751,7 @@ export const p2 = () => new WorkerManager('u', {});
     // W30's probe, `peerDependencies` is what `D8` now requires, and this is the remaining
     // way to install a second copy beside the consumer's.
     mutate: (t) => t.replace('  "devDependencies": {',
-      '  "optionalDependencies": {\n    "fyflow-scheduler": "0.5.2"\n  },\n  "devDependencies": {'),
+      `  "optionalDependencies": {\n    "fyflow-scheduler": "${schedPin(t)}"\n  },\n  "devDependencies": {`),
   },
   {
     name: 'deno.json maps the scheduler to a working-tree PATH — ADR 0029`s incident, in the publish manifest',

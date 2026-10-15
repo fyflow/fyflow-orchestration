@@ -1159,8 +1159,9 @@ const README_OPENING = '(the opening, above the first ## heading)';
 // is what earned it.** Probe `h1` put `package.json` back to `0.3.0` on the tree that ships `0.4.0`
 // and it cost **ZERO** at `check:docs`, `check:spec` and both L6 rungs: the one sentence in this
 // repository that tells a consumer which version a breaking change arrived in was compared to
-// nothing at all, while `D7` has held the SCHEDULER's pin to two sentences since
-// [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md).
+// nothing at all, while `D7` held the SCHEDULER's pin to five sentences from
+// [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md) until W157, which reversed it: the
+// scheduler's number is now written only where something resolves it.
 //
 // `X7`'s shape and `D7`'s subject: the number a consumer reads against the file it is about, both
 // manifests, and both of them against each other — because
