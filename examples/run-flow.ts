@@ -1492,7 +1492,7 @@ function routeHarnessListener(
  * driver, and an id no driver minted reaches every driver.*
  *
  * **The instrument is on the driver's ENTRY, not on the scheduler and not on the router.** The
- * driver's three subscriptions call `this.onEvent(name, detail)` by property lookup at call time, so an
+ * driver's four subscriptions (three until W158 added `task.cancelled`) call `this.onEvent(name, detail)` by property lookup at call time, so an
  * own property on the instance shadows the prototype's method and sees every event the driver hears,
  * from whatever delivered it — the scheduler's broadcast before ADR 0088, the runtime's routing after.
  * Installed synchronously after `runtime.start` returns, which is before anything can settle: the

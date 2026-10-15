@@ -42,7 +42,8 @@ import type { FlowDefinition } from '../../src/definition/types.ts';
 import { registry } from './flows.ts';
 
 export type Step =
-  | { do: 'settle'; taskId: string; state: 'done' | 'failed' | 'user_action'; result?: unknown }
+  /** `cancelled` since W158 (ADR 0094): the scheduler fires `task.cancelled` alone for it. */
+  | { do: 'settle'; taskId: string; state: 'done' | 'failed' | 'user_action' | 'cancelled'; result?: unknown }
   /**
    * `result` is the RESOLUTION's, and it is what a resumed branch carries into a
    * join — `spec/outcome-record.md` section 7: an effective outcome's `result`
@@ -87,8 +88,13 @@ export interface Scenario {
  * clock: every dispatched task has an outcome, no branch is parked on a person,
  * and the join has not fired — so nothing in the system can change, and a timeout
  * would only put a wall-clock guess on top of a decidable answer.
+ *
+ * **`cancelled` is W158's** (ADR 0094, `RN-R28`): a task of the run settled `cancelled`, so the driver halted
+ * it and the join will never fire — which is the owner's cancel, and NOT `stuck`, and not `waiting-on-human`
+ * even with a branch parked. Without it the three `CANCELLED_SCENARIOS` read `stuck`, `stuck` and
+ * `waiting-on-human`: each a false statement about a run that is over.
  */
-export type Verdict = 'joined' | 'waiting-on-human' | 'in-flight' | 'stuck';
+export type Verdict = 'joined' | 'waiting-on-human' | 'in-flight' | 'stuck' | 'cancelled';
 
 export interface Cell {
   policyId: string;
@@ -165,13 +171,15 @@ export class Fake {
         throw new Error(
           `matrix fixture: "${id}" settled \`failed\` but was dispatched with ` +
             `optional=${String(task.optional)}. Only an \`optional\` task can settle failed ` +
-            '(FyflowScheduler.ts:894-897); a non-optional one reaches `user_action`. ' +
+            '(FyflowScheduler.ts:1151-1154 at the pin, re-taken by W158); a non-optional one reaches `user_action`. ' +
             'This event stream cannot occur.',
         );
       }
     }
     const detail = { id, state, result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
     if (state === 'done') return this.fire('task.completed', detail);
+    // A cancel fires `task.cancelled` ALONE — no `task.failed` before it (the scheduler's reference, section 6).
+    if (state === 'cancelled') return this.fire('task.cancelled', detail);
     // Both other states fire `task.failed` first. Only a non-optional task out of
     // retries also fires `task.user_action`, and the driver keys on the terminal
     // state rather than on the event name — ADR 0007 rule 2.
@@ -276,6 +284,10 @@ export function runCell(scenario: Scenario, policy: JoinPolicy): Cell {
 function verdictOf(driver: Driver, joinFired: boolean): Verdict {
   if (joinFired) return 'joined';
   const dispatched = driver.dispatchedIds();
+  // `RN-R28` — a cancelled task halts the run, so it is read BEFORE the three below, each of which would
+  // otherwise describe a halted run as one still able to move (or as a defect). Public surface only: the
+  // effective outcome of a settled task, which for a cancel is its settlement.
+  if (dispatched.some((id) => driver.terminalStateOf(id) === 'cancelled')) return 'cancelled';
   // A suspended task has an outcome record and no effective outcome (ADR 0004
   // rule 3), which is exactly what distinguishes "waiting on a person" from
   // "waiting on nothing" — the mistake `branch.suspended` exists to prevent.

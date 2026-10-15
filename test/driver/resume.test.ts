@@ -43,9 +43,13 @@ class FakeScheduler {
   addEventListener(type: string, fn: (e: { detail: unknown }) => void): void {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
   }
-  settle(id: string, state: 'done' | 'failed' | 'user_action', over: Record<string, unknown> = {}): void {
+  // **`cancelled` since W158** — the union `TerminalState` widened, and `finish` below passes a stored record's
+  // state here, so this signature failed to COMPILE (P33 prediction 4: loud where a type constrains). A cancel
+  // fires `task.cancelled` alone, as the scheduler does; no reference run here holds one.
+  settle(id: string, state: 'done' | 'failed' | 'user_action' | 'cancelled', over: Record<string, unknown> = {}): void {
     const detail = { id, state, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1, ...over };
     if (state === 'done') this.fire('task.completed', detail);
+    else if (state === 'cancelled') this.fire('task.cancelled', detail);
     else {
       this.fire('task.failed', detail);
       if (state === 'user_action') this.fire('task.user_action', detail);

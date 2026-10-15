@@ -2310,9 +2310,10 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     const { s, runs, subscribedBeforeAnyRun } = threeRuns();
     equal(subscribedBeforeAnyRun, [], 'a runtime that has started nothing has subscribed nothing');
     equal(runs.map((x) => x.driver.runId), ['r1', 'r2', 'r3'], 'the CONTROL: three runs really started on this one runtime');
-    // The driver subscribes to three names (`SETTLEMENT_EVENTS`, `src/driver/driver.ts`): one each, not three each.
-    equal([...s.subscriptions].sort(), ['task.completed', 'task.failed', 'task.user_action'],
-      'one subscription per event NAME — a broadcast would show nine, three per driver');
+    // The driver subscribes to four names (`SETTLEMENT_EVENTS`, `src/driver/driver.ts`; `task.cancelled` since W158): one
+    // each, not three each.
+    equal([...s.subscriptions].sort(), ['task.cancelled', 'task.completed', 'task.failed', 'task.user_action'],
+      'one subscription per event NAME — a broadcast would show twelve, four per driver');
   });
 
   test('rule 4, row 1: a settlement is handed to the driver holding its run id, and to NO other — in all three terminal states', () => {
@@ -2438,7 +2439,7 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     const subscribed = s.subscriptions.length;
     const byHand = new Driver(FLOW, { ...r.registry, runId: 'hand', scheduler: r.scheduler, joinPolicy: liveToken });
     const heard = handed(byHand);
-    equal(s.subscriptions.length - subscribed, 3, 'its three subscriptions went to the scheduler itself');
+    equal(s.subscriptions.length - subscribed, 4, 'its four subscriptions went to the scheduler itself');
     s.done('r1:a:-:0');
     equal([heard, ...handedBy(runs)], [['r1:a:-:0'], ['r1:a:-:0'], [], []], 'the hand-built driver hears r1`s settlement; r2 and r3 still do not');
   });
@@ -2630,7 +2631,7 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     for (const x of runs) s.done(`${x.driver.runId}:a:-:0`);
     for (const x of runs) await w77Settlement(x.done);
     const subscribed = [...s.subscriptions];
-    equal(subscribed.length, 3, 'the ARRANGEMENT: one subscription per settlement event, and every run released');
+    equal(subscribed.length, 4, 'the ARRANGEMENT: one subscription per settlement event, and every run released');
     const late = open('r3');
     s.done('r3:a:-:0');
     s.done('nightly-cleanup');

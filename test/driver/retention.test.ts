@@ -66,9 +66,11 @@ class FakeScheduler {
   addEventListener(type: string, fn: (e: { detail: unknown }) => void): void {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
   }
-  settle(id: string, state: 'done' | 'failed' | 'user_action', over: Record<string, unknown> = {}): void {
+  // `cancelled` since W158 (ADR 0094): the scheduler fires `task.cancelled` ALONE for it.
+  settle(id: string, state: 'done' | 'failed' | 'user_action' | 'cancelled', over: Record<string, unknown> = {}): void {
     const detail = { id, state, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1, ...over };
     if (state === 'done') this.fire('task.completed', detail);
+    else if (state === 'cancelled') this.fire('task.cancelled', detail);
     else {
       this.fire('task.failed', detail);
       if (state === 'user_action') this.fire('task.user_action', detail);
@@ -278,6 +280,9 @@ const DRIVER_FIELDS = [
   // W151 — `deaf`: one boolean, set when a resume is refused because its replay regenerated a stop in the lost tail
   // (`RN-R23`). It holds no result; WALKED beside `failed` and `started`. The ratchet fired as designed.
   'deaf',
+  // W158 — `cancelled`: one boolean, set by the run's first `cancelled` settlement (`RN-R28`, ADR 0094), which halts the
+  // run. It holds no result; WALKED beside `failed`. The ratchet fired as designed, at W158's declaration step.
+  'cancelled',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins
@@ -337,6 +342,7 @@ const DECLARED_CASES = [
   'the unsatisfiable exit releases too — a region declared dead with arrivals in it',
   'rule 4 — an arrival at a join that has ALREADY become terminal records nothing',
   'a refusal that stops the run releases every region, and leaves the log whole',
+  'a CANCEL that halts the run releases every region too, and leaves the log whole',
   'rule 5 — a run the FOLD calls `stuck` still holds its collection, and that is the bound',
   'a `fanout` region releases as a `map` one does — the half that had no observer',
   'a nested region releases its OWN collection and leaves the enclosing one held',
@@ -656,6 +662,28 @@ suite(SUITE, (test) => {
       'decision 2 forbids',
     );
     equal(fold(h.driver.foldInputs()).outcome, 'stopped', 'RN-R8 — stopped outranks everything');
+  });
+
+  /**
+   * **The same run-level moment, reached by a CANCEL** — `RN-R28`, `JP-R12` v0.20, W158 (its adequacy reader's
+   * F1: deleting the release survived every other assertion). The twin of the case above: a cancel halts the run,
+   * so no join of any region settles again and every collection is released — and the log is untouched.
+   */
+  test('a CANCEL that halts the run releases every region too, and leaves the log whole', async () => {
+    const MARK = 'W158-CANCELLED-3c1d';
+    const h = harness(await load(MAP_FANOUT), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { s: MARK } });
+    equal(heldArrivals(h.driver), 1, 'the ARRANGEMENT: one branch has arrived and the join is still waiting');
+
+    h.scheduler.settle('r1:score:1:0', 'cancelled');
+    equal(h.failures, [], 'a cancel is not a refusal: nothing is reported (RN-R28)');
+    equal(heldArrivals(h.driver), 0,
+      'JP-R12`s run-level release — the run is halted, so every region`s collection is released, as after a stop');
+    ok(JSON.stringify(h.driver.snapshot()).includes(MARK), 'and the LOG is untouched — the arrived result is still in it');
+    equal(fold(h.driver.foldInputs()).outcome, 'cancelled', 'RN-R28 — the run is `cancelled`');
   });
 
   /**

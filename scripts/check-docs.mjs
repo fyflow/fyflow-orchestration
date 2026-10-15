@@ -723,7 +723,8 @@ if (written.length) {
 // and the `unchecked` residue of a transform-only node asserted rather than described. Raised in the
 // commit that adds the snippet.
 // **Raised 34 -> 35 by [W154](../doc/work-items/w154-the-built-in-if-and-switch.md)**, section 19's `if`/`switch` snippet — exception (o).
-const RUN_FLOOR = 35;
+// **Raised 35 -> 36 by [W158](../doc/work-items/w158-cancelled-is-a-library-state-and-a-run-outcome.md)**, section 6's cancelled-run snippet — exception E5.
+const RUN_FLOOR = 36;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

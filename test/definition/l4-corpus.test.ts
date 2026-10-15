@@ -424,6 +424,16 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W158 — ADR 0094, a task that ends `cancelled`: L1-L3 and RN-R23 in `test/driver/cancelled.test.ts`, the fold in
+  // `test/fold/cancelled.test.ts`, L5 in `test/matrix/cancelled.test.ts`.
+  'L1 — OR-R3 and OR-R4: a cancel writes ONE record, keyed on its state; a cancel REQUESTED writes none',
+  'L2 — RN-R28: the first cancelled settlement HALTS the run (a cancel mid-fan-out)',
+  'L3 — a cancelled run is deterministic: driven twice, folded twice',
+  'RN-R23 — a resume of a CANCELLED run is refused as `cancelled`, naming the cancel`s position',
+  'L1 — a cancelled settlement folds to a cancelled NODE, verbatim (spec/run-state.md section 4)',
+  'L1 — RN-R28: `cancelled` ranks below `stopped` and above every other outcome',
+  'L3 — a cancelled run`s sequence folds the same way twice, and prefix by prefix (RN-R1, RN-R2)',
+  'L5 — a cancelled branch under every policy: the join waits, the run is `cancelled`, nothing is `stuck`',
   // W141 — Q266 at L1 (the class, and real inline and threaded pools) in `test/scheduler/transform.test.ts`,
   // at L2 in `test/driver/node-type.test.ts`; Q283 in `test/definition/registry.test.ts`.
   'W141 — a type`s worker that cannot set up: setup() never throws, and every task fails from run() naming why (Q266)',

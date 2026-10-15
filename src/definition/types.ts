@@ -12,11 +12,23 @@ import type { ResourceGroup } from 'fyflow-scheduler';
 import type { JsonSchema } from './schema.ts';
 export type { JsonSchema } from './schema.ts';
 
-/** The terminal states an edge may opt into. `user_action` is refused: it suspends (FD-V18). */
+/**
+ * The terminal states an edge may opt into. `user_action` is refused: it suspends (FD-V18). **And
+ * `cancelled` is refused too** — a cancel is the consumer's own act and halts the run rather than
+ * routing it ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)
+ * rule 1), so `FD-V18` still admits exactly these two.
+ */
 export type RoutableState = 'done' | 'failed';
 
-/** Every terminal state a scheduler task can reach. Five library states, three terminal. */
-export type TerminalState = 'done' | 'failed' | 'user_action';
+/**
+ * Every terminal state a scheduler task can reach. **Six library states, four terminal** — `cancelled`
+ * since the scheduler pin W157 moved to, which ends a task through `scheduler.cancel()` alone
+ * ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md),
+ * W158). **Widening this union is BREAKING for a consumer switching on it exhaustively**, on
+ * `resumed`'s and `gated`'s precedent: such a switch stops compiling, and one comparing strings does
+ * not notice.
+ */
+export type TerminalState = 'done' | 'failed' | 'user_action' | 'cancelled';
 
 /**
  * **A declared reference to something the run has produced** —

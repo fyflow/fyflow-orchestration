@@ -627,7 +627,7 @@ suite("P1's case — a decision inside a branch routes away from the join", (tes
 suite('the dispatched task carries what the definition declared', (test) => {
   // Replacing workerType with a wrong one, and forcing `optional` to false, both
   // survived W3's mutation pass. `optional` is not cosmetic: at 0.3.0 it is the
-  // library's own branch (FyflowScheduler.ts:894-897), so forcing it false turns
+  // library's own branch (FyflowScheduler.ts:894-897 then; `:1151-1154` at the pin, re-taken by W158), so forcing it false turns
   // every optional node's failure into a user_action suspend.
   test('workerType and optional are passed through from the node', async () => {
     const h = harness(await load('valid/fanout-failure.flow.json'));

@@ -12,14 +12,18 @@ import type { RegionEvent } from '../driver/events.ts';
 import { parseTaskId } from '../driver/ids.ts';
 
 /**
- * `spec/run-state.md` section 4. Four, not five.
+ * `spec/run-state.md` section 4. Five, not the scheduler's six.
  *
  * `user_action` is `suspended` here — it is not terminal at flow level. And there
  * is **no `pending`**: `OR-R4` says `task.running` writes no record, so the only
  * signal the fold has is the dispatch itself, and a task is `running` from that
  * moment. A state nothing can produce is not a state.
+ *
+ * **`cancelled` is W158's** ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)),
+ * copied verbatim from the settlement as `done` and `failed` are. **Widening this union is BREAKING for a
+ * consumer switching on it exhaustively** — `resumed`'s and `gated`'s precedent.
  */
-export type NodeState = 'running' | 'done' | 'failed' | 'suspended';
+export type NodeState = 'running' | 'done' | 'failed' | 'suspended' | 'cancelled';
 
 /**
  * `spec/run-state.md` section 3. Closed, and ours — an author labels why a path
@@ -29,9 +33,15 @@ export type NodeState = 'running' | 'done' | 'failed' | 'suspended';
  * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md):
  * nothing is live, nothing waits on a person, and a region's join has not fired,
  * so nothing will ever move again. v0.2 called that run **`completed`**.
+ *
+ * **`cancelled` is v0.15's seventh**, added by W158 under
+ * [ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md):
+ * a task of the run settled `cancelled`, so the driver halted it (`RN-R28`). **Widening this union is BREAKING
+ * for a consumer switching on it exhaustively** — `resumed`'s and `gated`'s precedent; a consumer comparing
+ * strings sees a value it never named, and `isTerminal` already calls it terminal.
  */
 export type RunOutcome =
-  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'stopped' | 'stuck';
+  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'stopped' | 'stuck' | 'cancelled';
 
 /** How a branch left its region. `null` while it is still live. */
 export type BranchSettlement = 'arrived' | 'exited' | 'lost';
@@ -427,12 +437,20 @@ function applyRegion(prev: RunState, e: RegionEvent): RunState {
   return { ...prev, regions: withRegion(prev.regions, e.regionId, e.regionPath, cur) };
 }
 
-/** Section 3's precedence, in one place so `RN-R7` and `RN-R8` cannot disagree with each other. */
+/** Section 3's precedence, in one place so `RN-R7`, `RN-R8` and `RN-R28` cannot disagree with each other. */
 function withOutcome(s: RunState): RunState {
   // `RN-R8` — a run a refusal terminated is `stopped` whatever its nodes say,
   // because the log after that point is incomplete by construction.
   if (s.stoppedBy !== null) return { ...s, outcome: 'stopped' };
   const nodes = Object.values(s.nodes);
+
+  // `RN-R28` — a run a task of which settled `cancelled` is `cancelled`, below `stopped` and above everything
+  // else (ADR 0094 rule 3, W158). Below `stopped` because a refusal is a defect and must not hide behind an
+  // owner's choice; above `awaiting_action` because a parked task must not make a cancelled run read as waiting
+  // for a person — the driver refuses its `resolve()` — and above `running` and `stuck` because the driver has
+  // halted it: what is still in flight settles into `nodes` and moves nothing else, and a join it left waiting
+  // will never fire, which is the run's cancel and not a defect `stuck` would report.
+  if (nodes.some((n) => n.state === 'cancelled')) return { ...s, outcome: 'cancelled' };
 
   // `RN-R7` — `awaiting_action` outranks `running`: the thing a reader must know
   // is that a human is needed, not that other work continues.
@@ -524,9 +542,12 @@ export function foldLog(log: readonly LogRecord[]): RunState {
  * the reason it needs no clock.
  *
  * `running` and `awaiting_action` are the two outcomes that say more input is
- * coming: a dispatched node has not settled, or a person has not answered. Every
- * other outcome is reached only when nothing is live, so the sequence is
- * finished. **This is `stuck`'s point:** before
+ * coming that can MOVE the run: a dispatched node has not settled, or a person has
+ * not answered. `completed`, `failed` and `stuck` are reached only when nothing is
+ * live. `stopped` and — since W158 — `cancelled` are reached with dispatched nodes
+ * possibly still unsettled: the driver has HALTED the run, so what is in flight
+ * settles into `nodes` routed nowhere and moves no outcome. Either way the run is
+ * over. **This is `stuck`'s point:** before
  * [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)
  * a permanently stuck run was `completed`, so a harness waiting on this predicate
  * would have reported the hang as a success rather than waiting forever — which

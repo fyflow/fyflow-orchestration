@@ -10995,6 +10995,9 @@ if (rowCosts.length !== EXPECTED.length) {
     // `deaf` since W151 (`RN-R23`): one boolean, set when a resume is refused for a stop regenerated in the lost tail —
     // WALKED beside `failed` and `started`, and false on every run here. Found by W151's gate after the maintainer's YES.
     'deaf',
+    // `cancelled` since W158 (`RN-R28`, ADR 0094): one boolean, set by a run's first `cancelled` settlement — WALKED
+    // beside `failed`, and false on every run here. Found at W158's declaration step; W158's exception E3.
+    'cancelled',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

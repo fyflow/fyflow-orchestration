@@ -306,9 +306,14 @@ export interface Checkpoint {
  * | `run` | `header.runId` is not the run this driver was constructed for (`ID-R3`) — every stored task id embeds it | `null` |
  * | `flow` | `header.flowId` or `header.version` is not this driver's definition's — **no migration** (P23 decision 7) | `null` |
  * | `stopped` | the run was STOPPED — a stored `stopped` element, or one the replay regenerates past the stored events (P23 decision 10) | the `stopped` element's position |
+ * | `cancelled` | the run was CANCELLED — a stored `outcome` element whose record is `terminalState: 'cancelled'`, checked after `stopped` ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 5, W158). Only a STORED one: a settlement is fed to the replay, never regenerated, so a replay cannot produce a cancel the store does not hold | that element's position |
  * | `diverged` | a stored element the replay does not produce at the same position — a predicate, a definition or an entry payload that is not what the stored run had (P23 decision 9) | the FIRST such position |
  */
-export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'stopped' | 'diverged';
+/**
+ * **Widened by W158 with `cancelled`, and that is BREAKING for a consumer switching on `reason` exhaustively** —
+ * `resumed`'s and `gated`'s precedent (ADR 0094 consequence 1).
+ */
+export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'stopped' | 'cancelled' | 'diverged';
 
 /**
  * **A resume the driver will not make, thrown at the caller** — `RN-R23`, ADR 0065.
@@ -319,13 +324,13 @@ export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'stopped' | 'diver
  * and branches on `reason` — `diverged` and `stopped` carry the POSITION a store can be inspected at.
  *
  * **What it leaves behind is the driver SPENT, and nothing handed to a scheduler.** A refusal before the
- * replay (`format`, `run`, `flow`, a stored `stopped`) and a `diverged` one leave no run to checkpoint;
+ * replay (`format`, `run`, `flow`, a stored `stopped`, a stored `cancelled`) and a `diverged` one leave no run to checkpoint;
  * a `stopped` the replay itself regenerated leaves the STOPPED run, whose checkpoint a store may take —
  * its lost tail, `stopped` included, was delivered to `onFoldInput` before the refusal was thrown.
  */
 export class ResumeRefused extends Error {
   readonly reason: ResumeRefusalReason;
-  /** The position `stopped` and `diverged` name; `null` for the three a header decides. */
+  /** The position `stopped`, `cancelled` and `diverged` name; `null` for the three a header decides. */
   readonly index: number | null;
   constructor(reason: ResumeRefusalReason, index: number | null, message: string) {
     super(message);
@@ -338,7 +343,7 @@ export class ResumeRefused extends Error {
 /**
  * **What a resume refuses a checkpoint for BEFORE replaying anything** — `RN-R23`, ADR 0065 rule 2.
  * `format`, `run` (only when `runId` is given — a runtime resuming names the run BY the header), `flow`,
- * and a stored `stopped` element, in that order; `null` when the header and the events' kinds say
+ * a stored `stopped` element and a stored `cancelled` settlement, in that order; `null` when the header and the events' kinds say
  * nothing against it — which is not a promise the replay will agree, and that is `diverged`'s road.
  *
  * **Pure, exported, and called from two places**: `Driver.resume`, and `runtime.resume` BEFORE it builds
@@ -386,6 +391,21 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
       `ResumeRefused (stopped): the stored run was STOPPED — its element at position ${at} is \`stopped\` ` +
         `(${JSON.stringify((cp!.events as { reason?: unknown }[])[at]?.reason)}). A stopped run is not resumable (P23 decision 10): ` +
         'the refusal that stopped it would stop it again, and the one class whose cause never reached the log — a result OR-R6 refused — cannot be regenerated at all.');
+  }
+  // **A stored CANCEL — `RN-R23`'s sixth reason, ADR 0094 rule 5 (W158).** After `stopped`, which outranks it as
+  // `RN-R28` ranks the two outcomes: a run refused for a defect AND cancelled reads as the defect. Only an APPENDED
+  // cancel reaches here, and the driver appends every `task.cancelled` it hears for its run — so a cancel nobody
+  // heard is not refused, and P34's stop is to go deaf before it cancels so that its own never are.
+  const c = (cp!.events as unknown[]).findIndex((e) => {
+    const x = e as { kind?: unknown; record?: { terminalState?: unknown } | null } | null;
+    return x?.kind === 'outcome' && x.record?.terminalState === 'cancelled';
+  });
+  if (c >= 0) {
+    const id = (cp!.events as { record?: { taskId?: unknown } }[])[c]?.record?.taskId;
+    return new ResumeRefused('cancelled', c,
+      `ResumeRefused (cancelled): the stored run was CANCELLED — its element at position ${c} is the settlement of ` +
+        `${JSON.stringify(id)} as \`cancelled\`. A cancelled run is not resumable (ADR 0094 rule 5): a cancel is its ` +
+        'owner`s act, and a resume would hand the scheduler again what the owner stopped.');
   }
   return null;
 }
@@ -1061,7 +1081,12 @@ export interface DriverOptions {
   onNonconformingResult?: (finding: NonconformingResult) => void;
 }
 
-const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action'] as const;
+/**
+ * The scheduler events the driver subscribes. **`task.cancelled` is W158's** (ADR 0094): the scheduler fires it, and
+ * no other settlement event, for a task `cancel()` ended, so without it a cancelled task was never heard and its
+ * run never ended (P33 fact 1). `task.cancelling` is NOT here — a request is not a settlement (`OR-R4`).
+ */
+const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action', 'task.cancelled'] as const;
 
 export class Driver {
   /**
@@ -1213,6 +1238,17 @@ export class Driver {
   private replay: Replay | null = null;
   /** The run has been stopped by a refusal. Nothing dispatches for it again. */
   private failed = false;
+  /**
+   * **A task of this run settled `cancelled`, so the run is HALTED** — `RN-R28`,
+   * [ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)
+   * rule 3, W158. Every door `failed` shuts, this shuts — nothing is dispatched or routed for the run again,
+   * a later settlement is appended and routed nowhere, and `resolve()` is refused — and it differs from `failed`
+   * in three things only: no `stopped` element is appended (the fold reads the run `cancelled` from the
+   * settlement itself), `onRunFailure` is not called (a cancel is its owner's act, not a defect), and
+   * `hasFailed()` stays false. **Separate rather than `failed` with a reason**, because those three are each
+   * a reader of `failed` that must not fire.
+   */
+  private cancelled = false;
   /**
    * **A resume refused because its replay regenerated a STOP in the lost tail** — `RN-R23`: that driver keeps the
    * stopped run (its `header`, so a store may take its checkpoint) and still hears NOTHING. `onEvent`'s other test,
@@ -1747,7 +1783,9 @@ export class Driver {
     // dispatched. W5's sequence made it visible: the elements kept arriving after
     // the `stopped` element, while `withOutcome` pins the outcome to `stopped`,
     // so nothing reported the work. Refused like any other rejected command.
-    if (this.failed) return false;
+    // **And after a CANCEL** (`RN-R28`, ADR 0094 rule 3): a parked task in a cancelled run stays parked, as
+    // after a stop — the run is terminal, and a resolution would route a run its owner ended.
+    if (this.failed || this.cancelled) return false;
     // **`FD-R4` at the RESOLVE boundary — W73.** A person's `done` value is held to the parked node's
     // worker `outputSchema` before anything is appended: refused, the task is STILL suspended and a
     // corrected value resolves it — a rejected command, as `RS-R1`'s other refusals are, and the
@@ -2034,7 +2072,18 @@ export class Driver {
     const report = this.opts.onNonconformingResult;
     // `RN-R24`: a REPLAYED settlement was reported, if at all, in the process that stored it.
     if (report !== undefined && this.delivers(seq)) this.reportResultSchema(record, nodeId, report);
-    if (this.failed) return;
+    if (this.failed || this.cancelled) return;
+    if (record.terminalState === 'cancelled') {
+      // **`RN-R28` — the FIRST cancelled settlement halts the run** (ADR 0094 rule 3, W158). Exactly `failRun`'s
+      // halt and nothing of its report: the record above is already in the log, which is all the fold needs to
+      // read the run `cancelled`, so no `stopped` element is appended and `onRunFailure` is not called. Every
+      // region's collection is released — `failRun`'s RUN-LEVEL moment (ADR 0046 rule 3, `JP-R12`), because no
+      // join of this run settles again. The tasks still in flight are the scheduler's: each is appended as it
+      // settles, above, and routed nowhere, by the line above this block.
+      this.cancelled = true;
+      this.arrivals.clear();
+      return;
+    }
     if (record.terminalState === 'user_action') {
       // Not a loss. The branch is still live and the join keeps waiting; a run
       // waiting on a person must not be reported as stuck (Q7).
@@ -3582,7 +3631,9 @@ export class Driver {
     //
     // **Costs 0 at L1-L5 and 0 at L6**, and it tightens an existing rule rather than
     // relaxing one: `OR-R10` already says the driver has stopped routing this run.
-    if (this.failed) return;
+    // **And a CANCEL can arrive on the same stack** (`RN-R28`, W158): `cancel()` of a task still WAITING fires
+    // `task.cancelled` synchronously, so a re-entrant listener that cancels one halts the run here too.
+    if (this.failed || this.cancelled) return;
     // **The collection is read ONCE and the region is released in the same breath —
     // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
     // rule 3.** `collectArrivals` is a pure projection of the map, so hoisting it

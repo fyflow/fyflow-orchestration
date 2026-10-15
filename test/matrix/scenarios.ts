@@ -156,6 +156,58 @@ export const SCENARIOS: Scenario[] = [
 ];
 
 /**
+ * **The `cancelled` rows — W158, and they are NOT in `SCENARIOS`**, for `TWO_REGIONS`' reason below: the nine
+ * are Q5's cases and [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
+ * counts them. A cancel is not a way a branch FINISHES — it halts the RUN (`RN-R28`,
+ * [ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)),
+ * so no region event follows it and the join stays where the cancel found it.
+ *
+ * **Three rows, each putting the cancel beside a different thing a join can be waiting on**, so that each of the
+ * three verdicts a cancel must NOT read as is the wrong answer of exactly one row: nothing arrived and the sibling
+ * is in flight and then settles (`stuck` once it does); one branch arrived first (`stuck`); one branch is parked
+ * on a person (`waiting-on-human`). Every step after the cancel is a settlement the driver appends and routes
+ * nowhere — which is why `b`'s `done` in the first row produces no `branch.arrived`.
+ */
+export const CANCELLED_SCENARIOS: Scenario[] = [
+  {
+    key: 'cancelled-in-flight',
+    title: 'a branch is cancelled while its sibling is in flight, which then settles `done`',
+    flow: fanoutJoin,
+    fanoutId: 'split',
+    downstream: PUBLISH,
+    steps: [
+      { do: 'settle', taskId: INGEST, state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'cancelled' },
+      { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'done', result: { from: 'scoreB' } },
+    ],
+  },
+  {
+    key: 'cancelled-after-arrival',
+    title: 'one branch arrives, then the other is cancelled',
+    flow: fanoutJoin,
+    fanoutId: 'split',
+    downstream: PUBLISH,
+    steps: [
+      { do: 'settle', taskId: INGEST, state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'done', result: { from: 'scoreA' } },
+      { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'cancelled' },
+    ],
+  },
+  {
+    key: 'cancelled-beside-suspended',
+    title: 'one branch is parked on a person, then the other is cancelled',
+    flow: fanoutJoin,
+    fanoutId: 'split',
+    downstream: PUBLISH,
+    steps: [
+      { do: 'settle', taskId: INGEST, state: 'done' },
+      { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'user_action' },
+      { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'cancelled' },
+    ],
+  },
+];
+
+/**
  * **Not one of `SCENARIOS`, deliberately.** The nine rows above are Q5's cases,
  * and [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
  * counts them; a region *shape* is a different axis and adding it to that list
