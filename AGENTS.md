@@ -2231,10 +2231,10 @@ anywhere else.)* This library's listener boundary is written against **0.3.0 sem
 current pin, and W157 re-read what this library rests on there rather than inferring it: the
 `user_action` pair is unchanged on both of its paths, and `task.progress` is built from the same
 fields. What 0.5.1 added is a `worker.setup.*` / `worker.teardown.*` event family this library
-subscribes to not at all. **The current pin adds one thing this release does NOT yet handle: a sixth
-task state, `cancelled`, reached only through `scheduler.cancel(id)`.** The listener drops a
-cancelled task and its run never ends — so do not call `cancel` on a task this library dispatched
-until [P33](doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md) lands it. Install the
+subscribes to not at all. **The current pin adds a sixth task state, `cancelled`, reached only through
+`scheduler.cancel(id)`**, and a run hears it: a cancelled task ends its run `cancelled` and settles
+its `done` (section 6, [P33](doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md)) — on real
+workers in ladder L6, a task cancelled while running and while queued. Install the
 scheduler from a registry — npm and JSR both carry it — and **never from a working tree**, which is
 [ADR 0029](doc/decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)
 superseding [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)

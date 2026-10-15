@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's** and **P32's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's** and **P33's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -83,6 +83,7 @@
  * | **W94 — block (2h), the TV ingest KILLED and RESUMED** | **P24's exit artifact, its second half**: block (2g)'s kill — the consumer's store frozen mid-step, the runtime shut down (it DRAINS) — at EVERY one of the run's 25 kill points, resumed on a fresh runtime and IDENTICAL to a run nobody killed on outcome, every node, every branch's decision and the gate's MEMORY, which the replay rebuilt (`RN-R26`). Fifteen kill points lie BEFORE the first decision — [Q386](../doc/questions/q386.md)'s case — and the sweep is shown to DISCRIMINATE the rebuilt memory from a fresh one and from the killed process's, both derived from the killed run |
  * | **W141 — `setup fails`, inline and threaded** | **Q266 on a real scheduler: a TYPE's worker whose `setup()` throws, and the run ENDS.** Three optional nodes of that type in a fanout, each with an `on: ["failed"]` edge to an end, joined under `live-token` — the arrangement that hung for ever before W141 (the pool requeued the tasks of its failing worker until its restart limit, six of six measured). Since W141 the envelope worker remembers the failure and fails every task from `run()`: each node FAILS with the setup error, each failure ROUTES (ADR 0004), the join fires over three exited branches and the run COMPLETES — inside a bounded race, with the scheduler's own task states as the second observer. Its registry is written in the block, not `registry.json` |
  * | **W155 — `if-then-switch` at 1, 0.9, 0.5 and 0.2** | **P32's EXIT ARTIFACT: a flow whose ENTRY is the built-in `if` over the PAYLOAD and which routes a TASK's result through the built-in `switch`, with no predicate and no gate type registered.** `triage` (`input.confidence gte 0.5`) sends three payloads to `score` and one, by the edge with no `route`, to `shelve`; `grade` routes `score`'s result by its `score` key — `certain` (a scalar case) to `publish`, `likely` (an array case) and `default` each to their own `end`. One payload per route the `switch` can take plus the `if`'s `else`, the 0.5 row being the `if`'s BOUNDARY and the `switch`'s no-case row at once. Each row asserts its decisions IN PLACE among its dispatches, settlements and path end; the cross-row block asserts every route of both taken by exactly those payloads, against the routes each gate declares, and the same document with one `switch` case left unwired refused at LOAD by `FD-V41` naming the case |
+ * | **W160 — `cancel` while RUNNING, inline and threaded, and while QUEUED** | **P33's EXIT ARTIFACT: a run's task cancelled by its id through `runtime.scheduler.cancel(id)`, and the run ENDS.** The scheduler's two cancel roads on one linear flow (`work` then `after`): a task RUNNING — the worker emits `started` through `context.emit`, the harness cancels, the worker's `context.signal` aborts with the reason given and it returns, `task.cancelling` then `task.cancelled` — on an inline pool and a threaded one; and a task QUEUED behind a `ConcurrentLimitGroup(1)` the harness holds, removed at once with `task.cancelled` alone and `resource.unblocked` reason `cancelled`, never having run. Each run's fold sequence ends at the cancelled settlement with `after` never dispatched (`RN-R28`), the runtime's `done` SETTLES with `cancelled` — after `task.cancelled`, not at the request — and equals the caller's fold (Q606's L6 clause, *`done` settles `cancelled`*; the release half is P34's `test/scheduler/runtime.test.ts` case, and with one run per runtime routing to a sibling is not exercised), nothing is dispatched further and nothing reported, and a resume of its checkpoint on a fresh runtime is refused `cancelled` at the first stored cancel (`RN-R23`) — beside the CONTROL, a fourth run parked `user_action` whose checkpoint the same instrument resumes. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5934,6 +5935,23 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W160**: P33's exit-artifact block — its control (the two cancel roads, each pool read back) and its per-run
+  // claims — twelve since the readers — and the parked checkpoint's CONTROL (v0.18: a membership names the controls beside
+  // its claims).
+  'W160 cancel: the block ran the scheduler`s TWO cancel roads',
+  'whole fold sequence is the entry dispatched under spec/task-id.md',
+  'events for the task are its',
+  'what the worker sent through context.emit',
+  'cancel() resolved true',
+  'SETTLED — it won the race against the deadline — with outcome cancelled',
+  'IS fold(driver.foldInputs()) — the caller',
+  'the fold holds the task cancelled and its record, terminalState',
+  'nothing was REPORTED — a cancel is not a refusal',
+  'is refused `cancelled` at the first stored cancel',
+  'had ALREADY fired task.cancelled and its task read cancelled',
+  'result is null — compared with ===',
+  'the driver dispatched NOTHING further',
+  'W160 cancel CONTROL: a checkpoint holding a NON-cancel settlement',
   // **W155**: P32's exit-artifact block — its two route claims (the literal and its control from the gates' own
   // declared routes), the empty registries, the unwired case's control, and its two observers at load.
   'W155: every route of BOTH built-in gates was taken by EXACTLY the payloads',
@@ -6944,7 +6962,7 @@ const UNMINTED: {
     //
     // `ReviewWorker`'s pool runs the `fail` role, which throws; `optional: true`
     // is what makes the scheduler settle it `failed` rather than end it
-    // `user_action` (`core/FyflowScheduler.ts:894-897`). So this is the SAME
+    // `user_action` (`core/FyflowScheduler.ts:1151-1154`). So this is the SAME
     // refusal as the row above — one segment where four are required — reaching
     // tier 0 down a different event, which is what makes the `event` field able to
     // fail rather than a constant with five copies.
@@ -9233,6 +9251,325 @@ if (setupFails !== null) {
   }
 }
 
+/**
+ * **W160 — a task CANCELLED through `runtime.scheduler.cancel(id)` on real workers, once while it RUNS and once while it
+ * is QUEUED behind a resource group: P33's EXIT ARTIFACT** —
+ * [W160](../doc/work-items/w160-a-task-cancelled-while-running-and-while-queued-on-real-workers.md),
+ * [ADR 0094](../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md).
+ *
+ * **The consumer's road, and nothing else.** A run's task is cancelled by its ID on the runtime's own scheduler —
+ * `runtime.scheduler` is the scheduler itself, typed as one, and `cancel(id)` is public at the pin — with the id
+ * derived from `spec/task-id.md`'s four segments and the run id the block chose. No call in `src/` cancels: what this
+ * block proves is that a cancel nobody in the library asked for is HEARD — the listener records it at `task.cancelled`
+ * and not at `task.cancelling` (`OR-R3`, `OR-R4`), the driver halts the run and dispatches nothing further (`RN-R28`),
+ * the runtime's `done` settles with `cancelled` (ADR 0058 rule 3 — [Q606](../doc/questions/q606.md)'s L6 clause, *`done`
+ * settles `cancelled`*), and a resume of the run's checkpoint is refused `'cancelled'` (`RN-R23`, ADR 0094 rule 5).
+ * **Q606's other half — the runtime RELEASING the run at that `done` — is NOT asserted here**: it is P34's case in
+ * `test/scheduler/runtime.test.ts`, and with ONE run per runtime nothing here could tell a released run from a routed one
+ * (no sibling run exists to be routed to). *(This comment and the header's row read "Q606's runtime half" until both
+ * readers found the release unasserted — their shared finding (i).)*
+ *
+ * **Why it is not an `EXPECTED` row.** A row runs through `runFlow`, which cancels nothing and whose backstop would turn
+ * an unheard cancel — P33 fact 1, a run that never ends — into a verdict named for the backstop; and the worker here is
+ * one no row should run: it WAITS for its own `context.signal`. So it is W141's shape: one labelled block, its registry
+ * written here with `data:` workers, bounded by `settleWithin`, the scheduler shut down in a `finally`, bound by
+ * `CROSS_ROW_SUBJECTS`.
+ *
+ * **Three cancelled runs, the scheduler's two cancel roads** (its `AGENTS.md` section 5's table): RUNNING —
+ * `task.cancelling`, the worker's `context.signal` aborted with the reason given, `task.cancelled` once its `run()` has
+ * returned — on an INLINE pool and a THREADED one, which reach the signal by different roads; and QUEUED — the harness
+ * holds the type's `ConcurrentLimitGroup(1)` before the run starts (the group row's arrangement, `holdGroup`), the task
+ * is `resource.blocked`, and the cancel removes it at once: `task.cancelled` ALONE, `resource.unblocked` with reason
+ * `cancelled`, and the worker never runs. **The running worker is also W159's optional L6 row, taken**: a typed worker
+ * reaching `context.emit` (its `started` message is what the harness cancels on, so the task is provably running) and
+ * `context.signal` (its `aborted` message carries the reason) through `createRuntime`'s envelope. Each cancel is
+ * deferred to a macrotask, so it is the consumer's act and not a call made inside the scheduler's own dispatch.
+ *
+ * **And a fourth run, the refusal's CONTROL** (both readers' shared finding (ii): the first control cut the checkpoint
+ * BEFORE any settlement, so a refusal of ANY stored outcome passed it): the same flow whose `work` FAILS and parks
+ * `user_action` — a run nobody cancelled, its checkpoint holding a NON-cancel, NON-`done` settlement — RESUMED by the same
+ * instrument, `runtime.resume` on the same fresh runtime, and not refused. A refusal keyed on any outcome, or on any
+ * state but `done`, refuses it.
+ *
+ * **Every expected value is the spec's or this fixture's**: the ids from `spec/task-id.md` section 1; the sequence — the
+ * entry dispatched (position 0), its cancelled settlement (position 1), and NOTHING after it, `after` never dispatched —
+ * from `RN-R28`; the record's `result: null` from `spec/outcome-record.md` section 4; the outcome from `RN-R8`'s chain;
+ * the refusal and its index (the first stored cancel, position 1) from `RN-R23`; the scheduler's events and the
+ * unblock reason from its reference, sections 5 and 6. **The index cannot tell FIRST from LAST here** — each run stores
+ * one cancel; `test/driver/cancelled.test.ts`'s RN-R23 case holds two, neither first nor last (W158 choice 5), and is
+ * where "the first" is discriminated (the adequacy reader's F4).
+ */
+const CANCEL_DEADLINE_MS = 15_000;
+const CANCEL_REASON = 'W160 L6: the owner pressed Cancel';
+/** The worker's own backstop: a cancel that never ARRIVES lets the run complete, and the outcome clause says so. */
+const CANCEL_BACKSTOP_MS = 8_000;
+const cancelFlow = (flowId: string, workType: string) => ({
+  flowId, version: 1, entry: 'work',
+  nodes: [
+    { id: 'work', kind: 'task', type: workType, edges: [{ to: 'after' }] },
+    { id: 'after', kind: 'task', type: 'Ready', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+}) as unknown as FlowDefinition;
+const CANCEL_RUNNING_FLOW = cancelFlow('w160-cancel-running', 'Waits');
+const CANCEL_QUEUED_FLOW = cancelFlow('w160-cancel-queued', 'Held');
+const CANCEL_PARKED_FLOW = cancelFlow('w160-cancel-parked', 'Fails');
+const CANCEL_WAITS_SOURCE = 'export default class { async setup() {} async run(p, ctx) { ctx.emit("started", null); ' +
+  'const reason = await new Promise((resolve) => { if (ctx.signal.aborted) { resolve(ctx.signal.reason); return; } ' +
+  `const t = setTimeout(() => resolve("NO CANCEL ARRIVED"), ${CANCEL_BACKSTOP_MS}); ` +
+  'ctx.signal.addEventListener("abort", () => { clearTimeout(t); resolve(ctx.signal.reason); }, { once: true }); }); ' +
+  'ctx.emit("aborted", { reason: String(reason) }); return { reason: String(reason) }; } }';
+const cancelDoc = (inline: boolean) => ({
+  workers: {
+    waits: { url: `data:text/javascript,${encodeURIComponent(CANCEL_WAITS_SOURCE)}` },
+    ready: { url: `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run(p) { return p.input; } }')}` },
+    fails: { url: `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run() { throw new Error("W160 control: a person must look"); } }')}` },
+  },
+  groups: { hold: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } },
+  nodeTypes: {
+    Waits: { worker: 'waits', inline },
+    Held: { worker: 'waits', inline: true, groups: ['hold'] },
+    Ready: { worker: 'ready', inline: true },
+    // Non-optional and out of retries at once, so the scheduler parks it `user_action` (ADR 0007 rule 2).
+    Fails: { worker: 'fails', inline: true, retryPolicy: { maxRetries: 0, backoffMs: 0 } },
+  },
+});
+type CancelRun = {
+  road: 'running' | 'queued';
+  mode: 'inline' | 'threaded';
+  /** The `work` type's pool as the scheduler BUILT it — read back, so *threaded* is the pool's word and not the block's. */
+  poolInline: boolean;
+  workId: string;
+  /** `dispatched <id>` and `outcome <id> <state>`, the driver's own fold inputs in order. */
+  sequence: string[];
+  /** The scheduler's lifecycle events for `work`, in the order it fired them — the second observer of the road. */
+  schedulerEvents: string[];
+  /** What the worker sent through `context.emit` — `name` or `name:reason`. */
+  messages: string[];
+  /** `resource.*` for `work`, with `unblocked`'s reason. */
+  resource: string[];
+  cancelResolved: boolean | 'NEVER CALLED' | 'NEVER RESOLVED';
+  /** The scheduler's own task: its state, the reason it kept and whether a forced stop ended it. */
+  schedulerTask: [string, unknown, unknown];
+  endedBy: 'done' | 'the deadline';
+  outcome: RunOutcome | 'NEVER SETTLED';
+  terminal: boolean;
+  /** **At the moment `done` settled** (adequacy F1): the scheduler's events heard so far, and its task's state then. */
+  atDone: [string[], string];
+  doneIsTheFold: boolean;
+  nodes: string[];
+  terminalState: unknown;
+  resultIsNull: boolean;
+  /** **Nothing further** (adequacy F2): fold-input counts at `done`, a macrotask later, after shutdown; and `after` held. */
+  later: [number, number, number, boolean];
+  reported: [number, boolean];
+  checkpoint: { header: CheckpointHeader; events: readonly FoldInput[] };
+  flow: FlowDefinition;
+  refused: string;
+  heldAfterRefusal: number;
+};
+type CancelControl = { sequence: string[]; refused: string; resumedOutcome: string };
+let cancelBlock: { runs: string[]; results: CancelRun[]; control: CancelControl } | null = null;
+const seqOf = (inputs: readonly FoldInput[]) => inputs.map((i) => i.kind === 'dispatched' ? `dispatched ${i.taskId}`
+  : i.kind === 'outcome' || i.kind === 'resolution' ? `${i.kind} ${i.record.taskId} ${i.record.kind === 'outcome' ? i.record.terminalState : ''}`
+  : i.kind);
+try {
+  const results: CancelRun[] = [];
+  const runs: string[] = [];
+  const ROADS: ['running' | 'queued', boolean, FlowDefinition, string][] = [
+    ['running', true, CANCEL_RUNNING_FLOW, 'w160ri'],
+    ['running', false, CANCEL_RUNNING_FLOW, 'w160rt'],
+    ['queued', true, CANCEL_QUEUED_FLOW, 'w160qi'],
+  ];
+  for (const [road, inline, flow, runId] of ROADS) {
+    const rt = createRuntime(cancelDoc(inline) as never, {}, { flows: [flow] });
+    const hold = rt.groups.hold as unknown as { onStart(): void; onFinish(): void };
+    let holding = false;
+    let driverRef = null as Driver | null;
+    try {
+      // `spec/task-id.md` section 1: run id, node id, `-` for a path outside every region, attempt 0. Written from the
+      // spec rather than through `buildTaskId`, so the id the cancel names is not the implementation's own derivation.
+      const workId = `${runId}:work:-:0`;
+      const afterId = `${runId}:after:-:0`;
+      const schedulerEvents: string[] = [];
+      const messages: string[] = [];
+      const resource: string[] = [];
+      // Assigned from inside a callback, so declared through a cast (block (2g)'s note: a `let` initialised to `null` is
+      // narrowed to `null` at every later read).
+      let cancelling = null as Promise<boolean> | null;
+      let asked = false;
+      const cancelOnce = () => {
+        if (asked) return;
+        asked = true;
+        setTimeout(() => { cancelling = rt.scheduler.cancel(workId, { reason: CANCEL_REASON }); }, 0);
+      };
+      const on = (name: string, fn: (d: Record<string, unknown>) => void) =>
+        rt.scheduler.addEventListener(name as never, ((e: { detail: Record<string, unknown> }) => fn(e.detail)) as never);
+      for (const n of ['task.running', 'task.cancelling', 'task.cancelled', 'task.completed', 'task.failed', 'task.user_action']) {
+        on(n, (d) => { if (d.id === workId) schedulerEvents.push(n); });
+      }
+      on('task.message', (d) => {
+        if (d.taskId !== workId) return;
+        const reason = (d.data as { reason?: unknown } | null)?.reason;
+        messages.push(reason === undefined ? String(d.name) : `${String(d.name)}:${String(reason)}`);
+        if (road === 'running' && d.name === 'started') cancelOnce();
+      });
+      for (const n of ['resource.blocked', 'resource.unblocked', 'resource.acquired']) {
+        on(n, (d) => {
+          if (d.holderId !== workId) return;
+          resource.push(d.reason === undefined ? n : `${n}:${String(d.reason)}`);
+          if (road === 'queued' && n === 'resource.blocked' && d.groupId === 'hold') cancelOnce();
+        });
+      }
+      // Taken BEFORE `start`, so the queued road's task finds the slot gone at its first dispatch.
+      if (road === 'queued') { hold.onStart(); holding = true; }
+      const reportedFailures: unknown[] = [];
+      const h = rt.start(flow, {}, { runId, onRunFailure: (f) => { reportedFailures.push(f); } });
+      driverRef = h.driver;
+      runs.push(`${flow.flowId} ${inline ? 'inline' : 'threaded'}`);
+      // **The moment `done` settles, read THEN** — the adequacy reader's F1: a driver recording at `task.cancelling`
+      // settles `done` while the scheduler's task is still `running`, and every later read sees the cancel finished.
+      const atDoneP = h.done.then(() => ({
+        events: [...schedulerEvents],
+        state: (rt.scheduler.tasks.get(workId) as { state?: string } | undefined)?.state ?? 'NOT HELD',
+        length: h.driver.foldInputs().length,
+      }));
+      const won = await settleWithin(h.done, CANCEL_DEADLINE_MS);
+      const atDoneW = await settleWithin(atDoneP, CANCEL_DEADLINE_MS);
+      const atDone = atDoneW.by === 'done' ? atDoneW.value : { events: ['NEVER SETTLED'], state: 'NEVER SETTLED', length: -1 };
+      let cancelResolved: CancelRun['cancelResolved'] = 'NEVER CALLED';
+      if (cancelling !== null) {
+        const c = await settleWithin(cancelling, CANCEL_DEADLINE_MS);
+        cancelResolved = c.by === 'done' ? c.value : 'NEVER RESOLVED';
+      }
+      // **A macrotask and more after `done`** (adequacy F2): a dispatch the halt let through on a later turn is in the
+      // driver's sequence and in the scheduler's map by now.
+      await new Promise<void>((r) => setTimeout(r, 25));
+      const inputs = h.driver.foldInputs();
+      const folded = fold(inputs);
+      const task = rt.scheduler.tasks.get(workId) as { state?: string; cancellation?: { reason?: unknown; forced?: unknown } } | undefined;
+      const rec = inputs.find((i) => i.kind === 'outcome' && i.record.taskId === workId) as { record: { terminalState: unknown; result: unknown } } | undefined;
+      results.push({
+        road,
+        mode: inline ? 'inline' : 'threaded',
+        poolInline: (rt.scheduler.workerPools as Record<string, { inline?: unknown }>)[road === 'running' ? 'Waits' : 'Held']?.inline === true,
+        workId,
+        sequence: seqOf(inputs),
+        schedulerEvents,
+        messages,
+        resource,
+        cancelResolved,
+        schedulerTask: [task?.state ?? 'NOT HELD', task?.cancellation?.reason, task?.cancellation?.forced],
+        endedBy: won.by,
+        outcome: won.by === 'done' ? won.value.outcome : 'NEVER SETTLED',
+        terminal: won.by === 'done' && isTerminal(won.value),
+        atDone: [atDone.events, atDone.state],
+        doneIsTheFold: won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded),
+        nodes: Object.values(folded.nodes).map((n) => `${n.nodeId}:${n.state}`).sort(),
+        terminalState: rec?.record.terminalState,
+        resultIsNull: rec !== undefined && rec.record.result === null,
+        later: [atDone.length, inputs.length, -1, rt.scheduler.tasks.has(afterId)],
+        reported: [reportedFailures.length, h.driver.hasFailed()],
+        checkpoint: h.driver.checkpoint() as { header: CheckpointHeader; events: readonly FoldInput[] },
+        flow,
+        refused: '', heldAfterRefusal: -1,
+      });
+    } finally {
+      if (holding) hold.onFinish();
+      await rt.shutdown();
+    }
+    // The third count, after the scheduler is gone: anything the driver still dispatched would have been appended.
+    const last = results[results.length - 1];
+    if (last !== undefined && driverRef !== null) last.later[2] = driverRef.foldInputs().length;
+  }
+  // **The control's run**: `work` FAILS and parks `user_action` — nobody cancels anything — and its checkpoint is taken
+  // once the run is waiting on a person, which is a state `done` does not settle on (`isTerminal`), so the wait is bounded
+  // by a poll of the caller's own fold.
+  const parkedRt = createRuntime(cancelDoc(true) as never, {}, { flows: [CANCEL_PARKED_FLOW] });
+  let parkedCheckpoint: { header: CheckpointHeader; events: readonly FoldInput[] };
+  try {
+    const p = parkedRt.start(CANCEL_PARKED_FLOW, {}, { runId: 'w160pc' });
+    runs.push(`${CANCEL_PARKED_FLOW.flowId} parked`);
+    for (let w = 0; w < CANCEL_DEADLINE_MS && fold(p.driver.foldInputs()).outcome !== 'awaiting_action'; w += 5) {
+      await new Promise<void>((r) => setTimeout(r, 5));
+    }
+    parkedCheckpoint = p.driver.checkpoint() as { header: CheckpointHeader; events: readonly FoldInput[] };
+  } finally {
+    await parkedRt.shutdown();
+  }
+  // **The resumes, on ONE FRESH runtime** — so `RunIdInUse` cannot be the refusal, and the scheduler it holds is one
+  // nobody else has handed a task: a refusal hands it nothing (ADR 0065), which its task count says.
+  const fresh = createRuntime(cancelDoc(true) as never, {}, { flows: [CANCEL_RUNNING_FLOW, CANCEL_QUEUED_FLOW, CANCEL_PARKED_FLOW] });
+  let control: CancelControl;
+  try {
+    for (const r of results) {
+      try {
+        fresh.resume(r.flow, r.checkpoint);
+        r.refused = 'NOT REFUSED';
+      } catch (err) { r.refused = refusalOf(err); }
+      r.heldAfterRefusal = fresh.scheduler.tasks.size;
+    }
+    // **The CONTROL, by the same instrument on the same runtime, LAST** — so the three task counts above are read before
+    // it. A parked checkpoint resumes to a run still waiting on its person, re-dispatching nothing (RN-R21: a parked task
+    // is not in flight).
+    let refused = 'not refused';
+    let resumedOutcome = 'NOT RESUMED';
+    try {
+      const resumed = fresh.resume(CANCEL_PARKED_FLOW, parkedCheckpoint);
+      runs.push(`${CANCEL_PARKED_FLOW.flowId} resumed`);
+      resumedOutcome = fold(resumed.driver.foldInputs()).outcome;
+    } catch (err) { refused = refusalOf(err); }
+    control = { sequence: seqOf(parkedCheckpoint.events), refused, resumedOutcome };
+  } finally {
+    await fresh.shutdown();
+  }
+  cancelBlock = { runs, results, control };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W160 cancel\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (cancelBlock !== null) {
+  const key = 'cross-row';
+  check(key, 'W160 cancel: the block ran the scheduler`s TWO cancel roads — RUNNING on an inline and a threaded pool, QUEUED behind a ' +
+    'group — each pool read back as the scheduler built it', cancelBlock.results.map((r) => `${r.road} ${r.mode} ${r.poolInline ? 'inline' : 'threaded'}`),
+  ['running inline inline', 'running threaded threaded', 'queued inline inline']);
+  for (const r of cancelBlock.results) {
+    const at = `W160 cancel (${r.road}, ${r.mode})`;
+    check(key, `${at}: the run's whole fold sequence is the entry dispatched under spec/task-id.md's id and its CANCELLED settlement, ` +
+      'and nothing after it — `after` never dispatched (RN-R28)', r.sequence, [`dispatched ${r.workId}`, `outcome ${r.workId} cancelled`]);
+    check(key, `${at}: the scheduler's own events for the task are its ${r.road} road — section 5's table`, r.schedulerEvents,
+      r.road === 'running' ? ['task.running', 'task.cancelling', 'task.cancelled'] : ['task.cancelled']);
+    check(key, `${at}: what the worker sent through context.emit, and the group's exits — a running worker saw context.signal abort ` +
+      'with the reason given (W159`s optional row); a queued one never ran and left its queue by the cancel', [r.messages, r.resource],
+    r.road === 'running'
+      ? [['started', `aborted:${CANCEL_REASON}`], []]
+      : [[], ['resource.blocked', 'resource.unblocked:cancelled']]);
+    check(key, `${at}: cancel() resolved true, and the scheduler's task is cancelled with the reason given, not forced`,
+      [r.cancelResolved, ...r.schedulerTask], [true, 'cancelled', CANCEL_REASON, false]);
+    check(key, `${at}: the runtime's \`done\` SETTLED — it won the race against the deadline — with outcome cancelled, terminal ` +
+      '(ADR 0058 rule 3; Q606`s L6 clause — the release half is P34`s)', [r.endedBy, r.outcome, r.terminal], ['done', 'cancelled', true]);
+    check(key, `${at}: and at the moment \`done\` settled the scheduler had ALREADY fired task.cancelled and its task read cancelled — ` +
+      'the record is the settlement, not the request (OR-R4, ADR 0094 rule 4)', r.atDone,
+    [r.road === 'running' ? ['task.running', 'task.cancelling', 'task.cancelled'] : ['task.cancelled'], 'cancelled']);
+    assertThat(key, `${at}: and what \`done\` resolved with IS fold(driver.foldInputs()) — the caller's own expression`, r.doneIsTheFold);
+    check(key, `${at}: the fold holds the task cancelled and its record, terminalState cancelled (OR-R3)`,
+      [r.nodes, r.terminalState], [['work:cancelled'], 'cancelled']);
+    assertThat(key, `${at}: and that record's result is null — compared with ===, not through JSON (spec/outcome-record.md section 4)`,
+      r.resultIsNull);
+    check(key, `${at}: the driver dispatched NOTHING further — its sequence the same length at \`done\`, a macrotask later and after ` +
+      'shutdown, and the scheduler holding no task for `after` (RN-R28)', r.later, [2, 2, 2, false]);
+    check(key, `${at}: and nothing was REPORTED — a cancel is not a refusal: onRunFailure never called, hasFailed() false`,
+      r.reported, [0, false]);
+    check(key, `${at}: a resume of the run's checkpoint on a FRESH runtime is refused \`cancelled\` at the first stored cancel, ` +
+      'and that scheduler holds no task (RN-R23)', [r.refused, r.heldAfterRefusal], ['ResumeRefused cancelled at 1', 0]);
+  }
+  check(key, 'W160 cancel CONTROL: a checkpoint holding a NON-cancel settlement — `work` parked user_action, a run nobody cancelled — ' +
+    'is RESUMED by the same instrument on the same fresh runtime, not refused, to a run still waiting on its person',
+  [cancelBlock.control.sequence, cancelBlock.control.refused, cancelBlock.control.resumedOutcome],
+  [['dispatched w160pc:work:-:0', 'outcome w160pc:work:-:0 user_action'], 'not refused', 'awaiting_action']);
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -9249,7 +9586,9 @@ if (setupFails !== null) {
 // **And `+ killResume.runs.length` since W90**: block (2g) counts every run it made — each reference, each killed process and
 // each resume on a fresh runtime — as a LENGTH, on W78's precedent, so deleting the block moves the printed count with it.
 // **And `+ setupFails.runs.length` since W141**: its two runs, inline and threaded, as a LENGTH on the same precedent.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0);
+// **And `+ cancelBlock.runs.length` since W160**: its five runs — two cancelled while running, one while queued, and the
+// control's parked run and its resume — on the same precedent. The three refused resumes build no driver and are not runs.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -9545,7 +9884,17 @@ const PER_PLAIN_ROW = 22;
 // **+3 after W155's readers** (approved 2026-10-14): which rows run the UI registry (S1), the `if`'s condition pinned
 // (S2), and each row's OWN runtime's gate types (C1/S5, stop-and-ask (s)). The two load clauses were anchored (C2/S4)
 // and moved no count. *(Written as 269 before the file was re-run.)*
-const CROSS_ROW = 269;
+// **+31 since W155 — W160, P33's EXIT ARTIFACT**: the cancel block's control (the two cancel roads, each pool read back)
+// and ten claims per run over three runs — the fold sequence ending at the cancel, the scheduler's own road, what the
+// worker emitted and the group's exits, `cancel()` and the scheduler's task, `done` settled `cancelled`, `done` equal to
+// the caller's fold, the node and its record, nothing reported, the resume refused on a fresh runtime, and the cut
+// checkpoint's control. All cross-row because the block is outside the row loop. *(Derived as 1 + 3 x 10 = 31 from the
+// block before the counts moved; the block's first run read 2621 against a derived 2590, and 2621 - 2590 = 31.)*
+// **+7 after W160's readers** (answered 2026-10-15): per run, the moment `done` settled (F1), the result `=== null` apart
+// from the JSON comparison (F7) and nothing dispatched further (F2) — +3 x 3 — less the cut-checkpoint control, which did
+// not discriminate (shared finding (ii)), -1 x 3; and the block-level CONTROL, a parked checkpoint resumed, +1.
+// 300 + 9 - 3 + 1 = 307. *(Written as 307 before the file was re-run.)*
+const CROSS_ROW = 307;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -11690,14 +12039,19 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // own clause. *(Written as 2599 / 168 at the declaration; the first complete run in a byte copy read exactly that, in
 // node and in deno.)* **2602 after its readers**: `CROSS_ROW` 266 -> 269, the three clauses above it; no row and no run
 // moved. *(Written as 2602 / 168 before the file was re-run.)*
-const DECLARED_TOTAL = 2602;
+// **2633 / 171 since W160 — P33's EXIT ARTIFACT, +31 and three runs**, DERIVED: the cancel block's thirty-one cross-row
+// assertions (`CROSS_ROW` 269 -> 300) over its three runs — running inline, running threaded, queued. Its three resumes are
+// refused before a driver exists and are not runs. No row moved.
+// **2640 / 173 after W160's readers** — `CROSS_ROW` 300 -> 307, and two runs: the control's parked run and its resume on
+// the fresh runtime. No row moved. *(Written as 2640 / 173 before the file was re-run.)*
+const DECLARED_TOTAL = 2640;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 168;
+const DECLARED_RUNS = 173;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
