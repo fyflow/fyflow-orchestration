@@ -857,7 +857,7 @@ export interface Registry {
  * legitimately violate more than one rule.
  */
 export interface Finding {
-  /** `FD-V1` … `FD-V46`. Never renumbered, so it is safe to assert on. */
+  /** `FD-V1` … `FD-V46` from the validator; `runtime.check` adds `FD-R6` (ADR 0097). Never renumbered, so it is safe to assert on. */
   rule: string;
   /** Node id, edge index, or document-level `null`. */
   at: string | null;

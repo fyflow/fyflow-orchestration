@@ -188,6 +188,9 @@ import { type RunHandle } from '../src/scheduler/index.ts';
 // **W141**: its block builds a runtime from a registry it writes itself — a worker that cannot set up has no
 // place in the shared document — through the same sub-path entry, as a consumer would.
 import { createRuntime } from '../src/scheduler/index.ts';
+// **W163**: its keyed block's `createTask` builds the scheduler's own task with a `limitKey` — P37 fact 1's working road,
+// written as a consumer writes it (`run-flow.ts` imports the class the same way).
+import { FyflowTask } from 'fyflow-scheduler';
 import fanoutJoin from '../spec/examples/valid/fanout-join.flow.json' with { type: 'json' };
 import routedAway from '../spec/examples/valid/p1-routed-away.flow.json' with { type: 'json' };
 // **Local to `examples/`, and that is [Q44](../doc/questions/q44.md) again.** The
@@ -5933,6 +5936,14 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W163**: the keyed block's six subjects — the findings and their RateLimitGroup control, the refusal, the run, its
+  // nodes, the key on every task and the group, and the group's own counts.
+  'W163 keyed: check reports FD-R6 at BOTH nodes',
+  'W163 keyed: start with NO createTask is refused LimitKeyMissing',
+  'W163 keyed: the createTask road starts under r1',
+  'W163 keyed: BOTH nodes ran to done on the real keyed group',
+  'W163 keyed: every task the scheduler held carries the factory`s limitKey',
+  'W163 keyed: the group ACQUIRED and RELEASED both tasks',
   // **W160**: P33's exit-artifact block — its control (the two cancel roads, each pool read back) and its per-run
   // claims — twelve since the readers — and the parked checkpoint's CONTROL (v0.18: a membership names the controls beside
   // its claims).
@@ -9569,6 +9580,116 @@ if (cancelBlock !== null) {
   [['dispatched w160pc:work:-:0', 'outcome w160pc:work:-:0 user_action'], 'not refused', 'awaiting_action']);
 }
 
+/**
+ * **W163 — a node reaching a DOCUMENT-declared `KeyedRateLimitGroup`, on real workers: refused by name before a driver
+ * exists with no `createTask`, and COMPLETED on the real keyed group with one** —
+ * [W163](../doc/work-items/w163-what-start-refuses-that-the-flow-does-not-decide.md),
+ * [ADR 0097](../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), `FD-R6`, P37 fact 1.
+ *
+ * **What P37 fact 1 measured, and what this block holds instead.** The runtime builds a document's keyed group with no
+ * `keyFrom`, so the scheduler keys each task by its `limitKey` — and before W163 nothing set one, so every task of a node
+ * reaching the group THREW in `addTask`: from `start` at the entry node, after the run id was spent, and as a run
+ * `stopped` at the second. Now `runtime.check` reports `FD-R6` at each such node, `start` with no `createTask` throws
+ * `LimitKeyMissing` before anything reaches the scheduler, and the ROAD fact 1 found working — a `createTask` that sets
+ * `limitKey` — runs the same flow to `completed` on the real group, the SECOND node included.
+ *
+ * **Why it is not an `EXPECTED` row.** Its registry is not `registry.json`'s: a keyed group in the shared document would
+ * put `FD-R6` on every row whose node reached it, and `runFlow` passes no `createTask`. So it is W141's shape: one block,
+ * its registry written here with a `data:` worker on a THREADED pool (the scheduler's default), bounded by `settleWithin`,
+ * the scheduler shut down in a `finally`, bound by `CROSS_ROW_SUBJECTS`. ONE run — the refused start builds no driver
+ * and is not one.
+ *
+ * **Every expected value is the spec's or this fixture's**: the findings from `FD-R6` (one per node reaching the group,
+ * at the node); the refusal's class and `at` from ADR 0097 rule 4; `r1` from the runtime's minting (`r<n>`, a refusal
+ * spending none); the outcome from `spec/run-state.md` section 3; the key from the fixture's own `createTask`; the
+ * group's acquire and release counts from its own stats, one per task.
+ */
+const KEYED_DEADLINE_MS = 15_000;
+const KEYED_KEY = 'w163-tenant-a';
+const KEYED_FLOW = {
+  flowId: 'w163-keyed', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', type: 'Keyed', edges: [{ to: 'b' }] },
+    { id: 'b', kind: 'task', type: 'Keyed', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+const keyedDoc = (groupType: 'KeyedRateLimitGroup' | 'RateLimitGroup') => ({
+  workers: { echo: { url: `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run(p) { return p.input; } }')}` } },
+  groups: { api: { type: groupType, config: { windows: [{ limit: 5, windowMs: 1000 }] } } },
+  nodeTypes: { Keyed: { worker: 'echo', groups: ['api'] } },
+});
+type KeyedRun = {
+  found: string[];
+  refused: string;
+  heldAfterRefusal: number;
+  runId: string;
+  endedBy: 'done' | 'the deadline';
+  outcome: RunOutcome | 'NEVER SETTLED';
+  terminal: boolean;
+  nodes: string[];
+  taskKeys: unknown[];
+  groupKeys: string[];
+  acquiredReleased: [number, number];
+  controlFound: string[];
+};
+let keyedBlock: { runs: string[]; r: KeyedRun } | null = null;
+try {
+  const runs: string[] = [];
+  const control = createRuntime(keyedDoc('RateLimitGroup') as never, {});
+  let controlFound: string[];
+  try { controlFound = control.check(KEYED_FLOW).map((f) => `${f.rule} ${f.at}`); } finally { await control.shutdown(); }
+  const rt = createRuntime(keyedDoc('KeyedRateLimitGroup') as never, {});
+  try {
+    const found = rt.check(KEYED_FLOW).map((f) => `${f.rule} ${f.at}`);
+    let refused = 'NOT REFUSED';
+    try { rt.start(KEYED_FLOW, {}); } catch (err) {
+      refused = err instanceof Error ? `${err.constructor.name} at ${(err as { at?: string }).at}` : String(err);
+    }
+    const heldAfterRefusal = rt.scheduler.tasks.size;
+    const { driver, done } = rt.start(KEYED_FLOW, {}, { createTask: (c) => new FyflowTask({ ...c, limitKey: KEYED_KEY }) });
+    runs.push(KEYED_FLOW.flowId);
+    const won = await settleWithin(done, KEYED_DEADLINE_MS);
+    const folded = fold(driver.foldInputs());
+    const group = rt.groups.api as unknown as { keys: Map<string, unknown>; stats: { totalAcquired: number; totalReleased: number } };
+    keyedBlock = {
+      runs,
+      r: {
+        found, refused, heldAfterRefusal, runId: driver.runId,
+        endedBy: won.by,
+        outcome: won.by === 'done' ? won.value.outcome : 'NEVER SETTLED',
+        terminal: won.by === 'done' && isTerminal(won.value),
+        nodes: Object.values(folded.nodes).map((n) => `${n.nodeId}:${n.state}`).sort(),
+        taskKeys: [...(rt.scheduler.tasks as Map<string, { limitKey?: unknown }>).values()].map((t) => t.limitKey),
+        groupKeys: [...group.keys.keys()].sort(),
+        acquiredReleased: [group.stats.totalAcquired, group.stats.totalReleased],
+        controlFound,
+      },
+    };
+  } finally {
+    await rt.shutdown();
+  }
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W163 keyed\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (keyedBlock !== null) {
+  const key = 'cross-row';
+  const r = keyedBlock.r;
+  check(key, 'W163 keyed: check reports FD-R6 at BOTH nodes reaching the document`s keyed group, on a runtime given no flow — and, the ' +
+    'CONTROL, nothing for the same flow on a RateLimitGroup (P37 fact 1`s control row)', [r.found, r.controlFound], [['FD-R6 a', 'FD-R6 b'], []]);
+  check(key, 'W163 keyed: start with NO createTask is refused LimitKeyMissing at the entry node, before anything reached the real ' +
+    'scheduler — it holds no task', [r.refused, r.heldAfterRefusal], ['LimitKeyMissing at a', 0]);
+  check(key, 'W163 keyed: the createTask road starts under r1 — the refusal spent no run id — and `done` SETTLED completed and terminal ' +
+    '(spec/run-state.md section 3)', [r.runId, r.endedBy, r.outcome, r.terminal], ['r1', 'done', 'completed', true]);
+  check(key, 'W163 keyed: BOTH nodes ran to done on the real keyed group — the second included, which P37 fact 1 measured STOPPING the run',
+    r.nodes, ['a:done', 'b:done']);
+  check(key, 'W163 keyed: every task the scheduler held carries the factory`s limitKey, and the group`s keys are exactly that one',
+    [r.taskKeys, r.groupKeys], [[KEYED_KEY, KEYED_KEY], [KEYED_KEY]]);
+  check(key, 'W163 keyed: the group ACQUIRED and RELEASED both tasks — its own stats, the second observer', r.acquiredReleased, [2, 2]);
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -9587,7 +9708,8 @@ if (cancelBlock !== null) {
 // **And `+ setupFails.runs.length` since W141**: its two runs, inline and threaded, as a LENGTH on the same precedent.
 // **And `+ cancelBlock.runs.length` since W160**: its five runs — two cancelled while running, one while queued, and the
 // control's parked run and its resume — on the same precedent. The three refused resumes build no driver and are not runs.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0);
+// **And `+ keyedBlock.runs.length` since W163**: its ONE run, the `createTask` road; the refused start builds no driver.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -9895,7 +10017,10 @@ const PER_PLAIN_ROW = 22;
 // from the JSON comparison (F7) and nothing dispatched further (F2) — +3 x 3 — less the cut-checkpoint control, which did
 // not discriminate (shared finding (ii)), -1 x 3; and the block-level CONTROL, a parked checkpoint resumed, +1.
 // 300 + 9 - 3 + 1 = 307. *(Written as 307 before the file was re-run.)*
-const CROSS_ROW = 307;
+// **+6 since W160's readers, by W163**: the keyed block's six clauses, all cross-row because the block is outside the
+// row loop.
+// *(Written as 313 before the file was re-run.)*
+const CROSS_ROW = 313;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -12048,14 +12173,16 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // refused before a driver exists and are not runs. No row moved.
 // **2640 / 173 after W160's readers** — `CROSS_ROW` 300 -> 307, and two runs: the control's parked run and its resume on
 // the fresh runtime. No row moved. *(Written as 2640 / 173 before the file was re-run.)*
-const DECLARED_TOTAL = 2640;
+// **2646 / 174 since W163** — `CROSS_ROW` 307 -> 313, the keyed block's six clauses, and its ONE run (the `createTask`
+// road; the refused start builds no driver). No row moved. *(Written as 2646 / 174 before the file was re-run.)*
+const DECLARED_TOTAL = 2646;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 173;
+const DECLARED_RUNS = 174;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

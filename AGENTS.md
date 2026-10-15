@@ -268,7 +268,8 @@ reaching the scheduler, which would drop it in silence.
 | `workerGroups` | a non-empty array of distinct group ids, every one in the registry's **`groups`** set (`FD-V31`) | the task acquires these **in addition to** its pool's `groups`. Pass `groups: Object.keys(scheduler.groups)` to the `Driver`, as you pass `nodeTypes` — **omitting it means the registry declares NO groups**, and any node naming one is refused, because a group id the scheduler does not know is silently ignored at run time |
 
 **A driver may carry a `defaultRetryPolicy`**, applied to every task node that declares none — held
-to `FD-V30` at construction like a node's own — and
+to `FD-V30` at construction like a node's own, and `createRuntime`'s option of the same name at ITS construction
+([ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md) rule 5) — and
 **the node wins, whole** — a node with its own policy is dispatched with exactly that object, and the
 default is consulted only when the node declares none. There is no `defaultWorkerGroups`: a pool's own `groups` already applies to
 every task it runs, and the scheduler unions the two. A node that declares neither key is dispatched
@@ -1448,14 +1449,16 @@ type named as a built-in is `NameCollision` — at `new Driver`, which since W93
 at `createRuntime`, which takes them as `code.gateTypes` and hands them to every run (section 3). None is `InvalidDefinition`, on purpose: a registry defect is fixed in the registry and a flow defect in the
 flow, and the class says which document to open.
 
-**And three the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
+**And four the RUNTIME adds, all `RuntimeError` subclasses from `fyflow-orchestration/scheduler`**
 (W66): `GroupUnusable` — a group factory returned something the scheduler cannot use, naming the
-member and the group's key; `GroupNotBuildable` — a group type with no `create`; and, since W89, `RunIdInUse`
-— a `start` or `resume` naming a run id that runtime has already built a driver for, a finished run's included (`RN-R25`, ADR 0091).
-*(`LanguageNotBuilt` — a flow transforming on a type no pool was built for — was a fourth until W162 removed it
+member and the group's key; `GroupNotBuildable` — a group type with no `create`; since W89, `RunIdInUse`
+— a `start` or `resume` naming a run id that runtime has already built a driver for, a finished run's included (`RN-R25`, ADR 0091);
+and, since W163, **`LimitKeyMissing`** — a `start` or `resume` given no `createTask`, of a flow a node of which reaches a
+group the built-in `KeyedRateLimitGroup` factory built (`FD-R6`, [ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), section 12), its `at` the node.
+*(`LanguageNotBuilt` — a flow transforming on a type no pool was built for — was another until W162 removed it
 with `createRuntime`'s `flows`: every typed pool carries every registered language since
 [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md), section 12.)* A bare
-`RuntimeError` is the fourth road: a relative worker url with no `base`, and a predicate or adapter supplied that the
+`RuntimeError` is one more road: a relative worker url with no `base`, and a predicate or adapter supplied that the
 document names nowhere. **They are not exported from the package ROOT**, so the enumeration below —
 which walks the root's own exports — does not see them, and `BootstrapError` has never been there
 either.
@@ -1898,6 +1901,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 |---|---|
 | flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
 | **`runtime.register()`** — adding node types, pools, groups or languages to a RUNNING runtime | **declined** — [P37](doc/plans/p37-a-runtime-is-its-registry.md) decision 1, [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md): `fyflow-scheduler` cannot add a pool after construction. A changed registry is a NEW runtime; a run on the old one finishes there or moves by stop-and-resume ([P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)). **A FLOW is not a registry entry**: `runtime.check(flow)`, then `runtime.start(flow, …)`, takes any flow the registry can run, at any time (section 12) |
+| **a `limitKey` from the FLOW** — a node or a document saying which key a task of a keyed group is counted under | **deferred** — [Q248](doc/questions/q248.md). Pass `start` a `createTask` that sets `limitKey` on the task it builds, or register a group type whose `create` builds a `KeyedRateLimitGroup` with a `keyFrom` (section 12). A node reaching a document's built-in keyed group with neither is refused before its run starts — `FD-R6`, `LimitKeyMissing` |
 | **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or stopped run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
@@ -2090,9 +2094,19 @@ so a flow published after the runtime started runs on it, transforming on any ty
 **`runtime.check(flow)` returns every finding `start` would refuse that flow on** — an array of
 `{ rule, at, detail }`, empty when there is none, and it never throws for a flow's defect — and
 **`start` and `resume` refuse from that same call**, throwing `InvalidDefinition` with exactly those
-rules before any run id is spent, so the two cannot disagree: *register* a flow by checking it, then
+rules — every one but `FD-R6`, below — before any run id is spent, so the two cannot disagree: *register* a flow by checking it, then
 start it. `check` leaves out what depends on a RUN rather than the flow — a payload `FD-R4` refuses,
-and a run id in use. **BREAKING in 0.8.0**: `createRuntime`'s and `bootstrap`'s `flows` option,
+and a run id in use. **One finding it returns is not a definition defect: `FD-R6`**
+([ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md)) — a node reaching a group of the BUILT-IN `KeyedRateLimitGroup` type, through the
+pool it runs on — the named instance its `pool` says, else its type's default — or its `workerGroups`. The runtime builds that group with no `keyFrom`, so the scheduler counts each task
+under its `limitKey` — and nothing sets one unless you pass `start` a `createTask` that does, `(c) => new FyflowTask({
+...c, limitKey: tenant })`; without one the scheduler's `addTask` throws. So `start` with no `createTask` throws
+**`LimitKeyMissing`** for it — after any `InvalidDefinition`, before any run id is spent — and with one, `FD-R6` refuses
+nothing (a factory that sets no key meets the scheduler's own throw). `check` cannot know what you will pass, so it
+reports `FD-R6` as if you pass none: filter it out by `f.rule` if you start with a keying `createTask`. A group a CODE
+group type builds — a `KeyedRateLimitGroup` with a `keyFrom` — is never `FD-R6`. A key derived from the flow is
+[Q248](doc/questions/q248.md), deferred. **And `createRuntime` refuses a malformed `defaultRetryPolicy`** —
+`InvalidDefinition`, `FD-V30`, at construction, where until W163 every `start` threw it. **BREAKING in 0.8.0**: `createRuntime`'s and `bootstrap`'s `flows` option,
 `LanguageNotBuilt` and `transformLanguagesByType` are gone. A caller passing `flows` in an object
 LITERAL fails to compile; one passing an options object held in a variable still compiles, and `flows`
 is then an unread key at run time — so delete it either way, and any warm-up flows written to feed it. **The cost** is a thread's, not a
