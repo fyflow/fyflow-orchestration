@@ -1,7 +1,17 @@
 # spec/outcome-record — the log the driver writes
 
-**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.13 is [W158](../doc/work-items/w158-cancelled-is-a-library-state-and-a-run-outcome.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and a record gains a FOURTH terminal state, `cancelled`.**
+[ADR 0094](../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) is the decision. The scheduler pin W157 moved to ends a task `cancelled` through
+`scheduler.cancel()` and fires **`task.cancelled` and no other settlement event** for it, so until this
+version the listener dropped it and its run never ended (P33 fact 1). **Two rules' TEXT moves**: `OR-R3`
+gains the `cancelled` row — one record, keyed on `d.state` as every other — and `OR-R4` gains
+`task.cancelling`, a cancel REQUESTED of a running task, beside `task.running` and `task.progress`. Section 1's
+`terminalState` comment, section 2's `terminalState` row and its list of live-detail events, and section 3's
+walkthrough table, and section 4's table of what `result: null` means, move with them. **No field is added**: the record stays eleven fields, `result` is `null` for a
+cancel by `OR-R2`'s own guard whatever the attempt produced, and `error` is what the scheduler leaves on the task,
+which a cancel clears. **No other rule moves**; what a cancelled run DOES is `spec/run-state.md`'s `RN-R28`.
 **v0.11 is [W133](../doc/work-items/w133-two-spec-sentences-and-one-message.md) under
 [P30](../doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md), and it adds ONE
 sentence to `OR-R6`: the rule is reachable only from an INLINE pool.** On a thread pool the
@@ -92,7 +102,7 @@ rather than a mutation** precisely so that stays true (ADR 0004 rule 6).
 {
   "kind":               "outcome",
   "taskId":             "r7c1f:scoreB:1:0",
-  "terminalState":      "done",          // "done" | "failed" | "user_action"
+  "terminalState":      "done",          // "done" | "failed" | "user_action" | "cancelled"
   "result":             { "score": 0.41 },
   "error":              null,
   "attempts":           0,
@@ -110,16 +120,17 @@ two sources of truth for one string.
 
 ## 2. Where each outcome field comes from
 
-`e` is the listener's event; `d` is `e.detail`, which for `task.completed`, `task.failed` and
-`task.user_action` **is** the live `FyflowTask` (`../fyflow-scheduler/core/FyflowScheduler.ts:1093,
-1164, 1166, 1554, 1556`; `AGENTS.md` section 6). Every expression below is evaluated **synchronously,
+`e` is the listener's event; `d` is `e.detail`, which for `task.completed`, `task.failed`,
+`task.user_action` and — v0.13 — `task.cancelled` **is** the live `FyflowTask`
+(`../fyflow-scheduler/core/FyflowScheduler.ts:1093, 1164, 1166, 1554, 1556`, and `:1198` for
+`task.cancelled`; `AGENTS.md` section 6). Every expression below is evaluated **synchronously,
 inside the listener**.
 
 | field | type | source | |
 |---|---|---|---|
 | `kind` | `'outcome'` | constant | |
 | `taskId` | string | `d.id` | |
-| `terminalState` | `'done' \| 'failed' \| 'user_action'` | `d.state` | **never** the event name — see `OR-R3` |
+| `terminalState` | `'done' \| 'failed' \| 'user_action' \| 'cancelled'` | `d.state` | **never** the event name — see `OR-R3` |
 | `result` | structured-cloneable value \| `null` | `terminalState === 'done' ? structuredClone(d.result) : null` | the guard is part of the expression, not a caveat on it. See `OR-R2` and section 4 |
 | `error` | string \| `null` | `d.error ?? null` | already a string on the task — `task.error = error.message` (`core/FyflowScheduler.ts:1105`). The `Error` object never reaches a listener |
 | `attempts` | number | `d.attempts` | the **scheduler's** retry count, not the flow-level attempt in the id |
@@ -138,8 +149,8 @@ record with a field named `state`, `payload`, `task` or `detail` is a review fin
 |---|---|---|
 | `OR-R1` | **Every field is read inside the listener.** No `e`, no `e.detail`, and no object reachable from `e.detail` is retained past the listener's return. A shallow spread of `d` does not satisfy this rule. Test: settle a task, mutate the live `FyflowTask` after the listener returns — including `timestamp`, `result` and `error` — and assert every field of the written record is unchanged. **A `{...e.detail}` implementation must fail this test** | W3 |
 | `OR-R2` | **`result` is deep-copied with `structuredClone`.** It is the one field whose *value* is a reference the producer may still hold — see section 4. Test: an inline worker that returns an object and then mutates it, asserting the record is unchanged | W3 |
-| `OR-R3` | **Exactly one record per settlement, keyed on `d.state`.** `task.failed` with `d.state === 'user_action'` writes **nothing**; the `task.user_action` that follows for the same object writes the record. `task.failed` with `d.state === 'failed'` (an `optional` task) writes the record, and no `task.user_action` follows. Test: one optional and one non-optional task exhausting retries, asserting one record each and the right `terminalState` | W3 |
-| `OR-R4` | **`task.running` and `task.progress` produce no record of either kind.** They are not settlements and they are not resolutions. Whether the driver logs them at all, and in what shape, is [Q26](../doc/questions/q26.md). Test: a task emitting progress, asserting the log length is 1 | W3 |
+| `OR-R3` | **Exactly one record per settlement, keyed on `d.state`.** `task.failed` with `d.state === 'user_action'` writes **nothing**; the `task.user_action` that follows for the same object writes the record. `task.failed` with `d.state === 'failed'` (an `optional` task) writes the record, and no `task.user_action` follows. **v0.13: `task.cancelled` with `d.state === 'cancelled'` writes the record** — the one settlement event a cancelled task fires, whether it was running or still waiting, optional or not, and whatever its attempt produced; its `result` is `null` by `OR-R2`'s guard ([ADR 0094](../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 1). Test: one optional and one non-optional task exhausting retries, asserting one record each and the right `terminalState`; a `task.cancelled` asserting one `cancelled` record, its `result` `null` even where the live task holds one the clone would refuse | W3; `cancelled` **[W158](../doc/work-items/w158-cancelled-is-a-library-state-and-a-run-outcome.md)** |
+| `OR-R4` | **`task.running`, `task.progress` and — v0.13 — `task.cancelling` produce no record of either kind.** They are not settlements and they are not resolutions: `task.cancelling` is a cancel REQUESTED of a running task, whose state still reads `running`, and the driver does not subscribe it ([ADR 0094](../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 4; a run whose cancel the DRIVER requested is P34's to record). Whether the driver logs any of them at all, and in what shape, is [Q26](../doc/questions/q26.md). Test: a task emitting progress, asserting the log length is 1; `task.cancelling` writing nothing, with a running and with a terminal-looking state, and appending nothing when delivered to a driver | W3; `task.cancelling` **[W158](../doc/work-items/w158-cancelled-is-a-library-state-and-a-run-outcome.md)** |
 | `OR-R5` | **The log is ordered by append, never sorted by a timestamp.** Both stamps are `Date.now()` reads: two settlements can share a millisecond, and `schedulerTimestamp` is written by the scheduler while `observedAt` is written by us. Append order is the only total order we have, and the driver is what produces it (`doc/concept.md` section 5). Test: fold a log whose `schedulerTimestamp` order differs from its append order, asserting the fold follows append order | W2 |
 | `OR-R7` | **A resolution is appended, never applied.** Nothing outside the driver's inbound API writes to run state, and the fold derives the resumed path from the record alone. Test: fold a log containing a resolution twice and deep-compare, then assert the same run state is reached by folding from scratch | W2 |
 
@@ -155,6 +166,7 @@ on the orphaned-task path):
 | `done` | `task.completed` | 1, `terminalState: 'done'` |
 | `failed` (task was `optional`) | `task.failed` | 1, `terminalState: 'failed'` |
 | `user_action` (non-optional, retries spent) | `task.failed`, **then** `task.user_action` | **1**, `terminalState: 'user_action'`, written on the second |
+| `cancelled` (v0.13 — `scheduler.cancel()`, optional or not) | `task.cancelled`, after `task.cancelling` if it was running and alone if it was waiting; none of the three above | **1**, `terminalState: 'cancelled'`; `task.cancelling` writes nothing (`OR-R4`) |
 
 A driver keying on the event name writes two records for the third row and routes a
 human-intervention case down an error edge. `AGENTS.md` section 5 still says *"`task.failed` fires
@@ -387,6 +399,7 @@ to a floor of **284 B** whatever the payload, so the factor is **1.0 / 4.7 / 15.
 |---|---|---|
 | `result: null` with `state: 'done'` | a worker returned `null` | it returned nothing |
 | `result: null` with `state: 'failed'` | `OR-R2`'s own guard | it did not succeed |
+| `result: null` with `state: 'cancelled'` | `OR-R2`'s own guard, v0.13 — whatever the cancelled attempt produced | it was stopped |
 | `result: undefined`, key **present** | a worker returned `undefined`, **or** the detail carried no `result` at all | it returned nothing |
 
 So a withheld result needs a **fourth** encoding — a new field, a new node state, or a sentinel —

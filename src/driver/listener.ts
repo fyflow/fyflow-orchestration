@@ -1,9 +1,10 @@
 /**
  * The listener boundary — ADR 0007, and `spec/outcome-record.md` sections 2-3.
  *
- * The scheduler's `detail` for `task.completed`/`failed`/`user_action` IS the live
- * `FyflowTask` (`core/FyflowScheduler.ts:857, 907, 909, 1139, 1141`). Nothing
- * downstream of this file ever sees a library object.
+ * The scheduler's `detail` for `task.completed`/`failed`/`user_action`/`cancelled` IS the live
+ * `FyflowTask` (`core/FyflowScheduler.ts:1093, 1164, 1166, 1554, 1556`, and `:1198` for
+ * `task.cancelled`, at the pin — re-taken by W158). Nothing downstream of this file ever sees a
+ * library object.
  *
  * `OR-R1`: every field is read while the listener runs. No `e`, no `e.detail`, and
  * nothing reachable from it is retained. **A `{...e.detail}` spread does not
@@ -39,7 +40,15 @@ export class UncloneableResult extends Error {
   }
 }
 
-const TERMINAL = new Set<string>(['done', 'failed', 'user_action']);
+/**
+ * The four terminal states a record may carry. **`cancelled` is W158's** (ADR 0094): the scheduler ends a task
+ * `cancelled` through `cancel()` alone and fires `task.cancelled` and no other settlement event for it, so
+ * without this entry the record was never written, the task stayed `running` in the fold for ever, and the
+ * run's `done` never settled (P33 fact 1).
+ */
+const TERMINAL = new Set<string>(['done', 'failed', 'user_action', 'cancelled']);
+/** The four settlement events, one per terminal state; `OR-R3` keys on the state, never on these names. */
+const SETTLEMENT = new Set<string>(['task.completed', 'task.failed', 'task.user_action', 'task.cancelled']);
 const num = (x: unknown): number | null => (typeof x === 'number' ? x : null);
 
 /**
@@ -51,6 +60,7 @@ const num = (x: unknown): number | null => (typeof x === 'number' ? x : null);
  *   done                      task.completed              -> 1 record
  *   failed (optional task)    task.failed                 -> 1 record
  *   user_action               task.failed, task.user_action -> 1 record, on the SECOND
+ *   cancelled                 task.cancelled              -> 1 record (ADR 0094)
  *
  * The third row is why this exists. `task.failed` fires for a task that did not
  * fail, its detail already reads `state: 'user_action'`, and a driver keying on
@@ -66,8 +76,10 @@ export function normalizeEvent(
   now: number,
 ): OutcomeRecord | null {
   // OR-R4 — not settlements, and not resolutions either. Whether they are logged
-  // at all, and in what shape, is Q26.
-  if (eventName === 'task.running' || eventName === 'task.progress') return null;
+  // at all, and in what shape, is Q26. **`task.cancelling` is the third** (ADR 0094 rule 4): a cancel
+  // REQUESTED of a running task, whose state still reads `running` — a request is not a settlement, and a
+  // run whose cancel the driver requested is P34's to record.
+  if (eventName === 'task.running' || eventName === 'task.progress' || eventName === 'task.cancelling') return null;
 
   const state = detail?.state;
   if (typeof state !== 'string' || !TERMINAL.has(state)) return null;
@@ -76,9 +88,7 @@ export function normalizeEvent(
   // task is the precursor to the `task.user_action` that follows for the same
   // object. It writes nothing.
   if (eventName === 'task.failed' && state === 'user_action') return null;
-  if (eventName !== 'task.completed' && eventName !== 'task.failed' && eventName !== 'task.user_action') {
-    return null;
-  }
+  if (!SETTLEMENT.has(eventName)) return null;
 
   const terminalState = state as TerminalState;
 

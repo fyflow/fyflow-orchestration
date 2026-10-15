@@ -88,7 +88,8 @@ nothing downstream of that boundary ever sees a library object.
 2. **The outcome record is keyed on terminal state, not on event name.** `task.failed` with
    `detail.state === 'user_action'` is **not** a failure — it is the precursor to the
    `task.user_action` that follows for the same task. Exactly one outcome record is written per task
-   settlement.
+   settlement. ***Amended 2026-10-15 by [ADR 0094](0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)
+   (W158): a fourth terminal state, `cancelled`, written once from `task.cancelled`; `task.cancelling` writes nothing.***
 3. **`scheduler.completed` is never treated as a per-run signal.** It fires every time the scheduler
    drains — routinely, between our steps. *(At 0.2.1 its detail was also `stats` mutated in place;
    0.3.0 emits a copy, so the retention half of this rule is now belt-and-braces. The "not a run

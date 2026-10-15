@@ -1007,6 +1007,84 @@ the table above and is wrong. `resolve(taskId, 'failed', …)` routes exactly as
 failure would, and `RS-R3` notes it is **the only road by which a non-`optional` node reaches an
 `on: ['failed']` edge**. That is the half of the human-in-the-loop story section 7 completes.
 
+### A task that ends `cancelled` ends its RUN
+
+The scheduler can end a task a third way: **`scheduler.cancel(id)`** stops it — waiting or running,
+`optional` or not, whatever its attempt produced — and it ends in state `cancelled` with one event,
+`task.cancelled`. The driver hears it, records it (`OR-R3`), and **halts the run**: nothing is dispatched
+or routed for it again, and the run folds to **`cancelled`** (`RN-R28`,
+[ADR 0094](doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)).
+
+| | what happens |
+|---|---|
+| the cancelled task | one record, `terminalState: 'cancelled'`, `result: null`. `task.cancelling` — the request, while a running task stops — writes nothing (`OR-R4`) |
+| an edge | **none can opt in**: `on: ['cancelled']` is refused at construction (`FD-V18`). A cancel is the owner's act, not an outcome a flow branches on |
+| the rest of the run | a task still in flight is **routed nowhere** when it settles — a bare `Driver` still records it; on a runtime, once `done` has settled the run is RELEASED and later settlements reach no driver (section 12, [ADR 0091](doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)); a parked task stays parked and `resolve()` returns `false`; a join it left waiting never fires, and the run is NOT `stuck`. **One limit, shared with a stop**: a cancel raised SYNCHRONOUSLY from your own `onFoldInput` while a fan-out is dispatching its branches, or while a resolution is routing, can let one more dispatch through ([Q605](doc/questions/q605.md)) |
+| what is reported | nothing: a cancel is not a refusal, so `onRunFailure` is not called and `hasFailed()` stays `false` — read `state.outcome` |
+| `done` | settles on the FIRST cancel, with `outcome: 'cancelled'` — the run's other tasks may still be running; cancel those by id |
+| a resume | refused, `reason: 'cancelled'` (section 18) |
+
+```ts run
+import { Driver, fold, liveToken, resumeRefusal, type FlowDefinition } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'cancel-one', version: 1, entry: 'split',
+  nodes: [
+    { id: 'split',   kind: 'fanout', branches: ['a', 'b'] },
+    { id: 'a',       kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+    { id: 'b',       kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+    { id: 'done',    kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// The fake scheduler of section 12's no-scheduler snippet: listeners keyed by event type.
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const added: string[] = [];
+const failures: string[] = [];
+const scheduler = {
+  addTask(task: unknown) { added.push((task as { id: string }).id); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
+    listeners.set(type, [...(listeners.get(type) ?? []), fn]);
+  },
+};
+const fire = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+
+const driver = new Driver(flow, {
+  runId: 'run-1', scheduler, createTask: (c) => c, predicates: new Map(),
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { T: { worker: 'w' } },
+  joinPolicy: liveToken, onRunFailure: (f) => { failures.push(f.kind); },
+});
+driver.start({});
+console.log(added);                        // [ 'run-1:a:0:0', 'run-1:b:1:0' ]
+
+// Somebody cancels branch `a` — the scheduler fires `task.cancelled`, and nothing else, for it.
+fire('task.cancelled', { id: 'run-1:a:0:0', state: 'cancelled' });
+// Branch `b` was already running; it finishes. It is recorded, and routed nowhere.
+fire('task.completed', { id: 'run-1:b:1:0', state: 'done', result: { b: 1 } });
+
+const state = fold(driver.foldInputs());
+console.log(state.outcome, added.length, failures);   // cancelled 2 []
+if (state.outcome !== 'cancelled') throw new Error(`expected cancelled, got ${state.outcome}`);
+if (added.includes('run-1:publish:-:0')) throw new Error('a cancelled run must not route on to the join`s successor');
+if (failures.length !== 0) throw new Error('a cancel is not a run failure');
+if (state.nodes['run-1:b:1:0']?.state !== 'done') throw new Error('the in-flight task is still recorded');
+
+// And the run cannot be resumed.
+console.log(resumeRefusal(flow, driver.checkpoint())?.reason);   // 'cancelled'
+if (resumeRefusal(flow, driver.checkpoint())?.reason !== 'cancelled') throw new Error('a cancelled run is not resumable');
+```
+
+**This makes a cancel NOTICED; it adds no call that cancels a run.** Cancelling, stopping and pausing a
+whole run are [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. Until then a cancel
+is what you do to a task id through the scheduler, and its run ends the moment the first one is heard.
+
+**`'cancelled'` is a NEW value of four published unions** — `TerminalState`, `NodeState`, `RunOutcome` and
+`ResumeRefusalReason`. **A `switch` that is exhaustive over any of them no longer compiles, which is the
+loud half; code that compares strings sees a value it never named and does not notice, which is the
+silent half.** A `Record<RunOutcome, …>` needs a seventh key.
+
 ---
 
 ## 7. The human in the loop
@@ -1021,7 +1099,9 @@ keeps waiting, and the run is not stuck.
 > human-intervention case down an error edge. The driver drops it and records on the second — it
 > matters if you subscribe to the scheduler yourself.
 > [ADR 0007](doc/decisions/0007-the-driver-normalizes-events-into-an-immutable-outcome-record.md)
-> rule 2; the scheduler's own reference does not document it for the ordinary path.
+> rule 2. The scheduler's own reference records the pair in its per-task event order —
+> *"`task.failed` (plus `task.user_action`)"* — while its task-states paragraph still says *"`task.failed`
+> fires once per failed task"*; trust the pair (re-read at the pin by W157 and W158).
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
@@ -1155,7 +1235,7 @@ into state and touches nothing else.
 ```ts run
 import { fold, isTerminal, type FoldInput } from 'fyflow-orchestration';
 
-const settled = (taskId: string, state: 'done' | 'failed' | 'user_action'): FoldInput => ({
+const settled = (taskId: string, state: 'done' | 'failed' | 'user_action' | 'cancelled'): FoldInput => ({
   kind: 'outcome',
   record: { kind: 'outcome', taskId, terminalState: state, result: null, error: null,
     attempts: 0, schedulerTimestamp: 1, observedAt: 1, startTime: 1, endTime: 2, executionTime: 1 },
@@ -1180,9 +1260,14 @@ const rows: [string, FoldInput[]][] = [
   ['awaiting_action', [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), ended('end'),
                        ended('no-eligible-edge'), openJoin, dispatched('r1:b:-:0'),
                        dispatched('r1:c:-:0'), settled('r1:c:-:0', 'user_action')]],
+  ['cancelled',       [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), ended('end'),
+                       ended('no-eligible-edge'), openJoin, dispatched('r1:b:-:0'),
+                       dispatched('r1:c:-:0'), settled('r1:c:-:0', 'user_action'),
+                       dispatched('r1:d:-:0'), settled('r1:d:-:0', 'cancelled')]],
   ['stopped',         [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), ended('end'),
                        ended('no-eligible-edge'), openJoin, dispatched('r1:b:-:0'),
                        dispatched('r1:c:-:0'), settled('r1:c:-:0', 'user_action'),
+                       dispatched('r1:d:-:0'), settled('r1:d:-:0', 'cancelled'),
                        { kind: 'stopped', reason: 'DuplicateTaskId: x' }]],
 ];
 for (const [expected, inputs] of rows) {
@@ -1193,11 +1278,11 @@ for (const [expected, inputs] of rows) {
 
 // `isTerminal` is false for exactly `running` and `awaiting_action`.
 const terminal = Object.fromEntries(rows.map(([o, i]) => [o, isTerminal(fold(i))]));
-console.log(terminal);   // completed/failed/stuck/stopped true, running/awaiting_action false
+console.log(terminal);   // completed/failed/stuck/cancelled/stopped true, running/awaiting_action false
 if (!terminal.stuck) throw new Error('`stuck` is terminal — that is the point of it existing');
 if (terminal.running || terminal.awaiting_action) throw new Error('a live run is not terminal');
-if (!terminal.completed || !terminal.failed || !terminal.stopped) {
-  throw new Error('completed, failed and stopped are all terminal');
+if (!terminal.completed || !terminal.failed || !terminal.cancelled || !terminal.stopped) {
+  throw new Error('completed, failed, cancelled and stopped are all terminal');
 }
 
 // `completed` means every live path reached an `end` — NOT "no node settled failed".
@@ -1217,11 +1302,12 @@ const state = fold(driver.foldInputs());
 if (isTerminal(state)) console.log('finished as', state.outcome);
 ```
 
-### The six outcomes, highest first
+### The seven outcomes, highest first
 
 | | means |
 |---|---|
 | `stopped` | a refusal terminated the run — section 9 |
+| **`cancelled`** | **a task of the run was cancelled, and the driver halted it** — section 6. It outranks everything below it, a parked task and a waiting join included |
 | `awaiting_action` | a node is suspended and nobody has resolved it |
 | `running` | a dispatched node has not settled |
 | **`stuck`** | nothing is live and **nothing ever will be**: a join has not fired and cannot |
@@ -1256,9 +1342,10 @@ is the same two functions — the runtime keeps one `RunState`, steps it per inp
 nothing above about reading at rest stops being true. **Three things follow, and two of them catch
 people:**
 
-- **`done` never rejects.** `failed`, `stuck` and `stopped` are terminal OUTCOMES, not errors, so a
-  run that goes wrong arrives as `state.outcome`. A driver refusal resolves it with `stopped` and
-  `stoppedBy` naming the refusal — section 9.
+- **`done` never rejects.** `failed`, `stuck`, `cancelled` and `stopped` are terminal OUTCOMES, not
+  errors, so a run that goes wrong arrives as `state.outcome`. A driver refusal resolves it with
+  `stopped` and `stoppedBy` naming the refusal — section 9; a cancelled task resolves it with
+  `cancelled` on the FIRST cancel, while the run's other tasks may still be running — section 6.
 - **`awaiting_action` is NOT terminal, so `done` waits through it.** A run parked on a person stays
   pending until somebody calls `resolve()`, which is correct and is the trap: if you are waiting for
   a run and a human is in it, you are waiting for the human. Section 7 is the worked case.
@@ -1382,7 +1469,7 @@ reported, which is why the rule is about the stack:
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
 | `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `stopped` because its replay regenerated a stop in the lost tail: that driver keeps the STOPPED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
-| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped` or `diverged` and whose `index` names the position for the last two — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — a driver was built for it, so that runtime answers the id with `RunIdInUse` from then on (ADR 0091 keeps the id after it releases the driver); one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped`, `cancelled` or `diverged` and whose `index` names the position for the last three — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — a driver was built for it, so that runtime answers the id with `RunIdInUse` from then on (ADR 0091 keeps the id after it releases the driver); one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -1808,8 +1895,8 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 | not available | instead |
 |---|---|
 | flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
-| **cancellation** | nothing. The scheduler cannot cancel a queued task either |
-| **durability** — resuming a run after a restart | nothing. The fold is designed to make it additive; it is not built |
+| **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
+| ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or stopped run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
@@ -2193,9 +2280,9 @@ const definition: FlowDefinition = {
 // A fake scheduler, so this snippet runs with no workers. In your program this is
 // `new FyflowScheduler({ ... })` — see section 12.
 //
-// **Key the listeners by event type.** The driver subscribes to three of them and
+// **Key the listeners by event type.** The driver subscribes to four of them and
 // normalizes on the task's terminal STATE rather than the event name (`OR-R3`), so a
-// double that fans one settlement to every listener writes THREE records for it and
+// double that fans one settlement to every listener writes FOUR records for it and
 // the run stops on a `DuplicateTaskId`. A real `EventTarget` does not do this; a
 // hand-written double is where it happens.
 const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
@@ -3274,9 +3361,11 @@ await third.shutdown();
   ([Q374](doc/questions/q374.md)). A store you do not trust is a store you should not resume from.
 - **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes), `run` (the
   header's run is not the driver's), `flow` (another flow id or `version` — there is no migration),
-  `stopped` and `diverged` — the last two with the `index` of the position. **A STOPPED run is not
-  resumable**: the refusal that stopped it would stop it again. A completed or `stuck` run resumes to
-  itself and dispatches nothing.
+  `stopped`, `cancelled` and `diverged` — the last three with the `index` of the position. **A STOPPED
+  run is not resumable**: the refusal that stopped it would stop it again. **Nor is a CANCELLED one**
+  (section 6): a cancel is its owner's act, and a resume would hand the scheduler again what the owner
+  stopped — `index` is the first cancelled settlement. A completed or `stuck` run resumes to itself and
+  dispatches nothing.
 - **A refused resume may SPEND its run id.** Refused by its header, nothing exists and the id is still
   free; refused during its replay, the runtime built a driver for it — so that runtime refuses the id
   with `RunIdInUse` from then on, as it refuses any id it ever built a driver for, a finished run's

@@ -53,9 +53,11 @@ class Fake {
   addEventListener(t: string, f: (e: { detail: unknown }) => void): void {
     this.l.set(t, [...(this.l.get(t) ?? []), f]);
   }
-  settle(id: string, state: 'done' | 'failed' | 'user_action', over: Record<string, unknown> = {}): void {
+  // `cancelled` since W158 (ADR 0094): the scheduler fires `task.cancelled` ALONE for it.
+  settle(id: string, state: 'done' | 'failed' | 'user_action' | 'cancelled', over: Record<string, unknown> = {}): void {
     const d = { id, state, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1, ...over };
     if (state === 'done') this.fire('task.completed', d);
+    else if (state === 'cancelled') this.fire('task.cancelled', d);
     else { this.fire('task.failed', d); if (state === 'user_action') this.fire('task.user_action', d); }
   }
   ids(): string[] { return this.added.map((t) => t.id); }
@@ -175,8 +177,9 @@ suite('ID-R4 — both tiers are decided before the terminal state is read', (tes
   // in one state is a guard that can be conditioned on the state.
   //
   // ADR 0023's own Consequences paragraph turns on `user_action` — the state with
-  // the least coverage before this suite existed.
-  for (const state of ['done', 'failed', 'user_action'] as const) {
+  // the least coverage before this suite existed. **`cancelled` since W158** (ADR 0094): the fourth terminal
+  // state, on the same two tiers, for the same reason — the guards sit above the state and must not read it.
+  for (const state of ['done', 'failed', 'user_action', 'cancelled'] as const) {
     test(`tier 2 refuses an undispatched task settling \`${state}\``, async () => {
       const s = new Fake();
       const r = attach(s, await load('valid/linear.flow.json'), 'r1');
@@ -298,12 +301,12 @@ suite('ID-R4 — a settlement for ANOTHER run is ignored, silently', (test) => {
  * what decides the behaviour.
  */
 suite('ID-R5 — an inbound id no driver minted is reported and dropped, not refused', (test) => {
-  // **All three terminal states, and that is W13's adequacy reader's finding
+  // **All four terminal states — `cancelled` since W158 — and that is W13's adequacy reader's finding
   // applied one tier out** (`spec/task-id.md` `ID-R4`: *"a guard the fixtures only
   // exercise in one state can be conditioned on the state"*). Tier 0 sits above
   // `normalizeEvent`, so it cannot read a terminal state — and a guard that cannot
   // read one cannot be conditioned on it. These rows are what says so.
-  for (const state of ['done', 'failed', 'user_action'] as const) {
+  for (const state of ['done', 'failed', 'user_action', 'cancelled'] as const) {
     test(`a foreign task settling \`${state}\` leaves the run running`, async () => {
       const s = new Fake();
       const r = attach(s, await load('valid/linear.flow.json'), 'r1');
@@ -322,7 +325,8 @@ suite('ID-R5 — an inbound id no driver minted is reported and dropped, not ref
       // event count rather than one per task. Stated here because a reader will
       // otherwise read `2` as a bug.
       equal(r.unminted.map((u) => u.event),
-        state === 'user_action' ? ['task.failed', 'task.user_action'] : [`task.${state === 'done' ? 'completed' : 'failed'}`],
+        state === 'user_action' ? ['task.failed', 'task.user_action']
+          : [`task.${state === 'done' ? 'completed' : state === 'cancelled' ? 'cancelled' : 'failed'}`],
         'reported once per EVENT: tier 0 is above normalizeEvent, so OR-R3 has not yet dropped the pair`s first');
     });
   }

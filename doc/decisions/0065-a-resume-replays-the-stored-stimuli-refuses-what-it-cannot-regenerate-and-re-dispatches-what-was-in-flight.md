@@ -54,7 +54,8 @@ What W89's declaration step re-took before deciding anything:
    version not the definition's — **no migration**, P23 decision 7) and `stopped` (a stored `stopped`
    element — P23 decision 10). One pure function, `resumeRefusal`, called by the driver and by the runtime
    before it builds one. `ResumeRefused` is ONE class carrying `reason` and `index`, on `BoundaryRefused`'s
-   precedent of one class for two boundaries.
+   precedent of one class for two boundaries. ***Amended 2026-10-15 by [ADR 0094](0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)
+   (W158): a fifth header-time reason, `cancelled` — a stored cancelled settlement, after `stopped`.***
 3. **REPLAY, with every dispatch HELD** (`RN-R19`): enter the entry node with a copy of `header.entryPayload`
    as `start()` does, then FEED every stored `outcome`, `resolution` and `resumed` element at its own
    position — a settlement through the path the listener takes once `ID-R4` and `OR-R2` have passed it, a
