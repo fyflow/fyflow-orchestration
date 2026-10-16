@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's** and **P33's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's** and **P37's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -84,6 +84,7 @@
  * | **W141 — `setup fails`, inline and threaded** | **Q266 on a real scheduler: a TYPE's worker whose `setup()` throws, and the run ENDS.** Three optional nodes of that type in a fanout, each with an `on: ["failed"]` edge to an end, joined under `live-token` — the arrangement that hung for ever before W141 (the pool requeued the tasks of its failing worker until its restart limit, six of six measured). Since W141 the envelope worker remembers the failure and fails every task from `run()`: each node FAILS with the setup error, each failure ROUTES (ADR 0004), the join fires over three exited branches and the run COMPLETES — inside a bounded race, with the scheduler's own task states as the second observer. Its registry is written in the block, not `registry.json` |
  * | **W155 — `if-then-switch` at 1, 0.9, 0.5 and 0.2** | **P32's EXIT ARTIFACT: a flow whose ENTRY is the built-in `if` over the PAYLOAD and which routes a TASK's result through the built-in `switch`, with no predicate and no gate type registered.** `triage` (`input.confidence gte 0.5`) sends three payloads to `score` and one, by the edge with no `route`, to `shelve`; `grade` routes `score`'s result by its `score` key — `certain` (a scalar case) to `publish`, `likely` (an array case) and `default` each to their own `end`. One payload per route the `switch` can take plus the `if`'s `else`, the 0.5 row being the `if`'s BOUNDARY and the `switch`'s no-case row at once. Each row asserts its decisions IN PLACE among its dispatches, settlements and path end; the cross-row block asserts every route of both taken by exactly those payloads, against the routes each gate declares, and the same document with one `switch` case left unwired refused at LOAD by `FD-V41` naming the case |
  * | **W160 — `cancel` while RUNNING, inline and threaded, and while QUEUED** | **P33's EXIT ARTIFACT: a run's task cancelled by its id through `runtime.scheduler.cancel(id)`, and the run ENDS.** The scheduler's two cancel roads on one linear flow (`work` then `after`): a task RUNNING — the worker emits `started` through `context.emit`, the harness cancels, the worker's `context.signal` aborts with the reason given and it returns, `task.cancelling` then `task.cancelled` — on an inline pool and a threaded one; and a task QUEUED behind a `ConcurrentLimitGroup(1)` the harness holds, removed at once with `task.cancelled` alone and `resource.unblocked` reason `cancelled`, never having run. Each run's fold sequence ends at the cancelled settlement with `after` never dispatched (`RN-R28`), the runtime's `done` SETTLES with `cancelled` — after `task.cancelled`, not at the request — and equals the caller's fold (Q606's L6 clause, *`done` settles `cancelled`*; the release half is P34's `test/scheduler/runtime.test.ts` case, and with one run per runtime routing to a sibling is not exercised), nothing is dispatched further and nothing reported, and a resume of its checkpoint on a fresh runtime is refused `cancelled` at the first stored cancel (`RN-R23`) — beside the CONTROL, a fourth run parked `user_action` whose checkpoint the same instrument resumes. Its registry is written in the block, not `registry.json` |
+ * | **W167 — ONE runtime that is its registry, given no flow** | **P37's EXIT ARTIFACT: a running runtime takes a flow it was never shown.** ONE runtime from `createRuntime` with the registry's `languages` and NO flow — every pool it built, the built-in `Transform`'s and a NAMED instance's included, carrying the one language. On it, in order: a flow that transforms nothing runs to `done`; a flow with two definition defects is checked and refused, `check`'s rule ids equal to the `InvalidDefinition` `start` throws; a flow reaching the document's `KeyedRateLimitGroup` is `FD-R6` by `check` and `LimitKeyMissing` by `start`, nothing reaching the scheduler; and a flow never shown before — a JSONata `transform` on a node of a DOCUMENT type and on a second one running on a named pool instance that declares its own pool options — is checked `[]` and completes, each transformed node's WORKER reporting the transformed value it received, the instance's own `maxThreads` and its type's merged `idleTimeout` read off the scheduler's pool. `tryTransform` given an input on that flow's ENTRY returns one `'given'` verdict; the worker schemas carry `title`, `description`, `readOnly` and `writeOnly` and are kept as declared, and the same document with `format` is refused by name. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -133,6 +134,10 @@ import {
   BUILT_IN_GATE_TYPES,
   InvalidDefinition,
   routesOf,
+  // **W167, P37's EXIT ARTIFACT**: the authoring call it gives an input on a flow's ENTRY, and the class the registry refuses a
+  // schema keyword outside the subset with — through the package ROOT, as a consumer would.
+  SchemaRefused,
+  tryTransform,
   // **W90, P23's EXIT ARTIFACT**: block (2g) resumes runs through `runtime.resume` and names the refusal a
   // wrongly-keyed store gets, the header it stores and the driver it reads back — through the package ROOT.
   ResumeRefused,
@@ -188,6 +193,8 @@ import { type RunHandle } from '../src/scheduler/index.ts';
 // **W141**: its block builds a runtime from a registry it writes itself — a worker that cannot set up has no
 // place in the shared document — through the same sub-path entry, as a consumer would.
 import { createRuntime } from '../src/scheduler/index.ts';
+// **W167**: the class `start` refuses a node reaching a built-in keyed group with (ADR 0097), through the same sub-path entry.
+import { LimitKeyMissing } from '../src/scheduler/index.ts';
 // **W163**: its keyed block's `createTask` builds the scheduler's own task with a `limitKey` — P37 fact 1's working road,
 // written as a consumer writes it (`run-flow.ts` imports the class the same way).
 import { FyflowTask } from 'fyflow-scheduler';
@@ -5936,6 +5943,28 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W167**: P37's exit-artifact block — eighteen subjects, by exit clause: (1) the pools' languages and the resolved ones;
+  // (2) A's run; (3) check(B), B's run, the CONTROL (the untransformed entry), each transformed node's received value, the
+  // pools the scheduler ran them on and the instance's own options; (4) check(C) against the thrown rules; (5) the annotated schemas kept, and `format` refused; (6) the given verdict, its CONTROL, and the given result held to the inputSchema; (7) check(D)
+  // and start(D).
+  'W167 exit (1): EVERY pool the one runtime built',
+  'W167 exit (1): and the languages the runtime resolved are the document`s',
+  'W167 exit (2): flow A, which transforms nothing, ran FIRST under r1',
+  'W167 exit (3): check(B) on the running runtime is []',
+  'W167 exit (3): B started under r2',
+  'W167 exit (3): the CONTROL — B`s untransformed entry`s worker received the payload as given',
+  'W167 exit (3): t1`s worker',
+  'W167 exit (3): t2`s worker',
+  'W167 exit (3): the scheduler ran t1 on the type`s default pool and t2 on the named instance',
+  'W167 exit (3): the named instance`s OWN pool option reached the scheduler`s pool',
+  'W167 exit (4): check(C)`s rule ids EQUAL those of the InvalidDefinition start(C) throws',
+  'W167 exit (5): the worker schemas the runtime RESOLVED are the declared ones',
+  'W167 exit (5): the SAME document with `format` beside readOnly is refused',
+  'W167 exit (6): tryTransform given an input on B`s ENTRY returns ONE verdict',
+  'W167 exit (6): its CONTROL — the same call with NO input returns []',
+  'W167 exit (6): and the given result is HELD',
+  'W167 exit (7): check(D) is FD-R6 at the node reaching the document`s KeyedRateLimitGroup',
+  'W167 exit (7): start(D) with no createTask is refused LimitKeyMissing',
   // **W163**: the keyed block's six subjects — the findings and their RateLimitGroup control, the refusal, the run, its
   // nodes, the key on every task and the group, and the group's own counts.
   'W163 keyed: check reports FD-R6 at BOTH nodes',
@@ -9690,6 +9719,311 @@ if (keyedBlock !== null) {
   check(key, 'W163 keyed: the group ACQUIRED and RELEASED both tasks — its own stats, the second observer', r.acquiredReleased, [2, 2]);
 }
 
+/**
+ * **W167 — ONE runtime that IS its registry, given no flow, taking flows it was never shown: P37's EXIT ARTIFACT** —
+ * [W167](../doc/work-items/w167-the-exit-artifact-a-runtime-that-is-its-registry-on-real-workers.md),
+ * [P37](../doc/plans/p37-a-runtime-is-its-registry.md)'s seven clauses, ADR 0096-0099.
+ *
+ * **The consumer's road, and the one fyflow-app asked for.** A registry DOCUMENT written here — two document node types,
+ * a NAMED pool instance declaring its own pool options, a document-declared `KeyedRateLimitGroup`, worker schemas carrying
+ * the four annotations, `languages: ["jsonata"]` — and ONE runtime built from it by `createRuntime` with the language's
+ * adapter and NO flow (stop-and-ask (a): `flows` is gone, so there is nothing to pass). On that one runtime, in order:
+ * flow A, which transforms nothing, runs to `done` — the runtime is RUNNING; flow C, carrying two definition defects, is
+ * checked and refused, and `check`'s rule ids are the refusal's; flow D, whose second node reaches the keyed group, is
+ * checked and refused before any driver exists (stop-and-ask (c)); flow B — never shown to this runtime, with a JSONata
+ * `transform` on a node of the document's `Shape` type and on a second `Shape` node that runs on the NAMED instance — is
+ * checked clean and runs to `done`, each transformed node's WORKER reporting the transformed value it received; and
+ * `tryTransform` is given an input on B's ENTRY node, which no arc reaches (stop-and-ask (d)). Beside the runtime, the
+ * same document with `format` added beside an annotation is refused at `createRuntime` naming it (decision 4).
+ *
+ * **Why it is not an `EXPECTED` row.** Its registry is not `registry.json`'s — a keyed group there would put `FD-R6` on
+ * every row reaching it, and the point is ONE runtime carrying four flows, where `runFlow` builds one per row. So it is
+ * W163's shape: one block, `data:` workers, bounded by `settleWithin`, the scheduler shut down in a `finally`, bound by
+ * `CROSS_ROW_SUBJECTS`. TWO runs — A and B; the two refused starts build no driver and are not runs.
+ *
+ * **Every expected value is the spec's or this fixture's**: the pools from `spec/flow-definition.md` section 3's
+ * *languages* row (every type's default instance, every named instance, the built-in `Transform`); the per-instance
+ * options from its `pool` row (merged SHALLOWLY over the type's — the instance's `maxThreads`, the type's `idleTimeout`);
+ * the run ids from the runtime's minting (`r<n>`, a refusal spending none); the outcomes from `spec/run-state.md` section
+ * 3; the task ids from `spec/task-id.md` section 1; `C`'s rules from `FD-V32` and `FD-V35`; `D`'s from `FD-R6`; and each
+ * value a worker received from the payload and the JSONata expressions, evaluated BY HAND in the comments beside them.
+ */
+const EXIT_DEADLINE_MS = 15_000;
+// The two workers return what they RECEIVED, under `seen` — so a node's result is its worker's own report of its `input`.
+const exitWorkerUrl = `data:text/javascript,${encodeURIComponent('export default class { async setup() {} run(p) { return { seen: p.input }; } }')}`;
+// **The four annotations, on both sides of both workers** (P37 decision 4): `title` and `description` at the top,
+// `readOnly` and `writeOnly` on properties — and `readOnly: true` on `id`, which B's payload SUPPLIES, so FD-R4 holding the
+// payload to this schema at `start` is a run-time road on which the annotation must constrain nothing.
+const EXIT_INTAKE_IN = {
+  title: 'Intake input', description: 'what an entry node of the Intake type receives', type: 'object', required: ['word', 'count'],
+  properties: {
+    id: { type: 'string', readOnly: true, description: 'minted upstream' },
+    secret: { type: 'string', writeOnly: true },
+    word: { type: 'string', title: 'Word' },
+    count: { type: 'integer', minimum: 0 },
+  },
+};
+const EXIT_INTAKE_OUT = { title: 'Intake output', type: 'object', properties: { seen: { type: 'object', readOnly: false } } };
+const EXIT_SHAPE_IN = {
+  description: 'a shaped value', type: 'object', required: ['label', 'n'],
+  properties: { label: { type: 'string', writeOnly: false, title: 'Label' }, n: { type: 'integer' } },
+};
+const EXIT_SHAPE_OUT = { description: 'what a Shape worker saw', type: 'object', properties: { seen: { type: 'object', writeOnly: true } } };
+const exitDoc = (intakeIn: Record<string, unknown> = EXIT_INTAKE_IN) => ({
+  workers: {
+    intake: { url: exitWorkerUrl, inputSchema: intakeIn, outputSchema: EXIT_INTAKE_OUT },
+    shape: { url: exitWorkerUrl, inputSchema: EXIT_SHAPE_IN, outputSchema: EXIT_SHAPE_OUT },
+  },
+  groups: { api: { type: 'KeyedRateLimitGroup', config: { windows: [{ limit: 5, windowMs: 1000 }] } } },
+  // `Intake` INLINE, `Shape` THREADED (the default) — so a transform is evaluated in a real thread that loaded the
+  // language's worker half because the REGISTRY names it, not because any flow did.
+  nodeTypes: { Intake: { worker: 'intake', inline: true }, Shape: { worker: 'shape', pool: { maxThreads: 1, idleTimeout: 2500 } } },
+  // **Decision 9 / ADR 0099**: the named instance declares ONE option of its own; the type's other one merges under it.
+  pools: { 'shape-wide': { type: 'Shape', pool: { maxThreads: 3 } } },
+  languages: ['jsonata'],
+});
+const EXIT_A = {
+  flowId: 'w167-a', version: 1, entry: 'warm',
+  nodes: [{ id: 'warm', kind: 'task', type: 'Intake', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }],
+} as unknown as FlowDefinition;
+const EXIT_T1 = '{ "label": $uppercase(seen.word), "n": seen.count * 10 }';
+const EXIT_T2 = '{ "label": seen.label & "!", "n": seen.n + 1 }';
+const EXIT_B = {
+  flowId: 'w167-b', version: 1, entry: 'prep',
+  nodes: [
+    { id: 'prep', kind: 'task', type: 'Intake', edges: [{ to: 't1' }] },
+    { id: 't1', kind: 'task', type: 'Shape', transform: { lang: 'jsonata', expr: EXIT_T1 }, edges: [{ to: 't2' }] },
+    { id: 't2', kind: 'task', type: 'Shape', pool: 'shape-wide', transform: { lang: 'jsonata', expr: EXIT_T2 }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+const EXIT_PAYLOAD = { id: 'w167-p', secret: 's3cret', word: 'tide', count: 2 };
+// By hand: `prep` returns { seen: PAYLOAD }; t1's transform reads `seen` → { label: $uppercase("tide"), n: 2 * 10 }.
+const EXIT_T1_RECEIVES = { label: 'TIDE', n: 20 };
+// t1 returns { seen: { label: "TIDE", n: 20 } }; t2's transform → { label: "TIDE" & "!", n: 20 + 1 }.
+const EXIT_T2_RECEIVES = { label: 'TIDE!', n: 21 };
+// C: `c1` names a type the registry does not hold (FD-V32), `c2` a language it does not name (FD-V35).
+const EXIT_C = {
+  flowId: 'w167-c', version: 1, entry: 'c1',
+  nodes: [
+    { id: 'c1', kind: 'task', type: 'Nope', edges: [{ to: 'c2' }] },
+    { id: 'c2', kind: 'task', type: 'Shape', transform: { lang: 'xpath', expr: 'x' }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+// D: the SECOND node reaches the keyed group by its `workerGroups` — the road P37 fact 1 measured STOPPING a started run.
+const EXIT_D = {
+  flowId: 'w167-d', version: 1, entry: 'd1',
+  nodes: [
+    { id: 'd1', kind: 'task', type: 'Intake', edges: [{ to: 'd2' }] },
+    { id: 'd2', kind: 'task', type: 'Shape', workerGroups: ['api'], edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition;
+// (6): a candidate on B's ENTRY, and what it receives. By hand: { word: $lowercase("REEF"), count: $length("REEF") }.
+const EXIT_CANDIDATE = { lang: 'jsonata', expr: '{ "word": $lowercase(raw), "count": $length(raw) }' };
+const EXIT_GIVEN = { raw: 'REEF' };
+const EXIT_GIVEN_RESULT = { word: 'reef', count: 4 };
+type ExitRun = {
+  poolLanguages: Record<string, string[]>;
+  resolvedLanguages: string[];
+  resolvedSchemas: unknown;
+  registrySchemas: unknown;
+  a: { runId: string; endedBy: string; outcome: string; terminal: boolean; nodes: string[] };
+  c: { found: string[]; foundRules: string[]; thrownClass: string; thrownRules: string[] };
+  d: { found: string[]; refused: string; held: number; namesRoads: boolean };
+  b: { found: string[]; runId: string; endedBy: string; outcome: string; terminal: boolean; received: Record<string, unknown>; ranOn: Record<string, string> };
+  pools: Record<string, { maxThreads?: unknown; idleTimeout?: unknown; inline: unknown }>;
+  given: { count: number; shape: unknown; producerAbsent: boolean; source: unknown; kind: unknown; value: unknown; result: unknown };
+  givenWithout: unknown[];
+  givenEmpty: { count: number; kind: unknown; result: unknown; namesWord: boolean };
+  format: { refused: string; names: boolean };
+};
+let exitBlock: { runs: string[]; r: ExitRun } | null = null;
+try {
+  const runs: string[] = [];
+  // (1) ONE runtime, the registry's languages given, NO flow — there is no `flows` option to give one to.
+  // **A CLONE of the document and of the payload is what the runtime is handed** (rule 8 (c), provenance): the expected
+  // values below are these same literals, so a runtime that edited what it was given IN PLACE — stripping an annotation,
+  // say — would edit the expectation with it and stay green. Handed copies, the literals stay the spec's.
+  const rt = createRuntime(structuredClone(exitDoc()) as never, { languages: LANGUAGES }, {});
+  try {
+    const workerPools = rt.scheduler.workerPools as Record<string, { config?: { languages?: Record<string, unknown> }; maxThreads?: unknown; idleTimeout?: unknown; inline?: unknown }>;
+    const poolLanguages = Object.fromEntries(Object.keys(workerPools).sort().map((k) => [k, Object.keys(workerPools[k]!.config?.languages ?? {}).sort()]));
+    // *(This cannot differ on a runtime that CONSTRUCTED — `createRuntime` refuses an adapter the document does not name and
+    // a name no adapter supplies, both ways — so it is the document`s set read back, the provenance half of clause (1).)*
+    const resolvedLanguages = [...rt.resolved.languages.keys()];
+    // **And the schemas EVERY DRIVER and `tryTransform` read** — `rt.registry.workers`, not `rt.resolved` (the adequacy
+    // reader, A2): a runtime stripping an annotation from the registry it hands its drivers, and only there, is decision 4`s
+    // concern — fyflow-app`s `withoutWriteOnly` — and `rt.resolved` alone would not see it.
+    const registryWorkers = rt.registry.workers as unknown;
+    const registrySchemas = ['intake', 'shape'].map((w) => {
+      const e = (registryWorkers instanceof Map ? registryWorkers.get(w) : (registryWorkers as Record<string, unknown>)[w]) as { inputSchema?: unknown; outputSchema?: unknown } | undefined;
+      return { inputSchema: e?.inputSchema, outputSchema: e?.outputSchema };
+    });
+    const resolvedSchemas = ['intake', 'shape'].map((w) => {
+      const e = rt.resolved.workers.get(w);
+      return { inputSchema: e?.inputSchema, outputSchema: e?.outputSchema };
+    });
+    // **A start that THROWS is recorded, not raised** — so a defect that refuses A or B fails the claims that name it rather
+    // than taking the block down as a crash (W141's guard is for what is left).
+    const startAndSettle = async (flow: FlowDefinition, payload: unknown) => {
+      try {
+        const h = rt.start(flow, payload);
+        runs.push(flow.flowId);
+        const won = await settleWithin(h.done, EXIT_DEADLINE_MS);
+        const folded = fold(h.driver.foldInputs());
+        return {
+          runId: h.driver.runId, endedBy: won.by as string, outcome: won.by === 'done' ? won.value.outcome as string : 'NEVER SETTLED',
+          terminal: won.by === 'done' && isTerminal(won.value), nodes: Object.values(folded.nodes),
+        };
+      } catch (err) {
+        const why = `REFUSED ${err instanceof Error ? `${err.constructor.name}: ${err.message.slice(0, 160)}` : String(err)}`;
+        return { runId: why, endedBy: why, outcome: why, terminal: false, nodes: [] };
+      }
+    };
+    // (2) A — the runtime RUNS a flow first.
+    const a = await startAndSettle(EXIT_A, { word: 'warm', count: 0 });
+    // (4) C — check, then start: the rule ids of both.
+    const foundC = rt.check(EXIT_C);
+    let thrownClass = 'NOT REFUSED';
+    let thrownRules: string[] = [];
+    try { rt.start(EXIT_C, {}); } catch (err) {
+      thrownClass = err instanceof InvalidDefinition ? 'InvalidDefinition' : err instanceof Error ? err.constructor.name : String(err);
+      thrownRules = err instanceof InvalidDefinition ? [...err.rules] : [];
+    }
+    // (7) D — the keyed group, refused by `check` and by `start`.
+    const heldBeforeD = rt.scheduler.tasks.size;
+    const foundD = rt.check(EXIT_D).map((f) => `${f.rule} ${f.at}`);
+    let refusedD = 'NOT REFUSED';
+    let namesRoads = false;
+    try { rt.start(EXIT_D, { word: 'keyed', count: 1 }); } catch (err) {
+      refusedD = err instanceof LimitKeyMissing ? `LimitKeyMissing at ${err.at}` : err instanceof Error ? `${err.constructor.name}: ${err.message.slice(0, 120)}` : String(err);
+      // (c)`s answer: the refusal names the group, both working roads and Q248 (the conformity reader, F2).
+      namesRoads = err instanceof Error && ['"api"', 'createTask', 'limitKey', 'keyFrom', 'Q248'].every((s) => err.message.includes(s));
+    }
+    const heldAfterD = rt.scheduler.tasks.size - heldBeforeD;
+    // (3) B — never shown to this runtime until this line.
+    const foundB = rt.check(EXIT_B).map((f) => `${f.rule} ${f.at}`);
+    const b = await startAndSettle(EXIT_B, structuredClone(EXIT_PAYLOAD));
+    // What each node's worker RETURNED — its own report of the `input` it received, read off the fold of the driver's inputs.
+    const received = Object.fromEntries(b.nodes.map((n) => [n.nodeId, (n.result as { seen?: unknown } | null)?.seen]));
+    const tasks = rt.scheduler.tasks as Map<string, { workerType?: string }>;
+    // The scheduler's own task for each, by spec/task-id.md section 1's four segments over the run id the runtime minted.
+    const ranOn = Object.fromEntries(['t1', 't2'].map((id) => [id, tasks.get(`${b.runId}:${id}:-:0`)?.workerType ?? '(no task)']));
+    // **And each pool`s REALM** (the adequacy reader, A1): the comment on the document relies on `Shape` being THREADED, so a
+    // transform is evaluated in a real thread — a claim, read off the scheduler`s own `WorkerManager.inline`.
+    const pools = {
+      Intake: { inline: workerPools.Intake?.inline },
+      ...Object.fromEntries(['Shape', 'shape-wide'].map((k) => [k, { maxThreads: workerPools[k]?.maxThreads, idleTimeout: workerPools[k]?.idleTimeout, inline: workerPools[k]?.inline }])),
+    };
+    // (6) a given input on B's ENTRY, on the running runtime's own registry.
+    const givenVerdicts = await tryTransform(rt.registry, EXIT_B, 'prep', EXIT_CANDIDATE, { input: structuredClone(EXIT_GIVEN) });
+    const g = givenVerdicts[0];
+    const givenWithout = await tryTransform(rt.registry, EXIT_B, 'prep', EXIT_CANDIDATE);
+    // **And the given result is HELD to the entry worker`s inputSchema** (the adequacy reader, A3): `EXIT_GIVEN_RESULT`
+    // passes any schema, so a verdict held to nothing passed too. Given `{}`: by hand, `$lowercase(raw)` and `$length(raw)`
+    // over an absent `raw` are both undefined, and JSONata drops an undefined value from an object — so the result is `{}`,
+    // which `Intake``s inputSchema refuses: `word` and `count` are required.
+    const givenEmpty = await tryTransform(rt.registry, EXIT_B, 'prep', EXIT_CANDIDATE, { input: {} });
+    exitBlock = {
+      runs,
+      r: {
+        poolLanguages, resolvedLanguages, resolvedSchemas, registrySchemas,
+        a: { runId: a.runId, endedBy: a.endedBy, outcome: a.outcome, terminal: a.terminal, nodes: a.nodes.map((n) => `${n.nodeId}:${n.state}`).sort() },
+        c: {
+          found: foundC.map((f) => `${f.rule} ${f.at}`).sort(), foundRules: [...new Set(foundC.map((f) => f.rule))].sort(),
+          thrownClass, thrownRules: [...thrownRules].sort(),
+        },
+        d: { found: foundD, refused: refusedD, held: heldAfterD, namesRoads },
+        b: { found: foundB, runId: b.runId, endedBy: b.endedBy, outcome: b.outcome, terminal: b.terminal, received, ranOn },
+        pools,
+        given: {
+          count: givenVerdicts.length, shape: g?.shape, producerAbsent: g !== undefined && g.producer === undefined,
+          source: g?.sample?.source, kind: g?.kind, value: g?.sample?.value, result: g?.sample?.result,
+        },
+        givenWithout,
+        givenEmpty: {
+          count: givenEmpty.length, kind: givenEmpty[0]?.kind, result: givenEmpty[0]?.sample?.result,
+          namesWord: givenEmpty[0]?.why.includes('$.word required') === true,
+        },
+        format: { refused: 'NOT RUN', names: false },
+      },
+    };
+  } finally {
+    await rt.shutdown();
+  }
+  // (5) the SAME document with `format` beside `readOnly` on `id` — refused at construction, naming the keyword and its path.
+  const withFormat = { ...EXIT_INTAKE_IN, properties: { ...EXIT_INTAKE_IN.properties, id: { ...EXIT_INTAKE_IN.properties.id, format: 'email' } } };
+  try {
+    const wrong = createRuntime(structuredClone(exitDoc(withFormat)) as never, { languages: LANGUAGES }, {});
+    await wrong.shutdown();
+  } catch (err) {
+    exitBlock!.r.format = {
+      refused: err instanceof SchemaRefused ? 'SchemaRefused' : err instanceof Error ? err.constructor.name : String(err),
+      // The spec requires the keyword NAMED; its path is where the author fixes it (the conformity reader, F3: the subset
+      // message`s own wording is not the spec`s, so it is not asserted).
+      names: err instanceof Error && err.message.includes('"format"') && err.message.includes('$.properties.id'),
+    };
+  }
+  if (exitBlock!.r.format.refused === 'NOT RUN') exitBlock!.r.format.refused = 'NOT REFUSED';
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W167 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (exitBlock !== null) {
+  const key = 'cross-row';
+  const r = exitBlock.r;
+  // (1)
+  check(key, 'W167 exit (1): EVERY pool the one runtime built — each document type`s default, the NAMED instance and the built-in ' +
+    'Transform — carries exactly the registry`s one language, on a runtime given NO flow (ADR 0096; spec section 3`s languages row)',
+    r.poolLanguages, { Intake: ['jsonata'], Shape: ['jsonata'], Transform: ['jsonata'], 'shape-wide': ['jsonata'] });
+  check(key, 'W167 exit (1): and the languages the runtime resolved are the document`s, no more', r.resolvedLanguages, ['jsonata']);
+  // (2)
+  check(key, 'W167 exit (2): flow A, which transforms nothing, ran FIRST under r1 and `done` SETTLED completed and terminal — the ' +
+    'runtime is RUNNING before B is shown to it', [r.a.runId, r.a.endedBy, r.a.outcome, r.a.terminal, r.a.nodes], ['r1', 'done', 'completed', true, ['warm:done']]);
+  // (3)
+  check(key, 'W167 exit (3): check(B) on the running runtime is [] — a flow it was never shown, transforming on a document type and on a ' +
+    'named instance, with the document`s keyed group reached by no node of it', r.b.found, []);
+  check(key, 'W167 exit (3): B started under r2 — neither refusal before it spent a run id — and `done` SETTLED completed and terminal',
+    [r.b.runId, r.b.endedBy, r.b.outcome, r.b.terminal], ['r2', 'done', 'completed', true]);
+  check(key, 'W167 exit (3): the CONTROL — B`s untransformed entry`s worker received the payload as given, the readOnly `id` and the ' +
+    'writeOnly `secret` included (decision 4: an annotation constrains nothing, at FD-R4`s boundary or anywhere)', r.b.received.prep, EXIT_PAYLOAD);
+  check(key, 'W167 exit (3): t1`s worker — a document type`s, on its default pool — RECEIVED t1`s transformed value', r.b.received.t1, EXIT_T1_RECEIVES);
+  check(key, 'W167 exit (3): t2`s worker — on the NAMED instance — RECEIVED t2`s transformed value', r.b.received.t2, EXIT_T2_RECEIVES);
+  check(key, 'W167 exit (3): the scheduler ran t1 on the type`s default pool and t2 on the named instance — its own tasks, spec/task-id.md ids',
+    r.b.ranOn, { t1: 'Shape', t2: 'shape-wide' });
+  check(key, 'W167 exit (3): the named instance`s OWN pool option reached the scheduler`s pool, and the type`s other option merged under it ' +
+    '(ADR 0099, spec section 3`s pool row) — the type`s default pool unmoved; and each pool in the realm the document declares, Intake inline, ' +
+    'Shape and its named instance THREADED (a named instance takes its type`s inline)', r.pools,
+    { Intake: { inline: true }, Shape: { maxThreads: 1, idleTimeout: 2500, inline: false }, 'shape-wide': { maxThreads: 3, idleTimeout: 2500, inline: false } });
+  // (4)
+  check(key, 'W167 exit (4): check(C)`s rule ids EQUAL those of the InvalidDefinition start(C) throws — FD-V32 at c1, FD-V35 at c2 ' +
+    '(the findings compared SORTED: the spec states no order)',
+    [r.c.found, r.c.foundRules, r.c.thrownClass, r.c.thrownRules],
+    [['FD-V32 c1', 'FD-V35 c2'], ['FD-V32', 'FD-V35'], 'InvalidDefinition', ['FD-V32', 'FD-V35']]);
+  // (5)
+  check(key, 'W167 exit (5): the worker schemas the runtime RESOLVED are the declared ones — title, description, readOnly and writeOnly ' +
+    'ACCEPTED and kept (ADR 0098) — in what it resolved AND in the registry every driver and tryTransform read', [r.resolvedSchemas, r.registrySchemas],
+    [[{ inputSchema: EXIT_INTAKE_IN, outputSchema: EXIT_INTAKE_OUT }, { inputSchema: EXIT_SHAPE_IN, outputSchema: EXIT_SHAPE_OUT }],
+      [{ inputSchema: EXIT_INTAKE_IN, outputSchema: EXIT_INTAKE_OUT }, { inputSchema: EXIT_SHAPE_IN, outputSchema: EXIT_SHAPE_OUT }]]);
+  check(key, 'W167 exit (5): the SAME document with `format` beside readOnly is refused at createRuntime — SchemaRefused, naming the ' +
+    'keyword and its path', [r.format.refused, r.format.names], ['SchemaRefused', true]);
+  // (6)
+  check(key, 'W167 exit (6): tryTransform given an input on B`s ENTRY returns ONE verdict — shape given, no producer, source given, ' +
+    'the given value and the hand-derived result, transform-passes against the entry worker`s inputSchema',
+    r.given, { count: 1, shape: 'given', producerAbsent: true, source: 'given', kind: 'transform-passes', value: EXIT_GIVEN, result: EXIT_GIVEN_RESULT });
+  check(key, 'W167 exit (6): its CONTROL — the same call with NO input returns [] on the entry, which no arc reaches (P37 fact 4)', r.givenWithout, []);
+  check(key, 'W167 exit (6): and the given result is HELD to the entry worker`s inputSchema — given {}, the transform makes {} and the ONE ' +
+    'verdict is transform-fails naming $.word required', r.givenEmpty, { count: 1, kind: 'transform-fails', result: {}, namesWord: true });
+  // (7)
+  check(key, 'W167 exit (7): check(D) is FD-R6 at the node reaching the document`s KeyedRateLimitGroup, and only there', r.d.found, ['FD-R6 d2']);
+  check(key, 'W167 exit (7): start(D) with no createTask is refused LimitKeyMissing at that node, and the scheduler was handed nothing — ' +
+    'not even the entry it would have run first (ADR 0097) — and the refusal names the group, both working roads and Q248 (stop-and-ask (c))',
+    [r.d.refused, r.d.held, r.d.namesRoads], ['LimitKeyMissing at d2', 0, true]);
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -9709,7 +10043,8 @@ if (keyedBlock !== null) {
 // **And `+ cancelBlock.runs.length` since W160**: its five runs — two cancelled while running, one while queued, and the
 // control's parked run and its resume — on the same precedent. The three refused resumes build no driver and are not runs.
 // **And `+ keyedBlock.runs.length` since W163**: its ONE run, the `createTask` road; the refused start builds no driver.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0);
+// **And `+ exitBlock.runs.length` since W167**: its TWO runs, A and B; the refused starts of C and D build no driver.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -10020,7 +10355,15 @@ const PER_PLAIN_ROW = 22;
 // **+6 since W160's readers, by W163**: the keyed block's six clauses, all cross-row because the block is outside the
 // row loop.
 // *(Written as 313 before the file was re-run.)*
-const CROSS_ROW = 313;
+// **+17 since W163, by W167 — P37's EXIT ARTIFACT**: the exit block's seventeen clauses, all cross-row because the block is
+// outside the row loop. *(Written as 331 at the declaration, for eighteen; the block's first run read 2652 against a derived
+// 2634, and 2652 - 2634 = 18. The eighteenth — the refused start(C) handing the scheduler nothing — was REMOVED before the
+// counts were final: it cannot fail, because `new Driver` validates the same definition again (ADR 0096 consequence 2), so
+// no single edit dispatches a task for an invalid flow.)*
+// **+1 after W167's readers** (2026-10-16): the given result held to the entry worker's inputSchema (the adequacy reader,
+// A3); A1, A2 and the conformity reader's F2 widened existing claims and moved no count. 330 + 1 = 331. *(Written as 331
+// before the file was re-run.)*
+const CROSS_ROW = 331;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -12175,14 +12518,20 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // the fresh runtime. No row moved. *(Written as 2640 / 173 before the file was re-run.)*
 // **2646 / 174 since W163** — `CROSS_ROW` 307 -> 313, the keyed block's six clauses, and its ONE run (the `createTask`
 // road; the refused start builds no driver). No row moved. *(Written as 2646 / 174 before the file was re-run.)*
-const DECLARED_TOTAL = 2646;
+// **2663 / 176 since W167 — P37's EXIT ARTIFACT, +17 and two runs**, DERIVED: the exit block's seventeen cross-row
+// assertions (`CROSS_ROW` 313 -> 330) over its two runs, A and B, on ONE runtime; the refused starts of C and D build no
+// driver and are not runs. No row moved. *(Written as 2664 / 176 at the declaration; the block's first run read exactly
+// 18 new assertions passing and 176 runs, in node — and one of the eighteen was removed as unable to fail, see `CROSS_ROW`.)*
+// **2664 / 176 after W167's readers** — `CROSS_ROW` 330 -> 331, the one new claim; no run moved. *(Written as 2664 / 176
+// before the file was re-run.)*
+const DECLARED_TOTAL = 2664;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 174;
+const DECLARED_RUNS = 176;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
