@@ -54,7 +54,10 @@ flow, every time — a RUNTIME defect reported against each flow.
    DERIVED that pool. Those two sets are exactly what the scheduler unions to find a task's groups. A pool's
    `residentGroups` are not among them: the scheduler resolves no key for a resident group. *(Measured by W163: a
    built-in keyed group held only as resident is counted in ONE `""` bucket, silently — whether to refuse it is
-   [Q619](../questions/q619.md), P37's.)*
+   [Q619](../questions/q619.md), P37's.)* *(Answered 2026-10-16: option B — refused at `createRuntime` as
+   `DerivationRefused`, naming the pool and the group, `spec/flow-definition.md` v0.39,
+   [W169](../work-items/w169-a-resident-keyed-group-is-refused-and-p37s-six-stale-sites.md). This rule is unchanged: `FD-R6`
+   still does not read `residentGroups`.)*
 2. **A node reaching a group of the BUILT-IN type `KeyedRateLimitGroup` is `FD-R6`** (`spec/flow-definition.md`
    section 6), reported by `runtime.check(flow)` as one finding per such node — `{ rule: 'FD-R6', at: <node id>,
    detail }`, the detail naming every BUILT-IN keyed group the node reaches, both working roads and Q248. A group a CODE group

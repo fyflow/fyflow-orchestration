@@ -80,7 +80,11 @@ export class SchemaRefused extends RegistryError {}
 export class UndeclaredKey extends RegistryError {}
 /** A predicate or language the document NAMES that `code` did not supply, or a group a type names that the document lacks. */
 export class NameMissing extends RegistryError {}
-/** A derivation returned something that is not a `PoolSpec`, threw, or produced a pool the runtime refuses (a resident group beside `idleTimeout: 0`). */
+/**
+ * A derivation returned something that is not a `PoolSpec`, threw, or produced a pool the runtime refuses: a resident group
+ * beside `idleTimeout: 0`, or — since v0.39 ([Q619](../../doc/questions/q619.md) option B) — a group of the built-in
+ * `KeyedRateLimitGroup` type held in `residentGroups`, which the scheduler would count in one `""` bucket.
+ */
 export class DerivationRefused extends RegistryError {}
 /**
  * **A registered GATE type is not a `GateType`** — v0.23 (W92, ADR 0066): not an object; a key beside the
@@ -357,8 +361,12 @@ function shown(v: unknown): string {
 
 /** The group keys a `PoolSpec` names, from both fields — what must exist in `groups`. */
 export function groupsNamedBy(spec: PoolSpec): string[] {
-  const resident = spec.residentGroups === undefined ? [] : Array.isArray(spec.residentGroups) ? [...spec.residentGroups] : Object.keys(spec.residentGroups);
-  return [...new Set([...(spec.groups ?? []), ...resident])];
+  return [...new Set([...(spec.groups ?? []), ...residentKeysOf(spec)])];
+}
+
+/** The group keys a `PoolSpec` holds RESIDENT — a list as listed, a `{ key: cost }` record by its keys. */
+function residentKeysOf(spec: PoolSpec): string[] {
+  return spec.residentGroups === undefined ? [] : Array.isArray(spec.residentGroups) ? [...spec.residentGroups] : Object.keys(spec.residentGroups);
 }
 
 /**
@@ -819,6 +827,21 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     // internal error and not a second copy of that refusal, because a second copy is what Q283 was.
     if (def === undefined) throw new Error(`resolveRegistry: pool ${q(key)} reached derivation with no type — checkRegistryShape should have refused it`);
     pools.set(key, derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), inst.config, groupKeys, ConfigRefused, inst.pool));
+  }
+  // **A built-in keyed group held RESIDENT is refused, AFTER every pool is derived** — v0.39,
+  // [Q619](../../doc/questions/q619.md) option B (the maintainer, P37's retro (i)), P34 decision 12 and fact 11. Read off
+  // the DERIVED spec, so a type's pool, a named instance's merged pool and a CLASS derivation's output are held alike.
+  // The scheduler resolves no key for a resident group, so the built-in factory's group — built with no `keyFrom` —
+  // counts every worker of every pool holding it in ONE `""` bucket, silently (measured by W163). A CODE group type's
+  // group is never this refusal, keyed or not: the factory is the consumer's, as `FD-R6` reads it.
+  for (const p of pools.values()) {
+    for (const g of residentKeysOf(p.spec)) {
+      if (groups.get(g)?.type !== 'KeyedRateLimitGroup') continue;
+      const who = p.key === p.type ? `node type ${q(p.type)}'s default instance` : `pool ${q(p.key)} (an instance of ${q(p.type)})`;
+      throw new DerivationRefused(p.key, `${who}: the derived pool holds group ${q(g)}, of the built-in type "KeyedRateLimitGroup", in residentGroups — ` +
+        'the scheduler resolves no key for a resident group, so every worker holding it is counted in ONE "" bucket, in silence (Q619). ' +
+        `Name ${q(g)} in groups, where each task is counted under its limitKey (FD-R6), or hold a ConcurrentLimitGroup or RateLimitGroup resident`);
+    }
   }
 
 

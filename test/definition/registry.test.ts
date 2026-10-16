@@ -436,7 +436,7 @@ suite('every construction-time refusal, by name — a document that trips it and
       ok(resolveRegistry(SAMPLE, { ...code(), predicates: p as never }).predicates.has('isLowConfidence'), `predicates as ${p.constructor.name}`);
     }
   });
-  test('DerivationRefused: pool() throws, returns a non-PoolSpec, a PoolSpec with an undeclared key or a wrong type, a resident group beside idleTimeout 0, a bad inline, a bad retryPolicy, bad settings', () => {
+  test('DerivationRefused: pool() throws, returns a non-PoolSpec, a PoolSpec with an undeclared key or a wrong type, a resident group beside idleTimeout 0, a bad inline, a bad retryPolicy, bad settings — and, since W169, a built-in keyed group held resident (Q619 option B)', () => {
     const with_ = (f: (g: GpuModel) => void) => { const c = code(); f(c.gpu); return c; };
     refused(SAMPLE, DerivationRefused, ['"GpuModel"', 'THREW', 'boom'], with_((g) => { g.pool = () => { throw new Error('boom'); }; }));
     refused(SAMPLE, DerivationRefused, ['"GpuModel"', 'not a PoolSpec'], with_((g) => { g.pool = () => 5 as never; }));
@@ -448,6 +448,71 @@ suite('every construction-time refusal, by name — a document that trips it and
     refused(edited((d) => { d.nodeTypes!.Prompt!.retryPolicy = { maxRetries: '1', backoffMs: 0 }; }), DerivationRefused, ['"Prompt"', 'FD-V30']);
     refused(edited((d) => { d.nodeTypes!.Prompt!.settings = [1]; }), DerivationRefused, ['"Prompt"', 'settings']);
     refused(edited((d) => { d.nodeTypes!.Prompt!.pool = 'big'; }), DerivationRefused, ['"Prompt"', 'pool']);
+    /*
+     * **W169 — Q619 option B**: a derived pool whose `residentGroups` names a group of the BUILT-IN `KeyedRateLimitGroup`
+     * type is `DerivationRefused`, `at` the pool, naming the pool and the group (spec v0.39, section 3's refusal table and
+     * its `residentGroups` row; P34 decision 12). Every expected value is that row's or the fixture's own literal: the pool
+     * is named as `derivePool` names it — `node type "X"'s default instance` or `pool "k" (an instance of "X")` — and `at` is
+     * the pool KEY. The roads are the row's three — a document type's pool, a named instance's MERGED pool, a CLASS's
+     * output (its default instance and a named instance) — over both `residentGroups` shapes; the controls are the three
+     * groups a pool may hold resident (a `ConcurrentLimitGroup`, a `RateLimitGroup`, a CODE group type's), the keyed group
+     * held in `groups` instead (`FD-R6`'s road, not this one) and the keyed group declared and held by no pool.
+     */
+    // The W169 cases are folded into THIS test rather than a new one: l4-corpus.test.ts counts this suite's cases (15),
+    // and that file is outside W169's row.
+    {
+      const WINDOWS = [{ limit: 5, windowMs: 1000 }];
+      /** SAMPLE with a group `api` of the BUILT-IN keyed type, and a CODE group type `ownType` — `create` is never called by the resolver. */
+      const withApi = (f: (d: Loose) => void): RegistryDocument => edited((d) => {
+        (d.groups as Record<string, unknown>).api = { type: 'KeyedRateLimitGroup', config: { windows: WINDOWS } };
+        (d.groups as Record<string, unknown>).ownType = { type: 'DailyBudgetGroup', config: { tokensPerDay: 1 } };
+        f(d);
+      });
+      const at = (e: RegistryError, key: string, label: string) => equal(e.at, key, `${label}: at the pool key`);
+      // (a) a DOCUMENT type's own pool — a list, and the { key: cost } record.
+      at(refused(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: ['api'] }; }), DerivationRefused,
+        ['node type "Fetch"\'s default instance', 'group "api"', 'KeyedRateLimitGroup', 'residentGroups', 'Q619',
+          // the roads that work, which Outputs (1) says the message names (the adequacy reader's A3)
+          'Name "api" in groups', 'hold a ConcurrentLimitGroup or RateLimitGroup resident'], code(), 'a document type, a list'), 'Fetch', 'a document type');
+      // (a'') a MIXED resident set, the keyed group NOT first — every key is read, not the first (the adequacy reader's A2).
+      at(refused(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: ['gpu', 'api'] }; }), DerivationRefused,
+        ['node type "Fetch"\'s default instance', 'group "api"'], code(), 'a mixed list, the keyed group second'), 'Fetch', 'a mixed list');
+      at(refused(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: { gpu: 1, api: 1 } }; }), DerivationRefused,
+        ['node type "Fetch"\'s default instance', 'group "api"'], code(), 'a mixed record, the keyed group second'), 'Fetch', 'a mixed record');
+      // (b') a named instance of the BUILT-IN `Transform` — the one road by which a transform-only pool holds a resident group
+      // (Q626) — refused like any other (the adequacy reader's A1: the check is over EVERY derived pool, not the consumer's types).
+      at(refused(withApi((d) => { (d.pools as Record<string, unknown>).reshape = { type: 'Transform', pool: { residentGroups: ['api'], idleTimeout: 1000 } }; }),
+        DerivationRefused, ['pool "reshape" (an instance of "Transform")', 'group "api"'], code(), 'a named instance of the built-in Transform'), 'reshape', 'a Transform instance');
+      at(refused(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: { api: 2 } }; }), DerivationRefused,
+        ['node type "Fetch"\'s default instance', 'group "api"'], code(), 'a document type, a { key: cost } record'), 'Fetch', 'the record shape');
+      // (a') held in BOTH fields: refused for the resident one.
+      at(refused(withApi((d) => { d.nodeTypes!.Fetch!.groups = ['api']; d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: ['api'] }; }), DerivationRefused,
+        ['"Fetch"', 'group "api"'], code(), 'in groups AND residentGroups'), 'Fetch', 'both fields');
+      // (b) a NAMED instance whose OWN pool adds the resident group, merged over its type's (whose default is clean).
+      at(refused(withApi((d) => {
+        d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000 };
+        (d.pools as Record<string, unknown>)['fetch-wide'] = { type: 'Fetch', pool: { residentGroups: ['api'] } };
+      }), DerivationRefused, ['pool "fetch-wide" (an instance of "Fetch")', 'group "api"'], code(), 'a named instance`s merged pool'), 'fetch-wide', 'a named instance');
+      // (c) a CLASS derivation's output — every instance, so its DEFAULT is the first refused; and only the `large` model,
+      // so the NAMED instance `prompt-big` is refused and the default is not.
+      const always = code(); always.gpu.pool = () => ({ config: { model: 'small' }, idleTimeout: 30000, residentGroups: { api: 1 } });
+      at(refused(withApi(() => {}), DerivationRefused, ['node type "GpuModel"\'s default instance', 'group "api"'], always, 'a class`s output, its default'), 'GpuModel', 'a class default');
+      const large = code();
+      large.gpu.pool = (c: unknown) => ({ config: c, idleTimeout: 30000, residentGroups: (c as { model: string }).model === 'large' ? ['api'] : ['gpu'] });
+      at(refused(withApi(() => {}), DerivationRefused, ['pool "prompt-big" (an instance of "GpuModel")', 'group "api"'], large, 'a class`s output, a named instance'), 'prompt-big', 'a class named instance');
+      // The CONTROLS, each resolving.
+      const resolves = (doc: RegistryDocument, c: RegistryCode, label: string) => {
+        let err: unknown = null;
+        try { resolveRegistry(doc, c); } catch (e) { err = e; }
+        equal(err === null ? null : `${(err as Error).name}: ${(err as Error).message}`, null, `${label}: resolves`);
+      };
+      resolves(withApi(() => {}), code(), 'the keyed group DECLARED and held resident by no pool');
+      resolves(withApi((d) => { d.nodeTypes!.Fetch!.groups = ['api']; }), code(), 'the keyed group in `groups` — FD-R6`s road, read at check and start');
+      resolves(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: ['gpu'] }; }), code(), 'a resident ConcurrentLimitGroup');
+      resolves(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: ['vendor'] }; }), code(), 'a resident RateLimitGroup');
+      resolves(withApi((d) => { d.nodeTypes!.Fetch!.pool = { idleTimeout: 1000, residentGroups: ['ownType'] }; }), code(), 'a resident group of a CODE group type');
+      resolves(withApi((d) => { delete (d.pools as Record<string, unknown>)['prompt-big']; }), large, 'the same class with no `large` instance: its default (model small) holds `gpu` resident');
+    }
   });
   test('the refusal classes named in the spec are exactly the ones exported — both ways', async () => {
     const inSpec = await specTable('#### What the registry refuses at construction');

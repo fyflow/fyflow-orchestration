@@ -1428,7 +1428,11 @@ if (reported.kind !== 'UnresolvedMapArity') throw new Error(`the run reported ${
 ```
 
 `InvalidDefinition` carries the violated rule ids on `.rules`, so you can act on them rather than
-parse a string. `InvalidRunId` is thrown by the **constructor** for a `runId` outside `[A-Za-z0-9_-]{1,64}`
+parse a string. Its message is `definition "<flowId>" is invalid: ` then each finding as `<rule> at <at>: <detail>` — `at` a node id,
+an edge site (`id#edgeN`), or `<document>` for a finding with none — joined by `; `. It is built by ONE function,
+`InvalidDefinition.fromFindings(flowId, findings)`, which `new Driver` and a runtime's `start` and `resume` all call
+(W169), so the two roads cannot word one defect two ways; its precondition is at least one finding, and an empty list
+is refused with a `RangeError` rather than built into an error that names nothing. `InvalidRunId` is thrown by the **constructor** for a `runId` outside `[A-Za-z0-9_-]{1,64}`
 (`ID-R2`) — `:` is excluded because it is the task-id delimiter, and excluding it is what makes the
 task-id parse total.
 
@@ -1437,7 +1441,9 @@ task-id parse total.
 key, and a message naming the entry. `new Driver` runs the shape half only, six classes:
 `WorkerMissing` (a type naming no worker entry, an entry with no `url`), `PoolTypeMissing`,
 `NameCollision` (a pool named as a type), `SchemaRefused` (a keyword outside the subset), and
-`UndeclaredKey` and `DerivationRefused` for a type's or a pool's field of the wrong shape. The other
+`UndeclaredKey` and `DerivationRefused` for a type's or a pool's field of the wrong shape (`DerivationRefused`'s
+other clauses — a derivation that throws, a resident group beside `idleTimeout: 0`, a built-in keyed group held
+resident — need a derivation run, and are `resolveRegistry`'s alone). The other
 five — `ConfigRefused`, `TypeDefaultRefused`, `GroupTypeMissing`, `GroupConfigRefused`,
 `NameMissing` — need a derivation run or a group built, and are thrown by
 `resolveRegistry(document, code)` when a registry DOCUMENT is resolved against the code that
@@ -2106,7 +2112,9 @@ under its `limitKey` — and nothing sets one unless you pass `start` a `createT
 **`LimitKeyMissing`** for it — after any `InvalidDefinition`, before any run id is spent — and with one, `FD-R6` refuses
 nothing (a factory that sets no key meets the scheduler's own throw). `check` cannot know what you will pass, so it
 reports `FD-R6` as if you pass none: filter it out by `f.rule` if you start with a keying `createTask`. A group a CODE
-group type builds — a `KeyedRateLimitGroup` with a `keyFrom` — is never `FD-R6`. A key derived from the flow is
+group type builds — a `KeyedRateLimitGroup` with a `keyFrom` — is never `FD-R6`. A pool's `residentGroups` is not read
+here: a built-in keyed group held RESIDENT is refused earlier, at `createRuntime` (`DerivationRefused`, section 13,
+[Q619](doc/questions/q619.md)). A key derived from the flow is
 [Q248](doc/questions/q248.md), deferred. **And `createRuntime` refuses a malformed `defaultRetryPolicy`** —
 `InvalidDefinition`, `FD-V30`, at construction, where until W163 every `start` threw it. **BREAKING in 0.8.0**: `createRuntime`'s and `bootstrap`'s `flows` option,
 `LanguageNotBuilt` and `transformLanguagesByType` are gone. A caller passing `flows` in an object
@@ -2591,6 +2599,14 @@ refused** (`UndeclaredKey`): your class gets the instance key in `pool(config, k
 type and on an instance alike. **A RESOLVED document type is still a document type here** — what
 `runtime.registry.nodeTypes` holds — so a `Driver` or `bootstrap` handed the runtime's registry accepts the instance;
 a hand-written `NodeTypeDefinition`, or a copy of a resolved one, is a class to this rule.
+**A `residentGroups` naming a group of the built-in `KeyedRateLimitGroup` type is refused at `createRuntime`** (v0.39,
+[Q619](doc/questions/q619.md), W169) — `DerivationRefused`, naming the pool and the group, whether a type, a named
+instance or your class's `pool()` put it there. The scheduler resolves no key for a RESIDENT group, so every worker
+holding it would be counted in ONE `""` bucket, in silence. Name a keyed group in `groups` instead — each task is then
+counted under its `limitKey` (`FD-R6`, section 12) — or hold a `ConcurrentLimitGroup` or `RateLimitGroup` resident. A
+group your own `code.groupTypes` factory builds is never refused. **BREAKING in 0.8.0**: such a document built a
+runtime at 0.7.0. **`bootstrap` called by hand is not covered** — it is handed group OBJECTS and cannot tell the
+built-in factory's keyed group from your own — as a `Driver` built by hand is not covered by `FD-R6`.
 **Your worker's `run(payload, context)` gets the scheduler's own task context as its second argument** —
 the same object the scheduler handed the envelope worker, so `context.signal` (an `AbortSignal`, aborted
 when `scheduler.cancel(taskId)` is called for the task) and `context.emit(name, data)` (a `task.message`

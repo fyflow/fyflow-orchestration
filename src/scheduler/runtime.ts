@@ -74,7 +74,7 @@ import type {
   Finding, FlowDefinition, GroupType, JsonSchema, Languages, NodeTypeDefinition,
   Registry, RegistryCode, RegistryDocument, ResolvedPool, ResolvedRegistry, RetryPolicy, TaskNode, WorkerEntry,
 } from '../definition/types.ts';
-import { languagesOf, nodeTypesOf, poolsOf, retryPolicyProblem, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
+import { languagesOf, nodeTypesOf, poolsOf, retryPolicyProblem, validateDefinition, workersOf } from '../definition/validate.ts';
 import type { Predicate } from '../driver/routing.ts';
 import { bootstrap } from './bootstrap.ts';
 import type { PoolFactory } from './bootstrap.ts';
@@ -669,13 +669,8 @@ export function createRuntime(
     // a node reaching a built-in keyed group is `LimitKeyMissing` — still before a run id is minted or a driver built.
     const findings = check(flow);
     const definition = findings.filter((f) => f.rule !== KEYED_RULE);
-    if (definition.length) {
-      throw new InvalidDefinition(
-        violatedRules(definition),
-        `definition "${flow.flowId}" is invalid: ` +
-          definition.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
-      );
-    }
+    // The error is BUILT by the function `new Driver` calls, so the two messages are one text by construction (P34 fact 12).
+    if (definition.length) throw InvalidDefinition.fromFindings(flow.flowId, definition);
     const keyed = startOptions.createTask === undefined ? findings.filter((f) => f.rule === KEYED_RULE) : [];
     if (keyed.length) {
       throw new LimitKeyMissing(keyed[0]!.at ?? '<document>', `flow "${flow.flowId}" cannot start with no createTask — ` +
