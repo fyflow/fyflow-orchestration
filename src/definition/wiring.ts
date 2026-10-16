@@ -146,7 +146,7 @@ export interface WiringReport {
   /**
    * The tasks the run's PAYLOAD reaches with no worker in between — the entry task, or every branch
    * task of an entry region, recursively. No arc leads to them; `FD-R4` holds the payload to their
-   * input schemas at `start()`, once per run.
+   * input schemas at `start()`, once per run, except where a task declares a `transform` (ADR 0101, W170).
    */
   entry: string[];
 }
@@ -310,7 +310,7 @@ interface Arrival {
  * branch tasks of an entry region, recursively; for a map, one per element of the array the
  * payload carries under `over`. `FD-R4`'s targets at `start()`; the driver composes each value
  * through the node's `needs` (a `"."` is the only reference an entry can carry) and holds it to the
- * task's worker `inputSchema`. ONE walk, two callers — the driver with the payload, and
+ * task's worker `inputSchema` — the value the node RECEIVES — unless the task declares a `transform` (ADR 0101, W170). ONE walk, two callers — the driver with the payload, and
  * `checkWiring` with none for `WiringReport.entry` (W73's adequacy reader found a second walk
  * beside this one whose map arm nothing bound; there is one walk now, `entryWalk`).
  *

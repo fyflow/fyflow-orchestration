@@ -1605,7 +1605,13 @@ and a person's `done` resolution at `resolve()`, against the parked node's worke
 the driver is still UNSTARTED and a corrected payload starts it, at `resolve` the task is still suspended and
 a corrected value (the worker's declared example is one) resolves it. It carries `boundary`, `nodeId`,
 `taskId` and the schema's `findings`, and its message names the worker and every finding, so you read
-the VALUE and not the flow. A worker declaring no schema on that side is unchecked; `validateBoundaries: false`
+the VALUE and not the flow. A worker declaring no schema on that side is unchecked — **and so, at `start()`, is a
+task that declares a `transform`** ([ADR 0101](doc/decisions/0101-a-transforming-task-is-not-held-at-start.md), W170):
+its worker's `inputSchema` holds the transform's RESULT, which only the worker wrapper makes, so a payload that is
+wrong for the transform starts: it MAY fail in the run (`TransformFailed`, or the worker), or reach the worker
+unchecked and complete — Q633's `{ label: "y" }` ran to `completed` with the worker receiving `{}`. The check before
+a run is yours — `givenVerdict(registry, flow, task, received)` on each transforming target, with the value that task
+RECEIVES (section 15); `validateBoundaries: false`
 on `DriverOptions` or `RuntimeOptions` turns both off. **`FD-R4` is never per settlement**: it holds the run's PAYLOAD once and a person's RESOLUTION
 once, as rejected commands. What a WORKER returns is checked at authoring time by
 `npm run check:workers` and by the wiring check (section 13) — **and, since
@@ -1686,6 +1692,12 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   is still pending — by design. Poll the fold for the park, resolve the task, then await; section 7
   is that snippet, and `Promise.race([done, timeout])` is the deadline nothing ships for you.
 - **Reading run state mid-turn.** Section 8.
+- **Counting on `start()` to check the payload of an entry that TRANSFORMS.** It does not — `FD-R4` holds a
+  payload to a worker's `inputSchema` only where nothing stands between them, and a `transform` does
+  ([ADR 0101](doc/decisions/0101-a-transforming-task-is-not-held-at-start.md)). *Check, then start*:
+  `givenVerdict(registry, flow, task, received)` runs a task's declared transform and holds the result to the
+  schema — on each transforming TARGET (never a fan-out, map or gate entry, where it returns `[]`) and on the value
+  that task RECEIVES, the payload composed through its `needs` and, for a map's branch, each element — section 15.
 - **Retaining a scheduler event's `detail`.** It is the live task object and it mutates — including
   its `timestamp`, so a retained detail reports the *most recent* event's time. `{...e.detail}` is
   **not** compliance: it still aliases `result` and `error`. The driver copies at the listener
@@ -1908,6 +1920,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 | flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
 | **`runtime.register()`** — adding node types, pools, groups or languages to a RUNNING runtime | **declined** — [P37](doc/plans/p37-a-runtime-is-its-registry.md) decision 1, [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md): `fyflow-scheduler` cannot add a pool after construction. A changed registry is a NEW runtime; a run on the old one finishes there or moves by stop-and-resume ([P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)). **A FLOW is not a registry entry**: `runtime.check(flow)`, then `runtime.start(flow, …)`, takes any flow the registry can run, at any time (section 12) |
 | **a `limitKey` from the FLOW** — a node or a document saying which key a task of a keyed group is counted under | **deferred** — [Q248](doc/questions/q248.md). Pass `start` a `createTask` that sets `limitKey` on the task it builds, or register a group type whose `create` builds a `KeyedRateLimitGroup` with a `keyFrom` (section 12). A node reaching a document's built-in keyed group with neither is refused before its run starts — `FD-R6`, `LimitKeyMissing` |
+| **a `start()` that checks a TRANSFORMING task's payload** — the transform run first and its result held to the `inputSchema` | **no** — [ADR 0101](doc/decisions/0101-a-transforming-task-is-not-held-at-start.md): `start()` is synchronous and the transform runs only in the worker, so a task declaring one is UNCHECKED at `start` (`FD-R4`), as a worker declaring no `inputSchema` is. Call `givenVerdict(registry, flow, task, received)` — `tryTransform(…, { input: received })` on the declared transform — first, on each transforming target with the value it RECEIVES (section 15), then start |
 | **redaction by `writeOnly`** — a schema annotation keeping a value out of what a run retains or reports | **no** — [ADR 0098](doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) rule 4: `writeOnly`, like `readOnly`, `title` and `description`, is admitted as an annotation since v0.36, held to its shape and read by nothing after. Redact in your own code, before the value reaches a run (section 13) |
 | **pool options on a CLASS type's instance**, and the scheduler's `idleCheckIntervalMs`, `requeueFailedTasks` and `maxWorkerRestarts` anywhere | **no** — [ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) rules 4 and 7: a named instance of a DOCUMENT type may declare `pool` (section 13); a class computes its pool from the instance's `config` and key, so give it a `configSchema` knob. The three are refused as undeclared keys |
 | **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
@@ -2462,7 +2475,7 @@ import { validateDefinition, type FlowDefinition, type NodeTypeDeclaration, type
 // key refuses absence by name, and a type whose nodes carry no settings is written over an entry
 // that declares none (two entries here, one module each — since W67 a worker is a module). `configSchema` is held against every pool's
 // derived config at construction; `inputSchema` and `outputSchema` are declared and carried, enforced on ONE
-// value per run each (the entry payload at start(), a person's resolution at resolve() — FD-R4, W73)
+// value per run each (the entry payload at start() unless the task transforms, a person's resolution at resolve() — FD-R4, W73)
 // and never per settlement — since v0.20 (ADR 0056) any schema may carry `examples`, held to it at
 // construction, `npm run check:workers` runs a worker on its input example (P19, W72), and since v0.21
 // `checkWiring(registry, flow)` gives every arc of a flow a verdict from the two (W73).
@@ -2771,7 +2784,7 @@ output schemas, and a sample-based check across a transformed edge — was
 this one (P18) and is now [P19](doc/plans/p19-what-a-schema-buys-an-author.md)'s, answered in
 **section 15**: since v0.19 a worker DECLARES `inputSchema` and `outputSchema`, no RUN enforces
 them per settlement (that is OUT of P19 as a default) — since v0.21 the two values no static check
-can reach are held to them ONCE each, `FD-R4` (section 9's `BoundaryRefused`), and `checkWiring(registry, flow)`
+can reach are held to them ONCE each (a transforming task's payload excepted, ADR 0101), `FD-R4` (section 9's `BoundaryRefused`), and `checkWiring(registry, flow)`
 gives every arc of a flow one of five verdicts from them before any run (W73), with `pathsOf`,
 `tryTransform` and `signatureOf` beside it as the authoring assists (W74) — and since v0.20 any schema may carry
 `examples` — an annotation held to its schema at construction ([ADR 0056](doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
@@ -2910,8 +2923,8 @@ served beside your bundle as a module of its own for a pool's thread to load it.
 ## 15. What a schema buys an AUTHOR — an authoring session
 
 **The schemas in section 13 were never for the run.** A worker's `inputSchema` and `outputSchema`
-are held to the run's PAYLOAD once and to a person's RESOLUTION once each (`FD-R4`, section 9) and
-never per settlement — and neither of those is *two values per run*, because a fan-out or map entry
+are held to the run's PAYLOAD once (not where the task declares a `transform`, ADR 0101) and to a person's
+RESOLUTION once each (`FD-R4`, section 9) and never per settlement — and neither of those is *two values per run*, because a fan-out or map entry
 validates one value per branch task it reaches and a run nobody parks validates no resolution at
 all. So what are they for? **They are for whoever is wiring the flow**, a person or an agent, and this section is
 the session that shows it: a flow written, a MISWIRE caught before anything runs, a transform
@@ -3079,6 +3092,19 @@ node, input)`**, exported beside `checkWiring`, is the same road on the node as 
 `tryTransform` calls it on the copy that carries your candidate, so the two have ONE contract: `input`
 `undefined` is no input there too, and the node's arcs answer. **`givenVerdict` and `TryTransformOptions` are
 NEW public surface in 0.8.0.**
+
+**On an entry that TRANSFORMS, this is the only check of a run's payload before the run.** `start()` does not hold
+a task that declares a `transform` to its worker's `inputSchema` ([ADR 0101](doc/decisions/0101-a-transforming-task-is-not-held-at-start.md),
+`FD-R4`, section 9): the schema is about the transform's RESULT, and that exists only in the worker. So *check, then
+start* — but on the value each transforming TASK receives, because a given value is `$` with no `needs` composed:
+`boundaryTargets(flow, payload)` lists the tasks the payload reaches and the value reaching each (for a map's branch,
+each element under `over`; through an entry gate, every route's target), and where the task declares `needs` (at an
+entry only `"."`) compose it first — `needs: { own: "." }` receives `{ own: value }`. Call
+`givenVerdict(registry, flow, task, received)` on each that transforms; a fan-out, map or gate ENTRY is no task and
+gives `[]`. Start on `transform-passes`; `unchecked` (no `inputSchema`, or a language, type or worker the registry
+lacks) checked nothing. Until W170 `start()`
+held the payload BEFORE the transform, and one value drew opposite verdicts from the two
+([Q633](doc/questions/q633.md)).
 
 ```ts run
 import { tryTransform, type FlowDefinition } from 'fyflow-orchestration';
