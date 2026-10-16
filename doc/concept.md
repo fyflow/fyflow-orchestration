@@ -209,9 +209,12 @@ of leaning produced.
 - **Distribution.** One orchestrator, one scheduler, one process.
 - **An expression language** for decisions. Registered predicates instead, if Q2 lands that way.
 - **A visual flow editor.** Definitions are authored in code or a document.
-- **Controlling a run from a UI** (pause, cancel, retry a node). Read-only observation first - and
-  [S2](scheduler-upstream.md) was missing anyway. *(S2 shipped at the pin, and run control is IN —
-  [P34](plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) amends this bullet.)*
+- ~~**Controlling a run from a UI**~~ (pause, cancel, retry a node) — **cancel, stop and pause LEFT this
+  list** once [S2](scheduler-upstream.md) shipped
+  ([P34](plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) decision 1). Cancelling a run is
+  built, recorded before it acts and ended by the scheduler's own settlements
+  ([ADR 0104](decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md),
+  [Q18](questions/q18.md)); stop and pause are P34's. **Retrying a node is still out** ([Q16](questions/q16.md)).
   **One exception, added 2026-08-30 and deliberately narrow:
   [ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
   rules 4-6 let an external actor *resolve a suspended `user_action` node*, because a run that stops

@@ -52,7 +52,13 @@ export type Step =
    * be seen, and two rows keep the default so *present with `null`* stays
    * distinguishable from *absent*.
    */
-  | { do: 'resolve'; taskId: string; resolvedAs: 'done' | 'failed'; result?: unknown };
+  | { do: 'resolve'; taskId: string; resolvedAs: 'done' | 'failed'; result?: unknown }
+  /**
+   * **The run's OWNER cancels it** — W173, `RN-R31`: `driver.cancel({ actor })`. The fake's `cancel` RECORDS each id and
+   * fires nothing (the RUNNING road, P34 fact 8), so each task's `task.cancelled` is a later `settle` step of the row's
+   * own — which is what lets a row put a prefix BETWEEN the request and the last task stopping.
+   */
+  | { do: 'cancel'; actor: string };
 
 export interface Scenario {
   /** Stable key, used as the matrix row id and in every assertion message. */
@@ -159,6 +165,13 @@ export class Fake {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
   }
 
+  /** W173 — every id `driver.cancel` sent, in order. The RUNNING road: nothing fires until a `settle` step says so. */
+  cancelled: string[] = [];
+  cancel(id: string): Promise<boolean> {
+    this.cancelled.push(id);
+    return Promise.resolve(true);
+  }
+
   settle(id: string, state: string, result: unknown) {
     // Fact 1 above. The scheduler cannot produce this, so neither may the fake —
     // and it is checked against what the DRIVER dispatched rather than against the
@@ -236,6 +249,8 @@ export function driveScenario(scenario: Scenario, policy: JoinPolicy): Driven {
   for (const step of scenario.steps) {
     if (step.do === 'settle') {
       scheduler.settle(step.taskId, step.state, step.result ?? null);
+    } else if (step.do === 'cancel') {
+      void driver.cancel({ actor: step.actor });
     } else {
       // `RS-R1` refuses a resolution whose task is not suspended, and returns
       // `false` rather than throwing. Discarding it made a mis-scripted step a

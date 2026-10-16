@@ -208,6 +208,26 @@ export const CANCELLED_SCENARIOS: Scenario[] = [
 ];
 
 /**
+ * **The `cancelling` row — W173, `RN-R30`, `RN-R31`, `spec/join-policy.md` v0.21.** Both branches in flight, the run's
+ * OWNER cancels it, then each branch's `task.cancelled` arrives. Not one of `CANCELLED_SCENARIOS`: those are cancels the
+ * scheduler made on its own (`RN-R28`), and this one is REQUESTED — the run reads `cancelling` between the request and the
+ * last settlement, which no row of theirs can show.
+ */
+export const CANCELLING_SCENARIO: Scenario = {
+  key: 'cancelling',
+  title: 'the run`s owner cancels it with both branches in flight; each branch then stops',
+  flow: fanoutJoin,
+  fanoutId: 'split',
+  downstream: PUBLISH,
+  steps: [
+    { do: 'settle', taskId: INGEST, state: 'done' },
+    { do: 'cancel', actor: 'ops' },
+    { do: 'settle', taskId: 'r1:scoreA:0:0', state: 'cancelled' },
+    { do: 'settle', taskId: 'r1:scoreB:1:0', state: 'cancelled' },
+  ],
+};
+
+/**
  * **Not one of `SCENARIOS`, deliberately.** The nine rows above are Q5's cases,
  * and [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
  * counts them; a region *shape* is a different axis and adding it to that list

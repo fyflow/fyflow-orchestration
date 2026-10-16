@@ -577,7 +577,7 @@ suite('W164 — four annotations in the schema subset: title, description, readO
 
   test('a value under writeOnly is CARRIED — the payload, the result, the fold input and the run state hold it verbatim (conformity F7, adequacy F5)', () => {
     // ADR 0098 rule 4, run on a driver: no redaction anywhere the library holds a value. A fake scheduler — the
-    // driver's two-method seam — so the claim is L1's, with OR-R13 (the result check) and FD-R4 (the payload) ON.
+    // driver's seam, two methods and an optional `cancel` this case does not need — so the claim is L1's, with OR-R13 (the result check) and FD-R4 (the payload) ON.
     class FakeScheduler {
       readonly added: unknown[] = [];
       private listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();

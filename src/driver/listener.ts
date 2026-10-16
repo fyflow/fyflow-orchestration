@@ -78,7 +78,7 @@ export function normalizeEvent(
   // OR-R4 — not settlements, and not resolutions either. Whether they are logged
   // at all, and in what shape, is Q26. **`task.cancelling` is the third** (ADR 0094 rule 4): a cancel
   // REQUESTED of a running task, whose state still reads `running` — a request is not a settlement, and a
-  // run whose cancel the driver requested is P34's to record.
+  // run whose cancel the driver requested is recorded as the fold input `cancelRequested` (ADR 0104), not here.
   if (eventName === 'task.running' || eventName === 'task.progress' || eventName === 'task.cancelling') return null;
 
   const state = detail?.state;

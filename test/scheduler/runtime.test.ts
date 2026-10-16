@@ -23,7 +23,7 @@ import type { GateType } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 import { arrivalCount, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import { canonical, describeFindings } from '../../src/definition/schema.ts';
-import { BoundaryRefused, Driver, InvalidDefinition, ResumeRefused } from '../../src/driver/driver.ts';
+import { BoundaryRefused, Driver, InvalidDefinition, ResumeRefused, RunControlRefused } from '../../src/driver/driver.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from '../definition/corpus-types.ts';
 import type { Checkpoint } from '../../src/driver/driver.ts';
@@ -1800,6 +1800,8 @@ suite('W76 — the forwarded stream IS the driver`s region stream, at every vari
  * clause: the invariant says what `done` resolves WITH; the enumeration says whether it settles at
  * all, and `isTerminal` ENUMERATES its own values — `running` and `awaiting_action` are the two
  * that say more input is coming, every other outcome is terminal. Six members, one claim each way.
+ * *(W77's count. Since W173 there are eight outcomes and THREE that say more is coming — `cancelling`, ADR 0104 —
+ * and this suite's enumeration is W77's own; `cancelling`'s `done` is the W151 suite's Q606 case.)*
  *
  * **Every expected value comes from `src/fold/run-state.ts`'s own `isTerminal` and from this item's
  * declaration-step measurements** (`dev-dist/w77/decl-probe{,2,3,4,6}.txt`), never from this
@@ -1978,7 +1980,8 @@ suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that
 
   /**
    * **The ENUMERATION, under the other claim: does `done` settle at all.** `isTerminal` is
-   * `outcome !== 'running' && outcome !== 'awaiting_action'`, so it names its own values and this
+   * `outcome !== 'running' && outcome !== 'awaiting_action'` (and, since W173, `!== 'cancelling'` — that third value is
+   * the W151 suite's Q606 case, not this enumeration's), so it names its own values and this
    * is the list the rule enumerates rather than the list an author chose
    * (`doc/workflow.md` rule 8 (a) at v0.17). Four settle, two do not — and the two that do not are
    * the whole of why `done` can wait for ever, which is what the reference has to teach.
@@ -2262,7 +2265,7 @@ suite('W77 — a consumer`s own onFoldInput still receives every element, and `d
       try { s.settle(String(s.added[i]!.id), { ok: true }); } catch { /* the consumer's throw, unwinding through the driver exactly as it did before ADR 0058 */ }
     }
     // **The sentinel is `running` and not a made-up word, because `isTerminal` is
-    // `outcome !== 'running' && outcome !== 'awaiting_action'` — so a sentinel of `'NEVER SETTLED'`
+    // `outcome !== 'running' && outcome !== 'awaiting_action'` (and, since W173, `!== 'cancelling'`) — so a sentinel of `'NEVER SETTLED'`
     // IS terminal and the assertion below could not fail through it.** W77's adequacy reader, 9:
     // with the two outcome assertions deleted and the composition order reversed, the case was
     // green at zero. *A timeout sentinel has to be a value the predicate REJECTS.*
@@ -2885,6 +2888,107 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     s.done('nightly-cleanup');
     equal([failed.handed, handedResumed], [['f1:a:-:0'], ['k:b:-:0']], 'each was handed its settlement before done and nothing after');
     equal(failed.unminted, [], 'and the failed run reports no unminted id after done');
+  });
+
+  /**
+   * **[Q606](../../doc/questions/q606.md)'s runtime row, and `RN-R31` through the runtime** — W173, ADR 0104. Two
+   * cancelled runs on ONE runtime's routing: one a task the scheduler cancelled on its own ended (`RN-R28` — `done` at
+   * that settlement), and one its OWNER cancelled through `driver.cancel`, which reaches the runtime's scheduler through
+   * the per-run view and leaves `done` PENDING while a task still stops (`RN-R30`'s `cancelling`). The release is read as
+   * ADR 0091 rule 1 says: a run handed its settlements before `done` and nothing after. The scheduler double's `cancel`
+   * plays the RUNNING road (P34 fact 8): it records the call and fires nothing — each `task.cancelled` is this case's.
+   */
+  test('rule 1 on the CANCELLED outcome (Q606): a run the scheduler`s own cancel ended, and one its OWNER cancelled — each released when done settles, the second only after its last task stopped', async () => {
+    const s = routedSeams();
+    const cancels: [string, unknown][] = [];
+    const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
+      const sch = s.createScheduler(p, g) as unknown as Record<string, unknown>;
+      sch.cancel = (id: string, o: unknown) => { cancels.push([id, o]); return new Promise<boolean>(() => {}); };
+      return sch as never;
+    };
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler });
+    const SPLIT = {
+      flowId: 'split', version: 1, entry: 'split',
+      nodes: [
+        { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+        { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+        { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+        { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+
+    // RN-R28 — no request: the scheduler's own `task.cancelled` ends the run, and `done` settles there.
+    const own = r.start(FLOW, { x: 1 }, { runId: 'c1' });
+    const ownHanded = handed(own.driver);
+    s.emit('task.cancelled', s.detail('c1:a:-:0', 'cancelled'));
+    equal((await w77Settlement(own.done)).outcome, 'cancelled', 'Q606: done resolves `cancelled` on a task.cancelled routed by createRuntime');
+    s.emit('task.cancelled', s.detail('c1:a:-:0', 'cancelled'));
+    s.done('c1:a:-:0');
+    equal(ownHanded, ['c1:a:-:0'], 'and the run is RELEASED: handed its settlement before done and nothing after');
+
+    // RN-R30, RN-R31 — the owner cancels a run with two tasks in flight.
+    const run = r.start(SPLIT, { x: 1 }, { runId: 'k1' });
+    const runHanded = handed(run.driver);
+    void run.driver.cancel({ actor: 'ops', graceMs: 100 });
+    equal(cancels, [['k1:a:0:0', { graceMs: 100 }], ['k1:b:1:0', { graceMs: 100 }]],
+      'driver.cancel reached the RUNTIME`s scheduler through the per-run view: each task in flight, with the caller`s graceMs');
+    let settled = false;
+    void run.done.then(() => { settled = true; });
+    s.emit('task.cancelled', s.detail('k1:a:0:0', 'cancelled'));
+    await turn();
+    equal([settled, fold(run.driver.foldInputs()).outcome], [false, 'cancelling'], 'done PENDING after the first task.cancelled: b is still stopping');
+    s.emit('task.cancelled', s.detail('k1:b:1:0', 'cancelled'));
+    const state = await w77Settlement(run.done);
+    equal(state.outcome, 'cancelled', 'done resolves `cancelled` after the LAST settlement — which reached the driver, so the run was not released before it');
+    equal(state, fold(run.driver.foldInputs()), 'equal to the caller`s own fold of the driver`s sequence');
+    s.done('k1:a:0:0');
+    s.emit('task.cancelled', s.detail('k1:b:1:0', 'cancelled'));
+    equal(runHanded, ['k1:a:0:0', 'k1:b:1:0'], 'and RELEASED when done settled: both settlements handed before it, nothing after');
+  });
+
+  /**
+   * **The per-run view's `cancel` is the SCHEDULER's own method, called ON the scheduler** — W173's adequacy reader
+   * (A14, A15). The case above hands the runtime a CLOSURE, which reads no `this`, so an unbound forward passed it; a
+   * `FyflowScheduler`'s `cancel` is a class method that reads its own fields. And over a scheduler with NO `cancel` the
+   * view forwards none, so `driver.cancel` is refused by name rather than failing on `undefined`.
+   */
+  test('the view forwards `cancel` BOUND to the scheduler — a class method reading `this` — and a scheduler with none is refused `unsupported` through the runtime', () => {
+    const SPLIT = {
+      flowId: 'split', version: 1, entry: 'split',
+      nodes: [
+        { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+        { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+        { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+        { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    class Plain {
+      readonly workerPools: Record<string, unknown>;
+      readonly groups: Record<string, unknown>;
+      constructor(p: Record<string, unknown>, g: Record<string, unknown>) { this.workerPools = p; this.groups = g; }
+      addTask(): void {}
+      addEventListener(): void {}
+      shutdown(): Promise<void> { return Promise.resolve(); }
+    }
+    class WithCancel extends Plain {
+      readonly sent: string[] = [];
+      cancel(id: string): Promise<boolean> { this.sent.push(id); return new Promise<boolean>(() => {}); }
+    }
+    const s = routedSeams();
+    let made: WithCancel | null = null;
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: (p, g) => (made = new WithCancel(p, g)) as never });
+    const run = r.start(SPLIT, { x: 1 }, { runId: 'm1' });
+    void run.driver.cancel({ actor: 'ops' });
+    equal(made!.sent, ['m1:a:0:0', 'm1:b:1:0'], 'each task reached the scheduler`s own method, with `this` the scheduler');
+
+    const plain = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: (p, g) => new Plain(p, g) as never });
+    const other = plain.start(SPLIT, { x: 1 }, { runId: 'm2' });
+    let reason: unknown = 'nothing thrown';
+    try { void other.driver.cancel({ actor: 'ops' }); } catch (e) { reason = e instanceof RunControlRefused ? e.reason : String(e); }
+    equal(reason, 'unsupported', 'refused by name through the runtime, not a TypeError on an undefined member');
+    equal(fold(other.driver.foldInputs()).outcome, 'running', 'and nothing recorded: the run is still running');
   });
 
   test('rule 1 on every event NAME: after release, task.failed and task.user_action reach the released run neither by its id nor unminted', async () => {

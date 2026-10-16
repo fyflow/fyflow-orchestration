@@ -50,6 +50,11 @@ class FakeScheduler {
     }
   }
   private fire(type: string, detail: unknown): void { for (const fn of this.listeners.get(type) ?? []) fn({ detail }); }
+  /** W173 — `cancel` on the WAITING road (P34 fact 8): `task.cancelled` fires inside the call, and it resolves `true`. */
+  cancel(id: string): Promise<boolean> {
+    this.fire('task.cancelled', { id, state: 'cancelled', attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 });
+    return Promise.resolve(true);
+  }
 }
 
 /**
@@ -177,6 +182,14 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     const { driver, scheduler } = corpusDriver(await load('valid/linear.flow.json'));
     driver.start({ seed: 4 });
     scheduler.settle('r1:ingest:-:0', 'done', { result: { f: () => 1 } });
+    return driver;
+  },
+  // W173 (`RN-R30`, `RN-R31`): a run its OWNER cancelled, with a `reason`, so the element carries both of its strings;
+  // its one task in flight is cancelled on the waiting road and settles inside the call.
+  cancelRequested: async () => {
+    const { driver } = corpusDriver(await load('valid/linear.flow.json'));
+    driver.start({ seed: 6 });
+    await driver.cancel({ actor: 'ana', reason: 'no longer needed' });
     return driver;
   },
   // W89 (`RN-R22`): a run RESUMED from its own checkpoint, cut with `ingest` in flight, so the
@@ -334,7 +347,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 10, 'the union has ten kinds since W93 added `gated` (nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 11, 'the union has eleven kinds since W173 added `cancelRequested` (ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.

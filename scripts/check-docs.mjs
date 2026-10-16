@@ -725,7 +725,8 @@ if (written.length) {
 // **Raised 34 -> 35 by [W154](../doc/work-items/w154-the-built-in-if-and-switch.md)**, section 19's `if`/`switch` snippet — exception (o).
 // **Raised 35 -> 36 by [W158](../doc/work-items/w158-cancelled-is-a-library-state-and-a-run-outcome.md)**, section 6's cancelled-run snippet — exception E5.
 // **Raised 36 -> 37 by [W166](../doc/work-items/w166-a-sample-the-caller-gives.md)**, section 15's *A sample you GIVE* snippet — in its row's `Owns`.
-const RUN_FLOOR = 37;
+// **Raised 37 -> 38 by [W173](../doc/work-items/w173-cancelling-a-run.md)**, section 6's *Cancelling a RUN* snippet — in its row's `Owns`.
+const RUN_FLOOR = 38;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

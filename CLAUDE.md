@@ -193,7 +193,8 @@ published packages DEPEND on it since
 [ADR 0048](doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
 (W57), which superseded
 [ADR 0013](doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md)
-rules 1, 2 and 6 — and `SchedulerLike` is still a two-method structural interface, so a caller passes
+rules 1, 2 and 6 — and `SchedulerLike` is still a structural interface, two methods plus an optional
+`cancel` ([ADR 0104](doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)), so a caller passes
 its own scheduler in. `S7` in `scripts/check-source.mjs` refuses every other **literal** form of the
 reach — the JSR name, a `jsr:` or `npm:` prefix, `file:` or `../` — across `from`, bare `import`,
 dynamic `import()` and `require()`, in single, double and backtick quotes. **Its own comment states
@@ -257,7 +258,8 @@ this list if it matters.
   test, not a convention (Q13).
 - **A task CAN be cancelled at the pin, queued or running** — `scheduler.cancel(id)`
   ([S2](doc/scheduler-upstream.md), shipped). A cancelled task ends its run `cancelled` and settles `done`
-  (ADR 0094); `src/` calls no `cancel`, ladder L6 does; what cancelling a RUN does is P34's (Q18).
+  (ADR 0094). `src/` calls `cancel` only from `driver.cancel`, through `SchedulerLike`'s optional member;
+  cancelling a RUN is [ADR 0104](doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md) (Q18 resolved).
 - `scheduler.completed` fires **every time the scheduler drains** — with a flow it will fire between
   steps routinely. It is not "the run finished".
 - `onCompleteDescendants()` is **not a join**: transitive over lineage, but a failing descendant does
