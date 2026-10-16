@@ -52,15 +52,31 @@ export type NodeState = 'running' | 'done' | 'failed' | 'suspended' | 'cancelled
  * **NOT terminal** — the third outcome {@link isTerminal} calls unfinished — so a runtime's `done` waits for the last
  * task to stop. **BREAKING in 0.8.0** (P34 decision 10): a consumer switching on it exhaustively, or keying a
  * `Record<RunOutcome, …>`, fails to compile; one comparing strings sees a value it never named.
+ *
+ * **`interrupted` is v0.19's NINTH**, added by W174 under
+ * [ADR 0105](../../doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md): the
+ * run's OWNER stopped it to resume it elsewhere (`driver.stop`, an `interrupted` element), and no `resumed` element has
+ * followed (`RN-R32`). **Terminal** — {@link isTerminal} needs no change, and a runtime's `done` settles on it once the
+ * stop's cancels have resolved — **and the one terminal outcome a resume ACCEPTS**. **BREAKING in 0.8.0** (P34 decision
+ * 10), as `cancelling` is.
  */
 export type RunOutcome =
-  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'halted' | 'stuck' | 'cancelled' | 'cancelling';
+  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'halted' | 'stuck' | 'cancelled' | 'cancelling' | 'interrupted';
 
 /**
  * **Who cancelled the run, and why** — `RunState.cancelRequest`, `RN-R30`, v0.18. What the `cancelRequested` element
  * carried: `actor` as the caller gave it, `reason` the caller's or `null` when it gave none.
  */
 export interface CancelRequest {
+  actor: string;
+  reason: string | null;
+}
+
+/**
+ * **Who stopped the run, and why** — `RunState.interruption`, `RN-R32`, v0.19. What the `interrupted` element carried:
+ * `actor` as the caller gave it, `reason` the caller's or `null` when it gave none.
+ */
+export interface Interruption {
   actor: string;
   reason: string | null;
 }
@@ -145,6 +161,14 @@ export interface RunState {
    * consumer that builds a `RunState` literal** (P34 decision 10).
    */
   cancelRequest: CancelRequest | null;
+  /**
+   * **Set while the run's OWNER has STOPPED it** — `RN-R32`, v0.19, W174,
+   * [ADR 0105](../../doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md): the
+   * `interrupted` element's `{ actor, reason }`, and `null` again once a `resumed` element follows it. **CURRENT, not
+   * cumulative** — `regions[*].suspended`'s precedent (`RN-R6`): that a resumed run was ever stopped is in the input
+   * sequence, not here. **A new cell, BREAKING in 0.8.0 for a consumer that builds a `RunState` literal** (P34 decision 10).
+   */
+  interruption: Interruption | null;
   /**
    * **Every resume this run has had, in order, each the task ids it handed a scheduler AGAIN** —
    * `RN-R22`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
@@ -290,6 +314,18 @@ export type FoldInput =
    */
   | { kind: 'cancelRequested'; actor: string; reason: string | null }
   /**
+   * **The run's OWNER stopped it, to resume it elsewhere** — `RN-R32`, `RN-R33`, v0.19,
+   * [W174](../../doc/work-items/w174-stopping-a-run-to-resume-it-elsewhere.md),
+   * [ADR 0105](../../doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md), P34
+   * decision 3 and stop-and-ask (d): appended ONCE by `Driver.stop`, after the hold and the driver going DEAF and BEFORE
+   * it asks the scheduler to cancel anything, so no `task.cancelled` the stop causes — nor any settlement at all — follows it. `reason` is `null` when the
+   * caller gave none. The fold reads the run `interrupted` from here until a `resumed` element.
+   *
+   * **FED to a replay** (`RN-R19`), at its own position — the one terminal element a resume does not refuse. **A new
+   * kind, BREAKING in 0.8.0 for a consumer switching on `kind` exhaustively** (P34 decision 10).
+   */
+  | { kind: 'interrupted'; actor: string; reason: string | null }
+  /**
    * **The run was RESUMED, and these are the tasks handed to a scheduler again** — `RN-R22`,
    * [W89](../../doc/work-items/w89-what-resuming-is.md), P23 stop-and-ask (a), answered: *a resume
    * IS recorded*. Appended by `Driver.resume` after the replay and BEFORE the first re-dispatch, and
@@ -321,7 +357,10 @@ export type FoldInput =
   | ({ kind: 'gated' } & GateDecision);
 
 export function emptyState(): RunState {
-  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: null, resumes: [], gated: [] };
+  return {
+    runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: null, interruption: null,
+    resumes: [], gated: [],
+  };
 }
 
 /**
@@ -344,6 +383,13 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // `cancelling`: a terminal run made unfinished again, against (h)'s `cancelled` > `cancelling`.
     if (prev.cancelRequest !== null || prev.outcome === 'cancelled') return prev;
     return withOutcome({ ...prev, cancelRequest: { actor: input.actor, reason: input.reason } });
+  }
+
+  if (input.kind === 'interrupted') {
+    // `RN-R32` — the stop is recorded until a `resumed` element ends it; one folded while a stop is already current moves
+    // nothing (the driver appends one per stop: a second call appends nothing, `RN-R33`).
+    if (prev.interruption !== null) return prev;
+    return withOutcome({ ...prev, interruption: { actor: input.actor, reason: input.reason } });
   }
 
   if (input.kind === 'region') {
@@ -387,7 +433,12 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // `RN-R22` — recorded, and nothing else moves: the ids were dispatched before and are still
     // `running`, so `outcome` is untouched and `withOutcome` has nothing to recompute. A COPY of the
     // list, because `step` never shares a value it was handed with the state it returns (`RN-R2`).
-    return { ...prev, resumes: [...prev.resumes, [...input.taskIds]] };
+    // **v0.19 — and it ENDS an interruption** (`RN-R22`, `RN-R32`): the run stopped on one runtime is running again on
+    // this one, so `interruption` is `null` again and the outcome is what the nodes say — recomputed only then, so a
+    // resume of a run nobody stopped moves nothing but `resumes`, as before.
+    const resumes = [...prev.resumes, [...input.taskIds]];
+    if (prev.interruption !== null) return withOutcome({ ...prev, interruption: null, resumes });
+    return { ...prev, resumes };
   }
 
   if (input.kind === 'gated') {
@@ -533,6 +584,14 @@ function withOutcome(s: RunState): RunState {
     return { ...s, outcome: nodes.some((n) => n.state === 'running') ? 'cancelling' : 'cancelled' };
   }
 
+  // `RN-R32` — a run its OWNER stopped is `interrupted` until a `resumed` element ends it (P34 (d), (h)). Below every
+  // cancel above, so a run its owner cancelled never reads resumable; ABOVE `awaiting_action`, so a parked task — whose
+  // `resolve()` the stopped driver refuses — does not make it read as waiting for a person here; and above `running`,
+  // because the tasks the stop cancelled stay `running` in `nodes` by construction (the driver went deaf first): they
+  // are the in-flight set the resume re-dispatches, not live work on this runtime. Above `stuck`, `failed` and
+  // `completed` too: a join the stop left waiting is the owner's act, resumed elsewhere.
+  if (s.interruption !== null) return { ...s, outcome: 'interrupted' };
+
   // `RN-R7` — `awaiting_action` outranks `running`: the thing a reader must know
   // is that a human is needed, not that other work continues.
   if (nodes.some((n) => n.state === 'suspended')) return { ...s, outcome: 'awaiting_action' };
@@ -638,6 +697,10 @@ export function foldLog(log: readonly LogRecord[]): RunState {
  * cancelled it and a task is still stopping, so its `task.cancelled` is still coming and moves the outcome to
  * `cancelled`. Calling it terminal would settle a runtime's `done` at the request — before the tasks have stopped,
  * the app's #1 complaint (P34 fact 6).
+ *
+ * **`interrupted` is TERMINAL, unchanged by v0.19** (`RN-R12`, `RN-R32`, ADR 0105): the run's owner stopped it and the
+ * driver went deaf, so nothing more can move it on THIS runtime — its in-flight set is moved by a resume on another,
+ * which is not this driver's input. A runtime's `done` settles on it once the stop's cancels have resolved (`RN-R33`).
  */
 export function isTerminal(s: RunState): boolean {
   return s.outcome !== 'running' && s.outcome !== 'awaiting_action' && s.outcome !== 'cancelling';

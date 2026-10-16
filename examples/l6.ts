@@ -11831,6 +11831,9 @@ if (rowCosts.length !== EXPECTED.length) {
     'cancelRequest', 'unhanded',
     // `stepping` since W173 (D-1): one integer, the depth of the driver's own step, `0` at rest — WALKED.
     'stepping',
+    // `stopRequest` since W174 (`RN-R33`, ADR 0105): the owner's stop — `null` on every run here — WALKED;
+    // examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W174's row.
+    'stopRequest',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

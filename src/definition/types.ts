@@ -754,7 +754,7 @@ export interface DerivedGateType {
    * (ADR 0092). The subset cannot state a grammar (ADR 0053), so a type that needs one states it here.
    */
   settingsProblem?(settings: Readonly<Record<string, unknown>>): string | null;
-  /** The decision: one of THIS GATE's routes, synchronously — a route outside the set `routesFor` returned for the gate STOPS the run (`FD-R5`). */
+  /** The decision: one of THIS GATE's routes, synchronously — a route outside the set `routesFor` returned for the gate HALTS the run (`FD-R5`). */
   fn(ctx: GateContext): string;
 }
 
@@ -787,7 +787,7 @@ export interface StaticGateType {
    * and a type must not read this member as a promise about the leaf's TYPE.
    */
   readonly keyResolvedRoutes?: readonly string[];
-  /** The decision: one of `routes`, synchronously. A route not declared STOPS the run by name (P24 decision 8 — `FD-R5`, `UndeclaredRoute`); a throw stops it with the thrown error, as a predicate's does. */
+  /** The decision: one of `routes`, synchronously. A route not declared HALTS the run by name (P24 decision 8 — `FD-R5`, `UndeclaredRoute`); a throw halts it with the thrown error, as a predicate's does. */
   fn(ctx: GateContext): string;
 }
 

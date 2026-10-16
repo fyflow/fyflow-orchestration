@@ -424,6 +424,12 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W174 — ADR 0105, stopping a run to resume it elsewhere: L2 in `test/driver/stop.test.ts`, L1/L3 in
+  // `test/fold/interrupted.test.ts`, and L1 through `createRuntime` in `test/scheduler/runtime.test.ts` — the first two
+  // counted below.
+  'L2 — RN-R33: stopping a run — hold, one element, DEAF, then each task in flight cancelled, and a resume elsewhere',
+  'L1 — RN-R32: a run its OWNER stopped reads `interrupted` until a `resumed` element ends it',
+  'W174 — a STOPPED run`s done settles `interrupted` once its cancels resolve, a sibling untouched, and its checkpoint resumes on a fresh runtime',
   // W173 — ADR 0104, cancelling a run: L2 in `test/driver/cancel.test.ts`, L1/L3 in `test/fold/cancelling.test.ts`, each
   // counted below.
   'L2 — RN-R31: cancelling a run — hold, one element, then each task in flight cancelled, and `done` after the last',
@@ -833,6 +839,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/cancel.test.ts registers its thirteen: the roads, the second call, the refusals, RN-R29 (i), the resume, the parked run, RN-R23, the mid-step cancel, two cancels on an unhanded task, the running road, the lost tail, a done-and-parked run, and its own membership');
     equal(count('L1 — RN-R30: a run its OWNER cancelled reads `cancelling` until its last task has stopped, then `cancelled`'), 10,
       'test/fold/cancelling.test.ts registers its ten: eight claims, L3, and its own membership');
+  });
+  // **W174's two suites, counted the same way and for the same reason.**
+  test('W174`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R33: stopping a run — hold, one element, DEAF, then each task in flight cancelled, and a resume elsewhere'), 16,
+      'test/driver/stop.test.ts registers its sixteen: the order, the refusals, the second call, the parked run, RN-R29 (i), the mid-step stop, the resume elsewhere, the stop on `resumed`, the lost tail, deaf with the hold, a throwing callback, the three R9 steps, a second call while pending, and its own membership');
+    equal(count('L1 — RN-R32: a run its OWNER stopped reads `interrupted` until a `resumed` element ends it'), 8,
+      'test/fold/interrupted.test.ts registers its eight: six claims, L3, and its own membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

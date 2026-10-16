@@ -65,7 +65,7 @@ import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGr
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { checkGateTypes, groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver, InvalidDefinition, resumeRefusal } from '../driver/driver.ts';
-import type { Checkpoint, CheckpointHeader, DriverOptions, SchedulerLike } from '../driver/driver.ts';
+import type { Checkpoint, CheckpointHeader, DriverOptions, RunStopOptions, SchedulerLike } from '../driver/driver.ts';
 import { InvalidTaskId, parseTaskId } from '../driver/ids.ts';
 import { liveToken } from '../fold/policies.ts';
 import { emptyState, isTerminal, step } from '../fold/run-state.ts';
@@ -305,7 +305,10 @@ export interface RunHandle {
    * `halted` (0.7.0's `stopped`, ADR 0102) — and never rejects. Pending while the outcome is `running`, `awaiting_action`
    * or — since W173 — `cancelling`: a run its owner cancelled through `driver.cancel` settles `cancelled` after its LAST
    * task has stopped, and is released then (ADR 0104, `RN-R30`); one a task the scheduler cancelled on its own ended
-   * settles at that first `task.cancelled` (`RN-R28`).
+   * settles at that first `task.cancelled` (`RN-R28`). **A run its owner STOPPED** (`stop` below, or `driver.stop`) settles
+   * `interrupted` — terminal on this runtime, resumable on another — once the stop's cancels have RESOLVED, not at the
+   * element: the stopped driver is deaf, so no settlement could move the fold again, and the runtime waits on the cancels
+   * the driver sent through this run's view of the scheduler instead (`RN-R33`, ADR 0105, amending ADR 0058 rule 3).
    *
    * It is the SAME expression a consumer would have written, moved: the runtime keeps ONE
    * `RunState` and `step`s it per fold input, which is what `fold` is
@@ -315,6 +318,17 @@ export interface RunHandle {
    * is a second route rather than a second definition.
    */
   readonly done: Promise<RunState>;
+  /**
+   * **Stop this run so that a resume on ANOTHER runtime can continue it** — `driver.stop(options)`, forwarded, and
+   * nothing else (`RN-R33`, [ADR 0105](../../doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md),
+   * P34 stop-and-ask (d)): the run is held and the driver goes deaf, ONE `interrupted` element is appended, and each task in
+   * flight is cancelled; `done` then settles `interrupted` once those cancels have resolved, and the run is released.
+   * **One run, touching no sibling** on this runtime. Resume its checkpoint on a FRESH runtime: this one keeps the run
+   * id in use (`RN-R25`). **BREAKING in 0.8.0 for code that BUILDS a `RunHandle`** (P34 decision 10) — a new member.
+   *
+   * @throws RunControlRefused — `control: 'stop'`, as `driver.stop` throws it; nothing recorded or sent.
+   */
+  stop(options: RunStopOptions): Promise<void>;
   /**
    * **What a consumer writes FIRST when it stores this run by appending its events** — P23
    * decision 4, [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)
@@ -615,7 +629,7 @@ export function createRuntime(
    * stop-and-ask (b), answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's —
    * and since [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
    * it is the ONLY thing the runtime keeps of a finished run.** The router drops the driver when `done` settles (rule 1) and
-   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `halted` run, or a `cancelled` one a task the scheduler cancelled on its own ended (`RN-R28`), by construction; a run its owner cancelled ends with none (ADR 0104) —
+   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `halted` run, or a `cancelled` one a task the scheduler cancelled on its own ended (`RN-R28`), by construction; a run its owner cancelled ends with none (ADR 0104), and one its owner STOPPED ends with its in-flight set unsettled in its log, cancelled while the driver was deaf (ADR 0105) —
    * whose settlements carry its id: a second run under it would be handed them, refused by `ID-R4` tier 2, or accepted as
    * its own where it minted the same task id. *(This said the id was held because a completed run's driver still HEARD every
    * settlement under it, and its checkpoint changed after it completed — true until ADR 0091, which released that driver.)*
@@ -740,6 +754,19 @@ export function createRuntime(
     const settleIfTerminal = () => {
       if (settled || !isTerminal(state)) return;
       settled = true;
+      // **A STOPPED run settles once the stop's cancels have RESOLVED** (`RN-R33`, ADR 0105, P34 (d)), not at its
+      // `interrupted` element: the driver went deaf before it cancelled, so no settlement will ever move this state again
+      // and the fold cannot say when the tasks have stopped — the cancel promises can. Every cancel the driver sent is in
+      // `stopping` by now: a stop sends them as it is taken, right after its element (in a `finally`, so even when a
+      // consumer's callback on the element throws), and this runs a microtask after the
+      // element. The same promises `driver.stop`'s own promise waits on, so `handle.stop()` and `handle.driver.stop()`
+      // settle `done` alike. Released then and not before (ADR 0091 rule 1); `done` still never rejects.
+      if (state.outcome === 'interrupted' && stopping.size > 0) {
+        const at = state;
+        const fin = () => { settle(at); router.release(runId); };
+        void Promise.allSettled([...stopping]).then(fin);
+        return;
+      }
       settle(state);
       router.release(runId);
     };
@@ -747,10 +774,27 @@ export function createRuntime(
     // consumer who writes this line by hand passes the same object, `predicates` included.
     // **A per-run VIEW of the scheduler, not the scheduler** — ADR 0088 rule 1. `addTask` is the scheduler's own; a
     // listener the driver attaches is held by the runtime's router under THIS run id, so a settlement reaches this driver
-    // only when its task id names this run (or names no run at all, which every driver must hear — ADR 0027). **It SHADOWS
+    // only when its task id names this run (or names no run at all, which every driver must hear — ADR 0027). **`scheduler` — the view, wrapped below — SHADOWS
     // the runtime's `scheduler` for the rest of this function, on purpose**: the literal below cannot hand a driver the
     // scheduler itself by accident, and it stays the bare `scheduler,` line W76's binding reads as road (a).
-    const scheduler = router.forRun(runId);
+    const view = router.forRun(runId);
+    // **Every cancel this run's driver sends, until it settles** — W174, `RN-R33`: what a STOPPED run's `done` waits on
+    // (`settleIfTerminal` above). Recorded at the view the driver is handed, so it is the driver's own side effect that is
+    // observed, by whichever road the stop was called; one promise per cancel still pending, each dropped as it settles.
+    const stopping = new Set<Promise<boolean>>();
+    const viewCancel = view.cancel;
+    const scheduler: SchedulerLike = typeof viewCancel === 'function'
+      ? {
+        ...view,
+        cancel: (id, cancelOptions) => {
+          const p = viewCancel(id, cancelOptions);
+          stopping.add(p);
+          const drop = () => { stopping.delete(p); };
+          p.then(drop, drop);
+          return p;
+        },
+      }
+      : view;
     const driver = new Driver(flow, {
       runId,
       scheduler,
@@ -800,7 +844,7 @@ export function createRuntime(
     // **The header is the DRIVER's, read back — not assembled here from `flow`, `payload` and
     // `runId`** (ADR 0064 rule 5, P23 decision 4). Assembling it would agree on every field but
     // one: the entry payload would be the caller's own object, which the caller can still mutate.
-    return { driver, done, header: driver.checkpoint().header };
+    return { driver, done, header: driver.checkpoint().header, stop: (stopOptions) => driver.stop(stopOptions) };
   }
 }
 

@@ -1800,7 +1800,7 @@ suite('W76 — the forwarded stream IS the driver`s region stream, at every vari
  * clause: the invariant says what `done` resolves WITH; the enumeration says whether it settles at
  * all, and `isTerminal` ENUMERATES its own values — `running` and `awaiting_action` are the two
  * that say more input is coming, every other outcome is terminal. Six members, one claim each way.
- * *(W77's count. Since W173 there are eight outcomes and THREE that say more is coming — `cancelling`, ADR 0104 —
+ * *(W77's count. Since W173 there are eight outcomes and THREE that say more is coming — `cancelling`, ADR 0104 — and since W174 nine, `interrupted` terminal (ADR 0105, its `done` the W174 suite's) —
  * and this suite's enumeration is W77's own; `cancelling`'s `done` is the W151 suite's Q606 case.)*
  *
  * **Every expected value comes from `src/fold/run-state.ts`'s own `isTerminal` and from this item's
@@ -3015,6 +3015,117 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     await w77Settlement(runs[1]!.done);
     s.done('nightly-cleanup');
     equal(together, ['r2 r2:a:-:0', 'r1 nightly-cleanup', 'r3 nightly-cleanup'], 'r1 then r3 — the order they subscribed in, r2 released between them');
+  });
+});
+
+/**
+ * **W174 — `RN-R33` through the runtime**: [ADR 0105](../../doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md),
+ * P34 stop-and-ask (d), ladder L1. A run STOPPED on one runtime — by `RunHandle.stop()`, and by `handle.driver.stop()` —
+ * settles its `done` with `interrupted` only once the stop's cancels have RESOLVED (the driver is deaf, so the fold cannot
+ * say when), is released then (ADR 0091 rule 1), touches no sibling run on the same runtime, and its checkpoint resumes on
+ * a FRESH runtime to `completed` while the first refuses its id (`RN-R25`). The scheduler double's `cancel` records each
+ * call and resolves only when the case says the task has stopped — the RUNNING road (P34 fact 8).
+ */
+suite('W174 — a STOPPED run`s done settles `interrupted` once its cancels resolve, a sibling untouched, and its checkpoint resumes on a fresh runtime', (test) => {
+  const SPLIT = {
+    flowId: 'split', version: 1, entry: 'split',
+    nodes: [
+      { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+      { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+      { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  const turn = () => new Promise<void>((r) => setTimeout(r, 0));
+  /** A runtime on `routedSeams`, its scheduler given a `cancel` the case resolves by task id. */
+  function stoppable() {
+    const s = routedSeams();
+    const cancels: [string, unknown][] = [];
+    const stopping = new Map<string, (v: boolean) => void>();
+    const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
+      const sch = s.createScheduler(p, g) as unknown as Record<string, unknown>;
+      sch.cancel = (id: string, o: unknown) => {
+        cancels.push([id, o]);
+        return new Promise<boolean>((res) => { stopping.set(id, res); });
+      };
+      return sch as never;
+    };
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler });
+    /** The worker of `id` has stopped: the scheduler fires `task.cancelled`, then its `cancel()` resolves. */
+    const stops = (id: string) => { s.emit('task.cancelled', s.detail(id, 'cancelled')); stopping.get(id)!(true); };
+    return { s, r, cancels, stops };
+  }
+
+  test('RunHandle.stop(): done PENDING until the last cancel resolves, then `interrupted` and released — the sibling untouched and completing — and the checkpoint resumed on a FRESH runtime', async () => {
+    const A = stoppable();
+    const sibling = A.r.start(FLOW, { x: 1 }, { runId: 's1' });
+    const run = A.r.start(SPLIT, { x: 1 }, { runId: 'k1' });
+    const runHanded = handed(run.driver);
+    const before = run.driver.foldInputs().length;
+    let settled = false;
+    void run.done.then(() => { settled = true; });
+    const stopped = run.stop({ actor: 'ops', reason: 'upgrade' });
+    equal(A.cancels, [['k1:a:0:0', { reason: 'upgrade' }], ['k1:b:1:0', { reason: 'upgrade' }]],
+      'the stop reached the RUNTIME`s scheduler through the per-run view: each of k1`s tasks in flight, and none of s1`s');
+    equal(run.driver.foldInputs().length, before + 1, 'ONE element appended');
+    await turn();
+    equal([settled, fold(run.driver.foldInputs()).outcome], [false, 'interrupted'],
+      'done PENDING though the fold already reads `interrupted` — terminal — while both cancels are unresolved');
+    A.stops('k1:a:0:0');
+    await turn();
+    equal(settled, false, 'still pending while b`s cancel is unresolved');
+    A.stops('k1:b:1:0');
+    const state = await w77Settlement(run.done);
+    equal(state.outcome, 'interrupted', 'done settles `interrupted` once the LAST cancel resolved');
+    equal(state, fold(run.driver.foldInputs()), 'equal to the caller`s own fold of the driver`s sequence');
+    equal(run.driver.foldInputs().length, before + 1, 'and neither `task.cancelled` was appended — the driver was deaf');
+    await stopped;
+    equal(runHanded, ['k1:a:0:0', 'k1:b:1:0'], 'the two settlements REACHED the driver before done (and were not heard)');
+    A.stops('k1:a:0:0');
+    equal(runHanded, ['k1:a:0:0', 'k1:b:1:0'], 'and RELEASED when done settled: nothing reaches it after');
+
+    // The SIBLING: untouched by the stop, and it completes.
+    equal(fold(sibling.driver.foldInputs()).outcome, 'running', 'the sibling is still running — no element, no cancel');
+    A.s.done('s1:a:-:0');
+    equal((await w77Settlement(sibling.done)).outcome, 'completed', 'and it completes on the same runtime');
+
+    // RESUMED on a FRESH runtime — the first refuses the id (RN-R25).
+    const cp = structuredClone(run.driver.checkpoint()) as Checkpoint;
+    let inUse = 'nothing thrown';
+    try { A.r.resume(SPLIT, cp); } catch (e) { inUse = e instanceof RunIdInUse ? e.at : String(e); }
+    equal(inUse, 'k1', 'the stopping runtime keeps k1 in use');
+    const B = stoppable();
+    const resumed = B.r.resume(SPLIT, cp);
+    equal(B.s.added.map((t) => t.id), ['k1:a:0:0', 'k1:b:1:0'], 'the fresh runtime is handed EXACTLY the stopped in-flight set, at the same ids');
+    B.s.done('k1:a:0:0');
+    B.s.done('k1:b:1:0');
+    const end = await w77Settlement(resumed.done);
+    equal([end.outcome, end.resumes, end.interruption], ['completed', [['k1:a:0:0', 'k1:b:1:0']], null], 'to `completed` on runtime B, the resume recorded and the stop ended');
+  });
+
+  test('handle.driver.stop() settles done the same way, and a PARKED run stopped settles at once with resolve() refused', async () => {
+    const A = stoppable();
+    const run = A.r.start(SPLIT, { x: 1 }, { runId: 'd1' });
+    let settled = false;
+    void run.done.then(() => { settled = true; });
+    void run.driver.stop({ actor: 'ops' });
+    A.stops('d1:a:0:0');
+    await turn();
+    equal(settled, false, 'through the DRIVER too, done waits on the cancel still unresolved');
+    A.stops('d1:b:1:0');
+    equal((await w77Settlement(run.done)).outcome, 'interrupted', 'and settles `interrupted` once it resolves');
+
+    const parked = A.r.start(FLOW, { x: 1 }, { runId: 'p1' });
+    A.s.emit('task.failed', A.s.detail('p1:a:-:0', 'user_action'));
+    A.s.emit('task.user_action', A.s.detail('p1:a:-:0', 'user_action'));
+    await turn();
+    equal(fold(parked.driver.foldInputs()).outcome, 'awaiting_action', 'the ARRANGEMENT: p1 parked, nothing in flight');
+    const sent = A.cancels.length;
+    await parked.stop({ actor: 'ops' });
+    equal(A.cancels.length, sent, 'nothing sent for a parked task');
+    equal((await w77Settlement(parked.done)).outcome, 'interrupted', 'done settles — which `awaiting_action` never would (ADR 0091 rule 3)');
+    equal(parked.driver.resolve('p1:a:-:0', 'done', { actor: 'ops', result: null }), false, 'and resolve() is refused on this runtime');
   });
 });
 

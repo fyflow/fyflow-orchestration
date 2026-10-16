@@ -67,7 +67,9 @@ that is true of a run and false of a runtime holding many.
    `isTerminal` calls not terminal, so a run parked on a person keeps its routing: `resolve()` on its driver
    and every later settlement under its id work as before. ***Since [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)
    (W173, 2026-10-16) `cancelling` is a THIRD: a run its owner cancelled keeps its routing until its last task has
-   stopped, so every one of its settlements reaches it.***
+   stopped, so every one of its settlements reaches it.*** ***And since [ADR 0105](0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md)
+   (W174, 2026-10-16) a run its owner STOPPED is terminal in its log (`interrupted`) and still not released until its
+   `done` settles — once the stop's cancels have resolved; its driver is deaf meanwhile.***
 4. **A driver whose opening THREW is released as the throw leaves `start` or `resume`.** A resume refused
    during its replay (`RN-R23`) leaves a driver that is SPENT and hears nothing, and whose `done` never
    settles — rule 1 would never reach it. Releasing it changes nothing it does; keeping it would be rule 1's
