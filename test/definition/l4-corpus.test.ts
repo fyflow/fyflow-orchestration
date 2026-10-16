@@ -424,6 +424,8 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W172 — ADR 0103, the dispatch hold and Q605's two doors: L2 in `test/driver/hold.test.ts`, its cases counted below.
+  'L2 — RN-R29: the dispatch hold — a halt ON THE STACK of a fan-out, a map or a resolution dispatches, routes and emits nothing further (Q605)',
   // W166 — P37 stop-and-ask (d), a sample the caller gives: L1 in `test/definition/assist.test.ts`.
   'W166 — a sample the caller GIVES: tryTransform(…, { input }) runs on what the node receives, ONE verdict, the entry included (P37 (d))',
   // W165 — ADR 0099, pool options on a named pool instance: L1 in `test/definition/registry.test.ts` and, through the
@@ -812,6 +814,13 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     equal(count('every construction-time refusal, by name — a document that trips it and the sample that does not'), 15,
       'test/definition/registry.test.ts registers the refusal cases INCLUDING W110`s named-pool-instance one, which is the only ' +
       'observer of the `resolveRegistry` change the maintainer took and which cost 0 everywhere else');
+  });
+  // **W172's suite, counted the same way and for the same reason** — its own `DECLARED_CASES` check is a case INSIDE
+  // the suite it guards, so an edit emptying the suite takes that check with it; this count does not go with it.
+  test('W172`s suite still REGISTERS the seventeen cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R29: the dispatch hold — a halt ON THE STACK of a fan-out, a map or a resolution dispatches, routes and emits nothing further (Q605)'), 17,
+      'test/driver/hold.test.ts registers its seventeen: three doors x (control, refusal, cancel), door (b)`s second check and a gate`s route each under both halts, the dispatch`s own check, resume()`s re-dispatch, the limit, and its own membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

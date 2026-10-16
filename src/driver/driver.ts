@@ -1295,6 +1295,26 @@ export class Driver {
    */
   private deaf = false;
 
+  /**
+   * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
+   * `RN-R29`,
+   * [ADR 0103](../../doc/decisions/0103-every-halt-shares-one-dispatch-hold.md), P34
+   * decisions 5 and 8, W172. **The ONE predicate every halt shares**, read at these doors and no others — `RN-R29`
+   * states the two things it does not hold: before each of `resume()`'s re-dispatches (the maintainer's answer to
+   * W172's S-1), at the head of `enter` (door (a) of [Q605](../../doc/questions/q605.md) — a fan-out's or a map's remaining
+   * branches), at the head of `dispatch`, after a resolution's append and again before its routing (door (b)),
+   * after a settlement's append (`settle`), after a join's `joinSettled` append (`settleJoin`), and at `resolve()`'s
+   * entry. A halt P34 adds — a cancel or a stop — joins this disjunction, and every door follows.
+   *
+   * **A METHOD over the halt flags, never a field of its own**: a second copy of *the run is halted* is a field that
+   * can disagree with `failed` or `cancelled`, and each of those has readers this predicate must not stand in for
+   * (`hasFailed()`, `onRunFailure`). **The replay's hold is the OTHER form and is not this** — it appends a dispatch
+   * and defers handing it on (`RN-R19`), where a shut hold appends nothing; `dispatch` keeps both.
+   */
+  private shut(): boolean {
+    return this.failed || this.cancelled;
+  }
+
   /** The registry's node types, normalised once (W59; entries the document or the class form since W65). Read at dispatch for the type's retry default and its settings defaults. */
   private readonly nodeTypes: ReadonlyMap<string, NodeTypeEntry>;
   /** The registry's languages, normalised once (W61). Read at construction only; the driver evaluates nothing. */
@@ -1689,6 +1709,10 @@ export class Driver {
     this.append({ kind: 'resumed', taskIds: inFlight });
     try {
       for (const id of inFlight) {
+        // **`RN-R29` — the hold, before EACH re-dispatch** (ADR 0103 rule 5, the maintainer's answer to W172's S-1,
+        // 2026-10-16): a consumer's callback on the `resumed` element above — or one a hand-off below reaches — can
+        // halt the run on this stack, and a halted run hands nothing further to the scheduler.
+        if (this.shut()) break;
         const config = replay.held.get(id);
         // Every in-flight id was dispatched DURING the replay, and every dispatch during it is held, so
         // this cannot miss — and if it could, a task would be silently lost, which is the one outcome
@@ -1756,6 +1780,9 @@ export class Driver {
     // `RS-R1`, asked of the REPLAY: the stored run accepted this resolution, so its task was parked.
     if (!isSuspended(this.log, record.taskId)) throw this.diverged(i, 'that task is not parked in the replay');
     this.appendResolution(cloneRecord(record as ResolutionRecord), nodeId, branchPath);
+    // *No `shut()` check here, unlike `resolve()`'s door (b), and deliberately* (W172's conformity reader, C7): a
+    // replay delivers no callback for a stored position (`RN-R24`), so nothing on this stack can halt the run between
+    // the append and the routing; a stored halt arrives as its own fed element, later.
     this.advance(runId, nodeId, branchPath);
   }
 
@@ -1824,7 +1851,7 @@ export class Driver {
     // so nothing reported the work. Refused like any other rejected command.
     // **And after a CANCEL** (`RN-R28`, ADR 0094 rule 3): a parked task in a cancelled run stays parked, as
     // after a halt — the run is terminal, and a resolution would route a run its owner ended.
-    if (this.failed || this.cancelled) return false;
+    if (this.shut()) return false;
     // **`FD-R4` at the RESOLVE boundary — W73.** A person's `done` value is held to the parked node's
     // worker `outputSchema` before anything is appended: refused, the task is STILL suspended and a
     // corrected value resolves it — a rejected command, as `RS-R1`'s other refusals are, and the
@@ -1854,6 +1881,10 @@ export class Driver {
       actor: value.actor,
       observedAt: this.now(),
     }, nodeId, branchPath);
+    // **`RN-R29` — door (b)'s SECOND check** (ADR 0103, Q605): the resolution and its `branch.resumed` are appended,
+    // and a consumer's callback on either can have halted the run on this stack. Accepted — its element is in the
+    // log, so `true` — and routed nowhere.
+    if (this.shut()) return true;
     // RS-R2: a resolution supplies an outcome for the dispatch that already
     // happened. It never re-dispatches — that is flow-level retry, Q16/Q28.
     //
@@ -1895,6 +1926,9 @@ export class Driver {
    */
   private appendResolution(record: ResolutionRecord, nodeId: string, branchPath: string): void {
     this.append({ kind: 'resolution', record });
+    // **`RN-R29` — door (b)'s FIRST check** (ADR 0103, Q605): a halt raised on the resolution's own element — a
+    // consumer's `onFoldInput` that cancels a waiting task, or reaches a refusal — emits no `branch.resumed`.
+    if (this.shut()) return;
     const region = this.regionOf(nodeId);
     if (region) {
       this.emit({ type: 'branch.resumed', regionId: region.fanoutId,
@@ -2111,7 +2145,7 @@ export class Driver {
     const report = this.opts.onNonconformingResult;
     // `RN-R24`: a REPLAYED settlement was reported, if at all, in the process that stored it.
     if (report !== undefined && this.delivers(seq)) this.reportResultSchema(record, nodeId, report);
-    if (this.failed || this.cancelled) return;
+    if (this.shut()) return;
     if (record.terminalState === 'cancelled') {
       // **`RN-R28` — the FIRST cancelled settlement halts the run** (ADR 0094 rule 3, W158). Exactly `failRun`'s
       // halt and nothing of its report: the record above is already in the log, which is all the fold needs to
@@ -2319,6 +2353,13 @@ export class Driver {
     fromRegion?: string,
     itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
   ): void {
+    // **`RN-R29` — the hold, at the head of entering ANY node** (ADR 0103, P34 decision 8): door (a) of
+    // [Q605](../../doc/questions/q605.md). A fan-out's and a map's branches are entered one call each, and a
+    // consumer's callback on the first one's `dispatched` element can halt the run before the next is entered; a
+    // gate's route and a join's successor are entered after an append that can do the same. Checked HERE rather
+    // than in each loop, so no arm of this switch — a dispatch, a region opened, a gate decided, a path ended, a
+    // join asked — runs for a halted run, whichever caller reached it.
+    if (this.shut()) return;
     const node = this.graph.byId.get(nodeId);
     if (!node) return;
 
@@ -3154,6 +3195,17 @@ export class Driver {
     payload: unknown,
     itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
   ): void {
+    // **`RN-R29` — the hold, BEFORE the `dispatched` append** (ADR 0103 rule 2, P34 decision 8): a halted run appends
+    // no dispatch. **REACHABLE, and not only a forward guard** — W172's adequacy reader: `enter` checks the hold at
+    // its head and then calls `compose`, which for an entry declaring `needs: { v: "." }` clones the CALLER's payload
+    // (`start()` hands `enter` the value it was called with), and a clone runs that payload's getters — consumer code
+    // between the two checks, which can halt the run (`test/driver/hold.test.ts`). It is also the dispatch's own
+    // door, which P34's pause (W175) widens with the replay's DEFER form below.
+    //
+    // **What it does NOT hold** (`RN-R29` (i)): a halt raised on THIS dispatch's own `dispatched` element, below — the
+    // task is still handed on. P34's cancel and stop (W173, W174) must cancel such a task AFTER its hand-off, since a
+    // scheduler's `cancel()` of an id it has not been handed resolves `false` and the task would then run (ADR 0103).
+    if (this.shut()) return;
     const taskId = buildTaskId(runId, node.id, branchIndices(this.pathOf(node.id, itemIndices)), 0);
 
     // ID-R1 — the refusal, BEFORE addTask sees it. A duplicate means the validator
@@ -3671,8 +3723,12 @@ export class Driver {
     // **Costs 0 at L1-L5 and 0 at L6**, and it tightens an existing rule rather than
     // relaxing one: `OR-R10` already says the driver has stopped routing this run.
     // **And a CANCEL can arrive on the same stack** (`RN-R28`, W158): `cancel()` of a task still WAITING fires
-    // `task.cancelled` synchronously, so a re-entrant listener that cancels one halts the run here too.
-    if (this.failed || this.cancelled) return;
+    // `task.cancelled` synchronously, so a re-entrant listener that cancels one halts the run here too. Since W172
+    // this is one of `RN-R29`'s checks of the ONE hold every halt shares (`shut()`, ADR 0103). **Since W172 it is also
+    // SUBSUMED for routing** — the `enter` below checks the hold at its head — and is kept, stated, as belt and braces:
+    // it returns before the collection is read and released, which `failRun` and a cancel release already (W172's
+    // adequacy reader measured its deletion equivalent).
+    if (this.shut()) return;
     // **The collection is read ONCE and the region is released in the same breath —
     // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
     // rule 3.** `collectArrivals` is a pure projection of the map, so hoisting it

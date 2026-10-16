@@ -57,7 +57,9 @@ cancel rejects a promise of ours.
 3. **The first cancelled settlement HALTS the run, and the run is `cancelled`** — a seventh `RunOutcome`,
    terminal, ranked below `stopped` and above every other (`RN-R28`). The driver dispatches nothing further and
    routes no later settlement — exactly the doors `OR-R10` shuts for a refusal, a join firing on the same stack
-   included, and NOT the two that `OR-R10` does not shut either (consequence 6); each later settlement of the run is still appended and routed nowhere, with no region event; a
+   included, and NOT the two that `OR-R10` does not shut either (consequence 6) — *both shut since
+   [ADR 0103](0103-every-halt-shares-one-dispatch-hold.md), which amends this rule: one dispatch hold every halt shares
+   (`RN-R29`, W172)*; each later settlement of the run is still appended and routed nowhere, with no region event; a
    parked task stays parked and `resolve()` is refused; every region's collection is released (`JP-R12`'s
    run-level moment). **It is not a refusal**: no `stopped` element, no `onRunFailure`, `hasFailed()` false —
    the fold reads the outcome from the settlement. **A join the cancel left waiting is not `stuck`.** A runtime's
@@ -100,7 +102,8 @@ cancel rejects a promise of ours.
    `region.branches.forEach` that enters each branch) and a resolution's routing after its append (`resolve()`).
    A consumer callback that cancels synchronously on either stack lets one more dispatch or routing through. A
    halt at rest — from a settlement or a resolution — dispatches nothing further. P34's dispatch hold is to close
-   both for every halt.
+   both for every halt. **WITHDRAWN by [ADR 0103](0103-every-halt-shares-one-dispatch-hold.md) (W172, 2026-10-16)**:
+   both doors are shut for every halt by one hold, `RN-R29`; [Q605](../questions/q605.md) is resolved.
 7. **On a runtime, "appended" stops at `done`**: [ADR 0091](0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
    releases the run when `done` settles, which a cancel makes happen at once, so the in-flight settlements a bare
    `Driver` would append reach no driver. That `done` settles on a cancel and the release follows is asserted
