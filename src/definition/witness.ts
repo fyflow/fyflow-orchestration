@@ -55,15 +55,23 @@ export function witness(schema: JsonSchema, path = '$'): unknown {
   }
 }
 
-/** Where a sample came from — the word every verdict built on one carries (Q301). */
-export type SampleSource = 'example' | 'witness';
+/**
+ * Where a sample came from — the word every verdict built on one carries (Q301). **`'given'` since
+ * v0.38** ([P37](../../doc/plans/p37-a-runtime-is-its-registry.md) stop-and-ask (d),
+ * [W166](../../doc/work-items/w166-a-sample-the-caller-gives.md)): a value the CALLER handed
+ * `tryTransform(…, { input })` as what the node receives — never a schema's, so `sampleOf` below never
+ * returns it and an ARC's sample never carries it. **BREAKING in 0.8.0**: this was two values, and a
+ * `switch` exhaustive over two is not exhaustive over three.
+ */
+export type SampleSource = 'example' | 'witness' | 'given';
 
 /**
  * **The value a tool runs on for one schema, and which it was**: the FIRST declared example (ADR
  * 0056 rule 3), else the witness. A schema of `undefined` — a worker that declares none — has no
- * sample; the caller says UNCHECKED rather than inventing one.
+ * sample; the caller says UNCHECKED rather than inventing one. **Its source is one of the TWO a schema
+ * can supply, typed so** — `'given'` is the caller's and never a schema's (W166).
  */
-export function sampleOf(schema: JsonSchema | undefined): { value: unknown; source: SampleSource } | undefined {
+export function sampleOf(schema: JsonSchema | undefined): { value: unknown; source: Exclude<SampleSource, 'given'> } | undefined {
   if (schema === undefined) return undefined;
   const ex = (schema as { examples?: unknown }).examples;
   if (Array.isArray(ex) && ex.length > 0) return { value: ex[0], source: 'example' };

@@ -10,7 +10,7 @@
  * | | what it answers |
  * |---|---|
  * | `pathsOf(schema)` | *what is there to reach for* — every path a value of the schema may carry |
- * | `tryTransform(registry, flow, node, transform)` | *does THIS expression fit* — the sample-and-diff loop, one candidate at a time |
+ * | `tryTransform(registry, flow, node, transform, { input }?)` | *does THIS expression fit* — the sample-and-diff loop, one candidate at a time, on the arcs' samples or on a value the caller gives |
  * | `signatureOf(name, worker)` | *what do I write my worker against* — a TypeScript signature from the three schemas |
  *
  * **The loop is a SUBSTITUTION over `checkWiring` and not a second evaluator** (W74 fact B): it puts
@@ -19,7 +19,10 @@
  * branch task composing `"."` and transforming it must be evaluated once per ELEMENT, and an assist
  * that re-implemented the evaluation would have to rediscover that. Every verdict it returns is
  * therefore W73's, unchanged: *the sample passed*, never *fits*, with the sample's source and arity
- * on it ([Q301](../../doc/questions/q301.md)).
+ * on it ([Q301](../../doc/questions/q301.md)). **A given input keeps the substitution** (v0.38,
+ * [W166](../../doc/work-items/w166-a-sample-the-caller-gives.md)): the candidate goes on the same copy, and
+ * `wiring.ts`'s `givenVerdict` runs it through the same evaluation the arcs take — one verdict, source
+ * `'given'`.
  *
  * **`pathsOf` does NOT gate on `schemaProblem`, and that is a decision rather than an oversight**
  * (W74 fact A). ADR 0053 rule 5 puts that gate in front of `findings`, because a VALUE check may not
@@ -48,7 +51,7 @@
  */
 import type { JsonSchema } from './schema.ts';
 import type { FlowDefinition, FlowNode, WorkerEntry } from './types.ts';
-import { checkWiring, type WiringOptions, type WiringRegistry, type WiringSample, type WiringVerdict } from './wiring.ts';
+import { checkWiring, givenVerdict, type WiringOptions, type WiringRegistry, type WiringSample, type WiringVerdict } from './wiring.ts';
 
 // ---- (1) path enumeration ----------------------------------------------------------------------
 
@@ -139,6 +142,19 @@ export interface CandidateTransform {
   expr: string;
 }
 
+/** `tryTransform`'s options: the wiring check's, and the value a caller gives (W166). */
+export interface TryTransformOptions extends WiringOptions {
+  /**
+   * **What the node RECEIVES — `$` — given by the caller** (v0.38, P37 stop-and-ask (d)): typed or pasted
+   * by a person in an editor, or held by an agent. Given, the candidate runs ONCE on this value and
+   * `tryTransform` returns ONE verdict of shape `given`, whatever arcs reach the node — the ENTRY node
+   * included, which no arc reaches. No `needs` is composed over it: it IS the value the node receives.
+   * **`undefined` is not a value** — a key present holding `undefined` is no input, and the arcs answer as
+   * they always have (JSON has no `undefined`; `null` IS a value, and is given).
+   */
+  input?: unknown;
+}
+
 /**
  * **One candidate expression on one node, and what every arc into that node then says** — the
  * sample-and-diff loop, and the whole of it.
@@ -147,17 +163,26 @@ export interface CandidateTransform {
  * W73's own: `transform-passes` with the sample's source and arity where every evaluation's result
  * is accepted by the consumer's `inputSchema`, `transform-fails` with the finding where one is not,
  * and the transform run once per ELEMENT where the arc is a map's item. Pass `null` to ask what the
- * arcs say with NO transform, which is where an author starts.
+ * arcs say with NO transform, which is where an author starts — on the ARCS: with a given `input` and
+ * `null` there is nothing to run, the one verdict is `unchecked`, and holding that value to the node's
+ * `inputSchema` is `findings(schema, value)`'s question (W166's conformity reader, F3).
+ *
+ * **Given an `input`** (`options.input`, v0.38, [W166](../../doc/work-items/w166-a-sample-the-caller-gives.md)),
+ * the candidate goes on the same copy and is run ONCE on that value by `givenVerdict`, the arcs' own
+ * evaluation: ONE verdict, shape `given`, NO `producer`, `sample.source: 'given'` — never `'example'` or
+ * `'witness'` — the result held to the node's worker `inputSchema` and a compile or evaluation error
+ * `transform-fails`, as on an arc. The entry node gets one too. With `null` there is nothing to run the
+ * value through, and the one verdict is `unchecked`.
  *
  * The flow is never mutated. A node id that names no task returns `[]` — an authoring tool reports,
- * and there is nothing to report about a node with no arcs into it.
+ * and there is nothing to report about a node with no arcs into it and no input given.
  */
 export async function tryTransform(
   registry: WiringRegistry,
   flow: FlowDefinition,
   nodeId: string,
   transform: CandidateTransform | null,
-  options: WiringOptions = {},
+  options: TryTransformOptions = {},
 ): Promise<WiringVerdict[]> {
   const nodes = flow.nodes.map((n): FlowNode => {
     if (n.id !== nodeId) return n;
@@ -166,8 +191,11 @@ export async function tryTransform(
     else copy.transform = { lang: transform.lang, expr: transform.expr };
     return copy as unknown as FlowNode;
   });
-  const report = await checkWiring(registry, { ...flow, nodes }, options);
-  return report.verdicts.filter((v) => v.consumer === nodeId);
+  // ONE road and one contract (W166's conformity reader, F1): `givenVerdict` is this function on the node as
+  // declared, so it is what holds `undefined` to *no input* — the arcs answer — and the copy is what carries the
+  // candidate. The wiring check's options go WITHOUT `input`, so no road is handed a key it does not read.
+  const { input, ...wiring } = options;
+  return await givenVerdict(registry, { ...flow, nodes }, nodeId, input, wiring);
 }
 
 // ---- (2b) the SAMPLED OUTPUT of a node that only transforms ---------------------------------------

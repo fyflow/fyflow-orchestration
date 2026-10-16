@@ -158,7 +158,7 @@ suite('W73 — fits(P, C): P19 fact 3`s relation, its twelve controls as fixture
 suite('W73 — the two enumerations are the spec`s tables, both ways', (test) => {
   test('the root exports the check, the relation, the witness and the refusal class — an authoring tool a consumer can import', async () => {
     const lib = await import('../../index.ts') as Record<string, unknown>;
-    for (const name of ['checkWiring', 'fits', 'describeVerdict', 'boundaryTargets', 'witness', 'sampleOf', 'BoundaryRefused']) {
+    for (const name of ['checkWiring', 'fits', 'describeVerdict', 'boundaryTargets', 'witness', 'sampleOf', 'BoundaryRefused', 'givenVerdict']) {
       ok(typeof lib[name] === 'function', `index.ts re-exports ${name}`);
     }
     equal(lib.VERDICT_KINDS, VERDICT_KINDS, 'and the enumeration');
@@ -168,7 +168,9 @@ suite('W73 — the two enumerations are the spec`s tables, both ways', (test) =>
     equal(VERDICT_KINDS.length, 5, 'five: the plan`s four and `unchecked`');
   });
   test('WIRING_SHAPES is exactly the arc table', () => {
-    equal([...WIRING_SHAPES].sort(), tableIds(subsection, 'arc').sort(), 'the five shapes, both ways');
+    equal([...WIRING_SHAPES].sort(), tableIds(subsection, 'arc').sort(), 'the six shapes, both ways — the five arcs and `given` (v0.38, W166)');
+    equal(WIRING_SHAPES.length, 6, 'six: the five arc shapes and `given`, which is no arc — a count beside the membership');
+    ok(WIRING_SHAPES.includes('given'), 'and `given` is one of them, so the arc table`s `given` row is bound to the enumeration (W166)');
   });
 });
 
@@ -325,7 +327,15 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
   test('every arc shape the relation ranges over occurs in the census, and nothing else does', () => {
     const seen = new Set<WiringShape>();
     for (const r of reports) for (const v of r.verdicts) seen.add(v.shape);
-    equal([...seen].sort(), [...WIRING_SHAPES].sort(), 'the five shapes, both ways');
+    // **Every shape but `given`** (W166): `given` is the value a caller hands `tryTransform`, which `checkWiring`
+    // never produces — so the census reaches the five ARC shapes and that one is asserted absent by name.
+    equal([...seen].sort(), WIRING_SHAPES.filter((s) => s !== 'given').sort(), 'the five arc shapes, both ways');
+    ok(!seen.has('given'), 'and never `given`, which is not an arc');
+    // And no arc's sample carries the caller's source: every transformed arc of the census (5 passes, 2 fails,
+    // asserted by the census test above) names a source a SCHEMA supplies (P37 fact 4, prediction 6).
+    const transformed = reports.flatMap((r) => r.verdicts.filter((v) => v.kind === 'transform-passes' || v.kind === 'transform-fails'));
+    equal(transformed.length, 7, 'the census`s seven transformed arcs — 5 transform-passes and 2 transform-fails');
+    for (const v of transformed) ok(v.sample?.source === 'example' || v.sample?.source === 'witness', `${v.consumer}: an arc's sample is an example or a witness, never given — got ${v.sample?.source}`);
   });
   test('the transformed arcs name their sample and, where the producer is a region or a map, its arity (Q263, Q301)', () => {
     const t = reports.flatMap((r) => r.verdicts.filter((v) => v.kind.startsWith('transform')));

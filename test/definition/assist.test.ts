@@ -23,10 +23,11 @@ import {
   TS_TYPE_NAMES, tryTransform, tsTypeOf, type SchemaPath,
 } from '../../src/definition/assist.ts';
 import { findings, SCHEMA_KEYWORDS, SCHEMA_TYPES, schemaProblem, type JsonSchema } from '../../src/definition/schema.ts';
-import { checkWiring } from '../../src/definition/wiring.ts';
+import { checkWiring, describeVerdict, givenVerdict } from '../../src/definition/wiring.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import { SESSION_REGISTRY, SESSION_WORKERS } from '../../examples/getting-started/session-registry.ts';
 import { CORPUS_LANGUAGES, type CorpusRegistryDocument } from './corpus-types.ts';
+import { sampleOf } from '../../src/definition/witness.ts';
 import compileExpression, { jsonata } from '../../src/jsonata/index.ts';
 import l6Registry from '../../examples/registry.json' with { type: 'json' };
 
@@ -682,5 +683,229 @@ suite('W109 — sampledOutput: the shape a transform-only node emits, and the re
     const terminal = await sampledOutput(wiringRegistry as never, toEnd, 'reshape');
     equal(terminal.leaving.length, 0, 'no arc LEAVES a node whose successor is an `end` — there is no consumer to judge');
     equal(terminal.schema, { type: 'string' }, 'and the sampled shape is still there, which is what makes the zero distinguishable from a failure');
+  });
+});
+
+suite('W166 — a sample the caller GIVES: tryTransform(…, { input }) runs on what the node receives, ONE verdict, the entry included (P37 (d))', (test) => {
+  // **P37 fact 4's flow**: two tasks `a` -> `b`, ONE worker declaring both schemas and an output example. Every
+  // expected value below is derived from these declarations, the candidate's JSONata and P37 stop-and-ask (d)'s
+  // answer — never from `tryTransform`'s output.
+  const IN: JsonSchema = { type: 'object', required: ['text'], properties: { text: { type: 'string' } }, additionalProperties: false };
+  const OUT_EXAMPLE = { text: 'from the example', n: 1 };
+  const OUT: JsonSchema = { type: 'object', required: ['text', 'n'], properties: { text: { type: 'string' }, n: { type: 'integer' } }, additionalProperties: false, examples: [OUT_EXAMPLE] };
+  const OUT_NO_EXAMPLE: JsonSchema = { type: 'object', required: ['text', 'n'], properties: { text: { type: 'string' }, n: { type: 'integer' } }, additionalProperties: false };
+  const regOf = (out: JsonSchema) => ({
+    workers: { w: { url: 'corpus://w', inputSchema: IN, outputSchema: out } },
+    nodeTypes: { T: { worker: 'w' } },
+    languages: { jsonata },
+  }) as unknown as Parameters<typeof checkWiring>[0];
+  const reg = regOf(OUT);
+  const END = { id: 'done', kind: 'end', outcome: 'completed' };
+  const flowOf = (nodes: unknown[], entry = 'a'): FlowDefinition => ({ flowId: 'w166', version: 1, entry, nodes: nodes as FlowDefinition['nodes'] });
+  const fact4 = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }] }, { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'done' }] }, END]);
+  // The worker half handed in, as the W74 suite does — the browser bundle cannot import the adapter's URL (Q261).
+  const opts = { workerHalf: { jsonata: compileExpression } };
+  const keysOf = (v: object) => Object.keys(v).sort();
+
+  test('the ENTRY node: `[]` with no input (fact 4, unchanged) — and ONE `given` verdict on the value given, no producer, no through, no arity', async () => {
+    const cand = { lang: 'jsonata', expr: '{ "text": $join(words, " ") }' };
+    equal(await tryTransform(reg, fact4, 'a', cand, opts), [], 'without an input no arc reaches the entry, so there is nothing to sample');
+    const given = { words: ['typed', 'by', 'hand'] };
+    const vs = await tryTransform(reg, fact4, 'a', cand, { ...opts, input: given });
+    equal(vs.length, 1, 'ONE verdict on the entry');
+    const v = vs[0]!;
+    equal([v.consumer, v.shape, v.kind], ['a', 'given', 'transform-passes'], '$join of the three words is a string, which IN requires under `text`');
+    equal(keysOf(v), ['consumer', 'kind', 'sample', 'shape', 'why'], 'NO `producer` and no `through` — the given value came from no node');
+    equal(v.sample, { source: 'given', value: { words: ['typed', 'by', 'hand'] }, result: { text: 'typed by hand' } }, 'the sample: the source, the value given and what the transform made of it — and no arity');
+    ok(v.sample!.value === given, 'and the value IS the one given, not a copy of an example');
+    equal(v.why, "the sample passed — the given input, 1 evaluation, every result accepted by the consumer's inputSchema", 'the reason names the given input, never `fits`');
+  });
+
+  test('the INNER node: ONE `given` verdict where the arc said `example` — the value given is asked about, not the arc', async () => {
+    const cand = { lang: 'jsonata', expr: '{ "text": $uppercase(text) }' };
+    // The control: the same candidate WITHOUT an input is the arc from `a`, on `a`'s declared example.
+    const arc = await tryTransform(reg, fact4, 'b', cand, opts);
+    equal(arc.map((v) => [v.shape, v.producer, v.kind, v.sample?.source]), [['edge', 'a', 'transform-passes', 'example']], 'the control: one arc, its producer `a`, sampled on the example');
+    equal(arc[0]!.sample!.value, OUT_EXAMPLE, 'on THAT example, read off the declaration');
+    const vs = await tryTransform(reg, fact4, 'b', cand, { ...opts, input: { text: 'given by hand', n: 99 } });
+    equal(vs.map((v) => [v.consumer, v.shape, v.producer, v.kind]), [['b', 'given', undefined, 'transform-passes']], 'ONE verdict, shape given, no producer');
+    equal(vs[0]!.sample, { source: 'given', value: { text: 'given by hand', n: 99 }, result: { text: 'GIVEN BY HAND' } }, 'run on the given value and not on the example');
+  });
+
+  test('findings against the consumer`s inputSchema, on the entry and the inner node — `transform-fails` naming the path', async () => {
+    const onB = (await tryTransform(reg, fact4, 'b', { lang: 'jsonata', expr: '{ "text": n }' }, { ...opts, input: { text: 't', n: 2 } }))[0]!;
+    equal([onB.shape, onB.kind, onB.sample?.result], ['given', 'transform-fails', { text: 2 }], 'a number under `text`, which IN types string');
+    ok(onB.why.startsWith("the transform's result on the given input fails the consumer's inputSchema") && onB.why.includes('$.text expected string'), onB.why);
+    const onA = (await tryTransform(reg, fact4, 'a', { lang: 'jsonata', expr: '{ "text": words }' }, { ...opts, input: { words: ['x', 'y'] } }))[0]!;
+    equal([onA.shape, onA.kind, onA.sample?.result], ['given', 'transform-fails', { text: ['x', 'y'] }], 'on the ENTRY too: an array is not a string');
+    ok(onA.why.includes('$.text expected string, got array'), onA.why);
+    const extra = (await tryTransform(reg, fact4, 'a', { lang: 'jsonata', expr: '{ "text": "t", "extra": 1 }' }, { ...opts, input: {} }))[0]!;
+    equal(extra.kind, 'transform-fails', 'IN is closed: a key it does not declare fails it');
+    ok(extra.why.includes('$.extra'), `the finding names the undeclared key: ${extra.why}`);
+  });
+
+  test('a compile error and an evaluation error are `transform-fails` naming the throw — the compile error as today, on the given input', async () => {
+    for (const node of ['a', 'b']) {
+      const v = (await tryTransform(reg, fact4, node, { lang: 'jsonata', expr: '{{{' }, { ...opts, input: { text: 'x' } }))[0]!;
+      equal([v.shape, v.kind, v.sample?.source], ['given', 'transform-fails', 'given'], `${node}: an expression the engine refuses`);
+      ok(v.why.startsWith('the transform threw on the given input: '), `${node}: the verdict says it threw, on the given input — ${v.why}`);
+      equal(v.why, `the transform threw on the given input: ${String(v.sample!.result)}`, `${node}: the sample's result IS the message`);
+      equal(v.sample!.value, { text: 'x' }, `${node}: and the value it was handed`);
+    }
+    const evaluating = (await tryTransform(reg, fact4, 'b', { lang: 'jsonata', expr: '{ "text": $string($number(text)) }' }, { ...opts, input: { text: 'not a number' } }))[0]!;
+    equal([evaluating.kind, evaluating.sample?.source], ['transform-fails', 'given'], 'an expression that COMPILES and throws on this value');
+    ok(evaluating.why.startsWith('the transform threw on the given input'), evaluating.why);
+  });
+
+  test('the node`s ARCS are not read: two arcs and one verdict, `needs` not composed over the value, a map`s branch evaluated ONCE', async () => {
+    const two = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }, { to: 'c' }] }, { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'c' }] }, { id: 'c', kind: 'task', type: 'T', edges: [{ to: 'done' }] }, END]);
+    const cand = { lang: 'jsonata', expr: '{ "text": text }' };
+    equal((await tryTransform(reg, two, 'c', cand, opts)).map((v) => v.producer).sort(), ['a', 'b'], 'the control: two arcs into `c`, one from each producer');
+    equal((await tryTransform(reg, two, 'c', cand, { ...opts, input: { text: 'once' } })).map((v) => [v.shape, v.kind]), [['given', 'transform-passes']], 'given: ONE verdict whatever arcs reach the node');
+    // `needs` composes what ARRIVES; the given value IS what arrived, so `$` is the value as given.
+    const withNeeds = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }] }, { id: 'b', kind: 'task', type: 'T', needs: { own: '.' }, edges: [{ to: 'done' }] }, END]);
+    const identity = { lang: 'jsonata', expr: '$' };
+    const composed = (await tryTransform(reg, withNeeds, 'b', identity, opts))[0]!;
+    equal([composed.shape, composed.sample?.value], ['needs', { own: OUT_EXAMPLE }], 'the control: the arc composes `own` over the example');
+    const given = (await tryTransform(reg, withNeeds, 'b', identity, { ...opts, input: { text: 'as given' } }))[0]!;
+    equal([given.shape, given.kind, given.sample?.result], ['given', 'transform-passes', { text: 'as given' }], '`$` is the value given, not `{ own: … }`');
+    // A map's branch task: an ARC there is one evaluation per element; a given value is what ONE instance receives.
+    const OUT_ITEMS: JsonSchema = { type: 'object', required: ['items'], properties: { items: { type: 'array', items: IN } }, additionalProperties: false, examples: [{ items: [{ text: 'p' }, { text: 'q' }] }] };
+    const mapReg = { ...reg, workers: { w: { url: 'corpus://w', inputSchema: IN, outputSchema: OUT_ITEMS } } } as typeof reg;
+    const mapFlow = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'each' }] }, { id: 'each', kind: 'map', over: 'items', branch: 't' }, { id: 't', kind: 'task', type: 'T', edges: [{ to: 'j' }] }, { id: 'j', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, END]);
+    const perItem = (await tryTransform(mapReg, mapFlow, 't', identity, opts))[0]!;
+    equal([perItem.shape, perItem.sample?.arity, perItem.sample?.result], ['item', 2, [{ text: 'p' }, { text: 'q' }]], 'the control: the item arc runs once per element of the example`s array');
+    const once = (await tryTransform(mapReg, mapFlow, 't', identity, { ...opts, input: [{ text: 'p' }, { text: 'q' }] }))[0]!;
+    equal([once.shape, once.kind, once.sample?.arity], ['given', 'transform-fails', undefined], 'given: the array IS `$`, evaluated ONCE — and IN refuses an array');
+    ok(once.why.includes('$ expected object, got array') && !once.why.includes('(item'), once.why);
+  });
+
+  test('`unchecked` with the given sample: a language the registry lacks, a type that only transforms, a type it lacks — and NO transform', async () => {
+    const lang = (await tryTransform(reg, fact4, 'b', { lang: 'nope', expr: 'x' }, { ...opts, input: { text: 'v' } }))[0]!;
+    equal([lang.shape, lang.kind, lang.why, lang.sample], ['given', 'unchecked', 'language "nope" is not in the registry', { source: 'given', value: { text: 'v' } }], 'no engine to run it: unchecked, the value reported, no result');
+    // The built-in `Transform` type names no worker (ADR 0075): the transform runs and nothing holds its result.
+    const tf = flowOf([{ id: 'x', kind: 'task', type: 'Transform', edges: [{ to: 'done' }] }, END], 'x');
+    const onTf = (await tryTransform(reg, tf, 'x', { lang: 'jsonata', expr: '{ "text": k }' }, { ...opts, input: { k: 'kk' } }))[0]!;
+    equal([onTf.shape, onTf.kind, onTf.sample?.result], ['given', 'unchecked', { text: 'kk' }], 'the transform ran, on the ENTRY of this flow, and its result is reported');
+    ok(onTf.why.includes('only TRANSFORMS') && onTf.why.endsWith('nothing holds its result'), onTf.why);
+    const missing = flowOf([{ id: 'x', kind: 'task', type: 'Nope', edges: [{ to: 'done' }] }, END], 'x');
+    const onMissing = (await tryTransform(reg, missing, 'x', { lang: 'jsonata', expr: '$' }, { ...opts, input: 1 }))[0]!;
+    equal([onMissing.kind, onMissing.sample?.result], ['unchecked', 1], 'a type the registry lacks: unchecked, the transform still run');
+    ok(onMissing.why.startsWith('type "Nope" of "x" is not in the registry'), onMissing.why);
+    // NO transform: `null` takes the candidate away — on a node that declares none, and on one that declares one.
+    const declares = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }] }, { id: 'b', kind: 'task', type: 'T', transform: { lang: 'jsonata', expr: '{ "text": text }' }, edges: [{ to: 'done' }] }, END]);
+    for (const [name, f] of [['declares none', fact4], ['declares one', declares]] as const) {
+      const v = (await tryTransform(reg, f, 'b', null, { ...opts, input: { text: 'v' } }))[0]!;
+      equal([v.shape, v.kind, v.sample], ['given', 'unchecked', { source: 'given', value: { text: 'v' } }], `${name}: nothing to run the value through — unchecked, the value reported, no result`);
+      ok(v.why.startsWith('"b" has no transform to run the given input through'), `${name}: ${v.why}`);
+    }
+  });
+
+  test('`input: undefined` is NO input; `null`, `0`, `""` and `false` ARE values, each given', async () => {
+    const cand = { lang: 'jsonata', expr: '{ "text": "k" }' };
+    equal(await tryTransform(reg, fact4, 'a', cand, { ...opts, input: undefined }), [], 'undefined on the entry: the arcs answer, and there are none');
+    equal((await tryTransform(reg, fact4, 'b', cand, { ...opts, input: undefined })).map((v) => [v.shape, v.sample?.source]), [['edge', 'example']], 'undefined on the inner node: the arc, on its example');
+    for (const value of [null, 0, '', false]) {
+      const vs = await tryTransform(reg, fact4, 'a', cand, { ...opts, input: value });
+      equal(vs.map((v) => [v.shape, v.kind, v.sample?.source, v.sample?.result]), [['given', 'transform-passes', 'given', { text: 'k' }]], `${JSON.stringify(value)} is given`);
+      ok(Object.is(vs[0]!.sample!.value, value), `and the sample's value IS ${JSON.stringify(value)}`);
+    }
+  });
+
+  test('a given value is NEVER reported `example` or `witness` — every road, on both nodes, a producer with an example and one without', async () => {
+    const witnessReg = regOf(OUT_NO_EXAMPLE);
+    // The control: without an input the inner node's arc is on the WITNESS where no example is declared, and on the example where one is.
+    equal((await tryTransform(witnessReg, fact4, 'b', { lang: 'jsonata', expr: '{ "text": text }' }, opts))[0]!.sample?.source, 'witness', 'the control: the witness road');
+    equal((await tryTransform(reg, fact4, 'b', { lang: 'jsonata', expr: '{ "text": text }' }, opts))[0]!.sample?.source, 'example', 'the control: the example road');
+    const candidates = [{ lang: 'jsonata', expr: '{ "text": text }' }, { lang: 'jsonata', expr: '{ "text": n }' }, { lang: 'jsonata', expr: '{{{' }, { lang: 'nope', expr: 'x' }, null];
+    const seen: string[] = [];
+    for (const r of [reg, witnessReg]) for (const node of ['a', 'b']) for (const c of candidates) {
+      const vs = await tryTransform(r, fact4, node, c, { ...opts, input: { text: 'g', n: 3 } });
+      equal(vs.length, 1, `${node} ${c?.expr ?? 'null'}: one verdict`);
+      for (const v of vs) { seen.push(v.kind); equal([v.shape, v.sample?.source, v.producer], ['given', 'given', undefined], `${node} ${c?.expr ?? 'null'}: given, never example or witness`); }
+    }
+    equal([...new Set(seen)].sort(), ['transform-fails', 'transform-passes', 'unchecked'], 'and the loop reached every kind a given verdict can be, so the clause is not vacuous on one kind');
+  });
+
+  test('the given road is the substitution: the CANDIDATE is run, not the node`s declared transform — and `givenVerdict` alone runs the declared one', async () => {
+    const declares = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'b' }] }, { id: 'b', kind: 'task', type: 'T', transform: { lang: 'jsonata', expr: '{ "text": "declared" }' }, edges: [{ to: 'done' }] }, END]);
+    const before = JSON.stringify(declares);
+    const viaCandidate = (await tryTransform(reg, declares, 'b', { lang: 'jsonata', expr: '{ "text": "candidate" }' }, { ...opts, input: {} }))[0]!;
+    equal(viaCandidate.sample?.result, { text: 'candidate' }, 'the candidate went on the copy');
+    equal(JSON.stringify(declares), before, 'and the caller`s document is untouched');
+    const direct = await givenVerdict(reg, declares, 'b', {}, opts);
+    equal(direct.map((v) => [v.shape, v.sample?.result]), [['given', { text: 'declared' }]], 'givenVerdict reads the node as it is');
+    equal(await givenVerdict(reg, declares, 'done', {}, opts), [], 'an `end` is no task: []');
+    equal(await tryTransform(reg, declares, 'nowhere', null, { ...opts, input: {} }), [], 'a node id that names nothing: [], given or not');
+  });
+
+  test('describeVerdict reads a `given` verdict — the caller`s road and the given input named, no `undefined` producer', async () => {
+    const v = (await tryTransform(reg, fact4, 'b', { lang: 'jsonata', expr: '{ "text": text }' }, { ...opts, input: { text: 'g' } }))[0]!;
+    const line = describeVerdict(v);
+    ok(line.includes('(given) -> b') && line.includes('[on the given input]'), line);
+    ok(!line.includes('undefined'), `no absent producer printed: ${line}`);
+  });
+
+  test('the readers` items — `givenVerdict` holds `undefined` to NO input, as `tryTransform` does: the arcs answer (conformity F1)', async () => {
+    equal(await givenVerdict(reg, fact4, 'a', undefined, opts), [], 'the entry, with undefined: no arc, no verdict');
+    const onB = await givenVerdict(reg, fact4, 'b', undefined, opts);
+    equal(onB.map((v) => [v.shape, v.producer, v.kind]), [['edge', 'a', 'no']], 'the inner node with undefined: its ARC, from `a` — OUT carries `n`, which IN (closed) forbids');
+    equal(onB, (await checkWiring(reg, fact4, opts)).verdicts.filter((v) => v.consumer === 'b'), 'exactly checkWiring`s verdicts on that node');
+    equal((await givenVerdict(reg, fact4, 'a', null, opts)).map((v) => [v.shape, v.sample?.value]), [['given', null]], 'and null IS an input');
+  });
+
+  test('the readers` items — a node that is no task: the map and the join nodes themselves get `[]`, given or not (adequacy A19)', async () => {
+    const mapFlow = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'each' }] }, { id: 'each', kind: 'map', over: 'items', branch: 't' }, { id: 't', kind: 'task', type: 'T', edges: [{ to: 'j' }] }, { id: 'j', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, END]);
+    for (const id of ['each', 'j', 'done']) {
+      equal(await givenVerdict(reg, mapFlow, id, { text: 'x' }, opts), [], `givenVerdict on "${id}": no task, no verdict`);
+      equal(await tryTransform(reg, mapFlow, id, { lang: 'jsonata', expr: '$' }, { ...opts, input: { text: 'x' } }), [], `tryTransform on "${id}": the same`);
+    }
+    equal((await tryTransform(reg, mapFlow, 't', { lang: 'jsonata', expr: '$' }, { ...opts, input: { text: 'x' } })).map((v) => v.shape), ['given'], 'the control: the map`s BRANCH task, a task, gets its one verdict');
+  });
+
+  test('the readers` items — the type`s and the node`s SETTINGS reach a given evaluation as they reach an arc`s (adequacy A1)', async () => {
+    const settled = { ...reg, nodeTypes: { T: { worker: 'w', settings: { k: 'from the type' } } } } as typeof reg;
+    const cand = { lang: 'jsonata', expr: '{ "text": $settings.k }' };
+    const typeOnly = (await tryTransform(settled, fact4, 'a', cand, { ...opts, input: {} }))[0]!;
+    equal([typeOnly.kind, typeOnly.sample?.result], ['transform-passes', { text: 'from the type' }], 'the TYPE`s default reaches `$settings`');
+    const overridden = flowOf([{ id: 'a', kind: 'task', type: 'T', settings: { k: 'from the node' }, edges: [{ to: 'b' }] }, { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'done' }] }, END]);
+    equal((await tryTransform(settled, overridden, 'a', cand, { ...opts, input: {} }))[0]!.sample?.result, { text: 'from the node' }, 'and a NODE`s setting overrides it (FD-C5`s merge)');
+  });
+
+  test('the readers` items — an item arc at ARITY ONE: the result is still one per element, an array of one (adequacy A2)', async () => {
+    const OUT_ONE: JsonSchema = { type: 'object', required: ['items'], properties: { items: { type: 'array', items: IN } }, additionalProperties: false, examples: [{ items: [{ text: 'only' }] }] };
+    const oneReg = { ...reg, workers: { w: { url: 'corpus://w', inputSchema: IN, outputSchema: OUT_ONE } } } as typeof reg;
+    const mapFlow = flowOf([{ id: 'a', kind: 'task', type: 'T', edges: [{ to: 'each' }] }, { id: 'each', kind: 'map', over: 'items', branch: 't' }, { id: 't', kind: 'task', type: 'T', edges: [{ to: 'j' }] }, { id: 'j', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, END]);
+    const v = (await tryTransform(oneReg, mapFlow, 't', { lang: 'jsonata', expr: '$' }, opts))[0]!;
+    equal([v.shape, v.kind, v.sample?.arity, v.sample?.result], ['item', 'transform-passes', 1, [{ text: 'only' }]], 'arity 1, and the result an ARRAY of one — perItem, not the count, decides the shape');
+    ok(v.why.includes('at arity 1, 1 evaluation'), v.why);
+  });
+
+  test('the readers` items — a worker the registry lacks, a worker with no inputSchema, and NO transform where the type is missing or only transforms (adequacy A4, conformity F2)', async () => {
+    const holes = { ...reg, workers: { w: { url: 'corpus://w', inputSchema: IN, outputSchema: OUT }, bare: { url: 'corpus://bare', outputSchema: OUT } }, nodeTypes: { T: { worker: 'w' }, U: { worker: 'missing' }, V: { worker: 'bare' } } } as unknown as typeof reg;
+    const one = (type: string) => flowOf([{ id: 'x', kind: 'task', type, edges: [{ to: 'done' }] }, END], 'x');
+    const cand = { lang: 'jsonata', expr: '{ "text": t }' };
+    const lacks = (await tryTransform(holes, one('U'), 'x', cand, { ...opts, input: { t: 'u' } }))[0]!;
+    equal([lacks.shape, lacks.kind, lacks.sample?.result], ['given', 'unchecked', { text: 'u' }], 'a worker the registry lacks: unchecked, the transform still run');
+    ok(lacks.why.startsWith('worker "missing" of type "U" is not in the registry') && lacks.why.endsWith('nothing holds its result'), lacks.why);
+    const noSchema = (await tryTransform(holes, one('V'), 'x', cand, { ...opts, input: { t: 'v' } }))[0]!;
+    equal([noSchema.kind, noSchema.sample?.result], ['unchecked', { text: 'v' }], 'a worker with no inputSchema: unchecked, the result reported');
+    ok(noSchema.why.startsWith('"x" (type "V", worker "bare") declares no inputSchema'), noSchema.why);
+    // NO transform, and no worker to speak of: the reason claims nothing about a worker, and names the missing side.
+    for (const [type, names] of [['Transform', 'only TRANSFORMS'], ['Nope', 'type "Nope" of "x" is not in the registry']] as const) {
+      const v = (await tryTransform(holes, one(type), 'x', null, { ...opts, input: { t: 1 } }))[0]!;
+      equal([v.shape, v.kind, v.sample], ['given', 'unchecked', { source: 'given', value: { t: 1 } }], `${type}: no transform, unchecked, no result`);
+      ok(v.why.startsWith('"x" has no transform to run the given input through') && v.why.includes(names), `${type}: ${v.why}`);
+      ok(!v.why.includes('worker receives'), `${type}: and says nothing a node with no worker contradicts — ${v.why}`);
+    }
+  });
+
+  test('the readers` items — `sampleOf` supplies only a SCHEMA`s two sources, held by typecheck (adequacy A3)', () => {
+    // Widen `sampleOf`'s return to all three `SampleSource`s and this directive is unused: `typecheck` goes red.
+    // @ts-expect-error — `'given'` is never a schema's sample source.
+    const s: NonNullable<ReturnType<typeof sampleOf>>['source'] = 'given';
+    equal(s, 'given', 'the line runs; it is the TYPE above that is the assertion');
+    equal(sampleOf(OUT)?.source, 'example', 'and the value side: a declared example');
+    equal(sampleOf(OUT_NO_EXAMPLE)?.source, 'witness', 'or the witness');
   });
 });
