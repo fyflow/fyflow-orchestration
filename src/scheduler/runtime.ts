@@ -283,8 +283,8 @@ export type RuntimeRegistry = Pick<DriverOptions, 'predicates' | 'workers' | 'no
  *
  * **`done` RESOLVES and never rejects, and that reversed the plan's own lean on a measurement.**
  * Its settlement rule is terminality and nothing else, so a run the driver REFUSES resolves with
- * `outcome: 'stopped'` and `stoppedBy` carrying the reason rather than throwing it away — `failRun`
- * appends the `stopped` element BEFORE it calls `onRunFailure`, so a refusal is already terminal
+ * `outcome: 'halted'` and `haltedBy` carrying the reason rather than throwing it away — `failRun`
+ * appends the `halted` element BEFORE it calls `onRunFailure`, so a refusal is already terminal
  * when a consumer hears of it. The road not taken rejects there, and on the one class of refusal
  * that is reported AND rethrown (`start()` has the caller on the stack) it rejects a promise the
  * caller is never handed: measured in a child process with no listener, **exit 1, the process
@@ -301,8 +301,8 @@ export interface RunHandle {
   /** The run's `Driver`, already started — exactly what `start` returned before ADR 0058. */
   readonly driver: Driver;
   /**
-   * **The run's end.** Resolves with the terminal `RunState` — `completed`, `failed`, `stuck` or
-   * `stopped` — and never rejects. Pending while the outcome is `running` or `awaiting_action`.
+   * **The run's end.** Resolves with the terminal `RunState` — `completed`, `failed`, `stuck`, `cancelled` or
+   * `halted` (0.7.0's `stopped`, ADR 0102) — and never rejects. Pending while the outcome is `running` or `awaiting_action`.
    *
    * It is the SAME expression a consumer would have written, moved: the runtime keeps ONE
    * `RunState` and `step`s it per fold input, which is what `fold` is
@@ -362,7 +362,7 @@ export interface Runtime {
   /**
    * **Resume the run a checkpoint stored**, on THIS runtime's scheduler, and return the same {@link RunHandle} `start` does —
    * `RN-R19` to `RN-R25`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md).
-   * The header is refused first and before any driver exists (`resumeRefusal` — format, flow id, version, a stopped run),
+   * The header is refused first and before any driver exists (`resumeRefusal` — format, flow id, version, a halted run, a cancelled run),
    * then a run id in use (`RunIdInUse`); then a driver is built for `header.runId` exactly as `start` builds one and
    * `Driver.resume` replays the stored events, re-dispatches what was in flight AT-LEAST-ONCE, and appends `resumed`.
    *
@@ -612,7 +612,7 @@ export function createRuntime(
    * stop-and-ask (b), answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's —
    * and since [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
    * it is the ONLY thing the runtime keeps of a finished run.** The router drops the driver when `done` settles (rule 1) and
-   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `stopped` run by construction —
+   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `halted` or `cancelled` run by construction —
    * whose settlements carry its id: a second run under it would be handed them, refused by `ID-R4` tier 2, or accepted as
    * its own where it minted the same task id. *(This said the id was held because a completed run's driver still HEARD every
    * settlement under it, and its checkpoint changed after it completed — true until ADR 0091, which released that driver.)*
@@ -684,8 +684,8 @@ export function createRuntime(
     }
 
     // **The run's END, kept by the RUNTIME** — ADR 0058, W77, Q293. `done` resolves with the
-    // terminal `RunState` and never rejects; `stopped` is a terminal outcome like any other, so a
-    // driver refusal arrives here carrying `stoppedBy` rather than as a thrown `Error`.
+    // terminal `RunState` and never rejects; `halted` is a terminal outcome like any other, so a
+    // driver refusal arrives here carrying `haltedBy` rather than as a thrown `Error`.
     //
     // **What is kept is ONE `RunState`, not the inputs.** `fold` IS this loop —
     // `for (const i of inputs) s = step(s, i)` — and `RN-R2` is the rule that a stepped prefix

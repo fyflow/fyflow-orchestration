@@ -848,7 +848,7 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
       'and `rank` mapped over the resolved array — JP-R11, each instance its own item');
 
     // THE ROAD SKIPPED — the predicate is false, the region never opens, and the
-    // array is `[]` rather than an absent key or a stopped run.
+    // array is `[]` rather than an absent key or a halted run.
     const skipped = harness(def, new Map([['isLowConfidence', () => false]]));
     skipped.driver.start({ items: ['a', 'b'] });
     skipped.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
@@ -930,8 +930,8 @@ suite('L2 — FD-R3: a reference the run did not produce', (test) => {
       'in test/driver/decision-context.test.ts');
 
     // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
-    equal([msg.startsWith('node "publish" at branch path "-"'), String(fold(h.driver.foldInputs()).stoppedBy), `${failures[0]!.kind}: ${failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UnresolvedReference').length),
-      [true, 2, 2], 'the message opens with the node, and stoppedBy and kind: message each name the class EXACTLY once');
+    equal([msg.startsWith('node "publish" at branch path "-"'), String(fold(h.driver.foldInputs()).haltedBy), `${failures[0]!.kind}: ${failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UnresolvedReference').length),
+      [true, 2, 2], 'the message opens with the node, and haltedBy and kind: message each name the class EXACTLY once');
     equal(failures[0]!.kind, 'UnresolvedReference',
       'FD-R3 is the backstop — a policy this repository does not ship falsifies FD-V29`s credit, ' +
       'and the run stops rather than handing a worker something it did not ask for');

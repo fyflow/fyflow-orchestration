@@ -416,8 +416,8 @@ const SUITES = [
   'L5 — the join/failure matrix, cell by cell',
   'L5 — what the matrix says as a whole',
   'OR-R1 — nothing reachable from e.detail is retained',
-  'OR-R10 — a stopped run dispatches nothing further on the SCHEDULER edge',
-  'OR-R10 — a stopped run stops on the INBOUND edge too',
+  'OR-R10 — a halted run dispatches nothing further on the SCHEDULER edge',
+  'OR-R10 — a halted run stops on the INBOUND edge too',
   'OR-R2 and OR-R6 — result is deep-copied, and an uncloneable one fails the run',
   'OR-R3 — one record per settlement, keyed on terminal state not event name',
 ];
@@ -446,7 +446,7 @@ const LATE_SUITES = [
   'L3 — a cancelled run is deterministic: driven twice, folded twice',
   'RN-R23 — a resume of a CANCELLED run is refused as `cancelled`, naming the cancel`s position',
   'L1 — a cancelled settlement folds to a cancelled NODE, verbatim (spec/run-state.md section 4)',
-  'L1 — RN-R28: `cancelled` ranks below `stopped` and above every other outcome',
+  'L1 — RN-R28: `cancelled` ranks below `halted` and above every other outcome',
   'L3 — a cancelled run`s sequence folds the same way twice, and prefix by prefix (RN-R1, RN-R2)',
   'L5 — a cancelled branch under every policy: the join waits, the run is `cancelled`, nothing is `stuck`',
   // W141 — Q266 at L1 (the class, and real inline and threaded pools) in `test/scheduler/transform.test.ts`,
@@ -562,7 +562,7 @@ const LATE_SUITES = [
   'W76 — the forwarded stream IS the driver`s region stream, at every variant, kind and depth',
   // W77 — what `start` RETURNS: a completion handle the runtime keeps (ADR 0058).
   'W77 — `done` IS the caller`s own fold, and it settles exactly when that becomes terminal',
-  'W77 — a driver refusal RESOLVES `done` with `stopped`, and never rejects',
+  'W77 — a driver refusal RESOLVES `done` with `halted`, and never rejects',
   'W77 — a consumer`s own onFoldInput still receives every element, and `done` is not downstream of it',
   'W77 — `done` on a real scheduler, and `done` belongs to a RUN',
   // W62 — the JSONata adapter, in `test/jsonata/jsonata.test.ts` and `test/jsonata/function-table.test.ts`.
@@ -600,7 +600,7 @@ const LATE_SUITES = [
   'RN-R6 — regions record what happened, not what a policy concluded',
   'RN-R7 — awaiting_action outranks running, now that both are reachable',
   'RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence',
-  'RN-R8 — stopped outranks everything, INCLUDING records that follow it',
+  'RN-R8 — halted outranks everything, INCLUDING records that follow it',
   'RN-R9 — a resolved node is indistinguishable from one that settled that way',
   'RS-R1 — a resolution is refused unless the LAST record is user_action',
   'TERMINAL_EVENTS is the one list, and it is right',
@@ -688,7 +688,7 @@ const LATE_SUITES = [
   'W101 — the authoring session`s own verdicts, from the declarations the session imports',
   // W133 — `RN-R6` v0.13's lifetime sentence (Q62) and Q63's message, both in `test/driver/driver.test.ts`.
   'RN-R6 v0.13 — regions[*].suspended is CURRENT, not cumulative',
-  'OR-R6 and OR-R10 — stoppedBy and the reported failure name UncloneableResult exactly once',
+  'OR-R6 and OR-R10 — haltedBy and the reported failure name UncloneableResult exactly once',
 ];
 
 suite('L1 — every suite this tree declares actually RAN', (test) => {
@@ -737,7 +737,7 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // own `DECLARED_CASES` check with it, and this count does not go with it.
   test('W89`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('W89 — what RESUMING is: RN-R19 to RN-R24'), 20, 'test/driver/resume.test.ts registers its twenty cases (W151 added the tail-stop DEAF case)');
+    equal(count('W89 — what RESUMING is: RN-R19 to RN-R24'), 21, 'test/driver/resume.test.ts registers its twenty-one cases (W151 added the tail-halt DEAF case, W171 the 0.7.0 checkpoint)');
     equal(count('W89 — resuming through the runtime: runtime.resume, the positions, and run ids in use'), 7, 'test/scheduler/resume.test.ts registers its seven');
   });
 

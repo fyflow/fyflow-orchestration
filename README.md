@@ -88,7 +88,7 @@ const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
 // `start` hands back `{ driver, done }` — the driver already running, and `done` a promise that
 // resolves with the run's terminal `RunState` (ADR 0058). **It never rejects**: `failed`, `stuck`
-// and `stopped` are terminal OUTCOMES, so a run that goes wrong arrives as `state.outcome` and not
+// and `halted` are terminal OUTCOMES, so a run that goes wrong arrives as `state.outcome` and not
 // as a `catch`. This snippet wants only the end, so it names only `done`. *A run with a person in
 // it does not end by itself — section 7 is where that is taught, and section 8 is what `done` waits
 // for.*

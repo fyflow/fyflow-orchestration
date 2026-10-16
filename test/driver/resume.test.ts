@@ -211,15 +211,16 @@ const DECLARED_CASES = [
   'RN-R19 — the replay hands the entry node its OWN copy of the entry payload, never the header`s',
   'RN-R24 — a dead join the replay regenerates is reported only past the stored length',
   'RN-R23 — the header refusals, each by name, before anything is replayed or dispatched',
-  'RN-R23 — a run STOPPED in the lost tail is refused, after that tail is delivered',
-  'RN-R23 — a run STOPPED in the lost tail, once refused, is DEAF: nothing appended, delivered or reported after',
+  'RN-R23 — a run HALTED in the lost tail is refused, after that tail is delivered',
+  'RN-R23 — a run HALTED in the lost tail, once refused, is DEAF: nothing appended, delivered or reported after',
   'RN-R22 — `resumed` is appended after the replay and BEFORE the first re-dispatch, and the fold records it',
   'RN-R22 — a resumed run resumes again: a stored `resumed` is fed and CHECKED',
   'RN-R24 — the consumer is handed the DRIVER`s positions from the stored length on, and every callback only past it',
   'ID-R3 — start() and resume() are one run`s two doors: each refuses the other and itself',
   'RN-R19 — a fed element is appended AS STORED — its clock, its attempts — and as the driver`s own copy',
   'RN-R20 — the data comparison reads nested region events and every key, and ignores key order and undefined keys',
-  'RN-R23 — the `stopped` position is the stop`s own, wherever it sits',
+  'RN-R23 — the `halted` position is the halt`s own, wherever it sits',
+  'RN-R23 / ADR 0102 — a 0.7.0 checkpoint: a stored `stopped` is refused `halted` at ITS position, and one of a live run still resumes',
   'RN-R23 — a resume refused DURING its replay leaves the driver spent and deaf, with nothing handed to a scheduler',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
@@ -447,16 +448,16 @@ suite(SUITE, (test) => {
     }
     ok(resumeRefusal(MAIN, Q, 'R') === null && resumeRefusal(MAIN, Q) === null, 'the CONTROL: the untouched checkpoint passes the pre-check, with and without a run id');
 
-    // A STORED `stopped` — the OR-R6 case: a result the clone refused never reached the log.
+    // A STORED `halted` — the OR-R6 case: a result the clone refused never reached the log.
     const s1 = new FakeScheduler();
     const o = plainDriver(INGEST_THEN_MAP, 'st', s1);
     o.start({});
     s1.settle('st:ingest:-:0', 'done', { result: { f: () => 1 } });
-    const stopped = o.checkpoint();
-    const k = stopped.events.findIndex((e) => e.kind === 'stopped');
-    ok(k > 0, 'the ARRANGEMENT: the stored run was stopped, and its `stopped` element is not at 0');
-    const r = refusal(() => plainDriver(INGEST_THEN_MAP, 'st', new FakeScheduler()).resume(stopped));
-    equal([r.reason, r.index], ['stopped', k], 'refused as `stopped`, naming the stored element`s position (P23 decision 10)');
+    const halted = o.checkpoint();
+    const k = halted.events.findIndex((e) => e.kind === 'halted');
+    ok(k > 0, 'the ARRANGEMENT: the stored run was halted, and its `halted` element is not at 0');
+    const r = refusal(() => plainDriver(INGEST_THEN_MAP, 'st', new FakeScheduler()).resume(halted));
+    equal([r.reason, r.index], ['halted', k], 'refused as `halted`, naming the stored element`s position (P23 decision 10)');
 
     // An entry payload the clone refuses: `DataCloneError`, and the driver UNSTARTED, as `start()`.
     const bad = { ...Q, header: { ...Q.header, entryPayload: { f: () => 1 } } } as unknown as Checkpoint;
@@ -468,7 +469,7 @@ suite(SUITE, (test) => {
     equal(resumedOf(d).length, 1, 'and the driver was left unstarted, so a good checkpoint then resumes it');
   });
 
-  test('RN-R23 — a run STOPPED in the lost tail is refused, after that tail is delivered', () => {
+  test('RN-R23 — a run HALTED in the lost tail is refused, after that tail is delivered', () => {
     const s0 = new FakeScheduler();
     const inside: Checkpoint[] = [];
     const ref = {} as { d: Driver };
@@ -477,8 +478,8 @@ suite(SUITE, (test) => {
     // `ingest` returns no array where `split` maps over one: routing its settlement STOPS the run.
     s0.settle('tl:ingest:-:0', 'done', { result: { nothing: true } });
     const cut = inside[ref.d.foldInputs().findIndex((e) => e.kind === 'outcome')]!;
-    ok(!cut.events.some((e) => e.kind === 'stopped') && ref.d.foldInputs().some((e) => e.kind === 'stopped'),
-      'the ARRANGEMENT: the run stopped, and the store was cut before its `stopped` element');
+    ok(!cut.events.some((e) => e.kind === 'halted') && ref.d.foldInputs().some((e) => e.kind === 'halted'),
+      'the ARRANGEMENT: the run halted, and the store was cut before its `halted` element');
     const delivered: { seq: number; kind: string }[] = [];
     const failures: string[] = [];
     const s = new FakeScheduler();
@@ -487,18 +488,19 @@ suite(SUITE, (test) => {
       onRunFailure: (f: { kind: string }) => { failures.push(f.kind); },
     });
     const r = refusal(() => d.resume(cut));
-    equal([r.reason, r.index], ['stopped', cut.events.length], 'refused as `stopped`, at the position PAST the stored events where the replay regenerated it');
-    equal(delivered, [{ seq: cut.events.length, kind: 'stopped' }], 'the store is handed the stop it had lost, at its position');
+    equal([r.reason, r.index], ['halted', cut.events.length], 'refused as `halted`, at the position PAST the stored events where the replay regenerated it');
+    ok(r.message.startsWith('ResumeRefused (halted)'), `and its message opens with the reason it is refused for: ${r.message}`);
+    equal(delivered, [{ seq: cut.events.length, kind: 'halted' }], 'the store is handed the halt it had lost, at its position');
     equal(failures, ['UnresolvedMapArity'], 'and onRunFailure hears it once — it is past the stored events');
     equal(s.added.length, 0, 'nothing was re-dispatched');
-    equal(d.checkpoint().events.at(-1)?.kind, 'stopped', 'the driver holds the STOPPED run, whose checkpoint a store may take');
+    equal(d.checkpoint().events.at(-1)?.kind, 'halted', 'the driver holds the HALTED run, whose checkpoint a store may take');
   });
 
   // **W151 — the maintainer's YES, 2026-10-09 (W151's conformity reader, finding 6).** The case above shows the tail-stop
-  // refusal keeps the STOPPED run; RN-R23 says the same refused driver *hears nothing from its scheduler: no settlement
+  // refusal keeps the HALTED run; RN-R23 says the same refused driver *hears nothing from its scheduler: no settlement
   // is appended, routed, delivered or reported, and resolve() is refused*. It kept its header, so the `started` with no
   // header test in `onEvent` did not cover it, and a driver built by hand went on hearing.
-  test('RN-R23 — a run STOPPED in the lost tail, once refused, is DEAF: nothing appended, delivered or reported after', () => {
+  test('RN-R23 — a run HALTED in the lost tail, once refused, is DEAF: nothing appended, delivered or reported after', () => {
     const s0 = new FakeScheduler();
     const inside: Checkpoint[] = [];
     const ref = {} as { d: Driver };
@@ -515,7 +517,7 @@ suite(SUITE, (test) => {
       onRunFailure: (f: { kind: string }) => { failures.push(f.kind); },
       onUnmintedTask: (u: { taskId: unknown }) => { unminted.push(u.taskId); },
     });
-    equal(refusal(() => d.resume(cut)).reason, 'stopped', 'the ARRANGEMENT: refused as `stopped`, its lost tail regenerated a stop');
+    equal(refusal(() => d.resume(cut)).reason, 'halted', 'the ARRANGEMENT: refused as `halted`, its lost tail regenerated a halt');
     const held = d.checkpoint();
     const after = { delivered: delivered.length, failures: failures.length };
     // Under its run id: the task the replay settled, again; a task it never dispatched; and an id nobody minted.
@@ -523,7 +525,7 @@ suite(SUITE, (test) => {
     s.settle('tl:zz:-:0', 'done', { result: {} });
     s.settle('tl:ingest:-:0', 'failed', { error: 'boom' });
     s.settle('nightly-cleanup', 'done', { result: {} });
-    equal(d.checkpoint(), held, 'nothing was appended: the stopped run`s checkpoint is the one it was refused with');
+    equal(d.checkpoint(), held, 'nothing was appended: the halted run`s checkpoint is the one it was refused with');
     equal([delivered.length, failures.length, unminted], [after.delivered, after.failures, []],
       'nothing was delivered, nothing reached onRunFailure, and the unminted id was not reported — the driver hears nothing');
     equal(s.added.length, 0, 'and nothing was handed to a scheduler');
@@ -649,9 +651,9 @@ suite(SUITE, (test) => {
       'and so does one carrying an undefined-valued key, which a store may drop or keep');
   });
 
-  test('RN-R23 — the `stopped` position is the stop`s own, wherever it sits', () => {
+  test('RN-R23 — the `halted` position is the halt`s own, wherever it sits', () => {
     // W89's adequacy reader, a18-a19 (v0.23): the tail fixture's lost tail WAS the stop, so `index = stored length` passed;
-    // and every stored `stopped` was the LAST element, so `index = last` passed. Here neither coincides.
+    // and every stored `halted` was the LAST element, so `index = last` passed. Here neither coincides.
     const FJM = {
       flowId: 'resume-stop-late', version: 1, entry: 'ingest',
       nodes: [
@@ -677,12 +679,12 @@ suite(SUITE, (test) => {
     s0.settle('sl:x:0:0', 'done', { result: {} });
     s0.settle('sl:y:1:0', 'done', { result: {} });
     const all = ref.d.foldInputs();
-    const stopAt = all.findIndex((e) => e.kind === 'stopped');
+    const stopAt = all.findIndex((e) => e.kind === 'halted');
     const cut = inside[at(all, isOutcomeOf('sl:y:1:0'))]!;
-    ok(stopAt > cut.events.length, `the ARRANGEMENT: the stop is at ${stopAt}, ${stopAt - cut.events.length} past the store's length ${cut.events.length}`);
+    ok(stopAt > cut.events.length, `the ARRANGEMENT: the halt is at ${stopAt}, ${stopAt - cut.events.length} past the store's length ${cut.events.length}`);
     const tail = refusal(() => plainDriver(FJM, 'sl', new FakeScheduler()).resume(cut));
-    equal([tail.reason, tail.index], ['stopped', stopAt], 'refused at the STOP`s position, not at the stored length');
-    // (2) A stored `stopped` that is NOT the last element: a settlement heard after the stop is appended after it.
+    equal([tail.reason, tail.index], ['halted', stopAt], 'refused at the HALT`s position, not at the stored length');
+    // (2) A stored `halted` that is NOT the last element: a settlement heard after the halt is appended after it.
     const s1 = new FakeScheduler();
     const late = plainDriver(FJM, 'sm', s1);
     late.start({});
@@ -690,10 +692,73 @@ suite(SUITE, (test) => {
     s1.settle('sm:x:0:0', 'done', { result: { f: () => 1 } }); // OR-R6: the run stops here, with y in flight
     s1.settle('sm:y:1:0', 'done', { result: {} });
     const stored = late.checkpoint();
-    const k = stored.events.findIndex((e) => e.kind === 'stopped');
-    ok(k >= 0 && k < stored.events.length - 1, `the ARRANGEMENT: the stored stop is at ${k}, before the last element ${stored.events.length - 1}`);
+    const k = stored.events.findIndex((e) => e.kind === 'halted');
+    ok(k >= 0 && k < stored.events.length - 1, `the ARRANGEMENT: the stored halt is at ${k}, before the last element ${stored.events.length - 1}`);
     const r = refusal(() => plainDriver(FJM, 'sm', new FakeScheduler()).resume(stored));
-    equal([r.reason, r.index], ['stopped', k], 'refused at the stored stop`s own position, not the last');
+    equal([r.reason, r.index], ['halted', k], 'refused at the stored halt`s own position, not the last');
+  });
+
+  // **W171 — `RN-R23` v0.16's DUAL READ** (ADR 0102 rule 3, P34 stop-and-ask (f)). A 0.7.0 store holds the halt under
+  // its old kind; `CHECKPOINT_FORMAT` did not move, so such a checkpoint must be refused for the RIGHT reason — `halted`,
+  // at that element's position — where renamed with no read it passed `resumeRefusal` and the replay refused it
+  // `diverged` (P34 fact 7 (i)-(ii)). Each 0.7.0 checkpoint below is a checkpoint this file's run took, with ONE element's
+  // `kind` re-written to what 0.7.0 wrote there and nothing else — the bytes a 0.7.0 store holds of that run.
+  test('RN-R23 / ADR 0102 — a 0.7.0 checkpoint: a stored `stopped` is refused `halted` at ITS position, and one of a live run still resumes', () => {
+    const as070 = (cp: Checkpoint, at: number): Checkpoint => ({
+      header: cp.header,
+      events: cp.events.map((e, i) => (i === at ? { ...e, kind: 'stopped' } as unknown as FoldInput : e)),
+    });
+    const oldKinds = (cp: Checkpoint) => cp.events.filter((e) => (e.kind as string) === 'stopped').length;
+
+    // (1) `OR-R6`: ingest's result is refused by the clone, so NO record is written for it (`OR-R6`) and the run is
+    // `[dispatched ingest, halted]` — the halt at position 1, derived from the rule and not read off the run.
+    const s1 = new FakeScheduler();
+    const o = plainDriver(INGEST_THEN_MAP, 'lg', s1);
+    o.start({});
+    s1.settle('lg:ingest:-:0', 'done', { result: { f: () => 1 } });
+    const halted = o.checkpoint();
+    equal(halted.events.map((e) => e.kind), ['dispatched', 'halted'], 'the ARRANGEMENT: the entry dispatched, then the halt at 1');
+    equal(oldKinds(halted), 0, 'and NOTHING this version writes is of the old kind — read, never written (ADR 0102 rule 3)');
+    const old = as070(halted, 1);
+    equal(oldKinds(old), 1, 'the ARRANGEMENT: the 0.7.0 checkpoint holds exactly one `stopped` element');
+    const sch = new FakeScheduler();
+    const d = plainDriver(INGEST_THEN_MAP, 'lg', sch);
+    const r = refusal(() => d.resume(old));
+    equal([r.reason, r.index], ['halted', 1], 'refused `halted` at the stored element`s position — not `diverged`, which is what a rename with no read gave');
+    ok(r.message.startsWith('ResumeRefused (halted)'), `the message opens with the reason, never the stored kind: ${r.message}`);
+    // The stored element's reason, hand-written from `OR-R6`'s message (`src/driver/listener.ts`) and `failRun`'s
+    // `<class>: <message>` (RN-R8), as the refusal quotes it (JSON).
+    ok(r.message.includes(JSON.stringify('UncloneableResult: the result of task "lg:ingest:-:0" is not structured-cloneable')),
+      `and it quotes the stored element's reason: ${r.message}`);
+    ok(r.message.includes('`stopped`') && r.message.includes('ADR 0102'), `and the message names the kind the store holds: ${r.message}`);
+    equal([resumeRefusal(INGEST_THEN_MAP, old, 'lg')?.reason, resumeRefusal(INGEST_THEN_MAP, old, 'lg')?.index, resumeRefusal(INGEST_THEN_MAP, old)?.index],
+      ['halted', 1, 1], 'and resumeRefusal() — the runtime`s pre-check — refuses it the same, with and without a run id');
+    equal([sch.added.length, d.foldInputs().length], [0, 0], 'nothing replayed, nothing dispatched');
+    throws(() => d.start({}), 'MultipleRuns', 'and the driver is SPENT, as after any refused resume');
+
+    // (2) The stored `stopped` is NOT the last element: on MAIN, `a1`'s result is refused while `b` and `c` are in flight,
+    // and `b`'s settlement is appended after the halt — routed nowhere (`OR-R10`).
+    const s2 = new FakeScheduler();
+    const m = mainDriver(s2);
+    m.start({ n: 1 });
+    drive(m, s2, SCRIPT.slice(0, 3));
+    s2.settle('R:a1:0:0', 'done', { result: { f: () => 1 } });
+    s2.settle('R:b:1:0', 'done', { result: { b: 1 } });
+    const late = m.checkpoint();
+    const k = late.events.findIndex((e) => e.kind === 'halted');
+    ok(k >= 0 && k === late.events.length - 2 && isOutcomeOf('R:b:1:0')(late.events.at(-1)!),
+      `the ARRANGEMENT: the halt at ${k}, and b's settlement after it, last`);
+    const r2 = refusal(() => mainDriver(new FakeScheduler()).resume(as070(late, k)));
+    equal([r2.reason, r2.index], ['halted', k], 'refused `halted` at the stored `stopped` element`s own position, not the last');
+
+    // (3) The CONTROL: a 0.7.0 checkpoint of a LIVE run holds no halt element, so its bytes are this version's — and it
+    // resumes: `REF.quiet`, with `b` and `a2` in flight (RN-R21's case above) and `c` parked.
+    equal(oldKinds(REF.quiet) + REF.quiet.events.filter((e) => e.kind === 'halted').length, 0, 'the ARRANGEMENT: no halt element of either kind');
+    equal(resumeRefusal(MAIN, REF.quiet, 'R'), null, 'the dual read refuses nothing a live run stored');
+    equal(REF.quiet.header.format, 1, 'the ARRANGEMENT: format 1 — what 0.7.0 wrote and what ADR 0102 rule 4 keeps');
+    const { d: live, s: ls } = resumeFrom(REF.quiet);
+    equal([resumedOf(live).map((e) => e.taskIds), ls.added.map((t) => t.id)], [[['R:b:1:0', 'R:a2:0:0']], ['R:b:1:0', 'R:a2:0:0']],
+      'it RESUMES, re-dispatching exactly the in-flight set');
   });
 
   test('RN-R23 — a resume refused DURING its replay leaves the driver spent and deaf, with nothing handed to a scheduler', () => {

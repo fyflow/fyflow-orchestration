@@ -172,8 +172,8 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
   },
   pathEnded: () => RUN_FOR.outcome(),
   joinSettled: () => RUN_FOR.region(),
-  stopped: async () => {
-    // `OR-R6`: a result `structuredClone` refuses stops the run and appends a `stopped` element.
+  halted: async () => {
+    // `OR-R6`: a result `structuredClone` refuses halts the run and appends a `halted` element.
     const { driver, scheduler } = corpusDriver(await load('valid/linear.flow.json'));
     driver.start({ seed: 4 });
     scheduler.settle('r1:ingest:-:0', 'done', { result: { f: () => 1 } });

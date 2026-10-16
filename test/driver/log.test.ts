@@ -107,7 +107,7 @@ suite('OR-R2 and OR-R6 — result is deep-copied, and an uncloneable one fails t
   });
 
   // **The message does not name its own class** — P30 decision 2 (Q63, W133). The CLASS is what names
-  // the refusal: `RunFailure.kind` is its constructor name and `stoppedBy` prefixes it, so a message
+  // the refusal: `RunFailure.kind` is its constructor name and `haltedBy` prefixes it, so a message
   // that opened with the name too read it twice in both. The expected text is the decision's, verbatim.
   test('Q63 — the refusal is the CLASS, and its message is exactly the decision`s text', () => {
     let caught: unknown;

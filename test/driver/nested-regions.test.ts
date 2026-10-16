@@ -675,7 +675,7 @@ suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at de
        'path prefix and what nothing asserted');
     equal(fold(h.driver.foldInputs()).outcome, 'completed',
       'and the run completes, so the two collections above are what a SATISFIED join carried and ' +
-      'not what a stopped run left behind');
+      'not what a halted run left behind');
   });
 
   /**

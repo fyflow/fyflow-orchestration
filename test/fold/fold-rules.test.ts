@@ -15,11 +15,45 @@
  * assert something else.
  */
 import { equal, ok, suite } from '../harness.ts';
-import { fold, foldLog, step, type FoldInput, type RunState } from '../../src/fold/run-state.ts';
+import { emptyState, fold, foldLog, step, type FoldInput, type RunOutcome, type RunState } from '../../src/fold/run-state.ts';
 import { arrivalCount, liveToken, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import type { LogRecord } from '../../src/driver/log.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { Region } from '../../src/driver/policy.ts';
+import type { ResumeRefusalReason, ResumeRefused } from '../../src/driver/driver.ts';
+
+/**
+ * **W171 — ladder L0, ADR 0102 rule 2: the OLD names are in no type**, so a consumer's comparison against them fails to
+ * COMPILE rather than silently coming to mean P34's resumable stop. Checked by `typecheck:tests` (`tsc -p tsconfig.json`),
+ * where an UNUSED `@ts-expect-error` is itself an error: put `'stopped'` back into `RunOutcome`, `ResumeRefusalReason` or
+ * `FoldInput`, or `stoppedBy` back onto `RunState`, and the directive above it goes unused and the lane goes red.
+ */
+// @ts-expect-error — `stopped` left `RunOutcome` (ADR 0102 rule 2): it is `halted`.
+const oldOutcome: RunOutcome = 'stopped';
+// @ts-expect-error — and `ResumeRefusalReason`: a halted run's checkpoint is refused `halted`.
+const oldReason: ResumeRefusalReason = 'stopped';
+// @ts-expect-error — and `FoldInput`: the old kind is READ from a stored sequence and WRITTEN by nothing (rule 3).
+const oldInput: FoldInput = { kind: 'stopped', reason: 'DuplicateTaskId' };
+const consumer = (s: RunState, r: ResumeRefused): unknown[] => [
+  // @ts-expect-error — a consumer's `outcome === 'stopped'` (fyflow-app's ADR-0014 keys on *"a stopped run"*) fails to compile.
+  s.outcome === 'stopped',
+  // @ts-expect-error — and so does its `reason === 'stopped'` on a refused resume.
+  r.reason === 'stopped',
+  // @ts-expect-error — and its read of `stoppedBy`, which is `haltedBy`.
+  s.stoppedBy,
+];
+// The CONTROL: the new names compile, so the directives above are about the old names and not a broken import.
+const newOutcome: RunOutcome = 'halted';
+const newReason: ResumeRefusalReason = 'halted';
+const newInput: FoldInput = { kind: 'halted', reason: 'DuplicateTaskId' };
+void [oldOutcome, oldReason, oldInput, consumer, newOutcome, newReason, newInput];
+
+/**
+ * **A 0.7.0 log's halt element, as a store holds it** — `{ kind: 'stopped', reason }`, the kind 0.7.0's `failRun` wrote
+ * (`spec/run-state.md` v0.15 and before). Written by HAND and cast, because `FoldInput` no longer admits it: a stored
+ * sequence is data from before the rename (ADR 0102 rule 3).
+ */
+const legacyStop = (reason: string): FoldInput => ({ kind: 'stopped', reason }) as unknown as FoldInput;
 
 const NOW = 1_756_512_000_000;
 const settled = (taskId: string, terminalState: 'done' | 'failed' | 'user_action'): LogRecord => ({
@@ -67,22 +101,71 @@ suite('RN-R1 — step is pure on the RECORD path, not only the region path', (te
   });
 });
 
-suite('RN-R8 — stopped outranks everything, INCLUDING records that follow it', (test) => {
-  test('a settlement appended after the stop does not change the outcome', () => {
-    // The v0.1 test applied `stopped` LAST, and step's stopped branch sets the
+suite('RN-R8 — halted outranks everything, INCLUDING records that follow it', (test) => {
+  test('a settlement appended after the halt does not change the outcome', () => {
+    // The v0.1 test applied `halted` LAST, and step's halted branch sets the
     // outcome directly — so deleting withOutcome's guard survived. The rule says
     // "whatever its nodes say", which needs a node to say something afterwards.
-    const stopped = step(foldLog([settled('r1:a:-:0', 'done')]), { kind: 'stopped', reason: 'DuplicateTaskId' });
-    const after = step(stopped, rec(settled('r1:b:-:0', 'done')));
-    equal(after.outcome, 'stopped', 'the log after a refusal is incomplete by construction');
-    equal(after.stoppedBy, 'DuplicateTaskId', 'and it still names the refusal');
+    const halted = step(foldLog([settled('r1:a:-:0', 'done')]), { kind: 'halted', reason: 'DuplicateTaskId' });
+    const after = step(halted, rec(settled('r1:b:-:0', 'done')));
+    equal(after.outcome, 'halted', 'the log after a refusal is incomplete by construction');
+    equal(after.haltedBy, 'DuplicateTaskId', 'and it still names the refusal');
     ok(after.nodes['r1:b:-:0'] !== undefined, 'the record is still recorded — it is the OUTCOME that latches');
   });
 
-  test('a suspended node after the stop does not make it awaiting_action', () => {
-    const stopped = step(fold([]), { kind: 'stopped', reason: 'UncloneableResult' });
-    equal(step(stopped, rec(settled('r1:a:-:0', 'user_action'))).outcome, 'stopped',
+  test('a suspended node after the halt does not make it awaiting_action', () => {
+    const halted = step(fold([]), { kind: 'halted', reason: 'UncloneableResult' });
+    equal(step(halted, rec(settled('r1:a:-:0', 'user_action'))).outcome, 'halted',
       'RN-R8 outranks RN-R7, which is the only ordering between them the spec states');
+  });
+
+  // **W171 — `RN-R8` v0.16's DUAL READ** (ADR 0102 rule 3). Every expected value below is read off `RN-R8` and section
+  // 2's shape: a stored element of kind `stopped` is folded EXACTLY as `halted` — the outcome `halted`, its `reason`
+  // into `haltedBy`, outranking what follows. Before W171 that element was the name itself; renamed with no read,
+  // `fold` threw on it (P34 fact 7 (iii)), so the first case is also the case that it does not throw.
+  test('ADR 0102 — a 0.7.0 log`s stored `stopped` element folds `halted`, and outranks a settlement and a `user_action` after it', () => {
+    const legacy: FoldInput[] = [
+      dispatched('r1:a:-:0'), rec(settled('r1:a:-:0', 'done')),
+      legacyStop('DuplicateTaskId: r1:b:-:0'),
+      rec(settled('r1:b:-:0', 'done')), rec(settled('r1:c:-:0', 'user_action')),
+    ];
+    // Hand-derived, field by field: `a` dispatched then done; the stored halt; `b` done and `c` parked after it, each
+    // RECORDED (the outcome latches, not the nodes — RN-R8), and the outcome `halted` where without the halt it would
+    // be `awaiting_action` (RN-R7: `c` is suspended).
+    equal(fold(legacy), {
+      runId: 'r1', outcome: 'halted',
+      nodes: {
+        'r1:a:-:0': { nodeId: 'a', branchPath: '-', state: 'done', result: { of: 'r1:a:-:0' }, error: null },
+        'r1:b:-:0': { nodeId: 'b', branchPath: '-', state: 'done', result: { of: 'r1:b:-:0' }, error: null },
+        'r1:c:-:0': { nodeId: 'c', branchPath: '-', state: 'suspended', result: null, error: 'boom' },
+      },
+      regions: {}, pathEnds: [], haltedBy: 'DuplicateTaskId: r1:b:-:0', resumes: [], gated: [],
+    } satisfies RunState, 'RN-R8 v0.16: the stored `stopped` is the halt, and nothing after it moves the outcome');
+    // The CONTROL: the same sequence with no halt element is `awaiting_action` — so the `halted` above is the element's.
+    equal(fold(legacy.filter((_, i) => i !== 2)).outcome, 'awaiting_action',
+      'the control: without the stored element, `c` parked makes the run `awaiting_action` (RN-R7)');
+  });
+
+  test('ADR 0102 — the stored `stopped` FIRST in the sequence, alone: `halted`, naming its reason, and no throw', () => {
+    const s = fold([legacyStop('UncloneableResult: the result of task "r1:a:-:0" is not structured-cloneable')]);
+    equal([s.outcome, s.haltedBy, s.nodes],
+      ['halted', 'UncloneableResult: the result of task "r1:a:-:0" is not structured-cloneable', {}],
+      'a 0.7.0 sequence whose first element is the halt folds `halted`, `haltedBy` its reason, with no node');
+    // One STEP from the empty state, hand-written: section 2's shape with only the two cells RN-R8 sets.
+    equal(step(emptyState(), legacyStop('x')),
+      { runId: null, outcome: 'halted', nodes: {}, regions: {}, pathEnds: [], haltedBy: 'x', resumes: [], gated: [] } satisfies RunState,
+      'step() on the empty state: `outcome` and `haltedBy` set, nothing else');
+  });
+
+  test('ADR 0102 — the dual read is ONE read: a `stopped` and a `halted` element fold to the same state, and L3 — folded twice, equal', () => {
+    const tail: FoldInput[] = [rec(settled('r1:b:-:0', 'done')), rec(settled('r1:c:-:0', 'user_action'))];
+    const head: FoldInput[] = [dispatched('r1:a:-:0'), rec(settled('r1:a:-:0', 'done'))];
+    const old = [...head, legacyStop('DuplicateTaskId: x'), ...tail];
+    const now = [...head, { kind: 'halted', reason: 'DuplicateTaskId: x' } as FoldInput, ...tail];
+    equal(fold(old), fold(now), 'a 0.7.0 sequence and the same sequence as 0.8.0 writes it fold to ONE state');
+    // L3 (`RN-R1`): the legacy sequence folded twice, and a structured clone of it as a store would hand it back.
+    equal(fold(old), fold(old), 'L3: the 0.7.0 sequence folded twice deep-equal');
+    equal(fold(structuredClone(old)), fold(old), 'L3: and its clone — what a store returns — folds the same');
   });
 });
 

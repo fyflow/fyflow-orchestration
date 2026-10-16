@@ -195,11 +195,11 @@ suite('RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence', (t
       'know is that a human is needed. This is Q17 answered at run level');
   });
 
-  test('stopped outranks everything', () => {
+  test('halted outranks everything', () => {
     const s = step(foldLog([settled('r1:a:-:0', 'user_action')]),
-      { kind: 'stopped', reason: 'DuplicateTaskId' });
-    equal(s.outcome, 'stopped', 'RN-R8: the log after a refusal is incomplete by construction');
-    equal(s.stoppedBy, 'DuplicateTaskId', 'and it says which refusal');
+      { kind: 'halted', reason: 'DuplicateTaskId' });
+    equal(s.outcome, 'halted', 'RN-R8: the log after a refusal is incomplete by construction');
+    equal(s.haltedBy, 'DuplicateTaskId', 'and it says which refusal');
   });
 
   test('completed, failed and running', () => {
@@ -214,7 +214,7 @@ suite('RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence', (t
       foldLog([settled('r1:a:-:0', 'done')]).outcome,
       foldLog([settled('r1:a:-:0', 'failed')]).outcome,
       foldLog([settled('r1:a:-:0', 'user_action')]).outcome,
-      step(fold([]), { kind: 'stopped', reason: 'x' }).outcome,
+      step(fold([]), { kind: 'halted', reason: 'x' }).outcome,
       // **`stuck` is the sixth, added by W5** — `spec/run-state.md` v0.3,
       // [ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md).
       // One line in W2's file, and it is here rather than only in
@@ -226,7 +226,8 @@ suite('RN-R7, RN-R8 — the run-level outcome vocabulary and its precedence', (t
       ).outcome,
     ]);
     equal([...outcomes].sort(),
-      ['awaiting_action', 'completed', 'failed', 'running', 'stopped', 'stuck'],
+      // Sorted: `halted` (`stopped` until W171, ADR 0102) now sorts BEFORE `running`.
+      ['awaiting_action', 'completed', 'failed', 'halted', 'running', 'stuck'],
       'Q25: an author labels WHY a path ended via end.outcome; run state says WHAT the run is, ' +
       'and letting a definition supply that would let a flow invent a state no UI could render');
   });

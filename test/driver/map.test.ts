@@ -927,11 +927,11 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
         'different persons bug');
       ok(h.failures[0]!.message.includes('"split"'), `${label}: it names the NODE`);
       // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
-      equal([h.failures[0]!.message.startsWith('map node "split"'), String(fold(h.driver.foldInputs()).stoppedBy), `${h.failures[0]!.kind}: ${h.failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UnresolvedMapArity').length),
-        [true, 2, 2], `${label}: the message opens with the node, and stoppedBy and kind: message each name the class EXACTLY once`);
+      equal([h.failures[0]!.message.startsWith('map node "split"'), String(fold(h.driver.foldInputs()).haltedBy), `${h.failures[0]!.kind}: ${h.failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UnresolvedMapArity').length),
+        [true, 2, 2], `${label}: the message opens with the node, and haltedBy and kind: message each name the class EXACTLY once`);
       ok(h.failures[0]!.message.includes('"items"'),
         `${label}: and the \`over\` key, so a reader knows what to look at`);
-      equal(fold(h.driver.foldInputs()).outcome, 'stopped',
+      equal(fold(h.driver.foldInputs()).outcome, 'halted',
         `${label}: RN-R8 — reported through OR-R10 rather than thrown, because \`enter\` is ` +
         'reached from a listener');
       equal(h.ids(), ['r1:ingest:-:0'],
@@ -1085,7 +1085,7 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
   test('resolve() reaching a refusal REPORTS it and stops the run', () => {
     // **W33's conformity reader.** `resolve()` called `advance` outside any guard,
     // so a refusal raised while routing a resolution was thrown at the caller and
-    // nothing else happened: no `stopped` input, `hasFailed()` false so later
+    // nothing else happened: no `halted` input, `hasFailed()` false so later
     // settlements kept routing, and the fold reporting **`completed`** for a run
     // that did none of its work. Measured against the listener as a control.
     const def = {
@@ -1105,7 +1105,7 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
     viaListener.driver.start({});
     viaListener.scheduler.settle('r1:ingest:-:0', 'done', { result: { nope: 1 } });
     equal(viaListener.failures.map((f) => f.kind), ['UnresolvedMapArity'], 'reported (OR-R10)');
-    equal(fold(viaListener.driver.foldInputs()).outcome, 'stopped', 'and the run is stopped');
+    equal(fold(viaListener.driver.foldInputs()).outcome, 'halted', 'and the run is halted');
 
     // The road that reported nothing: ADR 0004's resolution, into the same map.
     const viaResolve = harness(def);
@@ -1119,8 +1119,8 @@ suite('L2 — `over` must name an array, and that is a RUN-TIME refusal', (test)
       'it rethrows, because resolve() is caller-initiated and the caller is on the stack');
     equal(viaResolve.failures.map((f) => f.kind), ['UnresolvedMapArity'],
       'AND it reports — `enter` is reached from THREE entry points and this one guarded none');
-    ok(viaResolve.driver.hasFailed(), 'the run is stopped, so later settlements do not keep routing');
-    equal(fold(viaResolve.driver.foldInputs()).outcome, 'stopped',
+    ok(viaResolve.driver.hasFailed(), 'the run is halted, so later settlements do not keep routing');
+    equal(fold(viaResolve.driver.foldInputs()).outcome, 'halted',
       'RN-R8 — and it was `completed` before this fix, for a run that did none of its work');
   });
 

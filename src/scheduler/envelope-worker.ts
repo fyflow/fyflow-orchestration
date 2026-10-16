@@ -343,7 +343,8 @@ export default class EnvelopeWorker {
   }
 
   /**
-   * `FD-C5`: the inner worker receives `{ settings, input }` and nothing else. `FD-C6`: when the
+   * `FD-C5`: the inner worker receives `{ settings, input }` as its payload, and the scheduler's task context as its
+   * second argument, passed through untouched (W159). `FD-C6`: when the
    * envelope carries a `transform`, `input` is the evaluation of that expression over the value
    * received, with the node's settings bound as `$settings`, and the third key is consumed here.
    */

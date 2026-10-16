@@ -201,7 +201,7 @@ suite('L2 — from `unsatisfiable` to `stuck`, in one run', (test) => {
     const state = fold(driver.foldInputs());
     ok(Object.values(state.nodes).every((n) => n.state !== 'running'), 'nothing is live');
     ok(Object.values(state.nodes).every((n) => n.state !== 'suspended'), 'nobody waits on a person');
-    equal(state.stoppedBy, null, 'and no refusal terminated the run — `stopped` outranks `stuck`');
+    equal(state.haltedBy, null, 'and no refusal terminated the run — `halted` outranks `stuck`');
     ok(state.pathEnds.some((e) => e.reason === 'end'),
       'a path DID end at an `end` node, so `completed` is what this would be called without ' +
       'RN-R10 — which is exactly the false statement ADR 0015 was written to remove');

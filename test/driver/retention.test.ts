@@ -15,8 +15,8 @@
  * | when a region's collection is released | `JP-R11`/`JP-R12` in [spec/join-policy.md](../../spec/join-policy.md) section 4, and ADR 0046 rule 3 |
  * | what a satisfied join carries | `JP-R12` — one entry per branch that emitted `branch.arrived`, keyed by `branchPath`, ascending segment-wise-numeric |
  * | `stuck` on `p1-routed-away` under `arrival-count` | `RN-R10`, and `spec/join-policy.md` section 3's first row |
- * | that a stopped run releases | `OR-R10`, and ADR 0046 rule 3's THIRD moment — the run-level one |
- * | that a stopped run does not ROUTE | `OR-R10` again, and it is the guard W53's conformity reader bought |
+ * | that a halted run releases | `OR-R10`, and ADR 0046 rule 3's THIRD moment — the run-level one |
+ * | that a halted run does not ROUTE | `OR-R10` again, and it is the guard W53's conformity reader bought |
  * | a `fanout` region, a NESTED region, and `outputsCache`'s alias | ADR 0046 rules 1 and 3, and all three are cases W53's adequacy reader bought |
  *
  * ---
@@ -277,7 +277,7 @@ const DRIVER_FIELDS = [
   // the definition and the gate types. Route NAMES, constant in the task count, no result. WALKED, which costs nothing
   // for a structure that holds no result. The ratchet fired by name on W153's first L1 run (stop-and-ask (e), YES).
   'gateRoutes',
-  // W151 — `deaf`: one boolean, set when a resume is refused because its replay regenerated a stop in the lost tail
+  // W151 — `deaf`: one boolean, set when a resume is refused because its replay regenerated a halt in the lost tail
   // (`RN-R23`). It holds no result; WALKED beside `failed` and `started`. The ratchet fired as designed.
   'deaf',
   // W158 — `cancelled`: one boolean, set by the run's first `cancelled` settlement (`RN-R28`, ADR 0094), which halts the
@@ -353,7 +353,7 @@ const DECLARED_CASES = [
   'the unsatisfiable exit releases its OWN instance, and the sibling keeps what it held',
   'RN-R13 — `outputsCache` holds results BY REFERENCE, and identity is what says so',
   'the walk looks at EVERY growing structure — a new driver field fails here naming itself',
-  'a run stopped from inside `append` does not route out of the join it was settling',
+  'a run halted from inside `append` does not route out of the join it was settling',
   // **W93.** `RN-R13`'s fourth term — a gate's memory — and what it holds: the KEY, not the value that reached the gate.
   'RN-R13 — a GATE`s memory is a fourth term: it holds the KEY, for the life of the run, and not the value it was handed',
   'every case this suite declares actually ran — a deleted case fails naming itself',
@@ -649,7 +649,7 @@ suite(SUITE, (test) => {
     // OR-R6 — an uncloneable result stops the run at the listener boundary.
     h.scheduler.settle('r1:score:1:0', 'done', { result: { bad: () => 1 } });
     equal(h.failures.map((f) => f.kind), ['UncloneableResult'],
-      'OR-R6 — structuredClone throws and the run is stopped, naming the task id',
+      'OR-R6 — structuredClone throws and the run is halted, naming the task id',
     );
     equal(heldArrivals(h.driver), 0,
       'ADR 0046 rule 3 — the run stopped, so nothing can route again and every region`s ' +
@@ -657,11 +657,11 @@ suite(SUITE, (test) => {
     );
     ok(
       JSON.stringify(h.driver.snapshot()).includes(MARK),
-      'rule 2 — and the LOG is untouched. A stopped run is a run a consumer folds to find out ' +
+      'rule 2 — and the LOG is untouched. A halted run is a run a consumer folds to find out ' +
       'what happened, so releasing what the fold reads is the plausible wrong answer P15 ' +
       'decision 2 forbids',
     );
-    equal(fold(h.driver.foldInputs()).outcome, 'stopped', 'RN-R8 — stopped outranks everything');
+    equal(fold(h.driver.foldInputs()).outcome, 'halted', 'RN-R8 — halted outranks everything');
   });
 
   /**
@@ -681,7 +681,7 @@ suite(SUITE, (test) => {
     h.scheduler.settle('r1:score:1:0', 'cancelled');
     equal(h.failures, [], 'a cancel is not a refusal: nothing is reported (RN-R28)');
     equal(heldArrivals(h.driver), 0,
-      'JP-R12`s run-level release — the run is halted, so every region`s collection is released, as after a stop');
+      'JP-R12`s run-level release — the run is halted, so every region`s collection is released, as after a refusal');
     ok(JSON.stringify(h.driver.snapshot()).includes(MARK), 'and the LOG is untouched — the arrived result is still in it');
     equal(fold(h.driver.foldInputs()).outcome, 'cancelled', 'RN-R28 — the run is `cancelled`');
   });
@@ -1047,12 +1047,12 @@ suite(SUITE, (test) => {
    * released. The three doors `failRun`'s own comment enumerates are all shut behind
    * `this.failed`; the door on the STACK is not.
    *
-   * **W53 did not create the defect and it made it SILENT.** A stopped run routing out
+   * **W53 did not create the defect and it made it SILENT.** A halted run routing out
    * of a join is `OR-R10`'s violation and pre-dates this item; before W53 the successor
    * was dispatched with the full collection, and after it with **`{}`** — which looks
    * exactly like `live-token`'s legitimate all-exited case.
    */
-  test('a run stopped from inside `append` does not route out of the join it was settling', async () => {
+  test('a run halted from inside `append` does not route out of the join it was settling', async () => {
     const scheduler = new FakeScheduler();
     const failures: { kind: string; message: string }[] = [];
     let stopOnJoinSettled = false;
@@ -1089,16 +1089,16 @@ suite(SUITE, (test) => {
 
     const dispatched = scheduler.added.map((t) => t.id);
     equal(dispatched.filter((id) => id.includes(':publish:')), [],
-      'OR-R10 — the run was stopped inside the append that announced the join, so the join`s ' +
+      'OR-R10 — the run was halted inside the append that announced the join, so the join`s ' +
       'successor is NOT dispatched. Without the guard it is dispatched carrying `{}`, because ' +
       'failRun released every region one frame earlier',
     );
     equal(failures.map((f) => f.kind), ['UncloneableResult'],
-      'and the run really did stop rather than the listener being unreachable — `OR-R6` fired ' +
+      'and the run really did halt rather than the listener being unreachable — `OR-R6` fired ' +
       'on the re-entrant settlement and was reported through onRunFailure exactly once. This ' +
-      'is the pair`s second half: without a stop there is nothing for the guard to guard',
+      'is the pair`s second half: without a halt there is nothing for the guard to guard',
     );
-    equal(fold(driver.foldInputs()).outcome, 'stopped', 'RN-R8 — stopped outranks everything');
+    equal(fold(driver.foldInputs()).outcome, 'halted', 'RN-R8 — halted outranks everything');
   });
 
   /**

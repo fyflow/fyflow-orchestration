@@ -97,7 +97,7 @@ suite('RN-R10 — a run whose join can no longer fire is `stuck`, not `completed
     ok(Object.values(s.nodes).every((n) => n.state !== 'suspended'), 'nobody is waiting on a person');
     ok(s.pathEnds.some((e) => e.reason === 'end'), 'a path DID end at an `end` node');
     ok(s.pathEnds.every((e) => e.reason !== 'no-eligible-edge'), 'and none ended with no eligible edge');
-    equal(s.stoppedBy, null, 'and no refusal terminated it');
+    equal(s.haltedBy, null, 'and no refusal terminated it');
     equal(s.outcome, 'stuck', 'so `joined` is the only thing standing between this and `completed`');
     equal(step(s, joinSettled(true)).outcome, 'completed', 'and adding it flips the answer');
   });
@@ -140,9 +140,9 @@ suite('RN-R10 — the precedence, in the order section 3 states it', (test) => {
     ok(!isTerminal(s), 'RN-R12: and the run is not finished — a resolution can still arrive');
   });
 
-  test('`stopped` outranks `stuck`', () => {
-    const s = fold([...stuckBase, { kind: 'stopped', reason: 'DuplicateTaskId' }]);
-    equal(s.outcome, 'stopped', 'RN-R8: the sequence after a refusal is incomplete by construction');
+  test('`halted` outranks `stuck`', () => {
+    const s = fold([...stuckBase, { kind: 'halted', reason: 'DuplicateTaskId' }]);
+    equal(s.outcome, 'halted', 'RN-R8: the sequence after a refusal is incomplete by construction');
   });
 
   test('`stuck` outranks `failed`', () => {
@@ -166,7 +166,7 @@ suite('RN-R12 — a run is finished exactly when it is neither running nor await
     ['a suspended node', [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'user_action')], false],
     ['completed', [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), pathEnd('end', 'done')], true],
     ['failed', [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'failed'), pathEnd('no-eligible-edge', 'a')], true],
-    ['stopped', [{ kind: 'stopped', reason: 'x' }], true],
+    ['halted', [{ kind: 'halted', reason: 'x' }], true],
     ['stuck', UP_TO_THE_JOIN, true],
   ];
 
