@@ -11825,6 +11825,12 @@ if (rowCosts.length !== EXPECTED.length) {
     // `cancelled` since W158 (`RN-R28`, ADR 0094): one boolean, set by a run's first `cancelled` settlement — WALKED
     // beside `failed`, and false on every run here. Found at W158's declaration step; W158's exception E3.
     'cancelled',
+    // `cancelRequest` and `unhanded` since W173 (`RN-R31`, ADR 0104): the owner's cancel — `null` on every run here, and
+    // holding no promise once a cancelled run's tasks have stopped — and the task ids dispatched and not yet handed to the
+    // scheduler, empty at rest. Both WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W173's row.
+    'cancelRequest', 'unhanded',
+    // `stepping` since W173 (D-1): one integer, the depth of the driver's own step, `0` at rest — WALKED.
+    'stepping',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

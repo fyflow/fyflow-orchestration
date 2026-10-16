@@ -45,9 +45,25 @@ export type NodeState = 'running' | 'done' | 'failed' | 'suspended' | 'cancelled
  * decision 2 and stop-and-ask (f): a refusal terminated the run (`OR-R10`, `RN-R8`). *Stop* is P34's resumable stop
  * of a run (W174), so the old name leaves this union ENTIRELY: **BREAKING**, and loudly — a consumer's
  * `outcome === 'stopped'` no longer compiles, rather than silently changing what it means. The count does not move.
+ *
+ * **`cancelling` is v0.18's EIGHTH**, added by W173 under
+ * [ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md): the
+ * run's OWNER cancelled it (`driver.cancel`, a `cancelRequested` element) and a task is still stopping (`RN-R30`).
+ * **NOT terminal** — the third outcome {@link isTerminal} calls unfinished — so a runtime's `done` waits for the last
+ * task to stop. **BREAKING in 0.8.0** (P34 decision 10): a consumer switching on it exhaustively, or keying a
+ * `Record<RunOutcome, …>`, fails to compile; one comparing strings sees a value it never named.
  */
 export type RunOutcome =
-  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'halted' | 'stuck' | 'cancelled';
+  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'halted' | 'stuck' | 'cancelled' | 'cancelling';
+
+/**
+ * **Who cancelled the run, and why** — `RunState.cancelRequest`, `RN-R30`, v0.18. What the `cancelRequested` element
+ * carried: `actor` as the caller gave it, `reason` the caller's or `null` when it gave none.
+ */
+export interface CancelRequest {
+  actor: string;
+  reason: string | null;
+}
 
 /** How a branch left its region. `null` while it is still live. */
 export type BranchSettlement = 'arrived' | 'exited' | 'lost';
@@ -121,6 +137,14 @@ export interface RunState {
    * `stoppedBy` — renamed with the outcome by ADR 0102; BREAKING, and a consumer reading the old name fails to compile.)*
    */
   haltedBy: string | null;
+  /**
+   * **Set when the run's OWNER cancelled it** — `RN-R30`, v0.18, W173,
+   * [ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md): the
+   * FIRST `cancelRequested` element's `{ actor, reason }`, and `null` for a run nobody cancelled — including one a cancel
+   * the scheduler made on its own ended (`RN-R28`), which carries no actor. **A new cell, BREAKING in 0.8.0 for a
+   * consumer that builds a `RunState` literal** (P34 decision 10).
+   */
+  cancelRequest: CancelRequest | null;
   /**
    * **Every resume this run has had, in order, each the task ids it handed a scheduler AGAIN** —
    * `RN-R22`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
@@ -254,6 +278,18 @@ export type FoldInput =
    */
   | { kind: 'halted'; reason: string }
   /**
+   * **The run's OWNER cancelled it** — `RN-R30`, `RN-R31`, v0.18,
+   * [W173](../../doc/work-items/w173-cancelling-a-run.md),
+   * [ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md), P34
+   * decision 4: appended ONCE by `Driver.cancel`, after the hold and BEFORE the scheduler is asked to cancel anything,
+   * so every `task.cancelled` it causes folds under it. `reason` is `null` when the caller gave none. The fold reads the
+   * run `cancelling` from here while a dispatched task is unsettled, and `cancelled` once none is.
+   *
+   * **Never fed to a replay**: a resume refuses a stored one `cancelled` before replaying anything (`RN-R23`). **A new
+   * kind, BREAKING in 0.8.0 for a consumer switching on `kind` exhaustively** (P34 decision 10).
+   */
+  | { kind: 'cancelRequested'; actor: string; reason: string | null }
+  /**
    * **The run was RESUMED, and these are the tasks handed to a scheduler again** — `RN-R22`,
    * [W89](../../doc/work-items/w89-what-resuming-is.md), P23 stop-and-ask (a), answered: *a resume
    * IS recorded*. Appended by `Driver.resume` after the replay and BEFORE the first re-dispatch, and
@@ -285,7 +321,7 @@ export type FoldInput =
   | ({ kind: 'gated' } & GateDecision);
 
 export function emptyState(): RunState {
-  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, resumes: [], gated: [] };
+  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: null, resumes: [], gated: [] };
 }
 
 /**
@@ -299,6 +335,15 @@ export function step(prev: RunState, input: FoldInput): RunState {
   // of a halted run fell through to `input.record` below and THREW (P34 fact 7 (iii)).
   if (input.kind === 'halted' || (input.kind as string) === 'stopped') {
     return { ...prev, haltedBy: (input as { reason: string }).reason, outcome: 'halted' };
+  }
+
+  if (input.kind === 'cancelRequested') {
+    // `RN-R30` — the FIRST request is the run's, and one folded after the run is already `cancelled` — by `RN-R28`'s
+    // cancel or an earlier request — moves NOTHING and is not recorded: the run ended before it (the driver refuses that
+    // call, `RN-R31`). Without this a hand-written `RN-R28` cancel followed by a request over a still-running task read
+    // `cancelling`: a terminal run made unfinished again, against (h)'s `cancelled` > `cancelling`.
+    if (prev.cancelRequest !== null || prev.outcome === 'cancelled') return prev;
+    return withOutcome({ ...prev, cancelRequest: { actor: input.actor, reason: input.reason } });
   }
 
   if (input.kind === 'region') {
@@ -473,7 +518,20 @@ function withOutcome(s: RunState): RunState {
   // for a person — the driver refuses its `resolve()` — and above `running` and `stuck` because the driver has
   // halted it: what is still in flight settles into `nodes` and moves nothing else, and a join it left waiting
   // will never fire, which is the run's cancel and not a defect `stuck` would report.
-  if (nodes.some((n) => n.state === 'cancelled')) return { ...s, outcome: 'cancelled' };
+  //
+  // **v0.18: only where no cancel was REQUESTED** (`RN-R28`, ADR 0104). After a `cancelRequested` element a `cancelled`
+  // settlement is the request's own, and the run's outcome is `RN-R30`'s below — or `done` would settle at the FIRST
+  // cancel of a run its owner cancelled, which is the app's #1 complaint (P34 fact 6). The step arm above keeps a
+  // request from being recorded once this has fired, so the two cannot both apply.
+  if (s.cancelRequest === null && nodes.some((n) => n.state === 'cancelled')) return { ...s, outcome: 'cancelled' };
+
+  // `RN-R30` — a run its OWNER cancelled is `cancelling` while a dispatched task is still unsettled, and `cancelled` once
+  // none is (P34 (c), (h)). Below `halted` and the line above; ABOVE `awaiting_action`, so a parked task — settled
+  // already, and not waited on (P34 (i)) — never makes a run its owner ended read as waiting for a person; and above
+  // `stuck`, `failed` and `completed`, so a join the cancel left waiting is the owner's act, not a defect.
+  if (s.cancelRequest !== null) {
+    return { ...s, outcome: nodes.some((n) => n.state === 'running') ? 'cancelling' : 'cancelled' };
+  }
 
   // `RN-R7` — `awaiting_action` outranks `running`: the thing a reader must know
   // is that a human is needed, not that other work continues.
@@ -488,7 +546,7 @@ function withOutcome(s: RunState): RunState {
   // **Measured**: `entry: split`, `over: 'items'`, started with `{items: []}` —
   // `ids=[]`, `regions={split:{opened:[],joined:null}}`, `outcome=running`. Nothing
   // will ever arrive, and `RN-R12` says a run is finished exactly when its outcome
-  // is neither `running` nor `awaiting_action` — so a clock-free L6 harness waits on
+  // is neither `running` nor `awaiting_action` (nor, since v0.18, `cancelling`) — so a clock-free L6 harness waits on
   // that run **forever** and a consumer polling `RunState.outcome` is told work is in
   // flight. That is `ADR 0015`'s own false statement wearing the other outcome.
   //
@@ -564,8 +622,8 @@ export function foldLog(log: readonly LogRecord[]): RunState {
  * Whether a run can still change — the predicate an L6 harness resolves on, and
  * the reason it needs no clock.
  *
- * `running` and `awaiting_action` are the two outcomes that say more input is
- * coming that can MOVE the run: a dispatched node has not settled, or a person has
+ * `running` and `awaiting_action` are two of the three outcomes that say more input is
+ * coming that can MOVE the run (`cancelling`, the third, below): a dispatched node has not settled, or a person has
  * not answered. `completed`, `failed` and `stuck` are reached only when nothing is
  * live. `halted` and — since W158 — `cancelled` are reached with dispatched nodes
  * possibly still unsettled: the driver has HALTED the run, so what is in flight
@@ -575,9 +633,14 @@ export function foldLog(log: readonly LogRecord[]): RunState {
  * a permanently stuck run was `completed`, so a harness waiting on this predicate
  * would have reported the hang as a success rather than waiting forever — which
  * is the worse of the two failures.
+ *
+ * **`cancelling` is the THIRD unfinished outcome since v0.18** (`RN-R12`, `RN-R30`, ADR 0104): the run's owner
+ * cancelled it and a task is still stopping, so its `task.cancelled` is still coming and moves the outcome to
+ * `cancelled`. Calling it terminal would settle a runtime's `done` at the request — before the tasks have stopped,
+ * the app's #1 complaint (P34 fact 6).
  */
 export function isTerminal(s: RunState): boolean {
-  return s.outcome !== 'running' && s.outcome !== 'awaiting_action';
+  return s.outcome !== 'running' && s.outcome !== 'awaiting_action' && s.outcome !== 'cancelling';
 }
 
 /** A node's entry, or `null`. Not an outcome record: it has no `attempts` and no timing fields. */

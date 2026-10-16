@@ -94,6 +94,8 @@ cancel rejects a promise of ours.
 4. **What a run does NOT get**: no call that cancels a run (P34), no `cancelling` run state (P34), the cancel's
    `reason` not carried on the record (the record stays eleven fields, `OR-R3`), and no edge to compensate on
    (rule 1). A consumer that wants the reason reads the task on `runtime.scheduler`, keyed by `detail.id`.
+   **WITHDRAWN in its first two clauses by [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)
+   (W173, 2026-10-16)**: `driver.cancel` cancels a run, and the run reads `cancelling` until its last task has stopped.
 5. **Cost**: one boolean on a driver, one `some` over a run's nodes per fold step, and one scan of a
    checkpoint's events per resume.
 6. **Two doors are not shut on the stack of a RE-ENTRANT halt, a cancel's or a stop's** — found by both of W158's
@@ -107,7 +109,9 @@ cancel rejects a promise of ours.
 7. **On a runtime, "appended" stops at `done`**: [ADR 0091](0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
    releases the run when `done` settles, which a cancel makes happen at once, so the in-flight settlements a bare
    `Driver` would append reach no driver. That `done` settles on a cancel and the release follows is asserted
-   by nothing on the runtime yet ([Q606](../questions/q606.md)).
+   by nothing on the runtime yet ([Q606](../questions/q606.md)). **Amended by [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)
+   (W173, 2026-10-16)**: true of a cancel the scheduler made on its own; a run its OWNER cancels keeps `done` pending
+   until every task has stopped, so every settlement is appended — and both are asserted on the runtime, resolving Q606.
 8. **The outcome is not monotone**: a `cancelled` settlement for a task already settled `done` would turn a
    `completed` run `cancelled`. Unreachable at the pin — `cancel()` of a finished task resolves `false` and fires
    nothing.

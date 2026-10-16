@@ -41,7 +41,9 @@ work that was never routed (P34 fact 3).
 
 ## Decision
 
-1. **ONE predicate is the hold for good: `shut()`**, `failed || cancelled` today. Every door that dispatches, routes or
+1. **ONE predicate is the hold for good: `shut()`**, `failed || cancelled` today. *(Since
+   [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md) (W173) the request joins it,
+   and the resume loop reads it through `holdsResume()` — `shut()` less the request — rather than a copy of the flags.)* Every door that dispatches, routes or
    reports a routing step reads it, and a halt P34 adds joins the disjunction rather than adding a door. It is a
    METHOD over the halt flags, never a field: a second copy of *the run is halted* is a value that can disagree with
    `failed` or `cancelled`, each of which has readers of its own (`hasFailed()`, `onRunFailure`).
@@ -92,6 +94,9 @@ work that was never routed (P34 fact 3).
   `scheduler.cancel(id)` names an id the scheduler does not hold — which resolves `false` and does nothing — and the task
   is then handed on and runs uncancelled. **W173 and W174 must cancel the in-progress task AFTER its hand-off** — for
   example by re-checking the hold after `addTask` in `dispatch` and cancelling there — and assert it at L2.
+  **W173 did, for the cancel** ([ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)
+  rule 7): the task is cancelled after `addTask` returns, and a resumed run's in-flight set is handed on and cancelled
+  rather than held — rule 7's check holds a halt and `RN-R28`'s cancel there, not a requested one. W174's stop remains.
 - **`settleJoin`'s own check is SUBSUMED for routing** since rule 3 — the join's successor is entered through `enter` —
   and is kept, stated, as the check before the region's collection is read and released (W172's adequacy reader
   measured its deletion equivalent: `failRun` and a cancel have released the collection already).

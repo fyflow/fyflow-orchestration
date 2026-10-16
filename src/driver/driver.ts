@@ -268,6 +268,53 @@ export class NotStarted extends Error {
 }
 
 /**
+ * **Why a run-control call was refused** — `RN-R31`, v0.18 ([ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)).
+ *
+ * | reason | refused when |
+ * |---|---|
+ * | `unsupported` | the driver's scheduler has no `cancel` — `SchedulerLike`'s optional member (P34 (b)) |
+ * | `not-started` | before `start()` or `resume()`, or on a driver whose resume was refused before it regenerated a run (`RN-R23`) — one refused for a halt regenerated in its lost tail keeps that run, and is `halted` |
+ * | `halted` | the run was halted by a refusal (`OR-R10`) |
+ * | `cancelled` | a task of the run settled `cancelled` with no request before it, so `RN-R28` ended it |
+ * | `ended` | nothing is in flight and nothing is parked AT REST — the run has finished. Mid-step (a callback on the driver's own step) it is not refused: see `stepping` |
+ *
+ * **A SECOND cancel is not refused**: it forwards its `graceMs` (`RN-R31`). W174's stop and W175's pause are to widen
+ * `control` and `reason`; a consumer branching on either should not switch on it exhaustively.
+ */
+export type RunControlRefusalReason = 'unsupported' | 'not-started' | 'halted' | 'cancelled' | 'ended';
+
+/**
+ * **A run-control call the driver will not make, thrown at the caller BEFORE anything is recorded or sent** —
+ * `RN-R31`, ADR 0104. Thrown, as `MultipleRuns` and `ResumeRefused` are, because the caller is on the stack and nothing
+ * has been appended; **one class with a `reason`**, on `ResumeRefused`'s precedent, so a consumer catches one class and
+ * branches on `reason`. `control` names the call — `'cancel'` today.
+ */
+export class RunControlRefused extends Error {
+  readonly control: 'cancel';
+  readonly reason: RunControlRefusalReason;
+  constructor(control: 'cancel', reason: RunControlRefusalReason, message: string) {
+    super(message);
+    this.name = 'RunControlRefused';
+    this.control = control;
+    this.reason = reason;
+  }
+}
+
+/** What `Driver.cancel` takes — `RN-R31`, P34 stop-and-ask (c). */
+export interface RunCancelOptions {
+  /** Who cancelled the run — recorded on the `cancelRequested` element and in `RunState.cancelRequest`. */
+  actor: string;
+  /** Why — recorded beside `actor` (`null` when absent), and handed to the scheduler's `cancel` as given. */
+  reason?: string;
+  /**
+   * Threaded pools: the ms each task's worker gets to stop by itself before the scheduler forces it — the pool's
+   * `cancelGraceMs` when absent. **A request, not a guarantee**: at the pin `0` arms a 0 ms timer a prompt worker's
+   * reply can beat (P34 fact 9, S12). A SECOND call with a shorter value escalates the tasks still stopping.
+   */
+  graceMs?: number;
+}
+
+/**
  * **What a checkpoint's header says, and the number a resume refuses on** — `RN-R16`,
  * ADR 0064 rule 3. `1` at this version; it moves only when what a checkpoint CARRIES moves, and
  * a resume refuses a format it does not know — `ResumeRefused` with `reason: 'format'` (`RN-R23`, W89).
@@ -332,7 +379,7 @@ export interface Checkpoint {
  * | `run` | `header.runId` is not the run this driver was constructed for (`ID-R3`) — every stored task id embeds it | `null` |
  * | `flow` | `header.flowId` or `header.version` is not this driver's definition's — **no migration** (P23 decision 7) | `null` |
  * | `halted` | the run was HALTED by a refusal — a stored `halted` element, or a stored `stopped` element, 0.7.0's name for it and read as one ([ADR 0102](../../doc/decisions/0102-a-run-the-driver-halts-is-halted-and-a-stored-stopped-reads-as-one.md) rule 3), or one the replay regenerates past the stored events (P23 decision 10) | that element's position |
- * | `cancelled` | the run was CANCELLED — a stored `outcome` element whose record is `terminalState: 'cancelled'`, checked after `halted` ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 5, W158). Only a STORED one: a settlement is fed to the replay, never regenerated, so a replay cannot produce a cancel the store does not hold | that element's position |
+ * | `cancelled` | the run was CANCELLED — a stored `outcome` element whose record is `terminalState: 'cancelled'`, checked after `halted` ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 5, W158) — **or, since v0.18, a stored `cancelRequested` element** (`RN-R31`, ADR 0104, W173), whichever comes first. Only a STORED one: a settlement is fed to the replay, never regenerated, so a replay cannot produce a cancel the store does not hold | the first such element's position |
  * | `diverged` | a stored element the replay does not produce at the same position — a predicate, a definition or an entry payload that is not what the stored run had (P23 decision 9) | the FIRST such position |
  */
 /**
@@ -432,15 +479,22 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
   // `RN-R28` ranks the two outcomes: a run refused for a defect AND cancelled reads as the defect. Only an APPENDED
   // cancel reaches here, and the driver appends every `task.cancelled` it hears for its run — so a cancel nobody
   // heard is not refused, and P34's stop is to go deaf before it cancels so that its own never are.
+  //
+  // **And a stored `cancelRequested` — v0.18, `RN-R31`, ADR 0104 (W173)**: the FIRST element of either kind. A run its
+  // owner cancelled holds its request BEFORE every settlement the request caused, so it is refused at the request; and
+  // a run cancelled while parked, with nothing in flight, holds no cancelled settlement at all and was refused nowhere.
   const c = (cp!.events as unknown[]).findIndex((e) => {
     const x = e as { kind?: unknown; record?: { terminalState?: unknown } | null } | null;
-    return x?.kind === 'outcome' && x.record?.terminalState === 'cancelled';
+    return x?.kind === 'cancelRequested' || (x?.kind === 'outcome' && x.record?.terminalState === 'cancelled');
   });
   if (c >= 0) {
-    const id = (cp!.events as { record?: { taskId?: unknown } }[])[c]?.record?.taskId;
+    const e = (cp!.events as { kind?: unknown; actor?: unknown; record?: { taskId?: unknown } }[])[c];
+    const what = e?.kind === 'cancelRequested'
+      ? `the request of ${JSON.stringify(e.actor)} to cancel it (\`cancelRequested\`)`
+      : `the settlement of ${JSON.stringify(e?.record?.taskId)} as \`cancelled\``;
     return new ResumeRefused('cancelled', c,
-      `ResumeRefused (cancelled): the stored run was CANCELLED — its element at position ${c} is the settlement of ` +
-        `${JSON.stringify(id)} as \`cancelled\`. A cancelled run is not resumable (ADR 0094 rule 5): a cancel is its ` +
+      `ResumeRefused (cancelled): the stored run was CANCELLED — its element at position ${c} is ${what}. ` +
+        'A cancelled run is not resumable (ADR 0094 rule 5, ADR 0104): a cancel is its ' +
         'owner`s act, and a resume would hand the scheduler again what the owner stopped.');
   }
   return null;
@@ -866,12 +920,28 @@ export interface NonconformingResult {
  * reads `e` as an event** — `detailOf` narrows to `detail` at the subscription site and ADR 0007
  * normalises from there, exactly as before. What changed is the declared shape, not what is read.
  *
- * The two-method shape is what the seam IS — an `EventTarget` without `addTask` still does not
+ * The two REQUIRED methods are what the seam IS — an `EventTarget` without `addTask` still does not
  * get through — so Q71's own objection to widening does not apply to this widening.
+ *
+ * **A THIRD member since W173, and it is OPTIONAL** — `cancel`, P34 stop-and-ask (b),
+ * [ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md). It is
+ * the scheduler's own signature, so a real `FyflowScheduler` satisfies the seam as it is (the `_Q71` assertion below is
+ * unmoved) and `Driver.cancel` reaches the scheduler from the driver — the only thing with side effects (ADR 0001) — for a
+ * driver built by hand exactly as for a runtime's, whose per-run view forwards it. **Optional, so no double breaks**:
+ * a scheduler without it still drives every run, and `Driver.cancel` over it is REFUSED by name before anything is
+ * recorded (`RunControlRefused`, `reason: 'unsupported'`). **BREAKING in 0.8.0 only for code that IMPLEMENTS the seam
+ * with a `cancel` of another shape** (P34 decision 10).
  */
 export interface SchedulerLike {
   addTask(task: unknown, options?: { createPromise?: boolean }): unknown;
   addEventListener(type: string, listener: (e: object) => void): void;
+  /**
+   * Stop a task, waiting or running — the scheduler's `cancel(taskId, { reason, graceMs })`, resolving `true` once it
+   * has stopped and `false` for an id it does not hold or a task that finished first. Read only by `Driver.cancel`.
+   * **It must not REJECT for a task's state** (the scheduler's never does): the run ends only when the scheduler SETTLES
+   * each task, so a double whose `cancel` rejects and fires nothing leaves the run `cancelling` for ever (W173, F8).
+   */
+  cancel?(taskId: string, options?: { reason?: unknown; graceMs?: number }): Promise<boolean>;
 }
 
 /**
@@ -1294,6 +1364,31 @@ export class Driver {
    * reader, finding 6). A driver halted by `failRun` on a run it started is NOT deaf: `OR-R10` halts routing only.
    */
   private deaf = false;
+  /**
+   * **The run's OWNER cancelled it** — `RN-R31`, v0.18, W173,
+   * [ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md). `null`
+   * until `cancel()` is accepted; then what every LATER cancel of a task sends the scheduler — the caller's `reason` and
+   * `graceMs`, each only if given — and, per task id, the promise the scheduler's `cancel` returned for it, which is what
+   * `cancel()`'s own promise waits on. **A halt** (`shut()`), set BEFORE the `cancelRequested` element is appended, so a
+   * consumer's callback on that element already sees the run held. It holds no result: one promise per task STILL
+   * stopping — each dropped as it settles, so none once the run is `cancelled` — and the two option values.
+   */
+  private cancelRequest: { readonly reason?: string; graceMs?: number; readonly stopping: Map<string, Promise<boolean>> } | null = null;
+  /**
+   * **Tasks whose `dispatched` element is appended and which the scheduler has NOT been handed yet** — `RN-R29` (i)'s
+   * window, ADR 0103's inherited hazard, W173. A scheduler's `cancel()` of an id it does not hold resolves `false` and
+   * does nothing, so `cancel()` sends nothing for these: the hand-off site cancels each right AFTER its `addTask` —
+   * `dispatch` for the task in progress, `resume()` for its in-flight set. Empty at rest; at most the one task being
+   * dispatched, or a resume's in-flight set while it is handed back.
+   */
+  private readonly unhanded = new Set<string>();
+  /**
+   * **How deep the driver is in its OWN step** — `start`, `resume`, `resolve` or a scheduler event, each counting itself
+   * in (`RN-R31`, W173's conformity reader, D-1). `0` at rest. A consumer callback the driver calls mid-step sees a
+   * PREFIX that can read finished while the step is about to dispatch more (`RN-R12`'s quiescent point, P34 fact 3), so
+   * `cancel()` refuses `ended` only at rest: mid-step, *nothing in flight and nothing parked* is not *finished*.
+   */
+  private stepping = 0;
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -1310,9 +1405,22 @@ export class Driver {
    * can disagree with `failed` or `cancelled`, and each of those has readers this predicate must not stand in for
    * (`hasFailed()`, `onRunFailure`). **The replay's hold is the OTHER form and is not this** — it appends a dispatch
    * and defers handing it on (`RN-R19`), where a shut hold appends nothing; `dispatch` keeps both.
+   *
+   * **A REQUESTED cancel joins it since W173** (`RN-R31`, ADR 0104) — ADR 0103's *a halt P34 adds joins this
+   * disjunction*: from the moment `cancel()` is accepted, every door above holds for the run.
    */
   private shut(): boolean {
-    return this.failed || this.cancelled;
+    return this.failed || this.cancelled || this.cancelRequest !== null;
+  }
+
+  /**
+   * **What holds a resume's re-dispatch: the hold, EXCEPT a requested cancel** (ADR 0103 rule 7, ADR 0104 rule 7) — read
+   * through `shut()` and never as a second copy of its disjunction (ADR 0103 rule 1; W173's conformity reader, F7), so a
+   * halt W174 adds to `shut()` holds here too. A request is the one halt that hands a task on: its tasks are `dispatched`
+   * and unsettled, and only the scheduler can settle them, so each is handed on and cancelled (`handOn`).
+   */
+  private holdsResume(): boolean {
+    return this.shut() && this.cancelRequest === null;
   }
 
   /** The registry's node types, normalised once (W59; entries the document or the class form since W65). Read at dispatch for the type's retry default and its settings defaults. */
@@ -1548,6 +1656,16 @@ export class Driver {
    * substitution rather than dropping it.
    */
   start(payload: unknown): void {
+    this.stepping += 1;
+    try {
+      this.startStep(payload);
+    } finally {
+      this.stepping -= 1;
+    }
+  }
+
+  /** `start`'s body — wrapped so the driver knows it is on the stack of its own step (`stepping`, `RN-R31`, W173 D-1). */
+  private startStep(payload: unknown): void {
     const runId = this.runId;
     if (this.started) {
       throw new MultipleRuns(
@@ -1559,8 +1677,8 @@ export class Driver {
           // re-running a workload is one carrying the run id they already have. Two drivers on one
           // run id mint the SAME task ids, so `dispatched.has()` is true in both, `ID-R4` cannot
           // see it, and one settlement dispatches the successor twice with nothing reported.
-          // **No driver can detect it** — `SchedulerLike` has two methods and neither asks who else
-          // is subscribed (the seam is two methods by ADR 0001, and stays so under ADR 0048) — so it stays a precondition, and the least the
+          // **No driver can detect it** — `SchedulerLike` has two required methods and an optional `cancel`, and none asks who else
+          // is subscribed (the seam is two methods by ADR 0001, stays so under ADR 0048, and ADR 0104 adds only an optional one) — so it stays a precondition, and the least the
           // library can do is not advise against it in its own error text.
           'Construct a second Driver WITH A DIFFERENT RUN ID; ADR 0023 makes that safe on the ' +
           'same scheduler. Run ids must be unique across the drivers sharing one — nothing ' +
@@ -1660,6 +1778,16 @@ export class Driver {
    * @throws ResumeRefused — see {@link ResumeRefusalReason}; the driver is then spent.
    */
   resume(checkpoint: Checkpoint): void {
+    this.stepping += 1;
+    try {
+      this.resumeStep(checkpoint);
+    } finally {
+      this.stepping -= 1;
+    }
+  }
+
+  /** `resume`'s body — wrapped so the driver knows it is on the stack of its own step (`stepping`, `RN-R31`, W173 D-1). */
+  private resumeStep(checkpoint: Checkpoint): void {
     if (this.started) {
       throw new MultipleRuns(
         `this driver already started or resumed run "${this.runId}", and resume() is the other door into the SAME run. ` +
@@ -1704,6 +1832,9 @@ export class Driver {
           '(P23 decision 10); the tail, `halted` included, has been delivered to onFoldInput so a store can hold it.');
     }
     const inFlight = this.inFlight();
+    // **Not yet handed back, until each is** (`RN-R31`, W173): a cancel raised on the `resumed` element below sends the
+    // scheduler nothing for these, and each is cancelled as it is handed on.
+    for (const id of inFlight) this.unhanded.add(id);
     // **`resumed` BEFORE the first re-dispatch** (P23 stop-and-ask (a)): a consumer and the fold learn
     // what is being run again before any of it can settle.
     this.append({ kind: 'resumed', taskIds: inFlight });
@@ -1712,18 +1843,25 @@ export class Driver {
         // **`RN-R29` — the hold, before EACH re-dispatch** (ADR 0103 rule 5, the maintainer's answer to W172's S-1,
         // 2026-10-16): a consumer's callback on the `resumed` element above — or one a hand-off below reaches — can
         // halt the run on this stack, and a halted run hands nothing further to the scheduler.
-        if (this.shut()) break;
+        // **EXCEPT a requested cancel** (`RN-R31`, ADR 0104, W173): these tasks are `dispatched` in the run's sequence
+        // and unsettled, so the fold reads the run `cancelling` until each settles — and only the scheduler writes a
+        // settlement (ADR 0007). Held here, they would never settle and `done` would never come; so each is handed on
+        // and cancelled at once (`handOn`), the road P34 (c) gives a paused run's held tasks.
+        if (this.holdsResume()) break;
         const config = replay.held.get(id);
         // Every in-flight id was dispatched DURING the replay, and every dispatch during it is held, so
         // this cannot miss — and if it could, a task would be silently lost, which is the one outcome
         // at-least-once exists to exclude. Loud instead.
         if (config === undefined) throw new Error(`resume: in-flight task "${id}" has no held dispatch — this is a defect in the driver`);
-        this.opts.scheduler.addTask((this.opts.createTask ?? defaultCreateTask)(config));
+        this.handOn(id, config);
       }
     } catch (e) {
       // `start()`'s treatment: caller-initiated, so reported AND rethrown.
       this.failRun(e);
       throw e;
+    } finally {
+      // What a halt left unhanded is never handed: nothing is waiting to cancel it.
+      this.unhanded.clear();
     }
   }
 
@@ -1841,6 +1979,20 @@ export class Driver {
     resolvedAs: 'done' | 'failed',
     value: { result?: unknown; error?: string; actor: string },
   ): boolean {
+    this.stepping += 1;
+    try {
+      return this.resolveStep(taskId, resolvedAs, value);
+    } finally {
+      this.stepping -= 1;
+    }
+  }
+
+  /** `resolve`'s body — wrapped so the driver knows it is on the stack of its own step (`stepping`, `RN-R31`, W173 D-1). */
+  private resolveStep(
+    taskId: string,
+    resolvedAs: 'done' | 'failed',
+    value: { result?: unknown; error?: string; actor: string },
+  ): boolean {
     if (!isSuspended(this.log, taskId)) return false;
     const { runId, nodeId, branchPath } = parseTaskId(taskId);
     // `OR-R10` — *"the driver has stopped routing it"*, and that has to hold on
@@ -1937,9 +2089,116 @@ export class Driver {
     }
   }
 
+  /**
+   * **Cancel the run: hold it, record the request, and ask the scheduler to cancel each task in flight** — `RN-R31`,
+   * `spec/run-state.md` section 13, [ADR 0104](../../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md),
+   * P34 decision 4 and stop-and-asks (b), (c), (i), (j). **Resolves once every task it cancelled has stopped**; the fold
+   * reads the run `cancelling` until then and `cancelled` after (`RN-R30`), so a runtime's `done` settles after the last
+   * `task.cancelled` from the fold alone.
+   *
+   * **In order, and each step is a rule:**
+   *   1. **Refuse** — {@link RunControlRefused}, before anything is recorded or sent; and a `graceMs` the scheduler
+   *      would throw on is thrown here, as it would be (`TypeError`, `RangeError`).
+   *   2. **Hold** (`RN-R29`): `cancelRequest` is set, so `shut()` is true for every door; every region's collection is
+   *      released, `failRun`'s run-level moment (ADR 0046 rule 3, `JP-R12`) — no join of this run settles again.
+   *   3. **Record** ONE `cancelRequested` element, BEFORE the scheduler is asked for anything.
+   *   4. **Cancel** each task in flight the scheduler holds — `RN-R21`'s set, so a PARKED task, settled already, is sent
+   *      nothing (P34 (i); the scheduler cannot end it, fact 8). A task not yet handed on is cancelled by `handOn` after
+   *      its hand-off (`RN-R29` (i)). Tasks a worker SPAWNED are not this run's (P34 (j)).
+   *
+   * **A SECOND call** appends nothing and forwards its `graceMs` to each task still stopping — the scheduler's own
+   * escalation — and resolves once those have stopped. It is never refused for the halt its own first call made.
+   *
+   * @throws RunControlRefused — `unsupported`, `not-started`, `halted`, `cancelled` or `ended`; nothing recorded or sent.
+   * @throws TypeError / RangeError — `graceMs` not a number, or negative or `NaN`; nothing recorded or sent.
+   */
+  cancel(options: RunCancelOptions): Promise<void> {
+    const cancelOf = this.opts.scheduler.cancel;
+    if (typeof cancelOf !== 'function') {
+      throw new RunControlRefused('cancel', 'unsupported',
+        `RunControlRefused (unsupported): run "${this.runId}"'s scheduler has no cancel(taskId, options) — SchedulerLike's optional ` +
+          'third member (P34 (b), ADR 0104). A FyflowScheduler has one, and a runtime`s per-run view forwards it; a scheduler double ' +
+          'must declare it to cancel a run. Nothing was recorded and nothing was sent.');
+    }
+    const graceMs = options?.graceMs;
+    if (graceMs !== undefined) {
+      // The scheduler's own refusals (its AGENTS.md section 5), raised HERE so they cannot be raised half-way through
+      // step 4, with the element already in the log and some tasks cancelled and others not.
+      if (typeof graceMs !== 'number') throw new TypeError(`cancel: graceMs must be a number of ms, got ${typeof graceMs} — nothing was recorded`);
+      if (Number.isNaN(graceMs) || graceMs < 0) throw new RangeError(`cancel: graceMs must be 0 or more, got ${graceMs} — nothing was recorded`);
+    }
+    if (this.header === null) {
+      throw new RunControlRefused('cancel', 'not-started',
+        `RunControlRefused (not-started): driver for run "${this.runId}" holds no run to cancel — it has not started, or its resume ` +
+          'was refused and it is spent (RN-R23). Nothing was recorded and nothing was sent.');
+    }
+    const req = this.cancelRequest;
+    if (req !== null) {
+      // **The SECOND call** (P34 (c)): nothing appended; its `graceMs` forwarded to each task still stopping.
+      if (graceMs !== undefined) req.graceMs = graceMs;
+      for (const id of this.inFlight()) if (this.handedOn(id)) this.cancelTask(id);
+      // **And it resolves as the first does** (W173's adequacy reader, D-2): a microtask on, on every task STILL
+      // stopping — a task not yet handed on when this call was made (its own `dispatched` element's stack, a resume's)
+      // is cancelled by `handOn` within that microtask, and waited on here; `still` alone missed it and resolved at once.
+      const stopping = req.stopping;
+      return Promise.resolve().then(() => Promise.all([...stopping.values()])).then(() => undefined);
+    }
+    if (this.failed) {
+      throw new RunControlRefused('cancel', 'halted',
+        `RunControlRefused (halted): run "${this.runId}" was HALTED by a refusal (OR-R10) — it routes nothing again, and its ` +
+          'outcome is halted. Nothing was recorded and nothing was sent.');
+    }
+    if (this.cancelled) {
+      throw new RunControlRefused('cancel', 'cancelled',
+        `RunControlRefused (cancelled): run "${this.runId}" was already ended CANCELLED by a task the scheduler cancelled on its ` +
+          'own (RN-R28). Cancel a task it still runs by its id. Nothing was recorded and nothing was sent.');
+    }
+    const inFlight = this.inFlight();
+    // **`ended` only AT REST** (D-1): mid-step a prefix with nothing in flight is the moment between a settlement and the
+    // dispatch it causes — accepted there, the hold stops that dispatch and the run reads `cancelled`.
+    if (this.stepping === 0 && inFlight.length === 0 && !this.dispatchedIds().some((id) => isSuspended(this.log, id))) {
+      throw new RunControlRefused('cancel', 'ended',
+        `RunControlRefused (ended): run "${this.runId}" has nothing in flight and nothing parked on a person — it has finished, ` +
+          'and a cancel would rewrite its outcome. Nothing was recorded and nothing was sent.');
+    }
+    // 2. HOLD — before the element, so a consumer's callback on it already sees the run held.
+    const reason = options.reason;
+    const stopping = new Map<string, Promise<boolean>>();
+    this.cancelRequest = {
+      ...(reason !== undefined ? { reason } : {}),
+      ...(graceMs !== undefined ? { graceMs } : {}),
+      stopping,
+    };
+    this.arrivals.clear();
+    // 3. RECORD.
+    this.append({ kind: 'cancelRequested', actor: options.actor, reason: reason ?? null });
+    // 4. CANCEL — read AFTER the append: a callback on the element may have settled a task.
+    for (const id of this.inFlight()) {
+      if (this.handedOn(id)) this.cancelTask(id);
+    }
+    // A microtask on, the synchronous stack this call was made from has finished — a `dispatch` or a `resume()` that
+    // was handing a task on when the call arrived has handed it and cancelled it (`handOn`) — so every promise is in.
+    return Promise.resolve().then(() => Promise.all([...stopping.values()])).then(() => undefined);
+  }
+
+  /** Whether the scheduler holds this task — dispatched, not held by a replay, and past its `addTask` (`RN-R31`). */
+  private handedOn(taskId: string): boolean {
+    return this.replay === null && !this.unhanded.has(taskId);
+  }
+
   // --- the scheduler's side ----------------------------------------------------
 
   private onEvent(name: string, detail: TaskDetailLike): void {
+    this.stepping += 1;
+    try {
+      this.onEventStep(name, detail);
+    } finally {
+      this.stepping -= 1;
+    }
+  }
+
+  /** `onEvent`'s body — wrapped so the driver knows it is on the stack of its own step (`stepping`, `RN-R31`, W173 D-1). */
+  private onEventStep(name: string, detail: TaskDetailLike): void {
     // **A SPENT driver hears nothing** — `RN-R23`, and both of W89's readers from opposite ends: a driver whose resume was
     // refused holds no run (`header` reset, `started` set) and yet stayed subscribed, so a settlement under its run id was
     // appended to its partial replay and delivered to its `onFoldInput`, another reached `onRunFailure` as `UndispatchedTask`,
@@ -3205,6 +3464,7 @@ export class Driver {
     // **What it does NOT hold** (`RN-R29` (i)): a halt raised on THIS dispatch's own `dispatched` element, below — the
     // task is still handed on. P34's cancel and stop (W173, W174) must cancel such a task AFTER its hand-off, since a
     // scheduler's `cancel()` of an id it has not been handed resolves `false` and the task would then run (ADR 0103).
+    // **W173 does, at the foot of this function**: the id is `unhanded` from before its element until `addTask` returns.
     if (this.shut()) return;
     const taskId = buildTaskId(runId, node.id, branchIndices(this.pathOf(node.id, itemIndices)), 0);
 
@@ -3215,6 +3475,10 @@ export class Driver {
       throw new DuplicateTaskId(`"${taskId}" was already dispatched in run "${runId}"`);
     }
     this.dispatched.add(taskId);
+    // **`unhanded` from BEFORE the element** (`RN-R31`, W173): a consumer's callback on it can cancel the run, and
+    // that cancel must not send the scheduler an id it does not hold yet. A replay's dispatch is HELD and never handed
+    // here, so it is not marked: `cancel()` reads the whole replay as unhanded, and `resume()` hands it back.
+    if (this.replay === null) this.unhanded.add(taskId);
     // Appended BEFORE `addTask`. `RN-R4` says a node absent from `nodes` was never
     // dispatched; a scheduler that settled a task inside `addTask` would otherwise
     // deliver the outcome before the dispatch that caused it.
@@ -3277,7 +3541,46 @@ export class Driver {
       this.replay.held.set(taskId, config);
       return;
     }
-    this.opts.scheduler.addTask((this.opts.createTask ?? defaultCreateTask)(config));
+    this.handOn(taskId, config);
+  }
+
+  /**
+   * **Hand one task to the scheduler — and, if the run's owner cancelled it while the task was on its way, cancel it
+   * at once** (`RN-R29` (i), `RN-R31`, ADR 0103's inherited hazard, W173). The ONE place `addTask` is called: by
+   * `dispatch` for the task in progress, and by `resume()` for each task in flight. A cancel raised on this task's own
+   * `dispatched` element — or on a resume's `resumed` element — ran before the scheduler held the id, and sent nothing
+   * for it; this is where that task is cancelled, so it ends with a genuine `task.cancelled` rather than running.
+   */
+  private handOn(taskId: string, config: TaskConfig): void {
+    try {
+      this.opts.scheduler.addTask((this.opts.createTask ?? defaultCreateTask)(config));
+    } finally {
+      this.unhanded.delete(taskId);
+    }
+    if (this.cancelRequest !== null) this.cancelTask(taskId);
+  }
+
+  /**
+   * **One task cancelled through the scheduler, with the request's options**, its promise kept for `cancel()` to wait
+   * on (`RN-R31`). Each option is passed only when the caller gave it, so an absent `graceMs` is the pool's
+   * `cancelGraceMs` and not `undefined` read as a value.
+   */
+  private cancelTask(taskId: string): Promise<boolean> {
+    const req = this.cancelRequest!;
+    const options: { reason?: string; graceMs?: number } = {};
+    if (req.reason !== undefined) options.reason = req.reason;
+    if (req.graceMs !== undefined) options.graceMs = req.graceMs;
+    const p = this.opts.scheduler.cancel!(taskId, options);
+    // **The FIRST promise per task is the one kept** — a SECOND call's `cancel` of a task still stopping is the
+    // scheduler's repeat, which returns the same promise; a double that returns another must not swap out the one the
+    // first call's own promise is already waiting on (a promise read once cannot be re-read).
+    if (!req.stopping.has(taskId)) req.stopping.set(taskId, p);
+    // **Dropped once it settles**, so a run whose tasks have all stopped holds no promise: `RN-R13`'s terms do not move,
+    // and a walk that serializes the driver's fields (`examples/run-flow.ts`) is not handed a value it refuses. Both
+    // arms, so a double whose `cancel` rejects leaves no unhandled rejection behind this bookkeeping.
+    const drop = () => { if (req.stopping.get(taskId) === p) req.stopping.delete(taskId); };
+    p.then(drop, drop);
+    return p;
   }
 
   /**

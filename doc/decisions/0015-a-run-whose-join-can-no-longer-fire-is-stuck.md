@@ -139,7 +139,9 @@ through to `failed` or to nothing, and says the run is over without saying it ca
 **What it does not decide.** Whether a stuck run is *recoverable* — [Q38](../questions/q38.md) asks
 the same of a `stopped` one and neither is answered here. Nor what a consumer should **do** about a
 `stuck` run: there is no cancel ([Q18](../questions/q18.md), [S2](../scheduler-upstream.md)), so
-today the honest answer is that it can be reported and abandoned.
+today the honest answer is that it can be reported and abandoned. *(Since [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md)
+(W173) there is one, and the answer is unchanged: a stuck run has nothing in flight to stop, and `driver.cancel` refuses it
+as `ended`.)*
 
 ## Alternatives rejected
 

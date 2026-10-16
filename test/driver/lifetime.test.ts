@@ -626,7 +626,7 @@ suite('Q72 — the precondition the topology has, stated rather than assumed', (
     // true only for DISTINCT run ids. With the same id, both drivers mint the same
     // task ids, so `dispatched.has()` is true in both and `ID-R4` is not violated
     // — it is a limit of the rule, not a bug in it, and no driver can detect it
-    // from inside (`SchedulerLike` has two methods and neither asks).
+    // from inside (`SchedulerLike` has two required methods and an optional `cancel`, and none asks).
     //
     // This test pins the known limit so the claim cannot quietly widen. The
     // precondition is stated in ADR 0023's Correction, in `spec/task-id.md`

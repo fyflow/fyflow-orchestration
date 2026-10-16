@@ -2,8 +2,8 @@
  * Ladder **L6** — one real run, on a real `FyflowScheduler`, with real workers.
  *
  * This is the only code in the repository that DRIVES the library end to end. Everything
- * under `src/` talks to `SchedulerLike`, a structural interface with two methods
- * (`ADR 0001`); since [ADR 0048](../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
+ * under `src/` talks to `SchedulerLike`, a structural interface with two required methods
+ * (`ADR 0001`) and, since [ADR 0104](../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md), an optional `cancel`; since [ADR 0048](../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)
  * the published package also DEPENDS on the scheduler — a peer dependency, and one import
  * in `src/driver/driver.ts` for the default `createTask` — which is why this harness no
  * longer writes that factory itself. *(This read ADR 0013 rule 1's "depends on the scheduler

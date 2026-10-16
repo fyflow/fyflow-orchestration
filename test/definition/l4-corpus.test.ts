@@ -424,6 +424,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W173 — ADR 0104, cancelling a run: L2 in `test/driver/cancel.test.ts`, L1/L3 in `test/fold/cancelling.test.ts`, each
+  // counted below.
+  'L2 — RN-R31: cancelling a run — hold, one element, then each task in flight cancelled, and `done` after the last',
+  'L1 — RN-R30: a run its OWNER cancelled reads `cancelling` until its last task has stopped, then `cancelled`',
   // W172 — ADR 0103, the dispatch hold and Q605's two doors: L2 in `test/driver/hold.test.ts`, its cases counted below.
   'L2 — RN-R29: the dispatch hold — a halt ON THE STACK of a fan-out, a map or a resolution dispatches, routes and emits nothing further (Q605)',
   // W166 — P37 stop-and-ask (d), a sample the caller gives: L1 in `test/definition/assist.test.ts`.
@@ -821,6 +825,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L2 — RN-R29: the dispatch hold — a halt ON THE STACK of a fan-out, a map or a resolution dispatches, routes and emits nothing further (Q605)'), 17,
       'test/driver/hold.test.ts registers its seventeen: three doors x (control, refusal, cancel), door (b)`s second check and a gate`s route each under both halts, the dispatch`s own check, resume()`s re-dispatch, the limit, and its own membership');
+  });
+  // **W173's two suites, counted the same way and for the same reason.**
+  test('W173`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R31: cancelling a run — hold, one element, then each task in flight cancelled, and `done` after the last'), 13,
+      'test/driver/cancel.test.ts registers its thirteen: the roads, the second call, the refusals, RN-R29 (i), the resume, the parked run, RN-R23, the mid-step cancel, two cancels on an unhanded task, the running road, the lost tail, a done-and-parked run, and its own membership');
+    equal(count('L1 — RN-R30: a run its OWNER cancelled reads `cancelling` until its last task has stopped, then `cancelled`'), 10,
+      'test/fold/cancelling.test.ts registers its ten: eight claims, L3, and its own membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

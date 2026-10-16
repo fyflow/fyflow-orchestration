@@ -70,6 +70,8 @@ to answer without reopening
    and `awaiting_action` leave it pending, because `isTerminal` says more input is coming.
    ***Amended 2026-10-15 by [ADR 0094](0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)
    (W158): `cancelled` settles it too, on the run's first cancelled settlement.***
+   ***And by [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md) (W173, 2026-10-16):
+   `cancelling` leaves it pending as well — a run its owner cancelled settles `cancelled` after its last task has stopped.***
 4. **A driver refusal resolves it with `outcome: 'stopped'`, carrying `stoppedBy`.** `failRun`
    appends the `stopped` fold input **before** it calls `onRunFailure`, so a refusal is already
    terminal when a consumer hears of it — resolving does not hang, and it reports strictly more than

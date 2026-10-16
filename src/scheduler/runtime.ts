@@ -302,7 +302,10 @@ export interface RunHandle {
   readonly driver: Driver;
   /**
    * **The run's end.** Resolves with the terminal `RunState` — `completed`, `failed`, `stuck`, `cancelled` or
-   * `halted` (0.7.0's `stopped`, ADR 0102) — and never rejects. Pending while the outcome is `running` or `awaiting_action`.
+   * `halted` (0.7.0's `stopped`, ADR 0102) — and never rejects. Pending while the outcome is `running`, `awaiting_action`
+   * or — since W173 — `cancelling`: a run its owner cancelled through `driver.cancel` settles `cancelled` after its LAST
+   * task has stopped, and is released then (ADR 0104, `RN-R30`); one a task the scheduler cancelled on its own ended
+   * settles at that first `task.cancelled` (`RN-R28`).
    *
    * It is the SAME expression a consumer would have written, moved: the runtime keeps ONE
    * `RunState` and `step`s it per fold input, which is what `fold` is
@@ -612,7 +615,7 @@ export function createRuntime(
    * stop-and-ask (b), answered: *refuse, and the counter skips ids in use*. **Held for the runtime's LIFE, not the run's —
    * and since [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
    * it is the ONLY thing the runtime keeps of a finished run.** The router drops the driver when `done` settles (rule 1) and
-   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `halted` or `cancelled` run by construction —
+   * this set keeps the id (rule 2), because a run can end with tasks still in flight — a `halted` run, or a `cancelled` one a task the scheduler cancelled on its own ended (`RN-R28`), by construction; a run its owner cancelled ends with none (ADR 0104) —
    * whose settlements carry its id: a second run under it would be handed them, refused by `ID-R4` tier 2, or accepted as
    * its own where it minted the same task id. *(This said the id was held because a completed run's driver still HEARD every
    * settlement under it, and its checkpoint changed after it completed — true until ADR 0091, which released that driver.)*
@@ -871,7 +874,13 @@ function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): Sc
   };
   return {
     forRun(runId) {
+      // **`cancel` is FORWARDED, as `addTask` is** — W173, P34 stop-and-ask (b), ADR 0104: `Driver.cancel` reaches the
+      // runtime's scheduler through this view, so a run's cancel is the driver's side effect on a runtime exactly as on a
+      // hand-built driver. Present only when the scheduler has one (`SchedulerLike`'s member is optional); a cancel
+      // reaches no other run — the scheduler cancels by task id, and every id the driver sends is its own run's.
+      const cancel = scheduler.cancel;
       return {
+        ...(typeof cancel === 'function' ? { cancel: (id: string, options?: { reason?: unknown; graceMs?: number }) => cancel.call(scheduler, id, options) } : {}),
         addTask: (task, options) => scheduler.addTask(task, options),
         addEventListener(name, listener) {
           let mine = byRun.get(runId);

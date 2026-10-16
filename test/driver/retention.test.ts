@@ -76,6 +76,17 @@ class FakeScheduler {
       if (state === 'user_action') this.fire('task.user_action', detail);
     }
   }
+  /** W173 — the scheduler's `cancel` on the RUNNING road: it records the id and fires nothing; `settle(id, 'cancelled')` ends it. */
+  readonly cancelSent: string[] = [];
+  private readonly stopping = new Map<string, (v: boolean) => void>();
+  cancel(id: string): Promise<boolean> {
+    this.cancelSent.push(id);
+    return new Promise<boolean>((r) => { this.stopping.set(id, r); });
+  }
+  stopped(id: string): void {
+    this.settle(id, 'cancelled');
+    this.stopping.get(id)?.(true);
+  }
   private fire(type: string, detail: unknown): void {
     for (const fn of this.listeners.get(type) ?? []) fn({ detail });
   }
@@ -283,6 +294,15 @@ const DRIVER_FIELDS = [
   // W158 — `cancelled`: one boolean, set by the run's first `cancelled` settlement (`RN-R28`, ADR 0094), which halts the
   // run. It holds no result; WALKED beside `failed`. The ratchet fired as designed, at W158's declaration step.
   'cancelled',
+  // W173 — `cancelRequest`: `null` until the run's OWNER cancels it (`RN-R31`, ADR 0104); then the caller's `reason` and
+  // `graceMs` and one promise per task STILL stopping, each dropped as it settles — no result, and nothing once the run is
+  // `cancelled`. `unhanded`: the task ids `dispatched` and not yet handed to the scheduler — the one in progress, or a
+  // resume's in-flight set while it is handed back — empty at rest. Both WALKED; the ratchet fired by name on W173's
+  // first L1 run, naming both.
+  'cancelRequest', 'unhanded',
+  // W173 (its conformity reader's D-1) — `stepping`: one integer, how deep the driver is in its own step, `0` at rest.
+  // No result; WALKED. The ratchet fired by name.
+  'stepping',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins
@@ -343,6 +363,9 @@ const DECLARED_CASES = [
   'rule 4 — an arrival at a join that has ALREADY become terminal records nothing',
   'a refusal that stops the run releases every region, and leaves the log whole',
   'a CANCEL that halts the run releases every region too, and leaves the log whole',
+  // **W173.** The same run-level moment reached by a REQUESTED cancel — at the request, before any task has stopped —
+  // and the request's own bookkeeping holds nothing once its tasks have (RN-R13, ADR 0104).
+  'a REQUESTED cancel releases every region AT THE REQUEST, and holds no promise once its tasks have stopped',
   'rule 5 — a run the FOLD calls `stuck` still holds its collection, and that is the bound',
   'a `fanout` region releases as a `map` one does — the half that had no observer',
   'a nested region releases its OWN collection and leaves the enclosing one held',
@@ -684,6 +707,33 @@ suite(SUITE, (test) => {
       'JP-R12`s run-level release — the run is halted, so every region`s collection is released, as after a refusal');
     ok(JSON.stringify(h.driver.snapshot()).includes(MARK), 'and the LOG is untouched — the arrived result is still in it');
     equal(fold(h.driver.foldInputs()).outcome, 'cancelled', 'RN-R28 — the run is `cancelled`');
+  });
+
+  /**
+   * **The same run-level moment, reached by a REQUESTED cancel** — `RN-R31` step 2, `JP-R12` v0.21, ADR 0104 (W173).
+   * The request HOLDS the run before any task has stopped, so no join settles again and every collection is released AT
+   * the request — not at a later settlement. And `RN-R13`: the request keeps one promise per task still stopping and
+   * drops each as it settles, so once the run is `cancelled` it holds none.
+   */
+  test('a REQUESTED cancel releases every region AT THE REQUEST, and holds no promise once its tasks have stopped', async () => {
+    const MARK = 'W173-REQUESTED-5e2a';
+    const h = harness(await load(MAP_FANOUT), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { s: MARK } });
+    equal(heldArrivals(h.driver), 1, 'the ARRANGEMENT: one branch has arrived and the join is still waiting');
+
+    const p = h.driver.cancel({ actor: 'ops' });
+    equal(h.scheduler.cancelSent, ['r1:score:1:0', 'r1:score:2:0'], 'the ARRANGEMENT: the two branches still in flight were sent their cancel');
+    equal(heldArrivals(h.driver), 0, 'released AT THE REQUEST — neither branch has stopped yet');
+    const stillStopping = () => (h.driver as unknown as { cancelRequest: { stopping: Map<string, unknown> } }).cancelRequest.stopping.size;
+    equal(stillStopping(), 2, 'the ARRANGEMENT: one promise per task still stopping');
+    h.scheduler.stopped('r1:score:1:0');
+    h.scheduler.stopped('r1:score:2:0');
+    await p;
+    equal(stillStopping(), 0, 'RN-R13 — once every task has stopped the request holds no promise');
+    ok(JSON.stringify(h.driver.snapshot()).includes(MARK), 'and the LOG is untouched — the arrived result is still in it');
+    equal(fold(h.driver.foldInputs()).outcome, 'cancelled', 'RN-R30 — the run is `cancelled`');
   });
 
   /**

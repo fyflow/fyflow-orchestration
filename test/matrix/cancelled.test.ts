@@ -20,7 +20,7 @@ import { equal, ok, suite } from '../harness.ts';
 import { fold } from '../../src/fold/run-state.ts';
 import type { JsonValue } from '../../src/driver/policy.ts';
 import { driveScenario, runCell, type Verdict } from './run.ts';
-import { CANCELLED_SCENARIOS, SCENARIOS } from './scenarios.ts';
+import { CANCELLED_SCENARIOS, CANCELLING_SCENARIO, SCENARIOS } from './scenarios.ts';
 import { MATRIX_COLUMNS, MATRIX_POLICY_IDS } from './variants.ts';
 
 interface Answer { status: string; describe: JsonValue; verdict: Verdict }
@@ -92,6 +92,32 @@ suite('L5 — a cancelled branch under every policy: the join waits, the run is 
       });
     }
   }
+
+  // **W173 — the `cancelling` row** (`RN-R30`, `RN-R31`, `spec/join-policy.md` v0.21): the cancel is REQUESTED, so the
+  // stream ends at the openings — the request holds the run before either branch settles — and every column answers
+  // that stream as `cancelled-in-flight`'s does. Hand-derived: two opened, nothing arrived, so `arrival-count` needs 2
+  // with none arrived, `live-token` holds 2 live, and the `JP-R8` variant 2 live and 0 arrived.
+  test('the `cancelling` row: a REQUESTED cancel — `cancelling` until the last branch stops, then `cancelled`, the join waiting under every column', () => {
+    const want: Record<string, Answer> = {
+      'arrival-count': waiting(ac(2, [])),
+      'live-token': waiting(lt(2)),
+      'arrival-count-decrementing': waiting(ac(2, [])),
+      'live-token-requiring-arrival': waiting(ltA(2, 0)),
+    };
+    for (const policy of MATRIX_COLUMNS) {
+      const cell = runCell(CANCELLING_SCENARIO, policy);
+      equal(cell.events, ['opened(split:0)', 'opened(split:1)'], `${policy.id}: the stream ends at the openings — nothing after the request`);
+      equal({ status: cell.status, describe: cell.describe, verdict: cell.verdict }, want[policy.id], `${policy.id}: waiting, the describe of that stream`);
+      equal([cell.joinFired, cell.unsatisfiable, Object.keys(cell.payloads)], [false, [], ['r1:ingest:-:0', 'r1:scoreA:0:0', 'r1:scoreB:1:0']],
+        `${policy.id}: the join did not fire, nothing was reported, nothing was dispatched after the fan-out`);
+      // The outcome after each prefix of the steps: ingest done (1), the request (2), the first branch stopped (3), the last (4).
+      const outcomeAt = (n: number) =>
+        fold(driveScenario({ ...CANCELLING_SCENARIO, steps: CANCELLING_SCENARIO.steps.slice(0, n) }, policy).driver.foldInputs()).outcome;
+      equal([outcomeAt(1), outcomeAt(2), outcomeAt(3), outcomeAt(4)], ['running', 'cancelling', 'cancelling', 'cancelled'],
+        `${policy.id}: running, then cancelling at the request and after the first branch stopped, cancelled at the last — never stuck`);
+      equal(driveScenario(CANCELLING_SCENARIO, policy).scheduler.cancelled, ['r1:scoreA:0:0', 'r1:scoreB:1:0'], `${policy.id}: each branch in flight was sent its cancel`);
+    }
+  });
 
   test('the parked task in `cancelled-beside-suspended` cannot be resolved, under any column', () => {
     const row = CANCELLED_SCENARIOS.find((s) => s.key === 'cancelled-beside-suspended')!;
