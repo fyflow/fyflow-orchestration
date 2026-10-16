@@ -424,6 +424,8 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W166 — P37 stop-and-ask (d), a sample the caller gives: L1 in `test/definition/assist.test.ts`.
+  'W166 — a sample the caller GIVES: tryTransform(…, { input }) runs on what the node receives, ONE verdict, the entry included (P37 (d))',
   // W165 — ADR 0099, pool options on a named pool instance: L1 in `test/definition/registry.test.ts` and, through the
   // pool factory's seam and `createRuntime`, in `test/scheduler/bootstrap.test.ts`.
   'W165 — pool options on a named pool instance: a DOCUMENT type`s instance overrides its type`s, held to poolSpecProblem; residentGroups copied; flushIntervalMs bounded (ADR 0099)',

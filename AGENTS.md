@@ -26,7 +26,7 @@ have: **sequence**, **decision routing**, **fan-out** and **join**.
 a worker declares what it expects and what it returns — it need not, and `unchecked` is the verdict
 when it does not — `checkWiring` gives every arc of a flow one of five verdicts from those
 declarations, `tryTransform` runs a candidate expression on a producer's own
-declared example and holds the result to the consumer's schema, and `signatureOf` turns the same
+declared example — or on a value you give it — and holds the result to the consumer's schema, and `signatureOf` turns the same
 schemas into the TypeScript a worker's author writes against. **Section 15 is a session that does all
 three on a real miswire and then runs the flow it repaired** — it is executed by `npm run gate` like
 everything else here.
@@ -2908,7 +2908,7 @@ adapter's worker half, so it loads a module by URL and returns a promise:
 | | answers |
 |---|---|
 | `pathsOf(schema)` | *what is there to reach for* — every path a value may carry, and which are guaranteed |
-| `tryTransform(registry, flow, node, transform)` | *does THIS expression fit* — one candidate, one verdict, on a real sample |
+| `tryTransform(registry, flow, node, transform, { input }?)` | *does THIS expression fit* — one candidate, one verdict, on a real sample — or on a value you GIVE, the entry node included (*A sample you GIVE*, below) |
 | `signatureOf(name, worker)` | *what do I write my worker against* — TypeScript, as text |
 
 The registry below is
@@ -3038,6 +3038,81 @@ W74's conformity reader, from the author's own scratchpad output.)* Neither hold
 which RUNS each worker on its declared example and validates what came back — is what catches the
 rest.** Even that sees one value: a bound the code does not keep past the example is invisible to it
 and visible at every consumer the wiring check reads ([Q302](doc/questions/q302.md)).
+
+### A sample you GIVE — `tryTransform(…, { input })`, the entry node included
+
+**Every verdict above runs on a SCHEMA's value** — the producer's declared example, or its witness — and
+the entry node gets none, because no arc reaches it: `tryTransform` on `read` above returns `[]`. An
+editor has a value in hand instead: typed, pasted, or taken from a run. **Pass it as `input`** and the
+candidate runs ONCE on it as what the node RECEIVES — `$` — and `tryTransform` returns **ONE verdict
+whatever arcs reach the node, on the entry node too** (W166, P37 stop-and-ask (d)):
+
+| | a given verdict |
+|---|---|
+| `shape` | `'given'` — not an arc; `checkWiring` never produces it |
+| `producer` | **absent** — the value came from no node (and `through` too) |
+| `sample` | `{ source: 'given', value, result }` — the value you gave, and what the transform made of it; no `arity`. **Never `'example'` or `'witness'`** |
+| `kind` | `transform-passes`, or `transform-fails` with the finding against the node's worker `inputSchema` — or naming the error, where the expression does not compile or throws on this value; `unchecked` for a language, type, worker or worker schema the registry lacks, as on an arc, naming which — and for a `null` candidate, which takes away any transform the node declares too: there is nothing to run the value through, and holding that value to the `inputSchema` is `findings(schema, value)` |
+
+**The value is `$` as you give it: no `needs` is composed over it**, because a `needs` composes what
+arrives and this is what arrived — and on a `map`'s branch task it is ONE instance's value, evaluated
+once. `input: undefined` is no input (the arcs answer, as before); `null` is a value. *What it is not*:
+a statement about the producer or the flow — it says what this expression does to this value, and a
+value that passes is *the sample passed — the given input*, never *fits*. **`givenVerdict(registry, flow,
+node, input)`**, exported beside `checkWiring`, is the same road on the node as the flow DECLARES it —
+`tryTransform` calls it on the copy that carries your candidate, so the two have ONE contract: `input`
+`undefined` is no input there too, and the node's arcs answer. **`givenVerdict` and `TryTransformOptions` are
+NEW public surface in 0.8.0.**
+
+```ts run
+import { tryTransform, type FlowDefinition } from 'fyflow-orchestration';
+import { jsonata } from 'fyflow-orchestration/jsonata';
+import { SESSION_REGISTRY, SESSION_WORKERS } from '../../examples/getting-started/session-registry.ts';  // in your program: './registry.ts', a module or a JSON file of your own
+
+const registry = { workers: SESSION_WORKERS, nodeTypes: SESSION_REGISTRY.nodeTypes, languages: { jsonata } };
+const flow: FlowDefinition = {
+  flowId: 'session', version: 1, entry: 'read',
+  nodes: [
+    { id: 'read', kind: 'task', type: 'Reader', edges: [{ to: 'sum' }] },
+    { id: 'sum', kind: 'task', type: 'Summarise', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// THE ENTRY NODE. No arc reaches it, so the schemas have nothing to say about what it receives...
+const rename = { lang: 'jsonata', expr: '{ "source": folder }' };
+if ((await tryTransform(registry, flow, 'read', rename)).length !== 0) throw new Error('no arc reaches the entry');
+// ...and given what it receives, ONE verdict. `reader`'s inputSchema wants `source` a string.
+const [entry] = await tryTransform(registry, flow, 'read', rename, { input: { folder: 'inbox' } });
+console.log(`${entry!.kind} on the ${entry!.sample!.source}: ${JSON.stringify(entry!.sample!.result)}`);  // transform-passes on the given: {"source":"inbox"}
+if (entry!.shape !== 'given' || entry!.producer !== undefined || entry!.sample!.source !== 'given') throw new Error('a given verdict: shape given, no producer');
+if (entry!.kind !== 'transform-passes') throw new Error(`expected the given value to pass, got ${entry!.kind}: ${entry!.why}`);
+
+// The same expression on a value it does not fit: the finding, against the node's own inputSchema.
+const [wrong] = await tryTransform(registry, flow, 'read', rename, { input: { folder: 3 } });
+console.log(`${wrong!.kind}: ${wrong!.why}`);  // transform-fails: the transform's result on the given input fails the consumer's inputSchema — $.source expected string, ...
+if (wrong!.kind !== 'transform-fails' || !wrong!.why.includes('$.source expected string')) throw new Error(`expected the finding, got ${wrong!.why}`);
+
+// THE INNER NODE. Without an input its one arc runs on `reader`'s declared EXAMPLE; given a value, it runs on that.
+const join = { lang: 'jsonata', expr: '{ "text": $join(lines, " ") }' };
+const [arc] = await tryTransform(registry, flow, 'sum', join);
+const [mine] = await tryTransform(registry, flow, 'sum', join, { input: { lines: ['typed', 'by', 'hand'] } });
+console.log(arc!.sample!.source, mine!.sample!.source, mine!.sample!.result);  // example given { text: 'typed by hand' }
+if (arc!.sample!.source !== 'example' || mine!.sample!.source !== 'given') throw new Error('the arc runs on the example, a given value on itself');
+if (JSON.stringify(mine!.sample!.result) !== JSON.stringify({ text: 'typed by hand' })) throw new Error('joined, the three given lines');
+
+// An expression the engine refuses: `transform-fails`, naming the throw — the compile error, on the given input.
+const [broken] = await tryTransform(registry, flow, 'sum', { lang: 'jsonata', expr: '{{{' }, { input: { lines: [] } });
+if (broken!.kind !== 'transform-fails' || !broken!.why.startsWith('the transform threw on the given input')) throw new Error(`expected the compile error, got ${broken!.why}`);
+```
+
+**BREAKING in 0.8.0** (P37 decision 10): **`SampleSource` gains `'given'`**, **`WiringShape` gains
+`'given'`** (and `WIRING_SHAPES` with it), and **`WiringVerdict.producer` is optional** — absent on a
+given verdict and only there. A `switch` exhaustive over the two sources or the five shapes no longer is,
+and code reading `producer` as a `string` fails to compile under `strictNullChecks` — narrow it on
+`shape !== 'given'`, or read it as `string | undefined`. `checkWiring`'s own verdicts are unchanged: every
+one still carries a producer and an `'example'` or `'witness'` sample.
+
 ---
 
 ## 16. What a schema buys a RUN — holding a result to the schema its worker declares

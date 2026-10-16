@@ -60,6 +60,15 @@
  * `RT-R12` holds and this module loads no engine of its own. A witness is not a proof, and a
  * sample that passes is reported as *the sample passed*, never as *fits*.
  *
+ * **And a value the CALLER GIVES is not an arc at all** (v0.38,
+ * [P37](../../doc/plans/p37-a-runtime-is-its-registry.md) stop-and-ask (d),
+ * [W166](../../doc/work-items/w166-a-sample-the-caller-gives.md)): `givenVerdict` runs a task's transform
+ * ONCE on what the node RECEIVES — `$`, as given, no `needs` composed over it — and returns ONE verdict of
+ * shape `given`, with no producer and the source `'given'`, whatever arcs reach the node and on the ENTRY
+ * too. It reads no arrival, so a given value never reaches the record's or the composition's source
+ * aggregation (P37 fact 4) — and those are typed over the two sources a SCHEMA supplies, so it cannot.
+ * The evaluation is the arcs' own: `judgeTransform` below is the one both roads call.
+ *
  * **A GATE's arc carries what reached it REFINED by what its ROUTE guarantees, and a KEY PATH the
  * producer FORBIDS makes that arc `no`** — [ADR 0068](../../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)
  * and its refusing half ([W99](../../doc/work-items/w99-what-a-route-guarantees.md),
@@ -74,20 +83,37 @@
  * `checkWiring` returns a Promise; no `node:` import, no clock (`RT-R3`, `RT-R4`).
  */
 import { describeFindings, findings, type JsonSchema } from './schema.ts';
-import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry } from './types.ts';
+import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry, TaskNode } from './types.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
 import { allRegions, branchPathOf, buildGraph, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
 // ---- the verdict -----------------------------------------------------------------------------
 
-/** The five shapes of *what a node receives* — `FD-C1`, `JP-R11`, `JP-R12`. */
-export type WiringShape = 'edge' | 'branch' | 'item' | 'record' | 'needs';
+/**
+ * The five shapes of *what a node receives* — `FD-C1`, `JP-R11`, `JP-R12` — **and `given`, which is
+ * not an arc** (v0.38, W166): the value a caller hands `tryTransform(…, { input })`. `checkWiring` never
+ * produces it. **BREAKING in 0.8.0**: a `switch` exhaustive over the five is not exhaustive over six.
+ */
+export type WiringShape = 'edge' | 'branch' | 'item' | 'record' | 'needs' | 'given';
+/** The shapes an ARC has — every one but `given`, which only the given road produces. */
+type ArcShape = Exclude<WiringShape, 'given'>;
+/**
+ * **The two sources an ARC's sample can have, and the only two the aggregations below are typed over** — a
+ * region's record and a `needs` composition call the whole sample `'example'` when every part is and
+ * `'witness'` otherwise (P37 fact 4), so a third value reaching them would be reported as `'witness'` in
+ * silence. A given value cannot reach them: it reads no arrival, and this type refuses it at compile time.
+ */
+type ArcSampleSource = Exclude<SampleSource, 'given'>;
+// **The narrowing above, held by `typecheck` and not by a harness outside the tree** (W166's adequacy reader, A3):
+// widen `ArcSampleSource` to `SampleSource` and the directive below is unused, which is a compile error.
+// @ts-expect-error — `'given'` is never an arc's source.
+const _GIVEN_IS_NO_ARC_SOURCE: ArcSampleSource = 'given';
 /** The five verdicts. */
 export type VerdictKind = 'fits' | 'no' | 'transform-passes' | 'transform-fails' | 'unchecked';
 /** The value a transformed arc was verified on, where it came from, and what came out. */
 export interface WiringSample {
-  /** Whether the producer side was a declared example or the generator's witness (Q301). */
+  /** Whether the producer side was a declared example or the generator's witness (Q301) — or, on a `given` verdict and only there, the value the caller gave (`'given'`, W166). */
   source: SampleSource;
   /** How many branches or items the sample had, where the producer is a region or a map (Q263). */
   arity?: number;
@@ -100,8 +126,12 @@ export interface WiringVerdict {
   /** The task node on the consuming side. */
   consumer: string;
   shape: WiringShape;
-  /** The task whose output arrives, the join whose record arrives, or the opener of the region the consumer sits in. */
-  producer: string;
+  /**
+   * The task whose output arrives, the join whose record arrives, or the opener of the region the consumer sits in.
+   * **ABSENT on a `given` verdict, and present on every other** (v0.38, W166): a value the caller gave came from no
+   * node. **BREAKING in 0.8.0**: this was `string`.
+   */
+  producer?: string;
   /** For a `branch` or `item` arc: the fan-out or map the value passed through. */
   through?: string;
   kind: VerdictKind;
@@ -255,12 +285,12 @@ export function fits(P: JsonSchema, C: JsonSchema, path = '$'): { verdict: 'fits
 
 /** One arrival on the producer side of an arc: its schema and its sample, or why neither exists. */
 interface Arrival {
-  shape: WiringShape;
+  shape: ArcShape;
   producer: string;
   through?: string;
   schema?: JsonSchema;
-  /** `undefined` where no sample can be built — a side with no schema. */
-  sample?: { value: unknown; source: SampleSource; arity?: number };
+  /** `undefined` where no sample can be built — a side with no schema. Its source is a SCHEMA's, never `'given'`. */
+  sample?: { value: unknown; source: ArcSampleSource; arity?: number };
   /** Set when `schema` is absent: which side declares nothing, or why the value cannot be derived. */
   unchecked?: string;
   /** Set on a derived `no`: the producer's schema says the value cannot be what the consumer's road needs (a map over a key that is not an array). */
@@ -630,7 +660,7 @@ class Wiring {
     if (!region) return { ...base, unchecked: `join "${j.id}" closes no region` };
     const opener = this.byId.get(region.fanoutId) as FanoutNode | MapNode;
     const branches = opener.kind === 'map' ? [opener.branch] : opener.branches;
-    const values: { branch: string; schema: JsonSchema; sample: { value: unknown; source: SampleSource } }[] = [];
+    const values: { branch: string; schema: JsonSchema; sample: { value: unknown; source: ArcSampleSource } }[] = [];
     for (const b of branches) {
       const arriving = this.arrivingAt(region, b);
       if (arriving.length === 0) continue;                                  // the branch never arrives; no key
@@ -661,7 +691,7 @@ class Wiring {
       }
       values.push({ branch: b, schema: firstSchema, sample: first.sample ?? { value: null, source: 'witness' } });
     }
-    const source: SampleSource = values.every((v) => v.sample.source === 'example') ? 'example' : 'witness';
+    const source: ArcSampleSource = values.every((v) => v.sample.source === 'example') ? 'example' : 'witness';
     // **The sample's keys for a region INSIDE a map region take item index 0 for every enclosing map** —
     // the schema does not depend on the key, and `branchPathOf` refuses a path that crosses a map with
     // no index (`ID-R6`). W73's conformity reader found the check THROWING here on two documents the
@@ -709,13 +739,13 @@ class Wiring {
     // into an `unchecked` below and a road naming another node dropped it entirely, reading `fits`.
     if (a.refused !== undefined) return { ...base, refused: a.refused };
     const props: Record<string, JsonSchema> = {}; const required: string[] = []; const sample: Record<string, unknown> = {};
-    let source: SampleSource = 'example';
+    let source: ArcSampleSource = 'example';
     const arity = a.sample?.arity;
     const dot: string[] = [];                                            // the `"."` keys — `FD-V28` admits no `["."]`
     for (const [key, ref] of Object.entries(needs)) {
       const t = referenceTarget(ref);
       if (t === null) return { ...base, unchecked: `needs.${key} is not a reference` };
-      let schema: JsonSchema | undefined, value: unknown, src: SampleSource = 'example';
+      let schema: JsonSchema | undefined, value: unknown, src: ArcSampleSource = 'example';
       if (t.node === null) {
         if (a.schema === undefined) return { ...base, unchecked: a.unchecked ?? a.refused ?? `needs.${key} is "." and the edge's value has no schema` };
         schema = a.schema; value = a.sample?.value; src = a.sample?.source ?? 'witness';
@@ -775,14 +805,7 @@ export async function checkWiring(registry: WiringRegistry, flow: FlowDefinition
   for (const node of flow.nodes) {
     if (node.kind !== 'task') continue;
     const type = types.get(node.type);
-    // The consuming side's schema, and the reason it has none. A type that only transforms names no
-    // worker (ADR 0075), so its clause comes FIRST — before the one about a worker the registry lacks,
-    // which is false of it.
-    const consumer = type?.worker === undefined ? undefined : workers.get(type.worker)?.inputSchema;
-    const consumerWhy = !type ? `type "${node.type}" of "${node.id}" is not in the registry`
-      : type.worker === undefined ? `"${node.id}" is of type "${node.type}", which only TRANSFORMS — it names no worker, so it declares no inputSchema`
-      : !workers.get(type.worker) ? `worker "${type.worker}" of type "${node.type}" is not in the registry`
-      : consumer === undefined ? `"${node.id}" (type "${node.type}", worker "${type.worker}") declares no inputSchema` : undefined;
+    const { consumer, consumerWhy } = consumerOf(node, type, workers);
     for (const a of w.arrivals(node.id)) {
       const v: WiringVerdict = { consumer: node.id, shape: a.shape, producer: a.producer, ...(a.through ? { through: a.through } : {}), kind: 'unchecked', why: '' };
       // **A refusal is about the ROUTE and not about the FIT, so it outranks every other road here** —
@@ -805,42 +828,8 @@ export async function checkWiring(registry: WiringRegistry, flow: FlowDefinition
       // A transformed arc: run the expression on the sample, hold the result to the consumer's schema.
       if (a.sample === undefined) { v.why = `"${node.id}" declares a transform and no sample can be built on the producer side`; verdicts.push(v); continue; }
       const sample: WiringSample = { source: a.sample.source, ...(a.sample.arity !== undefined ? { arity: a.sample.arity } : {}), value: a.sample.value };
-      const adapter = languages.get(node.transform.lang);
-      if (adapter === undefined) { v.why = `language "${node.transform.lang}" is not in the registry`; v.sample = sample; verdicts.push(v); continue; }
       const inputs = a.perItem ? (a.sample.value as unknown[]) : [a.sample.value];
-      if (inputs.length === 0) { v.why = `the sample holds no item to run "${node.id}"'s transform on (arity 0)`; v.sample = sample; verdicts.push(v); continue; }
-      const settings = effectiveSettings(node, type);
-      let results: unknown[];
-      try {
-        let compile: WorkerCompile | undefined;
-        try {
-          const mod = (await import(adapter.worker)) as { default?: unknown };
-          if (typeof mod.default === 'function') compile = mod.default as WorkerCompile;
-        } catch (e) {
-          if (options.workerHalf?.[node.transform.lang] === undefined) throw e;
-        }
-        compile ??= options.workerHalf?.[node.transform.lang];
-        if (typeof compile !== 'function') throw new Error(`the worker half of language "${node.transform.lang}" has no default export, and none was handed in`);
-        const c = compile(node.transform.expr);
-        results = [];
-        for (const input of inputs) results.push(await c.evaluate(input, settings));
-      } catch (e) {
-        v.kind = 'transform-fails';
-        v.why = `the transform threw on the ${sample.source}: ${e instanceof Error ? e.message : String(e)}`;
-        v.sample = { ...sample, result: e instanceof Error ? e.message : String(e) };
-        verdicts.push(v); continue;
-      }
-      sample.result = a.perItem ? results : results[0];
-      v.sample = sample;
-      if (consumer === undefined) { v.why = consumerWhy! + ' — the transform ran and nothing holds its result'; verdicts.push(v); continue; }
-      const bad = results.map((r, i) => [i, findings(consumer, r)] as const).find(([, f]) => f.length > 0);
-      if (bad) {
-        v.kind = 'transform-fails';
-        v.why = `the transform's result on the ${sample.source}${a.perItem ? ` (item ${bad[0]})` : ''} fails the consumer's inputSchema — ${describeFindings(bad[1])}`;
-      } else {
-        v.kind = 'transform-passes';
-        v.why = `the sample passed — the ${sample.source}${sample.arity !== undefined ? ` at arity ${sample.arity}` : ''}, ${inputs.length} evaluation${inputs.length === 1 ? '' : 's'}, every result accepted by the consumer's inputSchema`;
-      }
+      await judgeTransform(v, node, node.transform, type, consumer, consumerWhy, languages, sample, inputs, a.perItem === true, options);
       verdicts.push(v);
     }
   }
@@ -849,18 +838,147 @@ export async function checkWiring(registry: WiringRegistry, flow: FlowDefinition
   return { flowId: flow.flowId, verdicts, counts, entry: entryTasks(flow) };
 }
 
+/**
+ * **The consuming side of a task node: its type's worker `inputSchema`, and the reason where it has none.** A
+ * type that only transforms names no worker (ADR 0075), so its clause comes FIRST — before the one about a
+ * worker the registry lacks, which is false of it. One reading, both roads (W166).
+ */
+function consumerOf(
+  node: TaskNode,
+  type: ReturnType<ReturnType<typeof nodeTypesOf>['get']>,
+  workers: ReturnType<typeof workersOf>,
+): { consumer?: JsonSchema; consumerWhy?: string } {
+  const consumer = type?.worker === undefined ? undefined : workers.get(type.worker)?.inputSchema;
+  const consumerWhy = !type ? `type "${node.type}" of "${node.id}" is not in the registry`
+    : type.worker === undefined ? `"${node.id}" is of type "${node.type}", which only TRANSFORMS — it names no worker, so it declares no inputSchema`
+    : !workers.get(type.worker) ? `worker "${type.worker}" of type "${node.type}" is not in the registry`
+    : consumer === undefined ? `"${node.id}" (type "${node.type}", worker "${type.worker}") declares no inputSchema` : undefined;
+  return { consumer, consumerWhy };
+}
+
+/** How a reason names a sample's source: `the example`, `the witness` — and `the given input`, which `the given` alone would not say. */
+const sourceWord = (s: SampleSource): string => (s === 'given' ? 'given input' : s);
+
+/**
+ * **Run a task's transform on `inputs` and hold every result to the consumer's `inputSchema` — the ONE
+ * evaluation** an arc's sample takes in `checkWiring` and a value the caller gives takes in `givenVerdict`
+ * (W166 lifted it out of the first so the second is not a second evaluator). It writes `v`'s `kind`, `why`
+ * and `sample`: `unchecked` for a language the registry lacks, an empty item list, or a consumer with no
+ * `inputSchema` (the transform still ran, and its result is reported); `transform-fails` where the expression
+ * throws — compiling or evaluating — or a result fails the schema; `transform-passes` where every result is
+ * accepted. `perItem` is the map item's rule (R7): one evaluation per element, the results an array.
+ */
+async function judgeTransform(
+  v: WiringVerdict,
+  node: TaskNode,
+  transform: { readonly lang: string; readonly expr: string },
+  type: ReturnType<ReturnType<typeof nodeTypesOf>['get']>,
+  consumer: JsonSchema | undefined,
+  consumerWhy: string | undefined,
+  languages: ReturnType<typeof languagesOf>,
+  sample: WiringSample,
+  inputs: readonly unknown[],
+  perItem: boolean,
+  options: WiringOptions,
+): Promise<void> {
+  const adapter = languages.get(transform.lang);
+  if (adapter === undefined) { v.why = `language "${transform.lang}" is not in the registry`; v.sample = sample; return; }
+  if (inputs.length === 0) { v.why = `the sample holds no item to run "${node.id}"'s transform on (arity 0)`; v.sample = sample; return; }
+  const settings = effectiveSettings(node, type);
+  let results: unknown[];
+  try {
+    let compile: WorkerCompile | undefined;
+    try {
+      const mod = (await import(adapter.worker)) as { default?: unknown };
+      if (typeof mod.default === 'function') compile = mod.default as WorkerCompile;
+    } catch (e) {
+      if (options.workerHalf?.[transform.lang] === undefined) throw e;
+    }
+    compile ??= options.workerHalf?.[transform.lang];
+    if (typeof compile !== 'function') throw new Error(`the worker half of language "${transform.lang}" has no default export, and none was handed in`);
+    const c = compile(transform.expr);
+    results = [];
+    for (const input of inputs) results.push(await c.evaluate(input, settings));
+  } catch (e) {
+    v.kind = 'transform-fails';
+    v.why = `the transform threw on the ${sourceWord(sample.source)}: ${e instanceof Error ? e.message : String(e)}`;
+    v.sample = { ...sample, result: e instanceof Error ? e.message : String(e) };
+    return;
+  }
+  sample.result = perItem ? results : results[0];
+  v.sample = sample;
+  if (consumer === undefined) { v.why = consumerWhy! + ' — the transform ran and nothing holds its result'; return; }
+  const bad = results.map((r, i) => [i, findings(consumer, r)] as const).find(([, f]) => f.length > 0);
+  if (bad) {
+    v.kind = 'transform-fails';
+    v.why = `the transform's result on the ${sourceWord(sample.source)}${perItem ? ` (item ${bad[0]})` : ''} fails the consumer's inputSchema — ${describeFindings(bad[1])}`;
+  } else {
+    v.kind = 'transform-passes';
+    v.why = `the sample passed — the ${sourceWord(sample.source)}${sample.arity !== undefined ? ` at arity ${sample.arity}` : ''}, ${inputs.length} evaluation${inputs.length === 1 ? '' : 's'}, every result accepted by the consumer's inputSchema`;
+  }
+}
+
+/**
+ * **A value the CALLER GIVES, on one task node: its transform run ONCE on what the node RECEIVES, and ONE
+ * verdict** — v0.38, [P37](../../doc/plans/p37-a-runtime-is-its-registry.md) stop-and-ask (d)'s answer,
+ * [W166](../../doc/work-items/w166-a-sample-the-caller-gives.md). **PUBLIC SURFACE, new in 0.8.0**: `index.ts`
+ * re-exports every name of this module, so it is a root export, stated as one in `spec/flow-definition.md`
+ * v0.38 and `AGENTS.md` section 15. It is `tryTransform` on the node as the flow DECLARES it — `tryTransform`
+ * calls it on the copy that carries the candidate — and the two have ONE contract.
+ *
+ * `input` IS `$` — what the node receives, so no `needs` is composed over it and no arc is read: the verdict
+ * is the same whatever arcs reach the node, and the ENTRY node — which no arc reaches — gets one too. Its
+ * shape is `given`, it has NO `producer` and no `through`, and its sample's source is `'given'` and nothing
+ * else. The evaluation and the judgement are the arcs' own (`judgeTransform`): `transform-passes` where the
+ * result satisfies the consumer's `inputSchema`, `transform-fails` naming the finding where it does not or the
+ * error where the expression throws, `unchecked` for a language, type, worker or consumer schema the registry
+ * lacks — and for a node with NO transform, because there is nothing to run the value through: holding one
+ * value to a schema is `findings`'s question.
+ *
+ * **`undefined` is no input** (the spec's table, W166's conformity reader F1): with it the ARCS answer, exactly
+ * as `tryTransform` with no input — the node's verdicts from `checkWiring`, and `[]` on the entry. A node id
+ * that names no task returns `[]`.
+ */
+export async function givenVerdict(
+  registry: WiringRegistry,
+  flow: FlowDefinition,
+  nodeId: string,
+  input: unknown,
+  options: WiringOptions = {},
+): Promise<WiringVerdict[]> {
+  if (input === undefined) return (await checkWiring(registry, flow, options)).verdicts.filter((v) => v.consumer === nodeId);
+  const node = flow.nodes.find((n) => n.id === nodeId);
+  if (node === undefined || node.kind !== 'task') return [];
+  const workers = workersOf(registry.workers);
+  const type = nodeTypesOf(registry.nodeTypes).get(node.type);
+  const { consumer, consumerWhy } = consumerOf(node, type, workers);
+  const v: WiringVerdict = { consumer: node.id, shape: 'given', kind: 'unchecked', why: '' };
+  const sample: WiringSample = { source: 'given', value: input };
+  if (node.transform === undefined) {
+    // **Nothing is claimed about a worker** (the conformity reader, F2): a `Transform` node has none, and a type
+    // the registry lacks has none it can name — so the reason says there is no transform, and where the consumer
+    // side is missing too it says why, as an arc's reason does.
+    v.why = `"${node.id}" has no transform to run the given input through, so nothing is evaluated — holding one value to the inputSchema is \`findings\`'s question${consumerWhy !== undefined ? `; and ${consumerWhy}` : ''}`;
+    v.sample = sample;
+    return [v];
+  }
+  await judgeTransform(v, node, node.transform, type, consumer, consumerWhy, languagesOf(registry.languages), sample, [input], false, options);
+  return [v];
+}
+
 /** One verdict as one line a person reads — the source of a sample always named (Q301). */
 export function describeVerdict(v: WiringVerdict): string {
-  const road = v.shape === 'edge' ? `${v.producer} -> ${v.consumer}`
+  const road = v.shape === 'given' ? `(given) -> ${v.consumer}`
+    : v.shape === 'edge' ? `${v.producer} -> ${v.consumer}`
     : v.shape === 'branch' ? `${v.producer} -> (${v.through}) -> ${v.consumer}`
     : v.shape === 'item' ? `${v.producer} -> (${v.through}, one item) -> ${v.consumer}`
     : v.shape === 'record' ? `${v.producer} (the record) -> ${v.consumer}`
     : `${v.producer} -> needs -> ${v.consumer}`;
-  const s = v.sample ? ` [on the ${v.sample.source}${v.sample.arity !== undefined ? `, arity ${v.sample.arity}` : ''}]` : '';
+  const s = v.sample ? ` [on the ${sourceWord(v.sample.source)}${v.sample.arity !== undefined ? `, arity ${v.sample.arity}` : ''}]` : '';
   return `${v.kind.padEnd(16)} ${road}: ${v.why}${s}`;
 }
 
 /** The verdict kinds, enumerated — what a report's `counts` is keyed by, bound to the spec's table by a test. */
 export const VERDICT_KINDS: readonly VerdictKind[] = ['fits', 'no', 'transform-passes', 'transform-fails', 'unchecked'];
-/** The arc shapes, enumerated. */
-export const WIRING_SHAPES: readonly WiringShape[] = ['edge', 'branch', 'item', 'record', 'needs'];
+/** The shapes, enumerated — the five arc shapes and `given` (W166), bound to the spec's arc table by a test. */
+export const WIRING_SHAPES: readonly WiringShape[] = ['edge', 'branch', 'item', 'record', 'needs', 'given'];
