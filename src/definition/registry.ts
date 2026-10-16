@@ -126,10 +126,23 @@ export const NODE_TYPE_DECLARATION_KEYS: readonly string[] = ['worker', 'inline'
 export const POOL_SPEC_KEYS: readonly string[] = ['config', 'maxThreads', 'maxConcurrentTasks', 'idleTimeout', 'groups', 'residentGroups', 'cancelGraceMs', 'messages'];
 /** A `PoolSpec.messages` object's keys — the scheduler's `MessageOptions`, v0.33. */
 export const MESSAGE_OPTION_KEYS: readonly string[] = ['flushIntervalMs', 'maxBuffered'];
-/** A document type's `pool` field: the `PoolSpec` minus what the type states beside it. */
+/** A document type's `pool` field: the `PoolSpec` minus what the type states beside it — and, since v0.37, a named instance's `pool` (ADR 0099). */
 export const DECLARED_POOL_KEYS: readonly string[] = POOL_SPEC_KEYS.filter((k) => k !== 'config' && k !== 'groups');
-/** A pool instance's and a group instance's keys. */
+/** A GROUP instance's keys — and the two every instance shares. */
 export const INSTANCE_KEYS: readonly string[] = ['type', 'config'];
+/**
+ * **A POOL instance's keys: the two, and `pool`** — v0.37,
+ * [ADR 0099](../../doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md),
+ * [W165](../../doc/work-items/w165-pool-options-on-a-named-pool-instance.md): the instance's OWN pool options, the
+ * `DECLARED_POOL_KEYS`, on an instance of a DOCUMENT type only. A group instance still declares the two alone.
+ */
+export const POOL_INSTANCE_KEYS: readonly string[] = [...INSTANCE_KEYS, 'pool'];
+/**
+ * **The longest delay a timer holds — the scheduler's own `MAX_TIMER_MS`** (`2 ** 31 - 1`, `dist/node/index.js:1387` at
+ * the pin). `setTimeout` clamps a longer delay to 1 ms and fires at once (P37 fact 7, measured in node and deno), so a
+ * `messages.flushIntervalMs` above it is refused here — decision 9, ADR 0099 rule 6; the scheduler's own want is S11.
+ */
+const MAX_TIMER_MS = 2 ** 31 - 1;
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 /**
@@ -168,14 +181,55 @@ export function mergeConfig(base: unknown, over: unknown): unknown {
   return over;
 }
 
+/** The pool options a document type declares, and since v0.37 a named instance of one (ADR 0099). */
+type DeclaredPool = NonNullable<NodeTypeDeclaration['pool']>;
+
+/**
+ * **The declaration each identity derivation was made from** — v0.37, ADR 0099 rule 1. A DOCUMENT type is held in two
+ * forms: as declared, and RESOLVED, as the definition `nodeTypeFromDeclaration` returned — which is what `createRuntime`
+ * hands the bootstrap helper and every driver (`runtime.registry.nodeTypes`). Both forms have a `pool` FUNCTION once
+ * resolved, so `isDerivation` cannot tell a resolved document type from a class; this map can, and nothing else reads it.
+ * A WeakMap, so a definition nobody holds is not kept alive by it.
+ */
+const DECLARATIONS = new WeakMap<NodeTypeDefinition, NodeTypeDeclaration>();
+
+/** The declaration of a DOCUMENT type, in either form — `undefined` exactly for a CLASS type (ADR 0099 rule 4). */
+function declarationOf(t: NodeTypeEntry): NodeTypeDeclaration | undefined {
+  return isDerivation(t) ? DECLARATIONS.get(t) : t;
+}
+
+/**
+ * **An instance's pool options over its type's — SHALLOW, the instance's key winning, and a key present with `undefined`
+ * ABSENT** (ADR 0099 rule 2): it leaves the type's value standing rather than unsetting it, which is how every top-level
+ * pool key reads `undefined` (`poolSpecProblem`). A nested object — `messages` — is replaced whole, as `mergeConfig`
+ * replaces a nested config object.
+ */
+function mergePool(base: DeclaredPool, over: DeclaredPool | undefined): DeclaredPool {
+  if (over === undefined) return base;
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(over)) if (v !== undefined) out[k] = v;
+  return out as DeclaredPool;
+}
+
+/** A `residentGroups` value, copied — a list as a list, a `{ key: cost }` record as a record (decision 8). */
+function copyResident(r: DeclaredPool['residentGroups']): DeclaredPool['residentGroups'] {
+  if (Array.isArray(r)) return [...r];
+  if (isPlainObject(r)) return { ...r };
+  return r;
+}
+
 /**
  * **The document form of a node type IS the identity derivation** — decision 2: `pool(config)`
  * merges the instance's config over the declared one, and copies the declared pool fields and the
  * declared groups. Keys are copied only when declared, so an absent `groups` stays absent (fact 5).
  * The declaration's shape is checked by `resolveRegistry` before this is called; here it is trusted.
+ *
+ * **`over` is a NAMED INSTANCE's own pool options** (v0.37, ADR 0099 rules 1-3): merged over the declared `pool` by
+ * `mergePool`, and the result is what this derivation hands on. Absent — every type's default instance, and every
+ * instance that declares none — the derivation is the one it has always been, option for option (P18 fact 5).
  */
-export function nodeTypeFromDeclaration(decl: NodeTypeDeclaration): NodeTypeDefinition {
-  const declaredPool = decl.pool ?? {};
+export function nodeTypeFromDeclaration(decl: NodeTypeDeclaration, over?: DeclaredPool): NodeTypeDefinition {
+  const declaredPool = mergePool(decl.pool ?? {}, over);
   const def: NodeTypeDefinition = {
     worker: decl.worker,
     ...(decl.inline !== undefined ? { inline: decl.inline } : {}),
@@ -187,16 +241,21 @@ export function nodeTypeFromDeclaration(decl: NodeTypeDeclaration): NodeTypeDefi
       return {
         ...(merged !== undefined ? { config: merged } : {}),
         ...declaredPool,
-        // `messages` is copied, not aliased, as `groups` is (W159). It is NOT the only declared pool object:
-        // `residentGroups` is one too and is still handed on AS DECLARED on this road — an alias that predates
-        // W159 and is left as found (its Out; the conformity reader's F3). A CLASS derivation's output is handed
-        // on as the class returned it, `messages` included — harmless, since the scheduler spreads it into a
-        // fresh object (the adequacy reader's F7).
+        // **Every declared pool OBJECT is copied, never aliased** — `messages` and `groups` since W159, and
+        // `residentGroups` since v0.37 (P37 decision 8, ADR 0099 rule 3; it was handed on AS DECLARED until then,
+        // W159's conformity F3), so no two pools' specs share an object and none shares one with the document. A
+        // CLASS derivation's output is handed on as the class returned it — harmless, since the scheduler spreads
+        // `messages` into a fresh object (W159's adequacy F7) and reads `residentGroups` without writing it.
         ...(declaredPool.messages !== undefined ? { messages: { ...declaredPool.messages } } : {}),
+        ...(declaredPool.residentGroups !== undefined ? { residentGroups: copyResident(declaredPool.residentGroups) } : {}),
         ...(decl.groups !== undefined ? { groups: [...decl.groups] } : {}),
       };
     },
   };
+  // The declaration REMEMBERED is the one this derivation actually applies — `over` merged in — so a definition made
+  // with instance options and then registered as a type is still merged OVER those options, never over the bare
+  // declaration (W165's conformity reader, F1: `idleTimeout` from `over` was dropped on that road).
+  DECLARATIONS.set(def, over === undefined ? decl : { ...decl, pool: declaredPool });
   return def;
 }
 
@@ -257,8 +316,11 @@ export function poolSpecProblem(v: unknown): string | null {
       return `PoolSpec.messages must be a plain object of ${MESSAGE_OPTION_KEYS.join(', ')} — its prototype Object.prototype or null — got ${describeNonPlain(m)}`;
     }
     for (const k of Object.keys(m)) if (!MESSAGE_OPTION_KEYS.includes(k)) return `PoolSpec.messages carries undeclared key ${q(k)}; it declares ${MESSAGE_OPTION_KEYS.join(', ')}`;
-    if (ownKey(m, 'flushIntervalMs') && !(typeof m.flushIntervalMs === 'number' && Number.isFinite(m.flushIntervalMs) && m.flushIntervalMs > 0)) {
-      return `PoolSpec.messages.flushIntervalMs must be a finite number > 0, got ${shown(m.flushIntervalMs)}`;
+    // The upper bound is v0.37's (P37 decision 9, ADR 0099 rule 6): the scheduler admits any finite delay and arms
+    // `setTimeout` with it, which fires a delay above `MAX_TIMER_MS` at once — so the bound is ITS OWN, and S11 asks it to
+    // hold it.
+    if (ownKey(m, 'flushIntervalMs') && !(typeof m.flushIntervalMs === 'number' && Number.isFinite(m.flushIntervalMs) && m.flushIntervalMs > 0 && m.flushIntervalMs <= MAX_TIMER_MS)) {
+      return `PoolSpec.messages.flushIntervalMs must be a finite number > 0 and at most ${MAX_TIMER_MS} (2^31-1, the longest delay a timer holds — the scheduler arms setTimeout with it, and a longer one fires at once), got ${shown(m.flushIntervalMs)}`;
     }
     if (ownKey(m, 'maxBuffered') && !(typeof m.maxBuffered === 'number' && Number.isInteger(m.maxBuffered) && m.maxBuffered >= 1)) {
       return `PoolSpec.messages.maxBuffered must be an integer >= 1, got ${shown(m.maxBuffered)}`;
@@ -394,19 +456,34 @@ function checkNodeTypeShape(name: string, t: NodeTypeEntry, builtIn = false): vo
  * its output held to `PoolSpec`'s shape, the derived config against the WORKER's `configSchema`,
  * every group it names present, and decision 9's refusal — a resident group beside `idleTimeout: 0`
  * deadlocks a contended group (P18 fact 6, the scheduler reference's own sentence).
+ *
+ * **`pool` is a named instance's OWN pool options** (v0.37, ADR 0099): the instance is derived by its type's identity
+ * derivation with them merged over the type's declared ones (`nodeTypeFromDeclaration(declaration, pool)`), and the
+ * OUTPUT takes every check below exactly as any derivation's does — P37 decision 9's *through `derivePool`'s one check*.
+ * Its own shape, and its type being a DOCUMENT type, were held by the registry's shape check before this is called, on
+ * both roads. The returned `definition` is the TYPE's, as for every instance; `pool` is carried, copied, so a caller that
+ * hands the instance on (`createRuntime`, to the bootstrap helper) hands on what was resolved.
  */
 export function derivePool(
   key: string, typeName: string, def: NodeTypeDefinition, worker: WorkerEntry | undefined, config: unknown,
-  groupKeys: ReadonlySet<string>, refuse: new (at: string, m: string) => RegistryError,
+  groupKeys: ReadonlySet<string>, refuse: new (at: string, m: string) => RegistryError, pool?: unknown,
 ): ResolvedPool {
   const who = key === typeName ? `node type ${q(typeName)}'s default instance` : `pool ${q(key)} (an instance of ${q(typeName)})`;
   if (def.configSchema !== undefined) {
     const fs = findings(def.configSchema, config ?? {});
     if (fs.length) throw new refuse(key, `${who}: config fails the type's configSchema — ${describeFindings(fs)}`);
   }
+  let derivation = def;
+  if (pool !== undefined) {
+    const declaration = declarationOf(def);
+    // Unreachable past the shape check's class-type refusal, which reads the same predicate; an internal error and not
+    // a second copy of that refusal (the precedent is `resolveRegistry`'s own unreachable-type error, Q283).
+    if (declaration === undefined) throw new Error(`derivePool: ${who} carries pool options and its type is a class — the registry's shape check should have refused it`);
+    derivation = nodeTypeFromDeclaration(declaration, pool as DeclaredPool);
+  }
   let spec: PoolSpec;
   try {
-    spec = def.pool(config, key);
+    spec = derivation.pool(config, key);
   } catch (e) {
     throw new DerivationRefused(key, `${who}: the derivation pool() THREW: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -429,7 +506,15 @@ export function derivePool(
   if (resident > 0 && spec.idleTimeout === 0) {
     throw new DerivationRefused(key, `${who}: residentGroups beside idleTimeout: 0 — a worker that never idles never releases a resident group, and a second pool contending for it waits for ever (measured on 0.5.2, P18 fact 6); give the pool a positive idleTimeout`);
   }
-  return { key, type: typeName, definition: def, worker, config, spec };
+  return { key, type: typeName, definition: def, worker, config, spec, ...(pool !== undefined ? { pool: copyPool(pool as DeclaredPool) } : {}) };
+}
+
+/** An instance's pool options as resolved: its `undefined` keys dropped (`mergePool`'s reading) and every object in it copied. */
+function copyPool(p: DeclaredPool): DeclaredPool {
+  const out = mergePool({}, p) as Record<string, unknown>;
+  if (isPlainObject(out.messages)) out.messages = { ...out.messages };
+  if (out.residentGroups !== undefined) out.residentGroups = copyResident(out.residentGroups as DeclaredPool['residentGroups']);
+  return out as DeclaredPool;
 }
 
 /**
@@ -554,7 +639,9 @@ function checkNodeTypesShape(rawNodeTypes: NodeTypes | undefined, workers: Reado
 function checkPoolsShape(rawPools: Pools | undefined, types: ReadonlyMap<string, NodeTypeEntry>): void {
   for (const [key, p] of poolsOf(rawPools)) {
     if (!isPlainObject(p)) throw new UndeclaredKey(key, `pool ${q(key)} is not an object`);
-    noUndeclared('pool', key, p as unknown as Record<string, unknown>, INSTANCE_KEYS);   // P2: an inert `maxThreads` on an instance, refused as the resolver refuses it
+    // P2: an inert `maxThreads` BESIDE `type` on an instance, refused as the resolver refuses it — since v0.37 an
+    // instance's pool options sit under `pool` (ADR 0099), and a group instance still declares the two alone.
+    noUndeclared('pool', key, p as unknown as Record<string, unknown>, POOL_INSTANCE_KEYS);
     // **The message names a BUILT-IN as the library's** — v0.29, W110's conformity reader (19): `types` is
     // the MERGED map, so a pool called `Transform` has always reached this clause and got the generic
     // sentence, where W109's three `NameCollision` messages each say whose name it is.
@@ -562,6 +649,23 @@ function checkPoolsShape(rawPools: Pools | undefined, types: ReadonlyMap<string,
     if (typeof p?.type !== 'string' || !types.has(p.type)) {
       throw new PoolTypeMissing(key, `pool ${q(key)} names type ${JSON.stringify(p?.type)}, which is not a node type`
         + poolTypeNames([...types.keys()]));
+    }
+    // **An instance's OWN pool options** — v0.37, ADR 0099 rules 1, 4, 5 and 7. Held HERE, in the shape both roads
+    // share, so a hand-built driver registry and a document refuse one identically (W141, Q283). A CLASS type's
+    // instance carrying them is refused first: the class receives the instance key and owns how its pool is built.
+    // Then the shape a type's own `pool` is held to, clause for clause (`checkNodeTypeShape`): an object, the declared
+    // keys only — the scheduler's three unvalidated options are NOT among them (rule 7) — and `poolSpecProblem` over
+    // the instance's own values, so a malformed one is named on the instance and not on the merged spec.
+    const own = (p as { pool?: unknown }).pool;
+    if (own !== undefined) {
+      if (declarationOf(types.get(p.type)!) === undefined) {
+        throw new UndeclaredKey(key, `pool ${q(key)} is an instance of CLASS type ${q(p.type)} and carries "pool" — pool options on an instance are a DOCUMENT type's; ` +
+          "a class derives its pool from the instance's config and key, so the knob belongs in its configSchema (ADR 0099)");
+      }
+      if (!isPlainObject(own)) throw new DerivationRefused(key, `pool ${q(key)}: its own pool options must be an object, got ${JSON.stringify(own)}`);
+      noUndeclared('pool instance pool', key, own, DECLARED_POOL_KEYS);
+      const problem = poolSpecProblem(own);
+      if (problem !== null) throw new DerivationRefused(key, `pool ${q(key)}.pool: ${problem}`);
     }
   }
 }
@@ -680,7 +784,7 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
   const rawPools = sections('pools', doc.pools);
   checkPoolsShape(rawPools as unknown as Pools, types);
   for (const [key, raw] of Object.entries(rawPools)) {
-    // Its shape — an object, its two keys, not named as a type, a `type` that IS one — was held by
+    // Its shape — an object, its declared keys, not named as a type, a `type` that IS one, and its own `pool` — was held by
     // `checkRegistryShape` above, over the same merged map this lookup reads.
     const inst = raw as unknown as PoolInstance;
     // **A named instance may name a BUILT-IN type, and this lookup is MERGED where `nodeTypes` is
@@ -714,7 +818,7 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     // Unreachable past `checkRegistryShape`'s `PoolTypeMissing`, which reads the same merged names; an
     // internal error and not a second copy of that refusal, because a second copy is what Q283 was.
     if (def === undefined) throw new Error(`resolveRegistry: pool ${q(key)} reached derivation with no type — checkRegistryShape should have refused it`);
-    pools.set(key, derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), inst.config, groupKeys, ConfigRefused));
+    pools.set(key, derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), inst.config, groupKeys, ConfigRefused, inst.pool));
   }
 
 

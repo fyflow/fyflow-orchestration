@@ -250,7 +250,7 @@ export type Workers = ReadonlyMap<string, WorkerEntry> | Readonly<Record<string,
  * validator reads of one is its `type` (`FD-V38`); a `PoolInstance` and a resolved pool both fit.
  * **Absent means EMPTY**; a type's DEFAULT instance is implicit and never listed here.
  */
-export type Pools = ReadonlyMap<string, { readonly type: string; readonly config?: unknown }> | Readonly<Record<string, { readonly type: string; readonly config?: unknown }>>;
+export type Pools = ReadonlyMap<string, Readonly<PoolInstance>> | Readonly<Record<string, Readonly<PoolInstance>>>;
 
 /**
  * **A declared transform: a language NAME and an expression in it** — `spec/flow-definition.md`
@@ -395,7 +395,8 @@ export interface NodeTypeDefinition {
  * a worker entry; `inline` is the type's; `config` is the default instance's constructor argument;
  * `pool` carries the declared pool options (a `PoolSpec` minus `config` and `groups`); `groups` are
  * the pool's group keys; `retryPolicy` and `settings` are what the type declares FOR its nodes. An
- * instance's `config` merges shallowly over `config`; every other field is copied as declared.
+ * instance's `config` merges shallowly over `config`, and since v0.37 a named instance's own `pool` merges shallowly
+ * over `pool` (ADR 0099); every other field is copied as declared, every object in it copied.
  */
 export interface NodeTypeDeclaration {
   /** As `NodeTypeDefinition.worker`: absent only on a built-in that only transforms (ADR 0075). */
@@ -417,6 +418,13 @@ export interface PoolInstance {
   type: string;
   /** The instance's config — the derivation's input, merged over the type's for a document type. */
   config?: unknown;
+  /**
+   * **The instance's OWN pool options** — v0.37, [ADR 0099](../../doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md):
+   * the keys a type's `pool` may declare, merged SHALLOWLY over its type's (the instance's key winning, a key present
+   * with `undefined` absent), every object in them copied. **On an instance of a DOCUMENT type only** — one of a CLASS
+   * type is refused (`UndeclaredKey`): the class receives the instance key and owns how its pool is built.
+   */
+  pool?: NodeTypeDeclaration['pool'];
 }
 
 /** A resource group the runtime constructs — an instance of a group TYPE, by name, with the config its factory's schema admits. */
@@ -493,6 +501,8 @@ export interface ResolvedPool {
   config: unknown;
   /** What the derivation returned, held to `PoolSpec`'s shape and the worker's `configSchema`. */
   spec: PoolSpec;
+  /** A named instance's OWN pool options, COPIED, a key present with `undefined` dropped (it overrides nothing) — v0.37, ADR 0099; absent where it declares none, and on every default instance. */
+  pool?: NodeTypeDeclaration['pool'];
 }
 
 /** One resource group, resolved: its factory and its checked config. `create` has NOT been called. */

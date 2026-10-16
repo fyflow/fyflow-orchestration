@@ -1903,6 +1903,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 | **`runtime.register()`** — adding node types, pools, groups or languages to a RUNNING runtime | **declined** — [P37](doc/plans/p37-a-runtime-is-its-registry.md) decision 1, [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md): `fyflow-scheduler` cannot add a pool after construction. A changed registry is a NEW runtime; a run on the old one finishes there or moves by stop-and-resume ([P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)). **A FLOW is not a registry entry**: `runtime.check(flow)`, then `runtime.start(flow, …)`, takes any flow the registry can run, at any time (section 12) |
 | **a `limitKey` from the FLOW** — a node or a document saying which key a task of a keyed group is counted under | **deferred** — [Q248](doc/questions/q248.md). Pass `start` a `createTask` that sets `limitKey` on the task it builds, or register a group type whose `create` builds a `KeyedRateLimitGroup` with a `keyFrom` (section 12). A node reaching a document's built-in keyed group with neither is refused before its run starts — `FD-R6`, `LimitKeyMissing` |
 | **redaction by `writeOnly`** — a schema annotation keeping a value out of what a run retains or reports | **no** — [ADR 0098](doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) rule 4: `writeOnly`, like `readOnly`, `title` and `description`, is admitted as an annotation since v0.36, held to its shape and read by nothing after. Redact in your own code, before the value reaches a run (section 13) |
+| **pool options on a CLASS type's instance**, and the scheduler's `idleCheckIntervalMs`, `requeueFailedTasks` and `maxWorkerRestarts` anywhere | **no** — [ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) rules 4 and 7: a named instance of a DOCUMENT type may declare `pool` (section 13); a class computes its pool from the instance's `config` and key, so give it a `configSchema` knob. The three are refused as undeclared keys |
 | **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or stopped run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
@@ -2577,6 +2578,19 @@ array or a class instance — the scheduler spreads it into its defaults and rea
 `cancelGraceMs` of `null` (the scheduler takes it for absent and uses 2000), and a stray key inside
 `messages` — which the scheduler does not merely ignore: it carries the object to every worker, so on a
 threaded pool a stray value that cannot be cloned fails the task at run time with *could not be cloned*.
+**`flushIntervalMs` is capped at 2^31-1 ms** (v0.37), the longest delay a timer holds: the scheduler arms `setTimeout`
+with it, and a longer one fires at once — so a value meaning *batch for a month* would flush every `emit()` after 1 ms.
+**And a NAMED instance of a document type may declare its own** — `pools: { "scorer-1": { "type": "Scorer", "pool":
+{ "maxThreads": 1 } } }`, `spec/flow-definition.md` v0.37, [ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md),
+[W165](doc/work-items/w165-pool-options-on-a-named-pool-instance.md): the same keys, each held to the same rule and
+refused naming the pool, **merged SHALLOWLY over the type's** — the instance's key wins, a key it leaves out (or sets
+to `undefined`) is the type's, and a `messages` it declares replaces the type's WHOLE — with every object copied, so
+no two pools share one. Two instances of one type need no second type. **An instance of a CLASS type carrying `pool` is
+refused** (`UndeclaredKey`): your class gets the instance key in `pool(config, key)`, so the knob belongs in its
+`configSchema`. The scheduler's `idleCheckIntervalMs`, `requeueFailedTasks` and `maxWorkerRestarts` are refused on a
+type and on an instance alike. **A RESOLVED document type is still a document type here** — what
+`runtime.registry.nodeTypes` holds — so a `Driver` or `bootstrap` handed the runtime's registry accepts the instance;
+a hand-written `NodeTypeDefinition`, or a copy of a resolved one, is a class to this rule.
 **Your worker's `run(payload, context)` gets the scheduler's own task context as its second argument** —
 the same object the scheduler handed the envelope worker, so `context.signal` (an `AbortSignal`, aborted
 when `scheduler.cancel(taskId)` is called for the task) and `context.emit(name, data)` (a `task.message`
@@ -2609,7 +2623,7 @@ produced. The language this package ships is JSONata, as the sub-path `fyflow-or
 — section 14; the snippet below uses a toy one so it loads no engine, and it is the same interface.
 
 ```ts run
-import { DerivationRefused, findings, resolveRegistry, SchemaRefused, validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
+import { DerivationRefused, findings, resolveRegistry, SchemaRefused, UndeclaredKey, validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
 import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
 
 // A toy language: an expression is a dotted key path into the input, or `$settings.<path>`.
@@ -2690,6 +2704,22 @@ let refused: unknown;
 try { resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { cancelGraceMs: -1 } } } }); } catch (e) { refused = e; }
 if (!(refused instanceof DerivationRefused) || !refused.message.includes('cancelGraceMs')) throw new Error('a negative cancelGraceMs is refused, naming the key');
 if (resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { cancelGraceMs: 500, messages: { maxBuffered: 500 } } } } }).pools.get('Scorer')?.spec.cancelGraceMs !== 500) throw new Error('a well-formed one is carried to the pool');
+let tooLong: unknown;
+try { resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { messages: { flushIntervalMs: 2 ** 31 } } } } }); } catch (e) { tooLong = e; }
+if (!(tooLong instanceof DerivationRefused) || !tooLong.message.includes('flushIntervalMs')) throw new Error('a flush interval no timer can hold (above 2^31-1) is refused');
+
+// And a NAMED instance of a document type may set its own (v0.37, ADR 0099): merged over its type's, key by key.
+const perInstance = resolveRegistry({
+  workers: { echo },
+  nodeTypes: { Scorer: { worker: 'echo', pool: { maxThreads: 4, idleTimeout: 30000 } } },
+  pools: { 'scorer-1': { type: 'Scorer', pool: { maxThreads: 1 } } },
+});
+const single = perInstance.pools.get('scorer-1')?.spec;
+if (single?.maxThreads !== 1 || single.idleTimeout !== 30000) throw new Error('the instance`s maxThreads over the type`s, its idleTimeout the type`s');
+if (perInstance.pools.get('Scorer')?.spec.maxThreads !== 4) throw new Error('and the type`s default pool unmoved');
+let classInstance: unknown;
+try { resolveRegistry({ workers: { echo }, pools: { big: { type: 'Gpu', pool: { maxThreads: 1 } } } }, { nodeTypes: { Gpu: { worker: 'echo', pool: () => ({}) } } }); } catch (e) { classInstance = e; }
+if (!(classInstance instanceof UndeclaredKey)) throw new Error('pool options on a CLASS type`s instance are refused — the class owns its pool');
 
 // And a schema may ANNOTATE (v0.36, ADR 0098): `title` and `description` a string, `readOnly` and
 // `writeOnly` a boolean, each held to that shape, at any depth, and read by NO value check.
@@ -4091,7 +4121,8 @@ reported rather than hidden. And a declared predicate's PATH is checked against 
 a path naming a key the producer cannot emit answers *no match* for ever (ADR 0074 consequence 6).
 
 > **A `Transform` node's realm and its groups are the scheduler's default and nothing else.** The
-> built-in declares no `inline`, no `groups` and no `pool`, and a named pool instance carries only
-> `type` and `config` — so of the four things ADR 0075 rule 3 lists, a named instance reaches
-> `config`, a `retryPolicy` goes on the NODE, and `inline` and `groups` are reachable by no road a
-> consumer can write ([Q457](doc/questions/q457.md)). Measured at W110.
+> built-in declares no `inline`, no `groups` and no `pool`, and a named pool instance carries `type`,
+> `config` and — since v0.37 ([ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md)) — `pool`; so of the four things ADR 0075 rule 3
+> lists, a named instance reaches `config` and `pool` (its options, `residentGroups` included: a transform-only pool
+> CAN now hold a resident group, [Q626](doc/questions/q626.md)), a `retryPolicy` goes on the NODE, and `inline` and
+> `groups` are reachable by no road a consumer can write ([Q457](doc/questions/q457.md)). Measured at W110 and W165.

@@ -424,6 +424,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W165 — ADR 0099, pool options on a named pool instance: L1 in `test/definition/registry.test.ts` and, through the
+  // pool factory's seam and `createRuntime`, in `test/scheduler/bootstrap.test.ts`.
+  'W165 — pool options on a named pool instance: a DOCUMENT type`s instance overrides its type`s, held to poolSpecProblem; residentGroups copied; flushIntervalMs bounded (ADR 0099)',
+  'W165 — a named instance`s own pool options reach its WorkerManagerOptions, through bootstrap and through createRuntime (ADR 0099)',
   // W164 — ADR 0098, four annotations in the schema subset: L1 in `test/definition/schema.test.ts`.
   'W164 — four annotations in the schema subset: title, description, readOnly, writeOnly — shape-checked, constraining nothing (ADR 0098)',
   // W163 — ADR 0097, FD-R6 and `defaultRetryPolicy` at construction: L1 on the seams and on a real scheduler, in

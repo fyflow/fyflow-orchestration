@@ -19,6 +19,11 @@ Spec:     spec/flow-definition.md v0.28 — the built-in type, and FD-V46
 Answers:  Q445. Q446 is the residue it does NOT close.
 ```
 
+*Note (W165, 2026-10-16): rule 3's closing note — a transform-only node *holds no resource group, and nothing a consumer
+writes changes that* — is narrowed by [ADR 0099](0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md)
+consequence 5: a named instance of `Transform` may declare `residentGroups`. Whether it should is
+[Q626](../questions/q626.md).*
+
 ## Context
 
 **A flow document could not say *reshape this value* without code.** A node that only transforms had to

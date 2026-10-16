@@ -489,8 +489,9 @@ export function createRuntime(
   //     builds one per instance and writes EVERY registered language into its config (ADR 0096 rule 2).
   const nodeTypes: Record<string, NodeTypeDefinition> = {};
   for (const [name, def] of resolved.nodeTypes) nodeTypes[name] = def;
-  const pools: Record<string, { type: string; config?: unknown }> = {};
-  for (const [key, p] of resolved.pools) if (key !== p.type) pools[key] = { type: p.type, config: p.config };
+  // A named instance's OWN pool options travel with it (v0.37, ADR 0099), so `bootstrap` derives the pool `resolveRegistry` did.
+  const pools: Record<string, { type: string; config?: unknown; pool?: ResolvedPool['pool'] }> = {};
+  for (const [key, p] of resolved.pools) if (key !== p.type) pools[key] = { type: p.type, config: p.config, ...(p.pool !== undefined ? { pool: p.pool } : {}) };
   const languages: Record<string, unknown> = {};
   for (const [name, adapter] of resolved.languages) languages[name] = adapter;
 

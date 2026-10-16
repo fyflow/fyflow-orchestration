@@ -29,7 +29,7 @@ So `@fyflow/scheduler` **is** on JSR, which `spec/runtime-targets.md` section 1 
 had checked; it is only **0.3.0** that is unpublished, on either. That is what forces
 [ADR 0013](decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md).
 
-**Every item but [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) is closed, deferred, or declined — S10 is not raised — and [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
+**Every item but [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) and [S11](#s11---messagesflushintervalms-is-not-bounded-at-the-schedulers-own-max_timer_ms) is closed, deferred, or declined — neither is raised — and [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either)
 is the ONLY ONE THIS REGISTER HAS EVER RAISED - and it was fixed the same day.** 0.3.0 settled four
 without us asking - S4 implemented, S7 fixed, S8 declined and documented - and S1 was answered
 directly by the maintainer on 2026-08-30. S5 stays deferred with a costless workaround; **S2 shipped
@@ -63,6 +63,7 @@ the last section.
 | [S8](#s8---freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
 | [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - and the reason CHANGED: Node reads npm's `dist/` because that is what an npm consumer gets, no longer because it *cannot* read the source | **RAISED 2026-09-07 and FIXED in 0.5.2 the same day** - the only item this register has ever raised, closed by [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). *(The rest of this cell is the record as it stood when it was raised.)* Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
 | [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) | Mark `ResourceGroup.onStart`/`onFinish` required, or guard the calls | no — we refuse such a group at construction | **not raised yet** |
+| [S11](#s11---messagesflushintervalms-is-not-bounded-at-the-schedulers-own-max_timer_ms) | Bound `messages.flushIntervalMs` at the scheduler's own `MAX_TIMER_MS`, as a grace timer is | no — we refuse a longer one at construction | **not raised** — P37 (f), written by [W165](work-items/w165-pool-options-on-a-named-pool-instance.md) |
 
 ---
 
@@ -494,6 +495,41 @@ refusal already covers our consumers.
 a PLAIN object carrying the six members holds a real task and completes it — so `EventTarget` is not
 a run-time requirement, and our refusal does not test for it.
 
+## S11 - `messages.flushIntervalMs` is not bounded at the scheduler's own `MAX_TIMER_MS`
+
+> **NOT RAISED.** Found by [P33](plans/p33-what-a-run-does-when-a-task-ends-cancelled.md)'s W159 (its adequacy reader's
+> F9), re-measured as [P37](plans/p37-a-runtime-is-its-registry.md) fact 7 on 2026-10-15, and written here by
+> [W165](work-items/w165-pool-options-on-a-named-pool-instance.md) on the maintainer's answer to P37 stop-and-ask (f),
+> *"as recommended"* — an entry, not a report. It does not block us: `poolSpecProblem` bounds the value at construction
+> ([ADR 0099](decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) rule 6), which is the
+> workaround this register requires an item to state.
+
+**The scheduler knows the bound and applies it to one timer of two**, at 0.6.0. `dist/node/index.js`:
+
+| | where | what it does |
+|---|---|---|
+| the bound | `:1387` | `var MAX_TIMER_MS = 2 ** 31 - 1;` |
+| a cancel's grace timer | `:1684` | `if (graceMs > MAX_TIMER_MS) return;` — not armed above it, so `Infinity` means *never force* |
+| `messages.flushIntervalMs`, validated | `:743-744` (`resolveMessageOptions`) | a number, finite, `> 0` — **no upper bound** |
+| `messages.flushIntervalMs`, used | `:864-867` | `setTimeout(…, this.options.flushIntervalMs - (now - this.lastFlush))` |
+
+**Measured, node 24.20.0 and deno 2.9.6** (P37 fact 7): a `setTimeout` of 2^31 and of 1e300 fired at ONCE, with a
+`TimeoutOverflowWarning` (*"Timeout duration was set to 1"*), and one of 2^31-1 had not fired at 200 ms. So a pool
+configured with `messages: { flushIntervalMs: 2 ** 31 }` — meaning *batch for about 25 days* — flushes every worker
+`emit()` after 1 ms, the opposite of what was asked, and constructs without a word.
+
+**Who meets it.** Any consumer constructing a `WorkerManager` directly. Ours do not: a registry's `messages` reaches the
+scheduler only through a type's `pool`, an instance's `pool` or a CLASS derivation's output, all three held by
+`poolSpecProblem`.
+
+**What we do without it.** `poolSpecProblem` refuses `flushIntervalMs` above 2^31-1, naming the key and the bound, as
+`DerivationRefused` — on a type's `pool`, an instance's and a class's output alike.
+
+**The ask, either way round.** Validate `flushIntervalMs <= MAX_TIMER_MS` in `resolveMessageOptions`, throwing as it does
+for `<= 0`; **or** clamp it there, as the grace timer's guard effectively does. The first is what we do; either makes a
+value the scheduler accepts mean what it says. **A sentence in `AGENTS.md` §5's `messages` row would also close it for
+us**, on S8's precedent, since our own bound already covers our consumers.
+
 ## Raise order, and the joint items
 
 Revised **2026-08-30 against the landed 0.3.0 code**. **Four of the eight are settled and we raised
@@ -505,7 +541,7 @@ was the one to raise, it was raised on 2026-09-07, and it was FIXED in 0.5.2 the
 *(The paragraph this replaces read *"is the one to raise, and it is ready"*, and the plan it
 described is what was sent: both halves in one report, on the ground that they are the same fact
 about Node's type stripping seen from two sides. It worked, so it is recorded rather than deleted.)*
-**S10 is not raised.**
+**S10 is not raised, and neither is S11** (P37 stop-and-ask (f): an entry, not a report).
 
 1. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
    Do not raise it on principle — and P1 is what would produce the number.
