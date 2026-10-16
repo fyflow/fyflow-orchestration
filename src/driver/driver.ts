@@ -190,6 +190,12 @@ export class UndeclaredRoute extends Error {
  * [W73](../../doc/work-items/w73-the-wiring-check-a-verdict-per-edge-and-two-boundaries-validated-once.md).
  * Once per run and once per human action, never per settlement (that is OUT of P19 as a default).
  *
+ * **A task that declares a `transform` is not held at `start()`** — ADR 0101,
+ * [W170](../../doc/work-items/w170-a-transforming-task-is-not-held-at-start.md), Q633's road 2: its
+ * worker's `inputSchema` holds the transform's RESULT (`FD-C5`), which only the worker wrapper makes;
+ * `givenVerdict` (`tryTransform(…, { input })` on the node as declared) on that task, with the value it
+ * RECEIVES — the payload composed through its `needs`, a map branch's element — is the check before a run.
+ *
  * **A REJECTED COMMAND and not a run failure**, on `RS-R1`'s own reading of `resolve` — *it came from
  * outside and a caller can retry* — and it is the maintainer's choice at W73's stop-and-ask 2.
  * Thrown at the caller with NOTHING appended, nothing reported through `onRunFailure` and the run
@@ -1057,7 +1063,8 @@ export interface DriverOptions {
    * the parked node's worker output schema at `resolve()`, each refused as a `BoundaryRefused`
    * thrown at the caller with the run unaffected. `false` turns both off — the one road P19 leaves
    * to a consumer who has priced the check and wants none of it. A worker declaring no schema on
-   * that side is unchecked either way (P18 decision 3).
+   * that side is unchecked either way (P18 decision 3), and so, at `start()`, is a task that declares
+   * a `transform` (ADR 0101, W170): what its worker's input schema holds is the transform's RESULT.
    */
   validateBoundaries?: boolean;
   /**
@@ -1534,7 +1541,8 @@ export class Driver {
     // driver UNSTARTED and a corrected one may start it.** The targets are the wiring check's own walk
     // (the entry task, or every branch task of an entry region, recursively — one derivation, two
     // callers), each value composed through the node's `needs` exactly as `enter` will compose it,
-    // and held to the task's worker `inputSchema`; a task whose worker declares none is unchecked.
+    // and held to the task's worker `inputSchema`; a task whose worker declares none is unchecked, and so
+    // is a task that declares a `transform` (ADR 0101, below).
     // The composition cannot throw here: at an entry `FD-V27` admits no reference but `"."`, and
     // composing `"."` reads the value whole (W73's adequacy reader measured the guard dead on every
     // valid definition — a `needs` naming anything else is refused at construction, `FD-V11`/`FD-V27`).
@@ -1544,6 +1552,13 @@ export class Driver {
       for (const { node, value } of boundaryTargets(this.def, payload, (g, v) => this.boundaryEdges(g, v))) {
         const n = this.graph.byId.get(node);
         if (!n || n.kind !== 'task') continue;
+        // **A task that declares a `transform` is UNCHECKED here** — ADR 0101, W170, Q633's road 2. What its
+        // worker's `inputSchema` holds is what the node RECEIVES (`FD-C5`), which for a transforming node is the
+        // transform's RESULT, made only in the type's worker wrapper (`FD-C6`); `start()` is synchronous and
+        // evaluates nothing. Holding the payload BEFORE the transform gave one value the opposite verdict to
+        // `tryTransform(…, { input })` (P34 fact 10). The same road as a worker declaring no `inputSchema`, and the
+        // walk goes ON to the other targets — `continue`, never `break`.
+        if (n.transform !== undefined) continue;
         const type = this.nodeTypes.get(n.type);
         // A type that only transforms names no worker (ADR 0075), so there are no schemas to hold a
         // boundary to — the `undefined` falls through to the `schema === undefined` skip below, which is
