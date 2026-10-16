@@ -21,7 +21,8 @@
  * **Since W65 the helper takes the REGISTRY's three sections — `workers`, `nodeTypes`, `pools` —
  * and builds one pool per INSTANCE**: the default instance of every type, keyed by the type's name,
  * and every named instance in `pools`, keyed as declared. Each is the type's derivation run over the
- * instance's config (`derivePool`, the same checks `resolveRegistry` makes), turned into
+ * instance's config — and, since v0.37, a document type's instance's own `pool` options merged over the type's
+ * (ADR 0099) — (`derivePool`, the same checks `resolveRegistry` makes), turned into
  * `WorkerManagerOptions` by `poolOptionsOf` — the type's `inline`, the derived pool fields and
  * groups, and the envelope pool config `{ worker: <the worker entry's url>, config: <the derived
  * config> }` — and handed to the pool factory with the package's envelope worker as its script.
@@ -134,7 +135,10 @@ export function bootstrap(
     // same merged map `types` is.
     const entry = types.get(inst.type)!;
     const def = isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry);
-    derived[key] = derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), (inst as { config?: unknown }).config, groupKeys, ConfigRefused);
+    // **An instance's OWN pool options go to the derivation with it** — v0.37, ADR 0099: `derivePool` merges them over
+    // the type's declared ones and holds the OUTPUT to its one check; `checkRegistry` above held their shape, and
+    // refused them on an instance of a CLASS type, on this road exactly as on `resolveRegistry`'s.
+    derived[key] = derivePool(key, inst.type, def, def.worker === undefined ? undefined : workers.get(def.worker), (inst as { config?: unknown }).config, groupKeys, ConfigRefused, (inst as { pool?: unknown }).pool);
   }
   for (const [name, entry] of types) if (builtIn(name)) one(name, name, entry, (isDerivation(entry) ? entry : nodeTypeFromDeclaration(entry)).config, TypeDefaultRefused);
   // Direction two: every group object given is named by some pool.

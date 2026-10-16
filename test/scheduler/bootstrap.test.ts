@@ -18,9 +18,9 @@
 import { equal, ok, suite, throws } from '../harness.ts';
 import { WorkerManager } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManagerOptions } from 'fyflow-scheduler';
-import { bootstrap, BootstrapError, ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, unpackEnvelope } from '../../src/scheduler/index.ts';
+import { bootstrap, BootstrapError, createRuntime, ENVELOPE_WORKER_URL, EnvelopeWorker, NotAnEnvelope, unpackEnvelope } from '../../src/scheduler/index.ts';
 import { canonical } from '../../src/definition/schema.ts';
-import { NameMissing, poolOptionsOf, RegistryError, WorkerMissing } from '../../src/definition/registry.ts';
+import { checkRegistry, DECLARED_POOL_KEYS, NameMissing, poolOptionsOf, RegistryError, WorkerMissing } from '../../src/definition/registry.ts';
 import type { LanguageAdapter, NodeTypeDeclaration, NodeTypeDefinition, NodeTypeEntry, PoolSpec, WorkerEntry } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from './fake-language.ts';
 import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
@@ -480,5 +480,65 @@ suite('W109 — the pool config the library BUILDS for a transform-only type, an
     equal(Object.keys(out.workerPools), ['Zed', 'Alpha', 'inst', 'Transform'],
       'the consumer`s types in DECLARED order, then its named instances, then the library`s own — unsorted, so prepending a built-in is red here');
     equal(Object.keys(out.derived), ['Zed', 'Alpha', 'inst', 'Transform'], 'and `derived` agrees, key for key and position for position');
+  });
+});
+
+/**
+ * **W165 — a named instance's OWN pool options reach the pool the scheduler is handed**, through the helper and through
+ * `createRuntime` — `spec/flow-definition.md` v0.37, [ADR 0099](../../doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md).
+ * The registry suite holds what is RESOLVED; this one reads the `WorkerManagerOptions` each pool is BUILT with, off the
+ * pool factory's seam, because the runtime road hands the helper RESOLVED definitions and the instance it resolved —
+ * the road an instance's options could be dropped on while every resolver assertion stayed green. Expected values are
+ * the type's literal with the instance's keys replaced, the spec's shallow merge; P18 fact 5's two captures are the
+ * W59 suite's above and are not edited here.
+ */
+suite('W165 — a named instance`s own pool options reach its WorkerManagerOptions, through bootstrap and through createRuntime (ADR 0099)', (test) => {
+  const DOC_TYPE: NodeTypeDeclaration = { worker: 'scorer', inline: true, config: { role: 'typed' }, pool: { maxThreads: 2, idleTimeout: 1000, messages: { flushIntervalMs: 50 } }, groups: ['gpu'] };
+  /** Every declared pool key, each different from the type's. */
+  const OWN = { maxThreads: 6, maxConcurrentTasks: 4, idleTimeout: 9000, residentGroups: ['api'], cancelGraceMs: 250, messages: { maxBuffered: 8 } };
+  /** What the instance's pool is built with: the type's options with every key of OWN replaced, `inline` and `groups` the type's. */
+  const INSTANCE_OPTIONS = { inline: true, maxThreads: 6, maxConcurrentTasks: 4, idleTimeout: 9000, residentGroups: ['api'], cancelGraceMs: 250, messages: { maxBuffered: 8 }, groups: ['gpu'], config: { worker: 'test://scorer.ts', config: { role: 'typed' } } };
+  /** What the type's default pool is built with — unmoved by the instance beside it. */
+  const DEFAULT_OPTIONS = { inline: true, maxThreads: 2, idleTimeout: 1000, messages: { flushIntervalMs: 50 }, groups: ['gpu'], config: { worker: 'test://scorer.ts', config: { role: 'typed' } } };
+
+  test('the fixture: OWN names every DECLARED_POOL_KEYS member, both ways', () => {
+    equal(Object.keys(OWN).sort(), [...DECLARED_POOL_KEYS].sort(), 'every declared pool key, so a key the helper drops is visible');
+  });
+
+  test('bootstrap: the instance`s pool is built with its own options over the type`s; the type`s default pool as before', () => {
+    const { built, createPool } = recorder();
+    const out = bootstrap({ workers: WORKERS, nodeTypes: { Scorer: DOC_TYPE }, pools: { big: { type: 'Scorer', pool: OWN } } }, { gpu: group('gpu'), api: group('api') }, { createPool });
+    const at = (k: string) => built[Object.keys(out.workerPools).indexOf(k)]!.options;
+    equal(at('big'), INSTANCE_OPTIONS, 'the named instance, option for option');
+    equal(at('Scorer'), DEFAULT_OPTIONS, 'the default instance, option for option');
+    equal(out.derived.big!.pool, OWN, 'and the derived pool carries the instance`s own options');
+  });
+
+  test('createRuntime: the RUNTIME road hands the helper resolved definitions and the instance — the same options reach the scheduler`s pools, and runtime.registry passes checkRegistry', () => {
+    const pools: Record<string, { options: Record<string, unknown> }> = {};
+    const createPool = (url: string, options: unknown) => ({ url, options } as never);
+    const createScheduler = (p: Record<string, unknown>) => {
+      Object.assign(pools, p);
+      return { workerPools: p, groups: {}, addTask() {}, addEventListener() {}, shutdown: () => Promise.resolve() } as never;
+    };
+    const runtime = createRuntime({
+      workers: { scorer: { url: 'test://scorer.ts' } },
+      groups: { gpu: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, api: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } },
+      nodeTypes: { Scorer: DOC_TYPE },
+      pools: { big: { type: 'Scorer', pool: OWN } },
+    }, {}, { createPool, createScheduler });
+    equal(pools.big!.options, INSTANCE_OPTIONS, 'the named instance`s pool, option for option — the options were not dropped on the runtime road');
+    equal(pools.Scorer!.options, DEFAULT_OPTIONS, 'and the type`s default pool');
+    equal(runtime.pools.big!.spec.maxThreads, 6, 'the runtime`s derived pool says the same');
+    // A consumer building a Driver by hand from runtime.registry passes its shape check: the definitions are RESOLVED
+    // document types (functions), and the instance carries `pool`.
+    equal(checkRegistry({ workers: runtime.registry.workers, nodeTypes: runtime.registry.nodeTypes, pools: runtime.registry.pools }), undefined, 'runtime.registry passes the driver`s shape check');
+  });
+
+  test('a CLASS type`s instance carrying `pool` is refused by the helper as by the resolver — UndeclaredKey, before any pool is built', () => {
+    const cls: NodeTypeDefinition = { worker: 'scorer', pool: () => ({ maxThreads: 1 }) };
+    const { built, createPool } = recorder();
+    throws(() => bootstrap({ workers: WORKERS, nodeTypes: { C: cls }, pools: { big: { type: 'C', pool: { maxThreads: 3 } } } }, {}, { createPool }), 'UndeclaredKey', 'refused by name');
+    equal(built.length, 0, 'and nothing was built');
   });
 });

@@ -12,7 +12,7 @@ resolves: ""
 
 # ADR 0054 — Every task node names a TYPE, and a type is a derivation to pool options
 
-**Status:** accepted — answers the second of [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
+**Status:** accepted — **decisions 2 and 3 amended by [ADR 0099](0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) at v0.37 (W165)**: a named instance of a DOCUMENT type may carry its own `pool` options, merged shallowly over its type's, and the identity derivation copies every declared pool object, `residentGroups` included; an instance of a class type carrying them is refused; decision 2's *one check* unchanged. It answers the second of [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
 two decisions, *what a task node says about the thing that runs it, and what a node type IS*, on that
 plan's decisions 1, 2, 4, 5, 9, 12 and 14. **Amends [ADR 0049](0049-a-node-type-is-a-registry-entry-and-its-worker-receives-an-envelope.md)**:
 its rule 1's *a `task` may name a `type` INSTEAD of a `workerType`* becomes *a `task` names a `type`*,

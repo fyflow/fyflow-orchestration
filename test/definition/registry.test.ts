@@ -25,10 +25,10 @@ import {
   BUILT_IN_GROUP_TYPES, ConfigRefused, DECLARED_POOL_KEYS, DerivationRefused, DOCUMENT_KEYS, GroupConfigRefused, GroupTypeMissing,
   groupsNamedBy, INSTANCE_KEYS, isDerivation, mergeConfig, NameCollision, NameMissing, NODE_TYPE_DECLARATION_KEYS, nodeTypeFromDeclaration,
   MESSAGE_OPTION_KEYS, POOL_SPEC_KEYS, poolOptionsOf, poolSpecProblem, PoolTypeMissing, RegistryError, resolveRegistry, SchemaRefused, TypeDefaultRefused,
-  UndeclaredKey, WORKER_KEYS, WorkerMissing, CHECKED_WORKER_SCHEMAS, checkRegistry,
+  UndeclaredKey, WORKER_KEYS, WorkerMissing, CHECKED_WORKER_SCHEMAS, checkRegistry, POOL_INSTANCE_KEYS,
 } from '../../src/definition/registry.ts';
 import { BUILT_IN_NODE_TYPES } from '../../src/definition/validate.ts';
-import type { GroupType, NodeTypeDeclaration, NodeTypeDefinition, PoolSpec, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
+import type { GroupType, NodeTypeDeclaration, NodeTypeDefinition, PoolInstance, PoolSpec, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
 import { PATH_LANGUAGE } from '../scheduler/fake-language.ts';
 /**
  * **The pool and type expectations below are UNMOVED by [W109](../../doc/work-items/w109-a-node-that-only-transforms.md),
@@ -419,7 +419,7 @@ suite('every construction-time refusal, by name — a document that trips it and
     refused(edited((d) => { d.workers!.fetch!.schema = {}; }), UndeclaredKey, ['"fetch"', '"schema"']);
     refused(edited((d) => { d.nodeTypes!.Fetch!.configSchema = {}; }), UndeclaredKey, ['"Fetch"', '"configSchema"'], code(), 'a document type may not carry a configSchema — that is the class form`s');
     refused(edited((d) => { (d.nodeTypes!.Prompt!.pool as Record<string, unknown>).groups = ['vendor']; }), UndeclaredKey, ['"Prompt"', '"groups"'], code(), 'groups sit beside pool, not in it');
-    refused(edited((d) => { d.pools!['prompt-big']!.maxThreads = 1; }), UndeclaredKey, ['"prompt-big"', '"maxThreads"'], code(), 'an instance overrides through config, not pool fields');
+    refused(edited((d) => { d.pools!['prompt-big']!.maxThreads = 1; }), UndeclaredKey, ['"prompt-big"', '"maxThreads"'], code(), 'a pool option BESIDE type is undeclared — since v0.37 a document type`s instance sets one under `pool` (ADR 0099)');
     refused(edited((d) => { d.groups!.gpu!.limit = 2; }), UndeclaredKey, ['"gpu"', '"limit"']);
     refused(edited((d) => { d.workers = [] as unknown as Record<string, Record<string, unknown>>; }), UndeclaredKey, ['"workers"', 'keyed by name']);
     refused([] as unknown as RegistryDocument, UndeclaredKey, ['plain object'], code(), 'the document itself');
@@ -474,7 +474,13 @@ suite('the key sets are claims about the spec`s tables — compared both ways', 
     const row = /^\| `messages` \| optional, `\{ ([^}]*) \}` \|/m.exec(spec.slice(spec.indexOf('#### What a derivation returns')));
     ok(row !== null, 'the PoolSpec table has a messages row naming its keys');
     equal(row![1]!.split(',').map((k) => k.trim().replace(/\?$/, '')).sort(), [...MESSAGE_OPTION_KEYS].sort(), 'messages keys');
-    equal(await specTable('#### A pool instance, and a group'), [...INSTANCE_KEYS].sort(), 'instance keys');
+    // v0.37 (W165, ADR 0099): the table names a POOL instance's three keys, and the row marked a pool instance's only is
+    // the one a GROUP instance does not declare — so a group's keys are the table less that row, both ways.
+    equal(await specTable('#### A pool instance, and a group'), [...POOL_INSTANCE_KEYS].sort(), 'a pool instance`s keys');
+    const instanceTable = spec.slice(spec.indexOf('#### A pool instance, and a group'), spec.indexOf('\n##', spec.indexOf('#### A pool instance, and a group') + 1));
+    const poolOnly = [...instanceTable.matchAll(/^\|\s*`(\w+)`\s*\|\s*optional, a POOL instance's only\b/gm)].map((m) => m[1]!);
+    equal(poolOnly, ['pool'], 'one row is a pool instance`s only — `pool`');
+    equal(POOL_INSTANCE_KEYS.filter((k) => !poolOnly.includes(k)).sort(), [...INSTANCE_KEYS].sort(), 'and the rest are a group instance`s keys');
     equal(await specTable('#### The built-in group types'), Object.keys(BUILT_IN_GROUP_TYPES).sort(), 'the three built-ins by name');
   });
   test('poolSpecProblem and groupsNamedBy — the shape both derivations pass through', () => {
@@ -684,6 +690,11 @@ const W141_DEFECTS: readonly W141Defect[] = [
   { site: "noUndeclared('pool', key", cls: UndeclaredKey, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'T', maxThreads: 2 } } }, says: 'carries undeclared key "maxThreads"' },
   { site: 'is named as node type ${q(key)} is', cls: NameCollision, reg: { workers: W, nodeTypes: OK_TYPE, pools: { T: { type: 'T' } } }, says: 'is named as node type "T"' },
   { site: 'which is not a node type`', cls: PoolTypeMissing, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'Nope' } } }, says: 'names type "Nope"' },
+  // v0.37 (W165, ADR 0099) — an instance's OWN pool options, held in the shape both roads share.
+  { site: 'is an instance of CLASS type', cls: UndeclaredKey, reg: { workers: W, nodeTypes: { C: { worker: 'w', pool: () => ({}) } }, pools: { p: { type: 'C', pool: { maxThreads: 1 } } } }, says: 'ADR 0099' },
+  { site: 'its own pool options must be an object', cls: DerivationRefused, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'T', pool: 4 } } }, says: 'must be an object' },
+  { site: "noUndeclared('pool instance pool'", cls: UndeclaredKey, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'T', pool: { requeueFailedTasks: true } } } }, says: 'carries undeclared key "requeueFailedTasks"' },
+  { site: 'pool ${q(key)}.pool: ${problem}', cls: DerivationRefused, reg: { workers: W, nodeTypes: OK_TYPE, pools: { p: { type: 'T', pool: { maxThreads: 0 } } } }, says: 'maxThreads must be an integer >= 1' },
 ];
 /**
  * The one site no consumer input reaches — named, with its reason, so the both-ways comparison can hold every other.
@@ -775,3 +786,218 @@ suite('W141 — one shape function: checkRegistry and resolveRegistry refuse eve
     equal([(three.check as unknown[])[0], (three.resolve as unknown[])[0]], ['WorkerMissing', 'WorkerMissing'], 'the worker before the type, on both');
   });
 });
+
+/**
+ * **W165 — pool options on a named pool instance** — `spec/flow-definition.md` v0.37, section 3's *A pool instance, and
+ * a group*; [ADR 0099](../../doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md);
+ * [P37](../../doc/plans/p37-a-runtime-is-its-registry.md) stop-and-ask (e), decisions 8 and 9.
+ *
+ * **Every expected value is written from the rule, never read off the resolver**: the type declares `TYPE_POOL`, the
+ * instance declares one key of `OVER`, and the spec says the instance's key wins and every other key is the type's — so
+ * each expected spec below is the type's literal with ONE key replaced by the instance's literal. `OVER` differs from
+ * `TYPE_POOL` on every key (asserted), so an override that did not happen cannot pass for one that did. The bound is
+ * the scheduler's own `MAX_TIMER_MS`, `2 ** 31 - 1`, read off `dist/node/index.js` at the pin (P37 fact 7) — a literal
+ * here, deliberately not imported, so the module's constant cannot move both sides at once.
+ */
+suite('W165 — pool options on a named pool instance: a DOCUMENT type`s instance overrides its type`s, held to poolSpecProblem; residentGroups copied; flushIntervalMs bounded (ADR 0099)', (test) => {
+  const WK: RegistryDocument['workers'] = { w: { url: 'test://w' } };
+  const GR: RegistryDocument['groups'] = { g: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, h: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, k: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } };
+  /** The type's declared pool — every DECLARED_POOL_KEYS member set. */
+  const TYPE_POOL = { maxThreads: 2, maxConcurrentTasks: 3, idleTimeout: 1000, residentGroups: ['h'], cancelGraceMs: 100, messages: { flushIntervalMs: 50, maxBuffered: 10 } };
+  /** One instance value per key, each DIFFERENT from the type's. */
+  const OVER: Record<string, unknown> = { maxThreads: 7, maxConcurrentTasks: 9, idleTimeout: 5000, residentGroups: { k: 2 }, cancelGraceMs: Infinity, messages: { maxBuffered: 4 } };
+  /** One malformed instance value per key. */
+  const BAD: Record<string, unknown> = { maxThreads: 0, maxConcurrentTasks: 1.5, idleTimeout: -1, residentGroups: ['h', 'h'], cancelGraceMs: -1, messages: { flushIntervalMs: 0 } };
+  const T = (): NodeTypeDeclaration => ({ worker: 'w', config: { m: 1 }, pool: JSON.parse(JSON.stringify(TYPE_POOL)), groups: ['g'] });
+  const doc = (pool: unknown): RegistryDocument =>
+    ({ workers: WK, groups: GR, nodeTypes: { T: T() }, pools: { inst: { type: 'T', pool } } }) as unknown as RegistryDocument;
+  /** The default instance's spec, from the type's literal — what every instance spec below differs from in ONE key. */
+  const DEFAULT_SPEC = { config: { m: 1 }, maxThreads: 2, maxConcurrentTasks: 3, idleTimeout: 1000, residentGroups: ['h'], cancelGraceMs: 100, messages: { flushIntervalMs: 50, maxBuffered: 10 }, groups: ['g'] };
+  const KEYS = ['maxThreads', 'maxConcurrentTasks', 'idleTimeout', 'residentGroups', 'cancelGraceMs', 'messages'];
+
+  test('the fixture: the per-key cases, OVER and BAD each name EVERY DECLARED_POOL_KEYS member, both ways, and OVER differs from the type on each', () => {
+    equal([...KEYS].sort(), [...DECLARED_POOL_KEYS].sort(), 'one per-key case per declared pool key');
+    equal(Object.keys(OVER).sort(), [...DECLARED_POOL_KEYS].sort(), 'OVER names every declared pool key');
+    equal(Object.keys(BAD).sort(), [...DECLARED_POOL_KEYS].sort(), 'BAD names every declared pool key');
+    equal(Object.keys(TYPE_POOL).sort(), [...DECLARED_POOL_KEYS].sort(), 'and the type declares every one');
+    for (const k of DECLARED_POOL_KEYS) ok(!deepEq(OVER[k], (TYPE_POOL as Record<string, unknown>)[k]), `OVER.${k} differs from the type's`);
+  });
+
+  for (const k of KEYS) {
+    test(`${k}: an instance's value OVERRIDES the type's on the instance alone — every other key the type's, the default instance unmoved — and a malformed one is refused on both roads`, () => {
+      const r = resolveRegistry(doc({ [k]: OVER[k] }));
+      equal(r.pools.get('inst')!.spec, { ...DEFAULT_SPEC, [k]: OVER[k] }, `the instance's spec: the type's with ${k} replaced`);
+      equal(r.pools.get('T')!.spec, DEFAULT_SPEC, 'the type`s default instance: as declared');
+      equal(r.pools.get('inst')!.pool, { [k]: OVER[k] }, 'the instance`s own options are carried on the resolved pool, as declared');
+      equal(r.pools.get('T')!.pool, undefined, 'and a default instance carries none');
+      // Held to poolSpecProblem ON THE INSTANCE, naming the pool and the key — on both roads.
+      const bad = doc({ [k]: BAD[k] });
+      refused(bad, DerivationRefused, ['"inst"', k], {}, `${k}: a malformed instance value`);
+      let viaCheck: unknown;
+      try { checkRegistry({ workers: bad.workers as never, nodeTypes: bad.nodeTypes as never, pools: bad.pools as never }); } catch (e) { viaCheck = e; }
+      ok(viaCheck instanceof DerivationRefused && (viaCheck as RegistryError).at === 'inst' && (viaCheck as Error).message.includes(k), `${k}: checkRegistry refuses it too — ${String(viaCheck)}`);
+    });
+  }
+
+  test('every key at once; `messages` is replaced WHOLE (a shallow merge); a key present with undefined does NOT unset the type`s', () => {
+    const r = resolveRegistry(doc(OVER));
+    equal(r.pools.get('inst')!.spec, { config: { m: 1 }, maxThreads: 7, maxConcurrentTasks: 9, idleTimeout: 5000, residentGroups: { k: 2 }, cancelGraceMs: Infinity, messages: { maxBuffered: 4 }, groups: ['g'] }, 'every key the instance`s');
+    equal(r.pools.get('inst')!.spec.messages, { maxBuffered: 4 }, 'the type`s flushIntervalMs is NOT carried into an instance`s messages — shallow');
+    const u = resolveRegistry(doc({ maxThreads: undefined, idleTimeout: 9 }));
+    equal(u.pools.get('inst')!.spec, { ...DEFAULT_SPEC, idleTimeout: 9 }, 'maxThreads: undefined leaves the type`s 2; idleTimeout overrides');
+    equal(u.pools.get('inst')!.pool, { idleTimeout: 9 }, 'and the carried options drop the undefined key');
+    equal(resolveRegistry(doc({})).pools.get('inst')!.spec, DEFAULT_SPEC, 'an EMPTY pool: the type`s options exactly');
+    equal(resolveRegistry(doc(undefined)).pools.get('inst')!.spec, DEFAULT_SPEC, 'and an absent one');
+    // The config road is untouched beside it: an instance config still merges over the type's.
+    const both = { workers: WK, groups: GR, nodeTypes: { T: T() }, pools: { inst: { type: 'T', config: { n: 2 }, pool: { maxThreads: 5 } } } } as unknown as RegistryDocument;
+    equal(resolveRegistry(both).pools.get('inst')!.spec, { ...DEFAULT_SPEC, config: { m: 1, n: 2 }, maxThreads: 5 }, 'config and pool, each merged over the type`s own');
+  });
+
+  test('a key OUTSIDE DECLARED_POOL_KEYS is UndeclaredKey — the scheduler`s three unvalidated options among them (ADR 0099 rule 7) — and a non-object is DerivationRefused', () => {
+    for (const k of ['idleCheckIntervalMs', 'requeueFailedTasks', 'maxWorkerRestarts', 'config', 'groups', 'inline', 'maxthreads']) {
+      refused(doc({ [k]: 1 }), UndeclaredKey, ['"inst"', `"${k}"`], {}, `${k} under an instance's pool`);
+    }
+    for (const v of [5, 'big', [1], null, true]) refused(doc(v), DerivationRefused, ['"inst"', 'must be an object'], {}, `pool ${JSON.stringify(v)}`);
+  });
+
+  test('the MERGED spec takes the derivation`s checks: a resident group beside the TYPE`s idleTimeout 0, a resident group the document lacks, and idleTimeout 0 beside the TYPE`s resident group', () => {
+    const idle0 = { workers: WK, groups: GR, nodeTypes: { T: { worker: 'w', pool: { idleTimeout: 0 } } }, pools: { inst: { type: 'T', pool: { residentGroups: ['h'] } } } } as unknown as RegistryDocument;
+    refused(idle0, DerivationRefused, ['"inst"', 'idleTimeout: 0'], {}, 'the instance`s resident group beside the type`s idleTimeout 0');
+    equal(resolveRegistry({ ...idle0, pools: {} }).pools.get('T')!.spec, { idleTimeout: 0 }, 'the control: the type alone resolves');
+    refused(doc({ residentGroups: ['nope'] }), NameMissing, ['"inst"', '"nope"'], {}, 'a resident group the document does not declare');
+    refused(doc({ idleTimeout: 0 }), DerivationRefused, ['"inst"', 'idleTimeout: 0'], {}, 'the instance`s idleTimeout 0 beside the type`s resident group');
+    equal(resolveRegistry(doc({ idleTimeout: 0, residentGroups: [] })).pools.get('inst')!.spec.idleTimeout, 0, 'the control: idleTimeout 0 with NO resident group resolves');
+  });
+
+  test('an instance of a CLASS type carrying `pool` is UndeclaredKey on both roads, naming the pool and ADR 0099 — and without it resolves; the built-in Transform`s instance takes one', () => {
+    const cls: NodeTypeDefinition = { worker: 'w', pool: () => ({ maxThreads: 1 }) };
+    const withPool = { workers: WK, pools: { p: { type: 'C', pool: { maxThreads: 3 } } } } as unknown as RegistryDocument;
+    refused(withPool, UndeclaredKey, ['"p"', '"C"', 'CLASS', 'ADR 0099'], { nodeTypes: { C: cls } }, 'a class type`s instance');
+    for (const inert of [{}, { maxThreads: undefined }]) {
+      refused({ ...withPool, pools: { p: { type: 'C', pool: inert } } } as unknown as RegistryDocument, UndeclaredKey, ['"p"', 'CLASS'], { nodeTypes: { C: cls } }, `even an inert pool ${JSON.stringify(inert)} — the KEY is the class instance's error`);
+    }
+    let viaCheck: unknown;
+    try { checkRegistry({ workers: WK as never, nodeTypes: { C: cls }, pools: { p: { type: 'C', pool: { maxThreads: 3 } } } }); } catch (e) { viaCheck = e; }
+    ok(viaCheck instanceof UndeclaredKey && (viaCheck as RegistryError).at === 'p', `checkRegistry refuses it too — ${String(viaCheck)}`);
+    equal(resolveRegistry({ ...withPool, pools: { p: { type: 'C' } } } as unknown as RegistryDocument, { nodeTypes: { C: cls } }).pools.get('p')!.spec, { maxThreads: 1 }, 'the control: the same instance without `pool` resolves');
+    const tr = resolveRegistry({ pools: { reshape: { type: 'Transform', pool: { maxThreads: 3, idleTimeout: 5 } } } } as unknown as RegistryDocument);
+    equal(tr.pools.get('reshape')!.spec, { maxThreads: 3, idleTimeout: 5 }, 'the built-in Transform is a DOCUMENT type: its instance takes pool options');
+  });
+
+  test('a RESOLVED document type is still a document type — checkRegistry over nodeTypeFromDeclaration`s output admits an instance`s pool; a hand-written definition is a class (ADR 0099 consequence 3)', () => {
+    const resolved = nodeTypeFromDeclaration({ worker: 'w', pool: { maxThreads: 2 } });
+    ok(isDerivation(resolved), 'the resolved form has a pool FUNCTION, as a class has');
+    equal(checkRegistry({ workers: WK as never, nodeTypes: { T: resolved }, pools: { p: { type: 'T', pool: { maxThreads: 4 } } } }), undefined, 'the resolved document type`s instance is admitted');
+    const copy: NodeTypeDefinition = { ...resolved };
+    let refusedCopy: unknown;
+    try { checkRegistry({ workers: WK as never, nodeTypes: { T: copy }, pools: { p: { type: 'T', pool: { maxThreads: 4 } } } }); } catch (e) { refusedCopy = e; }
+    ok(refusedCopy instanceof UndeclaredKey, `a COPY of it is a class to this rule — ${String(refusedCopy)}`);
+  });
+
+  test('a GROUP instance still refuses every pool key, and `pool` itself — INSTANCE_KEYS is a group`s', () => {
+    for (const k of [...DECLARED_POOL_KEYS, 'pool', 'groups']) {
+      refused({ groups: { c: { type: 'ConcurrentLimitGroup', config: { limit: 1 }, [k]: OVER[k] ?? { maxThreads: 1 } } } } as unknown as RegistryDocument, UndeclaredKey, ['"c"', `"${k}"`, INSTANCE_KEYS.join(', ')], {}, `${k} on a group instance`);
+    }
+    equal([...resolveRegistry({ groups: { c: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } } }).groups.keys()], ['c'], 'the control: the group with its two keys resolves');
+  });
+
+  test('decision 8: residentGroups is COPIED — not `===` the declaration`s, on the default instance and a named one, list and record forms, and no two instances share one', () => {
+    for (const resident of [['h'], { h: 1 }] as const) {
+      const decl: NodeTypeDeclaration = { worker: 'w', pool: { idleTimeout: 1000, residentGroups: resident, messages: { maxBuffered: 4 } }, groups: ['g'] };
+      const r = resolveRegistry({ workers: WK, groups: GR, nodeTypes: { T: decl }, pools: { a: { type: 'T' }, b: { type: 'T' } } });
+      const [d, a, b] = ['T', 'a', 'b'].map((n) => r.pools.get(n)!.spec);
+      for (const [name, s] of [['default', d], ['a', a], ['b', b]] as const) {
+        equal(s!.residentGroups, resident, `${name}: residentGroups equal to the declaration`);
+        ok(s!.residentGroups !== decl.pool!.residentGroups, `${name}: and not the declaration's object (${Array.isArray(resident) ? 'list' : 'record'})`);
+      }
+      ok(a!.residentGroups !== b!.residentGroups && a!.residentGroups !== d!.residentGroups, 'no two instances share one');
+      // P37 fact 7's own measurement, the derivation called twice: two objects, not one.
+      const def = nodeTypeFromDeclaration(decl);
+      ok(def.pool(undefined, 'x').residentGroups !== def.pool(undefined, 'y').residentGroups, 'two calls of the identity derivation, two objects');
+      ok(def.pool(undefined, 'x').messages !== decl.pool!.messages && def.pool(undefined, 'x').groups !== decl.groups, 'and messages and groups, as since W159');
+    }
+    // An instance's OWN residentGroups and messages are copied too — out of the instance's declaration, and on the carried options.
+    const own = { residentGroups: ['k'], messages: { maxBuffered: 2 } };
+    const r = resolveRegistry({ workers: WK, groups: GR, nodeTypes: { T: T() }, pools: { inst: { type: 'T', pool: own } } } as unknown as RegistryDocument);
+    const p = r.pools.get('inst')!;
+    equal([p.spec.residentGroups, p.spec.messages], [['k'], { maxBuffered: 2 }], 'the instance`s values');
+    ok(p.spec.residentGroups !== own.residentGroups && p.spec.messages !== own.messages, 'the spec holds copies of the instance`s objects');
+    ok(p.pool!.residentGroups !== own.residentGroups && p.pool!.messages !== own.messages, 'and so do the carried options');
+  });
+
+  test('decision 9: messages.flushIntervalMs 2^31-1 is ADMITTED and 2^31 REFUSED, naming the bound — poolSpecProblem, a document type, an instance, a class', () => {
+    const MAX = 2147483647;   // 2 ** 31 - 1 — the scheduler's MAX_TIMER_MS, P37 fact 7
+    equal(MAX, 2 ** 31 - 1, 'the literal is the bound');
+    const wk: RegistryDocument['workers'] = { w: { url: 'test://w' } };
+    const asType = (f: number): RegistryDocument => ({ workers: wk, nodeTypes: { T: { worker: 'w', pool: { messages: { flushIntervalMs: f } } } } });
+    const asInstance = (f: number): RegistryDocument => ({ workers: wk, nodeTypes: { T: { worker: 'w' } }, pools: { inst: { type: 'T', pool: { messages: { flushIntervalMs: f } } } } });
+    const asClass = (f: number): RegistryCode => ({ nodeTypes: { C: { worker: 'w', pool: () => ({ messages: { flushIntervalMs: f } }) } } });
+    for (const f of [MAX, MAX - 0.5, 1]) {
+      equal(poolSpecProblem({ messages: { flushIntervalMs: f } }), null, `${f}: poolSpecProblem admits it`);
+      equal(resolveRegistry(asType(f)).pools.get('T')!.spec.messages, { flushIntervalMs: f }, `${f}: a document type resolves`);
+      equal(resolveRegistry(asInstance(f)).pools.get('inst')!.spec.messages, { flushIntervalMs: f }, `${f}: an instance resolves`);
+      equal(resolveRegistry({ workers: wk }, asClass(f)).pools.get('C')!.spec.messages, { flushIntervalMs: f }, `${f}: a class resolves`);
+    }
+    for (const f of [MAX + 1, MAX + 0.5, 2 ** 32, 1e300]) {
+      const p = poolSpecProblem({ messages: { flushIntervalMs: f } });
+      ok(p !== null && p.includes('flushIntervalMs') && p.includes(String(MAX)), `${f}: poolSpecProblem refuses it naming the key and the bound — ${p}`);
+      refused(asType(f), DerivationRefused, ['"T"', 'flushIntervalMs', String(MAX)], {}, `${f}, a document type`);
+      refused(asInstance(f), DerivationRefused, ['"inst"', 'flushIntervalMs', String(MAX)], {}, `${f}, an instance`);
+      refused({ workers: wk }, DerivationRefused, ['"C"', 'not a PoolSpec', 'flushIntervalMs'], asClass(f), `${f}, a class`);
+    }
+  });
+
+  test('the spec`s messages row states the bound, and the instance table`s `pool` row states whose it is', async () => {
+    const spec = await readText(`${ROOT}spec/flow-definition.md`);
+    const derivation = spec.slice(spec.indexOf('#### What a derivation returns'));
+    const row = /^\| `messages` \|[^\n]*$/m.exec(derivation)?.[0] ?? '';
+    ok(row.includes('2^31-1'), `the messages row bounds flushIntervalMs at 2^31-1 — ${row.slice(0, 120)}`);
+    const instance = spec.slice(spec.indexOf('#### A pool instance, and a group'));
+    const poolRow = /^\| `pool` \|[^\n]*$/m.exec(instance)?.[0] ?? '';
+    ok(poolRow.includes('DOCUMENT') && poolRow.includes('UndeclaredKey') && poolRow.includes('SHALLOW'), `the pool row says a document type's, shallow, and the class refusal — ${poolRow.slice(0, 160)}`);
+  });
+  // ---- the readers' items (W165's conformity F1, F3; adequacy A1-A3) ----
+
+  test('a definition made WITH instance options and registered as a type is merged over THOSE options, not the bare declaration (the conformity reader`s F1)', () => {
+    // ADR 0099 rule 2 read on the code road: T derives { maxThreads: 2, idleTimeout: 5 }; its instance overrides maxThreads
+    // alone, so idleTimeout is still T's 5.
+    const t = nodeTypeFromDeclaration({ worker: 'w', pool: { maxThreads: 2 } }, { idleTimeout: 5 });
+    equal(t.pool(undefined, 'T'), { maxThreads: 2, idleTimeout: 5 }, 'the definition derives both');
+    const r = resolveRegistry({ workers: WK, pools: { p: { type: 'T', pool: { maxThreads: 3 } } } }, { nodeTypes: { T: t } });
+    equal(r.pools.get('T')!.spec, { maxThreads: 2, idleTimeout: 5 }, 'its default instance');
+    equal(r.pools.get('p')!.spec, { maxThreads: 3, idleTimeout: 5 }, 'its named instance: maxThreads over, idleTimeout KEPT');
+  });
+
+  test('a named instance`s resolved DEFINITION is its TYPE`s, with and without its own pool options (the adequacy reader`s A1)', () => {
+    const r = resolveRegistry(doc({ maxThreads: 7 }));
+    ok(r.pools.get('inst')!.definition === r.nodeTypes.get('T'), 'an instance WITH pool options: the type`s definition object');
+    const bare = resolveRegistry(doc(undefined));
+    ok(bare.pools.get('inst')!.definition === bare.nodeTypes.get('T'), 'and without: the same');
+  });
+
+  test('a CLASS type`s instance is refused as a class instance whatever its `pool` holds — a non-object or an undeclared key included (the adequacy reader`s A2)', () => {
+    const cls: NodeTypeDefinition = { worker: 'w', pool: () => ({}) };
+    for (const pool of [4, [1], null, 'big', { requeueFailedTasks: true }, { maxThreads: 0 }]) {
+      refused({ workers: WK, pools: { p: { type: 'C', pool } } } as unknown as RegistryDocument, UndeclaredKey, ['"p"', 'CLASS', 'ADR 0099'], { nodeTypes: { C: cls } }, `a class instance with pool ${JSON.stringify(pool)}`);
+    }
+  });
+
+  test('the TYPE of an instance`s `pool` is the type table`s keys — an undeclared one does not compile (the adequacy reader`s A3)', () => {
+    // @ts-expect-error — `requeueFailedTasks` is not a pool option a type or an instance may declare (ADR 0099 rule 7)
+    const typed: PoolInstance = { type: 'T', pool: { requeueFailedTasks: true } };
+    const fine: PoolInstance = { type: 'T', pool: { maxThreads: 1, messages: { flushIntervalMs: 5 } } };
+    equal([typed.type, fine.pool?.maxThreads], ['T', 1], 'both literals are what they say; the refusal is the compiler`s');
+  });
+
+  test('a named instance of the built-in `Transform` may hold a RESIDENT group — ADR 0099 consequence 5, Q626 (the conformity reader`s F3)', () => {
+    const r = resolveRegistry({ groups: GR, pools: { reshape: { type: 'Transform', pool: { residentGroups: ['h'], idleTimeout: 1000 } } } } as unknown as RegistryDocument);
+    equal(r.pools.get('reshape')!.spec, { residentGroups: ['h'], idleTimeout: 1000 }, 'accepted as stated, pending Q626');
+    refused({ pools: { reshape: { type: 'Transform', pool: { groups: ['h'] } } } } as unknown as RegistryDocument, UndeclaredKey, ['"reshape"', '"groups"'], {}, '`groups` is still not a pool option');
+    refused({ pools: { reshape: { type: 'Transform', inline: true } } } as unknown as RegistryDocument, UndeclaredKey, ['"reshape"', '"inline"'], {}, 'and `inline` is still not an instance key');
+  });
+});
+
+/** Deep equality for the fixture's own controls — the harness's, so `Infinity` and nested objects compare as `equal` does. */
+function deepEq(a: unknown, b: unknown): boolean {
+  try { equal(a, b, ''); return true; } catch { return false; }
+}
