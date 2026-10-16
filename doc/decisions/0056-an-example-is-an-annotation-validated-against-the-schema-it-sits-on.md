@@ -12,7 +12,7 @@ resolves: ""
 
 # ADR 0056 — An example is an ANNOTATION, validated against the schema it sits on
 
-**Status:** accepted — answers [P19](../plans/p19-what-a-schema-buys-an-author.md) decision 2 and
+**Status:** accepted — **consequence 4 superseded by [ADR 0098](0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) at v0.36 (W164)**: `title`, `description`, `readOnly` and `writeOnly` are admitted, each held to its value shape; answers [P19](../plans/p19-what-a-schema-buys-an-author.md) decision 2 and
 the first half of decision 3, on that plan's facts 2, 5 and 6 and on the maintainer's answer to
 [W72](../work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md)'s
 stop-and-ask 1 (*optional*, 2026-09-18). **Amends
@@ -124,7 +124,9 @@ editor already read `examples`, so the annotation costs a consumer nothing to le
 3. **A worker that throws twice under a declared `outputSchema` is red** (K3), and a worker that
    throws under none is a line of output. The retry is the one policy the check carries, stated in
    its header rather than inferred from a scheduler.
-4. **`title` and `description` are still refused** (ADR 0053 consequence 2). `examples` is admitted
+4. *(Superseded by [ADR 0098](0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) at v0.36: `title` and `description` are admitted, and so are `readOnly` and
+   `writeOnly`, because the validator HOLDS each to its value shape — this consequence's own bar.)* **`title` and
+   `description` are still refused** (ADR 0053 consequence 2). `examples` is admitted
    because the validator can HOLD it to something; an annotation it cannot check is the ignored kind.
 
 **What a future reader is likely to try that this forbids.** Reading `examples` as an `enum`

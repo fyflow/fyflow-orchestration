@@ -22,8 +22,11 @@
  * shape one layer up: a document that says one thing and a validator that checks another, at exit 0.
  * The refusal names the keyword and the path, so a consumer meets a refusal rather than a pass, and
  * prediction 4's reversal (a real worker needing a keyword outside the subset) is legible the day it
- * happens. Annotation keywords (`title`, `description`, `$schema`, `$comment`) are outside the subset
- * too and are refused the same way — a consequence ADR 0053 states rather than a whitelist it invents.
+ * happens. **ANNOTATION keywords are inside it too** — `examples` (v0.20, ADR 0056) and, since v0.36,
+ * `title`, `description`, `readOnly` and `writeOnly`
+ * ([ADR 0098](../../doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md)) —
+ * each with its VALUE SHAPE checked and none read by a value check; every other annotation
+ * (`deprecated`, `$comment`, `default`, `format`, `$schema`, `$id`) is outside it and refused the same way.
  *
  * **What `type` means over JSON data.** `number` and `integer` admit FINITE numbers only: JSON text
  * cannot carry `NaN` or an infinity, so a schema over JSON data has no reading of them but *not a
@@ -43,15 +46,15 @@
 export type JsonSchema = Readonly<Record<string, unknown>>;
 
 /**
- * **The subset, enumerated** — the twelve keywords P18 fact 1 measured as covering the sample's and
- * the corpus's schemas (14 of 14 cases), **and `examples`, the thirteenth, an ANNOTATION** —
+ * **The subset, enumerated** — the CONSTRAINING keywords P18 fact 1 measured as covering the sample's
+ * and the corpus's schemas, **and the ANNOTATIONS**, first `examples` —
  * [ADR 0056](../../doc/decisions/0056-an-example-is-an-annotation-validated-against-the-schema-it-sits-on.md),
  * [W72](../../doc/work-items/w72-the-contract-an-example-beside-every-schema-and-a-worker-run-on-it.md),
  * the plan's first deliberate extension of the subset. `spec/flow-definition.md` section 3's table
- * names the same thirteen, and `test/definition/schema.test.ts` compares the two lists both ways
- * (rule 8 obligation (e)'s third shape — a list is a claim about another list).
+ * names the same keywords and marks which annotate, and `test/definition/schema.test.ts` compares the
+ * two both ways (rule 8 obligation (e)'s third shape — a list is a claim about another list).
  *
- * `examples` differs from the other twelve in ONE way, and the difference is the decision: it
+ * `examples` differs from the constraining keywords in ONE way, and the difference is the decision: it
  * constrains NOTHING when a value is checked (`findings` never reads it) and is itself HELD to the
  * schema it sits on at construction (`schemaProblem` runs `findings` over each declared example) —
  * so a worker's declared example is a value the check-time tools may RUN the worker on, and an
@@ -61,11 +64,20 @@ export type JsonSchema = Readonly<Record<string, unknown>>;
  * self-consistent. The rule is optional — an absent `examples` refuses nothing (the maintainer's
  * choice, W72's stop-and-ask 1) — and an EMPTY one is refused, because a declared-and-empty list
  * is the silent kind (`enum`'s own reason).
+ *
+ * **And the annotations of v0.36** — `title` and `description` (a string), `readOnly` and
+ * `writeOnly` (a boolean) —
+ * [ADR 0098](../../doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md),
+ * P37 decision 4. Their bar: *an annotation is admitted if it constrains nothing in JSON Schema itself
+ * and its value shape is checked*. `schemaProblem` checks the shape; `findings` reads none of them, so
+ * **`writeOnly` hides nothing and promises no redaction**, and `readOnly` refuses nothing. They are in
+ * THIS list rather than a second one, so the spec's table binds them as it binds every other keyword.
  */
 export const SCHEMA_KEYWORDS: readonly string[] = [
   'type', 'required', 'properties', 'additionalProperties', 'enum', 'const',
   'minimum', 'maximum', 'minLength', 'maxLength', 'items', 'minItems',
   'examples',
+  'title', 'description', 'readOnly', 'writeOnly',
 ];
 
 /** The type names `type` may use — JSON Schema's seven, `integer` included. */
@@ -125,6 +137,14 @@ export function schemaProblem(schema: unknown, at = '$'): string | null {
   }
   for (const k of ['minLength', 'maxLength', 'minItems'] as const) {
     if (s[k] !== undefined && !isNonNegInt(s[k])) return `${at}.${k}: must be an integer >= 0, got ${JSON.stringify(s[k])}`;
+  }
+  // The four annotations of ADR 0098: their SHAPE is the whole of their check, because no value check
+  // reads them — an annotation whose value is held to nothing is the ignored kind (ADR 0056 consequence 4).
+  for (const k of ['title', 'description'] as const) {
+    if (s[k] !== undefined && typeof s[k] !== 'string') return `${at}.${k}: must be a string — an annotation that constrains nothing (ADR 0098) — got ${JSON.stringify(s[k])}`;
+  }
+  for (const k of ['readOnly', 'writeOnly'] as const) {
+    if (s[k] !== undefined && typeof s[k] !== 'boolean') return `${at}.${k}: must be true or false — an annotation that constrains nothing (ADR 0098) — got ${JSON.stringify(s[k])}`;
   }
   if (s.items !== undefined) {
     if (Array.isArray(s.items)) return `${at}.items: the subset admits one schema for every item, not a tuple`;

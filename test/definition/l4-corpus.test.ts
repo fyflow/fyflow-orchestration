@@ -424,6 +424,8 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W164 — ADR 0098, four annotations in the schema subset: L1 in `test/definition/schema.test.ts`.
+  'W164 — four annotations in the schema subset: title, description, readOnly, writeOnly — shape-checked, constraining nothing (ADR 0098)',
   // W163 — ADR 0097, FD-R6 and `defaultRetryPolicy` at construction: L1 on the seams and on a real scheduler, in
   // `test/scheduler/runtime.test.ts`.
   'W163 — what start refuses that the flow does not decide: FD-R6, a node reaching a built-in keyed group, and defaultRetryPolicy at construction (ADR 0097)',
