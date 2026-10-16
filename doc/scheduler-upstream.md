@@ -64,6 +64,7 @@ the last section.
 | [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - and the reason CHANGED: Node reads npm's `dist/` because that is what an npm consumer gets, no longer because it *cannot* read the source | **RAISED 2026-09-07 and FIXED in 0.5.2 the same day** - the only item this register has ever raised, closed by [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). *(The rest of this cell is the record as it stood when it was raised.)* Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
 | [S10](#s10---resourcegroup-declares-onstart-and-onfinish-optional-and-the-scheduler-calls-them-unguarded) | Mark `ResourceGroup.onStart`/`onFinish` required, or guard the calls | no — we refuse such a group at construction | **not raised yet** |
 | [S11](#s11---messagesflushintervalms-is-not-bounded-at-the-schedulers-own-max_timer_ms) | Bound `messages.flushIntervalMs` at the scheduler's own `MAX_TIMER_MS`, as a grace timer is | no — we refuse a longer one at construction | **not raised** — P37 (f), written by [W165](work-items/w165-pool-options-on-a-named-pool-instance.md) |
+| [S12](#s12---cancel-gracems-0-does-not-force-at-once-it-arms-a-0-ms-timer-that-races-the-worker) | Make `cancel(id, { graceMs: 0 })` force synchronously, or say in §5 that it is a 0 ms timer | no — nothing of ours depends on `forced`, and our reference says `0` is a race | **not raised** — written at [P34](plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s declaration (fact 9, P33 stop-and-ask (g)); P34 (g) answered 2026-10-16: an entry, not a report |
 
 ---
 
@@ -530,6 +531,46 @@ for `<= 0`; **or** clamp it there, as the grace timer's guard effectively does. 
 value the scheduler accepts mean what it says. **A sentence in `AGENTS.md` §5's `messages` row would also close it for
 us**, on S8's precedent, since our own bound already covers our consumers.
 
+## S12 - `cancel` `graceMs: 0` does not force at once, it arms a 0 ms timer that races the worker
+
+> **NOT RAISED.** First seen once by [P33](plans/p33-what-a-run-does-when-a-task-ends-cancelled.md)'s W160 (its adequacy
+> reader's F8: node `forced: false`, deno `forced: true`), and MEASURED at
+> [P34](plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s declaration on 2026-10-16 (its fact 9), which
+> writes it here by P33's stop-and-ask (g): *if it reproduces, an S entry*. P34's stop-and-ask (g), answered by the maintainer 2026-10-16 *"as recommended"*: written, NOT
+> raised.
+
+**What the reference says.** `AGENTS.md` §5, `CancelOptions.graceMs`: *"`0` forces at once, `Infinity` never"*; and the
+pool option `cancelGraceMs` says the same.
+
+**What the code does, at 0.6.0, in both builds.** `_cancelTask` arms `_armGraceTimer`, a plain
+`setTimeout(() => retire the worker, graceMs)` — `dist/node/index.js:1642-1647` and `:1683-1692`; the JSR source's
+`workerManager.ts:504` and `:547-557`. So `graceMs: 0` is a 0 ms timer racing the worker's own reply to the abort.
+
+**Measured, node 24.20.0 and deno 2.9.6**: one running task on a threaded pool, cancelled one macrotask after the worker
+reported it had started, `{ graceMs: 0 }`. `forced: true` runs:
+
+| the worker | node | deno |
+|---|---|---|
+| honours its signal | 1/20 | 18/20 |
+| returns at once on abort | 0/10 | 6/20 |
+| ignores its signal | 20/20 | 20/20 |
+
+Deno, honouring worker, 10 runs each: `graceMs: 1` 7/10 forced, `graceMs: 5` 0/10. A forced run drops whatever the worker
+sends after the abort (the task is detached); an unforced one delivers it. **So the same call forces or does not by the
+timer resolution of the runtime**: node clamps a 0 ms timer to 1 ms and the worker usually wins, deno's usually fires
+first.
+
+**Who meets it.** Anyone pressing Cancel with `graceMs: 0` to stop a worker NOW — the reference's own reading — who then
+reads `forced`, or relies on the worker's teardown NOT running, or on a message the worker posts while stopping.
+
+**What we do without it.** Nothing in `src/` passes a `graceMs` of its own; a run-level cancel forwards the caller's
+(P34 (c)). Our reference says `0` is a race and not a guarantee, and our L6 rows assert that `cancel()` resolved and the
+run settled — never `forced` — at `graceMs: 0`; a row that needs a forced stop uses a worker that ignores its signal.
+
+**The ask, either way round.** Retire the worker SYNCHRONOUSLY in `_cancelTask` when `graceMs` is `0`; **or** change the
+two sentences to *"`0` forces on the next timer turn, which a worker that stops promptly may beat"*. The first makes the
+documented meaning true; the second makes the documentation true, which is all we need.
+
 ## Raise order, and the joint items
 
 Revised **2026-08-30 against the landed 0.3.0 code**. **Four of the eight are settled and we raised
@@ -541,7 +582,8 @@ was the one to raise, it was raised on 2026-09-07, and it was FIXED in 0.5.2 the
 *(The paragraph this replaces read *"is the one to raise, and it is ready"*, and the plan it
 described is what was sent: both halves in one report, on the ground that they are the same fact
 about Node's type stripping seen from two sides. It worked, so it is recorded rather than deleted.)*
-**S10 is not raised, and neither is S11** (P37 stop-and-ask (f): an entry, not a report).
+**S10 is not raised, and neither is S11** (P37 stop-and-ask (f): an entry, not a report), **nor S12** (written at P34's
+declaration; NOT RAISED by the maintainer's answer to P34's stop-and-ask (g), 2026-10-16).
 
 1. **S2 when a fan-out is real.** Much stronger with a measured number for wasted branch execution.
    Do not raise it on principle — and P1 is what would produce the number.
