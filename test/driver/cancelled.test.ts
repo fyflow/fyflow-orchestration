@@ -176,7 +176,7 @@ suite('L2 — RN-R28: the first cancelled settlement HALTS the run (a cancel mid
     equal(h.driver.foldInputs().length, before, '`task.cancelling` appends nothing — the driver does not subscribe it (OR-R4)');
     ok(!h.scheduler.subscriptions.includes('task.cancelling'), 'and the reason is that it is not subscribed: the driver never hears it'); 
     h.scheduler.settle('r1:a:0:0', 'cancelled');
-    equal(h.kinds().slice(before), ['outcome:r1:a:0:0:cancelled'], 'ONE element: the settlement, with no `stopped` after it');
+    equal(h.kinds().slice(before), ['outcome:r1:a:0:0:cancelled'], 'ONE element: the settlement, with no `halted` after it');
     equal(h.ids(), ['r1:ingest:-:0', 'r1:a:0:0', 'r1:b:1:0'], 'no dispatch');
     equal(h.rx(), ['branch.opened(split:0)', 'branch.opened(split:1)'], 'no region event for the cancelled branch — the run is halted, not the branch lost');
     equal([h.failures.length, h.driver.hasFailed()], [0, false], 'a cancel is its owner`s act: `onRunFailure` is not called and `hasFailed()` is false');
@@ -225,7 +225,7 @@ suite('L2 — RN-R28: the first cancelled settlement HALTS the run (a cancel mid
     ok(twin.driver.resolve('r1:a:0:0', 'done', { result: { a: 'by hand' }, actor: 'ana' }), 'the control: without the cancel the resolution is accepted');
     h.scheduler.settle('r1:b:1:0', 'cancelled');
     const before = h.driver.foldInputs().length;
-    equal(h.driver.resolve('r1:a:0:0', 'done', { result: { a: 'by hand' }, actor: 'ana' }), false, 'refused — a rejected command, as after `stopped`');
+    equal(h.driver.resolve('r1:a:0:0', 'done', { result: { a: 'by hand' }, actor: 'ana' }), false, 'refused — a rejected command, as after `halted`');
     equal(h.driver.foldInputs().length, before, 'nothing appended');
     const s = fold(h.driver.foldInputs());
     equal([s.nodes['r1:a:0:0']?.state, s.outcome], ['suspended', 'cancelled'], 'the parked node stays `suspended`; the run is `cancelled`, not `awaiting_action`');
@@ -245,7 +245,7 @@ suite('L2 — RN-R28: the first cancelled settlement HALTS the run (a cancel mid
     equal([s.outcome, s.pathEnds], ['cancelled', []], '`cancelled`, and no path end — the path was not ENDED, the run was halted');
   });
 
-  test('a cancel on the STACK of a join firing: the join routes nowhere (the door `settleJoin` shares with a stop)', () => {
+  test('a cancel on the STACK of a join firing: the join routes nowhere (the door `settleJoin` shares with a halt)', () => {
     // `cancel()` of a task still WAITING fires `task.cancelled` synchronously, so a listener on the driver's own
     // callbacks can halt the run mid-step. Arranged: the inner join fires while the outer branch `a` is in flight,
     // and the consumer's `onFoldInput` cancels `a` on the inner join's own element.
@@ -323,7 +323,7 @@ suite('RN-R23 — a resume of a CANCELLED run is refused as `cancelled`, naming 
     equal(s.added.map((t) => t.id), ['r1:a:0:0', 'r1:b:1:0'], 'and re-dispatches what was in flight (RN-R21)');
   });
 
-  test('`stopped` outranks `cancelled` here too: a run cancelled and THEN stopped is refused `stopped`', () => {
+  test('`halted` outranks `cancelled` here too: a run cancelled and THEN halted is refused `halted`', () => {
     const h = harness();
     h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done');
@@ -335,10 +335,10 @@ suite('RN-R23 — a resume of a CANCELLED run is refused as `cancelled`, naming 
       'the later defect IS a refusal: `onRunFailure` fires exactly once and `hasFailed()` is true — the cancel did not mute OR-R10');
     const cp: Checkpoint = h.driver.checkpoint();
     const c = cp.events.findIndex((e) => e.kind === 'outcome' && e.record.kind === 'outcome' && e.record.terminalState === 'cancelled');
-    const k = cp.events.findIndex((e) => e.kind === 'stopped');
-    ok(c >= 0 && k > c, 'the ARRANGEMENT: the cancel is stored BEFORE the stop');
-    equal(fold(cp.events).outcome, 'stopped', 'the fold reads `stopped` (RN-R8 outranks RN-R28)');
+    const k = cp.events.findIndex((e) => e.kind === 'halted');
+    ok(c >= 0 && k > c, 'the ARRANGEMENT: the cancel is stored BEFORE the halt');
+    equal(fold(cp.events).outcome, 'halted', 'the fold reads `halted` (RN-R8 outranks RN-R28)');
     const r = resumeRefusal(FAN, cp, 'r1');
-    equal([r?.reason, r?.index], ['stopped', k], 'and the resume is refused `stopped`, at the stop — not `cancelled` at the earlier cancel');
+    equal([r?.reason, r?.index], ['halted', k], 'and the resume is refused `halted`, at the halt — not `cancelled` at the earlier cancel');
   });
 });

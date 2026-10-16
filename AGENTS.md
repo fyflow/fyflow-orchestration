@@ -113,7 +113,7 @@ const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
 // `start` hands back `{ driver, done }` — the driver already running, and `done` a promise that
 // resolves with the run's terminal `RunState` (ADR 0058). **It never rejects**: `failed`, `stuck`
-// and `stopped` are terminal OUTCOMES, so a run that goes wrong arrives as `state.outcome` and not
+// and `halted` are terminal OUTCOMES, so a run that goes wrong arrives as `state.outcome` and not
 // as a `catch`. This snippet wants only the end, so it names only `done`. *A run with a person in
 // it does not end by itself — section 7 is where that is taught, and section 8 is what `done` waits
 // for.*
@@ -1217,7 +1217,7 @@ if (state.pathEnds.map((p) => p.at).join() !== 'quarantine') {
 `resolve()` returns `false` if the task is not suspended — a rejected command, not a run failure, so
 you may retry. It does **one** thing: supply an outcome for a dispatch that already happened. It
 cannot re-run the node and it cannot send it somewhere else. It also returns `false` once the run has
-been **stopped** by a refusal (section 9), and there retrying can never succeed: check
+been **halted** by a refusal (section 9), and there retrying can never succeed: check
 `driver.hasFailed()` to tell the two `false`s apart.
 
 A resolved node is **indistinguishable** from one that settled that way: same node state, same
@@ -1265,11 +1265,11 @@ const rows: [string, FoldInput[]][] = [
                        ended('no-eligible-edge'), openJoin, dispatched('r1:b:-:0'),
                        dispatched('r1:c:-:0'), settled('r1:c:-:0', 'user_action'),
                        dispatched('r1:d:-:0'), settled('r1:d:-:0', 'cancelled')]],
-  ['stopped',         [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), ended('end'),
+  ['halted',          [dispatched('r1:a:-:0'), settled('r1:a:-:0', 'done'), ended('end'),
                        ended('no-eligible-edge'), openJoin, dispatched('r1:b:-:0'),
                        dispatched('r1:c:-:0'), settled('r1:c:-:0', 'user_action'),
                        dispatched('r1:d:-:0'), settled('r1:d:-:0', 'cancelled'),
-                       { kind: 'stopped', reason: 'DuplicateTaskId: x' }]],
+                       { kind: 'halted', reason: 'DuplicateTaskId: x' }]],
 ];
 for (const [expected, inputs] of rows) {
   const got = fold(inputs).outcome;
@@ -1279,11 +1279,11 @@ for (const [expected, inputs] of rows) {
 
 // `isTerminal` is false for exactly `running` and `awaiting_action`.
 const terminal = Object.fromEntries(rows.map(([o, i]) => [o, isTerminal(fold(i))]));
-console.log(terminal);   // completed/failed/stuck/cancelled/stopped true, running/awaiting_action false
+console.log(terminal);   // completed/failed/stuck/cancelled/halted true, running/awaiting_action false
 if (!terminal.stuck) throw new Error('`stuck` is terminal — that is the point of it existing');
 if (terminal.running || terminal.awaiting_action) throw new Error('a live run is not terminal');
-if (!terminal.completed || !terminal.failed || !terminal.cancelled || !terminal.stopped) {
-  throw new Error('completed, failed, cancelled and stopped are all terminal');
+if (!terminal.completed || !terminal.failed || !terminal.cancelled || !terminal.halted) {
+  throw new Error('completed, failed, cancelled and halted are all terminal');
 }
 
 // `completed` means every live path reached an `end` — NOT "no node settled failed".
@@ -1307,7 +1307,7 @@ if (isTerminal(state)) console.log('finished as', state.outcome);
 
 | | means |
 |---|---|
-| `stopped` | a refusal terminated the run — section 9 |
+| `halted` | a refusal terminated the run — section 9. *`stopped` until 0.8.0 (ADR 0102); a stored `stopped` element folds as this* |
 | **`cancelled`** | **a task of the run was cancelled, and the driver halted it** — section 6. It outranks everything below it, a parked task and a waiting join included |
 | `awaiting_action` | a node is suspended and nobody has resolved it |
 | `running` | a dispatched node has not settled |
@@ -1343,9 +1343,9 @@ is the same two functions — the runtime keeps one `RunState`, steps it per inp
 nothing above about reading at rest stops being true. **Three things follow, and two of them catch
 people:**
 
-- **`done` never rejects.** `failed`, `stuck`, `cancelled` and `stopped` are terminal OUTCOMES, not
+- **`done` never rejects.** `failed`, `stuck`, `cancelled` and `halted` are terminal OUTCOMES, not
   errors, so a run that goes wrong arrives as `state.outcome`. A driver refusal resolves it with
-  `stopped` and `stoppedBy` naming the refusal — section 9; a cancelled task resolves it with
+  `halted` and `haltedBy` naming the refusal — section 9; a cancelled task resolves it with
   `cancelled` on the FIRST cancel, while the run's other tasks may still be running — section 6.
 - **`awaiting_action` is NOT terminal, so `done` waits through it.** A run parked on a person stays
   pending until somebody calls `resolve()`, which is correct and is the trap: if you are waiting for
@@ -1475,12 +1475,12 @@ reported, which is why the rule is about the stack:
 | | |
 |---|---|
 | `driver.start()` a **second time** | throws `MultipleRuns` — a driver serves one run and its id was fixed at construction (`ID-R3`) |
-| `driver.resolve()` with a `result` that is not structured-cloneable | throws the platform's own `DataCloneError`, **not** `UncloneableResult`, and the run is not stopped |
+| `driver.resolve()` with a `result` that is not structured-cloneable | throws the platform's own `DataCloneError`, **not** `UncloneableResult`, and the run is not halted |
 | `driver.start()` with a payload that is not structured-cloneable | throws the platform's own `DataCloneError` with the driver UNSTARTED — a run whose entry payload cannot be copied into its checkpoint header cannot be checkpointed, so it is refused before it exists (`RN-R15`, [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)). **New in W88, and BREAKING**: such a payload used to start a run on an inline pool |
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
-| `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `stopped` because its replay regenerated a stop in the lost tail: that driver keeps the STOPPED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
-| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `stopped`, `cancelled` or `diverged` and whose `index` names the position for the last three — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — a driver was built for it, so that runtime answers the id with `RunIdInUse` from then on (ADR 0091 keeps the id after it releases the driver); one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
+| `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `halted` because its replay regenerated a stop in the lost tail: that driver keeps the HALTED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
+| `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `halted`, `cancelled` or `diverged` and whose `index` names the position for the last three — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — a driver was built for it, so that runtime answers the id with `RunIdInUse` from then on (ADR 0091 keeps the id after it releases the driver); one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -1525,7 +1525,7 @@ settlement it did not mint means its bookkeeping is wrong.
 
 **Reported, not thrown**, when there is nobody on the stack: `DuplicateTaskId`, `UncloneableResult`,
 `NoMatchingEdge` and `UndispatchedTask` raised *inside a scheduler event listener*. Give the driver
-`onRunFailure` or you will not hear about them — the run stops and folds to `stopped`, silently.
+`onRunFailure` or you will not hear about them — the run stops and folds to `halted`, silently.
 
 **`InvalidTaskId` is the ninth class and it is the one that does NOT stop a run.** It is thrown by
 `buildTaskId` and `parseTaskId`, both exported, and it is how you check an id yourself — *did some
@@ -1559,7 +1559,7 @@ import { Driver, type RunFailure } from 'fyflow-orchestration';
 declare const opts: ConstructorParameters<typeof Driver>[1];
 const withReporting = {
   ...opts,
-  onRunFailure: (f: RunFailure) => console.error(`run ${f.runId} stopped: ${f.kind} — ${f.message}`),
+  onRunFailure: (f: RunFailure) => console.error(`run ${f.runId} halted: ${f.kind} — ${f.message}`),
 };
 void withReporting;
 ```
@@ -1670,8 +1670,12 @@ if (missing.length) throw new Error(`section 9 does not mention: ${missing.join(
 if (stale.length) throw new Error(`section 9 names classes the package no longer exports: ${stale.join(' ')}`);
 ```
 
-After a refusal the run is **stopped**: nothing routes for it again, and its state folds to
-`stopped` whatever its nodes say.
+After a refusal the run is **halted**: nothing routes for it again, and its state folds to
+`halted` whatever its nodes say. **BREAKING in 0.8.0** (P34 decision 10, ADR 0102): 0.7.0 called this `stopped`,
+and FOUR surfaces are renamed — the `RunOutcome` `stopped` is `halted`, `RunState.stoppedBy` is `haltedBy`, the fold
+input `{ kind: 'stopped', reason }` is `{ kind: 'halted', reason }`, and `ResumeRefusalReason`'s `stopped` is
+`halted` — so a comparison against an old name, or a `{ kind: 'stopped' }` you construct, no longer compiles. A 0.7.0 checkpoint or log holding a `{ kind: 'stopped' }` element still reads as `halted`:
+`fold` folds it so, and a resume refuses it `halted` at its position.
 
 ---
 
@@ -1686,7 +1690,7 @@ After a refusal the run is **stopped**: nothing routes for it again, and its sta
   flow is between every step. It is not "the run finished". `await done` — the second half of what
   `runtime.start` returns (section 8).
 - **Expecting `await done` to reject when a run goes wrong.** It resolves, always: `failed`, `stuck`
-  and `stopped` are outcomes you read off the state, and `stoppedBy` names a refusal. A `.catch` on
+  and `halted` are outcomes you read off the state, and `haltedBy` names a refusal. A `.catch` on
   `done` is a `.catch` that never fires.
 - **Waiting on `done` for a run with a person in it.** `awaiting_action` is not terminal, so `done`
   is still pending — by design. Poll the fold for the park, resolve the task, then await; section 7
@@ -1902,15 +1906,15 @@ if (failures.length !== 0) throw new Error(`the quiet half reported ${failures.j
 // `failures.length === 0` above is a measurement rather than a sentence about an empty array.
 //
 // **And `done` RESOLVES here rather than rejecting** (ADR 0058 rules 3 and 4): a refusal is a
-// terminal OUTCOME, not an error, so there is no `.catch` — the run arrives as `stopped` with
-// `stoppedBy` naming the refusal. One settlement rule for every way a run can end.
-const stoppedRun = await run(loud);
+// terminal OUTCOME, not an error, so there is no `.catch` — the run arrives as `halted` with
+// `haltedBy` naming the refusal. One settlement rule for every way a run can end.
+const haltedRun = await run(loud);
 await runtime.shutdown();
-console.log(failures.join(), stoppedRun.outcome, stoppedRun.stoppedBy?.split(':')[0]);
-// 'UncloneableResult' 'stopped' 'UncloneableResult'
+console.log(failures.join(), haltedRun.outcome, haltedRun.haltedBy?.split(':')[0]);
+// 'UncloneableResult' 'halted' 'UncloneableResult'
 if (failures.join() !== 'UncloneableResult') throw new Error(`the loud half reported ${failures.join() || 'nothing'}`);
-if (stoppedRun.outcome !== 'stopped') throw new Error(`a refused run resolved \`done\` with ${stoppedRun.outcome}, not stopped`);
-if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`stoppedBy: ${stoppedRun.stoppedBy}`);
+if (haltedRun.outcome !== 'halted') throw new Error(`a refused run resolved \`done\` with ${haltedRun.outcome}, not halted`);
+if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`haltedBy: ${haltedRun.haltedBy}`);
 ```
 
 ## 11. What does NOT exist — do not write code using it
@@ -1924,7 +1928,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 | **redaction by `writeOnly`** — a schema annotation keeping a value out of what a run retains or reports | **no** — [ADR 0098](doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) rule 4: `writeOnly`, like `readOnly`, `title` and `description`, is admitted as an annotation since v0.36, held to its shape and read by nothing after. Redact in your own code, before the value reaches a run (section 13) |
 | **pool options on a CLASS type's instance**, and the scheduler's `idleCheckIntervalMs`, `requeueFailedTasks` and `maxWorkerRestarts` anywhere | **no** — [ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) rules 4 and 7: a named instance of a DOCUMENT type may declare `pool` (section 13); a class computes its pool from the instance's `config` and key, so give it a `configSchema` knob. The three are refused as undeclared keys |
 | **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
-| ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or stopped run is refused |
+| ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or halted run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
@@ -2167,7 +2171,7 @@ parked `awaiting_action` is kept — `resolve()` works as before. **The runtime 
 past run, so a postmortem is what YOU keep**: the `RunHandle` (`driver.foldInputs()`, `snapshot()`,
 `checkpoint()`, the `RunState` `done` resolved with), or what your `onFoldInput` stored. Drop the
 handle and the run is gone. After `done`, a released run is handed nothing — not its own run id, not
-an unminted one — so a `stopped` run's tasks still in flight settle into no driver; listen on
+an unminted one — so a `halted` run's tasks still in flight settle into no driver; listen on
 `runtime.scheduler` yourself if you want their results. **The id stays in use**: `start` or `resume`
 naming it on the same runtime throws `RunIdInUse`, because those late settlements carry it. And the
 SCHEDULER keeps every completed task in `scheduler.tasks` unless `maxCompletedTasks` caps it (its own
@@ -3613,8 +3617,9 @@ await third.shutdown();
   ([Q374](doc/questions/q374.md)). A store you do not trust is a store you should not resume from.
 - **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes), `run` (the
   header's run is not the driver's), `flow` (another flow id or `version` — there is no migration),
-  `stopped`, `cancelled` and `diverged` — the last three with the `index` of the position. **A STOPPED
-  run is not resumable**: the refusal that stopped it would stop it again. **Nor is a CANCELLED one**
+  `halted`, `cancelled` and `diverged` — the last three with the `index` of the position. **A HALTED
+  run is not resumable**: the refusal that halted it would halt it again — and a 0.7.0 checkpoint whose
+  halt is stored under the old kind, `stopped`, is refused `halted` at that element's position (ADR 0102). **Nor is a CANCELLED one**
   (section 6): a cancel is its owner's act, and a resume would hand the scheduler again what the owner
   stopped — `index` is the first cancelled settlement. A completed or `stuck` run resumes to itself and
   dispatches nothing.
@@ -3771,11 +3776,11 @@ const filter: FlowDefinition = {
 };
 const second = createRuntime(registry, { gateTypes: { sloppy } }, { base: import.meta.url });
 const kinds: string[] = [];
-const stopped = await second.start(filter, { name: 'Dark.S01E01.mkv', sizeMB: 1 }, { onRunFailure: (f) => kinds.push(f.kind) }).done;
+const halted = await second.start(filter, { name: 'Dark.S01E01.mkv', sizeMB: 1 }, { onRunFailure: (f) => kinds.push(f.kind) }).done;
 await second.shutdown();
-console.log(stopped.outcome, kinds);                            // stopped [ 'UndeclaredRoute' ]
-if (stopped.outcome !== 'stopped' || kinds.join() !== 'UndeclaredRoute' || stopped.gated.length !== 0) {
-  throw new Error(`an undeclared route stops the run by name, recording nothing: ${stopped.outcome} ${kinds.join()}`);
+console.log(halted.outcome, kinds);                             // halted [ 'UndeclaredRoute' ]
+if (halted.outcome !== 'halted' || kinds.join() !== 'UndeclaredRoute' || halted.gated.length !== 0) {
+  throw new Error(`an undeclared route halts the run by name, recording nothing: ${halted.outcome} ${kinds.join()}`);
 }
 
 // A type whose routes are its GATE's — v0.30, ADR 0092. `routesFor` IN PLACE of `routes` and `defaultRoute`: each

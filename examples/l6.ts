@@ -62,7 +62,7 @@
  * | **W6 — `failure-edge`** | a failure that **routes**. The one definition feature no P1 row reached: an `on: ["failed"]` edge, ADR 0004's central mechanism, and the case `spec/run-state.md` section 3 uses to define `completed` against `failed` |
  * | **W6 — `suspend / resolve / resume`** | the human-in-the-loop half, and the only inbound API the library has. `user_action` → `awaiting_action` → `Driver.resolve()` → the branch arrives |
  * | **W6 — `suspend / nobody comes`** | the row that separates **waiting on a person** from **stuck**. Same flow, no human: the join has not fired and the run is `awaiting_action`, not `stuck`. It is the only row that ends with a node still `suspended`, and it is expected NOT to finish |
- * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `stopped` |
+ * | **W6 — `uncloneable`** | a refusal that stops a run, on real workers. `OR-R6` at the listener boundary, reported rather than thrown, folding to `halted` |
  * | **W133 — `uncloneable`, threaded** | the same flow on a THREAD pool, where `OR-R6` is unreachable (`spec/outcome-record.md` v0.11): the scheduler's own clone refuses the value at the worker boundary, the task ends `user_action`, nothing is reported and the run is `awaiting_action` |
  * | **W14 — `two runs / two drivers / one scheduler`** | **P4's exit artifact**, and the only row that runs two drivers. The pairing `MultipleRuns` tells a caller to build: before [ADR 0023](../doc/decisions/0023-an-inbound-settlement-is-this-runs-only-if-this-driver-dispatched-it.md) each driver received the other's settlements and dispatched its successors — one task id under two outcomes, with nothing reported. It is `ID-R4` tier 1's only L6 coverage; tier 2 is not reachable here ([Q90](../doc/questions/q90.md)) |
  * | **W17 — `all-exit` × all three policies** | **P5's exit artifact, and the row L6 has never had**: every branch reaches an `end` and nothing arrives at the join. It is the shape [ADR 0003](../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md) records as `live-token`'s cost and the one [ADR 0025](../doc/decisions/0025-the-zero-arrival-join-is-reportable-and-arrival-counting-is-not-repaired.md) turns on. One flow, one payload, three policies, three answers — `completed`, silently `stuck`, and **`stuck` with `joined: false`**, which nothing at L6 had ever reached |
@@ -75,7 +75,7 @@
  * | **W63 — `transform-fails`** | **P17 decision 5 end to end.** Two non-optional typed nodes whose transforms fail at run time — `$.confidence + " points"` (`T2002`, an author who meant `&`) and `$now()` (`UNBOUND`, ADR 0052 rule 7) — are retried ONCE under the type's policy, fail again, and are parked `user_action` with `TransformFailed`'s message as the task's error on two observers (`attempts: 1`); a person `resolve()`s each with the value the transform did not supply, the join fires over all four branches and the run completes. Beside them a typed node with NO transform receives `FD-C5`'s two-key envelope to the byte, in the flow whose `Scorer` pool carries no engine — and `note`, a typed node whose transform SUCCEEDS over an ordinary edge's value, `FD-C5`'s first kind, which the exit-artifact flow cannot carry |
  * | **W67 — `triage LOW` and `triage HIGH`** | **P18's EXIT ARTIFACT: a flow and the runtime it needs from TWO JSON DOCUMENTS and a shim.** `examples/registry.json` says what exists — sixteen worker modules (fourteen when W67 wrote this; W82's `gauge` and `stamp` are the other two), five resource groups, seventeen node types (fifteen then), one NAMED pool instance — and `examples/flows/triage.flow.json` names registry keys and nothing else; `run-flow.ts` supplies only what P18 decision 7 keeps as code (a predicate, a custom group TYPE, a custom node-type CLASS, a language adapter) and calls `createRuntime` once. The two rows carry, from the run: a DOCUMENT-declared type (`Prompt`) and a CLASS registered in code (`GpuModel`) over the SAME worker, so the pools they built differ in their derivation alone; a node on its type's DEFAULT instance (`audit`) against one on a NAMED instance of that type (`review` on `prompt-big`), told apart by the pool the scheduler says each ran on AND by what the worker returned — four words against two, because the class derives the model from the instance's config; a BUILT-IN group and a CUSTOM one acquired by real tasks, the custom one naming its object something other than its key; the TYPE's `settings` default reaching a `Prompt` node and not a `GpuModel` one; and a declared `transform` reducing `JP-R12`'s record for the node after the join, with no reshaping node. The HIGH row is the control: one payload field different, `review` never dispatched, and the reduced report six words instead of eight |
  * | **W73 — `FD-R4` on three existing rows** | **P19 decision 5 on real workers, with no new run.** `map / live-token` and `nested-map / live-token` try a payload FIRST that the entry's worker `inputSchema` refuses — a TASK entry naming `ingest`, a FAN-OUT entry naming `scoreA` (every branch held to its own schema over the same value, the first named) — and assert a `BoundaryRefused` at the caller with the scheduler holding nothing, then run on the real payload; W63's `transform-fails` tries its two resolutions FIRST with the values the transforms did not supply, which `echo`'s `outputSchema` refuses with the task still suspended, and then resolves each with the worker's declared example. Both refusal sets are held to the rows that declare them both ways, with their controls as subjects |
- * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/questions/q297.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `stopped` carrying `stoppedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
+ * | **W78 — the CONSUMER ROAD** | **P20's EXIT ARTIFACT, and no `EXPECTED` row could be it**: `runFlow` IS the machinery this block exists not to use — its own `onFoldInput`, its own `inputs` array, its own predicate raced against a backstop. So it is W67's shim-run shape one plan on: ONE label, TWO runs, outside the row loop. **Run A** is a fan-out in which the consumer holds only `{ driver, done }` — the region events counted through `StartOptions.onRegionEvent` ([W76](../doc/work-items/w76-what-start-accepts.md), [Q297](../doc/questions/q297.md)) and the end awaited in ONE line ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)), with no poll, no fold and no deadline but the one ADR 0058 rule 8 says a consumer writes; what `onRegionEvent` received is held EQUAL to the region subsequence of the driver's own fold inputs, element for element, which had never run on a real pool. **Run B** is the pair: its driver REFUSES, and `done` **RESOLVES** with `halted` carrying `haltedBy` rather than rejecting — ADR 0058 rules 3 and 4, which had no observer at this rung and none on real workers anywhere. **Reverting W76 alone costs 2 here, W77 alone 8 and both 10** — additive, and before this block each cost ZERO, because both items declared L6 UNMOVED and nothing at this rung reached either. *(W77's read 4 until the conformity reader found the `?? foldedA` fallback handing two clauses the caller's own fold; those two are the difference.)* |
  * | **W82 — `nonconforming` at eleven words and at two** | **P21's EXIT ARTIFACT, and the first rows here whose WORKERS are wrong on purpose.** Four task nodes, two of which return values their own `outputSchema` refuses and are reported BY NAME through `onNonconformingResult` — `gauge`'s `$.load above maximum 1`, a bound its code does not keep past its declared example (`check:workers` runs that example and is GREEN), and `stamp`'s `$.label required`, a key that is present on what `run()` returned and absent from what `OR-R2`'s clone wrote. **Three observers of that second one and the middle is the RECORD**: the scheduler's live `detail.result` still has the key at the harness's own listener, the record does not, and the finding says so — which is why `StampWorker` is INLINE, because a thread hides the attribution and not the finding. The two conforming nodes beside them are EXISTING corpus workers and are reported on not at all, and `attest` reports the key set it RECEIVED, so the value flowing downstream unaltered is an assertion rather than ADR 0060's sentence. **The two-word row is the control** — same flow, same workers, only the payload's word count different, and `gauge` goes silent while `stamp` does not, which separates the two legs from each other |
  * | **W82 — the check-OFF pair** | **ADR 0060 decision 3, and no row could be it**: the row above run AGAIN with the one option removed and the SAME run id, held identical record for record. Dispatched ids, the log with only the clocks zeroed, the folded outcome and every settled result all agree; **the reports are the one thing the two runs differ in**, two against zero. *You cannot audit a behaviour with an instrument that alters it*, which is the sentence P21 tells an adequacy reader to falsify first, and this is the only place it has ever been run on real workers. What it COSTS is asserted as a COUNT and printed as a ratio: a check whose answer is discarded has one observable, and a ratio of two clocks is still two clocks ([Q179](../doc/questions/q179.md)) |
  * | **W90 — block (2g), KILLED and RESUMED** | **P23's EXIT ARTIFACT: a run killed mid-run on real workers and resumed on a FRESH runtime from a store the consumer built by appending events** — the header from the handle, every `onFoldInput` element at its POSITION. At EVERY kill point of `fan-out-per-item` and `triage`, the store frozen mid-step at a settlement and the runtime shut down, then `runtime.resume` on a fresh one: identical to a run nobody killed on outcome AND every node, the re-dispatched ids equal to a derivation from the KILLED process and to what the fresh scheduler holds when `resume` returns. **`shutdown()` DRAINS** (W90's declaration, measured), so the kill is the store and not the shutdown — and every re-dispatched task visibly ran twice. Beside the sweep: THREE processes appending to ONE positional store, with the same events keyed by arrival refused `diverged`; one killed run cut MID-STEP and QUIESCENT, re-dispatching the same set; and a PARKED kill that re-dispatches nothing and is resolved on the resumed driver |
@@ -566,8 +566,14 @@ interface Expectation {
   refuseAtStart?: { payload: { confidence: number; text?: string; url?: string }; node: string };
   /** Overrides the harness default. Set only where the backstop is the expected result. */
   backstopMs?: number;
-  /** Outcomes the run must have passed through, even if it did not end in them. */
-  outcomesSeen?: string[];
+  /**
+   * Outcomes the run must have passed through, even if it did not end in them. **`RunOutcome[]`, not `string[]`** —
+   * W171's B′: typed as strings, the threaded `uncloneable` row's `outcomesNotSeen: ['stopped', …]` stayed GREEN when
+   * `stopped` was renamed `halted`, because a run can never read a name the union no longer has, so the exclusion
+   * held vacuously (P34 prediction 3's one exception). Typed, an outcome name the library does not have is an error
+   * under `typecheck:examples`.
+   */
+  outcomesSeen?: RunOutcome[];
   /**
    * Outcomes the run must **never** have been in at a quiescent point.
    *
@@ -578,7 +584,7 @@ interface Expectation {
    * what makes the sampling point itself falsifiable: an inclusion passes whether
    * the tracker is quiescent or a constant.
    */
-  outcomesNotSeen?: string[];
+  outcomesNotSeen?: RunOutcome[];
   /**
    * The region-event stream **for one branch**, in order.
    *
@@ -599,16 +605,16 @@ interface Expectation {
    * [Q62](../doc/questions/q62.md).)*
    */
   regionSuspended?: string[];
-  /** `stoppedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
-  stoppedBy?: string;
+  /** `haltedBy` — set only when a refusal terminated the run (`OR-R10`, `RN-R8`). */
+  haltedBy?: string;
   /**
-   * **`stoppedBy` names the refusal's class EXACTLY ONCE** — W133, P30 decision 2 ([Q63](../doc/questions/q63.md)).
+   * **`haltedBy` names the refusal's class EXACTLY ONCE** — W133, P30 decision 2 ([Q63](../doc/questions/q63.md)).
    * Declared by the `uncloneable` row and, since W140, by the `FD-R2` row: until W140 `UnresolvedMapArity`'s
    * message opened with its own class name, as nine refusal classes' messages did ([Q533](../doc/questions/q533.md)),
-   * so that row could not declare it — and W133's probe p12, the driver dropping the class from `stoppedBy`, stayed
+   * so that row could not declare it — and W133's probe p12, the driver dropping the class from `haltedBy`, stayed
    * green there because the message supplied the prefix. P31 decision 2 dropped the name from all nine.
    */
-  stoppedByNamesItOnce?: true;
+  haltedByNamesItOnce?: true;
   /**
    * **What the reported failure's message must name — W35.** Every string here
    * must occur in it. Omitted, the row asserts its own `dispatched` ids, which is
@@ -1638,7 +1644,7 @@ const EXPECTED: Expectation[] = [
     key: 'uncloneable / OR-R6',
     definition: UC, policyId: 'live-token', payload: HIGH, threaded: false,
     regionId: null,
-    outcome: 'stopped',
+    outcome: 'halted',
     dispatched: ['r13:merge:-:0'],
     pathEnds: [],
     // **`OR-R6` writes no record.** `normalizeEvent` throws before anything is
@@ -1646,13 +1652,13 @@ const EXPECTED: Expectation[] = [
     // place in the gate where Q32's property legitimately does not hold.
     unsettled: ['r13:merge:-:0'],
     runFailure: 'UncloneableResult',
-    stoppedBy: 'UncloneableResult',
-    stoppedByNamesItOnce: true,
+    haltedBy: 'UncloneableResult',
+    haltedByNamesItOnce: true,
     why: 'W6 row 3 — a refusal that stops a run, on a real scheduler. The worker returns a ' +
       'function; from an INLINE pool it reaches the driver intact and our own structuredClone ' +
       'refuses it (Q61). OR-R6, caught at the listener boundary, reported through onRunFailure ' +
       'and NOT thrown — because dispatchEvent discards a listener throw — and RN-R8 makes the ' +
-      'run `stopped` whatever its nodes say',
+      'run `halted` whatever its nodes say',
   },
 
   // --- W17: the row L6 has never had — EVERY branch reaches an `end` ------------
@@ -2271,14 +2277,14 @@ const EXPECTED: Expectation[] = [
     // **`regionId: null` although this flow HAS a region**, and that is the row's
     // second fact: `mapItems` throws before the `regionEntered` append, so the
     // region is in the definition and not in the run. `RN-R8` then makes the run
-    // `stopped` whatever its nodes say — it never reaches `RN-R10`, so this run is
-    // `stopped` where the N = 0 row is `stuck`. **Two map runs that dispatch one
+    // `halted` whatever its nodes say — it never reaches `RN-R10`, so this run is
+    // `halted` where the N = 0 row is `stuck`. **Two map runs that dispatch one
     // task each and end differently**, which is the whole difference between *the
     // flow asked for zero items* and *the flow asked for something that is not
     // there*.
     key: 'map / FD-R2 — over names no array',
     definition: MNA, policyId: 'live-token', payload: THREE_WORDS, threaded: false,
-    outcome: 'stopped',
+    outcome: 'halted',
     dispatched: ['r26:ingest:-:0'],
     regionId: null,
     joined: null,
@@ -2287,10 +2293,10 @@ const EXPECTED: Expectation[] = [
     // of `split` exists to be named — which is why the assertion reads what the
     // row declares rather than the row's dispatched ids.
     failureNames: ['"split"', '"rows"'],
-    stoppedBy: 'UnresolvedMapArity',
+    haltedBy: 'UnresolvedMapArity',
     // W140 (Q533, P31 decision 2): the message no longer opens with the class name, so the driver's
     // `${constructor.name}: ` is the only place it comes from — and this row can hold it to once.
-    stoppedByNamesItOnce: true,
+    haltedByNamesItOnce: true,
     // The path did not end at an `end` node and did not end at all: the driver
     // stopped routing. `RN-R8` outranks section 3's discriminants.
     pathEnds: [],
@@ -2298,7 +2304,7 @@ const EXPECTED: Expectation[] = [
       'is valid, `over` names `rows`, and the worker returns `items`: the run dispatches `ingest`, ' +
       'the map cannot resolve an arity and the driver stops routing with UnresolvedMapArity naming ' +
       'the node and the key. The region is in the definition and never in the run, because the ' +
-      'throw precedes the regionEntered append — so this run is `stopped` where a map of zero ' +
+      'throw precedes the regionEntered append — so this run is `halted` where a map of zero ' +
       'items is `stuck`',
   },
   {
@@ -2795,7 +2801,7 @@ const EXPECTED: Expectation[] = [
      *
      * **The discriminating pair.** With the arm deleted — `return ABSENT` for both
      * forms — `scores` is absent instead of `[]`, `over` finds no key, and this run
-     * is `stopped` with an `UnresolvedReference` rather than `stuck`. *One row where
+     * is `halted` with an `UnresolvedReference` rather than `stuck`. *One row where
      * `[]` and absent are two different run outcomes*, which is what neither of
      * W45's two rows could say: there the form is `"n?"` and both spellings of
      * *nothing* collapse to an absent key.
@@ -2818,7 +2824,7 @@ const EXPECTED: Expectation[] = [
       'for. 0.9 fails `ingest`s guard, so the run reaches `rank` without `score` having run: the ' +
       'conditional array resolves to `[]` rather than stopping the run with FD-R3, `over` names ' +
       'an empty array, and a map of zero items folds to `stuck` by RN-R10 with ONE task ' +
-      'dispatched. Delete the `t.form === "all" ? [] : ABSENT` arm and this run is `stopped` with ' +
+      'dispatched. Delete the `t.form === "all" ? [] : ABSENT` arm and this run is `halted` with ' +
       'an UnresolvedReference instead — `[]` and ABSENT are two different run outcomes here, ' +
       'which neither of W45`s rows can say',
   },
@@ -4119,7 +4125,7 @@ const EXPECTED: Expectation[] = [
     // row makes for the other reason: there no record is written, here the one record is `user_action`.
     unsettled: ['r63:merge:-:0'],
     outcomesSeen: ['awaiting_action'],
-    outcomesNotSeen: ['stopped', 'completed'],
+    outcomesNotSeen: ['halted', 'completed'],
     pathEnds: [],
     taskErrors: { 'r63:merge:-:0': ['could not be cloned'] },
     taskErrorsRule: 'OR-R6 v0.11',
@@ -4131,7 +4137,7 @@ const EXPECTED: Expectation[] = [
     why: 'W133 — OR-R6 v0.11. The same worker bug on the other pool: the scheduler`s structured clone refuses ' +
       'the function at the worker boundary, so the task ends user_action (task.failed then task.user_action) ' +
       'and no result reaches the listener. Nothing is reported through onRunFailure and the run is ' +
-      'awaiting_action rather than stopped. Measured on 0.5.2 in node and deno before the sentence was written',
+      'awaiting_action rather than halted. Measured on 0.5.2 in node and deno before the sentence was written',
   },
 
   // ---------------------------------------------------------------------------------------------
@@ -4384,7 +4390,7 @@ const arrivedInRun = (e: Expectation): number =>
  *
  *   - **rule 3, the run-level moment.** A refusal that stops the run releases
  *     **every** region's collection, including one whose join is still `waiting`,
- *     because the driver has stopped routing (`OR-R10`). So a row with a `stoppedBy`
+ *     because the driver has stopped routing (`OR-R10`). So a row with a `haltedBy`
  *     holds nothing, whatever its regions did.
  *   - **rule 3, the two per-region moments.** A join that was routed out of, or
  *     reported `unsatisfiable`, is TERMINAL — `joined` is `true` or `false` — and its
@@ -4432,7 +4438,7 @@ const soleRegionOf = (e: Expectation): string | null => {
  * shipped `allRegions` — an independent source, and the same one the resolver uses.
  */
 const regionsStillLive = (e: Expectation): string[] => {
-  if (e.stoppedBy !== undefined) return [];
+  if (e.haltedBy !== undefined) return [];
   const out: string[] = [];
   const own = e.regionId ?? soleRegionOf(e);
   if (own != null && e.joined === null && arrivedIn(e.settled) > 0) out.push(own);
@@ -4453,7 +4459,7 @@ const refusedFirstCount = (e: Expectation): number =>
   Object.values(e.resolveOnSuspend ?? {}).filter((h) => h.refusedFirst !== undefined).length;
 
 const heldWhenOver = (e: Expectation): number =>
-  e.stoppedBy !== undefined
+  e.haltedBy !== undefined
     ? 0
     : regionsDeclaredBy(e).reduce((n, [joined, settled]) => n + (joined === null ? arrivedIn(settled) : 0), 0);
 
@@ -4738,15 +4744,15 @@ for (const [i, e] of EXPECTED.entries()) {
     check(e.key, 'regions[*].suspended — who is parked on a person right now',
       soleRegion(report.state, e.regionId ?? 'split')?.suspended, e.regionSuspended);
   }
-  if (e.stoppedBy !== undefined) {
+  if (e.haltedBy !== undefined) {
     // **The class FIRST, then `: `** — the driver's `${constructor.name}: ${message}`. It read `includes` until
     // W133, which a doubled name, or a message that merely mentioned the class, also satisfied.
-    assertThat(e.key, 'OR-R10: stoppedBy names the refusal that terminated the run, as its class and then its message',
-      (report.state.stoppedBy ?? '').startsWith(`${e.stoppedBy}: `), `stoppedBy: ${report.state.stoppedBy}`);
+    assertThat(e.key, 'OR-R10: haltedBy names the refusal that terminated the run, as its class and then its message',
+      (report.state.haltedBy ?? '').startsWith(`${e.haltedBy}: `), `haltedBy: ${report.state.haltedBy}`);
   }
-  if (e.stoppedByNamesItOnce) {
-    assertThat(e.key, 'Q63: and the class name occurs in stoppedBy EXACTLY ONCE — the message does not repeat it',
-      (report.state.stoppedBy ?? '').split(e.stoppedBy ?? '\u0000').length === 2, `stoppedBy: ${report.state.stoppedBy}`);
+  if (e.haltedByNamesItOnce) {
+    assertThat(e.key, 'Q63: and the class name occurs in haltedBy EXACTLY ONCE — the message does not repeat it',
+      (report.state.haltedBy ?? '').split(e.haltedBy ?? '\u0000').length === 2, `haltedBy: ${report.state.haltedBy}`);
   }
   for (const [id, want] of Object.entries(e.nodeResults ?? {})) {
     check(e.key, `Q36: what ${id.split(':')[1]} received`, report.state.nodes[id]?.result, want);
@@ -4792,7 +4798,7 @@ for (const [i, e] of EXPECTED.entries()) {
   }
   for (const never of e.outcomesNotSeen ?? []) {
     assertThat(e.key, `the run was never quiescently \`${never}\``,
-      !report.outcomesSeen.includes(never as RunOutcome),
+      !report.outcomesSeen.includes(never),
       `saw: ${report.outcomesSeen.join(', ')}`);
   }
   // **W63 — the ERROR a failed transform's task settled with, on two observers that reach the
@@ -5258,7 +5264,7 @@ for (const [i, e] of EXPECTED.entries()) {
     // the one row where one does. They report different things:
     // `spec/join-policy.md` section 4 has the driver report an unsatisfiable join
     // and invent no run-level outcome, where a refusal **stops** the run and
-    // `RN-R8` makes it `stopped`. The other half is the unconditional check below.
+    // `RN-R8` makes it `halted`. The other half is the unconditional check below.
     assertThat(e.key, 'no run failure was reported',
       report.failures.length === 0, report.failures.join('; '));
   }
@@ -5331,7 +5337,7 @@ for (const [i, e] of EXPECTED.entries()) {
   // would not be sound.
   for (const want of e.outcomesSeen ?? []) {
     assertThat(e.key, `the run passed through \`${want}\` on its way to ${e.outcome}`,
-      report.outcomesSeen.includes(want as RunOutcome),
+      report.outcomesSeen.includes(want),
       `saw: ${report.outcomesSeen.join(', ')}`);
   }
   // The human actually acted. Without this the row would pass if the branch
@@ -5406,7 +5412,7 @@ for (const [i, e] of EXPECTED.entries()) {
   // the way — W55, and it is P15's exit artifact stated as a RELATION.**
   //
   // The two numbers are derived from the row's own `joined`, `settled` and
-  // `stoppedBy` and from the decision's rules; **nothing here reads a byte count**,
+  // `haltedBy` and from the decision's rules; **nothing here reads a byte count**,
   // because a footprint is a property of one run on one machine
   // ([Q179](../doc/questions/q179.md)) and the rule is about *which structures hold a
   // result, and for how long*. The bytes are printed by `examples/retention.ts`.
@@ -5446,9 +5452,9 @@ for (const [i, e] of EXPECTED.entries()) {
     + (e.joinSettledBy ? 1 : 0)
     // *(`unorderedDispatch` bought two here until W98 retired it: the dispatch comparison is THREE clauses on EVERY row
     // now — the set, the pairs the run FIXES, and the control that the run fixed one — and all three are in the base.)*
-    + (e.stoppedBy !== undefined ? 1 : 0)
+    + (e.haltedBy !== undefined ? 1 : 0)
     // W133: the exactly-once clause, on the row that declares it.
-    + (e.stoppedByNamesItOnce ? 1 : 0)
+    + (e.haltedByNamesItOnce ? 1 : 0)
     // W58: two observers per declared `attempts`, and a sequence plus an ordering per
     // declared `resourceEvents` — derived from the expectation like every other extra here.
     + Object.keys(e.attempts ?? {}).length * 2
@@ -6120,11 +6126,11 @@ const CROSS_ROW_SUBJECTS = [
   'IS the region subsequence of the driver`s own',
   '`await done` deep-equals `fold(driver.foldInputs())`',
   '`done` RESOLVED with a RunState rather than rejecting',
-  'resolves `done` with outcome `stopped` carrying `stoppedBy`',
+  'resolves `done` with outcome `halted` carrying `haltedBy`',
   'the two runs of this block are a PAIR',
   'CONTROL: the two sides of the region equality are DIFFERENT VALUES',
   'CONTROL: the two sides of the fold invariant are DIFFERENT OBJECTS',
-  'CONTROL: `stoppedBy` DISCRIMINATES',
+  'CONTROL: `haltedBy` DISCRIMINATES',
   // W65
   'retried under a policy of its OWN',
   // W67
@@ -6900,7 +6906,7 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
 // [ADR 0027](../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
 // and `ID-R5`, on real workers. Under ADR 0023 rule 2 — the rule ADR 0027
 // supersedes — this row was **not reachable at all**. Measured by restoring that
-// rule (tier 0 rethrows) and running THIS row, on THIS flow: both runs `stopped`,
+// rule (tier 0 rethrows) and running THIS row, on THIS flow: both runs `halted`,
 // each reported `InvalidTaskId` **twice** — once per foreign task — and each
 // dispatched **1 of its 4** tasks, so the scheduler settled 4 of the 10 it would
 // otherwise have been handed. As an L6 result that is **12 failures**.
@@ -7514,7 +7520,7 @@ if (shimReport !== null) {
  * [Q297](../doc/questions/q297.md)) and the end awaited in one line
  * ([W77](../doc/work-items/w77-what-start-returns.md), [ADR 0058](../doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)).
  * Run B's driver REFUSES — `uncloneable` returns a value `structuredClone` cannot copy — and `done`
- * **RESOLVES** with `outcome: 'stopped'` carrying `stoppedBy`, which is ADR 0058 rules 3 and 4 and
+ * **RESOLVES** with `outcome: 'halted'` carrying `haltedBy`, which is ADR 0058 rules 3 and 4 and
  * which had no observer at L6 and no observer on real workers anywhere. *With one run the
  * `completed` below is a constant; with the pair it is a measurement, and `doc/workflow.md` rule 8's
  * fourth requirement on the set says to assert what makes the two differ, which the last clause
@@ -7576,13 +7582,13 @@ type ConsumerRoad = {
   /** **PROJECTED at capture, like run B's**, and that asymmetry was the adequacy reader's `S3`. */
   outcomeA: RunOutcome | 'NEVER SETTLED';
   terminalA: boolean;
-  stoppedByA: string | null;
+  haltedByA: string | null;
   stateA: RunState | null;
   foldedA: RunState;
   regionSeen: string[];
   regionFolded: string[];
   outcomeB: RunOutcome | 'NEVER SETTLED';
-  stoppedByB: string | null;
+  haltedByB: string | null;
   settledBWithARunState: boolean;
   /** The flows this block actually STARTED, so the printed run count is a length and not a literal. */
   runs: string[];
@@ -7614,12 +7620,12 @@ try {
       optionKeys: Object.keys(consumerOptions).sort(),
       endedBy: wonA.by,
       // **PROJECTED here rather than read off `stateA` below** — the adequacy reader's `S3`, and the
-      // asymmetry is the argument: run B was already projected to `outcomeB`/`stoppedByB` and was
+      // asymmetry is the argument: run B was already projected to `outcomeB`/`haltedByB` and was
       // IMMUNE, while run A handed the clauses an object reference and one token could re-source it
       // to the caller's own fold. *One block, two shapes, and the projected one survived.*
       outcomeA: settledA !== null ? settledA.outcome : 'NEVER SETTLED',
       terminalA: settledA !== null && isTerminal(settledA),
-      stoppedByA: settledA !== null ? (settledA.stoppedBy ?? null) : null,
+      haltedByA: settledA !== null ? (settledA.haltedBy ?? null) : null,
       // **NULLABLE, and the `?? foldedA` this used to carry was a hole** — the conformity reader's
       // finding 9 and the adequacy reader's `S3`, reached from opposite ends. The fallback existed
       // so the clauses would report WHICH claim failed rather than dying on a null; what it did was
@@ -7632,7 +7638,7 @@ try {
       regionSeen,
       regionFolded,
       outcomeB: settledB !== null ? settledB.outcome : 'NEVER SETTLED',
-      stoppedByB: settledB !== null ? (settledB.stoppedBy ?? null) : null,
+      haltedByB: settledB !== null ? (settledB.haltedBy ?? null) : null,
       settledBWithARunState: settledB !== null && typeof settledB === 'object' && 'outcome' in settledB,
       // The flows this block STARTED, in order — so `pairRunCount` adds a LENGTH. The adequacy
       // reader's `S10`: with `? 2 : 0` the derivation bought honesty against DELETION and nothing
@@ -7650,7 +7656,7 @@ try {
   // the whole file down with exit 1 and ZERO failure lines.
   //
   // **It does NOT catch a `done` that rejects, and the first version of this message said it did** —
-  // the adequacy reader's `S11`, measured: a runtime made to reject `done` on a `stopped` run kills
+  // the adequacy reader's `S11`, measured: a runtime made to reject `done` on a `halted` run kills
   // this file at ROW 13, forty rows above here, because `runFlow` destructures `{ driver }` and
   // never attaches to its handle, so Node fatally reports the unhandled rejection with **exit 1 and
   // zero FAIL lines**. Narrowed to this block's own runs the guard does fire and names it. *So the
@@ -7695,9 +7701,9 @@ if (consumerRoad !== null) {
   assertThat(key, 'ADR 0058 rule 3 on a REFUSAL: `done` RESOLVED with a RunState rather than rejecting — a rejection ' +
     'would have arrived as a throw at the catch above, and a non-settlement as the deadline`s null',
     c.settledBWithARunState, `settled with: ${JSON.stringify(c.outcomeB)}`);
-  check(key, 'ADR 0058 rule 4: a driver refusal resolves `done` with outcome `stopped` carrying `stoppedBy` — ' +
-    '`failRun` appends the stopped element BEFORE it calls onRunFailure, so a refusal is already terminal when a consumer hears of it',
-    [c.outcomeB, (c.stoppedByB ?? '').split(':')[0]], ['stopped', 'UncloneableResult']);
+  check(key, 'ADR 0058 rule 4: a driver refusal resolves `done` with outcome `halted` carrying `haltedBy` — ' +
+    '`failRun` appends the `halted` element BEFORE it calls onRunFailure, so a refusal is already terminal when a consumer hears of it',
+    [c.outcomeB, (c.haltedByB ?? '').split(':')[0]], ['halted', 'UncloneableResult']);
   // (7) the PAIR, asserted rather than arranged — rule 8's fourth requirement on the set.
   assertThat(key, 'and the two runs of this block are a PAIR: one flow completes and the other is refused, so ' +
     '`completed` above is a measurement rather than a constant this block could have printed either way',
@@ -7713,7 +7719,7 @@ if (consumerRoad !== null) {
   // exactly as non-empty as the one it came from. **The two IDENTITY controls below are what an
   // emptiness control cannot be**: they refuse the two sides of a comparison BEING the same value,
   // which is the whole of that probe class. And the third was worse than weak — it asserted
-  // `stoppedBy` is a non-empty string, which the claim beside it ENTAILS, so no tree could make it
+  // `haltedBy` is a non-empty string, which the claim beside it ENTAILS, so no tree could make it
   // fire alone. *A control entailed by its own claim is a fourth claim.*
   assertThat(key, 'CONTROL: the two sides of the region equality are DIFFERENT VALUES — what the consumer`s callback ' +
     'filled is not the array the driver`s own inputs were read into, so the equality above is two sources and not one',
@@ -7723,11 +7729,11 @@ if (consumerRoad !== null) {
     'the state the caller folded, so the equality above is two routes and not one',
     c.stateA !== null && (c.stateA as unknown) !== (c.foldedA as unknown) && Object.keys(c.foldedA.nodes).length > 0,
     `same object: ${c.stateA === c.foldedA}, nodes ${Object.keys(c.foldedA.nodes).length}`);
-  assertThat(key, 'CONTROL: `stoppedBy` DISCRIMINATES — run A completed and carries none, so the `stopped` reading above ' +
-    'is a property of the refusal rather than something every RunState has. (The first version asserted run B`s stoppedBy ' +
+  assertThat(key, 'CONTROL: `haltedBy` DISCRIMINATES — run A completed and carries none, so the `halted` reading above ' +
+    'is a property of the refusal rather than something every RunState has. (The first version asserted run B`s haltedBy ' +
     'is non-empty, which the claim beside it entails — a control no tree could make fire alone)',
-    c.stoppedByA === null && typeof c.stoppedByB === 'string' && c.stoppedByB.length > 0,
-    `run A stoppedBy: ${JSON.stringify(c.stoppedByA)}, run B: ${JSON.stringify(c.stoppedByB)}`);
+    c.haltedByA === null && typeof c.haltedByB === 'string' && c.haltedByB.length > 0,
+    `run A haltedBy: ${JSON.stringify(c.haltedByA)}, run B: ${JSON.stringify(c.haltedByB)}`);
 }
 
 /**
@@ -9618,7 +9624,7 @@ if (cancelBlock !== null) {
  * **What P37 fact 1 measured, and what this block holds instead.** The runtime builds a document's keyed group with no
  * `keyFrom`, so the scheduler keys each task by its `limitKey` — and before W163 nothing set one, so every task of a node
  * reaching the group THREW in `addTask`: from `start` at the entry node, after the run id was spent, and as a run
- * `stopped` at the second. Now `runtime.check` reports `FD-R6` at each such node, `start` with no `createTask` throws
+ * `halted` at the second. Now `runtime.check` reports `FD-R6` at each such node, `start` with no `createTask` throws
  * `LimitKeyMissing` before anything reaches the scheduler, and the ROAD fact 1 found working — a `createTask` that sets
  * `limitKey` — runs the same flow to `completed` on the real group, the SECOND node included.
  *
@@ -11813,7 +11819,7 @@ if (rowCosts.length !== EXPECTED.length) {
     // `gateRoutes` since W153 (ADR 0092 rule 3): each gate's resolved route set by gate id, built at construction —
     // route names, no result, WALKED (examples/run-flow.ts' NOT_RUN_STATE is unchanged). Stop-and-ask (e'), YES.
     'gateRoutes',
-    // `deaf` since W151 (`RN-R23`): one boolean, set when a resume is refused for a stop regenerated in the lost tail —
+    // `deaf` since W151 (`RN-R23`): one boolean, set when a resume is refused for a halt regenerated in the lost tail —
     // WALKED beside `failed` and `started`, and false on every run here. Found by W151's gate after the maintainer's YES.
     'deaf',
     // `cancelled` since W158 (`RN-R28`, ADR 0094): one boolean, set by a run's first `cancelled` settlement — WALKED
@@ -11854,33 +11860,33 @@ if (rowCosts.length !== EXPECTED.length) {
   // never spells `regionId`, so `e.regionId === fanoutId` was false and the lookup
   // returned `undefined` — the clause read *no arrivals recorded* for the row it is
   // most about, **by accident**. Three separate edits then cost zero: emptying the
-  // `unsatisfiable` list, falsifying the `stoppedBy` filter, and making the lookup
+  // `unsatisfiable` list, falsifying the `haltedBy` filter, and making the lookup
   // return `undefined` outright. So the pairs are counted and every one must have
   // resolved, and the region id falls back to the FLOW's own rather than to nothing.
   const settledOfRegion = (e: Expectation, fanoutId: string): Record<string, string> | undefined =>
     (e.regionId ?? soleRegionOf(e)) === fanoutId ? e.settled : e.otherRegions?.[fanoutId]?.settled;
   const unsatisfiablePairs = EXPECTED.flatMap((e) =>
     (e.unsatisfiable ?? []).map((u) => ({ key: e.key, region: u.fanoutId, settled: settledOfRegion(e, u.fanoutId) })));
-  const stoppedRows = EXPECTED.filter((e) => e.stoppedBy !== undefined);
+  const haltedRows = EXPECTED.filter((e) => e.haltedBy !== undefined);
   check('cross-row', 'the two release moments this rung cannot reach are COUNTED before they are ' +
     'reported absent — every unsatisfiable join names a region this row declares, and every ' +
-    'stopped row is looked at',
+    'halted row is looked at',
     {
       unsatisfiable: unsatisfiablePairs.length,
       resolved: unsatisfiablePairs.filter((p) => p.settled !== undefined).length,
-      stopped: stoppedRows.length,
+      halted: haltedRows.length,
     },
     {
       unsatisfiable: EXPECTED.reduce((n, e) => n + (e.unsatisfiable?.length ?? 0), 0),
       resolved: EXPECTED.reduce((n, e) => n + (e.unsatisfiable?.length ?? 0), 0),
-      stopped: EXPECTED.filter((e) => e.stoppedBy !== undefined).length,
+      halted: EXPECTED.filter((e) => e.haltedBy !== undefined).length,
     });
   const unsatisfiableWithArrival = unsatisfiablePairs
     .filter((p) => arrivedIn(p.settled) > 0).map((p) => `${p.key} / ${p.region}`);
-  const stoppedWithArrival = stoppedRows.filter((e) => arrivedInRun(e) > 0).map((e) => e.key);
+  const haltedWithArrival = haltedRows.filter((e) => arrivedInRun(e) > 0).map((e) => e.key);
   check('cross-row', 'and the other two release moments have NO case at this rung: no row reports an ' +
     'unsatisfiable join with an arrival recorded, and none stops a run after one — recorded, not argued',
-    { unsatisfiableWithArrival, stoppedWithArrival }, { unsatisfiableWithArrival: [], stoppedWithArrival: [] });
+    { unsatisfiableWithArrival, haltedWithArrival }, { unsatisfiableWithArrival: [], haltedWithArrival: [] });
 }
 
 // **The DERIVATION's own census — W98.** Every row asserts the pairs `dispatchOrder` returns, so a `fixes` that collapsed
@@ -12492,11 +12498,11 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2465 / 162 since W133** — +30 and one run, DERIVED before the file was re-run: the threaded `uncloneable` row is a
 // PLAIN row (`regionId: null`) at `PER_PLAIN_ROW` (22) plus its six declared extras (one `outcomesSeen`, two
 // `outcomesNotSeen`, one `pathEnds`, two for its one `taskErrors` id), which is 28, and the existing `uncloneable` row's
-// `stoppedByNamesItOnce` clause is the 29th. `CROSS_ROW` does not move: the `inline` membership and the `taskErrors`
+// `haltedByNamesItOnce` clause is the 29th. `CROSS_ROW` does not move: the `inline` membership and the `taskErrors`
 // clause each changed what they compare, not how many times they assert. *(2464 until the adequacy reader's finding 1
 // bought the threaded row's one `records` clause, the 30th.)*
 // **2466 / 162 since W140** — +1, DERIVED before the file was re-run: the `map / FD-R2` row declares
-// `stoppedByNamesItOnce`, one clause on one row (the per-row extra `e.stoppedByNamesItOnce ? 1 : 0`). No row, no run and
+// `haltedByNamesItOnce`, one clause on one row (the per-row extra `e.haltedByNamesItOnce ? 1 : 0`). No row, no run and
 // no `CROSS_ROW` term moved.
 // **2474 / 162 since W142** — +8, DERIVED before the file was re-run: two clauses per run of each of the two pair rows
 // (`PAIR_PER_RUN` 9 -> 11, two rows x two runs x two): ADR 0088's `delivered`, and the harness-routing clause the

@@ -894,7 +894,7 @@ export interface RunReport {
    * `unsatisfiable` — the array was empty on every row either way — and it stopped
    * being harmless the moment one could: `spec/join-policy.md` section 4 gives the
    * two callbacks different jobs. A refusal **stops the run** and `RN-R8` makes it
-   * `stopped` whatever its nodes say; an unsatisfiable join stops nothing, invents
+   * `halted` whatever its nodes say; an unsatisfiable join stops nothing, invents
    * no run-level outcome, and leaves the fold to reach `stuck` on its own
    * (`RN-R10`). Reporting them through one channel of strings would have made
    * *"nothing was reported"* unassertable on the one row where something is.
@@ -2128,8 +2128,8 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
         settle?.();
       });
     },
-    // A refusal reaches the sequence as `{ kind: 'stopped' }` and the fold reports
-    // `stopped`, so this exists only so a failure is legible in the report.
+    // A refusal reaches the sequence as `{ kind: 'halted' }` and the fold reports
+    // `halted`, so this exists only so a failure is legible in the report.
     onRunFailure: (f) => { failures.push(`${f.kind}: ${f.message}`); failureKinds.push(f.kind); },
     // **Kept whole, and NOT folded into `failures`.** See `RunReport.failures`:
     // the two callbacks report different things and only one of them stops a run.

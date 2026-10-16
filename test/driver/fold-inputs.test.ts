@@ -206,7 +206,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
       'which the fold reads as `joined: false`, not `null`: it will never fire, rather than not yet');
   });
 
-  test('a run the driver stopped appends `stopped`, once', async () => {
+  test('a run the driver halted appends `halted`, once', async () => {
     // **The vehicle changed and the rule did not.** This used to deliver two
     // malformed ids, which `parseTaskId` refused at the listener boundary; since
     // [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
@@ -217,9 +217,9 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
     h.driver.start({});
     h.scheduler.settle('r1:nosuch:-:0', 'done');
     h.scheduler.settle('r1:alsonosuch:-:0', 'done');
-    const stops = h.driver.foldInputs().filter((i) => i.kind === 'stopped');
+    const stops = h.driver.foldInputs().filter((i) => i.kind === 'halted');
     equal(stops.length, 1, '`OR-R10` stops the run once; a second refusal for the same run adds nothing');
-    equal(fold(h.driver.foldInputs()).outcome, 'stopped', 'RN-R8: stopped outranks everything');
+    equal(fold(h.driver.foldInputs()).outcome, 'halted', 'RN-R8: halted outranks everything');
   });
 
   test('an id NO driver minted appends nothing at all, and the sequence keeps going', async () => {
@@ -233,7 +233,7 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
     h.driver.start({});
     h.scheduler.settle('nightly-cleanup', 'done');
     equal(h.driver.foldInputs().map((i) => i.kind), ['dispatched'],
-      'no `stopped`, and no fifth input kind carrying an id the fold would then try to parse');
+      'no `halted`, and no fifth input kind carrying an id the fold would then try to parse');
     h.scheduler.settle('r1:ingest:-:0', 'done');
     equal(fold(h.driver.foldInputs()).outcome, 'running', 'the run is unharmed and still going');
   });
@@ -405,12 +405,12 @@ suite('ID-R3 — a driver serves exactly one run, and start() is called at most 
   });
 });
 
-suite('OR-R10 — a stopped run stops on the INBOUND edge too', (test) => {
+suite('OR-R10 — a halted run stops on the INBOUND edge too', (test) => {
   test('resolve() is refused for a run a refusal already terminated', async () => {
     // `onEventOrThrow` checked `failedRuns`; `resolve()` did not, so a resolution
-    // for a suspended task in a stopped run appended a record and dispatched.
-    // W5's sequence made it visible: elements kept arriving after the `stopped`
-    // element while `withOutcome` pins the outcome to `stopped`, so the work
+    // for a suspended task in a halted run appended a record and dispatched.
+    // W5's sequence made it visible: elements kept arriving after the `halted`
+    // element while `withOutcome` pins the outcome to `halted`, so the work
     // landed in `nodes` and no outcome reflected it. Found by W5's
     // spec-conformity pass; pre-existing since W3.
     //
@@ -423,12 +423,12 @@ suite('OR-R10 — a stopped run stops on the INBOUND edge too', (test) => {
     ok(h.driver.terminalStateOf('r1:scoreA:0:0') === null,
       'branch 0 is suspended, so it is resolvable — RS-R1');
 
-    // Stop the run with `OR-R6` — a result `structuredClone` refuses.
+    // Halt the run with `OR-R6` — a result `structuredClone` refuses.
     // Deliberately NOT a malformed task id: that refusal cannot be attributed to
     // a run, so `failRun` marks the sentinel `'<unknown>'` and stops nothing.
     // That is W3's and is recorded in W5's Record rather than fixed here.
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { fn: () => 1 } });
-    ok(h.driver.hasFailed(), 'the run is stopped, and stopped under its own id');
+    ok(h.driver.hasFailed(), 'the run is halted, and halted under its own id');
 
     const lenBefore = h.driver.foldInputs().length;
     const dispatchedBefore = h.driver.dispatchedIds().length;
@@ -436,7 +436,7 @@ suite('OR-R10 — a stopped run stops on the INBOUND edge too', (test) => {
       'OR-R10: refused, and refused as a rejected command rather than as a run failure');
     equal(h.driver.foldInputs().length, lenBefore, 'nothing was appended');
     equal(h.driver.dispatchedIds().length, dispatchedBefore, 'and nothing was dispatched');
-    equal(fold(h.driver.foldInputs()).outcome, 'stopped',
-      'RN-R8: and the run stays stopped, with no work landing after the stop');
+    equal(fold(h.driver.foldInputs()).outcome, 'halted',
+      'RN-R8: and the run stays halted, with no work landing after the halt');
   });
 });

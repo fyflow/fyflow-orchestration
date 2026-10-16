@@ -221,17 +221,17 @@ suite('ID-R1 — a duplicate dispatch is refused before addTask sees it', (test)
     ok(failures[0]!.message.includes('r1:publish:-:0'),
       'and it names the id it refused — the SUCCESSOR, not the settled task');
     equal(scheduler.added.length, before, 'addTask is NOT called — at 0.3.0 both tasks would run');
-    ok(driver.hasFailed(), 'and the run is stopped, so nothing routes for it again');
+    ok(driver.hasFailed(), 'and the run is halted, so nothing routes for it again');
     ok(new DuplicateTaskId('x') instanceof Error, 'DuplicateTaskId is an Error');
     // **W140 — Q533, P31 decision 2: the CLASS names the refusal and the message does not**, so the
-    // error's own render, `stoppedBy` and `${kind}: ${message}` each name it EXACTLY once. The message
+    // error's own render, `haltedBy` and `${kind}: ${message}` each name it EXACTLY once. The message
     // is ID-R1's literal less its old `DuplicateTaskId: ` prefix.
     const msg = 'r1:publish:-:0" was already dispatched in run "r1"';
     equal(failures[0]!.message, `"${msg}`, 'the message is the refusal`s text, with no class name in front');
     equal(String(causes[0]), `DuplicateTaskId: "${msg}`, 'String(e) is the class, then the message — the class sets its own name');
-    const stoppedBy = fold(driver.foldInputs()).stoppedBy;
-    equal([stoppedBy, `${failures[0]!.kind}: ${failures[0]!.message}`].map((s) => String(s).split('DuplicateTaskId').length),
-      [2, 2], `stoppedBy and kind: message each name the class EXACTLY once: ${stoppedBy}`);
+    const haltedBy = fold(driver.foldInputs()).haltedBy;
+    equal([haltedBy, `${failures[0]!.kind}: ${failures[0]!.message}`].map((s) => String(s).split('DuplicateTaskId').length),
+      [2, 2], `haltedBy and kind: message each name the class EXACTLY once: ${haltedBy}`);
   });
 });
 
@@ -880,11 +880,11 @@ suite('RN-R6 v0.13 — regions[*].suspended is CURRENT, not cumulative', (test) 
 
 /**
  * **Q63 — `UncloneableResult` is named ONCE, by the class** (P30 decision 2, W133). `RunFailure.kind`
- * is the constructor name and `stoppedBy` is `<class>: <message>`, so a message that opened with the
- * class name read `UncloneableResult: UncloneableResult: …` in `RunState.stoppedBy` with no consumer
+ * is the constructor name and `haltedBy` is `<class>: <message>`, so a message that opened with the
+ * class name read `UncloneableResult: UncloneableResult: …` in `RunState.haltedBy` with no consumer
  * render at all. The expected strings are the decision's message text and that composition.
  */
-suite('OR-R6 and OR-R10 — stoppedBy and the reported failure name UncloneableResult exactly once', (test) => {
+suite('OR-R6 and OR-R10 — haltedBy and the reported failure name UncloneableResult exactly once', (test) => {
   test('an uncloneable settlement stops the run naming the class once and the task id', async () => {
     const failures: { kind: string; message: string }[] = [];
     const scheduler = new FakeScheduler();
@@ -899,9 +899,9 @@ suite('OR-R6 and OR-R10 — stoppedBy and the reported failure name UncloneableR
     const message = 'the result of task "r1:ingest:-:0" is not structured-cloneable';
     equal(failures, [{ kind: 'UncloneableResult', message }], 'OR-R10: one failure, the class as its kind');
     const state = fold(driver.foldInputs());
-    equal(state.outcome, 'stopped', 'RN-R8: a refusal that terminated the run');
-    equal(state.stoppedBy, `UncloneableResult: ${message}`, 'stoppedBy is the class, then the message');
-    equal(state.stoppedBy?.split('UncloneableResult').length, 2, 'and the class name occurs in it EXACTLY once');
+    equal(state.outcome, 'halted', 'RN-R8: a refusal that terminated the run');
+    equal(state.haltedBy, `UncloneableResult: ${message}`, 'haltedBy is the class, then the message');
+    equal(state.haltedBy?.split('UncloneableResult').length, 2, 'and the class name occurs in it EXACTLY once');
   });
 });
 
@@ -1005,7 +1005,7 @@ suite('every executable node kind has an arm — the default is not a narrowing'
     //
     // **`map-fanout` is the row W33 adds**, and it is the one that discriminates:
     // while the `default` arm was the only thing handling a map, this row reported
-    // `stopped` with one refusal. It is also what would catch a `default` placed
+    // `halted` with one refusal. It is also what would catch a `default` placed
     // ABOVE the `map` arm, which is the mistake this test exists for.
     // **Bounded by what the loop DID** -- W33's adequacy reader measured
     // `].slice(0, 1) as [string, string][]` at **0 failures**, which leaves

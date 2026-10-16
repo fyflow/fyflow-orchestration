@@ -172,7 +172,7 @@ export class UnresolvedReference extends Error {
  * rather than to the document. It stops the run through `OR-R10` (reported from a listener, reported AND
  * rethrown from `start()` and `resolve()`), and **nothing is appended for the gate**: no `gated` element,
  * because no route was taken, and the memory the type may have written before returning is the driver's own
- * and dies with the stopped run. *A type whose `fn` THROWS takes the same road with its OWN error* — the road
+ * and dies with the halted run. *A type whose `fn` THROWS takes the same road with its OWN error* — the road
  * a throwing decision predicate takes, measured at W93's declaration step.
  */
 export class UndeclaredRoute extends Error {
@@ -331,15 +331,17 @@ export interface Checkpoint {
  * | `format` | the value is not `{ header, events[] }`, or `header.format` is not {@link CHECKPOINT_FORMAT} (`RN-R16`) | `null` |
  * | `run` | `header.runId` is not the run this driver was constructed for (`ID-R3`) — every stored task id embeds it | `null` |
  * | `flow` | `header.flowId` or `header.version` is not this driver's definition's — **no migration** (P23 decision 7) | `null` |
- * | `stopped` | the run was STOPPED — a stored `stopped` element, or one the replay regenerates past the stored events (P23 decision 10) | the `stopped` element's position |
- * | `cancelled` | the run was CANCELLED — a stored `outcome` element whose record is `terminalState: 'cancelled'`, checked after `stopped` ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 5, W158). Only a STORED one: a settlement is fed to the replay, never regenerated, so a replay cannot produce a cancel the store does not hold | that element's position |
+ * | `halted` | the run was HALTED by a refusal — a stored `halted` element, or a stored `stopped` element, 0.7.0's name for it and read as one ([ADR 0102](../../doc/decisions/0102-a-run-the-driver-halts-is-halted-and-a-stored-stopped-reads-as-one.md) rule 3), or one the replay regenerates past the stored events (P23 decision 10) | that element's position |
+ * | `cancelled` | the run was CANCELLED — a stored `outcome` element whose record is `terminalState: 'cancelled'`, checked after `halted` ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md) rule 5, W158). Only a STORED one: a settlement is fed to the replay, never regenerated, so a replay cannot produce a cancel the store does not hold | that element's position |
  * | `diverged` | a stored element the replay does not produce at the same position — a predicate, a definition or an entry payload that is not what the stored run had (P23 decision 9) | the FIRST such position |
  */
 /**
  * **Widened by W158 with `cancelled`, and that is BREAKING for a consumer switching on `reason` exhaustively** —
- * `resumed`'s and `gated`'s precedent (ADR 0094 consequence 1).
+ * `resumed`'s and `gated`'s precedent (ADR 0094 consequence 1). **And W171 RENAMED `stopped` to `halted`** (ADR 0102, P34
+ * stop-and-ask (f)) — BREAKING, and loudly: a consumer's `reason === 'stopped'` no longer compiles, so it cannot silently
+ * come to mean P34's resumable stop. A 0.7.0 checkpoint holding a `stopped` element is refused `halted`.
  */
-export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'stopped' | 'cancelled' | 'diverged';
+export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'halted' | 'cancelled' | 'diverged';
 
 /**
  * **A resume the driver will not make, thrown at the caller** — `RN-R23`, ADR 0065.
@@ -347,16 +349,16 @@ export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'stopped' | 'cance
  * Thrown rather than reported, for `start()`'s reason: the caller is on the stack, and a checkpoint is a
  * value the CALLER brought (`OR-R12`'s asymmetry). **One class with a `reason`, on `BoundaryRefused`'s
  * precedent** of one class for two boundaries: a consumer catching a refused resume wants one `catch`,
- * and branches on `reason` — `diverged` and `stopped` carry the POSITION a store can be inspected at.
+ * and branches on `reason` — `diverged` and `halted` carry the POSITION a store can be inspected at.
  *
  * **What it leaves behind is the driver SPENT, and nothing handed to a scheduler.** A refusal before the
- * replay (`format`, `run`, `flow`, a stored `stopped`, a stored `cancelled`) and a `diverged` one leave no run to checkpoint;
- * a `stopped` the replay itself regenerated leaves the STOPPED run, whose checkpoint a store may take —
- * its lost tail, `stopped` included, was delivered to `onFoldInput` before the refusal was thrown.
+ * replay (`format`, `run`, `flow`, a stored `halted`, a stored `cancelled`) and a `diverged` one leave no run to checkpoint;
+ * a `halted` the replay itself regenerated leaves the HALTED run, whose checkpoint a store may take —
+ * its lost tail, `halted` included, was delivered to `onFoldInput` before the refusal was thrown.
  */
 export class ResumeRefused extends Error {
   readonly reason: ResumeRefusalReason;
-  /** The position `stopped`, `cancelled` and `diverged` name; `null` for the three a header decides. */
+  /** The position `halted`, `cancelled` and `diverged` name; `null` for the three a header decides. */
   readonly index: number | null;
   constructor(reason: ResumeRefusalReason, index: number | null, message: string) {
     super(message);
@@ -369,7 +371,7 @@ export class ResumeRefused extends Error {
 /**
  * **What a resume refuses a checkpoint for BEFORE replaying anything** — `RN-R23`, ADR 0065 rule 2.
  * `format`, `run` (only when `runId` is given — a runtime resuming names the run BY the header), `flow`,
- * a stored `stopped` element and a stored `cancelled` settlement, in that order; `null` when the header and the events' kinds say
+ * a stored `halted` element (or a `stopped` one, 0.7.0's name for it — ADR 0102 rule 3) and a stored `cancelled` settlement, in that order; `null` when the header and the events' kinds say
  * nothing against it — which is not a promise the replay will agree, and that is `diverged`'s road.
  *
  * **Pure, exported, and called from two places**: `Driver.resume`, and `runtime.resume` BEFORE it builds
@@ -411,14 +413,22 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
         `"${definition.flowId}" version ${definition.version}. There is no migration (P23 decision 7): a checkpoint resumes against the ` +
         'definition that produced it, and a changed flow is a new version.');
   }
-  const at = (cp!.events as unknown[]).findIndex((e) => (e as { kind?: unknown } | null)?.kind === 'stopped');
+  // **The DUAL READ — ADR 0102 rule 3 (W171).** A 0.7.0 store wrote the halt as `{ kind: 'stopped', reason }`, and
+  // `CHECKPOINT_FORMAT` did not move, so the old kind is READ here as the halt it is: refused `halted`, at its position.
+  // Without it a 0.7.0 checkpoint of a halted run passed this scan and was refused `diverged` by the replay (P34 fact 7).
+  const at = (cp!.events as unknown[]).findIndex((e) => {
+    const k = (e as { kind?: unknown } | null)?.kind;
+    return k === 'halted' || k === 'stopped';
+  });
   if (at >= 0) {
-    return new ResumeRefused('stopped', at,
-      `ResumeRefused (stopped): the stored run was STOPPED — its element at position ${at} is \`stopped\` ` +
-        `(${JSON.stringify((cp!.events as { reason?: unknown }[])[at]?.reason)}). A stopped run is not resumable (P23 decision 10): ` +
-        'the refusal that stopped it would stop it again, and the one class whose cause never reached the log — a result OR-R6 refused — cannot be regenerated at all.');
+    const e = (cp!.events as { kind?: unknown; reason?: unknown }[])[at]!;
+    return new ResumeRefused('halted', at,
+      `ResumeRefused (halted): the stored run was HALTED by a refusal — its element at position ${at} is \`${String(e.kind)}\`` +
+        `${e.kind === 'stopped' ? ' (the name 0.7.0 wrote for `halted`, ADR 0102)' : ''} (${JSON.stringify(e.reason)}). A halted run is not resumable ` +
+        '(P23 decision 10): the refusal that halted it would halt it again, and the one class whose cause never reached the log — a result ' +
+        'OR-R6 refused — cannot be regenerated at all.');
   }
-  // **A stored CANCEL — `RN-R23`'s sixth reason, ADR 0094 rule 5 (W158).** After `stopped`, which outranks it as
+  // **A stored CANCEL — `RN-R23`'s sixth reason, ADR 0094 rule 5 (W158).** After `halted`, which outranks it as
   // `RN-R28` ranks the two outcomes: a run refused for a defect AND cancelled reads as the defect. Only an APPENDED
   // cancel reaches here, and the driver appends every `task.cancelled` it hears for its run — so a cancel nobody
   // heard is not refused, and P34's stop is to go deaf before it cancels so that its own never are.
@@ -1263,25 +1273,25 @@ export class Driver {
    * elements a consumer does not already hold ({@link Driver.delivers}).
    */
   private replay: Replay | null = null;
-  /** The run has been stopped by a refusal. Nothing dispatches for it again. */
+  /** The run has been HALTED by a refusal (`OR-R10`). Nothing dispatches for it again. */
   private failed = false;
   /**
    * **A task of this run settled `cancelled`, so the run is HALTED** — `RN-R28`,
    * [ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)
    * rule 3, W158. Every door `failed` shuts, this shuts — nothing is dispatched or routed for the run again,
    * a later settlement is appended and routed nowhere, and `resolve()` is refused — and it differs from `failed`
-   * in three things only: no `stopped` element is appended (the fold reads the run `cancelled` from the
+   * in three things only: no `halted` element is appended (the fold reads the run `cancelled` from the
    * settlement itself), `onRunFailure` is not called (a cancel is its owner's act, not a defect), and
    * `hasFailed()` stays false. **Separate rather than `failed` with a reason**, because those three are each
    * a reader of `failed` that must not fire.
    */
   private cancelled = false;
   /**
-   * **A resume refused because its replay regenerated a STOP in the lost tail** — `RN-R23`: that driver keeps the
-   * stopped run (its `header`, so a store may take its checkpoint) and still hears NOTHING. `onEvent`'s other test,
+   * **A resume refused because its replay regenerated a HALT in the lost tail** — `RN-R23`: that driver keeps the
+   * halted run (its `header`, so a store may take its checkpoint) and still hears NOTHING. `onEvent`'s other test,
    * *started with no header*, cannot see it, because this refusal is the one that keeps its header: until W151 such a
    * driver built by hand appended and delivered a later settlement and reported an unminted id (W151's conformity
-   * reader, finding 6). A driver stopped by `failRun` on a run it started is NOT deaf: `OR-R10` stops routing only.
+   * reader, finding 6). A driver halted by `failRun` on a run it started is NOT deaf: `OR-R10` halts routing only.
    */
   private deaf = false;
 
@@ -1616,7 +1626,7 @@ export class Driver {
    *      so is a replay that ends short. A replay that runs PAST the stored events is the stored run's
    *      lost tail — a checkpoint taken inside `onFoldInput` ends mid-step (ADR 0064) — and it is
    *      DELIVERED, because the consumer does not hold it (`RN-R24`).
-   *   4. **A run the replay STOPS is refused** as `stopped` (P23 decision 10), its tail delivered first.
+   *   4. **A run the replay HALTS is refused** as `halted` (P23 decision 10), its tail delivered first.
    *   5. **Append `resumed`** naming the IN-FLIGHT set — dispatched and never settled, in dispatch order
    *      (`RN-R21`, `RN-R22`) — and then hand each to the scheduler at the SAME task id.
    *
@@ -1663,15 +1673,15 @@ export class Driver {
       throw e;
     }
     this.replay = null;
-    // **`stopped` regenerated PAST the stored events** — the lost tail held the run's stop. The
-    // elements were delivered (the consumer's store now holds the stop); the run is not resumed.
+    // **`halted` regenerated PAST the stored events** — the lost tail held the run's halt. The
+    // elements were delivered (the consumer's store now holds the halt); the run is not resumed.
     if (this.failed) {
       this.deaf = true;
-      const at = this.inputs.findIndex((e) => e.kind === 'stopped');
-      throw new ResumeRefused('stopped', at,
-        `ResumeRefused (stopped): replaying run "${this.runId}" regenerated its STOP at position ${at} — past the ${stored.length} ` +
-          `stored element(s), in the tail the store had lost: ${describeElement(this.inputs[at])}. A stopped run is not resumable ` +
-          '(P23 decision 10); the tail, `stopped` included, has been delivered to onFoldInput so a store can hold it.');
+      const at = this.inputs.findIndex((e) => e.kind === 'halted');
+      throw new ResumeRefused('halted', at,
+        `ResumeRefused (halted): replaying run "${this.runId}" regenerated its HALT at position ${at} — past the ${stored.length} ` +
+          `stored element(s), in the tail the store had lost: ${describeElement(this.inputs[at])}. A halted run is not resumable ` +
+          '(P23 decision 10); the tail, `halted` included, has been delivered to onFoldInput so a store can hold it.');
     }
     const inFlight = this.inFlight();
     // **`resumed` BEFORE the first re-dispatch** (P23 stop-and-ask (a)): a consumer and the fold learn
@@ -1695,8 +1705,8 @@ export class Driver {
 
   /**
    * **The replay** — `RN-R19` and `RN-R20`. Every fed element goes through {@link Driver.feed}, which
-   * turns a refusal routing raises into a `stopped` element exactly as the listener's boundary does
-   * (`OR-R10`), so the replay regenerates a stop where the stored run had one.
+   * turns a refusal routing raises into a `halted` element exactly as the listener's boundary does
+   * (`OR-R10`), so the replay regenerates a halt where the stored run had one.
    */
   private replayStored(stored: readonly FoldInput[]): void {
     const replay = this.replay!;
@@ -1808,12 +1818,12 @@ export class Driver {
     const { runId, nodeId, branchPath } = parseTaskId(taskId);
     // `OR-R10` — *"the driver has stopped routing it"*, and that has to hold on
     // the INBOUND edge too. `onEventOrThrow` checks this; `resolve` did not, so a
-    // resolution for a suspended task in a stopped run appended a record and
+    // resolution for a suspended task in a halted run appended a record and
     // dispatched. W5's sequence made it visible: the elements kept arriving after
-    // the `stopped` element, while `withOutcome` pins the outcome to `stopped`,
+    // the `halted` element, while `withOutcome` pins the outcome to `halted`,
     // so nothing reported the work. Refused like any other rejected command.
     // **And after a CANCEL** (`RN-R28`, ADR 0094 rule 3): a parked task in a cancelled run stays parked, as
-    // after a stop — the run is terminal, and a resolution would route a run its owner ended.
+    // after a halt — the run is terminal, and a resolution would route a run its owner ended.
     if (this.failed || this.cancelled) return false;
     // **`FD-R4` at the RESOLVE boundary — W73.** A person's `done` value is held to the parked node's
     // worker `outputSchema` before anything is appended: refused, the task is STILL suspended and a
@@ -1851,7 +1861,7 @@ export class Driver {
     // nothing** — W33's conformity reader. `onEvent` catches and reports (`OR-R10`);
     // `start` catches, reports and rethrows because the caller is on the stack. This
     // call sat outside any guard, so a refusal raised while routing a RESOLUTION was
-    // thrown at the caller and **nothing else happened**: no `stopped` input,
+    // thrown at the caller and **nothing else happened**: no `halted` input,
     // `hasFailed()` still false so later settlements kept routing, and
     // `fold(foldInputs())` reporting **`completed`** for a run that did none of its
     // work.
@@ -1859,7 +1869,7 @@ export class Driver {
     // **Measured, against the listener as a control** — the same map whose `over`
     // does not name an array, reached two ways:
     //
-    //     through the listener:  reported [UnresolvedMapArity]  hasFailed true   stopped
+    //     through the listener:  reported [UnresolvedMapArity]  hasFailed true   halted
     //     through resolve():     threw, reported []             hasFailed false  COMPLETED
     //
     // The unguarded call predates this item — a throwing user predicate could always
@@ -1919,18 +1929,18 @@ export class Driver {
     }
   }
 
-  /** Whether this run has been stopped by a refusal. */
+  /** Whether this run has been HALTED by a refusal (`OR-R10`; its outcome `halted`). */
   hasFailed(): boolean {
     return this.failed;
   }
 
   private failRun(cause: unknown): void {
-    // `RN-R8` — `stopped` outranks everything, and the fold learns it here.
+    // `RN-R8` — `halted` outranks everything, and the fold learns it here.
     //
     // *(This read *"Appended before `failed` is set so a re-entrant `onFoldInput`
     // listener sees the same order a later `foldInputs()` reader does"* — which is
     // the OPPOSITE of what the three lines below do: `failed` is set FIRST and the
-    // `stopped` element is appended after it. The order is right and the sentence
+    // `halted` element is appended after it. The order is right and the sentence
     // was not; W53's conformity reader, in a file W53 owns, on a comment W53 wrote
     // its own paragraph directly beneath.)*
     //
@@ -1943,7 +1953,7 @@ export class Driver {
     const err = cause instanceof Error ? cause : new Error(String(cause));
     let seq: number | null = null;
     if (!already) {
-      seq = this.append({ kind: 'stopped', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
+      seq = this.append({ kind: 'halted', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
       // **The RUN-LEVEL moment — the THIRD of the three
       // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
       // rule 3 names**, and it is not per-region: `OR-R10` says the driver has
@@ -1954,13 +1964,13 @@ export class Driver {
       // every region's collection is unreadable from here whether or not its join
       // had fired.
       //
-      // **The LOG is untouched, and that asymmetry is rule 2.** A stopped run is a
+      // **The LOG is untouched, and that asymmetry is rule 2.** A halted run is a
       // run a consumer folds to find out what happened; releasing what the fold
       // reads would be the plausible wrong answer P15 decision 2 forbids. This
       // drops only the structure no `FoldInput` carries.
       this.arrivals.clear();
     }
-    // `RN-R24`: during a replay a failure is reported only with the `stopped` element it appended
+    // `RN-R24`: during a replay a failure is reported only with the `halted` element it appended
     // PAST the stored events — below them the append has already refused the resume as `diverged`.
     if (this.replay !== null && (seq === null || !this.delivers(seq))) return;
     this.opts.onRunFailure?.({
@@ -1978,7 +1988,7 @@ export class Driver {
     // W13 shipped this after `normalizeEvent` and W13's conformity reader measured
     // what that cost: `normalizeEvent` throws `UncloneableResult` (`OR-R6`) while
     // copying `result`, so **another run's settlement with an uncloneable result
-    // stopped THIS run** and reported a `RunFailure` carrying *that other run's
+    // halted THIS run** and reported a `RunFailure` carrying *that other run's
     // id*. ADR 0023 rule 3 says a foreign settlement *"is not a failure, is not
     // counted, and does not reach `onRunFailure`"* — all three were false, on
     // precisely the `OR-R6` path L6's `uncloneable` row exercises, on the very
@@ -1989,7 +1999,7 @@ export class Driver {
     // **Tier 0 — an id no driver minted.** ADR 0023 rule 2 used to stop the run
     // here, on the ground that *"does not parse" is not "not ours", it is a
     // defect*, and left the topology it blessed carrying an unauditable
-    // precondition: one plain non-flow task settling stopped **every** driver on
+    // precondition: one plain non-flow task settling halted **every** driver on
     // that scheduler. [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
     // supersedes it and retires the precondition — `buildTaskId` emits only
     // four-segment ids in the `ID-R2`/`FD-V16` charsets, so an id that fails
@@ -2105,7 +2115,7 @@ export class Driver {
     if (record.terminalState === 'cancelled') {
       // **`RN-R28` — the FIRST cancelled settlement halts the run** (ADR 0094 rule 3, W158). Exactly `failRun`'s
       // halt and nothing of its report: the record above is already in the log, which is all the fold needs to
-      // read the run `cancelled`, so no `stopped` element is appended and `onRunFailure` is not called. Every
+      // read the run `cancelled`, so no `halted` element is appended and `onRunFailure` is not called. Every
       // region's collection is released — `failRun`'s RUN-LEVEL moment (ADR 0046 rule 3, `JP-R12`), because no
       // join of this run settles again. The tasks still in flight are the scheduler's: each is appended as it
       // settles, above, and routed nowhere, by the line above this block.
@@ -2663,7 +2673,7 @@ export class Driver {
           throw new UndeclaredRoute(
             `FD-R5 — run "${runId}" reached gate "${nodeId}" and its type "${node.type}" returned ` +
               `${describeRoute(decided.route)}, which it does not declare; its routes are ${set.routes.map((r) => JSON.stringify(r)).join(', ')}. ` +
-              'A route only running the type reveals cannot be refused at load (FD-V41 wires every DECLARED route), so the run stops ' +
+              'A route only running the type reveals cannot be refused at load (FD-V41 wires every DECLARED route), so the run halts ' +
               'here rather than routing nowhere. The type is the CODE registered under that name, not the document.',
           );
         }
@@ -3651,11 +3661,11 @@ export class Driver {
     // un-wrapped, so a re-entrant listener can reach `failRun` from the line above —
     // and `failRun` is exactly where every region's collection is released.
     //
-    // **W53 did not create the defect; it made it SILENT, which is worse.** A stopped
+    // **W53 did not create the defect; it made it SILENT, which is worse.** A halted
     // run routing out of a join at all is `OR-R10`'s own violation and pre-dates this
     // item. Before W53 the successor was dispatched with the full collection; after
     // it, measured on one flow with one re-entrant listener, the successor is
-    // dispatched with **`{}`** — a run that has been stopped, handing a node an empty
+    // dispatched with **`{}`** — a run that has been halted, handing a node an empty
     // object that looks like `live-token`'s legitimate all-exited case.
     //
     // **Costs 0 at L1-L5 and 0 at L6**, and it tightens an existing rule rather than

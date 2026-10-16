@@ -206,7 +206,7 @@ suite('a policy that misbehaves does not take the run down silently', (test) => 
     equal(failures.length, 1, 'a throw from a listener is discarded by dispatchEvent, so it is ' +
       'caught at the boundary and reported instead');
     equal(failures[0]!.kind, 'Error', 'and carries what went wrong');
-    ok(d.hasFailed(), 'the run is stopped rather than left half-routed');
+    ok(d.hasFailed(), 'the run is halted rather than left half-routed');
   });
 
   test('a throwing describe does not latch the region, so the report is not lost forever', async () => {
@@ -299,6 +299,6 @@ suite('three things the driver decides that spec/ does not state', (test) => {
     scheduler.settle('r1:scoreA:0:0', 'done', { result: {} });
     equal(failures.length, 1, 'reported rather than swallowed by dispatchEvent');
     ok(failures[0]!.message.includes('describe exploded'), 'carrying what went wrong');
-    ok(d.hasFailed(), 'and the run is stopped rather than left half-routed');
+    ok(d.hasFailed(), 'and the run is halted rather than left half-routed');
   });
 });

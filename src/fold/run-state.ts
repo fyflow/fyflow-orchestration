@@ -39,9 +39,15 @@ export type NodeState = 'running' | 'done' | 'failed' | 'suspended' | 'cancelled
  * a task of the run settled `cancelled`, so the driver halted it (`RN-R28`). **Widening this union is BREAKING
  * for a consumer switching on it exhaustively** — `resumed`'s and `gated`'s precedent; a consumer comparing
  * strings sees a value it never named, and `isTerminal` already calls it terminal.
+ *
+ * **`halted` is v0.16's NAME for the outcome 0.7.0 called `stopped`** — W171,
+ * [ADR 0102](../../doc/decisions/0102-a-run-the-driver-halts-is-halted-and-a-stored-stopped-reads-as-one.md), P34
+ * decision 2 and stop-and-ask (f): a refusal terminated the run (`OR-R10`, `RN-R8`). *Stop* is P34's resumable stop
+ * of a run (W174), so the old name leaves this union ENTIRELY: **BREAKING**, and loudly — a consumer's
+ * `outcome === 'stopped'` no longer compiles, rather than silently changing what it means. The count does not move.
  */
 export type RunOutcome =
-  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'stopped' | 'stuck' | 'cancelled';
+  | 'running' | 'completed' | 'failed' | 'awaiting_action' | 'halted' | 'stuck' | 'cancelled';
 
 /** How a branch left its region. `null` while it is still live. */
 export type BranchSettlement = 'arrived' | 'exited' | 'lost';
@@ -110,8 +116,11 @@ export interface RunState {
   regions: Record<string, Record<string, RegionRun>>;
   /** How each path ended, in order. What separates `completed` from `failed`. */
   pathEnds: { reason: 'end' | 'no-eligible-edge'; at: string }[];
-  /** Set when a refusal terminated the run (`OR-R10`, `RN-R8`). */
-  stoppedBy: string | null;
+  /**
+   * Set when a refusal HALTED the run (`OR-R10`, `RN-R8`): the refusal's class, `: `, and its message. *(0.7.0's
+   * `stoppedBy` — renamed with the outcome by ADR 0102; BREAKING, and a consumer reading the old name fails to compile.)*
+   */
+  haltedBy: string | null;
   /**
    * **Every resume this run has had, in order, each the task ids it handed a scheduler AGAIN** —
    * `RN-R22`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
@@ -185,7 +194,7 @@ export interface GateDecision {
  *
  * Neither is a log record, and neither belongs in one: `spec/outcome-record.md`
  * section 1 fixes the log at two kinds. This is the fold's input sequence, which
- * already carried region events and a stop for the same reason.
+ * already carried region events and a halt for the same reason.
  *
  * **`joinSettled` is W5's, and it is the third fact of this shape**
  * ([ADR 0015](../../doc/decisions/0015-a-run-whose-join-can-no-longer-fire-is-stuck.md)):
@@ -232,7 +241,18 @@ export type FoldInput =
   | { kind: 'dispatched'; taskId: string }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
   | { kind: 'joinSettled'; regionId: string; regionPath: string; joinId: string; fired: boolean }
-  | { kind: 'stopped'; reason: string }
+  /**
+   * **A refusal HALTED the run** — `OR-R10`, `RN-R8`; appended by the driver's `failRun`, `reason` the refusal's class,
+   * `: ` and its message. **0.7.0 wrote this element as `{ kind: 'stopped', reason }`** and ADR 0102 renamed it
+   * (W171, P34 stop-and-ask (f)). **The old kind is READ, never written, and is not a member of this union**: a stored
+   * sequence is data from before the rename, so {@link step} folds an element whose `kind` is `'stopped'` exactly as
+   * this one and `resumeRefusal` refuses it `halted` at its position — `CHECKPOINT_FORMAT` stays `1`, and a 0.7.0
+   * checkpoint of a halted run is refused for the right reason while one of a live run still resumes. Nothing in this
+   * library writes `'stopped'` again, and the type says so: a consumer's `kind === 'stopped'` no longer compiles.
+   * **BREAKING in 0.8.0** (P34 decision 10): a consumer that switched on, compared or CONSTRUCTED the old kind fails
+   * to compile.
+   */
+  | { kind: 'halted'; reason: string }
   /**
    * **The run was RESUMED, and these are the tasks handed to a scheduler again** — `RN-R22`,
    * [W89](../../doc/work-items/w89-what-resuming-is.md), P23 stop-and-ask (a), answered: *a resume
@@ -265,7 +285,7 @@ export type FoldInput =
   | ({ kind: 'gated' } & GateDecision);
 
 export function emptyState(): RunState {
-  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], stoppedBy: null, resumes: [], gated: [] };
+  return { runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, resumes: [], gated: [] };
 }
 
 /**
@@ -274,8 +294,11 @@ export function emptyState(): RunState {
  * whole) and what makes a fold usable while a run is still going.
  */
 export function step(prev: RunState, input: FoldInput): RunState {
-  if (input.kind === 'stopped') {
-    return { ...prev, stoppedBy: input.reason, outcome: 'stopped' };
+  // `RN-R8` and ADR 0102 rule 3, the DUAL READ: a stored `{ kind: 'stopped', reason }` is 0.7.0's name for this element,
+  // read here and written nowhere. Not in `FoldInput`, so the comparison goes through `string` — without it a 0.7.0 log
+  // of a halted run fell through to `input.record` below and THREW (P34 fact 7 (iii)).
+  if (input.kind === 'halted' || (input.kind as string) === 'stopped') {
+    return { ...prev, haltedBy: (input as { reason: string }).reason, outcome: 'halted' };
   }
 
   if (input.kind === 'region') {
@@ -439,13 +462,13 @@ function applyRegion(prev: RunState, e: RegionEvent): RunState {
 
 /** Section 3's precedence, in one place so `RN-R7`, `RN-R8` and `RN-R28` cannot disagree with each other. */
 function withOutcome(s: RunState): RunState {
-  // `RN-R8` — a run a refusal terminated is `stopped` whatever its nodes say,
+  // `RN-R8` — a run a refusal terminated is `halted` whatever its nodes say,
   // because the log after that point is incomplete by construction.
-  if (s.stoppedBy !== null) return { ...s, outcome: 'stopped' };
+  if (s.haltedBy !== null) return { ...s, outcome: 'halted' };
   const nodes = Object.values(s.nodes);
 
-  // `RN-R28` — a run a task of which settled `cancelled` is `cancelled`, below `stopped` and above everything
-  // else (ADR 0094 rule 3, W158). Below `stopped` because a refusal is a defect and must not hide behind an
+  // `RN-R28` — a run a task of which settled `cancelled` is `cancelled`, below `halted` and above everything
+  // else (ADR 0094 rule 3, W158). Below `halted` because a refusal is a defect and must not hide behind an
   // owner's choice; above `awaiting_action` because a parked task must not make a cancelled run read as waiting
   // for a person — the driver refuses its `resolve()` — and above `running` and `stuck` because the driver has
   // halted it: what is still in flight settles into `nodes` and moves nothing else, and a join it left waiting
@@ -544,7 +567,7 @@ export function foldLog(log: readonly LogRecord[]): RunState {
  * `running` and `awaiting_action` are the two outcomes that say more input is
  * coming that can MOVE the run: a dispatched node has not settled, or a person has
  * not answered. `completed`, `failed` and `stuck` are reached only when nothing is
- * live. `stopped` and — since W158 — `cancelled` are reached with dispatched nodes
+ * live. `halted` and — since W158 — `cancelled` are reached with dispatched nodes
  * possibly still unsettled: the driver has HALTED the run, so what is in flight
  * settles into `nodes` routed nowhere and moves no outcome. Either way the run is
  * over. **This is `stuck`'s point:** before

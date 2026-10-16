@@ -359,16 +359,16 @@ suite(SUITE, (test) => {
       const last = h.driver.foldInputs().at(-1)!;
       equal([h.failures.length, h.failures[0]?.kind], [1, 'UndeclaredRoute'], `ret=${String(ret)}: reported once, by name`);
       // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
-      equal([h.failures[0]!.message.startsWith('FD-R5 — run "R" reached gate "g"'), String(h.failures[0]!.cause), String(fold(h.driver.foldInputs()).stoppedBy), `${h.failures[0]!.kind}: ${h.failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UndeclaredRoute').length),
-        [true, 2, 2, 2], `ret=${String(ret)}: the message opens with the rule, and String(e), stoppedBy and kind: message each name the class EXACTLY once: ${String(h.failures[0]!.cause).slice(0, 80)}`);
+      equal([h.failures[0]!.message.startsWith('FD-R5 — run "R" reached gate "g"'), String(h.failures[0]!.cause), String(fold(h.driver.foldInputs()).haltedBy), `${h.failures[0]!.kind}: ${h.failures[0]!.message}`].map((s, i) => i === 0 ? s : String(s).split('UndeclaredRoute').length),
+        [true, 2, 2, 2], `ret=${String(ret)}: the message opens with the rule, and String(e), haltedBy and kind: message each name the class EXACTLY once: ${String(h.failures[0]!.cause).slice(0, 80)}`);
       equal((h.failures[0]!.cause as Error).name, 'UndeclaredRoute', `ret=${String(ret)}: the class sets its OWN name, not one that merely contains it (W140 adequacy reader, finding 1)`);
       ok(/FD-R5/.test(h.failures[0]!.message) && h.failures[0]!.message.includes('"g"') && h.failures[0]!.message.includes('"rogue"'),
         `ret=${String(ret)}: naming the rule, the gate and the type: ${h.failures[0]!.message.slice(0, 160)}`);
       // …and what the type RETURNED and the routes it DECLARES, as the spec's row says (the adequacy reader's R6).
       ok(h.failures[0]!.message.includes(typeof ret === 'string' ? JSON.stringify(ret) : String(ret)) && h.failures[0]!.message.includes('its routes are "ok"'),
         `ret=${String(ret)}: naming what was returned and the declared routes: ${h.failures[0]!.message.slice(0, 220)}`);
-      equal([last.kind, h.gated().length, h.ids()], ['stopped', 0, ['R:first:-:0']], `ret=${String(ret)}: stopped, NO gated element, and nothing past the gate dispatched`);
-      equal(fold(h.driver.foldInputs()).outcome, 'stopped', `ret=${String(ret)}: the run is stopped (OR-R10)`);
+      equal([last.kind, h.gated().length, h.ids()], ['halted', 0, ['R:first:-:0']], `ret=${String(ret)}: halted, NO gated element, and nothing past the gate dispatched`);
+      equal(fold(h.driver.foldInputs()).outcome, 'halted', `ret=${String(ret)}: the run is halted (OR-R10)`);
     }
     equal(driven, ['nope', 42, undefined], 'every return shape was driven — a string the type does not declare, a number and nothing');
     // From start(): an ENTRY gate. Reported AND rethrown, since the caller is on the stack.
@@ -389,7 +389,7 @@ suite(SUITE, (test) => {
     err = undefined;
     try { hr.driver.resolve('R:first:-:0', 'done', { result: { x: 1 }, actor: 'ana' }); } catch (e) { err = e; }
     ok(err instanceof UndeclaredRoute, `resolve() rethrows it: ${String(err)}`);
-    equal([hr.failures.map((f) => f.kind), fold(hr.driver.foldInputs()).outcome], [['UndeclaredRoute'], 'stopped'], 'reported once, and the run is stopped');
+    equal([hr.failures.map((f) => f.kind), fold(hr.driver.foldInputs()).outcome], [['UndeclaredRoute'], 'halted'], 'reported once, and the run is halted');
   });
 
   test('a gate type that THROWS stops the run with ITS OWN error, as a throwing predicate does — from the listener and from start()', () => {
@@ -402,7 +402,7 @@ suite(SUITE, (test) => {
     const h = harness(flow, { gateTypes: { rogue } });
     h.driver.start({});
     h.scheduler.settle('R:first:-:0', 'done', { x: 1 });
-    equal([h.failures.map((f) => f.kind), h.gated().length, h.driver.foldInputs().at(-1)!.kind], [['Boom'], 0, 'stopped'],
+    equal([h.failures.map((f) => f.kind), h.gated().length, h.driver.foldInputs().at(-1)!.kind], [['Boom'], 0, 'halted'],
       'the type`s own error, unwrapped — not UndeclaredRoute — and nothing recorded for the gate');
     // The ENTRY gate's flow is the same gate with nothing before it — a `first` left in would be FD-V11, unreachable.
     const entry = { ...flow, entry: 'g', nodes: flow.nodes.filter((n) => n.id !== 'first') } as FlowDefinition;
@@ -909,13 +909,13 @@ suite(W153_SUITE, (test) => {
     h.scheduler.settle('R:first:-:0', 'done', { colour: 'blue' });
     // gA decides blue — its own route — and the branch enters gB with the same value, where `fn` returns blue
     // again. gB's set is red and other: blue is undeclared THERE, whatever gA declares.
-    equal(h.failures.map((f) => f.kind), ['UndeclaredRoute'], 'stopped once, by name');
+    equal(h.failures.map((f) => f.kind), ['UndeclaredRoute'], 'halted once, by name');
     const msg = h.failures[0]!.message;
     ok(msg.startsWith('FD-R5') && msg.includes('"gB"') && msg.includes('"blue"') && msg.includes('its routes are "red", "other"'),
       `naming the rule, the gate, what was returned and THE GATE's routes: ${msg.slice(0, 260)}`);
     equal(h.gated().map((g) => `${g.gateId}:${g.route}`), ['gA:blue'], 'gA`s decision recorded, and nothing for gB');
     equal(h.ids(), ['R:first:-:0'], 'nothing past gB dispatched');
-    equal(fold(h.driver.foldInputs()).outcome, 'stopped', 'the run is stopped');
+    equal(fold(h.driver.foldInputs()).outcome, 'halted', 'the run is halted');
   });
 
   test('routesFor is asked once per gate when the driver is constructed, and not again while the run decides', () => {

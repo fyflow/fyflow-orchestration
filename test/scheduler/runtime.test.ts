@@ -2068,9 +2068,9 @@ suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that
  * | **II** | refused DURING `start()` — `failRun(e)` **then `throw e`**, the caller being on the stack | `runtime.start` throws, so the caller **never receives the handle** |
  * | **III** | refused from a LISTENER — `failRun(e)` alone, a throw from a listener being discarded | the caller **holds** the handle |
  *
- * **Two measurements decide it.** First, `failRun` appends the `stopped` fold input BEFORE calling
+ * **Two measurements decide it.** First, `failRun` appends the `halted` fold input BEFORE calling
  * `onRunFailure`, so a refusal is ALREADY terminal when a consumer hears of it — the resolve road
- * does not hang, it settles with `stopped` and `stoppedBy` carrying the reason. Second, on class II
+ * does not hang, it settles with `halted` and `haltedBy` carrying the reason. Second, on class II
  * the reject road rejects a promise nobody can attach to: measured in a CHILD process with no
  * `unhandledRejection` listener (because a listener suppresses the default and measures the event
  * rather than the consequence), **the reject road exited 1 — the process DIED** on an authoring
@@ -2083,7 +2083,7 @@ suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that
  * W71's `MissingJoinPolicy` finding one refusal over, and it is why class III below is a `map` over
  * a non-array.)*
  */
-suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never rejects', (test) => {
+suite('W77 — a driver refusal RESOLVES `done` with `halted`, and never rejects', (test) => {
   const DOCUMENT = {
     workers: { w: { url: 'https://example.test/w.js' } },
     nodeTypes: { T: { worker: 'w', inline: true } },
@@ -2125,7 +2125,7 @@ suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never reject
     ],
   } as unknown as FlowDefinition;
 
-  test('class III — refused from a LISTENER: `done` RESOLVES with `stopped`, carrying `stoppedBy`', async () => {
+  test('class III — refused from a LISTENER: `done` RESOLVES with `halted`, carrying `haltedBy`', async () => {
     const s = seams();
     const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
     let reported = 0;
@@ -2135,9 +2135,9 @@ suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never reject
     s.settle(String(s.added[0]!.id), { notAnArray: true });
     const settled = await w77Settlement(done);
     equal(reported, 1, 'the CONTROL: onRunFailure fired, so this row is about a refusal rather than about a quiet run');
-    equal(settled.outcome, 'stopped', 'and `done` RESOLVED rather than rejecting — `stopped` is a terminal outcome like any other');
-    ok(String(settled.stoppedBy).includes('UnresolvedMapArity'),
-      `and the reason survives in the RunState rather than being thrown away: ${String(settled.stoppedBy).slice(0, 60)}`);
+    equal(settled.outcome, 'halted', 'and `done` RESOLVED rather than rejecting — `halted` is a terminal outcome like any other');
+    ok(String(settled.haltedBy).includes('UnresolvedMapArity'),
+      `and the reason survives in the RunState rather than being thrown away: ${String(settled.haltedBy).slice(0, 60)}`);
     ok(deepEqual(settled, fold(driver.foldInputs())), 'and it is still the caller`s own fold — the invariant holds through a refusal too');
   });
 
@@ -2170,10 +2170,10 @@ suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never reject
    * It is the door that matters most here: `resolve()` is ADR 0004's road and **the only way out of
    * `awaiting_action`**, which is the one non-terminal outcome ADR 0058 spends a decision on. So a
    * consumer waiting on `done` for a person to answer, whose answer is then REFUSED, gets both a
-   * throw from `resolve` and a `done` that resolves with `stopped` — correct, and asserted nowhere
+   * throw from `resolve` and a `done` that resolves with `halted` — correct, and asserted nowhere
    * until this case.
    */
-  test('class II(b) — refused from `resolve()`: the caller gets the throw AND `done` resolves `stopped`', async () => {
+  test('class II(b) — refused from `resolve()`: the caller gets the throw AND `done` resolves `halted`', async () => {
     const s = seams();
     const r = createRuntime(DOCUMENT, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
     const { driver, done } = r.start(PARK_THEN_MAP, { x: 1 }, {});
@@ -2188,9 +2188,9 @@ suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never reject
     equal(threw, 'UnresolvedMapArity',
       '`resolve` reports AND rethrows, exactly as `start` does — the caller is on the stack (src/driver/driver.ts:1140)');
     const settled = await w77Settlement(done);
-    equal(settled.outcome, 'stopped',
-      'and the handle the caller has held since `start` RESOLVES with `stopped` — so a person`s refused answer does not leave `done` waiting for ever');
-    ok(String(settled.stoppedBy).includes('UnresolvedMapArity'), `with the reason: ${String(settled.stoppedBy).slice(0, 50)}`);
+    equal(settled.outcome, 'halted',
+      'and the handle the caller has held since `start` RESOLVES with `halted` — so a person`s refused answer does not leave `done` waiting for ever');
+    ok(String(settled.haltedBy).includes('UnresolvedMapArity'), `with the reason: ${String(settled.haltedBy).slice(0, 50)}`);
   });
 
   test('`done` never rejects: a .catch on a refused run is not the road the answer arrives by', async () => {
@@ -2204,7 +2204,7 @@ suite('W77 — a driver refusal RESOLVES `done` with `stopped`, and never reject
     ok(await bounded === 'settled', '`done` settled at all — without this the two reads below would hang the runner rather than fail this case');
     await done.then((st) => { resolvedWith = st.outcome; }, (e) => { rejectedWith = e; });
     equal(rejectedWith, 'NOT REJECTED', '`done` has ONE settlement rule — terminality — and a refusal is terminal, so the rejection road is never taken');
-    equal(resolvedWith, 'stopped', 'the answer arrives by the resolve road, carrying the whole RunState');
+    equal(resolvedWith, 'halted', 'the answer arrives by the resolve road, carrying the whole RunState');
   });
 });
 
@@ -2270,16 +2270,16 @@ suite('W77 — a consumer`s own onFoldInput still receives every element, and `d
     ok(fired > 1, `the CONTROL: the throwing callback really did throw (${fired} calls)`);
     ok(isTerminal(settled),
       '`done` SETTLED rather than hanging, which is the property: the runtime records and schedules BEFORE handing on, so its own bookkeeping cannot be shortened by a consumer`s callback');
-    // **And the outcome is `stopped`, not `completed`, which this case got wrong on its first run.**
+    // **And the outcome is `halted`, not `completed`, which this case got wrong on its first run.**
     // A consumer's `onFoldInput` has always been called UNGUARDED (`src/driver/driver.ts`), so a
     // throw from it unwinds into the driver's listener boundary, where `OR-R10` catches it and
     // fails the run — that is behaviour ADR 0058 inherits rather than introduces. The useful half
     // is that `done` REPORTS it: a consumer whose own handler threw learns the run stopped and why,
     // where a hand-rolled block that folded inside the same handler would simply never resolve.
-    equal(settled.outcome, 'stopped',
-      'and it reports the consumer`s own throw as what it is — a run failure through OR-R10, with the reason in `stoppedBy`');
-    ok(String(settled.stoppedBy).includes('consumer callback blew up'),
-      `and the consumer's own message is what the run stopped for: ${String(settled.stoppedBy).slice(0, 60)}`);
+    equal(settled.outcome, 'halted',
+      'and it reports the consumer`s own throw as what it is — a run failure through OR-R10, with the reason in `haltedBy`');
+    ok(String(settled.haltedBy).includes('consumer callback blew up'),
+      `and the consumer's own message is what the run stopped for: ${String(settled.haltedBy).slice(0, 60)}`);
   });
 
   test('a `.then` attached long AFTER the run is over still receives the answer — P20 fact 4C, through the real API', async () => {
@@ -2711,7 +2711,7 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
       'r1 and r3 were handed their own settlement before done and NOTHING after; r2, live, the unminted id');
     equal([r1.unminted, r2.unminted, r3.unminted], [[], ['nightly-cleanup'], []],
       'so only the live r2 reports what nobody minted (ADR 0088 rule 4 row 3 reaches the drivers the runtime still holds)');
-    equal(r3.failures, [], 'and r3 is not stopped AFTER it completed by its own run id on a task it never dispatched — ID-R4 tier 2 reaches live runs only');
+    equal(r3.failures, [], 'and r3 is not halted AFTER it completed by its own run id on a task it never dispatched — ID-R4 tier 2 reaches live runs only');
     equal([r1, r3].map((x) => x.driver.foldInputs().length), lengths, 'neither finished sequence grew');
     equal([r1, r3].map((x) => fold(x.driver.foldInputs()).outcome), ['completed', 'completed'], 'and both runs are still what done said they were');
     s.done('r2:a:-:0');
@@ -2781,17 +2781,17 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     equal(inUseAt(() => r.start(FLOW, { must: 1 }, { runId: 'bx' })), 'bx', 'and its id is in use all the same (RN-R25)');
   });
 
-  test('a STOPPED run`s task still in flight settles into nobody once done has the stop — and done`s state is unchanged', async () => {
+  test('a HALTED run`s task still in flight settles into nobody once done has the halt — and done`s state is unchanged', async () => {
     const { s, open } = onRuntime();
     const run = open('r1');
     // Our run id on a task we never dispatched: `ID-R4` tier 2 stops the run with `a` still in flight.
     s.done('r1:b:-:0');
     const state = await w77Settlement(run.done);
-    equal([state.outcome, run.failures], ['stopped', ['UndispatchedTask']], 'the ARRANGEMENT: stopped, with a still running');
+    equal([state.outcome, run.failures], ['halted', ['UndispatchedTask']], 'the ARRANGEMENT: halted, with a still running');
     const length = run.driver.foldInputs().length;
     s.done('r1:a:-:0');
-    equal(run.handed, ['r1:b:-:0'], 'a`s late settlement was handed to no driver (ADR 0091, its stopped-run consequence)');
-    equal(run.driver.foldInputs().length, length, 'so it is not appended to the stopped run`s sequence, where before ADR 0091 it was');
+    equal(run.handed, ['r1:b:-:0'], 'a`s late settlement was handed to no driver (ADR 0091, its halted-run consequence)');
+    equal(run.driver.foldInputs().length, length, 'so it is not appended to the halted run`s sequence, where before ADR 0091 it was');
     equal(fold(run.driver.foldInputs()), state, 'and the fold of what the run holds is still exactly what done resolved with');
   });
 

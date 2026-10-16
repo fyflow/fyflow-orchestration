@@ -31,7 +31,7 @@ export interface TaskDetailLike {
  * `OR-R6`'s refusal. **It sets its own `name`**, as `BoundaryRefused` and `ResumeRefused` do, so the
  * error's own render — `String(e)`, a stack's first line — reads `UncloneableResult: <message>`. Since
  * W133 the MESSAGE no longer carries the class name (Q63), and without this the error itself would
- * say `Error:` everywhere but `RunFailure.kind` and `stoppedBy`.
+ * say `Error:` everywhere but `RunFailure.kind` and `haltedBy`.
  */
 export class UncloneableResult extends Error {
   constructor(message?: string, options?: ErrorOptions) {
@@ -103,7 +103,7 @@ export function normalizeEvent(
     } catch (cause) {
       // OR-R6 — a result that cannot be cloned cannot be logged, cannot be handed
       // to a predicate deterministically, and could never be persisted (Q15).
-      // The message does not name the class: `RunFailure.kind`, `stoppedBy` and the
+      // The message does not name the class: `RunFailure.kind`, `haltedBy` and the
       // error's own `name` already do, so naming it here read it twice (Q63, P30
       // decision 2).
       throw new UncloneableResult(

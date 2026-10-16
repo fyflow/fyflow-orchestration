@@ -116,14 +116,14 @@ suite('ID-R4 — a settlement carrying OUR run id for a task we never dispatched
 
       equal(r.failures, ['UndispatchedTask'], `ID-R4 refuses it: ${why}`);
       // W140 — Q533, P31 decision 2: the class names the refusal ONCE, by its own `name`; the message does not.
-      equal([r.messages[0]!.startsWith(`"${taskId}" settled in run "r1"`), String(r.causes[0]), String(fold(r.driver.foldInputs()).stoppedBy), `${r.failures[0]}: ${r.messages[0]}`].map((s, i) => i === 0 ? s : String(s).split('UndispatchedTask').length),
-        [true, 2, 2, 2], `the message opens with the task id, and String(e), stoppedBy and kind: message each name the class EXACTLY once: ${String(r.causes[0]).slice(0, 80)}`);
+      equal([r.messages[0]!.startsWith(`"${taskId}" settled in run "r1"`), String(r.causes[0]), String(fold(r.driver.foldInputs()).haltedBy), `${r.failures[0]}: ${r.messages[0]}`].map((s, i) => i === 0 ? s : String(s).split('UndispatchedTask').length),
+        [true, 2, 2, 2], `the message opens with the task id, and String(e), haltedBy and kind: message each name the class EXACTLY once: ${String(r.causes[0]).slice(0, 80)}`);
       equal((r.causes[0] as Error).name, 'UndispatchedTask', 'the class sets its OWN name, not one that merely contains it (W140 adequacy reader, finding 1)');
       equal(r.driver.snapshot().length, 0,
         'and NOTHING is appended — the record is refused before it enters the sequence, for the ' +
         'reason ID-R1 refuses before addTask sees the task');
       equal(s.ids().length, dispatched, 'nothing was dispatched from it');
-      ok(r.driver.hasFailed(), 'RN-R8: the run is stopped, whatever its nodes say');
+      ok(r.driver.hasFailed(), 'RN-R8: the run is halted, whatever its nodes say');
     });
   }
 
@@ -193,7 +193,7 @@ suite('ID-R4 — both tiers are decided before the terminal state is read', (tes
       // so both are refused. That is two reports for one settlement — honest, and
       // noisier than the other two states. What must NOT differ by state is the
       // run stopping once, which is what `RN-R8` and the fold care about.
-      equal(r.driver.foldInputs().filter((i) => i.kind === 'stopped').length, 1,
+      equal(r.driver.foldInputs().filter((i) => i.kind === 'halted').length, 1,
         'the run stops exactly once, however many events the pair carries');
     });
 
@@ -220,7 +220,7 @@ suite('ID-R4 — both tiers are decided before the terminal state is read', (tes
     r.driver.start({});
     s.settle('run-9:ingest:-:0', 'done', { result: () => 1 });
     equal(r.failures, [], 'rule 3: not a failure, not counted, does not reach onRunFailure');
-    ok(!r.driver.hasFailed(), 'and our run is not stopped by another run`s worker bug');
+    ok(!r.driver.hasFailed(), 'and our run is not halted by another run`s worker bug');
   });
 
   test('OUR OWN uncloneable result still stops the run — OR-R6 is intact', async () => {
@@ -232,11 +232,11 @@ suite('ID-R4 — both tiers are decided before the terminal state is read', (tes
     r.driver.start({});
     s.settle('r1:ingest:-:0', 'done', { result: () => 1 });
     equal(r.failures, ['UncloneableResult'], 'OR-R6, at the listener boundary, reported not thrown');
-    ok(r.driver.hasFailed(), 'and the run is stopped');
+    ok(r.driver.hasFailed(), 'and the run is halted');
   });
 });
 
-suite('OR-R10 — a stopped run dispatches nothing further on the SCHEDULER edge', (test) => {
+suite('OR-R10 — a halted run dispatches nothing further on the SCHEDULER edge', (test) => {
   test('after a refusal, a settlement for a dispatched task routes nothing', async () => {
     // **W13's adequacy reader's blocking finding.** `OR-R10` names the test it
     // owes: *"asserting the failure is reported AND that no further task is
@@ -244,17 +244,17 @@ suite('OR-R10 — a stopped run dispatches nothing further on the SCHEDULER edge
     // stop" exercises `resolve()` — the INBOUND edge, added by W5 — and the
     // `onEvent` edge `OR-R10` was written for had none. Deleting
     // `if (this.failed) return` from `onEventOrThrow` left 314 assertions and 219
-    // L6 assertions green while a stopped run kept dispatching.
+    // L6 assertions green while a halted run kept dispatching.
     const s = new Fake();
     const r = attach(s, await load('valid/linear.flow.json'), 'r1');
     r.driver.start({});
     s.settle('r1:nosuch:-:0', 'done', { result: null });      // ID-R4 stops the run
-    ok(r.driver.hasFailed(), 'the run is stopped');
+    ok(r.driver.hasFailed(), 'the run is halted');
     const dispatched = s.ids().length;
 
     s.settle('r1:ingest:-:0', 'done', { result: null });      // a REAL, dispatched task
     equal(s.ids().length, dispatched,
-      'OR-R10: nothing routes for a stopped run again, on the edge the rule is about');
+      'OR-R10: nothing routes for a halted run again, on the edge the rule is about');
   });
 });
 
@@ -483,7 +483,7 @@ suite('ID-R5 — an inbound id no driver minted is reported and dropped, not ref
 
     s.settle('nightly-cleanup', 'done', { result: null });
 
-    equal([...a.failures, ...b.failures], [], 'neither run is stopped by a task neither of them owns');
+    equal([...a.failures, ...b.failures], [], 'neither run is halted by a task neither of them owns');
     ok(!a.driver.hasFailed() && !b.driver.hasFailed(), 'both are still routing');
     // **W18's conformity reader.** This asserted `[a.unminted.length, b.unminted.length]`
     // and claimed *"under its own run id"* in its message — which a driver
@@ -537,7 +537,7 @@ suite('ID-R5 — an inbound id no driver minted is reported and dropped, not ref
     s.settle('nightly-cleanup', 'done', { result: null });
 
     equal(failures, ['TypeError'], 'reported under the CONSUMER`s error class, at the listener boundary');
-    ok(driver.hasFailed(), 'and the run is stopped — a foreign task takes it down through their code');
+    ok(driver.hasFailed(), 'and the run is halted — a foreign task takes it down through their code');
     s.settle('r1:ingest:-:0', 'done', { result: null });
     equal(s.ids().length, before, 'so the legitimate settlement that follows routes nothing');
   });
@@ -587,7 +587,7 @@ suite('Q72 — two Drivers on ONE scheduler, which is what MultipleRuns tells yo
     equal(s.ids(), [
       'run-a:ingest:-:0', 'run-b:ingest:-:0', 'run-a:publish:-:0', 'run-b:publish:-:0',
     ], 'each task is dispatched EXACTLY once: no id is minted twice under two outcomes');
-    equal(a.failures, [], 'and neither run is stopped');
+    equal(a.failures, [], 'and neither run is halted');
     equal(b.failures, [], 'nor the other');
 
     for (const [label, rig, prefix] of [['a', a, 'run-a:'], ['b', b, 'run-b:']] as const) {
@@ -612,7 +612,7 @@ suite('Q72 — two Drivers on ONE scheduler, which is what MultipleRuns tells yo
     b.driver.start({});
     s.settle('run-a:nosuch:-:0', 'done', { result: null });
 
-    equal(a.failures, ['UndispatchedTask'], 'a is stopped by ID-R4');
+    equal(a.failures, ['UndispatchedTask'], 'a is halted by ID-R4');
     ok(a.driver.hasFailed() && !b.driver.hasFailed(), 'and b is untouched');
     s.settle('run-b:ingest:-:0', 'done', { result: {} });
     ok(s.ids().includes('run-b:publish:-:0'), 'b keeps routing');
@@ -706,10 +706,10 @@ suite('ADR 0022 — the surface says what ID-R3 says', (test) => {
     });
     throws(() => driver.start({}), 'scheduler is down',
       'the caller is on the stack, so start() rethrows');
-    equal(failures, ['Error'], 'AND reports — the run is stopped either way');
-    ok(driver.hasFailed(), 'the run is stopped');
+    equal(failures, ['Error'], 'AND reports — the run is halted either way');
+    ok(driver.hasFailed(), 'the run is halted');
     throws(() => driver.start({}), 'MultipleRuns',
-      'ID-R3: a start that threw is still a start. Retrying it would re-enter a stopped run');
+      'ID-R3: a start that threw is still a start. Retrying it would re-enter a halted run');
     void s;
   });
 

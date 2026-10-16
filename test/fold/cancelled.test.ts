@@ -7,7 +7,7 @@
  * **Every input sequence here is hand-written from the spec** — no driver produced any of it — and every
  * expected outcome is read off section 3's table, highest-ranked match first:
  *
- *   stopped > cancelled > awaiting_action > running > stuck > failed > completed
+ *   halted > cancelled > awaiting_action > running > stuck > failed > completed
  *
  * **The rule RANKS, so each case puts `cancelled` beside exactly one neighbour and asserts the neighbour
  * ALONE first** (`doc/workflow.md` section 5 rule 8 (a), *where it selects*): a fold that ranked `cancelled`
@@ -41,7 +41,7 @@ const dispatched = (taskId: string): FoldInput => ({ kind: 'dispatched', taskId 
 const ended = (reason: 'end' | 'no-eligible-edge', at = 'x'): FoldInput => ({ kind: 'pathEnded', reason, at });
 const opened = (b: string): FoldInput =>
   ({ kind: 'region', event: { type: 'branch.opened', regionId: 'split', regionPath: '-', branchPath: b } });
-const stop: FoldInput = { kind: 'stopped', reason: 'DuplicateTaskId: x' };
+const halt: FoldInput = { kind: 'halted', reason: 'DuplicateTaskId: x' };
 
 /** A cancelled task, dispatched and settled — the two inputs a driver appends for one. */
 const CANCEL: FoldInput[] = [dispatched('r1:c:-:0'), settled('r1:c:-:0', 'cancelled')];
@@ -67,7 +67,7 @@ suite('L1 — a cancelled settlement folds to a cancelled NODE, verbatim (spec/r
     equal(s.nodes['r1:c:-:0'], { nodeId: 'c', branchPath: '-', state: 'cancelled', result: null, error: null },
       'the state is COPIED from the record (OR-R3, ADR 0007 rule 2), as `done` and `failed` are — not `failed`, not `suspended`');
     equal(s.outcome, 'cancelled', 'and the run`s outcome is the seventh, `cancelled` (RN-R28)');
-    equal(s.stoppedBy, null, 'with no `stopped` element in the sequence, nothing names a refusal: a cancel is not a stop');
+    equal(s.haltedBy, null, 'with no `halted` element in the sequence, nothing names a refusal: a cancel is not a halt');
   });
 
   test('`cancelled` is TERMINAL — `isTerminal` and `done` read it as over (RN-R12)', () => {
@@ -86,7 +86,7 @@ suite('L1 — a cancelled settlement folds to a cancelled NODE, verbatim (spec/r
   });
 });
 
-suite('L1 — RN-R28: `cancelled` ranks below `stopped` and above every other outcome', (test) => {
+suite('L1 — RN-R28: `cancelled` ranks below `halted` and above every other outcome', (test) => {
   for (const [neighbour, seq] of NEIGHBOURS) {
     test(`above \`${neighbour}\`: the neighbour alone, then with a cancel, in both orders`, () => {
       equal(fold(seq).outcome, neighbour, `the ARRANGEMENT: this sequence folds to \`${neighbour}\` without the cancel`);
@@ -95,11 +95,11 @@ suite('L1 — RN-R28: `cancelled` ranks below `stopped` and above every other ou
     });
   }
 
-  test('below `stopped` — a run refused for a defect AND cancelled reads as the defect (RN-R8)', () => {
+  test('below `halted` — a run refused for a defect AND cancelled reads as the defect (RN-R8)', () => {
     equal(fold(CANCEL).outcome, 'cancelled', 'the ARRANGEMENT: the cancel alone is `cancelled`');
-    const after = fold([...CANCEL, stop]);
-    equal([after.outcome, after.stoppedBy], ['stopped', 'DuplicateTaskId: x'], 'a stop after the cancel: `stopped`, naming the refusal');
-    equal(fold([stop, ...CANCEL]).outcome, 'stopped', 'and a stop before it: still `stopped`');
+    const after = fold([...CANCEL, halt]);
+    equal([after.outcome, after.haltedBy], ['halted', 'DuplicateTaskId: x'], 'a halt after the cancel: `halted`, naming the refusal');
+    equal(fold([halt, ...CANCEL]).outcome, 'halted', 'and a halt before it: still `halted`');
   });
 
   test('a PARKED task does not make a cancelled run read as waiting for a person (P33 stop-and-ask (c))', () => {

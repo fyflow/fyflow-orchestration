@@ -249,7 +249,7 @@ suite('OR-R7 / ADR 0014 rule 2 — foldInputs() cannot be written through', (tes
     const inputs = driver.foldInputs();
     ok(Object.isFrozen(inputs), 'the returned array is frozen — the one the rule names');
     const before = inputs.length;
-    tryPush(inputs, { kind: 'stopped', reason: 'forged' });
+    tryPush(inputs, { kind: 'halted', reason: 'forged' });
     equal(driver.foldInputs().length, before,
       'ADR 0014 rule 2: fold(driver.foldInputs()) is the whole of run state, so a caller ' +
       'that can append to it can invent an outcome');
@@ -259,7 +259,7 @@ suite('OR-R7 / ADR 0014 rule 2 — foldInputs() cannot be written through', (tes
     // "A frozen copy" — a frozen ALIAS of the stored element passes `isFrozen`,
     // permanently freezes the driver's own array elements as a side effect, and
     // hands two callers the same object. W12's adequacy reader found the four
-    // flat kinds (`dispatched`, `pathEnded`, `joinSettled`, `stopped`) returned
+    // flat kinds (`dispatched`, `pathEnded`, `joinSettled`, `halted`) returned
     // as aliases survived every assertion, because no fixture here read one.
     const { driver } = await fanoutRun();
     const a = driver.foldInputs();
