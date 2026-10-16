@@ -12,7 +12,7 @@ resolves: Q278
 
 # ADR 0053 — The schema validator is a built-in subset, and a keyword outside it is refused
 
-**Status:** accepted — answers the first of [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
+**Status:** accepted — **rule 3's annotation sentence, consequence 2 and the rejected *whitelist* row superseded by [ADR 0098](0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) at v0.36 (W164) for `title`, `description`, `readOnly` and `writeOnly`, and rule 2's count amended to seventeen** — the rest of rule 3 standing: every other keyword outside the subset is refused by name; answers the first of [P18](../plans/p18-a-flow-and-its-runtime-from-documents-alone.md)'s
 two decisions, *what validates the schemas a registry document declares*, on that plan's decisions 3
 and 8 and its fact 1. **The choice — a built-in SUBSET over a dependency — is the maintainer's, taken
 at the draft on 2026-09-15 once fact 1 had priced all three candidates, and this record is written
@@ -88,6 +88,8 @@ it** (`test/definition/schema.test.ts`):
    way. **Annotation keywords are outside the subset and refused with the rest** — `title`,
    `description`, `$schema`, `$comment` — a consequence of the rule and not a judgement about
    annotations; a whitelist of ignorable keywords would be a second list nothing measured.
+   *(Superseded by [ADR 0098](0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) for `title` and `description` — and `readOnly` and `writeOnly` — which
+   join `SCHEMA_KEYWORDS` itself, shape-checked and read by no value check; `$schema` and `$comment` stay refused.)*
 4. **All four of a worker's schemas are held to the subset at construction, and two are APPLIED.**
    `configSchema` over a type's default config and every instance's derived config at construction
    (`TypeDefaultRefused`, `ConfigRefused`); `settingsSchema` over a node's effective settings — the
@@ -120,7 +122,7 @@ the same thing `FD-V17` does for a flow document's keys.
 1. **A consumer whose worker wants `pattern`, `format`, `oneOf` or `$ref` cannot have it** until
    rule 7 fires — and meets a refusal that says so, naming the keyword. The 42 KB dependency would
    have admitted every draft keyword on day one; the maintainer paid the refusal.
-2. **`description` and `title` are refused** (rule 3), which will surprise an author who annotates
+2. *(Superseded by [ADR 0098](0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md): both are admitted since v0.36, in the one list.)* **`description` and `title` are refused** (rule 3), which will surprise an author who annotates
    schemas out of habit. The alternative — a list of ignorable keywords — is a second enumeration,
    and every list in this repository that was not bound to something went stale
    ([Q102](../questions/q102.md)'s shape); the refusal is the smaller thing to be wrong about.
@@ -150,6 +152,6 @@ to need is an amendment here with its measurement, on the pattern of the four ru
 | **`ajv`** | 262 KB in the browser bundle — more than the JSONata engine — over five packages with four dependencies of their own, for a language of which the sample needs twelve keywords. Priced at fact 1 and not chosen |
 | **`@cfworker/json-schema`** | 42 KB, no dependencies, loads everywhere — the right dependency if the subset ever falls short, which is why rule 7 names it rather than leaving the reversal to a retro. Not taken on day one because nothing measured needs it |
 | **The subset, IGNORING unknown keywords** | JSON Schema's own semantics and the prototype's behaviour; refused as Q278 because a `pattern` that constrains nothing at exit 0 is W43's shape, and because it would make prediction 4's reversal invisible |
-| **A whitelist of annotation keywords** (`title`, `description` ignored; the rest refused) | A second list, bound to nothing, and the first request for `$comment` reopens it. The refusal is uniform and the cost is stated as consequence 2 |
+| **A whitelist of annotation keywords** (`title`, `description` ignored; the rest refused) | *(Superseded by [ADR 0098](0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md): the four join `SCHEMA_KEYWORDS`, the ONE list, bound to the spec both ways — not ignored, shape-checked.)* A second list, bound to nothing, and the first request for `$comment` reopens it. The refusal is uniform and the cost is stated as consequence 2 |
 | **A schema on the TYPE rather than on the WORKER** | P18 decision 3's alternative, refused there: it conflates three levels, and the worker is what its constructor argument and its `run()` input are contracts OF |
 | **Keeping W59's function validator beside the schema** | Two ways to say one thing, and a JSON document cannot carry the first. The function is retired with `workerType` (ADR 0054) |

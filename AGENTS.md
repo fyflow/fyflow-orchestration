@@ -1902,6 +1902,7 @@ if (!stoppedRun.stoppedBy?.startsWith('UncloneableResult')) throw new Error(`sto
 | flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
 | **`runtime.register()`** — adding node types, pools, groups or languages to a RUNNING runtime | **declined** — [P37](doc/plans/p37-a-runtime-is-its-registry.md) decision 1, [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md): `fyflow-scheduler` cannot add a pool after construction. A changed registry is a NEW runtime; a run on the old one finishes there or moves by stop-and-resume ([P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)). **A FLOW is not a registry entry**: `runtime.check(flow)`, then `runtime.start(flow, …)`, takes any flow the registry can run, at any time (section 12) |
 | **a `limitKey` from the FLOW** — a node or a document saying which key a task of a keyed group is counted under | **deferred** — [Q248](doc/questions/q248.md). Pass `start` a `createTask` that sets `limitKey` on the task it builds, or register a group type whose `create` builds a `KeyedRateLimitGroup` with a `keyFrom` (section 12). A node reaching a document's built-in keyed group with neither is refused before its run starts — `FD-R6`, `LimitKeyMissing` |
+| **redaction by `writeOnly`** — a schema annotation keeping a value out of what a run retains or reports | **no** — [ADR 0098](doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) rule 4: `writeOnly`, like `readOnly`, `title` and `description`, is admitted as an annotation since v0.36, held to its shape and read by nothing after. Redact in your own code, before the value reaches a run (section 13) |
 | **cancelling a RUN** — and stopping one, and pausing one | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s. **A cancelled TASK is heard since W158**: `scheduler.cancel(id)` on any task of a run ends that run `cancelled` (section 6), so cancelling a run today is cancelling its tasks by id — and `done` settles on the first, before the others have stopped |
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or stopped run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
@@ -2608,7 +2609,7 @@ produced. The language this package ships is JSONata, as the sub-path `fyflow-or
 — section 14; the snippet below uses a toy one so it loads no engine, and it is the same interface.
 
 ```ts run
-import { DerivationRefused, resolveRegistry, validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
+import { DerivationRefused, findings, resolveRegistry, SchemaRefused, validateDefinition, type FlowDefinition, type LanguageAdapter, type NodeTypeDeclaration, type Registry, type WorkerEntry } from 'fyflow-orchestration';
 import { EnvelopeWorker, TransformFailed } from 'fyflow-orchestration/scheduler';
 
 // A toy language: an expression is a dotted key path into the input, or `$settings.<path>`.
@@ -2689,7 +2690,34 @@ let refused: unknown;
 try { resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { cancelGraceMs: -1 } } } }); } catch (e) { refused = e; }
 if (!(refused instanceof DerivationRefused) || !refused.message.includes('cancelGraceMs')) throw new Error('a negative cancelGraceMs is refused, naming the key');
 if (resolveRegistry({ workers: { echo }, nodeTypes: { Scorer: { worker: 'echo', pool: { cancelGraceMs: 500, messages: { maxBuffered: 500 } } } } }).pools.get('Scorer')?.spec.cancelGraceMs !== 500) throw new Error('a well-formed one is carried to the pool');
+
+// And a schema may ANNOTATE (v0.36, ADR 0098): `title` and `description` a string, `readOnly` and
+// `writeOnly` a boolean, each held to that shape, at any depth, and read by NO value check.
+const inputSchema = {
+  type: 'object', title: 'Login', description: 'what the worker reads',
+  properties: { user: { type: 'string', readOnly: true }, password: { type: 'string', writeOnly: true } },
+};
+resolveRegistry({ workers: { echo: { ...echo, inputSchema } }, nodeTypes: { Scorer } });   // accepted
+// writeOnly HIDES NOTHING: the value under it is validated, carried and retained like any other — no redaction.
+if (findings(inputSchema, { user: 'ada', password: 'hunter2' }).length !== 0) throw new Error('the annotations constrain nothing');
+const schemaRefusal = (schema: Record<string, unknown>): unknown => {
+  try { resolveRegistry({ workers: { echo: { ...echo, inputSchema: schema } }, nodeTypes: { Scorer } }); } catch (e) { return e; }
+  return undefined;
+};
+const shape = schemaRefusal({ type: 'string', writeOnly: 'yes' });
+if (!(shape instanceof SchemaRefused) || !shape.message.includes('writeOnly')) throw new Error('an annotation of the wrong shape is refused, naming it');
+const format = schemaRefusal({ type: 'string', format: 'email' });
+if (!(format instanceof SchemaRefused) || !format.message.includes('"format"')) throw new Error('format reads as a constraint and checks nothing here, so it is refused by name');
 ```
+
+**A schema may carry four ANNOTATIONS — `title`, `description`, `readOnly`, `writeOnly` — and they
+constrain nothing** (v0.36, [ADR 0098](doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md)).
+Each one's value is held to its shape — a string, a boolean — where the schema is declared, and no
+check reads it afterwards: **`writeOnly: true` promises NO REDACTION**. A value under it is cloned,
+kept in the run's event log, checkpointed, kept in run state and handed on exactly as any other, so a secret you do not
+want retained is redacted by your own code before it reaches a run. `readOnly: true` refuses nothing a
+caller supplies. `deprecated`, `$comment`, `default`, `format`, `$schema` and `$id` are still refused
+by name — `default` because nothing applies it, `format` because it would check nothing.
 
 **What this is not.** What a type says about what its worker EXPECTS and RETURNS — input and
 output schemas, and a sample-based check across a transformed edge — was

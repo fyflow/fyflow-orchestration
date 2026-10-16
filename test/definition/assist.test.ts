@@ -10,8 +10,8 @@
  * suite's DISCRIMINATING PAIR; and the generated file on disk, compared to the generator's output
  * BOTH WAYS. Never from the assists' own output.
  *
- * **Rule 8 obligation (a), the SHAPES**: `pathsOf` is instantiated on every one of the thirteen
- * keywords and on all seven types, on both nesting roads (`properties` and `items`), and on the two
+ * **Rule 8 obligation (a), the SHAPES**: `pathsOf` is instantiated on every keyword of the subset
+ * and on all seven types, on both nesting roads (`properties` and `items`), and on the two
  * shapes the SUBSET REFUSES that `checkWiring` derives — a fan-out's record and a map's
  * `additionalProperties: <schema>` with its `branchKeys` marker (W74 fact A, [Q306](../../doc/questions/q306.md)).
  * **Obligation (d)**: the keyword list, the type list and the generated file are each held to their
@@ -55,17 +55,47 @@ suite('W74 — pathsOf: every path a value may carry, over the whole subset', (t
     equal(PATH_TYPES.length, SCHEMA_TYPES.length + 1, 'and nothing else — a count beside the membership');
   });
 
-  test('every one of the thirteen SCHEMA_KEYWORDS is walked or deliberately ignored, and the list is bound both ways', () => {
-    // A membership claim about the subset's own list: a keyword added there must appear here.
+  test('every one of the SCHEMA_KEYWORDS is walked or deliberately ignored, and the list is bound both ways', () => {
+    // A membership claim about the subset's own list: a keyword added there must appear here. W164 (ADR 0098)
+    // added the four annotations to `ignored`, each with a value of the shape the spec's table gives it.
     const walked = ['type', 'required', 'properties', 'additionalProperties', 'items'];
     const decidesType = ['enum', 'const'];
-    const ignored = ['minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'examples'];
+    const ignored = ['minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'examples', 'title', 'description', 'readOnly', 'writeOnly'];
     equal([...walked, ...decidesType, ...ignored].sort(), [...SCHEMA_KEYWORDS].sort(),
       'the three ways pathsOf treats a keyword cover the subset exactly — both ways');
+    const valueOf = (k: string): unknown => k === 'examples' ? ['x'] : k === 'title' || k === 'description' ? 'x' : k === 'readOnly' || k === 'writeOnly' ? true : 1;
     for (const k of ignored) {
-      const s = { type: 'string', [k]: k === 'examples' ? ['x'] : 1 } as JsonSchema;
+      const s = { type: 'string', [k]: valueOf(k) } as JsonSchema;
+      equal(schemaProblem(s), null, `${k}: the schema is in the subset, so what follows is about a schema an author may write`);
       equal(pathsOf(s).length, 1, `${k} adds no path — it is a bound or an annotation, not a place`);
     }
+  });
+
+  test('W164 — the four annotations of ADR 0098 change no path, no type, no guarantee and no generated signature, at each place they sit', () => {
+    // ADR 0098 rule 3: `title`, `description`, `readOnly` and `writeOnly` constrain nothing, so the two assists that
+    // DESCRIBE a schema — its paths and its TypeScript type — say exactly what they say of the same schema without them.
+    const bare: JsonSchema = { type: 'object', required: ['a'], properties: { a: { type: 'array', items: { type: 'string' } }, b: { type: 'integer' } } };
+    const annotated: JsonSchema = {
+      type: 'object', title: 'T', description: 'D', readOnly: true, writeOnly: false, required: ['a'],
+      properties: { a: { type: 'array', title: 'A', writeOnly: true, items: { type: 'string', description: 'an item', readOnly: false } }, b: { type: 'integer', writeOnly: true } },
+    };
+    equal(schemaProblem(annotated), null, 'the annotated schema is in the subset');
+    const summary = (s: JsonSchema) => pathsOf(s).map((p) => `${p.path} ${p.types} ${p.required}`);
+    equal(summary(annotated), summary(bare), 'the same paths, types and guarantees — at the top, under properties and under items');
+    equal(summary(bare), ['$ object true', '$.a array true', '$.a[] string false', '$.b integer false'], 'and they are the bare schema`s, written out (the control: four paths, not one)');
+    equal(tsTypeOf(annotated), tsTypeOf(bare), 'the same generated TypeScript type');
+    // The two things a generator that READ them would emit (conformity F8, adequacy F4): a `readonly` modifier for
+    // `readOnly: true`, and a JSDoc comment for a `description` or `title`. Neither is emitted, at either depth.
+    const prop: JsonSchema = { type: 'object', required: ['id', 'note'], properties: {
+      id: { type: 'string', readOnly: true, title: 'Id' }, note: { type: 'string', description: 'a note', writeOnly: true },
+      inner: { type: 'object', properties: { deep: { type: 'integer', readOnly: true, description: 'deep' } } } } };
+    const propBare: JsonSchema = { type: 'object', required: ['id', 'note'], properties: {
+      id: { type: 'string' }, note: { type: 'string' }, inner: { type: 'object', properties: { deep: { type: 'integer' } } } } };
+    const text = tsTypeOf(prop);
+    equal(text, tsTypeOf(propBare), 'a property under readOnly, title, description and writeOnly: the bare schema`s type, byte for byte');
+    ok(!/readonly/i.test(text) && !text.includes('/*') && !text.includes('//') && !text.includes('a note') && !text.includes('Id'),
+      `no readonly modifier, no comment, no annotation text: ${text}`);
+    ok(text.includes('"id": string') && text.includes('"deep"?: number'), `the control: the properties ARE emitted, so their absence above is not an empty type — ${text}`);
   });
 
   test('objects: properties, a required key with no schema, and the guarantee that composes', () => {
