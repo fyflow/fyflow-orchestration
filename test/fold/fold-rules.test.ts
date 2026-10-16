@@ -139,7 +139,7 @@ suite('RN-R8 — halted outranks everything, INCLUDING records that follow it', 
         'r1:b:-:0': { nodeId: 'b', branchPath: '-', state: 'done', result: { of: 'r1:b:-:0' }, error: null },
         'r1:c:-:0': { nodeId: 'c', branchPath: '-', state: 'suspended', result: null, error: 'boom' },
       },
-      regions: {}, pathEnds: [], haltedBy: 'DuplicateTaskId: r1:b:-:0', cancelRequest: null, resumes: [], gated: [],
+      regions: {}, pathEnds: [], haltedBy: 'DuplicateTaskId: r1:b:-:0', cancelRequest: null, interruption: null, resumes: [], gated: [],
     } satisfies RunState, 'RN-R8 v0.16: the stored `stopped` is the halt, and nothing after it moves the outcome');
     // The CONTROL: the same sequence with no halt element is `awaiting_action` — so the `halted` above is the element's.
     equal(fold(legacy.filter((_, i) => i !== 2)).outcome, 'awaiting_action',
@@ -153,7 +153,7 @@ suite('RN-R8 — halted outranks everything, INCLUDING records that follow it', 
       'a 0.7.0 sequence whose first element is the halt folds `halted`, `haltedBy` its reason, with no node');
     // One STEP from the empty state, hand-written: section 2's shape with only the two cells RN-R8 sets.
     equal(step(emptyState(), legacyStop('x')),
-      { runId: null, outcome: 'halted', nodes: {}, regions: {}, pathEnds: [], haltedBy: 'x', cancelRequest: null, resumes: [], gated: [] } satisfies RunState,
+      { runId: null, outcome: 'halted', nodes: {}, regions: {}, pathEnds: [], haltedBy: 'x', cancelRequest: null, interruption: null, resumes: [], gated: [] } satisfies RunState,
       'step() on the empty state: `outcome` and `haltedBy` set, nothing else');
   });
 

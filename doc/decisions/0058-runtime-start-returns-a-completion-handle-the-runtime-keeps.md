@@ -72,6 +72,9 @@ to answer without reopening
    (W158): `cancelled` settles it too, on the run's first cancelled settlement.***
    ***And by [ADR 0104](0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md) (W173, 2026-10-16):
    `cancelling` leaves it pending as well — a run its owner cancelled settles `cancelled` after its last task has stopped.***
+   ***And by [ADR 0105](0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md) (W174, 2026-10-16):
+   `interrupted` — a run its owner STOPPED — is terminal and settles it, but only once the stop's cancels have resolved,
+   not at the element: the one settlement this rule's "terminality and nothing else" does not decide alone.***
 4. **A driver refusal resolves it with `outcome: 'stopped'`, carrying `stoppedBy`.** `failRun`
    appends the `stopped` fold input **before** it calls `onRunFailure`, so a refusal is already
    terminal when a consumer hears of it — resolving does not hang, and it reports strictly more than

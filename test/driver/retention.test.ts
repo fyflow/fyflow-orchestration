@@ -303,6 +303,11 @@ const DRIVER_FIELDS = [
   // W173 (its conformity reader's D-1) — `stepping`: one integer, how deep the driver is in its own step, `0` at rest.
   // No result; WALKED. The ratchet fired by name.
   'stepping',
+  // W174 — `stopRequest`: `null` until the run's OWNER stops it (`RN-R33`, ADR 0105); then the actor, `reason` and
+  // `graceMs`, one promise per task STILL stopping (dropped as each settles) and — only while a stop called mid-step is
+  // pending — the resolver and promise its callers wait on, both `null` once it is taken. No result; WALKED. The ratchet
+  // fired by name on W174's first L1 run.
+  'stopRequest',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins
@@ -366,6 +371,9 @@ const DECLARED_CASES = [
   // **W173.** The same run-level moment reached by a REQUESTED cancel — at the request, before any task has stopped —
   // and the request's own bookkeeping holds nothing once its tasks have (RN-R13, ADR 0104).
   'a REQUESTED cancel releases every region AT THE REQUEST, and holds no promise once its tasks have stopped',
+  // **W174.** The same moment reached by a STOP (`RN-R33` step 2, ADR 0105), and the stop's own bookkeeping holds nothing
+  // once its tasks have stopped — not even the resolver and promise a stop called mid-step keeps until it is taken.
+  'a STOP releases every region when it is taken, and holds no promise or resolver once its tasks have stopped',
   'rule 5 — a run the FOLD calls `stuck` still holds its collection, and that is the bound',
   'a `fanout` region releases as a `map` one does — the half that had no observer',
   'a nested region releases its OWN collection and leaves the enclosing one held',
@@ -734,6 +742,34 @@ suite(SUITE, (test) => {
     equal(stillStopping(), 0, 'RN-R13 — once every task has stopped the request holds no promise');
     ok(JSON.stringify(h.driver.snapshot()).includes(MARK), 'and the LOG is untouched — the arrived result is still in it');
     equal(fold(h.driver.foldInputs()).outcome, 'cancelled', 'RN-R30 — the run is `cancelled`');
+  });
+
+  /**
+   * **The same run-level moment, reached by a STOP** — `RN-R33` step 2, ADR 0105 (W174). The stop holds the run when it
+   * is TAKEN — here at rest, so at the call — and every collection is
+   * released then. `RN-R13`: the stop keeps one promise per task still stopping, dropped as each settles, and its
+   * pending resolver and promise only until it is taken — so once its tasks have stopped it holds no function and no
+   * promise, and a walk that serializes the driver's fields is not handed one.
+   */
+  test('a STOP releases every region when it is taken, and holds no promise or resolver once its tasks have stopped', async () => {
+    const MARK = 'W174-STOPPED-7b3e';
+    const h = harness(await load(MAP_FANOUT), liveToken as JoinPolicy);
+    h.driver.start({});
+    h.scheduler.settle('r1:ingest:-:0', 'done', { result: THREE });
+    h.scheduler.settle('r1:score:0:0', 'done', { result: { s: MARK } });
+    equal(heldArrivals(h.driver), 1, 'the ARRANGEMENT: one branch has arrived and the join is still waiting');
+
+    const p = h.driver.stop({ actor: 'ops' });
+    equal(h.scheduler.cancelSent, ['r1:score:1:0', 'r1:score:2:0'], 'the ARRANGEMENT: the two branches still in flight were sent their cancel');
+    equal(heldArrivals(h.driver), 0, 'released WHEN THE STOP IS TAKEN — neither branch has stopped yet');
+    const req = () => (h.driver as unknown as { stopRequest: { stopping: Map<string, unknown>; pending: unknown; took: unknown } }).stopRequest;
+    equal([req().stopping.size, req().pending, req().took], [2, null, null], 'one promise per task still stopping; taken, so no resolver and no promise of its own');
+    h.scheduler.stopped('r1:score:1:0');
+    h.scheduler.stopped('r1:score:2:0');
+    await p;
+    equal(req().stopping.size, 0, 'RN-R13 — once every task has stopped the stop holds no promise');
+    ok(JSON.stringify(h.driver.snapshot()).includes(MARK), 'and the LOG is untouched — the arrived result is still in it');
+    equal(fold(h.driver.foldInputs()).outcome, 'interrupted', 'RN-R32 — the run is `interrupted`');
   });
 
   /**

@@ -258,8 +258,8 @@ this list if it matters.
   test, not a convention (Q13).
 - **A task CAN be cancelled at the pin, queued or running** — `scheduler.cancel(id)`
   ([S2](doc/scheduler-upstream.md), shipped). A cancelled task ends its run `cancelled` and settles `done`
-  (ADR 0094). `src/` calls `cancel` only from `driver.cancel`, through `SchedulerLike`'s optional member;
-  cancelling a RUN is [ADR 0104](doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md) (Q18 resolved).
+  (ADR 0094). `src/` calls `cancel` only from `driver.cancel` and `driver.stop`, through `SchedulerLike`'s optional member;
+  cancelling a RUN is [ADR 0104](doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md) (Q18 resolved), stopping one to resume it elsewhere [ADR 0105](doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md).
 - `scheduler.completed` fires **every time the scheduler drains** — with a flow it will fire between
   steps routinely. It is not "the run finished".
 - `onCompleteDescendants()` is **not a join**: transitive over lineage, but a failing descendant does

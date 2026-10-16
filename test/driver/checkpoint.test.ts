@@ -192,6 +192,14 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     await driver.cancel({ actor: 'ana', reason: 'no longer needed' });
     return driver;
   },
+  // W174 (`RN-R32`, `RN-R33`): a run its OWNER stopped, with a `reason`, so the element carries both of its strings; its
+  // one task in flight is cancelled after the driver went deaf, so the element is the sequence's last.
+  interrupted: async () => {
+    const { driver } = corpusDriver(await load('valid/linear.flow.json'));
+    driver.start({ seed: 7 });
+    await driver.stop({ actor: 'ops', reason: 'upgrade' });
+    return driver;
+  },
   // W89 (`RN-R22`): a run RESUMED from its own checkpoint, cut with `ingest` in flight, so the
   // `resumed` element names one task and the run then completes on the resumed driver.
   resumed: async () => {
@@ -347,7 +355,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 11, 'the union has eleven kinds since W173 added `cancelRequested` (ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 12, 'the union has twelve kinds since W174 added `interrupted` (eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.
