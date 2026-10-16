@@ -1,6 +1,6 @@
 # P37 — A runtime is its registry
 
-**Status:** declared — 2026-10-15 on `da18320`, from the draft carrying the maintainer's decisions of 2026-10-14/15; facts 1-8 measured at this declaration; stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-15, all as recommended
+**Status:** complete and retro'd 2026-10-16 — declared 2026-10-15 on `da18320`, from the draft carrying the maintainer's decisions of 2026-10-14/15; facts 1-8 measured at this declaration; stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-15, all as recommended; W162-W167 done 2026-10-15/16; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-16 over `a02087f`, and the maintainer answered its stop-and-asks (g)-(l) the same day, all as recommended (Retro section 8)
 **Question this plan answers:** *what may a running runtime be asked to accept — a flow published
 after it started, a transform tried on given input, pool options per instance, annotated schemas —
 when its registry is fixed at `createRuntime`?*
@@ -345,9 +345,373 @@ W165 Q626-Q629, W166 Q630-Q632, W167 Q633-Q634.
 
 | Q | | Owner |
 |---|---|---|
-| [Q285](../questions/q285.md) | which pools carry a language — reopened by decision 3, answered by ADR 0096 | P37 (W162) |
-| [Q248](../questions/q248.md) | per-key limits from a flow — #17's FEATURE; fact 1 measured the defect, which (c) fixes without it | deferred |
+| [Q285](../questions/q285.md) | which pools carry a language — reopened by decision 3, **resolved by ADR 0096** (W162) | — |
+| [Q248](../questions/q248.md) | per-key limits from a flow — #17's FEATURE; fact 1 measured the defect, which (c) fixes without it (ADR 0097's `FD-R6`); its `note` brought up to date at this record step | deferred |
+| [Q619](../questions/q619.md) | a built-in keyed group held only as RESIDENT is not `FD-R6`, and counts every worker in one `""` bucket — raised by W163 | open — **P34**, option B, one row of its declaration (Retro (i)) |
+| [Q626](../questions/q626.md) | a named instance of `Transform` may now hold a resident group — raised by W165 | **resolved** — accepted as stated, ADR 0099 consequence 5 (Retro (h)) |
+| [Q633](../questions/q633.md) | DEFECT: `FD-R4` holds a transforming entry's payload BEFORE its transform, opposite to `tryTransform`'s `given` verdict — raised by W167 | open — **P34**, before 0.8.0 is published (Retro (g)) |
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Written 2026-10-16 over `a02087f`, the tree clean before it. Every figure is read from the six items' own files; none
+is re-measured here. Ids are bare text, as in P33's Record.*
+
+**W162 — done 2026-10-15** (`9769e45`). Its own Record covers the declaration step (M1-M9), both readers and the gate.
+
+- **Built**: ADR 0096 (superseding ADR 0051 rule 4; amending ADR 0022 rule 3 for the runtime road and ADR 0075 in
+  part); `bootstrap` writes EVERY registered language into EVERY pool it builds, a copy per pool; `Runtime.check(flow):
+  Finding[]` against a registry derived once at `createRuntime`, and `start`/`resume` refusing from that same call
+  before a run id is minted; **(a)'s four removals**, each stated BREAKING — `RuntimeOptions.flows`,
+  `BootstrapOptions.flows`, `LanguageNotBuilt`, `transformLanguagesByType`. spec/flow-definition **v0.34**; `AGENTS.md`
+  sections 9, 11 (`runtime.register` declined), 12, 14, 15, mirrored in `README.md`.
+- **Fact 2's cost, re-taken** (M4): **22.5 ms and 6 524 KiB of heap per node worker thread** (P37: 40.6 ms / 6 087 KiB,
+  another load of the machine); inline **0.018 ms**; L6 wall unmoved over 173 runs. A browser Web Worker NOT measured.
+- **Closed: Q285**, resolved by ADR 0096. **Raised: none.** Q615-Q618 unused.
+- **Exceptions E1** (`src/scheduler/envelope-worker.ts`, three passages stating the superseded rule) **and E2** (the two
+  publish smokes passing `flows`) YES at the declaration step; **E3** (`examples/retention.ts`'s four calls) YES after
+  the readers.
+- **The readers**: conformity F1-F7, adequacy F1-F7, no code defect. **Overlap: ONE shared subject** — `start`'s
+  refusal order against `ID-R2` and `RunIdInUse`, neither stated nor tested — the ninety-fourth measurement.
+- **Counts**: L1-L5 → **62 / 1695** in node, deno and chromium; L6 **2640 / 173** unmoved (three clauses re-cut in place);
+  `check:spec` **7 / 75 / 134** unmoved.
+- **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 850.1 s self-test wall.
+
+**W163 — done 2026-10-15** (`60c3df6`). Its own Record covers the declaration step, 23 author provocations and both
+readers.
+
+- **Built**: ADR 0097 (amending ADR 0096 rules 4 and 5); **`FD-R6`** — a task node REACHING a group the built-in
+  `KeyedRateLimitGroup` factory built, through its `workerGroups` or its pool's derived `groups`, reported by `check` and
+  thrown by `start`/`resume` as **`LimitKeyMissing`** when no `createTask` is given, after the `InvalidDefinition`
+  findings and before a run id or a driver; `createRuntime` holds `defaultRetryPolicy` to `FD-V30` FIRST, at
+  construction. spec/flow-definition **v0.35**; `AGENTS.md` sections 3, 9, 11, 12.
+- **Stop-and-ask S1 = A**: `FD-R6` is a spec rule id, not a class name. **And the maintainer CONFIRMED** no upstream
+  entry: the scheduler's throw is right for a keyed limit with no key; the gap is ours (Q248).
+- **Closed: none. Raised: Q619** (a built-in keyed group held as RESIDENT, measured silent in one `""` bucket), owner P37.
+  Q620-Q622 unused.
+- **Exceptions E1** (`src/scheduler/index.ts`, the export) **and E2** (`src/definition/types.ts`, a comment), YES at the
+  declaration step.
+- **The readers**: conformity F1-F7 and observation 8, adequacy F1-F4, no code defect. **Overlap: ONE shared subject** —
+  `FD-R6`'s detail text — the ninety-fifth measurement.
+- **Counts**: L1-L5 → **62 / 1708** in all three; L6 → **2646 / 174** in node and deno (the keyed block, one run);
+  `check:spec` → **7 / 75 / 135** (`FD-R6`).
+- **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 1212.5 s self-test wall.
+
+**W164 — done 2026-10-16** (`eeea984`). Its own Record covers the declaration step, 48 provocations and both readers.
+
+- **Built**: ADR 0098 (superseding ADR 0053 in part and ADR 0056 in part; amending ADR 0053 rule 2); `title`,
+  `description` (a string), `readOnly`, `writeOnly` (a boolean) join `SCHEMA_KEYWORDS`, value shape checked at every
+  depth, read by NO value check, **no redaction promised**; `deprecated`, `$comment`, `default`, `format`, `$schema`,
+  `$id` still refused by name. spec/flow-definition **v0.36**; `AGENTS.md` sections 11 and 13.
+- **Stop-and-ask S1 — four stale *thirteen keywords* sentences outside `Owns`** (`src/driver/driver.ts:2140`,
+  `test/driver/result-schema.test.ts:62` and `:309`, `spec/outcome-record.md`'s `OR-R13` row) **ANSWERED *leave and
+  record***; a fifth incomplete sentence, `src/definition/wiring.ts:155`, recorded beside them. Handed on below.
+- **Closed: none. Raised: none.** Q623-Q625 unused.
+- **Exceptions: none.**
+- **The readers**: conformity F1-F8, adequacy F1-F9, no code defect — **18 of the adequacy reader's 23 independent
+  mutations survived** the build's set (*constrains nothing* barely pinned); 19 cases added, **48 of 48** killed on the
+  re-run. **Overlap: TWO shared subjects**, the ninety-sixth measurement.
+- **Counts**: L1-L5 → **62 / 1718** in all three; L6 **2646 / 174** unmoved; `check:spec` **7 / 75 / 135** unmoved.
+- **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 872.5 s self-test wall.
+
+**W165 — done 2026-10-16** (`da08a1f`). Its own Record covers the declaration step, 32 provocations and both readers.
+
+- **Built**: ADR 0099 (amending ADR 0054 decisions 2 and 3); a named instance of a DOCUMENT type may declare `pool`,
+  merged SHALLOWLY over its type's, copied, held to `poolSpecProblem` on both roads; an instance of a CLASS type refused
+  (`UndeclaredKey`); **decision 8** — `residentGroups` copied; **decision 9** — `messages.flushIntervalMs` bounded at
+  2^31-1. **S11 written, NOT RAISED** (P37 (f)). spec/flow-definition **v0.37**; `AGENTS.md` sections 13 and 21.
+- **Closed: none. Raised: Q626** (a `Transform` instance may now hold a RESIDENT group — W165's reading of (e), against
+  ADR 0075 rule 3's note), owner P37's join, recommendation *accept as stated*. Q627-Q629 unused.
+- **Exception E1** (`src/scheduler/runtime.ts`, ONE line carrying the instance's `pool` to `bootstrap`), YES before the
+  edit; **three touches to `doc/scheduler-upstream.md` beyond S11's section** (the index row and two *S10 is not raised*
+  sentences) **accepted as within *S11 only***.
+- **The readers**: conformity F1-F9 — **ONE code defect, C-F1** (the remembered declaration was the bare one, not the
+  merged), fixed; adequacy 42 mutations, 3 survivors, and **the build's K24 found COMPOUND** (its *28 of 28* overstated).
+  **Overlap: TWO shared subjects**, the ninety-seventh measurement.
+- **Counts**: L1-L5 → **62 / 1747** in all three; L6 **2646 / 174** unmoved; `check:spec` **7 / 75 / 135** unmoved.
+- **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 870.9 s self-test wall.
+
+**W166 — done 2026-10-16** (`0a7aae3`). Its own Record covers the declaration step, 34 provocations and both readers.
+
+- **Built**: per (d) — `tryTransform(…, { input })` evaluates the transform ONCE on what the node receives and returns
+  ONE verdict, shape `given`, no producer, `sample.source: 'given'`, the entry node included; `SampleSource`,
+  `WiringShape`/`WIRING_SHAPES` widened and `WiringVerdict.producer` optional, each stated BREAKING; `givenVerdict` and
+  `TryTransformOptions` stated as new public surface (C-F1); the two aggregations of fact 4 TYPED over the arc sources,
+  so a `given` cannot reach them (`typecheck` holds it). spec/flow-definition **v0.38**; `AGENTS.md` section 15's new
+  `run` snippet, `RUN_FLOOR` 36 → 37.
+- **Closed: none. Raised: none.** Q630-Q632 unused. No ADR.
+- **Exceptions: none.**
+- **The readers**: conformity F1-F7, no code defect against the spec; adequacy 26 mutations, 5 survivors, and **three of
+  the build's set found COMPOUND** (K8, K9, K10) — after W165's lesson was in this item's brief. **Overlap: ONE shared
+  subject** — the given verdict's reason where the consumer side is missing — the ninety-eighth measurement.
+- **Counts**: L1-L5 → **62 / 1763** in all three; L6 **2646 / 174** unmoved; `check:spec` **7 / 75 / 135** unmoved;
+  `check:docs` → **43 snippets, 37 run**.
+- **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 986.5 s self-test wall.
+
+**W167 — done 2026-10-16** (`a02087f`). Its own Record covers the declaration step, the 24 author provocations in both
+lanes and both readers.
+
+- **Built**: ONE cross-row block in `examples/l6.ts`, its registry DOCUMENT and `data:` workers written in the block:
+  one runtime from `createRuntime(document, { languages })`, given NO flow; flows A, C, D and B in that order; the
+  `format` variant beside it. **18 cross-row assertions over two runs** — 18 declared, one removed at the build as unable
+  to fail (M3), one added by the readers (R7).
+- **F-1, found while building, outside every P37 `Owns`**: `FD-R4` holds a TRANSFORMING entry's payload to the worker's
+  `inputSchema` BEFORE the transform. **The maintainer's answer (2026-10-16): raise it, do not fix it in W167.** Asked why
+  not fix it there, the reasons given were: **`start()` is synchronous and a transform's evaluation is asynchronous**, so
+  any fix is a SPEC decision among three roads — an async `start` (BREAKING), a transforming entry left unchecked, or a
+  separate schema for what the transform receives — and **P37's paragraph D puts `src/driver/**` in no item's row**.
+- **Closed: none. Raised: Q633** (DEFECT; owner P37's join or retro to route). Q634 unused; ADR 0100 unused; W168
+  unused.
+- **Exceptions: none.**
+- **The readers**: conformity — all seven exit clauses MET, F1-F4; adequacy 22 one-clause mutations, 16 killed, 6
+  survivors, no exit clause broken, A1-A3 and minors; R1-R8 acted on. **Overlap: ZERO shared subjects**, the
+  ninety-ninth measurement.
+- **Counts**: L1-L5 **62 / 1763** unmoved; L6 → **2664 / 176** in node and deno; `check:spec` **7 / 75 / 135** unmoved.
+- **The confirming gate**: **`gate:full` EXIT 0** on the final tree, the first run — 11/11 self-test lanes ok,
+  `check:register:selftest` included, 1937.8 s self-test wall; no lane flaked, nothing re-run.
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| on the final tree, ONE cross-row block in `examples/l6.ts`, green in node 24 and in deno | W167's block, **2664 / 176, 0 failed in node 24.20.0 and deno 2.9.6**, in `npm run gate` and in `gate:full` | **met** |
+| (1) ONE runtime by `createRuntime` with its registry's `languages` given and NO flow | built so; every pool the scheduler holds — `Intake`, `Shape`, the named `shape-wide`, `Transform` — carries exactly the registry's one language; a `flows` option is a `typecheck:examples` error (probe `pf`) | **met** |
+| (2) a run of A, declaring no transform, reaches `done` `completed` first | A under `r1`, terminal, its node `done` | **met** |
+| (3) B, never shown, a JSONata transform on a consumer type's node and a second on a NAMED instance declaring its own pool options: `check(B)` `[]`, then `done` `completed`, each transformed node's worker receiving the transformed value | `check(B)` `[]`; B under `r2` — neither refusal spent an id — `completed`; t1's and t2's workers each received their own transformed value, the untransformed entry its payload (the control); t1 on `Shape`, t2 on `shape-wide`, the instance's own `maxThreads` with the type's `idleTimeout` merged under it, and each pool's realm off the scheduler (R5) | **met** |
+| (4) for C, `check(C)`'s rule ids equal those of the `InvalidDefinition` `start(C)` throws | equal, and both equal to the hand-written set, compared sorted (R8); the claim *nothing reached the scheduler* REMOVED at the build as unable to fail (M3) | **met** |
+| (5) worker schemas carrying `title`, `description`, `readOnly`, `writeOnly` accepted; the same with `format` refused naming it | the four kept as resolved — in `rt.resolved` and in `rt.registry.workers`, which drivers read (R6); `format` `SchemaRefused` naming the keyword and its path (R3) | **met** |
+| (6) `tryTransform` given an input on B's ENTRY node returns a verdict whose `source` is `'given'` | ONE verdict, shape `given`, no producer, `transform-passes`, the hand-derived result; control: no input, `[]`; and given `{}`, `transform-fails` naming `$.word required` (R7) | **met** |
+| (7) a node reaching a document-declared `KeyedRateLimitGroup` refused by `check` and `start`, before any driver is built | `check(D)` `FD-R6` at the keyed node; `start(D)` `LimitKeyMissing` at it, its message naming the group, both roads and Q248 (R2), nothing reaching the scheduler; *no driver built* is held at L1 by W163 (the scheduler never subscribed to) | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W167, ONE command on the final tree after the readers' items — P37 sentence C | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **62 / 1689 → 62 / 1763** in node, deno and
+chromium; L6 **2640 / 173 → 2664 / 176** in node and deno; `check:spec` **7 / 75 / 134 → 7 / 75 / 135**; `check:docs`
+**42 / 36 run → 43 / 37 run**; spec/flow-definition **v0.33 → v0.38**.
+
+**What the plan answered.** A running runtime **accepts any flow its registry can run, at any time** — a flow published
+after it started included — because a runtime's languages are its REGISTRY's, built into every typed pool (ADR 0096),
+and `runtime.check(flow)` returns exactly what `start` would refuse on, from the same call. It **refuses, by name and
+before a driver exists, the one thing a flow's registry admits and its run cannot do** — a node reaching a built-in keyed
+group with no key to give it (ADR 0097, `FD-R6`). It accepts **annotated schemas** (ADR 0098), **pool options per named
+instance** of a document type (ADR 0099), and **a transform tried on a value the caller gives**, the entry node included.
+**What it did not do**: add a node type, a pool or a group to a running runtime (declined, #5); derive a key for a keyed
+group (Q248); and make `start` agree with `tryTransform` on a transforming ENTRY node — **Q633, a defect on exactly the
+road this plan opened**.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W162 is LOUD at fact 2's five L1 cases and its one L6 clause, and nowhere else | **FALSE in its census, TRUE in its second half** — NINE L1 cases and 68 L6 assertions went red, and the named clause (`:10551`) did not; no registry with no language moved | W162 M3, *What broke* 1: fact 2 counted the sites that NAME the removed functions, not the assertions that HOLD the rule |
+| 2 | `check` and `start` never disagree on the corpus | **TRUE** | W162's corpus case, every invalid and valid file |
+| 3 | #17's refusal moves NO existing assertion | **TRUE** | W163 M2 |
+| 4 | W164 moves exactly fact 3's four assertion sites, and no L2-L6 assertion | **TRUE at L1-L5 and at L6 in node**; one deno L6 red on a row no keyword reaches, green on re-run — [Q599](../questions/q599.md)'s first row | W164 M2 |
+| 5 | W165 moves no pool option a registry without instance options builds | **TRUE** | W165 M2 |
+| 6 | widening `SampleSource` is LOUD nowhere in `src/`, and never reaches fact 4's aggregations | **TRUE** — and the second half is now held by `typecheck` in the tree (R1), not only by the absence of a road | W166 M2 |
+
+**Questions**: raised **Q619** (W163), **Q626** (W165) and **Q633** (W167), each routed by a stop-and-ask below —
+Q619 and Q633 open, owner P34; **Q626 resolved**, accepted as stated; **closed Q285** (W162, by ADR 0096). **Q248**'s `note` brought up to date at this record step (W163's conformity
+F7 left it here), and **Q599** a dated note (Retro section 4). `npm run q -- --where status=open` lists **Q580, Q581,
+Q605, Q606, Q619, Q633**.
+
+**Handed on**, each with its owner — gathered from the six items' Out sections and the readers' notes:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| `FD-R4` holds a transforming entry's payload before its transform | W167 F-1, conformity F4 | **P34**, before 0.8.0 — Retro (g) | [Q633](../questions/q633.md); [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), by (g) |
+| a `Transform` instance may hold a resident group | W165 C-F3 | **accepted as stated** — Retro (h) | [Q626](../questions/q626.md), resolved; ADR 0099 consequence 5 |
+| a built-in keyed group held only as RESIDENT, one `""` bucket | W163 C-obs 8 | **P34**, option B — Retro (i) | [Q619](../questions/q619.md); [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), by (i) |
+| four stale *thirteen keywords* sentences (`src/driver/driver.ts:2140`, `test/driver/result-schema.test.ts:62`, `:309`, `spec/outcome-record.md`'s `OR-R13`) and `src/definition/wiring.ts:155`'s incomplete one | W164 S1, C-F3, C-F4 | **P34** — Retro (j) | [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), *Constraints*, by (j) |
+| the `InvalidDefinition` message FORMATTED twice (`new Driver`, `openRun`) and the definition validated twice on `start` — because `src/driver/**` was no P37 item's | W162 Out | **P34** — Retro (j) | [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md), *Constraints*, by (j) |
+| `runtime.registry` is a plain object a consumer can mutate after `createRuntime` | W162 C-F7 | no owner — recorded, no surface change named | W162 Out |
+| a `Map` passing `isPlainObject` as a `pool`, a function reported *got undefined* — pre-existing on a type's `pool` since v0.19 | W165 C-F9 | no owner — recorded | W165 Out |
+| a `run` snippet's `// …` output comments are not executed | W166 A-S1 | no owner — a repo-wide convention | W166 Out |
+| a browser Web Worker's cost of loading the engine | W162 M4 | no owner — not measured | W162 Out |
+| the cancel roads, the stale comments and `graceMs: 0` handed to P34 by P33 | P33's Record | **P34**, unchanged | [P34's draft](p34-what-cancelling-stopping-and-pausing-a-run-do.md) |
+
+## Retro
+
+*Pass 3 ran on 2026-10-16 over `a02087f`, the working tree clean before it, in a subagent at the maintainer's request.
+Every figure is read from the six items' Records; this retro re-ran no gate, no harness and no measurement. **The
+proposals and the routings were put to the maintainer in section 8, and the answers are recorded there; none moves a
+rule in `doc/workflow.md`.***
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader findings | raised / closed |
+|---|---|---|---|---|
+| P37's declaration | — | (a)-(f), all as recommended | — | — |
+| W162 | E1 `envelope-worker.ts`, E2 the two publish smokes, E3 `retention.ts` (after the readers) — YES | — | 14 | — / Q285 |
+| W163 | E1 `src/scheduler/index.ts`, E2 `src/definition/types.ts` — YES | S1 = A (`FD-R6` a spec id) | 11 + obs 8 | Q619 / — |
+| W164 | — | **S1: four stale sentences outside `Owns` — LEAVE AND RECORD** | 17 | — |
+| W165 | E1 one line of `src/scheduler/runtime.ts` — YES; three `scheduler-upstream.md` touches accepted within *S11 only* | — | 9 + 3 | Q626 / — |
+| W166 | — | — | 7 + 8 | — |
+| W167 | — | F-1: raise Q633, do not fix it in W167 | 4 + 3 and minors | Q633 / — |
+| **P37** | **6, 6 YES, 0 NO** | **3, and (a)-(f)** | | **3 raised, 1 closed** |
+
+**Six widenings against P33's sixteen**, in six items against four. **Rule 6's NO branch has still not run on a
+widening** — the fifth plan running. **W164's S1 is the first stop-and-ask whose recommendation was NOT to widen**, and
+the answer *leave and record* did what rule 6 says a NO does not: it raised nothing. The four sentences have no register
+home and no owner — they live in W164's Out alone — which is stop-and-ask (j).
+
+### 2. The `Owns` and the census sites — D held, and the six exceptions are one class
+
+**Paragraph D was FOLLOWED and it worked**: every census site a lane reads — `LATE_SUITES`, `spec/README.md`'s row,
+`examples/README.md`'s `X10` copies, `RUN_FLOOR` — was in its row before the item started, and **no exception was a
+census site** (P33: twelve of sixteen were). **B′ was FOLLOWED and its self-test clause bound ONCE** — W166 added a `run`
+snippet and ran `check:docs:selftest` in the copy (M3, 47/47) — **and all six confirming gates were green on their FIRST
+run** (P33: two of four RED first, both on a self-test floor B's copy did not run). **C held in all six.**
+
+**The six exceptions are a different class, and one class:**
+
+| exception | the file | what it is to the changed surface |
+|---|---|---|
+| W162 E1 | `src/scheduler/envelope-worker.ts` | prose and a message STATING the superseded rule |
+| W162 E2 | `scripts/jsr-smoke.ts`, `scripts/pack-smoke.mjs` | CALLERS of the removed option — **typechecked by no lane**, so green either way |
+| W162 E3 | `examples/retention.ts` | a CALLER of a helper the row changed |
+| W163 E1 | `src/scheduler/index.ts` | the EXPORT LIST of the module the row changed |
+| W163 E2 | `src/definition/types.ts` | a comment DESCRIBING the field the row widened |
+| W165 E1 | `src/scheduler/runtime.ts` | the CALLER that hands the changed value on — without it the option was silently dropped |
+
+**Each is a READER of the surface its item changed, one hop outside the row** — three items, six occurrences (pass 3
+rule 2). **Five were found by B′'s byte copy at the declaration step and one (E3) by the readers; every one before its
+edit**, so the refusal ledger's *`Owns` pre-declaration* row's standing ground held again. Proposal D′ (section 6) is the
+author's note that would have named them; it is not a rule.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W162 | F1-F7, no defect | F1-F7, no defect | **1** | 94th |
+| W163 | F1-F7 and obs 8, no defect | F1-F4, no defect | **1** | 95th |
+| W164 | F1-F8, no defect | F1-F9; 18 of 23 mutations survived the build | **2** | 96th |
+| W165 | F1-F9, **one code defect (C-F1)** | 42 mutations, 3 survivors; K24 compound | **2** | 97th |
+| W166 | F1-F7, no defect against the spec | 26 mutations, 5 survivors; K8-K10 compound | **1** | 98th |
+| W167 | F1-F4, seven clauses MET | 22 mutations, 6 survivors, no clause broken | **0** | 99th |
+
+**All six inside the 0-4 band. The ordinal is now NINETY-NINE and the next measurement is the HUNDREDTH**; the band's
+*fifty-nine* stays, as P28's-P33's retros held it. **The readers are the mechanism for the ninth plan running**: the one
+code defect (W165's remembered declaration) was the conformity reader's; W164's *constrains nothing* was the adequacy
+reader's, 18 survivors over the shapes the build's set never quantified; both compound-probe findings were the adequacy
+readers'; and Q619 and Q633's sharper form were the conformity readers'.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a COMPOUND provocation counted as one kill** — W165's K24 (a swap and a dropped field), W166's K8, K9 and K10 (each two arguments of one call moved in one replacement), so *28 of 28* overstated twice | **FOLLOWED and failed at W166**: W165's Record named the lesson, and *one clause per mutation* was in W166's brief and its declared method (M4) | the adequacy readers, both times | **two occurrences, two items, and the second a rule FOLLOWED — the sharpest finding (pass 3 rule 3). Proposal E** |
+| **(b) a fact's census counted the wrong thing** — P37 fact 2 counted the sites that NAME the removed functions; the assertions that HOLD the rule named neither (W162 M3: nine L1 cases and 68 L6 assertions, not five and one) | — the plan's author | **B′'s copy at the declaration step**, before any edit | **No change**: one occurrence, and B′ — running the OLD assertions on the NEW code — is exactly what caught it |
+| **(c) a rule's SHAPES left unprovoked** — W164's build broke the list, the shapes and one reader each, and not every constraining keyword, both value checks, the generators or the registry and gate roads | BROKEN — section 5 rule 8 (a)'s v0.16 clause, *and the SHAPES they quantify over* | the adequacy reader | **No change**: the clause exists and names this |
+| **(d) a declared claim that could not fail** — W167's *start(C) handed the scheduler nothing* | FOLLOWED section 5 rule 3 and it worked | the author, at the build, asking which edit turns it red | **No change**: the rule worked |
+| **(e) stale prose a correct change makes false** — five *thirteen keywords* sentences (W164), three `envelope-worker.ts` passages (W162 E1), the spec's *73 / 8* census figures (W166), Q248's `note` (W163 C-F7) | — | the authors, the readers, this record step | **No change**: the ledger's first row, considered and not proposed (section 7) |
+| **(f) Q633 — a defect between two items' semantics**: W166 defined a transform's RESULT as what `inputSchema` holds; `FD-R4` holds the payload BEFORE it | — no item's `Owns` reached `src/driver/**` (paragraph D) | **the exit artifact's author**, composing the plan's features on one runtime | **No rung would have** (pass 3 rule 5): no L2 or L6 case has a transforming ENTRY whose value differs against the schema before and after the transform. Q633's `closes-when` names both rungs |
+
+**Pass 3 rule 5 over P37's defects**, by what caught them: **a rung in `gate`** — the L1 censuses W162's and W165's
+copies ran (M2-M3), W141's site census on W165's repeated fragment, `check:register` `R7` on two front-matter spellings
+(W162 C-F3, W165 M3), `check:spec` `C5` in W164's copy; **the mutation run's CONTROL** — W163's broken apostrophe literal,
+W164's filtered runner; **B′'s copy** — prediction 1's census; **the conformity readers** — the one code defect (W165 C-F1),
+observation 8 and Q633's sharper form; **the adequacy readers** — every survivor and both compound counts; **the exit
+artifact** — Q633.
+
+**The flaky rows ([Q599](../questions/q599.md)).** **Its first row went red ONCE** — `uncloneable / OR-R6, threaded`, in
+deno, at W164's declaration step (M2), green on the immediate re-run; W164 recorded it as *one occurrence, not raised*
+without naming Q599. **None in any of the six confirming gates.** A dated note is added to Q599; it stays deferred.
+
+### 5. The scheduler
+
+**S11 is written, NOT RAISED** (P37 (f), W165), and **W163's reading that a keyed group's throw needs no upstream fix
+was CONFIRMED by the maintainer** (ADR 0097's Context). **No new observation** — none of the six items found a scheduler
+behaviour that is not already an S entry or a fact of `AGENTS.md`.
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** D and B′ worked (section 2), C held, every confirming gate was
+green on its first run, and the one rule FOLLOWED that failed (section 4 (a)) is caught by the adequacy reader, whose
+existing job it is — twice, before either Record was written.
+
+**B′ and C. Recommended, carried UNCHANGED into P34's declaration** — they held in all six items (section 2).
+
+**D′. Recommended, for P34's AUTHOR, not the workflow: D, amended** — *the plan's index row names, for each item, the
+census sites its kind of change moves (D's list), **and every file that READS the surface the item changes — found by a
+grep for each changed name over `src/`, `scripts/`, `examples/` and `index.ts`: the module's export list, the caller that
+hands the value on, the publish smokes (which no lane typechecks), and the comments and messages that state the rule
+being changed**.*
+- **Replaces**: D in P34's declaration.
+- **Saves**: section 2's six asks — each a maintainer's YES the serial plan waited for.
+- **Ledger**: kin to the *`Owns` pre-declaration* row, refused 14 times — **and its ground held again: all six were found
+  before their edits.** As a rule or a check it would be that row's fifteenth refusal; this retro does not propose it as
+  one.
+
+**E. Recommended, for P34's declaration, not the workflow: the counting sentence** — *a provocation's edit changes ONE
+clause; where one replacement moves two (two arguments of a call, a swap and a deletion), the probe is COMPOUND, and a
+Record counts it as killing neither clause until each is re-cut alone and killed.*
+- **Replaces**: nothing — it amends how a Record states its kill count, which W165 and W166 each over-stated once.
+- **Why a counting sentence and not a method rule**: the method was IN W166's brief and failed (section 4 (a)), so
+  restating it is the mechanism that already failed; what the two overstatements did harm is the COUNT, and the count is
+  what a sentence can bind. W167 followed the brief's *one clause per mutation* and declared its own multi-edit probe
+  (`h02`, three edits forming ONE clause) — the form E asks for.
+- **As a workflow rule**: a row in section 5 rule 8's table, *on the SET* (v0.31) — about 170 bytes, against
+  `doc/workflow.md`'s **182 bytes of headroom** (`check:budget`), before section 7's bookkeeping. Offered as (k)'s
+  alternative.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it would be the 33rd refusal, P2-P37.** Section 4 (e) is the
+  class. The row's standing ground holds. **No other ledger row is re-raised**; D′ is explicitly not the `Owns` row's
+  proposal.
+
+| file | why |
+|---|---|
+| this plan | the Status line; Q285, Q619, Q626 and Q633 into *Open questions this plan carries*; this Record and Retro |
+| `doc/questions/q248.md` | its `note`: the feature still deferred, the refusal built (ADR 0097's `FD-R6`), the resident road Q619 — W163's conformity F7, left to this record step |
+| `doc/questions/q599.md` | a dated note: its first row red once in P37, at a declaration step; none in a confirming gate |
+| `README.md` | two rows in *More examples*: `runtime.check` (`AGENTS.md` section 12) and a transform tried on a value you give (section 15) |
+| `doc/questions/q626.md`, `doc/decisions/0099-*`, `0075-*`, `doc/questions/q457.md` | (h): Q626 resolved; ADR 0099 `resolves: Q626` and consequence 5 rewritten; ADR 0075's W165 note and Q457's `note` say it was accepted |
+| `doc/questions/q619.md`, `q633.md` | (i), (g): owner P34, a dated note each |
+| P34's draft | (g), (i), (j): three *Constraints* bullets and two question rows; (k): B′, C, D′ and E for its declaration |
+| `doc/workflow.md` | (l): the bookkeeping below, and nothing else |
+
+**The bookkeeping made in `doc/workflow.md`** (P33's precedent: no new version): the Status line, *THIRTY-FOUR times, by
+P1 through P33 and P37*; section 6, *ninety-nine, so the next is the HUNDREDTH*; the refusal ledger's first row, *33
+times, P2-P37*. **P37 does NOT join the Status line's *adopted nothing* list** — (l). P35's and P36's drafts take no
+hand-off: nothing P37 found is theirs.
+
+**Ids.**
+
+- **Issued**: W162, W163, W164, W165, W166, W167; ADR 0096, ADR 0097, ADR 0098, ADR 0099; Q619, Q626 and Q633; **S11
+  written, NOT RAISED**.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3):
+  - W168 CLOSED unissued, as the declaration expected;
+  - Q615-Q618 SPENT (W162's), Q620-Q622 SPENT (W163's), Q623-Q625 SPENT (W164's), Q627-Q629 SPENT (W165's),
+    Q630-Q632 SPENT (W166's), Q634 SPENT (W167's). None exists in the tree;
+  - ADR 0100 SKIPPED — no item needed a fifth decision.
+
+**The next plan starts at W169, Q635 and ADR 0101.** The next S id is S12; the next plan id is P38.
+
+*`npm run state` before this section printed the tree's W168 / Q634 / ADR 0100 against the ledger's W162 / Q615 /
+ADR 0096, the ledger being P33's sentence. The tree's maximum is wrong exactly here, because P37 closed W168, Q634 and
+ADR 0100 unissued — P33's precedent for W161, Q607-Q614 and ADR 0095. None of section 8's recommended answers takes an
+id.*
+
+### 8. Stop-and-asks for the maintainer
+
+| | the question | recommended | the alternative |
+|---|---|---|---|
+| **(g)** | **Q633** — `FD-R4` holds a transforming entry's payload BEFORE its transform, so `start` and `tryTransform(…, { input })` give opposite verdicts on one value: which plan owns it, and must it land before 0.8.0 is published? | **P34 owns it, and YES, before 0.8.0.** P34's draft gains a row in *Open questions this plan carries* and a *Constraints* bullet; **P34's declaration measures it and puts the ROAD as its own stop-and-ask** — (1) an async `start`, BREAKING; (2) a transforming entry's payload left unchecked; (3) a separate schema for what the transform receives. **Why P34**: the fix is in `src/driver/**` and `spec/`, which P34 edits for its dispatch hold, and road (1) changes `start`'s signature in the same BREAKING release; **why before 0.8.0**: 0.8.0 is the release that advertises *check, then start* for a flow published to a running runtime, and Q633 is a defect on that road — P34 decision 6 publishes after P36, so P34 owning it meets the bar with no extra plan | **A short plan, P38, before P34** — one question, its own exit artifact, the road decided at its declaration; P34 is untouched and 0.8.0 waits one more plan. **Or publish 0.8.0 with Q633 open**, its *meanwhile* (`validateBoundaries: false`, or an untransformed first node) written into `AGENTS.md` sections 10 and 11 |
+| **(h)** | **Q626** — a named instance of the built-in `Transform` may now hold a RESIDENT group: accept it as stated? | **YES, accept as stated** — the author's and W165's recommendation: a consumer wanting a transform-only pool to hold a group (a rate on an expensive engine) has one road, and ADR 0099 rule 1's *a document type* reading stays one rule. **Edits on YES**: Q626 `resolved`, `resolved-by` ADR 0099 consequence 5 and this retro's (h); ADR 0099's front matter `resolves: Q626` (`check:register` `R8` holds the pair both ways) and consequence 5's last two sentences rewritten from *not decided here* to *accepted, P37's retro (h)*; ADR 0075's W165 note's last sentence likewise. Q457's `note` already narrows its title to `inline` and `groups` | **Refuse `residentGroups` on a transform-only type's instance**, or refuse `pool` on it altogether — an item with its own shape-check clause on both roads, and the W165 case that pins the acceptance flips; owner P34 (as a row) or a later plan. ADR 0075 rule 3's note stands |
+| **(i)** | **Q619** — a built-in `KeyedRateLimitGroup` held only as RESIDENT is not `FD-R6` and counts every worker in one `""` bucket, silently: which of its options A-D, and who builds it? | **B — refuse it in the RESOLVER at `createRuntime`**, naming the pool and the group: the defect is the REGISTRY's, no flow and no `createTask` changes it, so it is refused where the registry is read. **Owner P34, as one row of its declaration**, so it ships in 0.8.0's BREAKING release; no known document declares it. Q619's `owner` becomes P34 | **C — accept and document** (the spec's group-types table and `AGENTS.md`; the same row, docs only — the silent sharing stays for a reader who does not read them). **D — defer with Q248** (`status: deferred`, no owner): a document `keyFrom` would key a resident acquire. **A — widen `FD-R6`**: one rule, but a `createTask` cannot help a resident group, so its two roads become one |
+| **(j)** | the sentences W164's S1 left with **no register home and no owner** — `src/driver/driver.ts:2140`, `test/driver/result-schema.test.ts:62` and `:309`, `spec/outcome-record.md`'s `OR-R13` (*the thirteen keywords*), `src/definition/wiring.ts:155` (names `examples` alone as unread) — and W162's `InvalidDefinition` message FORMATTED twice | **YES, a hand-off to P34**: one *Constraints* bullet in P34's draft naming all six sites, because P34 edits `src/driver/**` and `spec/outcome-record.md`, and a stale sentence that lives only in a finished item's Out has nobody to find it | **Raise a question** (rule 6's NO branch: *a question is raised only on a NO*) — Q635, owner P34, the same content in the register; or **leave them in W164's Out alone** |
+| **(k)** | proposals A, B′, C, D′ and E (section 6) | **A, B′, C, D′ and E** — no workflow edit; B′, C, D′ and E written into P34's draft as a hand-off for its author to copy into its declaration, as P33's retro adopted B′, C and D for this plan's | any subset; **E as a workflow rule** (section 5 rule 8's table, *on the SET*, v0.31) needs ~170 of `doc/workflow.md`'s 182 bytes of headroom, and (l)'s bookkeeping first |
+| **(l)** | **`doc/workflow.md`'s bookkeeping**, outside this retro's declared files — P33's retro made the same three edits (P32's precedent): the Status line *THIRTY-FOUR times, by P1 through P33 and P37*; section 6 *ninety-nine, so the next is the HUNDREDTH*; the ledger's first row *33 times, P2-P37*. And does P37 join the Status line's *adopted nothing* list? | **YES to the three edits** (net +2 bytes, inside the 182 of headroom), **no version, no index entry**; and **P37 does NOT join the list** if (k) is answered as recommended — D′ and E are adopted sentences, the maintainer's reading at P33 (i) | the next plan's retro makes them, and the ordinal and the ledger row are stale until then; or P37 joins the list (P31 section 10's reading: a declaration sentence moves no rule) |
+
+**The maintainer's answer, 2026-10-16: *"as recommended"*, to all six.**
+
+- **(g) Q633 → P34, and it lands before 0.8.0 is published.** P34's draft carries the *Constraints* bullet and the
+  question row; its declaration measures the defect and puts roads (1)-(3) as its own stop-and-ask.
+- **(h) Q626 ACCEPTED as stated** — resolved by ADR 0099 consequence 5 and this answer; ADR 0099's front matter
+  `resolves: Q626`, its consequence 5 and ADR 0075's W165 note rewritten; Q457's `note` says so.
+- **(i) Q619 → option B**: a built-in `KeyedRateLimitGroup` in any pool's `residentGroups` refused by the resolver at
+  `createRuntime`, naming the pool and the group — one row of P34's declaration, shipping in 0.8.0. Q619's owner is P34.
+- **(j) YES** — the six stale sites are one *Constraints* bullet in P34's draft; no question raised.
+- **(k) A, B′, C, D′ and E.** **A**: no change to any rule in `doc/workflow.md`; v0.30 stands and takes no index entry.
+  **B′, C, D′ and E are ADOPTED FOR P34's DECLARATION, not as rules** — written into P34's draft for its author to copy.
+- **(l) YES** — the three bookkeeping edits, made (section 7); **P37 does not join the *adopted nothing* list**.
