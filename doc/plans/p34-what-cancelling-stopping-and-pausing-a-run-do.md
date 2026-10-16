@@ -85,6 +85,44 @@ retro's stop-and-ask (h), 2026-10-15:*
   `forced: true` in deno, once, in a reader's scratch run (W160's adequacy F8). **MEASURED at this declaration**; if it
   reproduces, this plan writes an S entry in `doc/scheduler-upstream.md`, reserving its id (P33 stop-and-ask (g)).
 
+*Handed on by [P37](p37-a-runtime-is-its-registry.md)'s Record, by the maintainer's answer to its retro's stop-and-asks
+(g), (i), (j) and (k), 2026-10-16:*
+
+- **[Q633](../questions/q633.md) — a DEFECT, and it lands before 0.8.0 is published** (g): `FD-R4` holds a TRANSFORMING
+  entry node's payload to its worker `inputSchema` BEFORE the transform (`src/driver/driver.ts`'s start boundary), so
+  `start()` and `tryTransform(…, { input })` give opposite verdicts on one value. **MEASURED at this declaration**, and
+  the ROAD is put as this plan's own stop-and-ask: (1) an async `start`, BREAKING; (2) a transforming entry's payload
+  left unchecked; (3) a separate schema for what the transform receives. Its `closes-when` names an L2 case and an L6 run.
+- **[Q619](../questions/q619.md) — ONE ROW of this declaration, option B** (i): a built-in `KeyedRateLimitGroup` named in
+  any pool's `residentGroups` is refused by the RESOLVER at `createRuntime`, naming the pool and the group — today it is
+  not `FD-R6` and counts every worker in one `""` bucket, silently. BREAKING, in 0.8.0; the spec's group-types table,
+  ADR 0097 rule 1's pointer and `AGENTS.md` follow.
+- **Six stale sites** (j): *the thirteen keywords* at `src/driver/driver.ts:2140`, `test/driver/result-schema.test.ts:62`
+  and `:309` and `spec/outcome-record.md`'s `OR-R13` row (W164's S1 — four annotations made the count seventeen; the
+  claim about `canonical` still holds); `src/definition/wiring.ts:155`, naming `examples` alone as read by nothing (W164
+  C-F4); and the `InvalidDefinition` message FORMATTED twice, in `new Driver` and in the runtime's `openRun`, because
+  `src/driver/**` was no P37 item's (W162 Out, ADR 0096 consequence 2).
+
+*Adopted for THIS declaration by P37's retro (k) — copy all four into it, as P37 copied P33's:*
+
+- **B′ — the census re-take, with the self-test floors**: *an item that adds a node, a field, a suite, a module, a
+  snippet or a flow builds its change in a byte copy and runs every lane BEFORE writing its `Owns` — and, where the change
+  adds or removes an executed snippet or moves the size of an always-read document, the self-test that reads that floor
+  (`check:docs:selftest`, `check:budget:selftest`) as well.*
+- **C — one confirming gate per item**: *an item runs `npm run gate` (the ladder) before its readers, and its confirming
+  gate — `gate:item`, or the last item's `gate:full` — runs ONCE, after the reader items, on the final tree.*
+- **D′ — the census sites AND the readers in the plan's row**, a note for the AUTHOR and not a rule: *the plan's index
+  row names, for each item, the census sites its kind of change moves — a new suite → `test/definition/l4-corpus.test.ts`;
+  a spec version → `spec/README.md`'s row; an L6 assertion or run → `examples/README.md`'s `X10` copies; an executed
+  snippet → `scripts/check-docs.mjs`'s `RUN_FLOOR`; a driver field → `examples/l6.ts`'s and
+  `test/driver/retention.test.ts`'s `DRIVER_FIELDS`; a fact `AGENTS.md` states → the whole of `AGENTS.md` — and every
+  file that READS the surface the item changes, found by a grep for each changed name over `src/`, `scripts/`,
+  `examples/` and `index.ts`: the module's export list, the caller that hands the value on, the publish smokes (which no
+  lane typechecks), and the comments and messages that state the rule being changed.*
+- **E — a compound probe kills nothing**: *a provocation's edit changes ONE clause; where one replacement moves two (two
+  arguments of a call, a swap and a deletion), the probe is COMPOUND, and a Record counts it as killing neither clause
+  until each is re-cut alone and killed.*
+
 ## Scope (draft)
 
 **In** — `driver.cancel`, a per-run stop on the `RunHandle` or runtime, `pause`/`unpause`; their fold
@@ -101,6 +139,8 @@ cancelling tasks a worker spawned itself.
 | [Q18](../questions/q18.md) | what cancelling a run does — reopened here | P34 |
 | [Q605](../questions/q605.md) | two doors a re-entrant halt does not shut — closed by this plan's dispatch hold | P34 |
 | [Q606](../questions/q606.md) | the runtime's release of a cancelled run, and a no-worker `done` case — its L6 half met by P33's W160 | P34 |
+| [Q633](../questions/q633.md) | DEFECT: `FD-R4` holds a transforming entry's payload before its transform — before 0.8.0 is published, the road this declaration's stop-and-ask (P37 retro (g)) | P34 |
+| [Q619](../questions/q619.md) | a built-in keyed group held only as RESIDENT — refused in the resolver at `createRuntime`, one row (P37 retro (i), option B) | P34 |
 
 ## Record
 

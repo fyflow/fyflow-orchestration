@@ -289,6 +289,8 @@ snippet is extracted and executed on every `npm run gate`, so none of it can dri
 | | |
 |---|---|
 | A task **cancelled** by its id — the run ends `cancelled` and refuses a resume | [AGENTS.md](AGENTS.md) section 6 |
+| **Checking** a flow against a running runtime before starting it — `runtime.check` | section 12 |
+| **Trying** a transform on a value you give, the entry node included | section 15 |
 | Holding a **result** to the schema its worker declares | section 16 |
 | Fanning out **per item** — a region inside a `map` region | section 17 |
 | **Saving** a run and **resuming** it from the stored events | section 18 |

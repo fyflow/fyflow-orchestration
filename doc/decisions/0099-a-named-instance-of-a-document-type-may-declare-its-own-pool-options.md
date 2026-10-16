@@ -7,7 +7,7 @@ item: W165
 raised-by: P37
 supersedes: ""
 amends: ADR 0054 decisions 2 and 3
-resolves: ""
+resolves: Q626
 ---
 
 # ADR 0099 — A named instance of a DOCUMENT type may declare its own pool options, merged over its type's and copied; a class type's instance may not
@@ -90,9 +90,10 @@ captures, unmoved).
    (rule 1), so its instance takes every pool option, `residentGroups` included — the first road by which a
    transform-only pool holds a resource group. [ADR 0075](0075-a-node-that-only-transforms-is-a-built-in-type-with-no-inner-worker.md)
    rule 3's closing note (*holds no resource group, and nothing a consumer writes changes that*) is narrowed by it, and
-   [Q457](../questions/q457.md)'s *reachable by NO road* now holds of `inline` and `groups` alone. Whether that is wanted
-   is not decided here: it is [Q626](../questions/q626.md), raised by W165 from its conformity reader's F3. Until it is
-   answered the instance is accepted as stated.
+   [Q457](../questions/q457.md)'s *reachable by NO road* now holds of `inline` and `groups` alone. That road is wanted:
+   [Q626](../questions/q626.md), raised by W165 from its conformity reader's F3, was ANSWERED by the maintainer at
+   [P37](../plans/p37-a-runtime-is-its-registry.md)'s retro (h), 2026-10-16 — accepted as stated, and resolved by this
+   consequence.
 
 **What it does not decide.** Admitting the three options of rule 7 — each would want a bound of its own and, for
 `requeueFailedTasks`, a rung on the worker-death road, which no rung here exercises. Whether the scheduler bounds its own
