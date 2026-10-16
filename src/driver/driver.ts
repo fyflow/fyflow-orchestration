@@ -12,7 +12,7 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, FlowDefinition, FlowNode, GateNode, GateType, GateTypes, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, GateNode, GateType, GateTypes, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
 import { checkRegistry, isDerivation } from '../definition/registry.ts';
 // W73 (P19 decision 5, `FD-R4`): the two boundaries no static check can reach are held to the
 // workers' declared schemas ONCE each, and the targets of the first are the wiring check's own walk.
@@ -61,6 +61,26 @@ export class InvalidDefinition extends Error {
   constructor(rules: string[], message: string) {
     super(message);
     this.rules = rules;
+  }
+
+  /**
+   * **A definition's findings as the error, built in ONE place** — P34 fact 12, W169. `new Driver` throws it for what
+   * `validateDefinition` found, and `createRuntime`'s `start` and `resume` throw it for what `runtime.check` found (ADR 0096
+   * rule 5), so the two roads cannot drift apart: `rules` is `violatedRules(findings)` — sorted, each once — and the
+   * message is `definition "<flowId>" is invalid: ` then every finding as `<rule> at <at>: <detail>`, `at` reading
+   * `<document>` where a finding has none, joined by `; `. *(Until W169 the two roads each built it inline, the same text
+   * twice.)* `at` is printed as given — a node id, an edge site (`id#edgeN`), or `<document>` for `null`.
+   *
+   * **Its precondition is at least one finding**, and an EMPTY list is refused with a `RangeError` (the conformity reader's
+   * C3): an `InvalidDefinition` naming no defect would read *"is invalid: "* and name nothing. Both callers throw only
+   * when they found something.
+   */
+  static fromFindings(flowId: string, findings: Finding[]): InvalidDefinition {
+    if (findings.length === 0) throw new RangeError(`InvalidDefinition.fromFindings: definition "${flowId}" has no finding — an invalid definition names at least one`);
+    return new InvalidDefinition(
+      violatedRules(findings),
+      `definition "${flowId}" is invalid: ` + findings.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
+    );
   }
 }
 export class DuplicateTaskId extends Error {
@@ -1377,13 +1397,7 @@ export class Driver {
       ...(opts.gateTypes !== undefined ? { gateTypes: opts.gateTypes } : {}),
     };
     const findings = validateDefinition(definition, registry);
-    if (findings.length) {
-      throw new InvalidDefinition(
-        violatedRules(findings),
-        `definition "${definition.flowId}" is invalid: ` +
-          findings.map((f) => `${f.rule} at ${f.at ?? '<document>'}: ${f.detail}`).join('; '),
-      );
-    }
+    if (findings.length) throw InvalidDefinition.fromFindings(definition.flowId, findings);
     // **A GATE RUNS, and until W93 it was refused at this exact point** — ADR 0066 rule 7, LIFTED by
     // [ADR 0067](../../doc/decisions/0067-a-gate-runs-in-the-driver-its-memory-is-the-drivers-and-its-decision-is-recorded.md).
     // W92 made a gate a VALID definition and refused every flow holding one here, by name, because the
@@ -2137,7 +2151,7 @@ export class Driver {
     if (schema === undefined || workerName === undefined) return;
     // **The check must not be able to STOP the run, and unguarded it CAN** — W80's conformity
     // reader, finding 1, measured on four shapes. `findings`' `enum` and `const` clauses are the
-    // ONLY two of ADR 0053's thirteen keywords that call `canonical`, and `canonical` is the only
+    // ONLY two of the subset's seventeen keywords (ADR 0053, ADR 0056, ADR 0098) that call `canonical`, and `canonical` is the only
     // expression in that module which walks the WHOLE VALUE rather than the schema's shape — every
     // other clause recurses through `properties` and `items`, whose depth is the SCHEMA's, and the
     // subset has no `$ref` to make that unbounded. So a **cyclic** result or a **BigInt** under

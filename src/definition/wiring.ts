@@ -184,7 +184,7 @@ const BRANCH_KEY = /^\d+(\.\d+)*$/;
 
 /**
  * **Every value `P` admits is accepted by `C`** — P19 fact 3's relation, verbatim in shape, over
- * the twelve constraining keywords (`examples` is read by nothing, ADR 0056 rule 1). `'fits'` or
+ * the twelve constraining keywords (the five annotations are read by nothing — `examples`, ADR 0056 rule 1, and `title`, `description`, `readOnly` and `writeOnly`, ADR 0098). `'fits'` or
  * `'no'` with the reason, never a third answer. `path` is where in the two schemas the answer was
  * decided, as `findings` addresses a value.
  */

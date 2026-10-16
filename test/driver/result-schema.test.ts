@@ -59,7 +59,7 @@ const CONF: JsonSchema = { type: 'object', required: ['confidence'], properties:
  * and 12: `minimum`, `enum` and `items` never fired anywhere, and `enum` is the keyword this
  * item's own declaration step made P21 prediction 1 reverse on. It is also the keyword that
  * makes `findings` able to THROW (conformity reader, finding 1), because `enum` and `const` are
- * the only two of the thirteen that call `canonical` over the whole value.
+ * the only two of the subset's seventeen (ADR 0098) that call `canonical` over the whole value.
  */
 const SHAPED: JsonSchema = {
   type: 'object',
@@ -306,7 +306,7 @@ suite('OR-R13 — what a nonconforming result reports, and what leaves it alone'
   });
 
   test('a result `findings` CANNOT READ is a FINDING and never a run failure — the conformity reader`s finding 1', () => {
-    // **`enum` and `const` are the only two of ADR 0053's thirteen keywords that call `canonical`,
+    // **`enum` and `const` are the only two of the subset's seventeen keywords (ADR 0053, ADR 0056, ADR 0098) that call `canonical`,
     // and `canonical` is the only expression in `findings` that walks the WHOLE VALUE** rather than
     // the schema's shape — every other clause recurses through `properties` and `items`, whose depth
     // is the schema's, and the subset has no `$ref`. So a **cyclic** result and a **BigInt** throw

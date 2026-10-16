@@ -3087,15 +3087,19 @@ suite('W163 — what start refuses that the flow does not decide: FD-R6, a node 
     equal(r.check(flowOf('default', [task('a', 'C', 'done')])), [], 'the same type on its DEFAULT instance, whose pool names nothing, is not');
   });
 
-  test('the CONTROLS: a RateLimitGroup in its place, a keyed group no node reaches, a keyed group held only as a RESIDENT group, and a CODE group type building a keyed group with a keyFrom — none is FD-R6', () => {
+  test('the CONTROLS: a RateLimitGroup in its place, a keyed group no node reaches, and a CODE group type building a keyed group with a keyFrom — none is FD-R6; and a keyed group held only as a RESIDENT group is refused at createRuntime instead (W169, Q619 option B)', () => {
     const s = seams();
     const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
     equal(r.check(flowOf('flat-type', [task('a', 'Flat', 'done')])), [], 'P37 fact 1`s control: a RateLimitGroup on the type`s pool');
     equal(r.check(flowOf('flat-node', [task('a', 'Plain', 'done', { workerGroups: ['flat'] })])), [], 'and named by the node');
     equal(r.check(FLOW_ON_PLAIN), [], 'a keyed group the registry DECLARES and no node reaches — P37 prediction 3`s case');
+    // **FLIPPED by W169** (P34 fact 11, the one assertion it predicted to move): this was `rr.check(…)` equal to `[]` — a
+    // pool holding `api` only as a RESIDENT group was not FD-R6 and the runtime built. FD-R6 still does not read it (rule
+    // 1); the REGISTRY refuses it now, before any flow is read (spec/flow-definition.md v0.39, Q619 option B).
     const resident = { ...KEYED_DOC, nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Holds: { worker: 'w', inline: true, pool: { idleTimeout: 1000, residentGroups: ['api'] } } } } as unknown as RegistryDocument;
-    const rr = createRuntime(resident, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler });
-    equal(rr.check(flowOf('resident', [task('a', 'Holds', 'done')])), [], 'a pool holding `api` only as a RESIDENT group — the scheduler resolves no key for one (rule 1)');
+    const rs = seams();
+    const rr = refusalOf(() => createRuntime(resident, {}, { createPool: rs.createPool, createScheduler: rs.createScheduler }));
+    ok(rr instanceof DerivationRefused && (rr as DerivationRefused).at === 'Holds', `a pool holding \`api\` only as a RESIDENT group: DerivationRefused at "Holds" — got ${(rr as Error)?.name}: ${(rr as Error)?.message}`);
     const coded = { ...KEYED_DOC, groups: { ...(KEYED_DOC.groups as object), tenant: { type: 'KeyedWithKeyFrom', config: {} } } } as unknown as RegistryDocument;
     const code: RegistryCode = { groupTypes: { KeyedWithKeyFrom: { create: (_c: unknown, key: string) => new KeyedRateLimitGroup(WINDOWS, { id: key, keyFrom: () => 'k' }) as never } } };
     const rc = createRuntime(coded, code, { createPool: seams().createPool, createScheduler: seams().createScheduler });
@@ -3103,6 +3107,85 @@ suite('W163 — what start refuses that the flow does not decide: FD-R6, a node 
     equal(rc.check(flowOf('coded', [task('a', 'Plain', 'done', { workerGroups: ['tenant'] })])), [], 'and a node reaching it is not FD-R6 — the working road the scheduler`s own message names');
     equal(rc.check(flowOf('coded-and-api', [task('a', 'Plain', 'done', { workerGroups: ['tenant', 'api'] })])).map((f) => f.detail.includes('"tenant"')), [false],
       'CONTROL: a node reaching BOTH is FD-R6 for the built-in one alone, and the finding does not name the code group');
+  });
+
+  /**
+   * **W169 — Q619 option B, at `createRuntime`** (spec/flow-definition.md v0.39; P34 decision 12). The row's three roads —
+   * a TYPE's pool, a NAMED instance's own pool merged over its type's, a CLASS derivation's output — each refused
+   * `DerivationRefused` `at` the pool key, its message naming the pool (as the refusal table's `derivePool` names it) and
+   * the group, with NO pool built and NO scheduler built (the seams record both). The controls: a resident
+   * `ConcurrentLimitGroup`, and a CODE group type whose `create` builds a real `KeyedRateLimitGroup` with a `keyFrom`,
+   * each held resident — the runtime builds, the pool carrying the group resident, and the code group IS keyed.
+   */
+  test('W169: a built-in keyed group held RESIDENT is refused at createRuntime — a type`s pool, a named instance`s, a class`s output — naming the pool and the group, building nothing; a ConcurrentLimitGroup and a CODE group type`s keyed group held resident build (Q619 option B)', () => {
+    const holds = (pool: Record<string, unknown>) => ({ worker: 'w', inline: true, pool: { idleTimeout: 1000, ...pool } });
+    const ROADS_B: [string, RegistryDocument, RegistryCode, string, string][] = [
+      ['a TYPE`s pool', { ...KEYED_DOC, nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Holds: holds({ residentGroups: ['api'] }) } } as unknown as RegistryDocument, {},
+        'Holds', 'node type "Holds"\'s default instance'],
+      ['a NAMED instance`s own pool, merged over its type`s', { ...KEYED_DOC, nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Holds: holds({}) },
+        pools: { 'holds-api': { type: 'Holds', pool: { residentGroups: { api: 1 } } } } } as unknown as RegistryDocument, {},
+        'holds-api', 'pool "holds-api" (an instance of "Holds")'],
+      ['a CLASS derivation`s output', KEYED_DOC, { nodeTypes: { C: { worker: 'w', inline: true, pool: () => ({ config: {}, idleTimeout: 1000, residentGroups: ['api'] }) } } },
+        'C', 'node type "C"\'s default instance'],
+    ];
+    for (const [label, doc, code, key, who] of ROADS_B) {
+      const s = seams();
+      const err = refusalOf(() => createRuntime(doc, code, { createPool: s.createPool, createScheduler: s.createScheduler }));
+      ok(err instanceof DerivationRefused, `${label}: DerivationRefused — got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+      equal((err as DerivationRefused).at, key, `${label}: at the pool key`);
+      for (const n of [who, 'group "api"', 'KeyedRateLimitGroup', 'residentGroups']) ok((err as Error).message.includes(n), `${label}: the message names ${n} — ${(err as Error).message}`);
+      equal([s.pools.length, s.built.length], [0, 0], `${label}: no pool and no scheduler built`);
+    }
+    // The controls: the runtime BUILDS, and the pool carries the group resident.
+    const s1 = seams();
+    const conc = { ...KEYED_DOC, groups: { ...(KEYED_DOC.groups as object), slots: { type: 'ConcurrentLimitGroup', config: { limit: 2 } } },
+      nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Holds: holds({ residentGroups: ['slots'] }) } } as unknown as RegistryDocument;
+    createRuntime(conc, {}, { createPool: s1.createPool, createScheduler: s1.createScheduler });
+    equal(s1.built.length, 1, 'a resident ConcurrentLimitGroup: the runtime builds');
+    equal(s1.pools.filter((p) => JSON.stringify(p.options.residentGroups) === '["slots"]').length, 1, 'and ONE pool holds `slots` resident');
+    const s2 = seams();
+    const coded = { ...KEYED_DOC, groups: { ...(KEYED_DOC.groups as object), tenant: { type: 'KeyedWithKeyFrom', config: {} } },
+      nodeTypes: { ...(KEYED_DOC.nodeTypes as object), Holds: holds({ residentGroups: ['tenant'] }) } } as unknown as RegistryDocument;
+    const code: RegistryCode = { groupTypes: { KeyedWithKeyFrom: { create: (_c: unknown, key: string) => new KeyedRateLimitGroup(WINDOWS, { id: key, keyFrom: () => 'k' }) as never } } };
+    const rc = createRuntime(coded, code, { createPool: s2.createPool, createScheduler: s2.createScheduler });
+    ok((rc.groups.tenant as unknown as { keyed?: boolean }).keyed === true, 'a CODE group type`s group IS keyed — so what spares it is the factory');
+    equal(s2.pools.filter((p) => JSON.stringify(p.options.residentGroups) === '["tenant"]').length, 1, 'and its pool is built holding it resident');
+  });
+
+  /**
+   * **W169 — the `InvalidDefinition` message, built by ONE function both roads call** (P34 fact 12). The FORM is written
+   * here by hand — `definition "<flowId>" is invalid: ` then `<rule> at <at, or <document>>: <detail>` joined by `; `,
+   * `rules` sorted and each once — and held on `start` and on `new Driver` over `runtime.registry` against ONE whole
+   * hand-written literal, details included, and on `InvalidDefinition.fromFindings` itself over hand-written findings.
+   */
+  test('W169: the InvalidDefinition message — start`s and new Driver`s are one text, in the hand-written form, and fromFindings builds it', () => {
+    const e = InvalidDefinition.fromFindings('f', [
+      { rule: 'FD-V9', at: 'x', detail: 'one' }, { rule: 'FD-V2', at: null, detail: 'two' }, { rule: 'FD-V9', at: 'y', detail: 'three' },
+    ]);
+    ok(e instanceof InvalidDefinition, 'an InvalidDefinition');
+    equal(e.message, 'definition "f" is invalid: FD-V9 at x: one; FD-V2 at <document>: two; FD-V9 at y: three', 'the form, by hand: in the findings` order, <document> for no at');
+    equal(e.rules, ['FD-V2', 'FD-V9'], 'rules: sorted, each once');
+    const empty = refusalOf(() => InvalidDefinition.fromFindings('z', []));
+    ok(empty instanceof RangeError, `an EMPTY list is refused, never an InvalidDefinition naming nothing (C3) — got ${(empty as Error)?.name}`);
+    // Two defects: a document-level key (FD-V17, `at` null) and a type the registry lacks (FD-V32 at `a`).
+    const two = { ...flowOf('two-defects', [task('a', 'Nobody', 'done')]), stray: 1 } as unknown as FlowDefinition;
+    const s = seams();
+    const r = createRuntime(KEYED_DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const found = r.check(two);
+    equal(found.map((f) => [f.rule, f.at]), [['FD-V17', null], ['FD-V32', 'a']], 'check: the two findings, by hand');
+    // The WHOLE text, by hand (the conformity reader's C1): the form above, each detail as FD-V17's and FD-V32's own sentence
+    // in src/definition/validate.ts reads for this flow — the stray key, and `Nobody` against KEYED_DOC's three types and
+    // the built-in `Transform`, sorted.
+    const expected = 'definition "two-defects" is invalid: FD-V17 at <document>: document carries undeclared key "stray"; ' +
+      'FD-V32 at a: type "Nobody" is not a registered node type (the registry declares "Flat", "Keyed", "Plain", "Transform")';
+    const viaStart = refusalOf(() => r.start(two, {}));
+    ok(viaStart instanceof InvalidDefinition, `start: InvalidDefinition — got ${(viaStart as Error)?.name}`);
+    equal((viaStart as Error).message, expected, 'start`s message, in the hand-written form');
+    const viaDriver = refusalOf(() => new Driver(two, { runId: 'by-hand', scheduler: inert as never, ...r.registry, joinPolicy: liveToken }));
+    ok(viaDriver instanceof InvalidDefinition, `new Driver: InvalidDefinition — got ${(viaDriver as Error)?.name}`);
+    equal((viaDriver as Error).message, expected, 'new Driver`s message, in the same form');
+    equal((viaStart as InvalidDefinition).rules, (viaDriver as InvalidDefinition).rules, 'and the same rules');
+    equal((viaStart as InvalidDefinition).rules, ['FD-V17', 'FD-V32'], 'which are the two, sorted');
   });
 
   test('the createTask road: given a createTask, FD-R6 refuses nothing — the run starts and the task carries the key the factory set; and check still reports it, reading as start with none (stop-and-ask (c))', () => {
