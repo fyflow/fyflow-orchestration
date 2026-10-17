@@ -608,7 +608,8 @@ const LATE_SUITES = [
   'RN-R10 and `regionEntered` — an entered region that opened NOTHING',
   'RN-R10 — a run whose join can no longer fire is `stuck`, not `completed`',
   'RN-R10 — the precedence, in the order section 3 states it',
-  'RN-R12 — a run is finished exactly when it is neither running nor awaiting_action',
+  // W178 — P34 retro (m): `cancelling` joined the title, `RN-R12` since v0.18; `test/fold/stuck.test.ts` moves with it.
+  'RN-R12 — a run is finished exactly when it is neither running, awaiting_action nor cancelling',
   'RN-R2 — the fold is still total over any prefix, with the new inputs',
   'RN-R2 — the fold is total over any prefix',
   'RN-R3 and OR-R5 — append order, never a timestamp',
@@ -839,24 +840,24 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W173's two suites, counted the same way and for the same reason.**
   test('W173`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('L2 — RN-R31: cancelling a run — hold, one element, then each task in flight cancelled, and `done` after the last'), 13,
-      'test/driver/cancel.test.ts registers its thirteen: the roads, the second call, the refusals, RN-R29 (i), the resume, the parked run, RN-R23, the mid-step cancel, two cancels on an unhanded task, the running road, the lost tail, a done-and-parked run, and its own membership');
+    equal(count('L2 — RN-R31: cancelling a run — hold, one element, then each task in flight cancelled, and `done` after the last'), 15,
+      'test/driver/cancel.test.ts registers its fifteen: the roads, the second call, the refusals, RN-R29 (i), the resume, the parked run, RN-R23, the mid-step cancel, two cancels on an unhanded task, the running road, the lost tail, a done-and-parked run, W178`s throwing callback at rest and on a paused run, W178`s throwing callback mid-step, and its own membership');
     equal(count('L1 — RN-R30: a run its OWNER cancelled reads `cancelling` until its last task has stopped, then `cancelled`'), 10,
       'test/fold/cancelling.test.ts registers its ten: eight claims, L3, and its own membership');
   });
   // **W174's two suites, counted the same way and for the same reason.**
   test('W174`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('L2 — RN-R33: stopping a run — hold, one element, DEAF, then each task in flight cancelled, and a resume elsewhere'), 16,
-      'test/driver/stop.test.ts registers its sixteen: the order, the refusals, the second call, the parked run, RN-R29 (i), the mid-step stop, the resume elsewhere, the stop on `resumed`, the lost tail, deaf with the hold, a throwing callback, the three R9 steps, a second call while pending, and its own membership');
+    equal(count('L2 — RN-R33: stopping a run — hold, one element, DEAF, then each task in flight cancelled, and a resume elsewhere'), 17,
+      'test/driver/stop.test.ts registers its seventeen: the order, the refusals, the second call, the parked run, RN-R29 (i), the mid-step stop, the resume elsewhere, the stop on `resumed`, the lost tail, deaf with the hold, a throwing callback, the three R9 steps, a second call while pending, W178`s throw on a stop taken at a scheduler event`s step end, and its own membership');
     equal(count('L1 — RN-R32: a run its OWNER stopped reads `interrupted` until a `resumed` element ends it'), 8,
       'test/fold/interrupted.test.ts registers its eight: six claims, L3, and its own membership');
   });
   // **W175's two suites, counted the same way and for the same reason.**
   test('W175`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('L2 — RN-R35: pausing a run — it routes on, every dispatch is appended and HELD, and an unpause hands them on in dispatch order'), 14,
-      'test/driver/pause.test.ts registers its fourteen: the hold and the order, the refusals, the mid-step pause and its resume, a pause and an unpause in one step, a dispatch on the hand-off`s stack, a throwing callback, the stop, the cancel, a pending stop, a halt in the hand-off, a pause on `resumed`, a cancel on a held task`s own element, a paused resume`s order, and its own membership');
+    equal(count('L2 — RN-R35: pausing a run — it routes on, every dispatch is appended and HELD, and an unpause hands them on in dispatch order'), 15,
+      'test/driver/pause.test.ts registers its fifteen: the hold and the order, the refusals, the mid-step pause and its resume, a pause and an unpause in one step, a dispatch on the hand-off`s stack, a throwing callback, the stop, the cancel, a pending stop, a halt in the hand-off, a pause on `resumed`, a cancel on a held task`s own element, a paused resume`s order, W178`s throw on a pause or an unpause taken at a scheduler event`s step end, and its own membership');
     equal(count('L1 — RN-R34: a run its OWNER paused reads `paused: true` until an `unpaused` element — a flag, never an outcome'), 8,
       'test/fold/paused.test.ts registers its eight: six claims, L3, and its own membership');
   });

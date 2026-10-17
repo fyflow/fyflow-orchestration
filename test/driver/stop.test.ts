@@ -188,6 +188,7 @@ const DECLARED_CASES = [
   'R9: a stop whose step then HALTS the run is taken after it — the element after `halted`, the promise resolved, the fold `halted`',
   'R9: a stop whose step then has a task settle `cancelled` (RN-R28) is taken after it — the promise resolved, the fold `cancelled`',
   'a SECOND stop while the first is still PENDING mid-step: nothing sent yet, its graceMs kept for the cancels to come, one element, both resolving on the stop',
+  'W178 (j): a callback THROWING on the `interrupted` element of a stop TAKEN at the end of a SCHEDULER EVENT`s step is caught at the listener boundary — nothing leaves the event, the cancels sent and the promise settled, onRunFailure hears it once, and the run is HALTED, so not resumable — beside the control',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -751,7 +752,48 @@ suite(SUITE, (test) => {
     equal(both, 2, 'both resolve once it has');
   });
 
-  test(DECLARED_CASES[15]!, () => {
+  test(DECLARED_CASES[15]!, async () => {
+    const A = 'r1:a:0:0', B = 'r1:b:1:0';
+    const boom = new Error('W178: the consumer`s store failed on the interrupted element');
+    // A stop called on a's SETTLEMENT element — a scheduler event's step — is PENDING until that step ends (`RN-R33`),
+    // and is taken there; the callback throws on the element. P35 fact 10's road, for the stop.
+    const arrange = (throws: boolean) => {
+      const box: { driver?: Driver; promise: Promise<void> | null } = { promise: null };
+      const reported: { kind: string; cause: unknown }[] = [];
+      const h = harness(TWO, new StopFake(), {
+        onFoldInput: (e: FoldInput) => {
+          if (box.promise === null && e.kind === 'outcome' && e.record.taskId === A) box.promise = box.driver!.stop({ actor: 'ops' });
+          if (throws && e.kind === 'interrupted') throw boom;
+        },
+        onRunFailure: (f: { kind: string; cause: unknown }) => reported.push({ kind: f.kind, cause: f.cause }),
+      });
+      box.driver = h.driver;
+      h.driver.start({});
+      let escaped: unknown = null;
+      try { h.scheduler.settle(A, 'done'); } catch (x) { escaped = x; }
+      return { h, box, reported, escaped };
+    };
+
+    const c = arrange(false);
+    equal([c.escaped, c.h.log().at(-1), c.h.scheduler.cancels.map((x) => x.id), c.reported], [null, 'interrupted ops null', [B], []],
+      'the control: the stop taken at the step`s end, b sent its cancel, nothing reported');
+    equal([fold(c.h.driver.foldInputs()).outcome, resumeRefusal(TWO, stored(c.h.driver))], ['interrupted', null], 'the control is `interrupted`, and resumable');
+
+    const t = arrange(true);
+    equal(t.escaped, null, 'NOTHING leaves the scheduler event — today`s tree threw it out of the listener, an uncaught exception in node and deno');
+    equal(t.h.log().slice(-2), ['interrupted ops null', 'halted'], 'the element is in the log, and then the run`s `halted`');
+    equal(t.h.scheduler.cancels.map((x) => [x.id, x.held]), [[B, true]], 'b, in flight, IS sent its cancel — the take`s `finally` ran before the boundary caught the throw');
+    equal(t.reported.map((f) => [f.kind, f.cause === boom]), [['Error', true]], 'onRunFailure hears it ONCE, carrying the consumer`s own error');
+    equal([t.h.driver.hasFailed(), fold(t.h.driver.foldInputs()).outcome], [true, 'halted'], 'the run is HALTED — `halted` outranks `interrupted` (RN-R32)');
+    equal(resumeRefusal(TWO, stored(t.h.driver))?.reason, 'halted', 'and so NOT resumable: (j)`s cost, stated in OR-R10 v0.17');
+    let settled = false;
+    void t.box.promise!.then(() => { settled = true; });
+    t.h.scheduler.finish(B);
+    await turn();
+    equal([settled, t.h.log().at(-1)], [true, 'halted'], 'the stop`s promise settles once b stopped, and b`s `task.cancelled` is not heard — the driver is deaf');
+  });
+
+  test(DECLARED_CASES[16]!, () => {
     const ran = collected().filter((s) => s.suite === SUITE).flatMap((s) => s.cases.map((c) => c.name));
     equal(ran, DECLARED_CASES, 'each declared case registered, in order, and no other — an emptied or renamed case fails here');
   });

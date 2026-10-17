@@ -1983,10 +1983,14 @@ suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that
    * `outcome !== 'running' && outcome !== 'awaiting_action'` (and, since W173, `!== 'cancelling'` — that third value is
    * the W151 suite's Q606 case, not this enumeration's), so it names its own values and this
    * is the list the rule enumerates rather than the list an author chose
-   * (`doc/workflow.md` rule 8 (a) at v0.17). Four settle, two do not — and the two that do not are
-   * the whole of why `done` can wait for ever, which is what the reference has to teach.
+   * (`doc/workflow.md` rule 8 (a) at v0.17). Three settle, two do not — and the two that do not are
+   * the whole of why `done` can wait for ever, which is what the reference has to teach. *(W178, P34
+   * retro (m): the title read "the six outcomes: four terminal ones settle" — six was v0.2's vocabulary,
+   * this block never ran `halted`, and `RunOutcome` has NINE values since P34. The other four are each
+   * their own suite's: `halted` W77's refusal suite, `cancelled` and `cancelling` W151's Q606 case,
+   * `interrupted` W174's.)*
    */
-  test('the six outcomes: four terminal ones settle `done`, and the two non-terminal ones do NOT', async () => {
+  test('five of the nine outcomes: three terminal ones settle `done`, and the two non-terminal ones do NOT — halted, cancelled, cancelling and interrupted in their own suites', async () => {
     const pending = Symbol('still pending');
     /** Whether `done` has settled by the next macrotask turn — a microtask is not enough, because the predicate runs in one. */
     const settledYet = (d: Promise<RunState>): Promise<RunState | symbol> =>
@@ -2069,7 +2073,7 @@ suite('W77 — `done` IS the caller`s own fold, and it settles exactly when that
  * |---|---|---|
  * | **I** | refused BEFORE the run begins — `InvalidDefinition` (since W162 thrown from `runtime.check`'s findings), `BoundaryRefused` at `start` (`LanguageNotBuilt` until W162 removed it) | `runtime.start` throws; `failRun` is never reached; no run exists |
  * | **II** | refused DURING `start()` — `failRun(e)` **then `throw e`**, the caller being on the stack | `runtime.start` throws, so the caller **never receives the handle** |
- * | **III** | refused from a LISTENER — `failRun(e)` alone, a throw from a listener being discarded | the caller **holds** the handle |
+ * | **III** | refused from a LISTENER — `failRun(e)` alone, a throw from a listener reaching nobody who can act on it (`dispatchEvent` rethrows it out of band: an uncaught exception in node 24 and deno, P35 fact 10) | the caller **holds** the handle |
  *
  * **Two measurements decide it.** First, `failRun` appends the `halted` fold input BEFORE calling
  * `onRunFailure`, so a refusal is ALREADY terminal when a consumer hears of it — the resolve road
@@ -2638,12 +2642,14 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     const s = routedSeams();
     const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
     const reports: string[] = [];
-    // A consumer callback that throws out of the driver's failure path: `onUnmintedTask` throws, the driver's listener
-    // catches it and fails the run (`OR-R10`), and `onRunFailure` throws again — which nothing in the driver catches.
-    r.start(FLOW, { x: 1 }, {
-      runId: 'r1',
-      onUnmintedTask: () => { throw new Error('first'); },
-      onRunFailure: () => { throw new Error('escaped'); },
+    // A throw OUT OF a driver's listener. Until W178 a consumer's `onRunFailure` throwing on the failure path was one
+    // (`onUnmintedTask` threw, the listener failed the run, `onRunFailure` threw again); since W178's S-1 the driver's
+    // listener boundary DISCARDS that (`OR-R10` v0.17), and nothing a consumer callback throws leaves `Driver.onEvent`.
+    // The ROUTER's rule is still the claim, so the instrument is the listener itself: r1's driver's entry throws.
+    const r1 = r.start(FLOW, { x: 1 }, { runId: 'r1' });
+    Object.defineProperty(r1.driver, 'onEvent', {
+      enumerable: false, configurable: true, writable: true,
+      value: () => { throw new Error('escaped'); },
     });
     r.start(FLOW, { x: 1 }, { runId: 'r2', onUnmintedTask: (u) => { reports.push(`${u.runId} ${String(u.taskId)}`); } });
     throws(() => s.done('nightly-cleanup'), 'escaped', 'the first throw reaches whoever dispatched the event, synchronously, as it did before');
@@ -3126,6 +3132,69 @@ suite('W174 — a STOPPED run`s done settles `interrupted` once its cancels reso
     equal(A.cancels.length, sent, 'nothing sent for a parked task');
     equal((await w77Settlement(parked.done)).outcome, 'interrupted', 'done settles — which `awaiting_action` never would (ADR 0091 rule 3)');
     equal(parked.driver.resolve('p1:a:-:0', 'done', { actor: 'ops', result: null }), false, 'and resolve() is refused on this runtime');
+  });
+
+  /**
+   * **W178 — both throwing-callback fixes THROUGH `createRuntime`** (its adequacy reader, finding 1): the runtime routes a
+   * scheduler event to the driver's listener (P35 fact 10's road, `runtime.ts`), and its `done` is the caller's fold.
+   * (j): a pause called from `onFoldInput` on a SETTLEMENT is taken when that event's step ends, and the callback throws on
+   * `paused` — nothing leaves the event, `onRunFailure` hears it once, `done` settles `halted`. (o): a callback throwing on
+   * `cancelRequested` — the throw at the caller, both tasks still sent their cancel, and `done` settles `cancelled` once
+   * both have stopped.
+   */
+  test('W178: a callback THROWING on `paused` taken at a settlement`s step end settles done `halted`, reported once, nothing escaping the event; one THROWING on `cancelRequested` still sends every cancel, and done settles `cancelled`', async () => {
+    const LINE2 = {
+      flowId: 'line2', version: 1, entry: 'x',
+      nodes: [
+        { id: 'x', kind: 'task', type: 'Scorer', edges: [{ to: 'y' }] },
+        { id: 'y', kind: 'task', type: 'Scorer', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const boom = new Error('W178: the consumer`s store failed');
+    const A = stoppable();
+
+    // (j), and its CONTROL: the same run whose callback does not throw.
+    const paused = (throws: boolean, runId: string) => {
+      const box: { driver?: Driver } = {};
+      const failures: unknown[] = [];
+      const h = A.r.start(LINE2, { x: 1 }, {
+        runId,
+        onFoldInput: (e: FoldInput) => {
+          if (e.kind === 'outcome' && e.record.taskId === `${runId}:x:-:0`) box.driver!.pause({ actor: 'ops' });
+          if (throws && e.kind === 'paused') throw boom;
+        },
+        onRunFailure: (f) => { failures.push(f.cause); },
+      });
+      box.driver = h.driver;
+      let escaped: unknown = null;
+      try { A.s.done(`${runId}:x:-:0`); } catch (x) { escaped = x; }
+      return { h, failures, escaped };
+    };
+    const c = paused(false, 'pc');
+    equal([c.escaped, c.failures, fold(c.h.driver.foldInputs()).outcome], [null, [], 'running'], 'the control: paused, running, nothing reported');
+    const t = paused(true, 'pt');
+    equal(t.escaped, null, 'NOTHING leaves the scheduler event the runtime routed — fact 10`s road');
+    equal(t.failures, [boom], 'onRunFailure hears it ONCE, the consumer`s own error');
+    equal((await w77Settlement(t.h.done)).outcome, 'halted', 'and done settles `halted`');
+
+    // (o) through the runtime's per-run view.
+    const run = A.r.start(SPLIT, { x: 1 }, {
+      runId: 'ko',
+      onFoldInput: (e: FoldInput) => { if (e.kind === 'cancelRequested') throw boom; },
+    });
+    let thrown: unknown = null;
+    try { void run.driver.cancel({ actor: 'ops' }); } catch (x) { thrown = x; }
+    equal(thrown, boom, 'the throw reaches cancel()`s caller');
+    equal(A.cancels.filter(([id]) => id.startsWith('ko:')).map(([id]) => id), ['ko:a:0:0', 'ko:b:1:0'],
+      'and both tasks in flight were sent their cancel through the per-run view — though the callback threw');
+    let settled = false;
+    void run.done.then(() => { settled = true; });
+    A.stops('ko:a:0:0');
+    await turn();
+    equal(settled, false, 'done PENDING while b stops');
+    A.stops('ko:b:1:0');
+    equal((await w77Settlement(run.done)).outcome, 'cancelled', 'done settles `cancelled` after the last');
   });
 });
 
