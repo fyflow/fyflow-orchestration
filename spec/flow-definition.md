@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.41 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.42 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -460,6 +460,33 @@ condition's grammar included, is `FD-V40` (P32 decision 7) — `FD-V40`'s and `F
 **A task edge's grammar does not move**: its roots stay `outcome` and `needs`, and `input` is not one of them.
 **`if` and `switch` become names a consumer's gate type may not take** (`NameCollision`).
 
+**v0.42 adds a SEVENTH node kind, `ask` — a node that waits for a person, by design**
+([W179](../doc/work-items/w179-the-ask-node-in-the-definition.md) under
+[P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md), stop-and-asks (a) and (h) and decisions 6 and 7,
+[ADR 0108](../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md)). Until here the only
+way a flow could wait for a person was a task that FAILED on purpose and parked `user_action` — its question carried
+as its error, told apart from a real failure by nothing in the record. An `ask` is `{ id, kind, edges, settings?,
+answerSchema?, needs? }`: it runs NO worker and is NEVER dispatched, and it has a TASK ID all the same
+(`spec/task-id.md` v0.13) — the address a person's answer is given to — so its answer is its OUTPUT, referenced by a
+later node's `needs` as a task's is (`FD-V27` widened), and its edges ROUTE as a task's settlement does, `on:
+["done" | "failed"]` and a `when` over `outcome.result`, with no new route grammar. It is allowed wherever a task is —
+the entry, a fan-out's branch entry, a map's branch — so **the rules that ENUMERATE kinds are widened by name**
+(decision 7, `map`'s v0.8 precedent, whose fifth widening a reader found): `FD-V7` (an ask's edges are held as a
+task's), `FD-V9` and `FD-V25` (a branch entry or a map's branch may be an ask), `FD-V17` (the ask's key set, and the
+six keys `FD-V47` owns on it), `FD-V21` (an ask's `settings` not a plain object), `FD-V23` (an ask without `edges`),
+`FD-V24` (the kind list), `FD-V26`'s note (an ask may carry `needs`), `FD-V27` (a reference to an ask is admitted) and
+`FD-V29`'s text (an ask's edges are disjunctive, as a task's are). **`FD-V47`** refuses on an ask each key only a
+task's WORKER reads — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups` and, by decision 6, `transform` —
+one finding per key; **`FD-V48`** refuses an `answerSchema` outside the schema subset, held at load by the code that
+holds a worker's schemas. Section 3's wiring check reads an ask as a PRODUCER of its `answerSchema` and never as a
+consumer. **What a run does with an ask is not here**: parking, the kept input, the answer at `resolve()` and what a
+predicate sees are [P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md)'s next item's, and until it
+lands every `Driver` refuses a run where a branch ENTERS an ask, by name (`InvalidDefinition`), as v0.23's gate was
+refused until W93. **BREAKING in 0.8.0** (P35 decision 8): `FlowNode` gains a seventh member, so a consumer's
+exhaustive `switch` over `node.kind` stops compiling. So this document now holds **44 refusals** — `FD-V1` …
+`FD-V48` less `FD-V5`, `FD-V14`, `FD-V15` and `FD-V34` — and it is the number `check-spec` prints as *C4 covered 44
+definition refusals*.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -491,11 +518,12 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 
 ## 2. Node kinds
 
-Six. There is **no `decision` node kind** — a decision is a property of an edge, which is
+Seven. There is **no `decision` node kind** — a decision is a property of an edge, which is
 ADR 0002 rule 2 taken literally (`when: { predicate: "isLowConfidence" }`). **A decision WITH MEMORY is a node**, and
 that is the sixth kind, `gate` (v0.23, below): its memory is one per gate per run, so it belongs to a
 node and not to an edge, and a predicate is asked to be pure ([Q9](../doc/questions/q9.md)) where a
-gate's whole job is to remember.
+gate's whole job is to remember. **A node that WAITS FOR A PERSON is the seventh, `ask`** (v0.42, below): it runs
+no worker and is never dispatched, and a person's answer is its output.
 
 | kind | keys | |
 |---|---|---|
@@ -505,9 +533,14 @@ gate's whole job is to remember.
 | `join` | `id`, `kind`, `of`, `edges` | closes the region opened by the `fanout` **or `map`** named in `of`. Dispatches nothing itself |
 | `end` | `id`, `kind`, `outcome` | terminates one path. No edges |
 | `gate` | `id`, `kind`, `type`, `edges`, **`settings?`** | routes the branch that reaches it by a registered GATE type's decision, and hands on exactly what reached it. Dispatches nothing itself. v0.23 |
+| `ask` | `id`, `kind`, `edges`, **`settings?`**, **`answerSchema?`**, **`needs?`** | waits for a PERSON: what reaches it is composed by its `needs`, and the person's answer is its output, routed by its edges as a task's settlement is. Dispatches nothing — and has a task id. The six keys only a task's worker reads are `FD-V47`'s. v0.42 |
 
-**Only a `task` node is ever dispatched**, and therefore only a `task` node has a task id
-([spec/task-id.md](task-id.md)), produces an outcome record, or can suspend. `fanout`, `map`, `join`,
+**Only a `task` node is ever dispatched**, and therefore only a `task` node produces an outcome record from a
+scheduler. **An `ask` is the one other kind with a task id** ([spec/task-id.md](task-id.md) v0.13): nothing is
+dispatched for it, but a person's answer needs an address and a later node may reference that answer — so a `task`
+and an `ask` are the two kinds that have a task id, produce an output, and can suspend (an ask by design; what a
+run records for it is `spec/run-state.md`'s and `spec/outcome-record.md`'s, P35's next item). *(This read *"only a
+`task` node has a task id, produces an outcome record, or can suspend"* until v0.42.)* `fanout`, `map`, `join`,
 `end` and `gate` are structural: a run passes through them within a single driver turn. **This is why `end`
 nodes are exempt from `FD-V13`, `FD-V19` and `FD-V22`** — sharing one between two paths creates no
 ambiguity about anything, because nothing about it is per-path.
@@ -831,7 +864,7 @@ supplies; `spec/examples/invalid/` carries one document per rule.
 | key | | |
 |---|---|---|
 | `over` | required | a **key** on the value this node receives, matching `^[A-Za-z0-9_-]{1,64}$` — `FD-V16`'s charset (`FD-V25`) |
-| `branch` | required | **one** node id, whose kind is a `task` (`FD-V25`). Not a list |
+| `branch` | required | **one** node id, whose kind is a `task` — or, since v0.42, an `ask` (`FD-V25`). Not a list |
 
 **`over` is a declared reference, never a callback.**
 [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
@@ -847,7 +880,7 @@ region's output is expressible. *(This paragraph said only *"for an ordinary edg
 node's `result` unchanged"* after v0.11 had made it one of two. W41's conformity reader.)* A `map`
 may be the `entry` node, and then the value is the run's start payload; that needs no rule, because
 `FD-V3` refuses only a `join` or an `end`. **A map node is never itself a branch entry**
-(`FD-V25` makes a map's `branch` a `task` and `FD-V9` a fanout's entries tasks), so `JP-R11` does not
+(`FD-V25` makes a map's `branch` a `task` or an `ask`, and `FD-V9` a fanout's entries the same two kinds — v0.42), so `JP-R11` does not
 reach what a map node receives — only what its instances do.
 
 **What each INSTANCE receives is `over`'s array at that instance's index, as its own copy** —
@@ -912,7 +945,7 @@ that reached it — the same value, never its settings and never the predecessor
 is invisible to what the next node receives: `FD-C1`'s *"the value this node receives"* for the node after
 a gate is the value the gate received. **It is dispatched to no scheduler**, so it has no task id and
 **produces no output** — `FD-V27` refuses a reference to one, as it refuses a reference to any node that is
-not a `task`.
+not a `task` or (v0.42) an `ask`.
 
 **Routes, and the DEFAULT route.** A gate type DECLARES its routes; `distinct` declares `first`,
 `duplicate` and `nokey`, with `first` its default. An edge names a route with `route`, and **an edge with
@@ -964,7 +997,7 @@ to *nothing*, which `distinct` routes to `nokey`. **The grammar is not a `settin
 subset has no `pattern` (ADR 0053).
 
 **Where a gate may stand.** Anywhere a `task` may, except as a region's branch entry — `FD-V9` and `FD-V25`
-keep those a `task`, unchanged. Inside a region a gate is a member like a task (`FD-V13`, `FD-V19` and
+keep those a `task` (or, since v0.42, an `ask` — never a gate), unchanged for a gate. Inside a region a gate is a member like a task (`FD-V13`, `FD-V19` and
 `FD-V22` apply to it as to any non-`end` node), and its out-arcs are DISJUNCTIVE — exactly one route is
 taken — which is how `FD-V29`'s certainty walk already reads a `task`'s. It may be the `entry`; `FD-V3`
 refuses only a `join` or an `end`.
@@ -1061,6 +1094,50 @@ inside `when`, not `settings.key`, so what leaves it on `then` is what arrived, 
 requiring the key the condition compared reads `no` against a producer that declares the key without requiring
 it. The refinement along an `if`'s path is priced in W154's declaration and not shipped.
 
+### `ask` — a node that waits for a PERSON — v0.42
+
+[P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md) stop-and-asks (a) and (h),
+[ADR 0108](../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md),
+[W179](../doc/work-items/w179-the-ask-node-in-the-definition.md). This subsection is the DEFINITION; what a run does
+when a branch reaches an ask — it parks, keeps what reached it, and takes the person's answer at `resolve()`,
+held to `answerSchema` — is P35's next item's, and until it lands a `Driver` refuses the run where a branch enters an
+ask, by name.
+
+```json
+{ "id": "approve", "kind": "ask",
+  "settings": { "question": "Publish this summary?" },
+  "answerSchema": { "type": "object", "required": ["approved"], "properties": { "approved": { "type": "boolean" } } },
+  "needs": { "summary": "summarise" },
+  "edges": [
+    { "on": ["failed"], "to": "declined" },
+    { "when": { "path": "outcome.result.approved", "op": "eq", "value": true }, "to": "publish" },
+    { "to": "revise" }
+] }
+```
+
+| key | | refused by |
+|---|---|---|
+| `settings` | **opaque**: a plain JSON object the library never reads — the question, a form hint — which a UI reads from the definition, as a gate's are read by its type | `FD-V21`, not a plain object |
+| `answerSchema` | what a `done` answer must satisfy: a JSON Schema in the built-in subset (section 3), held to it AT LOAD by the function a worker's schemas are held by, its `examples` held to it (ADR 0056). Absent, a `done` answer is held to nothing. A `failed` answer — the person DECLINING — is held to nothing either way | `FD-V48`, outside the subset |
+| `needs` | what reaches the ask — `FD-C1`'s composition, in the driver, as a task's. Without it, the ordinary edge's value. **No `transform`**: a transform runs only in a node type's worker wrapper (`FD-C6`), and an ask runs no worker (P35 decision 6) | `FD-V26`-`FD-V29`, as on a task |
+| `edges` | REQUIRED, and held as a task's are: a `done` edge, a default per terminal state an edge opts into, `on` drawn from `done` and `failed`, a `when` in section 3's grammar over `outcome` and `needs` — `outcome.result` being the answer. No `route` | `FD-V7`, `FD-V18`, `FD-V23`, `FD-V41`, `FD-V42`-`FD-V45`, `FD-V4` |
+
+**What an ask does NOT carry, and why one rule owns it.** `type`, `pool`, `optional`, `retryPolicy`, `workerGroups`
+and `transform` are each a key a task's WORKER or its scheduler task reads — the type and its pool, `optional`,
+`retryPolicy` and `workerGroups` are handed to the scheduler, and a `transform` is evaluated in the type's wrapper
+— and an ask has neither. **`FD-V47` refuses each, one finding per key, and `FD-V17` does not report them a second
+time**: `FD-V41`'s precedent for `route`, one rule owning a key wherever it is refused, so an author who turned a task
+into an ask reads *only a task declares it* rather than *undeclared*. Every other key not in the row above is
+`FD-V17`'s as on any kind.
+
+**Where an ask may stand: wherever a `task` may** (stop-and-ask (a)) — the entry (`FD-V3` refuses only a `join` and
+an `end`), a fan-out's branch entry (`FD-V9`), a map's branch (`FD-V25`) — one ask, and one task id, PER ITEM — and
+inside a region before its join. **What it produces is the person's answer**, so a reference to an ask is admitted
+(`FD-V27`) as a reference to a task is, and `FD-V28` and `FD-V29` ask of it what they ask of a task: how many
+outputs, and whether it must have run. **How it routes is a task's settlement's** (stop-and-ask (h)): `on:
+["failed"]` is the person declining, a `when` reads the answer, and an unmatched `done` with no default is
+unreachable for the reason it is on a task (`FD-V7`; [Q10](../doc/questions/q10.md)).
+
 ## 3. Edges, decisions, and which outcomes route
 
 ```json
@@ -1089,7 +1166,7 @@ compares a snippet in `spec/` to the grammar the same document declares: `check:
 | `on` | optional, default `["done"]` | the terminal states this edge is eligible for. Values: `"done"`, `"failed"` (`FD-V18`) |
 | `when` | optional, **an OBJECT since v0.27** | a registered name `{ predicate }`, a COMPARISON `{ path, op, value, default?, length? }`, or a FLAT group `{ all }` or `{ any }` — the subsection below, `FD-V42`-`FD-V45`. An edge without one is the default for its eligible states. *(It was a bare predicate-name STRING until v0.27, and a string is now refused by `FD-V42` with the object form in the message.)* |
 | `needs` | optional, v0.12 | **what this edge's PREDICATE sees**, under `ctx.needs` — `FD-C3` below. Same grammar as a node's `needs`, **minus the `"."` form** (`FD-V26`). An edge with no `when` may carry one and no predicate ever reads it |
-| `route` | optional, v0.23, **a GATE's edges only** | which of the gate type's routes this edge carries; absent means the type's DEFAULT route. On any other node's edge it is refused, and a gate's edge carries `to` and `route` and nothing else (`FD-V41`) — section 2's `gate` subsection. **The routing rules below are a `task`'s and a `join`'s**; a gate's edge is chosen by the route its type returns |
+| `route` | optional, v0.23, **a GATE's edges only** | which of the gate type's routes this edge carries; absent means the type's DEFAULT route. On any other node's edge it is refused, and a gate's edge carries `to` and `route` and nothing else (`FD-V41`) — section 2's `gate` subsection. **The routing rules below are a `task`'s, an `ask`'s (v0.42 — an ask routes as a task's settlement does) and a `join`'s**; a gate's edge is chosen by the route its type returns |
 
 > **This table is what `FD-V17` refuses against, so `needs` being absent from it made the code
 > accept a key the document did not declare.** `FD-V17` reads *"a node object, **an edge object**, or
@@ -1975,6 +2052,16 @@ verdict, the L6 corpus's census as an EQUALITY (its counts are the suite's and n
 suite derives is not written here* — with the one `no` `map-no-array`'s `FD-R2`, predicted, and every arc
 shape reached but `given`, which is no arc), and both enumerations above held to this document both ways.
 
+**An ASK is a PRODUCER and never a consumer — v0.42** ([W179](../doc/work-items/w179-the-ask-node-in-the-definition.md),
+section 2's `ask`). What leaves an ask is the person's ANSWER, so an arc it sends carries its `answerSchema` exactly
+as a task's carries its worker's `outputSchema` — on an edge, as a branch's arrival in a join's record, and named by
+a `needs` — with its example, else its witness, as the sample; an ask declaring no `answerSchema` sends an
+`unchecked` arc naming the ask, and one whose schema is outside the subset (`FD-V48`) an `unchecked` arc naming that.
+**What reaches an ask gets no verdict**: it is shown to a person and held to no schema — the ask runs no worker, so
+it has no `inputSchema` — as an arc into a gate or a join has none of its own. **And an ask is no `FD-R4` target**:
+the entry walk stops at one, because what leaves it is the answer and never the payload, so an entry ask gives the
+report an empty `entry`.
+
 **A sample the caller GIVES — v0.38** ([P37](../doc/plans/p37-a-runtime-is-its-registry.md) stop-and-ask
 (d), [W166](../doc/work-items/w166-a-sample-the-caller-gives.md)). An author in an editor has a value in
 hand — typed, pasted, or taken from a run — and wants to know what a transform makes of IT, not of a
@@ -2251,7 +2338,7 @@ The weaker property that *is* true — every path from a branch entry terminates
 or not it passes through the join — is **derived, not asserted**: `FD-V10` forbids cycles, `FD-V7`
 and `FD-V8` mean `end` is the only kind of node without an outgoing edge, `FD-V9` guarantees a
 `fanout` has successors, and — **v0.8** — `FD-V23`, `FD-V2` and `FD-V25` together guarantee a `map`
-has exactly one, since `branch` is required, must name a node that exists, and must name a `task`.
+has exactly one, since `branch` is required, must name a node that exists, and must name a `task` or (v0.42) an `ask`, each of which has edges (`FD-V7`).
 Nothing else is possible, so there is no rule to state and no example that could violate one.
 *(The derivation named four rules and covered four kinds until v0.8 added a fifth. The conclusion was
 never wrong; the argument had stopped covering the document.)*
@@ -2270,9 +2357,9 @@ C4 fails if one is missing.
 | `FD-V4` | an edge's `when` **names** a predicate absent from the registry — the `{ predicate }` shape alone, asked only once `FD-V42` has passed, on `FD-V36`'s precedent that an unknown language has no compiler to ask. **The id and the sentence are P1's and only the SPELLING moved at v0.27**: a name is written `{ "predicate": "x" }`, and a COMPARISON or a GROUP names nothing, so this rule has nothing to ask of either |
 | `FD-V5` | **Nothing. Retired at v0.19 with `workerType`, and the id is now deliberately absent** — a held id with no rule behind it, so a gap in the sequence is not read as a rule someone lost ([ADR 0054](../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md), [W65](../doc/work-items/w65-the-registry-document-and-a-node-type-is-a-derivation.md)). It refused *a `task`'s `workerType` that is not a key in the scheduler's `workerPools`*; since v0.19 a task names a node TYPE, whose default pool exists by construction, and the question this rule asked is `FD-V32`'s |
 | `FD-V6` | a `join`'s `of` does not name a `fanout` **or a `map`**, or a `fanout` **or a `map`** has zero or more than one `join` naming it |
-| `FD-V7` | a `task` node has no `edges`; or no edge of a `task` node is eligible for `done`; or, for some terminal state any of its edges opts into, the eligible edges for that state contain no edge lacking `when`, contain more than one, or the one lacking `when` is not last among them. **A `join` node** is rejected unless it has exactly one edge, carrying neither `when` nor `on` |
+| `FD-V7` | a `task` **or an `ask`** (v0.42) node has no `edges`; or no edge of such a node is eligible for `done`; or, for some terminal state any of its edges opts into, the eligible edges for that state contain no edge lacking `when`, contain more than one, or the one lacking `when` is not last among them. **A `join` node** is rejected unless it has exactly one edge, carrying neither `when` nor `on`. *(An ask routes as a task's settlement does — P35 (h) — so its edges are held to the same clauses.)* |
 | `FD-V8` | an `end` node has `edges`, or its `outcome` is absent or empty |
-| `FD-V9` | a `fanout` has fewer than two `branches`, has a repeated branch entry, has `edges`, or names a branch entry whose kind is not `task` |
+| `FD-V9` | a `fanout` has fewer than two `branches`, has a repeated branch entry, has `edges`, or names a branch entry whose kind is not `task` **or `ask`** (v0.42 — an ask stands wherever a task may) |
 | `FD-V10` | the graph contains a cycle |
 | `FD-V11` | a node is not reachable from `entry` |
 | `FD-V12` | a `fanout`'s branch entry, **or a `map`'s `branch`**, is its own `join` |
@@ -2280,19 +2367,19 @@ C4 fails if one is missing.
 | `FD-V14` | **deliberately absent.** The id is held so the gap is not read as a lost rule — see section 4 |
 | `FD-V15` | **Nothing. Retired at v0.7, and the id is now deliberately absent** — a held id with no rule behind it, so a gap in the sequence is not read as a rule someone lost. It refused a `fanout` inside another fanout's region; nested fan-out is expressible since [W20](../doc/work-items/w20-what-a-nested-region-is.md), and the id is **retired rather than reused**. Whether a *policy* can serve a nested region is a different question with a different home — `spec/join-policy.md`, because `validateDefinition` is not given the policy |
 | `FD-V16` | `flowId` or any node `id` does not match `^[A-Za-z0-9_-]{1,64}$` — the charset is [spec/task-id.md](task-id.md)'s, and this is where it is enforced |
-| `FD-V17` | a node object, **an edge object**, or the document carries a key its kind does not declare |
+| `FD-V17` | a node object, **an edge object**, or the document carries a key its kind does not declare — **except the six keys `FD-V47` owns on an `ask`** (v0.42), which are that rule's and not reported here as well |
 | `FD-V18` | an edge's `on` is present and is not a non-empty array of distinct values drawn from `"done"` and `"failed"`. **`"user_action"` is refused** — it suspends rather than routes (ADR 0004 rule 3, [Q30](../doc/questions/q30.md)) |
 | `FD-V19` | a node whose kind is not `end` belongs to `branchOf(F, bᵢ)` for **two distinct** branch entries of the same `fanout`. Convergent branches make `branchPath` a property of the traversal rather than of the node, and P1 refuses them ([Q27](../doc/questions/q27.md)) |
 | `FD-V20` | a node outside `region(F)` has an edge to `F`'s join |
-| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, **`type`** or **`pool`** not a string (v0.17, v0.19; a `gate`'s `type` too, v0.23), and so on |
+| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, **`type`** or **`pool`** not a string (v0.17, v0.19; a `gate`'s `type` too, v0.23), **an `ask`'s `settings` not a plain object** (v0.42 — the library never reads them, so their shape is their whole check), and so on |
 | `FD-V22` | a node in `region(F)` whose kind is not `end` has an incoming edge from a node that is neither in `region(F)` nor `F` itself. **The only way into a region is through the node that OPENED it** — its `fanout` or, since v0.8, its `map`. Section 4's *"where a rule says a fanout `F` it means whichever kind opened the region"* is scoped to that section, so this rider says it in the section where the rule lives |
-| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `edges` **or without `type`** (v0.19: `type` is required on every task node, and the *neither of two keys* clause v0.17 wrote here went with `workerType`); a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; **a `gate` without `type` or `edges`** (v0.23); an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
-| `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`, **`gate`** (v0.23). **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
-| `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task`; or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
-| `FD-V26` | a `needs` — **on a node OR on an edge** — is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id **with an optional `?` suffix**, or a one-element array holding one; **or is on an EDGE and uses `"."`**, which a predicate has no use for because `ctx.outcome` already carries what it would otherwise name (v0.12). **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task` or a `map` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other three kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
-| `FD-V27` | a `needs` reference names a node that does not exist, names a node whose kind is not `task` (**only a `task` produces an output** — section 2), or names a node **this node is not reachable from**. The last is what makes a reference a statement about the graph rather than a hope about the run: a reference pointing sideways or backwards names a node that may not have run, and without this the only thing to say so is `FD-R3`, at run time, on the one workload that takes that branch — which is ADR 0002 rule 3's own argument for validating at instantiation. **This rule is UNCHANGED at v0.13 and `FD-V29` is what finished the sentence**: reachability says *it is not upstream of you at all*, and *upstream and yet not certain* is a second question with a different fix ([Q187](../doc/questions/q187.md)). Both apply to a conditional reference too — a `?` excuses a target that may not have run, never a target that does not exist, is not a `task`, or is not upstream |
+| `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `edges` **or without `type`** (v0.19: `type` is required on every task node, and the *neither of two keys* clause v0.17 wrote here went with `workerType`); a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; **a `gate` without `type` or `edges`** (v0.23); **an `ask` without `edges`** (v0.42); an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
+| `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`, **`gate`** (v0.23), **`ask`** (v0.42). **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |
+| `FD-V25` | a `map` has `edges`; its `branch` names a node whose kind is not `task` **or `ask`** (v0.42 — one ask, and one task id, per item); or its `over` is not a string matching `^[A-Za-z0-9_-]{1,64}$`. **The map's own rule, and `FD-V9` is unchanged** — each is about one node kind, because a rule about two kinds is the confusion [ADR 0036](../doc/decisions/0036-a-map-is-a-second-node-kind-and-a-branch-path-inside-one-is-a-property-of-the-dispatch.md) exists to remove. A map declares ONE branch, so `FD-V9`'s arity floor and repeated-entry clause have nothing to say about it and are not restated here |
+| `FD-V26` | a `needs` — **on a node OR on an edge** — is not an object, is an empty one, has a key outside `^[A-Za-z0-9_-]{1,64}$`, or has a value that is not `"."`, a node id **with an optional `?` suffix**, or a one-element array holding one; **or is on an EDGE and uses `"."`**, which a predicate has no use for because `ctx.outcome` already carries what it would otherwise name (v0.12). **Section 3's grammar and nothing else** — where the reference POINTS is `FD-V27`'s and `FD-V28`'s. *"Only a `task`, a `map` or (v0.42) an `ask` may carry `needs`"* is **deliberately not a clause here**: `needs` is absent from the other four kinds' key lists, so `FD-V17` already refuses it and names the kind, and a second rule saying the same thing is one `FD-V17` could never disagree with |
+| `FD-V27` | a `needs` reference names a node that does not exist, names a node whose kind is not `task` **or `ask`** (**only a `task` and an `ask` produce an output** — section 2; an ask's is the person's answer, v0.42), or names a node **this node is not reachable from**. The last is what makes a reference a statement about the graph rather than a hope about the run: a reference pointing sideways or backwards names a node that may not have run, and without this the only thing to say so is `FD-R3`, at run time, on the one workload that takes that branch — which is ADR 0002 rule 3's own argument for validating at instantiation. **This rule is UNCHANGED at v0.13 and `FD-V29` is what finished the sentence**: reachability says *it is not upstream of you at all*, and *upstream and yet not certain* is a second question with a different fix ([Q187](../doc/questions/q187.md)). Both apply to a conditional reference too — a `?` excuses a target that may not have run, never a target that does not exist, is not a `task`, or is not upstream |
 | `FD-V28` | a `needs` reference's **form does not match the graph** — `"n"` where this node is outside a **`map`** region containing `n` (so `n` produces one output per ITEM), or `["n"]` where it is not (so `n` produces exactly one). **A `fanout` region is not this case**: `FD-V19` gives every node in one exactly one output, so the bare form is legal from outside it, and the rule's first version refused a valid document by asking *a region* where it meant *a map region*. **Its own id rather than a clause of `FD-V27`** because an author fixes the two differently: `FD-V27` is *that node cannot have produced anything for you* and this is *it produced a different NUMBER of things than you asked for*, and the message names the form to write instead. **The `?` suffix does not change which form is legal** and is stripped before this rule is evaluated (v0.13) — `FD-V28` asks *how many* and a conditional reference asks the same question |
-| `FD-V29` | a `needs` reference in an **unconditional** form names a node that a run can reach the declaring node **without having run** — v0.13, [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md). **It is not dominance**, and that is the whole of the rule: the graph has two kinds of branching and dominance treats them the same — a `task`'s `edges` are **disjunctive**, exactly one being taken (section 3's routing rule 2), while a `fanout`'s `branches` and a `map`'s `branch` are **conjunctive**, all being entered before any dispatch (`JP-R5`). So a node is *certain* for a reader when it is on every path from `entry` to it **with a region's branch entries counted as certain for that region's join**, and a branch entry never dominates its own join. **Measured: over both corpora as they stood when this rule was decided (26 flows), of the 127 references `FD-V26`/`FD-V27`/`FD-V28` admit, dominance refuses 30 and this rule refuses 8** — a strict subset, over 7 distinct shapes, and **0 of the 6 references the corpora actually write**. **Its own id rather than a clause of `FD-V27`, on `FD-V28`'s own stated precedent**: `FD-V27` is *that node cannot have produced anything for you* and the fix is to re-point the reference; this is *it MIGHT not have* and the fix is to write `?`. **Its LIMIT is written into it, and it is the POLICY rather than any particular road**: *the join fired, therefore every branch entry settled* is a property of the policy, and `validateDefinition` is not given one (`FD-V15`'s note, [Q97](../doc/questions/q97.md)) — so a policy that fires a join while a branch entry has **not settled**, for any reason at all, falsifies the credit. *(This clause said *"parked at `user_action`"*, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry simply **never settling**, dispatches the reader and `FD-R3` fires with no `user_action` anywhere. **The rule text was right and every enumeration of its limit named one road.**)* So this rule removes cases from `FD-R3`'s reach and does not replace it. Case: `spec/examples/invalid/FD-V29--reference-across-a-decision.flow.json` |
+| `FD-V29` | a `needs` reference in an **unconditional** form names a node that a run can reach the declaring node **without having run** — v0.13, [ADR 0042](../doc/decisions/0042-a-reference-says-whether-it-is-conditional-and-the-bare-form-means-the-target-certainly-ran.md). **It is not dominance**, and that is the whole of the rule: the graph has two kinds of branching and dominance treats them the same — a `task`'s `edges` — **and an `ask`'s** (v0.42) — are **disjunctive**, exactly one being taken (section 3's routing rule 2), while a `fanout`'s `branches` and a `map`'s `branch` are **conjunctive**, all being entered before any dispatch (`JP-R5`). So a node is *certain* for a reader when it is on every path from `entry` to it **with a region's branch entries counted as certain for that region's join**, and a branch entry never dominates its own join. **Measured: over both corpora as they stood when this rule was decided (26 flows), of the 127 references `FD-V26`/`FD-V27`/`FD-V28` admit, dominance refuses 30 and this rule refuses 8** — a strict subset, over 7 distinct shapes, and **0 of the 6 references the corpora actually write**. **Its own id rather than a clause of `FD-V27`, on `FD-V28`'s own stated precedent**: `FD-V27` is *that node cannot have produced anything for you* and the fix is to re-point the reference; this is *it MIGHT not have* and the fix is to write `?`. **Its LIMIT is written into it, and it is the POLICY rather than any particular road**: *the join fired, therefore every branch entry settled* is a property of the policy, and `validateDefinition` is not given one (`FD-V15`'s note, [Q97](../doc/questions/q97.md)) — so a policy that fires a join while a branch entry has **not settled**, for any reason at all, falsifies the credit. *(This clause said *"parked at `user_action`"*, and W45's conformity reader measured that parking is inessential: a policy satisfied on the first arrival, with the other branch entry simply **never settling**, dispatches the reader and `FD-R3` fires with no `user_action` anywhere. **The rule text was right and every enumeration of its limit named one road.**)* So this rule removes cases from `FD-R3`'s reach and does not replace it. Case: `spec/examples/invalid/FD-V29--reference-across-a-decision.flow.json` |
 | `FD-V30` | a `task`'s `retryPolicy` is not **exactly** the scheduler's shape — v0.16, section 2: not an object; missing `maxRetries` or `backoffMs`; **carrying any key beside those two**; `maxRetries` not an integer >= 0; or `backoffMs` not a finite number >= 0. **Every clause is a measurement of what the scheduler does with the shape in silence** — `{}` means *no retries*, a string `maxRetries` retries by coercion, an extra key is dropped — and a definition may not mean something quietly. **Its own id rather than a clause of `FD-V21`, on `FD-V26`'s precedent**: the rule owns the key's whole shape because the fix is one row whichever clause fired. Case: `spec/examples/invalid/FD-V30--retry-policy-max-retries-is-a-string.flow.json`, the coercion case, because it is the one the scheduler gets *wrong* rather than merely quiet about |
 | `FD-V31` | a `task`'s `workerGroups` is not a **non-empty array of distinct strings every one of which the registry's `groups` set declares** — v0.16, section 2. **The registry set is EMPTY when absent**, so a document declaring any group is refused against a registry that says nothing about groups; the alternative reading was priced and refused. The rule exists because the scheduler runs a task whose group id it does not know **as if the group were not there** — no throw, no `resource.blocked`, `done` — so the name is caught nowhere downstream (ADR 0002 rule 3, `FD-V5`'s shape). An empty array is refused for `FD-V26`'s empty-`needs` reason, and a repeat because the scheduler's own source unions a task's groups with its pool's through a `Set`, so a repeat is dropped in silence — **read from the published build, not measured**, which is the one clause here whose provenance is the source rather than a run (W58's conformity reader). Case: `spec/examples/invalid/FD-V31--worker-group-not-in-registry.flow.json`, against `spec/examples/registry.json`, which deliberately omits the id it names |
 | `FD-V32` | a `task`'s `type` names **no registered node type**, or names one **whose `worker` the registry's `workers` does not declare** — v0.17, section 2; the second clause v0.19's. **The second clause EXEMPTS a type that names NO worker** — a built-in that only transforms (v0.28, ADR 0075 rule 2), for which *a type with no worker cannot run* is false: what such a node must declare instead is `FD-V46`'s. The exemption is by the PROPERTY and not by the name, and only a built-in may have it — a consumer's worker-less type is refused where the registry is built. **The registry's `nodeTypes` is the BUILT-INS ALONE when absent** and its `workers` is EMPTY when absent — the two readings differ since v0.28, because a flow may name `Transform` against a registry that declares no `nodeTypes` at all. *(This row said `nodeTypes` was EMPTY when absent too, and said it in the present tense in the one row the v0.28 paragraph names as having changed — while carrying neither the exemption. W109's conformity reader, 1: a withdrawn reading surviving where somebody was looking.)* **Two clauses under one id** because both mean *this node cannot run* and the fix is the registry either way; the second is reported only when the first passed. *(v0.17's second clause — a registered type with no POOL of its name — has no instance since v0.19: every type has a default instance, built from its own config, and a registry whose type names a missing worker is refused at construction by name too, `WorkerMissing`.)* Case: `spec/examples/invalid/FD-V32--type-not-in-registry.flow.json`, against `spec/examples/registry.json`, which deliberately omits the name |
@@ -2310,9 +2397,11 @@ C4 fails if one is missing.
 | `FD-V44` | **a comparison's `op` is outside the closed enumeration, or its `value` is one the operator cannot compare** — v0.27. An `op` that is not one of `eq, ne, lt, lte, gt, gte, startsWith`, refused BY NAME with the enumeration in the message (ADR 0053's shape); a `value` that is not a SCALAR; a number operator against a non-number or `startsWith` against a non-string, **because a comparison between kinds is no match and never a coercion**; a `length` that is not exactly `true`; a `length` with a non-number `value` or with `startsWith`; or a `default` that is neither a scalar nor an array of scalars, or that has no length where `length` measures it. Case: `spec/examples/invalid/FD-V44--predicate-op-outside-the-subset.flow.json` |
 | `FD-V45` | **a GROUP is not a non-empty array of COMPARISONS** — v0.27. Both `all` and `any`; a group that is not an array or is empty (an empty group is *always true* or *always false* written as a question); a member that is not an object, or that marks none of the shapes; a member that is itself a **group**, because a group is FLAT and nesting is refused rather than evaluated; or a member naming a **registered predicate**, because a group holding a function could be impure and that is the one thing a declared predicate guarantees over a registered one. A member's own `path`, `op` and `value` are `FD-V43`'s and `FD-V44`'s, and its own SHAPE — a missing or undeclared key, or an object marking more than one shape — is `FD-V42`'s, wherever the comparison sits; `FD-V45` owns only what makes it not a comparison at all. Case: `spec/examples/invalid/FD-V45--a-group-inside-a-group.flow.json` |
 | `FD-V46` | **a node of a type that only TRANSFORMS declares no `transform`** — v0.28. A node type that names no worker has nothing to run but the transform (`BUILT_IN_NODE_TYPES`, ADR 0075), so such a node would dispatch a real task, pay a clone and a log record, and hand its successor the value it was given — an expensive IDENTITY. The test is the PROPERTY and not the name: any type with no `worker` is one, and only a built-in may be (a consumer's worker-less type is refused where the registry is built, so an omitted `worker` never becomes a transform-only type by accident). **Its own id rather than a clause of `FD-V37`**, on `FD-V28`'s stated precedent that a different fix earns a different id: `FD-V37` refuses a `transform` that is MALFORMED and this refuses one that is MISSING. Reported only once the type is registered — an unregistered type is `FD-V32`'s. The detail names the two cheaper tiers, which is the three-tier rule where an author meets it. Case: `spec/examples/invalid/FD-V46--a-transform-only-node-with-no-transform.flow.json` |
+| `FD-V47` | **an `ask` carries a key only a `task` declares** — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups` or `transform` — v0.42, section 2's `ask` subsection, [ADR 0108](../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md). **One finding per key, naming it.** Each is read by a task's WORKER or its scheduler task, and an ask has neither: it is never dispatched, so a type, a pool, `optional`, a retry policy and a resource group would be read by nothing, and a `transform` — evaluated in a node type's worker wrapper (`FD-C6`) — would have nothing to evaluate it ([P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md) decision 6: what reaches an ask is composed by its `needs`). **This rule OWNS the six keys on an ask and `FD-V17` is silent for them** — `FD-V41`'s precedent for `route` — so the message says *only a task declares it* rather than *undeclared*. Case: `spec/examples/invalid/FD-V47--an-ask-with-a-type-and-a-transform.flow.json` — a task turned into an ask with its `type` and its `transform` left on |
+| `FD-V48` | **an `ask`'s `answerSchema` is not in the built-in schema SUBSET** — not a plain object, a keyword outside the subset (refused, never ignored — ADR 0053, [Q278](../doc/questions/q278.md)), a keyword's value of the wrong shape, or an `examples` entry the schema refutes (ADR 0056) — v0.42, section 2's `ask` subsection. Held by the function that holds a worker's four schemas at construction (`schemaProblem`), and the detail is its message, naming the path inside the schema. **Its own id rather than a clause of `FD-V21`**, on `FD-V33`'s precedent: the fix is in the schema, not in the key's type. What the schema HOLDS — a person's `done` answer, at `resolve()` — is P35's next item's (`FD-R4`). Case: `spec/examples/invalid/FD-V48--an-answer-schema-with-a-pattern.flow.json` — `pattern`, outside the subset |
 
 **`FD-V19`'s second clause is derived rather than stated.** *"One branch entry is reachable from
-another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task`, and a branch
+another"* needs no rule of its own: `FD-V9` requires every branch entry to be a `task` or (v0.42) an `ask` — neither an `end` — and a branch
 entry always belongs to its own `branchOf` set, so a branch entry inside another's set is already a
 non-`end` node in two sets.
 
@@ -2419,6 +2508,7 @@ instantiation, and instantiation is a driver action. Hand-written, never generat
 | `transform-only-node.flow.json` | **a node whose whole job is to RESHAPE, with no worker and no code** — v0.28, [W109](../doc/work-items/w109-a-node-that-only-transforms.md). `reshape` is of type **`Transform`**, the one member of `BUILT_IN_NODE_TYPES`, which `registry.json` does not declare and does not have to: the built-ins are merged into every registry, which is what lets a document a UI emits carry a reshaping step without carrying a node type for it. Its `transform` picks `confidence` out of what `score` returned and hands it to `publish`, so the document holds a THIRD tier of ADR 0075's rule beside the two the corpus already has — `map-with-context.flow.json`'s `needs` is tier one and `transformed.flow.json`'s node-level `transform` is tier two. **Validated at L4 and never RUN**: what the arm DOES on real workers is `test/scheduler/transform.test.ts` at a real pool *(this row named `test/scheduler/envelope.test.ts`, which does not exist — W109's `Owns` block carried the same wrong name and is where it came from. Both readers found it; nothing catches it, a code span being outside `C5`)*, and every arc LEAVING `reshape` is `unchecked` by construction ([Q446](../doc/questions/q446.md)) |
 | `gated-map.flow.json` | **a GATE, v0.23** — [W92](../doc/work-items/w92-what-a-gate-is.md). The maintainer's ingest (P24): a `map` over `files` whose one branch identifies each file and reaches `dedupe`, a `distinct` gate keyed by the KEY PATH `series.id`, whose DEFAULT route (an edge with no `route`) opens the per-series `setup` and whose `duplicate` and `nokey` routes DROP to two `end` nodes inside the region, one per route so the graph stays local. Every route wired exactly once. **Validated at L4, and RUN at L2 since v0.24**: `new Driver` refused a flow holding a gate until W93, and `test/driver/needs.test.ts` asserted THAT refusal on this document where it runs every other region-bearing one — so W93's lift failed that assertion on its first run, and the document joined that census as a row. What a gate does on real workers is W94's exit artifact |
 | `if-and-switch.flow.json` | **the built-in `if` and `switch`, v0.31** — [W154](../doc/work-items/w154-the-built-in-if-and-switch.md). The ENTRY is `triage`, an `if` over the PAYLOAD (`input.priority` `gte` 5): `then` leads to `byStatus`, a `switch` keyed on `status` whose case `approved` names one value and `rework` an ARRAY of two, and `else` — the default, by an edge with no `route` — to `queued`. The `switch`'s `default` is wired by an edge with no `route` too, so every route of both gates is wired exactly once, the defaults by omission. **Gates and `end`s only, deliberately**: a routing decision with no worker before it is what P32 asks for, and a TASK here would move two corpus censuses outside W154's `Owns` — the L4 corpus's arc count (`test/definition/wiring.test.ts`) and `spec/outcome-record.md` section 4's task-node figure — for nothing this document shows (W154 re-take 5). **Validated at L4 and never RUN**: what both do in a run is `test/driver/gate-builtins.test.ts` at ladder L2, and on real workers W155's exit artifact |
+| `ask.flow.json` | **ASKS, v0.42** — [W179](../doc/work-items/w179-the-ask-node-in-the-definition.md). The ENTRY is `approve`, an ask carrying every key the kind declares: opaque `settings` (the question), an `answerSchema` with an example, and `needs` composing the run's payload (`"."`, the one reference an entry may make). It routes as a task's settlement does — `on: ["failed"]` (the person declining) to `declined`, a `when` over `outcome.result.approved` to `confirm`, the default to `revise` — and `revise` REFERENCES its answer by `needs` (`FD-V27` admits an ask); `confirm` carries nothing but `edges` (no `answerSchema`: an answer held to nothing). **Asks and ends only, deliberately — W179's reading R8**: until P35's next item runs an ask a `Driver` refuses a run where a branch enters one, `test/driver/needs.test.ts` RUNS every region-bearing flow here, and `spec/outcome-record.md` section 4 states a census of this corpus's TASK nodes that P35's next item owns — so the task-bearing and region shapes are `test/definition/ask.test.ts`'s fixtures |
 
 **This table and the directory are compared BOTH WAYS, and that is v0.8's addition rather than a
 restatement.** `test/definition/l4-corpus.test.ts` asserts the set of `.flow.json` files in
@@ -2468,3 +2558,4 @@ holds each document's verdicts to its cell, and asserts that every verdict kind 
 | `transform-passes--a-path-picks-the-string-the-consumer-wants.flow.json` | transform-passes: score -> title |
 | `transform-fails--a-path-picks-a-number-for-a-string-consumer.flow.json` | transform-fails: score -> title |
 | `unchecked--a-producer-declaring-no-output-schema.flow.json` | unchecked: mystery -> weigh |
+| `fits--an-ask-answer-into-a-bounded-consumer.flow.json` | fits: approve -> weigh |

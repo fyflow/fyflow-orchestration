@@ -100,7 +100,7 @@ const SIBLING_FANOUTS = {
  * as *agree on the shared prefix* rather than as *always visible*.
  *
  * `gate` is a task because `FD-V9` requires a `fanout`'s branch entries to be
- * tasks — the first draft of this fixture named `innerA` directly and was refused.
+ * tasks (or, since v0.42, asks) — the first draft of this fixture named `innerA` directly and was refused.
  */
 const NESTED_SIBLINGS = {
   flowId: 'nested-siblings',

@@ -6910,10 +6910,23 @@ check('cross-row', 'EXPECTED runs exactly the rows this file declares, in order'
   // with a PHANTOM kind no row runs, it must name it; and with the kind W94 added taken back OUT of L6, it must name
   // `gate` — the second input's meaning changed with the exemption (it was *`gate` present while exempt*). Neither
   // tree exists; the clause is shown able to fail on each, and the count does not move.
-  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) => [...corpus].sort().filter((k) => !atL6.has(k));
+  //
+  // **`ask` is EXEMPT until W182, and the exemption EXPIRES LOUDLY, W92's form again** — W179 (`spec/flow-definition.md`
+  // v0.42, ADR 0108). A valid ask document entered the corpus and no L6 row CAN run one: every `Driver` refuses a run
+  // where a branch enters an ask until W180, and the row is W182's, P35's exit artifact. So a kind is flagged when it is
+  // in the corpus and missing here and NOT exempt — or exempt and PRESENT here, or exempt and in no corpus flow at all —
+  // and it is still one clause, so the count does not move: the day W182's row runs an ask, this names `ask` until the
+  // exemption is removed. A FOURTH constructed input says so — `ask` present at L6 while still exempt must be named — and a
+  // FIFTH the third disjunct — `ask` exempt and in NO corpus flow must be named as well.
+  const NOT_YET_AT_L6 = ['ask'];
+  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) => [...new Set([...corpus, ...NOT_YET_AT_L6])].sort()
+    .filter((k) => !corpus.has(k) || atL6.has(k) === NOT_YET_AT_L6.includes(k));
   check('cross-row', 'L6 runs a flow containing every node kind the spec corpus expresses',
-    [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'gate')))],
-    [[], ['phantom'], ['gate']]);
+    [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'gate'))),
+      flagged(kindsInCorpus, new Set([...kindsAtL6, 'ask'])),
+      // A FIFTH (W179's adequacy reader): the exempt kind gone from the corpus altogether must be named too.
+      flagged(new Set([...kindsInCorpus].filter((k) => k !== 'ask')), kindsAtL6)],
+    [[], ['phantom'], ['gate'], ['ask'], ['ask']]);
   // The negative control: the set is non-empty, so the clause above is not vacuous
   // on an empty corpus read. Without it a `listDir` that returns nothing passes.
   assertThat('cross-row', 'and the corpus read found node kinds at all — the clause`s own negative control',

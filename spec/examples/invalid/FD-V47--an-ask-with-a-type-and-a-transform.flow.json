@@ -1,0 +1,11 @@
+{
+  "flowId": "an-ask-with-a-type-and-a-transform",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "approve" } ] },
+    { "id": "approve", "kind": "ask", "type": "ReviewWorker", "transform": { "lang": "path", "expr": "title" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

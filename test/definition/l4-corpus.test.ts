@@ -172,8 +172,9 @@ suite('L4 — the corpus IS what spec/flow-definition.md section 7 says it is', 
     }
     equal(
       // `gate` since v0.23 (W92): `gated-map.flow.json` is its case. A kind the spec declares and no valid
-      // example carries is a kind nothing demonstrates, which is this clause's whole subject.
-      ['task', 'fanout', 'map', 'join', 'end', 'gate'].filter((k) => !kinds.has(k)),
+      // example carries is a kind nothing demonstrates, which is this clause's whole subject. `ask` since v0.42
+      // (W179): `ask.flow.json`.
+      ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'].filter((k) => !kinds.has(k)),
       [],
       'a node kind the spec declares appears in no valid example, so nothing demonstrates it',
     );
@@ -424,6 +425,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W179 — ADR 0108, the ask node in the definition (`spec/flow-definition.md` v0.42), in `test/definition/ask.test.ts`
+  // with its own `DECLARED_CASES`.
+  'W179 — what an ASK is: the seventh kind, FD-V47 and FD-V48, a reference to it, and its arcs',
   // W175 — ADR 0106, pausing a run: L2 in `test/driver/pause.test.ts`, L1/L3 in `test/fold/paused.test.ts`, each counted
   // below.
   'L2 — RN-R35: pausing a run — it routes on, every dispatch is appended and HELD, and an unpause hands them on in dispatch order',

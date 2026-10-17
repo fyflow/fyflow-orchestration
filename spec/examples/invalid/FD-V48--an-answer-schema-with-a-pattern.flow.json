@@ -1,0 +1,12 @@
+{
+  "flowId": "an-answer-schema-with-a-pattern",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "approve" } ] },
+    { "id": "approve", "kind": "ask",
+      "answerSchema": { "type": "object", "properties": { "code": { "type": "string", "pattern": "^[A-Z]{3}$" } } },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

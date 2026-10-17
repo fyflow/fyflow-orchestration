@@ -143,8 +143,66 @@ their schemas buy you before a run**.
 
 ## 3. The flow definition
 
-**Six** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
+**Seven** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
 a wire.
+
+> **`ask` is the seventh, and it is a node that WAITS FOR A PERSON, by design** — `spec/flow-definition.md` v0.42,
+> [ADR 0108](doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md),
+> [W179](doc/work-items/w179-the-ask-node-in-the-definition.md). It runs NO worker and nothing is ever handed to the
+> scheduler for it, yet it has a TASK ID (`r1:approve:-:0`, one per map item) — the address the person's answer will
+> be given to — and the answer is its OUTPUT: a later node references it by `needs`, and its edges route as a task's
+> settlement does, `on: ['failed']` being the person DECLINING and a `when` reading `outcome.result`, the answer.
+> `settings` is opaque (the question, a form hint — the library never reads it), `answerSchema` is what a `done`
+> answer must satisfy, held to the schema subset at construction (`FD-V48`), and `needs` composes what reaches it.
+> It stands wherever a task may — the entry, a fan-out's branch entry, a map's branch. **What a task's WORKER reads it
+> may not carry**: `type`, `pool`, `optional`, `retryPolicy`, `workerGroups` and `transform` are each refused by
+> `FD-V47`, one finding per key. **A run cannot use one yet**: until
+> [P35](doc/plans/p35-may-a-node-wait-for-a-person-by-design.md)'s next item lands, every `Driver` refuses a run where
+> a branch ENTERS an ask — `InvalidDefinition` naming the node, thrown from `start()` for an entry ask, reported
+> through `onRunFailure` and the run `halted` when a branch reaches one later — as a gate was refused until W93. A task
+> entered BEFORE the ask — the task in front of it, or a sibling branch a fan-out entered first — has already been handed
+> to the scheduler, and **nothing cancels it**.
+> **BREAKING in 0.8.0** (P35 decision 8): `FlowNode` gains `AskNode`, so a `switch` exhaustive over `node.kind` no
+> longer compiles until it names `'ask'`.
+
+```ts run
+import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+const review: FlowDefinition = {
+  flowId: 'review', version: 1, entry: 'draft',
+  nodes: [
+    { id: 'draft', kind: 'task', type: 'Draft', edges: [{ to: 'approve' }] },
+    // An ASK: no worker, no dispatch — and a task id, which is where the answer goes.
+    { id: 'approve', kind: 'ask',
+      settings: { question: 'Publish this draft?' },          // opaque: the library never reads it
+      answerSchema: { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } },
+      needs: { draft: 'draft' },                              // what reaches it — what the person is shown
+      edges: [
+        { on: ['failed'], to: 'declined' },                   // the person DECLINED
+        { when: { path: 'outcome.result.approved', op: 'eq', value: true }, to: 'publish' },
+        { to: 'rework' },                                     // the default, as on a task
+      ] },
+    // The answer is the ask's OUTPUT: `needs` reaches it as it reaches a task's result.
+    { id: 'publish', kind: 'task', type: 'Publish', needs: { text: 'draft', answer: 'approve' }, edges: [{ to: 'done' }] },
+    { id: 'rework', kind: 'end', outcome: 'rework' },
+    { id: 'declined', kind: 'end', outcome: 'declined' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const registry = { predicates: [], workers: { w: { url: 'worker.js' } }, nodeTypes: { Draft: { worker: 'w' }, Publish: { worker: 'w' } } };
+const clean = validateDefinition(review, registry);
+if (clean.length) throw new Error(`the ask flow should be valid: ${clean.map((f) => f.rule).join()}`);
+
+// A task turned into an ask with its worker keys left on: FD-V47, ONE finding per key — never FD-V17.
+const leftOn = { ...review, nodes: review.nodes.map((n) => (n.id === 'approve' ? { ...n, type: 'Draft', optional: true } : n)) } as unknown as FlowDefinition;
+const v47 = validateDefinition(leftOn, registry).map((f) => `${f.rule}@${f.at}`);
+if (v47.join() !== 'FD-V47@approve,FD-V47@approve') throw new Error(`expected two FD-V47 at approve, got ${v47.join()}`);
+
+// An answerSchema outside the schema subset is FD-V48 — refused, never ignored.
+const pattern = { ...review, nodes: review.nodes.map((n) => (n.id === 'approve' ? { ...n, answerSchema: { type: 'string', pattern: '^y' } } : n)) } as unknown as FlowDefinition;
+const v48 = validateDefinition(pattern, registry).map((f) => f.rule);
+if (v48.join() !== 'FD-V48') throw new Error(`expected FD-V48, got ${v48.join()}`);
+```
 
 > **`gate` is the sixth, and since [W93](doc/work-items/w93-what-a-gate-does-in-a-run.md) a `Driver` RUNS
 > one** — `spec/flow-definition.md` v0.23-v0.24,
@@ -241,13 +299,14 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | kind | | refused if |
 |---|---|---|
 | `task` | runs a worker — of its node **`type`**, REQUIRED since v0.19, on the type's default pool or a named **`pool`** instance of it, with per-node **`settings`** and optionally a **`transform`** applied to its input before the worker sees it (section 13). Has `edges`, and optionally **`needs`**, **`retryPolicy`** and **`workerGroups`** — what it says about its own task, below | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`); it has no `type` (`FD-V23`) — `workerType` is retired and is an undeclared key like any other (`FD-V17`); its `retryPolicy` is not exactly `{ maxRetries, backoffMs }` — an integer >= 0 and a finite number >= 0, no other key (`FD-V30`); its `workerGroups` is not a non-empty array of distinct ids the registry's `groups` declares (`FD-V31`); its `type` is not a registered node type whose worker the registry declares (`FD-V32`); its `settings` is not a plain object the type's worker `settingsSchema` accepts (`FD-V33`); its `transform` names a language the registry does not (`FD-V35`), an expression that language's compiler refuses (`FD-V36`), or is not `{ lang, expr }` (`FD-V37`); its `pool` is not a registered instance of its type (`FD-V38`) |
-| `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` (`FD-V9`) |
-| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
+| `fanout` | `branches: string[]` — the node each branch starts at. Dispatches nothing itself | fewer than two branches, a repeated entry, any `edges` at all, or a branch entry that is not a `task` or an `ask` (`FD-V9`) |
+| `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task` or an `ask`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
+| `ask` | waits for a PERSON — `edges`, and optionally `settings` (opaque), `answerSchema` (what a `done` answer must satisfy) and `needs` (what reaches it). Never dispatched, and has a task id; its answer is its output. A `Driver` refuses a run where a branch enters one until P35's next item | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`, as a task); `settings` that is not a plain object (`FD-V21`); a key only a task declares — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups`, `transform` — one finding per key (`FD-V47`); an `answerSchema` outside the schema subset (`FD-V48`) |
 | `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). Built in: `distinct`, `if` and `switch`. Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
-**A `task` node must have an edge that can be taken when it succeeds.** A node whose only edge is
+**A `task` node — and an `ask` — must have an edge that can be taken when it succeeds.** A node whose only edge is
 `{ when: { predicate: 'p' }, to: 'x' }` is refused at construction — it is the mistake the format most invites, and
 `FD-V7` is what catches it.
 
@@ -286,7 +345,7 @@ node that says nothing, and it is what the whole of this section above describes
 
 **`needs` is how a node asks for something else** —
 [ADR 0040](doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md),
-answering [Q11](doc/questions/q11.md). It is an optional object on a `task` or a `map`, mapping the
+answering [Q11](doc/questions/q11.md). It is an optional object on a `task`, a `map` or — since 0.8.0 — an `ask`, mapping the
 keys of the payload you want to **declared references**. *(Since v0.12 an **edge** may carry one too,
 and it says what that edge's PREDICATE sees rather than what a worker receives — section 4.)* A node that declares one receives **exactly**
 that object and nothing else — there is no wrapper and no reserved key.
@@ -449,7 +508,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V32')) {
 }
 ```
 
-There are **42 refusals** over the id range `FD-V1` … `FD-V46` *(41 over `FD-V1` … `FD-V45` until W109 shipped the first BUILT-IN node type and added `FD-V46`, which refuses a node of a type that only transforms and declares no `transform`; 37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+There are **44 refusals** over the id range `FD-V1` … `FD-V48` *(42 over `FD-V1` … `FD-V46` until W179 added the ASK's two, `FD-V47` — a key only a task declares, on an ask — and `FD-V48` — an `answerSchema` outside the schema subset; 41 over `FD-V1` … `FD-V45` until W109 shipped the first BUILT-IN node type and added `FD-V46`, which refuses a node of a type that only transforms and declares no `transform`; 37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Four ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed; **`FD-V15`, retired when nested fan-out became
 expressible**; and **`FD-V5` and `FD-V34`, retired with `workerType`** at v0.19 (section 13). The ids are never renumbered, so it is safe to assert on them. The full
@@ -1200,6 +1259,11 @@ a double that declares a `cancel` of another shape (section 12).
 
 A non-optional task that runs out of retries ends in `user_action`. The branch **suspends**: the join
 keeps waiting, and the run is not stuck.
+
+**A node that waits for a person BY DESIGN is a different thing, and it is the `ask` kind** (section 3, since 0.8.0's
+`spec/flow-definition.md` v0.42): no task fails to get there, and a question is not an error. **It is a valid
+definition and a run cannot use one yet** — until P35's next item every `Driver` refuses a run where a branch enters
+an ask, by name — so a flow that must wait for a person TODAY still uses the parked task below.
 
 > **A `user_action` task fires TWO events, and the first one is called `task.failed`.** The scheduler
 > sets `state = 'user_action'` and then dispatches `task.failed` *and* `task.user_action` carrying
@@ -2154,6 +2218,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or halted run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
+| **RUNNING an `ask`** — a node that waits for a person, its answer at `resolve()` | **not yet**: the kind is VALID since [W179](doc/work-items/w179-the-ask-node-in-the-definition.md) (section 3), and every `Driver` refuses a run where a branch enters one, `InvalidDefinition` naming the node, until [P35](doc/plans/p35-may-a-node-wait-for-a-person-by-design.md)'s next item runs it. Wait for a person with a non-optional task that parks `user_action` (section 7) until then |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |
@@ -3575,8 +3640,8 @@ a fan-out's width is an authoring-time fact. Here the outer width is *how many o
 returned* and each inner width is *how many lines THAT order has* — different per instance.
 
 **Writing it needs exactly one node between the two maps.** A `map`'s `over` names a key of what the
-previous node returned, and a `map`'s branch is a TASK (`FD-V25` refuses a map whose branch is a
-map) — so the outer branch entry is the node whose output carries the item's own list. No `needs`, no
+previous node returned, and a `map`'s branch is a TASK — or, since 0.8.0, an `ask`, which runs no worker (`FD-V25`
+refuses a map whose branch is a map) — so the outer branch entry is the node whose output carries the item's own list. No `needs`, no
 `transform`, no reshaping node and no second flow.
 
 ```ts run

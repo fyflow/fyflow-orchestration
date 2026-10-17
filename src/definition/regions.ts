@@ -586,7 +586,7 @@ export function branchIndexOf(regions: RegionSets[], nodeId: string): number | n
  *
  * | out-arcs of | are | because |
  * |---|---|---|
- * | a `task`'s `edges` | **disjunctive** — exactly one is taken | section 3's routing rule 2 |
+ * | a `task`'s `edges`, and — v0.42 — an `ask`'s | **disjunctive** — exactly one is taken | section 3's routing rule 2; an ask routes as a task's settlement does (P35 (h)) |
  * | a `fanout`'s `branches`, a `map`'s `branch` | **conjunctive** — all are entered | `JP-R5`, which emits every `branch.opened` before any dispatch |
  *
  * So a branch entry never *dominates* its own join — every path to the join goes

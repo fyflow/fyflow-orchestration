@@ -56,8 +56,9 @@ export type Reference = string | readonly [string];
  * object this describes; a node that does not receives what section 3 says an
  * ordinary edge carries, unchanged.
  *
- * Only a `task` and a `map` may carry it: `FD-V17` already refuses an undeclared
- * key on the other three kinds, so that clause needs no rule of its own.
+ * Only a `task`, a `map` and — since v0.42 — an `ask` may carry it: `FD-V17` already refuses an
+ * undeclared key on the other four kinds, so that clause needs no rule of its own. *(This read "the
+ * other three", stale since v0.23's `gate`.)*
  */
 export type Needs = Readonly<Record<string, Reference>>;
 
@@ -626,7 +627,7 @@ export interface MapNode {
    * against whatever that resolves to.
    */
   over: string;
-  /** **One** branch entry id, whose kind is a `task` (`FD-V25`). Not a list. */
+  /** **One** branch entry id, whose kind is a `task` or — since v0.42 — an `ask` (`FD-V25`). Not a list. */
   branch: string;
   /**
    * **What this node receives, and therefore what `over` is a key on** —
@@ -794,7 +795,56 @@ export interface StaticGateType {
 /** A consumer's gate types, keyed by the name a gate's `type` gives. A `Map` or a plain object, as `nodeTypes` is. */
 export type GateTypes = ReadonlyMap<string, GateType> | Readonly<Record<string, GateType>>;
 
-export type FlowNode = TaskNode | FanoutNode | MapNode | JoinNode | EndNode | GateNode;
+/**
+ * **An ASK: a node that waits for a PERSON, by design** — `spec/flow-definition.md` section 2 (v0.42),
+ * [P35](../../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md) stop-and-asks (a) and (h),
+ * [ADR 0108](../../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md).
+ *
+ * It runs NO worker and is NEVER dispatched, yet it has a TASK ID (`spec/task-id.md` v0.13) — the address a
+ * person's answer is given to, `resolve(taskId, …)`, one per map item where it sits in a `map` region. The answer
+ * is its OUTPUT: a later node may reference it by `needs` (`FD-V27`), and its edges ROUTE like a task's — `on:
+ * ['done' | 'failed']`, a `failed` answer being the person DECLINING, and a `when` over `outcome.result`, the
+ * answer. Allowed wherever a `task` is, the entry included. **What a task's WORKER reads it does not carry** —
+ * `type`, `pool`, `optional`, `retryPolicy`, `workerGroups` and `transform` are each refused by `FD-V47`, because
+ * nothing would read them: there is no worker, no scheduler task and no wrapper to evaluate a transform in
+ * (`FD-C6`, P35 decision 6).
+ *
+ * **BREAKING** (0.8.0, P35 decision 8): `FlowNode` gains a seventh member, so a consumer's `switch` over
+ * `node.kind` with a `never` check stops compiling until it names `'ask'`.
+ *
+ * **Valid since v0.42 and run since W180** — until then every `Driver` refuses the run by name where a branch
+ * ENTERS one (`enter()`), as W92's gate was refused until W93.
+ */
+export interface AskNode {
+  id: string;
+  kind: 'ask';
+  /**
+   * **What a UI shows the person — opaque.** A plain JSON object the library NEVER reads (`FD-V21` refuses one that
+   * is not a plain object): the question, a form hint. Read from the definition, as a gate's settings are read by
+   * its type.
+   */
+  settings?: Readonly<Record<string, unknown>>;
+  /**
+   * **What a `done` answer must satisfy** — a JSON Schema in the built-in subset, held to it at load exactly as a
+   * worker's schemas are (`FD-V48`, ADR 0053), its `examples` held to it too (ADR 0056). Absent, an answer is held
+   * to nothing. A `failed` answer — a decline — is held to nothing either way. What it holds at run time is W180's
+   * (`FD-R4`'s resolve boundary).
+   */
+  answerSchema?: JsonSchema;
+  /**
+   * **What reaches the ask** — `FD-C1`, `FD-V26`-`FD-V29`, composed in the driver as a task's is. Optional: without
+   * one, the ordinary edge's value. What reached it is what the person is shown, and what W180 keeps.
+   */
+  needs?: Needs;
+  /** Routed like a task's: `on` and `when`, a default edge for every terminal state an edge opts into (`FD-V7`). */
+  edges: Edge[];
+}
+
+/**
+ * **Seven kinds since v0.42** (`ask`, W179). **BREAKING for an exhaustive consumer `switch`** each time a member
+ * is added — `gate` at 0.6.0, `ask` at 0.8.0.
+ */
+export type FlowNode = TaskNode | FanoutNode | MapNode | JoinNode | EndNode | GateNode | AskNode;
 
 export interface FlowDefinition {
   flowId: string;

@@ -7,7 +7,8 @@
  *
  * A worker entry in the registry document declares up to four schemas (`configSchema`,
  * `settingsSchema`, `inputSchema`, `outputSchema`); a group type declares one; a node-type class may
- * declare one. A worker's first two, a group type's and a class's are CHECKED — at `createRuntime`
+ * declare one; and since v0.42 an `ask` NODE in a flow may declare one, `answerSchema`, held to this subset
+ * by `schemaProblem` when the flow is validated (`FD-V48`, W179) rather than when a registry is built. A worker's first two, a group type's and a class's are CHECKED — at `createRuntime`
  * and at `new Driver` — and a worker's last two are declared, carried, enforced on ONE value per run
  * each since v0.21 (the entry payload at `start()`, a person's resolution at `resolve()` — `FD-R4`, W73),
  * never per settlement, and since v0.20 confirmed on a run by `scripts/check-workers.mjs` (P19, whose name is *what a schema
