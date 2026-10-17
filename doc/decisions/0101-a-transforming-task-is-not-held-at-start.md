@@ -7,7 +7,7 @@ item: W170
 raised-by: Q633, P34
 supersedes: ""
 amends: ""
-resolves: ""
+resolves: Q633
 ---
 
 # ADR 0101 — A task that declares a transform is not held to its worker's inputSchema at start, and tryTransform on the payload is the check before a run
@@ -16,7 +16,9 @@ resolves: ""
 maintainer's (2026-10-16, *"as recommended"*: road 2 of [Q633](../questions/q633.md)), written by
 [W170](../work-items/w170-a-transforming-task-is-not-held-at-start.md). It narrows `FD-R4`'s start boundary
 (`spec/flow-definition.md` v0.40) and amends no ADR. **It does not resolve Q633 alone**: that question's `closes-when`
-asks for an L6 run on real workers too, which is P34's exit artifact clause (6), W176.
+asks for an L6 run on real workers too, which is P34's exit artifact clause (6), W176. *(Run there, in node and deno,
+and Q633 closed by [W176](../work-items/w176-the-exit-artifact-run-control-on-real-workers.md), 2026-10-17 — so `resolves`
+names it from then: this decision is the answer, the L6 run its last evidence.)*
 
 ## Context
 
