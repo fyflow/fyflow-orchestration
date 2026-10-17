@@ -828,10 +828,12 @@ export class MissingJoinPolicy extends Error {
  * [ADR 0027](../../doc/decisions/0027-an-inbound-task-id-that-does-not-parse-was-minted-by-no-driver.md)
  * moved it to `onUnmintedTask` and `ID-R5`, so it no longer does.) Every one of them is reached from inside a
  * `scheduler.addEventListener` callback, and `EventTarget.dispatchEvent`
- * **discards a listener throw**: measured on Node 24, the remaining listeners
- * still run, `dispatchEvent` returns normally, and the error resurfaces
- * out-of-band on `process.nextTick`. In a browser it is a `window.onerror` report
- * and the page carries on.
+ * **never hands a listener throw back to the dispatcher**: measured on Node 24, the
+ * remaining listeners still run, `dispatchEvent` returns normally, and the error
+ * resurfaces out-of-band on `process.nextTick` — where node 24 and deno each raise
+ * it as an UNCAUGHT exception that ends the process, unless a global handler is
+ * installed (P35 fact 10). In a browser it is a `window.onerror` report and the page
+ * carries on.
  *
  * So the run would have kept draining with nothing told — the silent stop
  * `spec/flow-definition.md` section 3 refuses on P1's own validity grounds, which
@@ -1135,8 +1137,11 @@ export interface DriverOptions {
   onUnsatisfiableJoin?: (info: UnsatisfiableJoin) => void;
   /**
    * Called when a refusal terminates a run. See `RunFailure` — a `throw` from a
-   * listener is discarded by `dispatchEvent`, so this is the only way the failure
-   * `FD-R1`, `ID-R1` and `OR-R6` describe can actually reach a caller.
+   * listener never reaches the scheduler's caller (`dispatchEvent` rethrows it out of
+   * band), so this is the only way the failure `FD-R1`, `ID-R1` and `OR-R6` describe
+   * can actually reach a caller — and a throw from your own `onFoldInput` on an element
+   * a scheduler event's step appends, a pause, unpause or stop taken at its end
+   * included (`OR-R10`).
    */
   onRunFailure?: (failure: RunFailure) => void;
   /**
@@ -2252,7 +2257,9 @@ export class Driver {
    *   4. **Cancel** each task in flight the scheduler holds — `RN-R21`'s set, so a PARKED task, settled already, is sent
    *      nothing (P34 (i); the scheduler cannot end it, fact 8). A task not yet handed on is cancelled by `handOn` after
    *      its hand-off (`RN-R29` (i)), and so is each task a PAUSE held (`RN-R35`, P34 (c)). Tasks a worker SPAWNED are
-   *      not this run's (P34 (j)).
+   *      not this run's (P34 (j)). **In a `finally` around step 3** (`RN-R31` v0.21, P35 decision 4): a consumer's
+   *      `onFoldInput` that throws on the element still has every cancel sent and every held task handed on and
+   *      cancelled, and the throw then reaches the caller.
    *
    * **A SECOND call** appends nothing and forwards its `graceMs` to each task still stopping — the scheduler's own
    * escalation — and resolves once those have stopped. It is never refused for the halt its own first call made.
@@ -2326,24 +2333,34 @@ export class Driver {
       stopping,
     };
     this.arrivals.clear();
-    // 3. RECORD.
-    this.append({ kind: 'cancelRequested', actor: options.actor, reason: reason ?? null });
-    // 4. CANCEL — read AFTER the append: a callback on the element may have settled a task.
     // **A PAUSED run's held tasks are handed on and THEN cancelled** (P34 (c), `RN-R35`, W175): each is `dispatched`
     // and unsettled, so the run reads `cancelling` until the scheduler settles it — and only the scheduler writes a
-    // settlement (ADR 0007). Taken out of the hold and marked `unhanded` first, so a second cancel raised inside one
-    // hand-off sends nothing for those not yet handed; `handOn` cancels each after its `addTask` (the request is set).
+    // settlement (ADR 0007). Taken out of the hold and marked `unhanded` BEFORE the element (P35 decision 4, `takeStop`'s
+    // shape): held, the run dispatches nothing a callback on it could add to the hold, so the set is the same after it —
+    // and a second cancel raised inside one hand-off, or on the element, sends nothing for those not yet handed; `handOn`
+    // cancels each after its `addTask` (the request is set).
     const released = new Map(this.pauseHeld);
     this.pauseHeld.clear();
     for (const id of released.keys()) this.unhanded.add(id);
     try {
-      for (const id of this.inFlight()) {
-        const config = released.get(id);
-        if (config !== undefined) this.handOn(id, config);
-        else if (this.handedOn(id)) this.cancelTask(id);
-      }
+      // 3. RECORD.
+      this.append({ kind: 'cancelRequested', actor: options.actor, reason: reason ?? null });
     } finally {
-      for (const id of released.keys()) this.unhanded.delete(id);
+      // 4. CANCEL — in a `finally` (`RN-R31` v0.21, P35 decision 4, fact 9): a consumer's `onFoldInput` that THROWS on
+      // the element still has the element in the log, so every task in flight it says is being cancelled IS sent its
+      // cancel and every held task is handed on and cancelled — else the run reads `cancelling` for ever — and the throw
+      // then reaches whoever is on the stack. **The in-flight set is read HERE, after the element** (W178's R1): unlike a
+      // stop's, a cancel's driver still HEARS, so a callback on the element may have had a task settle, and a task no
+      // longer in flight is sent nothing.
+      try {
+        for (const id of this.inFlight()) {
+          const config = released.get(id);
+          if (config !== undefined) this.handOn(id, config);
+          else if (this.handedOn(id)) this.cancelTask(id);
+        }
+      } finally {
+        for (const id of released.keys()) this.unhanded.delete(id);
+      }
     }
     // A microtask on, the synchronous stack this call was made from has finished — a `dispatch` or a `resume()` that
     // was handing a task on when the call arrived has handed it and cancelled it (`handOn`) — so every promise is in.
@@ -2470,7 +2487,8 @@ export class Driver {
     } finally {
       // 5. CANCEL — in a `finally` (`RN-R33`): a consumer's `onFoldInput` that throws on the element still has the
       // element in the log, so the tasks it says were stopped ARE cancelled and every stop() promise still settles; the
-      // throw then reaches whoever is on the stack — `stop()`'s caller at rest, the step's caller mid-step.
+      // throw then reaches whoever is on the stack — `stop()`'s caller at rest, the step's caller mid-step; on a SCHEDULER
+      // EVENT's step that is the listener boundary, which reports it and halts the run (`onEvent`, `OR-R10`, P35 (j)).
       for (const id of inFlight) this.cancelTask(id);
       taken();
     }
@@ -2572,7 +2590,8 @@ export class Driver {
    * BEFORE its element, so a dispatch a callback on the element causes is held. **An unpause** clears it before its
    * element and hands the held tasks on AFTER it, in a `finally`: a consumer's `onFoldInput` that throws on the element
    * still has the element in the log, and the run it says is unpaused is — the throw then reaches whoever is on the stack
-   * (W174's conformity reader's finding 5, the stop's lesson). A dispatch a callback on the element causes joins the end
+   * (W174's conformity reader's finding 5, the stop's lesson): the call's caller at rest, a driver call's caller mid-step,
+   * and on a SCHEDULER EVENT's step the listener boundary, which reports it and halts the run (`onEvent`, P35 (j)). A dispatch a callback on the element causes joins the end
    * of the held queue (`dispatch`), so the order is the dispatch order still.
    */
   private takePause(p: { readonly kind: 'paused' | 'unpaused'; readonly actor: string }): void {
@@ -2638,7 +2657,25 @@ export class Driver {
     try {
       this.onEventStep(name, detail);
     } finally {
-      this.leaveStep();
+      // **The step's END is inside the listener boundary too** (`OR-R10` v0.17, P35 (j), W178): a pause, an unpause or a
+      // stop called on this step is TAKEN here (`RN-R33`, `RN-R35`), and a consumer's `onFoldInput` that throws on its
+      // element would otherwise leave this listener into the scheduler's `dispatchEvent` — which node 24 and deno each
+      // rethrow as an UNCAUGHT exception that ends the process (P35 fact 10). A step the scheduler started has nobody
+      // else to throw to, so the throw is caught, reported and the run HALTED — `onEventStep`'s treatment of a throw on
+      // any other element of the step. The element is in the log first, and the take's own `finally` has run.
+      // **ONCE** (W178's R2): a throw the driver already REPORTED — a scheduler's throw inside an unpause's hand-off,
+      // which `drainHeld` reports and rethrows for a caller at rest — finds the run halted, and is not reported twice;
+      // nor is any throw at the end of a step whose run is already halted, whose halt was reported when it was raised.
+      try {
+        this.leaveStep();
+      } catch (e) {
+        // A throw OUT OF `failRun` — on `halted`, or from `onRunFailure` — is DISCARDED, as at `onEventStep` (W178's S-1).
+        try {
+          if (!this.failed) this.failRun(e);
+        } catch {
+          // discarded — the run is halted, its element in the log, and its failure reported
+        }
+      }
     }
   }
 
@@ -2651,8 +2688,10 @@ export class Driver {
     // **And a STOPPED driver hears nothing** (`deaf` since W174, `RN-R33`): the stop's own `task.cancelled`s and every
     // later settlement stay out of the log, which ends with the in-flight set unsettled for a resume elsewhere.
     if (this.deaf || (this.started && this.header === null)) return;
-    // The listener boundary is also the FAILURE boundary: a throw from here is
-    // discarded by dispatchEvent, so it is caught, reported, and the run stops.
+    // The listener boundary is also the FAILURE boundary: a throw from here would
+    // reach nobody who can act on it — `dispatchEvent` rethrows it out of band, an
+    // uncaught exception in node 24 and deno (P35 fact 10) — so it is caught,
+    // reported, and the run stops. The step's end is caught in `onEvent` (W178).
     //
     // **The failure is reported under THIS driver's run id, always.** It used to
     // be parsed out of the inbound task id, with `'<unknown>'` when that failed —
@@ -2665,7 +2704,15 @@ export class Driver {
     try {
       this.onEventOrThrow(name, detail);
     } catch (e) {
-      this.failRun(e);
+      // **A throw OUT OF `failRun` is DISCARDED here** (`OR-R10` v0.17, W178's S-1): it is the consumer's own
+      // `onFoldInput` throwing on the `halted` element, or its `onRunFailure` throwing — after the run was halted and
+      // reported (`failRun` reports in a `finally`). Nobody who can act on it is on the stack, and `dispatchEvent` would
+      // rethrow it as an uncaught exception (P35 fact 10).
+      try {
+        this.failRun(e);
+      } catch {
+        // discarded — the run is halted, its element in the log, and its failure reported
+      }
     }
   }
 
@@ -2692,33 +2739,45 @@ export class Driver {
     this.failed = true;
     const err = cause instanceof Error ? cause : new Error(String(cause));
     let seq: number | null = null;
-    if (!already) {
-      seq = this.append({ kind: 'halted', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
-      // **The RUN-LEVEL moment — the THIRD of the three
-      // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
-      // rule 3 names**, and it is not per-region: `OR-R10` says the driver has
-      // stopped routing this run, so no join of any region will settle again. The
-      // three doors into `settleJoin` are all shut behind `this.failed` — a
-      // settlement returns at `onEventOrThrow`'s guard before `advance`, a
-      // resolution is refused by `resolve`, and `start` has already thrown — so
-      // every region's collection is unreadable from here whether or not its join
-      // had fired.
-      //
-      // **The LOG is untouched, and that asymmetry is rule 2.** A halted run is a
-      // run a consumer folds to find out what happened; releasing what the fold
-      // reads would be the plausible wrong answer P15 decision 2 forbids. This
-      // drops only the structure no `FoldInput` carries.
-      this.arrivals.clear();
-    }
     // `RN-R24`: during a replay a failure is reported only with the `halted` element it appended
     // PAST the stored events — below them the append has already refused the resume as `diverged`.
-    if (this.replay !== null && (seq === null || !this.delivers(seq))) return;
-    this.opts.onRunFailure?.({
-      runId: this.runId,
-      kind: err.constructor?.name ?? 'Error',
-      message: err.message,
-      cause,
-    });
+    const report = () => {
+      if (this.replay !== null && (seq === null || !this.delivers(seq))) return;
+      this.opts.onRunFailure?.({
+        runId: this.runId,
+        kind: err.constructor?.name ?? 'Error',
+        message: err.message,
+        cause,
+      });
+    };
+    if (!already) {
+      // **Reported in a `finally` around the append** (`OR-R10` v0.17, W178's S-1, the maintainer's answer): a consumer's
+      // `onFoldInput` that THROWS on the `halted` element itself still has the run reported — the element is in the log
+      // (`append` delivers after it stores) and `failed` is set — and the throw then leaves here; at a listener boundary
+      // it is DISCARDED (`onEventStep`, `onEvent`), on a driver call it reaches the caller.
+      try {
+        seq = this.append({ kind: 'halted', reason: `${err.constructor?.name ?? 'Error'}: ${err.message}` });
+      } finally {
+        // **The RUN-LEVEL moment — the THIRD of the three
+        // [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
+        // rule 3 names**, and it is not per-region: `OR-R10` says the driver has
+        // stopped routing this run, so no join of any region will settle again. The
+        // three doors into `settleJoin` are all shut behind `this.failed` — a
+        // settlement returns at `onEventOrThrow`'s guard before `advance`, a
+        // resolution is refused by `resolve`, and `start` has already thrown — so
+        // every region's collection is unreadable from here whether or not its join
+        // had fired.
+        //
+        // **The LOG is untouched, and that asymmetry is rule 2.** A halted run is a
+        // run a consumer folds to find out what happened; releasing what the fold
+        // reads would be the plausible wrong answer P15 decision 2 forbids. This
+        // drops only the structure no `FoldInput` carries.
+        this.arrivals.clear();
+        report();
+      }
+      return;
+    }
+    report();
   }
 
   private onEventOrThrow(name: string, detail: TaskDetailLike): void {

@@ -159,7 +159,7 @@ suite('RN-R10 — the precedence, in the order section 3 states it', (test) => {
   });
 });
 
-suite('RN-R12 — a run is finished exactly when it is neither running nor awaiting_action', (test) => {
+suite('RN-R12 — a run is finished exactly when it is neither running, awaiting_action nor cancelling', (test) => {
   const cases: [string, FoldInput[], boolean][] = [
     ['a run that has dispatched nothing', [], false],
     ['a live node', [dispatched('r1:a:-:0')], false],

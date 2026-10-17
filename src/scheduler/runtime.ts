@@ -876,10 +876,11 @@ export function createRuntime(
  * carries that id for exactly this.
  *
  * **A listener that throws does not starve the others, and its throw still reaches whoever dispatched the event.** A
- * driver's own listener catches everything its routing raises (`OR-R10`); what can still escape is a consumer's callback —
- * `onFoldInput` or `onRunFailure` — throwing out of the driver's failure path. Before ADR 0088 that throw left the driver's
- * listener and reached the scheduler's `dispatchEvent`, which reports it; it still does, because the FIRST throw is
- * re-thrown here after the loop, synchronously — so a run's single routed listener throws exactly as it did. Only the
+ * driver's own listener catches everything its routing raises (`OR-R10`), and since W178 (`OR-R10` v0.17) it DISCARDS a
+ * consumer's callback — `onFoldInput` on `halted`, or `onRunFailure` — throwing out of its failure path, after reporting;
+ * what can still escape is a listener's own defect. Such a throw reaches the scheduler's `dispatchEvent`, which rethrows
+ * it out of band — an uncaught exception in node 24 and deno (P35 fact 10) — as it did before ADR 0088, because the
+ * FIRST throw is re-thrown here after the loop, synchronously — so a run's single routed listener throws exactly as it did. Only the
  * broadcast row can hand one event to several drivers, and there the loop finishes first: every later throw is re-raised on
  * a microtask, as `dispatchEvent` reports each listener's on its own. *(Isolating EVERY throw onto a microtask was the first
  * version, and `test/scheduler/runtime.test.ts`'s W77 case — a consumer's `onFoldInput` throwing, over a scheduler double

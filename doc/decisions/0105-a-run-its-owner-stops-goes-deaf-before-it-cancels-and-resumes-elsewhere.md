@@ -67,6 +67,8 @@ cannot say when the tasks have stopped. And a run id stays in use on the runtime
    dispatched). Taken at rest, the step is whole in the log, the `interrupted` element always lands BETWEEN two steps,
    and the replay reaches it there. A cancel needs no such rule — its run never resumes — and keeps ADR 0104's immediate
    hold.
+   *(2026-10-17, [W178](../work-items/w178-the-throwing-callback-fixes-and-ms-titles.md), P35 (j): a stop taken at the end of a SCHEDULER EVENT's step whose element a consumer
+   callback throws on — the throw is caught at the listener boundary, reported, and the run halted, so not resumable; `OR-R10` v0.17, `RN-R33` v0.21.)*
 5. **The fold reads a NINTH outcome, `interrupted`, from the element until a `resumed` element ends it** (`RN-R32`), and a
    CURRENT cell `RunState.interruption: { actor, reason } | null` — `regions[*].suspended`'s precedent: that a run was
    ever stopped is in the input sequence. **Terminal** (`isTerminal` unchanged), so `done` settles and the runtime

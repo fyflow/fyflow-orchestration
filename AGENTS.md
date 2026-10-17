@@ -1106,6 +1106,7 @@ reached first), appended and routed nowhere. **The run reads `cancelling` until 
 | `graceMs: 0` | **a request, not a guarantee**: the scheduler arms a 0 ms timer, and a worker that honours its signal promptly can still beat it ([S12](doc/scheduler-upstream.md)). A test needing a FORCED stop uses a worker that ignores its signal |
 | refused | **`RunControlRefused`, by `reason`, with nothing recorded or sent**: `unsupported` (the scheduler has no `cancel` — section 12), `not-started`, `halted`, `cancelled` (a task the scheduler cancelled on its own already ended the run), `ended` (nothing in flight, nothing parked, the driver at rest — a cancel from your own callback mid-step is accepted, and stops what the step would have dispatched) and `interrupted` (the run was STOPPED — cancel it where it resumes, section 18) — and a bad `graceMs` throws `TypeError` or `RangeError`, as the scheduler would |
 | a resume | refused, `reason: 'cancelled'`, at the `cancelRequested` element (section 18) |
+| your `onFoldInput` THROWS on the `cancelRequested` element | the throw reaches `cancel()`'s caller — AFTER every task in flight was sent its cancel and every task a pause held was handed on and cancelled (`RN-R31`), so the run still reaches `cancelled`. *Until 0.8.0's W178 it sent none, and a paused run read `cancelling` for ever* |
 
 ```ts run
 import { Driver, RunControlRefused, fold, liveToken, resumeRefusal, type FlowDefinition } from 'fyflow-orchestration';
@@ -1567,7 +1568,8 @@ if (state.outcome !== 'completed' || state.paused) throw new Error('unpaused, an
 Two kinds, and **the distinction is the stack, not the refusal class** (`OR-R10`). The same class can
 do either: whether you are on the stack when it is raised is what decides. A refusal raised while
 *your* call is running is thrown; one raised inside a scheduler event listener is reported, because
-`EventTarget.dispatchEvent` **discards a listener throw** and there is nobody to catch it.
+`EventTarget.dispatchEvent` **never hands a listener throw back** — it resurfaces out of band, and in node
+and deno that is an UNCAUGHT exception that ends your process — and there is nobody to catch it.
 
 **Thrown**, because you are on the stack and can act:
 
@@ -1590,8 +1592,8 @@ console.log(thrown);                                   // 'WorkerMissing'
 if (thrown !== 'WorkerMissing') throw new Error(`construction refused with ${thrown}`);
 
 // **REPORTED — raised inside a scheduler event listener.** Nobody is on the stack to catch it:
-// `EventTarget.dispatchEvent` DISCARDS a listener throw, so the driver reports it instead and the
-// run stops. This is the half a `try` around your own call can never see.
+// `EventTarget.dispatchEvent` never hands a listener throw back (node and deno raise it as an uncaught
+// exception), so the driver reports it instead and the run stops. This is the half a `try` around your own call can never see.
 const registry: RegistryDocument = {
   workers: { scorer: { url: '../../examples/getting-started/scorer.ts' } },
   nodeTypes: { Scorer: { worker: 'scorer', inline: true } },
@@ -1734,7 +1736,16 @@ settlement it did not mint means its bookkeeping is wrong.
 
 **Reported, not thrown**, when there is nobody on the stack: `DuplicateTaskId`, `UncloneableResult`,
 `NoMatchingEdge` and `UndispatchedTask` raised *inside a scheduler event listener*. Give the driver
-`onRunFailure` or you will not hear about them — the run stops and folds to `halted`, silently.
+`onRunFailure` or you will not hear about them — the run stops and folds to `halted`, silently. **So is
+a throw from your own `onFoldInput` on any element a scheduler event's step appends** — including the
+`paused`, `unpaused` or `interrupted` element of a pause, unpause or stop you called from a callback on
+that step, which is taken when the step ends (sections 8 and 18): reported under your error's class and
+the run HALTED, the element already in the log (`OR-R10`). A stopped run halted so is not resumable.
+*Until 0.8.0's W178 that throw left the listener and ended the process.* On YOUR call's step — `start`,
+`resolve`, `resume`, or the control called at rest — it is thrown to you instead. **Two callbacks must not
+throw at all: `onFoldInput` on the `halted` element, and `onRunFailure`.** Each runs after the run is
+halted and the failure reported, so inside a scheduler event listener their throw is DISCARDED — lost, with
+nobody told (`OR-R10`); on your own call's step it reaches you.
 
 **`InvalidTaskId` is the ninth class and it is the one that does NOT stop a run.** It is thrown by
 `buildTaskId` and `parseTaskId`, both exported, and it is how you check an id yourself — *did some

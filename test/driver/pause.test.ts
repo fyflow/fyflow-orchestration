@@ -171,7 +171,7 @@ const DECLARED_CASES = [
   'a pause raised MID-STEP on a fan-out`s first `dispatched` element is taken when the step ends: every branch handed on, the element after the step — and its checkpoint resumes PAUSED, where the same element mid-step is refused `diverged`',
   'a pause and an unpause raised in ONE step are each taken at its end, in call order — a second of each in that step refused — and one whose step then HALTS or CANCELS the run is DROPPED',
   'a dispatch made on the unpause`s own stack joins the END of the hand-off — the held tasks first, in dispatch order',
-  'a callback THROWING on the `paused` and on the `unpaused` element: the throw reaches the caller, the pause holds, and the unpause still hands every held task on',
+  'a callback THROWING on the `paused` and on the `unpaused` element, taken at rest and at the end of a DRIVER CALL`s step: the throw reaches the caller, the pause holds, and the unpause still hands every held task on',
   'a STOP of a paused run cancels only what was handed on — the held tasks sent nothing and left in flight — and its checkpoint resumes PAUSED on a fresh driver, a task RUNNING at the stop held too, nothing handed on until an unpause there, to `completed`; both calls refused `interrupted` after the stop',
   'a CANCEL of a paused run hands each held task on and THEN cancels it: `cancelling`, then `cancelled` with every held task settled by the scheduler',
   'a pause and a STOP raised in one step: the pause taken first, then the stop — and an unpause and a stop: the held tasks handed on, then every task cancelled',
@@ -179,6 +179,7 @@ const DECLARED_CASES = [
   'a pause raised on a resumed run`s `resumed` element is taken when resume() returns: the in-flight set handed on first',
   'a cancel raised on a HELD task`s own `dispatched` element hands it on and cancels it — `cancelling`, then `cancelled`; a halt there hands it on as the dispatch in progress',
   'a paused run RESUMED holds its in-flight set BEFORE `resumed`: a dispatch a callback on that element causes is handed on after them, in dispatch order',
+  'W178 (j): a callback THROWING on the `paused` and on the `unpaused` element TAKEN at the end of a SCHEDULER EVENT`s step is caught at the listener boundary — nothing leaves the event, onRunFailure hears it once, and the run is HALTED — beside the control that does not throw; and S-1: a throw on `halted` itself, or from onRunFailure, DISCARDED at both boundaries after the report',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -458,19 +459,21 @@ suite(SUITE, (test) => {
     // M7: the driver is back at rest after the throw — an unpause at rest is taken at once and hands y on.
     p.driver.unpause({ actor: 'ops' });
     equal([p.log().at(-1), p.scheduler.added], ['unpaused ops', [X, Y]], 'after the throw the driver is at rest: the unpause is taken and y handed on');
-    // MID-STEP on `paused`: a pause called on x's settlement element is taken at the step's end and its callback throws —
-    // out of the step, to the scheduler's emit — and the pause holds.
+    // MID-STEP on `paused`, on a DRIVER CALL's step: a pause called on x's own `dispatched` element is taken as start()
+    // ends and its callback throws — out of start(), to ITS caller — and the pause holds. (On a SCHEDULER EVENT's step
+    // the listener boundary catches it instead: case 13, W178 (j).)
     let pmid = '';
     const pm = harness(LINE, {
       onFoldInput: (e: FoldInput) => {
-        if (e.kind === 'outcome' && e.record.taskId === X) pm.driver.pause({ actor: 'ops' });
+        if (e.kind === 'dispatched' && e.taskId === X) pm.driver.pause({ actor: 'ops' });
         if (e.kind === 'paused') throw new Error('boom mid paused');
       },
     });
-    pm.driver.start({});
-    try { pm.scheduler.settle(X, 'done'); } catch (x) { pmid = (x as Error).message; }
-    equal([pmid, pm.log().at(-1), fold(pm.driver.foldInputs()).paused], ['boom mid paused', 'paused ops', true],
-      'mid-step: the throw reaches the step`s caller, and the run is paused');
+    try { pm.driver.start({}); } catch (x) { pmid = (x as Error).message; }
+    equal([pmid, pm.log().at(-1), fold(pm.driver.foldInputs()).paused, pm.failures], ['boom mid paused', 'paused ops', true, []],
+      'mid-step on start()`s step: the throw reaches start()`s caller, the run is paused, and nothing is reported — not halted');
+    pm.scheduler.settle(X, 'done');
+    equal(pm.scheduler.added, [X], 'and the pause HOLDS: y is held, not handed on');
 
     const u = harness(LINE, throwing('unpaused'));
     u.driver.start({});
@@ -481,22 +484,25 @@ suite(SUITE, (test) => {
     equal(thrown, 'boom on unpaused', 'the throw reaches unpause()`s caller');
     equal([u.log().at(-1), fold(u.driver.foldInputs()).paused, u.scheduler.added], ['unpaused ana', false, [X, Y]],
       'the element is in the log, the run not paused — and y WAS handed on: the hand-off is in a `finally`');
-    // MID-STEP: an unpause called on a's settlement element is taken at the step's end, and its element's callback
-    // throws — out of the step, to the scheduler's emit — and the held tasks are still handed on.
+    // MID-STEP, on a DRIVER CALL's step: an unpause called on the RESOLUTION element of a person's resolve() is taken as
+    // resolve() ends, and its element's callback throws — out of resolve(), to ITS caller — and the held tasks, b2
+    // dispatched in that very step among them, are still handed on in dispatch order.
     let midThrown = '';
     const mm = harness(FAN3, {
       onFoldInput: (e: FoldInput) => {
-        if (e.kind === 'outcome' && e.record.taskId === A) mm.driver.unpause({ actor: 'ops' });
+        if (e.kind === 'resolution' && e.record.taskId === B) mm.driver.unpause({ actor: 'ops' });
         if (e.kind === 'unpaused') throw new Error('boom mid');
       },
     });
     mm.driver.start({});
+    mm.scheduler.settle(B, 'user_action');
     mm.driver.pause({ actor: 'ops' });
     mm.scheduler.settle(C, 'done');
-    try { mm.scheduler.settle(A, 'done'); } catch (x) { midThrown = (x as Error).message; }
-    equal(midThrown, 'boom mid', 'mid-step: the throw reaches the step`s caller');
-    equal([mm.log().slice(-1)[0], mm.scheduler.added], ['unpaused ops', [A, B, C, C2, A2]],
-      'and c2 and a2 — held, a2 in the very step — are handed on in dispatch order');
+    mm.scheduler.settle(A, 'done');
+    try { mm.driver.resolve(B, 'done', { actor: 'ana', result: null }); } catch (x) { midThrown = (x as Error).message; }
+    equal([midThrown, mm.failures], ['boom mid', []], 'mid-step on resolve()`s step: the throw reaches resolve()`s caller, nothing reported');
+    equal([mm.log().at(-1), mm.scheduler.added], ['unpaused ops', [A, B, C, C2, A2, B2]],
+      'and c2, a2 and b2 — held, b2 in the very step — are handed on in dispatch order');
   });
 
   test(DECLARED_CASES[6]!, async () => {
@@ -738,6 +744,129 @@ suite(SUITE, (test) => {
   });
 
   test(DECLARED_CASES[13]!, () => {
+    const boom = new Error('W178: the consumer`s store failed on the element');
+    /** A harness whose `onRunFailure` keeps the whole failure, and whose `onFoldInput` is `fn` with the driver. */
+    const watched = (def: FlowDefinition, fn: (d: Driver, e: FoldInput) => void) => {
+      const box: { driver?: Driver } = {};
+      const reported: { kind: string; message: string; cause: unknown }[] = [];
+      const h = harness(def, {
+        onFoldInput: (e: FoldInput) => fn(box.driver!, e),
+        onRunFailure: (f: { kind: string; message: string; cause: unknown }) => reported.push({ kind: f.kind, message: f.message, cause: f.cause }),
+      });
+      box.driver = h.driver;
+      return { ...h, reported };
+    };
+    const escapes = (fn: () => void): unknown => { try { fn(); } catch (x) { return x; } return null; };
+
+    // `paused`: a pause called on x's SETTLEMENT element — a scheduler event's step — is taken when that step ends,
+    // after y was handed on (RN-R35); the callback throws on the element. P35 fact 10's shape.
+    const onPaused = (throws: boolean) => watched(LINE, (d, e) => {
+      if (e.kind === 'outcome' && e.record.taskId === X) d.pause({ actor: 'ops' });
+      if (throws && e.kind === 'paused') throw boom;
+    });
+    const pc = onPaused(false);
+    pc.driver.start({});
+    equal(escapes(() => pc.scheduler.settle(X, 'done')), null, 'the control: nothing thrown');
+    equal([pc.log().slice(-2), pc.reported, pc.driver.hasFailed(), fold(pc.driver.foldInputs()).outcome],
+      [[`dispatched ${Y}`, 'paused ops'], [], false, 'running'], 'the control: y handed on in the step, then `paused` — not halted');
+
+    const pt = onPaused(true);
+    pt.driver.start({});
+    equal(escapes(() => pt.scheduler.settle(X, 'done')), null,
+      'NOTHING leaves the scheduler event — today`s tree threw it out of the listener, an uncaught exception in node and deno');
+    equal(pt.log().slice(-3), [`dispatched ${Y}`, 'paused ops', 'halted'], 'the element is in the log, and then the run`s `halted`');
+    equal(pt.reported.map((f) => [f.kind, f.message, f.cause === boom]), [['Error', boom.message, true]],
+      'onRunFailure hears it ONCE, carrying the consumer`s own error');
+    const ps = fold(pt.driver.foldInputs());
+    equal([pt.driver.hasFailed(), ps.outcome, ps.paused], [true, 'halted', true], 'the run is HALTED — OR-R10`s treatment of a throw on any other element of the step');
+    pt.scheduler.settle(Y, 'done');
+    equal([pt.log().at(-1), fold(pt.driver.foldInputs()).outcome], [`outcome ${Y} done`, 'halted'], 'y`s settlement is appended and routed nowhere: no `end` reached');
+
+    // `unpaused`: FAN3 paused, c settled (c2 HELD); an unpause called on a's SETTLEMENT element is taken when that step
+    // ends — a2, dispatched in the step, held too — and the callback throws on the element. The hand-off is in a
+    // `finally`, so c2 and a2 ARE handed on, in dispatch order; then the run halts.
+    const onUnpaused = (throws: boolean) => watched(FAN3, (d, e) => {
+      if (e.kind === 'outcome' && e.record.taskId === A) d.unpause({ actor: 'ops' });
+      if (throws && e.kind === 'unpaused') throw boom;
+    });
+    const uc = onUnpaused(false);
+    uc.driver.start({});
+    uc.driver.pause({ actor: 'ops' });
+    uc.scheduler.settle(C, 'done');
+    equal(escapes(() => uc.scheduler.settle(A, 'done')), null, 'the control: nothing thrown');
+    equal([uc.log().at(-1), uc.scheduler.added, uc.reported, fold(uc.driver.foldInputs()).outcome],
+      ['unpaused ops', [A, B, C, C2, A2], [], 'running'], 'the control: c2 and a2 handed on, not halted');
+
+    const ut = onUnpaused(true);
+    ut.driver.start({});
+    ut.driver.pause({ actor: 'ops' });
+    ut.scheduler.settle(C, 'done');
+    equal(escapes(() => ut.scheduler.settle(A, 'done')), null, 'NOTHING leaves the scheduler event');
+    equal(ut.log().slice(-2), ['unpaused ops', 'halted'], 'the element, then `halted`');
+    equal(ut.scheduler.added, [A, B, C, C2, A2], 'the held c2 and a2 were handed on first, in dispatch order — the hand-off`s `finally`');
+    equal(ut.reported.map((f) => [f.kind, f.cause === boom]), [['Error', true]], 'onRunFailure hears it once');
+    const us = fold(ut.driver.foldInputs());
+    equal([ut.driver.hasFailed(), us.outcome, us.paused], [true, 'halted', false], 'HALTED, and no longer paused');
+
+    // R2 — ONCE: the SCHEDULER throwing inside that hand-off (`drainHeld` reports it and rethrows, for a caller at rest)
+    // reaches the boundary already reported: onRunFailure hears it once, and nothing leaves the event.
+    const sx = onUnpaused(false);
+    sx.scheduler.onAdd = (id) => { if (id === C2) throw new Error('pool gone'); };
+    sx.driver.start({});
+    sx.driver.pause({ actor: 'ops' });
+    sx.scheduler.settle(C, 'done');
+    equal(escapes(() => sx.scheduler.settle(A, 'done')), null, 'NOTHING leaves the scheduler event');
+    equal(sx.reported.map((f) => f.message), ['pool gone'], 'the scheduler`s throw is reported ONCE — not again at the boundary');
+    equal([sx.scheduler.added, fold(sx.driver.foldInputs()).outcome], [[A, B, C, C2], 'halted'], 'c2`s addTask threw, a2 is held by the halt, the run `halted`');
+
+    // S-1 (the maintainer's YES): a throw OUT OF failRun — the consumer's `onFoldInput` on the `halted` element itself,
+    // or its `onRunFailure` — is DISCARDED at BOTH listener boundaries, AFTER the report (`OR-R10` v0.17).
+    // (1) `onEvent`'s — the take's end: a throw on `paused`, then on `halted`.
+    const h1 = watched(LINE, (d, e) => {
+      if (e.kind === 'outcome' && e.record.taskId === X) d.pause({ actor: 'ops' });
+      if (e.kind === 'paused' || e.kind === 'halted') throw boom;
+    });
+    h1.driver.start({});
+    equal(escapes(() => h1.scheduler.settle(X, 'done')), null, 'onEvent`s boundary: the throw on `halted` does not leave the event');
+    equal([h1.reported.map((f) => f.cause === boom), h1.log().slice(-2), fold(h1.driver.foldInputs()).outcome],
+      [[true], ['paused ops', 'halted'], 'halted'], 'onRunFailure heard it ONCE — reported before the throw on `halted` — and the run is halted');
+    // (2) `onEventStep`'s — a throw on a SETTLEMENT's element (OR-R10's own road), then on `halted`.
+    const h2 = watched(LINE, (_d, e) => {
+      if ((e.kind === 'outcome' && e.record.taskId === X) || e.kind === 'halted') throw boom;
+    });
+    h2.driver.start({});
+    equal(escapes(() => h2.scheduler.settle(X, 'done')), null, 'onEventStep`s boundary: the throw on `halted` does not leave the event');
+    equal([h2.reported.length, h2.log().slice(-2), h2.scheduler.added, fold(h2.driver.foldInputs()).outcome],
+      [1, [`outcome ${X} done`, 'halted'], [X], 'halted'], 'reported ONCE, y never dispatched, the run halted');
+    // (3) a THROWING onRunFailure, on each road: discarded, the run halted, the element in the log.
+    const loud = (def: FlowDefinition, fn: (d: Driver, e: FoldInput) => void) => {
+      const box: { driver?: Driver } = {};
+      let heard = 0;
+      const h = harness(def, {
+        onFoldInput: (e: FoldInput) => fn(box.driver!, e),
+        onRunFailure: () => { heard += 1; throw new Error('the consumer`s reporter is down'); },
+      });
+      box.driver = h.driver;
+      return { ...h, heard: () => heard };
+    };
+    const h3 = loud(LINE, (d, e) => {
+      if (e.kind === 'outcome' && e.record.taskId === X) d.pause({ actor: 'ops' });
+      if (e.kind === 'paused') throw boom;
+    });
+    h3.driver.start({});
+    equal(escapes(() => h3.scheduler.settle(X, 'done')), null, 'the take`s road: a throwing onRunFailure does not leave the event');
+    equal([h3.heard(), h3.log().at(-1), fold(h3.driver.foldInputs()).outcome], [1, 'halted', 'halted'], 'called once, and the run halted');
+    const h4 = loud(LINE, (_d, e) => { if (e.kind === 'outcome' && e.record.taskId === X) throw boom; });
+    h4.driver.start({});
+    equal(escapes(() => h4.scheduler.settle(X, 'done')), null, 'onEventStep`s road: a throwing onRunFailure does not leave the event');
+    equal([h4.heard(), h4.log().at(-1), fold(h4.driver.foldInputs()).outcome], [1, 'halted', 'halted'], 'called once, and the run halted');
+    // The DRIVER-CALL road is unchanged: start() refusing on its own step reports, and the throw on `halted` reaches start()`s caller.
+    const h5 = watched(LINE, (_d, e) => { if ((e.kind === 'dispatched' && e.taskId === X) || e.kind === 'halted') throw boom; });
+    equal([escapes(() => h5.driver.start({})), h5.reported.length, fold(h5.driver.foldInputs()).outcome], [boom, 1, 'halted'],
+      'a driver call: reported once, the run halted, and the throw reaches the caller');
+  });
+
+  test(DECLARED_CASES[14]!, () => {
     const ran = collected().filter((s) => s.suite === SUITE).flatMap((s) => s.cases.map((c) => c.name));
     equal(ran, DECLARED_CASES, 'each declared case registered, in order, and no other — an emptied or renamed case fails here');
   });
