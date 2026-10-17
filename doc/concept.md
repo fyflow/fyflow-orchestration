@@ -82,7 +82,7 @@ diff from 0.5.2's, not by running each row — the first pin since 0.3.0 at whic
 | `FyflowTask` after the run | `state`, `result`, `error`, `attempts`, `startTime`, `endTime`, `executionTime`; at the pin also `attemptNumber`, `cancellation` |
 | Resource groups | `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup` - per-task and per-worker (`residentGroups`) |
 | Retry | `retryPolicy: { maxRetries, backoffMs }`, per task. **At the pin a backoff is held outside the ready queue**; at 0.5.2 another dispatch could start a retry at once (W157, measured) |
-| Cancel (at the pin) | `scheduler.cancel(id)`: a waiting task never runs, a running one is signalled and ends `cancelled`. Not yet folded here — P33 |
+| Cancel (at the pin) | `scheduler.cancel(id)`: a waiting task never runs, a running one is signalled and ends `cancelled`. Folded since P33: the run ends `cancelled` (ADR 0094) |
 | Spawn | `context.spawnTask()` from inside a worker, plus `onCompleteDescendants()` |
 
 And these constraints, which are design inputs rather than annoyances:
@@ -98,7 +98,7 @@ And these constraints, which are design inputs rather than annoyances:
    with a flow, the scheduler will drain between steps routinely.
 3. **Reusing a task id overwrites.** Silently. Our id scheme is a correctness concern (Q13).
 4. **A queued task could not be cancelled before the pin.** [S2](scheduler-upstream.md) shipped as
-   `scheduler.cancel(id)`; what cancelling a RUN does is P34's.
+   `scheduler.cancel(id)`; cancelling a RUN is `driver.cancel` (ADR 0104).
 5. **An event's `detail` is a live object.** For the lifecycle `task.*` events (four through 0.5.2, seven
    at the pin) it *is* the `FyflowTask`,
    `timestamp` included, so a retained reference misreports every field it carries. Documented
@@ -214,7 +214,7 @@ of leaning produced.
   ([P34](plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) decision 1). Cancelling a run is
   built, recorded before it acts and ended by the scheduler's own settlements
   ([ADR 0104](decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md),
-  [Q18](questions/q18.md)); stop and pause are P34's. **Retrying a node is still out** ([Q16](questions/q16.md)).
+  [Q18](questions/q18.md)), and stopping and pausing it too (ADR 0105, ADR 0106). **Retrying a node is still out** ([Q16](questions/q16.md)).
   **One exception, added 2026-08-30 and deliberately narrow:
   [ADR 0004](decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
   rules 4-6 let an external actor *resolve a suspended `user_action` node*, because a run that stops

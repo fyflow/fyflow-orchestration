@@ -39,6 +39,35 @@ answer** — all P1.
 - `RoutableState`, P33's `cancelled` and P34's cancel all reach a parked node: a cancelled run ends
   its parked asks without a Resolve (P33 decision 3).
 
+*Handed on by [P34](p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s retro, by the maintainer's answer to its
+stop-and-asks (m), (o), (p) and (q), 2026-10-17 — each re-taken at this declaration:*
+
+- **ONE ROW, fixed before 0.8.0 is published, no question raised** ((o), (p)): **(1)** `driver.cancel` with a consumer
+  `onFoldInput` THROWING on its `cancelRequested` element — the element is appended and the run held, no cancel is sent,
+  and a paused run's held tasks are never handed on, so it reads `cancelling` for ever (read from the code at P34's
+  retro, not measured); fixed in `takeStop`'s shape — the in-flight set and the release read BEFORE the element, the
+  cancels and hand-offs in a `finally`, the throw reaching the caller — with an L2 case at rest, mid-step and on a paused
+  run. **(2)** the `OR-R10` escape (W175 N5 / R14, W174's `takeStop` the same): a throw on a `paused`, `unpaused` or
+  `interrupted` element TAKEN at `leaveStep()` inside a scheduler event's step leaves into the scheduler's
+  `dispatchEvent`; caught at the listener boundary as `OR-R10` catches a refusal — reported, the run halted — the reading
+  stated at this declaration.
+- **Three test titles, in the first item that edits `test/**`** ((m)): `test/fold/stuck.test.ts:162` and
+  `test/definition/l4-corpus.test.ts:611` (*neither running nor awaiting_action* — `cancelling` too, `RN-R12` since
+  run-state v0.18), which move TOGETHER because `l4-corpus` counts the suite by name; and
+  `test/scheduler/runtime.test.ts:1989` (*the six outcomes* — nine).
+
+*Adopted for THIS declaration by P34's retro (q) — copy them into it, as P34 copied P37's:*
+
+- **B′, C and E — UNCHANGED from [P34](p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s *Work items***: the census
+  re-take in a byte copy with the self-test floors; one confirming gate per item, once, after the readers; a compound
+  probe kills nothing.
+- **D′ — with its own clause FOLLOWED AS WRITTEN**: *a fact `AGENTS.md` states → the WHOLE of `AGENTS.md`*, never a list
+  of its sections in the row (twelve of P34's eighteen exceptions were that narrowing), beside D′'s census sites and the
+  grep for every file that reads the changed surface.
+- **Two sentences for every item's brief**: *each item's Record states its readers' overlap* (`doc/workflow.md` section 6;
+  six of P34's eight Records dropped it); and *an owner element a resume's replay feeds is TAKEN AT REST, between two
+  steps* (`RN-R19`; P34's W174 R1 and W175 R1).
+
 ## Answered here, not built
 
 | # | ask | answer |
