@@ -32,6 +32,48 @@ the task-id map stays ours.
    [P34](p34-what-cancelling-stopping-and-pausing-a-run-do.md) decision 7), so orchestration 0.8.0 is
    published after it.
 
+## Handed on, and copied here as the retros direct
+
+*From [P35](p35-may-a-node-wait-for-a-person-by-design.md)'s retro, by the maintainer's answer to its stop-and-asks
+(k), (l) and (m), 2026-10-18 — each re-taken as a fact at the declaration:*
+
+- **ONE ROW, fixed before 0.8.0 is published, no question raised** ((k)): **a consumer callback that THROWS, on every
+  road.** One rule — *a consumer throw on any element the driver appends is reported ONCE and HALTS the run, and on a
+  driver call it also reaches the caller* — `start()`'s rule extended to `resolve()`, `resume()` and the pause, unpause
+  and stop TAKEN at the end of a driver call's step. Today a take there rethrows without halting (W178's conformity
+  reader, R3 note), and a throw on the resolution's own element during `resolve()` leaves the answered node routed
+  nowhere, unreported (W180's Notes). Built with an **L2 SWEEP: every driver call × a callback throwing on each element
+  it appends**, each asserting the halt, the one report and the throw at the caller. *P35 retro section 4 (a): six roads
+  found one at a time over four items.*
+- **One phrase, in this plan's EXIT-ARTIFACT item** ((l)), which owns `examples/l6.ts`: `DRIVER_FIELDS`' `gateMemory`
+  comment, *empty on every run here since no L6 row runs a gate* — false since W94.
+- **B′, C and E UNCHANGED; D′ with three clauses added; the two brief sentences** ((m)) — for this declaration's
+  *Work items*, copied as P35 copied P34's:
+  - **B′ — the census re-take, with the self-test floors**: *an item that adds a node, a field, a suite, a module, a
+    snippet or a flow builds its change in a byte copy and runs every lane BEFORE writing its `Owns` — and, where the
+    change adds or removes an executed snippet or moves the size of an always-read document, the self-test that reads
+    that floor (`check:docs:selftest`, `check:budget:selftest`) as well.*
+  - **C — one confirming gate per item**: *an item runs `npm run gate` (the ladder) before its readers, and its confirming
+    gate — `gate:item`, or the last item's `gate:full` — runs ONCE, after the reader items, on the final tree.*
+  - **D′ — the census sites AND the readers in the plan's row**: *the plan's index row names, for each item, the census
+    sites its kind of change moves — a new suite → `test/definition/l4-corpus.test.ts`; a spec version →
+    `spec/README.md`'s row; an L6 assertion or run → `examples/README.md`'s `X10` copies; an executed snippet →
+    `scripts/check-docs.mjs`'s `RUN_FLOOR`; a driver field → `examples/l6.ts`'s and `test/driver/retention.test.ts`'s
+    `DRIVER_FIELDS`; a fact `AGENTS.md` states → the whole of `AGENTS.md` — and every file that READS the surface the
+    item changes, found by a grep for each changed name over `src/`, `scripts/`, `examples/` and `index.ts`: the module's
+    export list, the caller that hands the value on, the publish smokes (which no lane typechecks), and the comments and
+    messages that state the rule being changed.* **Every row touching `AGENTS.md` owns the WHOLE of it.** **And, added
+    by P35's retro, each met twice**: *a new case in a COUNTED suite → `l4-corpus`'s per-suite count and its message*;
+    *a flow added under `spec/examples/` → the corpus censuses (`spec/flow-definition.md` section 7's table,
+    `spec/outcome-record.md` section 4's OR-R11 sentence and its suite, `test/definition/wiring.test.ts`'s L4 arc
+    total, `test/driver/needs.test.ts`'s region census)*; *and a grep for each PREMISE the change falsifies, not only
+    each changed name* (P35 W179: *a branch entry is a task*).
+  - **E — a compound probe kills nothing**: *a provocation's edit changes ONE clause; where one replacement moves two,
+    the probe is COMPOUND, and a Record counts it as killing neither clause until each is re-cut alone and killed.*
+  - **Two sentences for every item's brief**: ***each item's Record states its readers' overlap***; and ***an owner
+    element a resume's replay feeds is TAKEN AT REST, between two steps*** (`RN-R19`) — which any owner element this
+    plan adds will meet.
+
 ## Constraints found by the 2026-10-14 evaluation, re-taken at declaration
 
 - **#8**: a pass-through callback (`onTaskMessage`, `onTaskProgress`) is not a fold input and does not
