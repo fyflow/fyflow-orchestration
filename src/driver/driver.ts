@@ -4249,7 +4249,8 @@ export class Driver {
   /**
    * **Whether anything in the run waits on a person** — a parked task or an unanswered ask. `cancel`, `stop` and `pause`
    * refuse a run `ended` only when nothing is in flight and THIS is false: a run whose only live node is a parked ask is
-   * waiting on a person, not finished (P35 fact 5 (iv); W181 owns the rest of an ask under run control).
+   * waiting on a person, not finished (P35 fact 5 (iv)). The rest of an ask under run control needs no line of its own:
+   * never dispatched, it is never in flight, so every road reading `inFlight()` passes it by (`RN-R38`, W181).
    */
   private hasParked(): boolean {
     for (const id of this.dispatched) if (isSuspended(this.log, id)) return true;

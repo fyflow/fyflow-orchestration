@@ -1157,6 +1157,7 @@ reached first), appended and routed nowhere. **The run reads `cancelling` until 
 |---|---|
 | a task RUNNING, WAITING behind a group, in a retry BACKOFF, or not yet picked up by a thread | each is cancelled; a waiting or backing-off one settles INSIDE the call, a running one when its worker stops |
 | a task PARKED at `user_action` | nothing is sent — it is not in flight, and the scheduler cannot end it. It stays `suspended`, the run does not wait on it, and `resolve()` is refused (P34 (i)) |
+| an ASK waiting for a person (section 7) | the same as a parked task: nothing is sent — it was never dispatched, so it is never in flight. It stays `suspended` and its answer is refused; a run waiting ONLY on asks and parked tasks reads `cancelled` at once, and a runtime's `done` settles at once ([W181](doc/work-items/w181-an-ask-under-run-control.md), `RN-R38`) |
 | a task HELD by a pause (section 8) | handed on to the scheduler, then cancelled at once — so it too ends with the scheduler's own `task.cancelled` |
 | a task a WORKER spawned (`context.spawnTask()`) | **not cancelled** — the driver knows only what it dispatched. Track those ids from `task.spawn_request` and cancel each yourself (the scheduler's own recipe) |
 | a SECOND call | appends nothing, and forwards its `graceMs` to each task still stopping — a shorter one shortens the wait, as pressing Cancel twice does on the scheduler |
@@ -1283,6 +1284,12 @@ keeps waiting, and the run is not stuck.
 - **On a resume** the replay re-enters the ask and REGENERATES its `asked` element — the same id, the same kept input,
   compared with what you stored as structured-clone data (a different one — a `Map` entry, a `Date` — is refused
   `diverged`) — and hands nothing to the new scheduler for it.
+- **Under run control an ask is a parked task** ([W181](doc/work-items/w181-an-ask-under-run-control.md), `RN-R38`, P35 (g)): it was never dispatched, so it
+  is never in flight. A **cancel** sends the scheduler nothing for it and the run reads `cancelled` once the tasks it did
+  cancel have stopped — at once if nothing runs; a **stop** sends nothing for it and refuses its answer on that runtime,
+  and the resume elsewhere re-parks it and takes the answer there; a **pause** holds nothing for it, and its answer is
+  accepted while paused, whatever it routes to recorded and HELD until you unpause (section 8). A run waiting only on
+  asks is not refused `ended` by any of them.
 
 ```ts run
 import { BoundaryRefused, Driver, fold, liveToken, type FlowDefinition } from 'fyflow-orchestration';
@@ -1341,6 +1348,69 @@ const outcome = driver.effectiveOutcomeOf('r1:approve:-:0');
 console.log(added, outcome?.attempts, outcome?.schedulerTimestamp);   // [ 'r1:draft:-:0', 'r1:publish:-:0' ] 0 null
 if (added.join() !== 'r1:draft:-:0,r1:publish:-:0') throw new Error('approved routes to publish');
 if (outcome?.attempts !== 0 || outcome.schedulerTimestamp !== null) throw new Error('an ask`s outcome has no scheduler fields');
+```
+
+**Stopped, resumed elsewhere, and answered while paused** — the same flow, its run stopped while it waits on the person:
+
+```ts run
+import { Driver, fold, liveToken, type FlowDefinition } from 'fyflow-orchestration';
+
+// A scheduler double per "runtime": it records what it is handed and cancelled, and fires only what we tell it to.
+function schedulerDouble() {
+  const added: string[] = [];
+  const cancelled: string[] = [];
+  const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+  return {
+    added, cancelled,
+    addTask(task: unknown) { added.push((task as { id: string }).id); },
+    addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+    cancel(id: string) { cancelled.push(id); return Promise.resolve(true); },
+    done(id: string, result: unknown) {
+      const detail = { id, state: 'done', result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
+      for (const fn of listeners.get('task.completed') ?? []) fn({ detail });
+    },
+  };
+}
+const flow: FlowDefinition = {
+  flowId: 'publish-review', version: 1, entry: 'draft',
+  nodes: [
+    { id: 'draft', kind: 'task', type: 'Draft', edges: [{ to: 'approve' }] },
+    { id: 'approve', kind: 'ask', edges: [{ to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'Publish', edges: [{ to: 'end' }] },
+    { id: 'end', kind: 'end', outcome: 'completed' },
+  ],
+};
+const driverOn = (scheduler: ReturnType<typeof schedulerDouble>) => new Driver(flow, {
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken,
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { Draft: { worker: 'w' }, Publish: { worker: 'w' } },
+});
+
+// RUNTIME A: the draft settles, the run parks at the ask — and is STOPPED. Nothing is sent for the ask.
+const a = schedulerDouble();
+const first = driverOn(a);
+first.start({ topic: 'release notes' });
+a.done('r1:draft:-:0', { text: 'a draft' });
+await first.stop({ actor: 'ops', reason: 'upgrade' });
+console.log(a.cancelled, fold(first.foldInputs()).outcome);   // [] interrupted
+if (a.cancelled.length !== 0) throw new Error('a stop sends nothing for an ask: it is not in flight');
+if (first.resolve('r1:approve:-:0', 'done', { result: { ok: true }, actor: 'ana' })) throw new Error('the answer is refused on the stopped runtime');
+
+// RUNTIME B: the checkpoint resumed — the ask RE-PARKED with what it was shown, nothing handed on for it.
+const b = schedulerDouble();
+const second = driverOn(b);
+second.resume(first.checkpoint());
+console.log(b.added, fold(second.foldInputs()).nodes['r1:approve:-:0'].input);   // [] { text: 'a draft' }
+if (b.added.length !== 0 || fold(second.foldInputs()).outcome !== 'awaiting_action') throw new Error('re-parked, nothing handed on');
+
+// PAUSED, the answer is accepted — and what it routes to is recorded and HELD until the unpause.
+second.pause({ actor: 'ops' });
+if (!second.resolve('r1:approve:-:0', 'done', { result: { ok: true }, actor: 'ana' })) throw new Error('answered while paused');
+if (b.added.length !== 0) throw new Error('publish is held while paused');
+second.unpause({ actor: 'ops' });
+console.log(b.added);   // [ 'r1:publish:-:0' ]
+if (b.added.join() !== 'r1:publish:-:0') throw new Error('the unpause hands publish on');
+b.done('r1:publish:-:0', 'published');
+if (fold(second.foldInputs()).outcome !== 'completed') throw new Error('the run completes on runtime B');
 ```
 
 **A flow that waits for a person because a task FAILED** is the parked task below — the road an ask replaces for a
@@ -1648,6 +1718,7 @@ unpause clears it, and a cancelled or halted run refuses one — read `outcome` 
 |---|---|
 | a task the scheduler already has | runs on and settles, and its settlement routes as ever — what it routes to is held |
 | `resolve()` on a parked task | accepted; its successor is held |
+| an ASK's answer (section 7) | the same: accepted, and whatever it routes to is recorded and HELD until the unpause. Nothing is held FOR the ask — it was never going to be handed on ([W181](doc/work-items/w181-an-ask-under-run-control.md), `RN-R38`) |
 | a call from your own callback, mid-step | accepted, and taken when the driver's step ends — so that step's dispatches are handed on. **Pause before the settlement whose successor you want held** |
 | `handle.stop()` / `driver.stop()` of a paused run | cancels only what the scheduler has; a held task is sent nothing and stays in flight — and the checkpoint resumes **PAUSED** elsewhere, EVERY task in flight held until you unpause there, the ones that were running at the stop included (section 18) |
 | `driver.cancel()` of a paused run | hands each held task on and cancels it, so the scheduler settles every one — `cancelling`, then `cancelled` (section 6) |
@@ -2301,7 +2372,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or halted run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
-| ~~**RUNNING an `ask`**~~ — a node that waits for a person, its answer at `resolve()` | **BUILT** since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md): a run parks at an ask with nothing handed to the scheduler, and its answer is its result — section 7. A run waiting only on an ask is not refused `ended` by a cancel, a stop or a pause, and a resume re-parks it (section 18); the rest of run control over a parked ask is P35's next item's |
+| ~~**RUNNING an `ask`**~~ — a node that waits for a person, its answer at `resolve()` | **BUILT** since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md): a run parks at an ask with nothing handed to the scheduler, and its answer is its result — section 7. Under a cancel, a stop, a pause and a resume an ask is a parked task — never in flight, so nothing is ever sent or handed on for it — since [W181](doc/work-items/w181-an-ask-under-run-control.md) (section 7) |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |
@@ -4035,6 +4106,7 @@ terminal here, and the one terminal outcome a resume accepts.
 |---|---|
 | a task RUNNING, WAITING, in a BACKOFF or not yet picked up | each is cancelled, and its `task.cancelled` is NOT recorded — it stays in flight in the log |
 | a task PARKED at `user_action` | nothing is sent. **`resolve()` is refused on this runtime from the call on** — the person answers on the runtime that resumes the run |
+| an ASK waiting for a person (section 7) | the same: nothing is sent, and its answer is refused here. The runtime that resumes the run REGENERATES the ask — the same id, the same kept input — hands its scheduler nothing for it, and takes the answer. An answer given on the SAME step before the stop was called is taken first — its successor is handed to this runtime and cancelled at once, and the resume runs it again, so the answer is not lost (a same-step CANCEL instead drops a pending answer). Stopped while paused, it resumes paused ([W181](doc/work-items/w181-an-ask-under-run-control.md), `RN-R38`) |
 | a task HELD by a pause (section 8) | sent nothing — the scheduler never had it. It stays in flight in the log, and the checkpoint resumes **PAUSED**: every task in flight held until you unpause there |
 | `done` | settles with `interrupted` once the stop's CANCELS have resolved — not at the stop, so the old runtime's workers have stopped before you resume elsewhere. The run is released then; a sibling run on the same runtime is untouched |
 | the run id | still in use on THIS runtime (`RunIdInUse`) — resume on a FRESH one, which is what an upgrade is |

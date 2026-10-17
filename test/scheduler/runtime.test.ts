@@ -3198,6 +3198,111 @@ suite('W174 — a STOPPED run`s done settles `interrupted` once its cancels reso
   });
 });
 
+/**
+ * **W181 — `RN-R38` through the runtime**: P35 stop-and-ask (g), [W181](../../doc/work-items/w181-an-ask-under-run-control.md).
+ * A run parked on an ASK, under the owner's run control, on `routedSeams` — every `addTask` and every `cancel` the
+ * runtime's scheduler is handed recorded. **Expected values from (g) and `RN-R30`/`RN-R32`/`RN-R35`, never from a run**: a
+ * cancel sends nothing (the ask is not in flight) and `done` settles `cancelled` AT ONCE — no task to stop; a stop sends
+ * nothing and `done` settles `interrupted` at once, the answer refused on that runtime, and the checkpoint resumes on a
+ * FRESH runtime with NOTHING handed to its scheduler, re-parked, answered to `completed`; a paused run's answer is accepted
+ * and its successor held until the unpause, `done` pending throughout. Each beside its control.
+ */
+suite('W181 — a run parked on an ASK: cancelled and stopped with nothing sent and done settling at once, resumed on a fresh runtime, and answered while paused', (test) => {
+  const ASKING = {
+    flowId: 'asking', version: 1, entry: 'a',
+    nodes: [
+      { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'approve' }] },
+      { id: 'approve', kind: 'ask', edges: [{ to: 'b' }] },
+      { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  const turn = () => new Promise<void>((r) => setTimeout(r, 0));
+  /**
+   * A runtime on `routedSeams`, its scheduler given a `cancel` that records and never resolves on its own — but answers
+   * `false` at once for an id it was never handed, as the scheduler does, so a cancel sent for an ask fails an assertion
+   * here rather than hanging the `stop()` a case awaits.
+   */
+  function runtimeOf() {
+    const s = routedSeams();
+    const cancels: string[] = [];
+    const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
+      const sch = s.createScheduler(p, g) as unknown as Record<string, unknown>;
+      sch.cancel = (id: string) => {
+        cancels.push(id);
+        return s.added.some((t) => t.id === id) ? new Promise<boolean>(() => {}) : Promise.resolve(false);
+      };
+      return sch as never;
+    };
+    return { s, cancels, r: createRuntime(DOC, {}, { createPool: s.createPool, createScheduler }) };
+  }
+  /** Started, its first task settled: parked on the ask, nothing in flight. */
+  async function parked(rt: ReturnType<typeof runtimeOf>, runId: string) {
+    const h = rt.r.start(ASKING, { x: 1 }, { runId });
+    rt.s.done(`${runId}:a:-:0`);
+    await turn();
+    return h;
+  }
+  const ids = (rt: ReturnType<typeof runtimeOf>) => rt.s.added.map((t) => t.id);
+
+  test('a CANCEL sends nothing and done settles `cancelled` at once; a STOP sends nothing, settles `interrupted` at once, refuses the answer, and resumes on a FRESH runtime re-parked with nothing handed on, to `completed`', async () => {
+    const A = runtimeOf();
+    const c = await parked(A, 'c1');
+    let settled = false;
+    void c.done.then(() => { settled = true; });
+    await turn();
+    equal([fold(c.driver.foldInputs()).outcome, settled], ['awaiting_action', false], 'the ARRANGEMENT: parked on the ask, done PENDING (ADR 0091 rule 3)');
+    await c.driver.cancel({ actor: 'ops' });
+    equal(A.cancels, [], 'the cancel sends the scheduler NOTHING — the ask is not in flight');
+    equal((await w77Settlement(c.done)).outcome, 'cancelled', 'and done settles `cancelled` — no task to wait for');
+    equal(ids(A), ['c1:a:-:0'], 'nothing handed on for the ask, ever');
+
+    const s1 = await parked(A, 's1');
+    await s1.stop({ actor: 'ops' });
+    equal(A.cancels, [], 'the stop sends nothing either');
+    const st = await w77Settlement(s1.done);
+    equal(st.outcome, 'interrupted', 'done settles `interrupted` at once — no cancel to wait on');
+    equal(s1.driver.resolve('s1:approve:-:0', 'done', { result: 1, actor: 'ana' }), false, 'the answer is refused on runtime A');
+    const cp = structuredClone(s1.driver.checkpoint()) as Checkpoint;
+    const B = runtimeOf();
+    const resumed = B.r.resume(ASKING, cp);
+    equal(ids(B), [], 'the FRESH runtime`s scheduler is handed NOTHING: the ask is re-parked, never in flight');
+    equal(fold(resumed.driver.foldInputs()).nodes['s1:approve:-:0']!.input, { ok: true }, 'with the same kept input — `a`s result');
+    ok(resumed.driver.resolve('s1:approve:-:0', 'done', { result: 7, actor: 'ana' }), 'answered on runtime B');
+    equal(ids(B), ['s1:b:-:0'], 'its successor handed to B`s scheduler');
+    B.s.done('s1:b:-:0');
+    equal((await w77Settlement(resumed.done)).outcome, 'completed', 'to `completed` on runtime B');
+    equal(ids(A), ['c1:a:-:0', 's1:a:-:0'], 'and runtime A was handed nothing after the stop');
+    // CONTROL — a run with a TASK running is not settled at its stop: done waits on the cancel (W174's suite, above).
+    const k = A.r.start(FLOW, { x: 1 }, { runId: 'k1' });
+    void k.stop({ actor: 'ops' });
+    equal(A.cancels, ['k1:a:-:0'], 'the CONTROL: a running task IS sent the stop`s cancel');
+    let kSettled = false;
+    void k.done.then(() => { kSettled = true; });
+    await turn();
+    equal(kSettled, false, 'and done waits on it');
+  });
+
+  test('a PAUSED run`s answer is accepted and its successor HELD until the unpause, done pending throughout, then `completed`', async () => {
+    const A = runtimeOf();
+    const p = await parked(A, 'p1');
+    p.driver.pause({ actor: 'ops' });
+    ok(p.driver.resolve('p1:approve:-:0', 'done', { result: 7, actor: 'ana' }), 'answered while paused');
+    let settled = false;
+    void p.done.then(() => { settled = true; });
+    await turn();
+    equal([ids(A), settled, fold(p.driver.foldInputs()).outcome], [['p1:a:-:0'], false, 'running'], 'the successor dispatched and HELD — nothing handed on, done pending, the run `running`');
+    p.driver.unpause({ actor: 'ops' });
+    equal(ids(A), ['p1:a:-:0', 'p1:b:-:0'], 'the unpause hands it on');
+    A.s.done('p1:b:-:0');
+    equal((await w77Settlement(p.done)).outcome, 'completed', 'and done settles `completed`');
+    // CONTROL — not paused: the answer hands the successor on in the call.
+    const q = await parked(A, 'q1');
+    q.driver.resolve('q1:approve:-:0', 'done', { result: 7, actor: 'ana' });
+    equal(ids(A).filter((i) => i.startsWith('q1:')), ['q1:a:-:0', 'q1:b:-:0'], 'the CONTROL: handed on at once');
+  });
+});
+
 /** A flow on `Plain` alone — no node reaches a keyed group — used by W163's cases as the run that SHOULD start. */
 const FLOW_ON_PLAIN = {
   flowId: 'plain', version: 1, entry: 'a',
