@@ -1,6 +1,6 @@
 # P34 — What do cancelling, stopping and pausing a run do?
 
-**Status:** declared — 2026-10-16 on `985efe6`, from the draft carrying the maintainer's decisions 1-7 of 2026-10-14/15 and the hand-offs of P33's Record and P37's retro (g)-(k); facts 1-12 measured at this declaration; stop-and-asks (a)-(j) ANSWERED by the maintainer 2026-10-16, all as recommended; no item started
+**Status:** complete and retro'd 2026-10-17 — declared 2026-10-16 on `985efe6`, from the draft carrying the maintainer's decisions 1-7 of 2026-10-14/15 and the hand-offs of P33's Record and P37's retro (g)-(k); facts 1-12 measured at this declaration; stop-and-asks (a)-(j) ANSWERED by the maintainer 2026-10-16, all as recommended; W169-W176 done 2026-10-16/17; the exit artifact met on W176's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-17 over `d67138f`, and the maintainer answered its stop-and-asks (k)-(r) the same day, all as recommended (Retro section 8)
 **Question this plan answers:** *what does a run do when its owner cancels it, stops it to resume it
 elsewhere, or pauses it — and what does each leave in the log?*
 **Exit artifact:** *on the final tree, one cross-row block in `examples/l6.ts`, green in node 24 and in deno, in which:
@@ -415,12 +415,288 @@ W173 Q647-Q650, W174 Q651-Q654, W175 Q655-Q657, W176 Q658-Q659.
 
 | Q | | Owner |
 |---|---|---|
-| [Q18](../questions/q18.md) | what cancelling a run does — reopened by decision 1, **resolved by ADR 0104** (W173) | P34 |
-| [Q605](../questions/q605.md) | two doors a re-entrant halt does not shut — measured as fact 1; closed by the dispatch hold (W172) | P34 |
-| [Q606](../questions/q606.md) | the runtime's release of a cancelled run — its L6 half met by P33's W160; the runtime row is W173's | P34 |
-| [Q633](../questions/q633.md) | DEFECT: `FD-R4` holds a transforming entry's payload before its transform — before 0.8.0; the road is (a), W170 | P34 |
-| [Q619](../questions/q619.md) | a built-in keyed group held only as RESIDENT — option B, decision 12, W169 | P34 |
+| [Q18](../questions/q18.md) | what cancelling a run does — reopened by decision 1, **resolved by ADR 0104** (W173) | — |
+| [Q605](../questions/q605.md) | two doors a re-entrant halt does not shut — measured as fact 1; **resolved by ADR 0103** (W172), the doors four rather than three (W172 S-1) | — |
+| [Q606](../questions/q606.md) | the runtime's release of a cancelled run — its L6 half met by P33's W160; **resolved by ADR 0104** (W173's runtime row) | — |
+| [Q633](../questions/q633.md) | DEFECT: `FD-R4` holds a transforming entry's payload before its transform — **resolved by ADR 0101**, road (2): W170 at L2, W176's exit clause (6) at L6; before 0.8.0, as P37's retro (g) required | — |
+| [Q619](../questions/q619.md) | a built-in keyed group held only as RESIDENT — **resolved**, option B, by W169 (spec/flow-definition v0.39) | — |
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Written 2026-10-17 over `d67138f`, the tree clean before it. Every figure is read from the eight items' own files; none
+is re-measured here. Ids are bare text, as in P33's and P37's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and both readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W169** `d7553ba` | Q619 option B — a built-in `KeyedRateLimitGroup` in any derived pool's `residentGroups` `DerivationRefused` at `createRuntime`, naming the pool and the group; `InvalidDefinition.fromFindings`, ONE message both roads build; P37's six stale sites | flow-definition v0.39, outcome-record v0.14 | Q619 / — | none | no defect; conformity C1 an expected value taken from output (fixed); adequacy 25, 3 survivors, each a case. **Overlap 0** | 62 / 1765; 2664 / 176 | `gate:item` EXIT 0, 955.4 s |
+| **W170** `7c88a20` | Q633 road (2) — a TRANSFORMING target unchecked at `start`, `tryTransform(…, { input })` the check before a run; ADR 0101 | flow-definition v0.40 | — / — (Q633 left open for W176) | **E1** (S1, YES after the readers): `src/definition/wiring.ts` twice, `AGENTS.md` section 13 | **conformity C1 DEFECT** — the published *check, then start* recipe answered the wrong question on four shapes; adequacy 19, 3 survivors. **Overlap 1** | 62 / 1776; 2664 / 176 | `gate:item` EXIT 0, 1079.5 s |
+| **W171** `24253b2` | `stopped` RENAMED `halted` in `RunOutcome`, `FoldInput`, `RunState.haltedBy`, `ResumeRefusalReason`; a stored `stopped` read as `halted`, never written; `CHECKPOINT_FORMAT` 1; ADR 0102 | flow-definition v0.41, outcome-record v0.15, run-state v0.16 | — / — | none | no defect; adequacy 33, 29 killed, B7-B9 closed. Overlap not stated | 62 / 1780; 2664 / 176 | `gate:item` EXIT 0, 906.6 s |
+| **W172** `43cdd7d` | `shut()` — one dispatch hold every halt shares, checked at FOUR places; ADR 0103 | run-state v0.17 | Q605 / — | **S-1 YES** — decision 8's three places are four (`resume()`'s re-dispatch), built in `Owns`; **S-2 YES → E1**, `AGENTS.md` section 6's cell | no defect in `src/`; adequacy A1 — a check called unreachable was reachable. Overlap not stated | 63 / 1798; 2664 / 176 | `gate:item` EXIT 0, 1085.3 s |
+| **W173** `a707de0` | `driver.cancel`, `SchedulerLike.cancel?`, `RunControlRefused`, `cancelRequested`, `cancelling`, `stepping`; `doc/concept.md` section 7 amended; ADR 0104 | run-state v0.18, outcome-record v0.16, join-policy v0.21 | Q18, Q606 / — | **S-1..S-5 YES → E1-E5**: `AGENTS.md` sections 9, 18, 1 and 7; `CLAUDE.md` twice; `listener.ts` and `schema.test.ts` comments | **two DEFECTS**: D-1 a mid-step cancel refused `ended`, D-2 a second call resolving early — fixed. Overlap not stated | 65 / 1826; 2664 / 176 | `gate:item` EXIT 0, 914.2 s |
+| **W174** `7915005` | `driver.stop` / `RunHandle.stop`, `interrupted`, TAKEN AT REST, deaf with the hold BEFORE the element; a resume feeds it; ADR 0105 | run-state v0.19, join-policy v0.22 | — / — | **S-1..S-6 YES → E1-E6**: `AGENTS.md` sections 6, 9, 12; `CLAUDE.md`; `src/definition/types.ts`; `JP-R12`. **R2 RATIFIED** (deaf before the element, reversing (d)'s listed order) | **five DEFECTS** C1-C5 — C5 a THROWING callback leaving the stop half-done, constructible — fixed. Overlap not stated | 67 / 1854; 2664 / 176 | `gate:item` EXIT 0, 894.2 s |
+| **W175** `4758862` | `driver.pause` / `unpause`, `RunState.paused`, a held dispatch handed on in dispatch order; S6 not needed; ADR 0106 | run-state v0.20 | — / — | **S-1..S-4 and S-6 YES → E1-E5**: `AGENTS.md` sections 9, 6, 18 (twice); `doc/scheduler-upstream.md:36`. **S-5 NO** (no `RunHandle.pause()`). **Three departures RATIFIED** — R1 taken at rest, `RN-R13` among the moved rules, R11 the note inside S6's section — **and G1** (a call whose step halted or cancelled the run DROPPED) | **two DEFECTS** D1, D2, each at a seam with an earlier item's mechanism — fixed. Overlap not stated | 69 / 1877; 2664 | `gate:item` EXIT 0, 845.0 s |
+| **W176** `d67138f` | the exit block — seven clauses, 47 claims over 14 runs | none | Q633 / — | none | conformity: seven clauses CONFORM, one DEFECT (a stale comment), the R1 GAP; adequacy: six gaps (M1, M5, M6/M7, M8, M11, M12d) — *do not record until the first three are tightened* — all closed. Overlap not stated | 69 / 1877; **2711 / 190** | **`gate:full` EXIT 0**, 11/11 self-tests, 2113.5 s |
+
+**Every confirming gate was green on its FIRST run, one command each** (sentence C), firefox and webkit NOT RUN in any.
+**No item raised a question.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured (W176's Record and its *How each exit clause is asserted*) | verdict |
+|---|---|---|
+| on the final tree, ONE cross-row block in `examples/l6.ts`, green in node 24 and in deno | the `W176 exit` block; **2711 / 190, 0 failed in node 24.20.0 and deno 2.9.6** — in `npm run gate`, in `test:l6` and `test:l6:deno` 5/5 each after the readers, and in `gate:full` | **met** |
+| (1) a run CANCELLED while two tasks RUN on a threaded pool — one honouring its signal, one not — and a third QUEUED behind a held group | one `Stops` pool, `maxThreads: 2` (R3); the fold `running`, `cancelling` from the request (position 7) and at each settlement while one is unsettled, `cancelled` at the last; exactly the three cancelled settlements after it, nothing dispatched or routed; `done` after the LAST `task.cancelled`, equal to the caller's fold; the second call — `graceMs: 0`, made 2.5 s after the first, past the scheduler's default grace, the pool's own `cancelGraceMs` 600 000 read back — appends nothing and stops `ignores` before its own end (`forced` never asserted, (g)); a resume refused `cancelled` at 7 | **met** |
+| (2) STOPPED on A beside an untouched sibling; `done` after its tasks have stopped; resumed on a FRESH B, the in-flight set at the same ids, to `completed` | three branches — `a` honouring, `b` ignoring, `c` WAITING (R12, R14); the log ends at `interrupted` with nothing settled, `c`'s `task.cancelled` — fired inside the stop's own `cancel()` — NOT appended (deaf first); `done` `interrupted` after all three, `b` last by the forwarded `graceMs: 300`; `stop()` resolved only then (R13); the sibling never cancelling, `completed`; A refuses the resume `RunIdInUse`; B holds exactly the three ids, `resumes` naming them, no new `dispatched`, `completed` | **met** |
+| (3) a run PARKED at `user_action` stopped: `resolve()` refused on A, `done` settled | `awaiting_action`, nothing in flight; stopped `interrupted`, the scheduler's task still `user_action` (nothing sent); `resolve()` refused, nothing appended; the CONTROL (R6): the same `resolve()` accepted on the runtime that resumes it, to `completed` | **met** |
+| (4) PAUSED mid-fan-out, nothing handed on while paused, UNPAUSED to `completed` | run TWICE, `a` slow in one and `b` in the other (R7); while paused `a2`, `b2` dispatched and held, `running`, `paused`, the scheduler holding `a` and `b` alone; the hand-off in the ARRANGED dispatch order in the log and in `addTask`'s order, `unpaused` before it; `completed`, `paused` false | **met** |
+| (5) a cancel BEFORE a thread picks its task up, and one during a retry BACKOFF, each folding as fact 8 says | each road TWICE (R1, after the conformity reader's GAP): through the scheduler's own `cancel(id)`, the fold fact 8's literal `[dispatched, outcome cancelled]`, and through `driver.cancel`, `[dispatched, cancelRequested, outcome cancelled]`; pre-pickup `task.cancelling`, `task.cancelled`, no `task.running`; backoff `task.running`, `task.retrying`, `task.cancelled`, settled inside the call, `attempts` 1 | **met** |
+| (6) a transforming ENTRY started on Q633's road as (a) answers | `tryTransform` first: `{ word }` passes, `{ label }` fails naming `$.label required`; `start` admits both, each `completed`, the threaded worker receiving `{ label: "x" }` and `{}`; CONTROL: the same entry untransformed refused `BoundaryRefused` | **met** — Q633 closed |
+| (7) a built-in `KeyedRateLimitGroup` in a pool's `residentGroups` refused by `createRuntime`, naming the pool and the group | `DerivationRefused` naming `node type "Holds"'s default instance` and `group "api"`, and `pool "holds-api"` for a named instance (R9); CONTROL: a `RateLimitGroup` held resident on both, BUILT | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W176, ONE command on the final tree after the readers' items: 11/11 self-test lanes ok, `check:register:selftest` included | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **62 / 1763 → 69 / 1877** in node, deno and
+chromium; L6 **2664 / 176 → 2711 / 190** in node and deno; `check:spec` **7 / 75 / 135 → 7 / 75 / 142**; `check:docs`
+**43 / 37 run → 46 / 40 run**; spec/flow-definition **v0.38 → v0.41**, outcome-record **v0.13 → v0.16**, join-policy
+**v0.20 → v0.22**, run-state **v0.15 → v0.20**.
+
+**What the plan answered.** A run's OWNER now has three calls, each recorded before it acts and each refused by name
+(`RunControlRefused`) before anything is recorded. **Cancel** (`driver.cancel`, ADR 0104) holds the run, appends ONE
+`cancelRequested`, cancels every task in flight through `SchedulerLike`'s optional `cancel`, and reads `cancelling` until
+the last task has stopped — so `done` settles `cancelled` only then, and a second call escalates. **Stop**
+(`RunHandle.stop` / `driver.stop`, ADR 0105) is taken at rest, goes deaf with the hold BEFORE its `interrupted` element,
+then cancels; `done` settles once those cancels resolve, and the checkpoint resumes on a fresh runtime with the in-flight
+set at the same ids. **Pause** (`driver.pause` / `unpause`, ADR 0106) routes on and holds every dispatch — appended,
+not handed on — until the unpause hands them on in dispatch order; `RunState.paused` is a flag, not an outcome. Each
+leaves ONE element per call in the log, and each shares one hold (ADR 0103). Beside them: the driver's halt is `halted`
+(ADR 0102), a transforming target is not held at `start` (ADR 0101), and a resident keyed group is refused at
+`createRuntime` (Q619). **What it did not do**: attempts spent by a stop (P36); a deadline on a parked task (P35);
+cancelling what a worker spawned (Out, (j)); `RunHandle.pause()` (W175 S-5, NO); `graceMs: 0` as a guarantee (S12).
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W169 flips exactly one assertion; the message refactor moves none | **TRUE** | W169 M2 |
+| 2 | W170 moves no existing assertion but the boundary cases holding a transforming entry, and no L2-L6 row starts a run on one | **TRUE**, and stronger: NO existing assertion moved — no case held a transforming entry | W170 M2 |
+| 3 | W171 is LOUD everywhere it is wrong — no site stays green under the old literal | **FALSIFIED** — `examples/l6.ts`'s threaded `uncloneable` row, `outcomesNotSeen: ['stopped', …]` over a `string[]`, held VACUOUSLY once the name could not occur; made loud by typing the field `RunOutcome[]` (K15) | W171 M4 |
+| 4 | W172 moves no existing L2-L6 assertion | **TRUE** | W172 M3 |
+| 5 | W173 moves P33's W160 L6 rows not at all | **TRUE** — L6 2664 / 176 unmoved | W173 M3 |
+| 6 | W174 changes no line of `resume()`'s re-dispatch | **TRUE for the loop, NARROWER than stated** — the loop is unchanged; two lines BEFORE it move (the replay's fed stop cleared before `resumed`) and the fed kinds gain `interrupted`. *(W175's D2 later moved the paused resume's hold before `resumed` — not W174's)* | W174 M3 |
+| 7 | W175's held tasks are invisible to every L2-L5 case that never pauses | **TRUE** — with the item built and nothing else touched, the only red were five census sites | W175 M3 |
+
+**The D′ paragraph's census predictions** (*Work items*), scored the same way: **wrong at three items, right at two** —
+W169 moved no `X10` copy (L6 unmoved) and met a census site the paragraph did not name, `l4-corpus.test.ts`'s per-SUITE
+case counts (`:812`, found by its first gate); W171 moved no outcome count (a rename keeps seven); W172 moved no
+`DRIVER_FIELDS` (the hold is a method over two existing flags). W173 and W175 moved `DRIVER_FIELDS` as predicted. Each
+miss was found by the item's own lanes going red by name in B′'s copy or its first gate — before an edit outside `Owns`.
+
+**Questions**: **closed Q18 and Q606** (W173, ADR 0104), **Q605** (W172, ADR 0103), **Q619** (W169) and **Q633** (W170
+and W176, ADR 0101); **raised none**. [Q599](../questions/q599.md) gains a dated note (Retro section 4). `npm run q --
+--where status=open` lists **Q580, Q581**.
+
+**Handed on**, each with its owner — gathered from the eight items' Out sections and the readers' notes:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| a consumer `onFoldInput` THROWING on `cancelRequested`: the element is in the log, nothing is sent | W174 C5's note | **P35**, one row, before 0.8.0 — (o) | P35's draft |
+| a throw on a `paused`, `unpaused` or `interrupted` element taken at `leaveStep()` from a SCHEDULER EVENT escapes into the scheduler's `dispatchEvent`, not `OR-R10` | W175 N5 / R14 (inherited from W174's `takeStop`) | **P35**, the same row, before 0.8.0 — (p) | P35's draft |
+| `doc/concept.md:85`, `:101`, `:217` | W173 (`:85`), W176's conformity reader | **fixed** at this record step — (k) | `doc/concept.md` |
+| `doc/questions/q583.md`'s premise *a queued task cannot be cancelled* | W176's conformity reader | **fixed** at this record step — (l), still deferred | [Q583](../questions/q583.md) |
+| three test titles short of the outcomes they name | W176's conformity reader | **P35**, its first item editing `test/**` — (m) | P35's draft |
+| `doc/scheduler-upstream.md:194`, ADR 0014:57, ADR 0094:77 — history in the future tense | W176's conformity reader; ADR 0094 this retro | **left** — (n) | — |
+| one deno L6 timing flake | W174 | [Q599](../questions/q599.md), deferred — a dated note | Q599 |
+| road (2)'s cost, visible on real workers: the worker RECEIVES `{}`, which its own `inputSchema` refuses, and nothing in the run checks it | W176 | no owner — ADR 0101's stated cost, `AGENTS.md` section 9 says it | W176's Record |
+| attempts spent by a stop; a deadline on a parked task | P34 *Out* | P36; P35 | their drafts |
+| `RunHandle.pause()` | W175 S-5 | declined (NO) — `handle.driver.pause()` | W175's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-17 over `d67138f`, the working tree clean before it, in a subagent at the maintainer's request.
+Every figure is read from the eight items' Records; this retro re-ran no gate, no harness and no measurement. **The
+routings and proposals were put to the maintainer in section 8, and the answers are recorded there; none moves a rule
+in `doc/workflow.md`.***
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P34's declaration | — | (a)-(j), all as recommended | — | — |
+| W169 | — | — | 0 | — / Q619 |
+| W170 | E1 — YES | — | 1 (C1, a documented recipe) | — |
+| W171 | — | — | 0 | — |
+| W172 | E1 (S-2) — YES | S-1 — YES (a fourth door) | 0 (A1 a claim, not code) | — / Q605 |
+| W173 | E1-E5 (S-1..S-5) — YES | — | 2 (D-1, D-2) | — / Q18, Q606 |
+| W174 | E1-E6 (S-1..S-6) — YES | **R2 RATIFIED** | 5 (C1-C5) | — |
+| W175 | E1-E5 (S-1..S-4, S-6) — YES; **S-5 NO** | R1, `RN-R13`, R11 and **G1 RATIFIED** | 2 (D1, D2) | — |
+| W176 | — | — | 1 (a comment) and six adequacy gaps | — / Q633 |
+| **P34** | **18 YES, 1 NO** | **2 asks, 5 ratifications** | **11, and six gaps** | **0 raised, 5 closed** |
+
+**Rule 6's NO branch RAN for the first time on a widening** — W175 S-5, whose recommendation was itself NO — and, as rule
+6 says only a NO on a DEFECT raises, it raised nothing: S-5 was a surface, not a defect.
+
+### 2. The `Owns` and the census sites — B′ and C held; D′ was narrowed at the declaration
+
+**B′ was FOLLOWED in all eight and it worked**: every census site — `DRIVER_FIELDS`, `RUN_FOR`, the `RunState` literals,
+`LATE_SUITES`, `RUN_FLOOR`, `spec/README.md`'s rows, `X10` — was found by its own lane going red by name, in the copy or
+at the first gate, and **no exception was a census site**. **C held**: every confirming gate green on its first run, one
+command each. **E held**: every compound probe declared and counted as killing nothing alone (W172 C1, C2, K24; W174 D3,
+D5; W175 P20, P35, P37, P39, N4, A3; W176 D12c, D33, M11).
+
+**The eighteen exceptions are one class, and P37's D′ named it** — *the comments and messages that state the rule being
+changed*:
+
+| class | count | sites |
+|---|---|---|
+| an `AGENTS.md` section OUTSIDE the sections the row listed | **12** | W170 E1 (section 13), W172 E1 (6), W173 E1-E3 (9, 18, 1 and 7), W174 E1-E3 (6, 9, 12), W175 E1-E3, E5 (9, 6, 18, 18) |
+| `CLAUDE.md` — the maintainer's file | 2 | W173 E4, W174 E4 |
+| a comment in `src/` or `test/` outside the row | 2 | W173 E5, W174 E5 |
+| a spec row a stop reaches | 1 | W174 E6 (`JP-R12`) |
+| the upstream register's opening paragraph | 1 | W175 E4 |
+
+**D′ says *a fact `AGENTS.md` states → the whole of `AGENTS.md`*; P34's rows listed SECTIONS** (W173 *sections 6, 8, 11,
+12*, W174 *8, 11, 18*, W175 *8, 11*). Twelve of eighteen asks are that narrowing — **a rule adopted for this declaration
+and not followed by it** (section 4 (a)). Every one was found before its edit — by the declaration step's grep (M4 in
+W173-W175), a gate going red by name (W173 S-1, `X4`), or a reader (W170 S1, W175 S-6) — so the refusal ledger's
+*`Owns` pre-declaration* row's standing ground held again.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W169 | no defect; C1 an expected value from output | 25, 3 survivors | **0** | 100th |
+| W170 | **C1 DEFECT** (the recipe) | 19, 3 survivors | **1** | 101st |
+| W171 | no defect | 33, 29 killed | not stated | — |
+| W172 | no defect in `src/` | survivors; A1 a reachable "unreachable" | not stated | — |
+| W173 | **D-1** | **D-2** (with conformity) | not stated — the Record names D-2 as BOTH readers' | — |
+| W174 | **C1-C5** | 66 probes; B4-B6 = conformity C7 | not stated — the Record names C7 = B4/B5/B6 | — |
+| W175 | **D1, D2**, G1, G2 | 62 probes, six gaps | not stated | — |
+| W176 | one DEFECT, R1 GAP | six gaps | not stated | — |
+
+**Six of eight Records state no overlap** — section 6's *an item's RECORD states its own overlap* (v0.26, v0.27), FOLLOWED
+by all six of P37's items and by W169-W170 here, then dropped. **A rule BROKEN, not followed and failed** (pass 3 rule 3):
+no rung reads it, and the briefs from W171 on did not ask for it. W173 and W174 each name one shared subject in passing
+(a lower bound of 1 each); the other four cannot be recovered from the Records. **The readers are the mechanism for the
+tenth plan running**: eleven code or document defects, every one a reader's — two at W173, five at W174 (C5 constructible
+by a consumer), two at W175, each at a SEAM with an earlier item's mechanism — and W176's six adequacy gaps, three of
+them claims an ARRANGEMENT made unfalsifiable. **Every one of the eleven was found AFTER the author's own set had run
+green over it** (W173's 39 probes, W174's 52, W175's 52, W176's 45); the authors' finds were design, not defects (W174 R1/R2,
+W175 R1).
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) D′'s *whole of `AGENTS.md`* narrowed to sections in the rows** — twelve asks (section 2) | **BROKEN at the declaration** — P37's adopted sentence, copied into *Work items*, its rows written narrower | M4's grep at each declaration step; one gate (`X4`) | **No change to a rule** — Proposal B for P35's author, the clause followed as written |
+| **(b) the D′ paragraph's census PREDICTIONS wrong at W169, W171, W172** | followed | B′'s copy and the first gates, by name, before any edit | **No change**: D′ predicts and B′ measures, which is the division P37 adopted |
+| **(c) decision 8 enumerated three doors where fact 1 had measured two `addTask` sites and the hold covered one** — the fourth, `resume()`'s re-dispatch | — the plan's author | **W172's declaration step** (M4, a probe), asked as S-1 | **No change**: one occurrence; W172's lesson — *an enumeration is checked against the measurement it came from* — is the author's |
+| **(d) prediction 3 falsified** — an exclusion claim over `string[]` held vacuously after a rename | — | W171's B′ copy (M4) | **No change**: one occurrence, closed by a type |
+| **(e) "taken at rest"** — W174 R1 (a stop taken mid-step drops the step's routing for good) and W175 R1 (a pause mid-step lands between two elements of one step, refused `diverged` on resume) | — the PLAN's (d) and (e) said *hold at the call* | the AUTHORS, by constructing the case, both measured as mutants (W174 D2/D19, W175 P21) | **Two occurrences, two items — it generalises, and it is a DESIGN rule, not a method rule**: any owner element a resume's replay FEEDS lands BETWEEN two steps (`RN-R19`). It is in `RN-R33` and `RN-R35`; P35 and P36 add owner elements (a deadline, an attribution), so it is section 8's Proposal B, not a workflow edit |
+| **(f) a consumer callback THROWING between two of a control's side effects** — W174 C5 (stop: no cancels, `done` settling while workers ran), fixed by a `finally`; the same shape on the CANCEL's `cancelRequested` (open); W175 N5 (a take at `leaveStep()` from a scheduler event — the throw escapes into `dispatchEvent`) | — | **the conformity readers**, both times | **Three occurrences, one class, two OPEN** — stop-and-asks (o) and (p). *Read from the code, not measured here*: after a throw on `cancelRequested` the request is set and the run held, but no cancel is sent and a PAUSED run's held tasks are never handed on — and a second `cancel()` re-sends only to tasks HANDED on, so such a run reads `cancelling` for ever. W174's *its second call recovers* is true of an unpaused run only |
+| **(g) mutation-harness lessons** — a time-out graded SURVIVED (W176 D17's first pass); a probe that substitutes the EXPECTED literal cannot fail (A12); a scheduler DEFAULT is part of the arrangement (M1: the pool's 2000 ms grace did the escalation's work); an order claim needs the order ARRANGED both ways (M12d); *after X* needs an X with a distinct first and last (M8); two guards on one door make single-clause probes survive by design (W172 K1/K4/K8, W176 D12, D31/D32) | each clause exists: rule 8's *grader controlled*, (b), (c) PROVENANCE, (f) ARRANGE, and E's compound counting | **the adequacy readers**; the authors for D17, A12 and the two-guard rows | **No change**: one occurrence each but the last, and the last is two items handled the SAME way — a case only one guard holds where one exists (W172, L2), and *equivalent on this road* naming the L2 case where none does (W176 D12 → `test/driver/stop.test.ts`) |
+| **(h) the overlap unstated in six Records** (section 3) | BROKEN | this retro | **No change to a rule**: the brief carries it — Proposal B |
+| **(i) stale prose a correct change makes false** — ten sites outside every item's `Owns` (section 8 (k)-(n)) | — | the readers, chiefly W176's conformity reader | **No change**: the ledger's first row, considered and not proposed (section 7) |
+
+**Pass 3 rule 5 over P34's defects**, by what caught them: **a rung in `gate`** — W169's first gate on a counted suite,
+W173's `X4` on the refusal census, each B′ census site; **B′'s copy** — prediction 3's vacuous row; **the authors,
+constructing** — W174 R1/R2, W175 R1; **the conformity readers** — W170 C1, W173 D-1, W174 C1-C5, W175 D1/D2/G1/G2,
+W176's comment and R1, every stale site of section 8; **the adequacy readers** — W173 D-2, W172 A1, every survivor and
+W176's six gaps. **No rung would have caught** the throwing-callback class (f) or the stale prose (i).
+
+**The flaky rows ([Q599](../questions/q599.md)).** **Its first row went red ONCE more** — `uncloneable / OR-R6, threaded`,
+in deno, beside a row Q599 does not name (`perShard`'s cross-row ordering), on W174's first `npm run gate` before its
+readers; `test:l6:deno` alone straight after was 0 failed, and the re-run EXIT 0. **None in any of the eight confirming
+gates**, and none in W176's eleven deno runs across both rounds. A dated note is added to Q599; it stays deferred.
+
+### 5. The scheduler
+
+**S12 is written, NOT RAISED** (P34 (g), at the declaration), and nothing of ours asserts `forced` at `graceMs: 0`
+(`AGENTS.md` section 11; W176's escalation asserts what the cancel DOES). **S6 is NOT NEEDED** — pause is ours (W175;
+its index row, its section's closing note and the register's opening paragraph say so). **No new observation** — none of
+the eight Records names a scheduler behaviour that is not already an S entry or a fact of its `AGENTS.md`; W176's M1 is
+the pool's `cancelGraceMs` default, a fact of the arrangement rather than of the scheduler.
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′, C and E held (section 2); the two rules broken — D′'s
+*whole of `AGENTS.md`* and the overlap line — are broken, not followed and failed; and every defect the plan produced was
+caught, before its Record, by a reader whose job it already is.
+
+**B. Recommended, for P35's (and then P36's) AUTHOR, not the workflow** — B′, C and E carried UNCHANGED, and **D′
+carried with its own clause FOLLOWED as written**: *a row whose item changes a surface `AGENTS.md` documents owns the
+WHOLE of `AGENTS.md`, never a list of its sections* — and two sentences for the declaration's briefs: *each item's Record
+states its readers' overlap* (section 6's own rule, restated where it was dropped), and *an owner element a resume's
+replay feeds is TAKEN AT REST, between two steps* (section 4 (e)).
+- **Replaces**: P34's narrowed D′ in P35's declaration.
+- **Saves**: twelve of section 2's eighteen asks — each a maintainer's YES a serial plan waited for.
+- **Ledger**: as P37 found for D′, kin to the *`Owns` pre-declaration* row (14 refusals) — not proposed as a rule or a
+  check, and its standing ground held again: all eighteen were found before their edits.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it would be the 34th refusal, P2-P37.** Section 4 (i) is the class:
+  ten stale sites, all but one found by a reader. The row's standing ground holds. **No other ledger row is
+  re-raised**; Proposal B is explicitly not the `Owns` row's proposal.
+
+| file | why |
+|---|---|
+| this plan | the Status line; *Open questions this plan carries* — Q18, Q605, Q606, Q619 and Q633 resolved; this Record and Retro |
+| `README.md` | three rows in *More examples*: cancelling a run (`AGENTS.md` section 6), pausing it (section 8), stopping it to resume it elsewhere (section 18) — P37's precedent |
+| `doc/questions/q599.md` | a dated note: its first row red once in P34, at W174's gate before its readers; none in a confirming gate |
+| `doc/concept.md` | (k): `:85`, `:101` and `:217` — three clauses; `check:budget` re-run |
+| `doc/questions/q583.md` | (l): the `note` rewritten and a dated paragraph; still `deferred` |
+| P35's draft | (m), (o), (p): two hand-off bullets; (q): B′, C, D′ (the whole of `AGENTS.md`), E and the two brief sentences for its declaration — rows and notes only, P35 NOT declared |
+| `doc/workflow.md` | (r): the bookkeeping below, and nothing else |
+
+**The bookkeeping made in `doc/workflow.md`** (P33's and P37's precedent: no new version): the Status line, *THIRTY-FIVE
+times, by P1 through P34 and P37*; section 6, *a hundred and one, so the next is the HUNDRED-AND-SECOND*; the refusal
+ledger's first row, *34 times, P2-P37*. **P34 does NOT join the Status line's *adopted nothing* list** — (r).
+
+**Ids.**
+
+- **Issued**: W169, W170, W171, W172, W173, W174, W175, W176; ADR 0101, ADR 0102, ADR 0103, ADR 0104, ADR 0105, ADR 0106;
+  no question; **S12 written, NOT RAISED** (at the declaration).
+- **Reserved and unissued, SKIPPED and never reissued** (section 3):
+  - W177 CLOSED unissued, as the declaration expected;
+  - Q635-Q637 SPENT (W169's), Q638-Q640 SPENT (W170's), Q641-Q643 SPENT (W171's), Q644-Q646 SPENT (W172's), Q647-Q650
+    SPENT (W173's), Q651-Q654 SPENT (W174's), Q655-Q657 SPENT (W175's), Q658-Q659 SPENT (W176's). None exists in the
+    tree, and (o) and (p) were answered with no question raised;
+  - ADR 0107 SKIPPED — no item needed a seventh decision.
+
+**The next plan starts at W178, Q660 and ADR 0108.** The next S id is S13; the next plan id is P38.
+
+*`npm run state` before this section printed the tree's W177 / Q635 / ADR 0107 against the ledger's W169 / Q635 /
+ADR 0101, the ledger being P37's sentence. P34 closes W177, Q635-Q659 and ADR 0107 unissued — P37's precedent for W168,
+Q615-Q634 and ADR 0100. None of section 8's answers takes an id.*
+
+### 8. Stop-and-asks for the maintainer
+
+**Lettered after the declaration's (a)-(j). Each stale site is OUTSIDE every P34 item's `Owns` and is NOT edited
+here.** *Before 0.8.0* means before the one publish after P36 (decision 6); the package ships `dist/`, `README.md` and
+`AGENTS.md` only, so a stale `doc/` or `test/` sentence is not a 0.8.0 matter by itself.
+
+| | the question | recommended | the alternative |
+|---|---|---|---|
+| **(k)** | **`doc/concept.md`, three sentences** in the always-read set: `:85` (*Cancel … Not yet folded here — P33* — folded since W158), `:101` (*what cancelling a RUN does is P34's*), `:217` (*stop and pause are P34's*) | **YES — three clauses, now**: `:85` *folded since P33 — the run ends `cancelled` (ADR 0094)*; `:101` *cancelling a RUN is `driver.cancel` (ADR 0104)*; `:217` *and stopping and pausing it too (ADR 0105, ADR 0106)*. About +40 bytes against concept's 864 of headroom; `check:budget` and its self-test re-run. **Not a 0.8.0 matter** (not shipped), but it is required reading and misleads every session that opens it | **A row of P35's declaration** — the same three clauses, under that item's gate; meanwhile `concept.md` states three plans as future |
+| **(l)** | **`doc/questions/q583.md:9` and `:20`** — Q583's `note` and body rest on *a queued task cannot be cancelled (S2)*, false since the 0.6.0 pin and since `driver.cancel` | **YES — a record-step file**: a dated paragraph and the `note` rewritten — the losers of a race CAN now be cancelled, by id or with the run, so the hard half is what a loser's `cancelled` settlement does to a join already fired (`RN-R28` would end the run); `status` stays `deferred`. Not a 0.8.0 matter | **Leave it** for whoever reopens Q583 — the premise a reopener reads first is then false |
+| **(m)** | **Three test titles short of the outcomes they name**: `test/fold/stuck.test.ts:162` and `test/definition/l4-corpus.test.ts:611` (*neither running nor awaiting_action* — `cancelling` too, `RN-R12` since v0.18; the two must move together, `l4-corpus` counts the suite by NAME), and `test/scheduler/runtime.test.ts:1989` (*the six outcomes* — nine) | **A row of P35's first item that edits `test/**`** — a title change moves `LATE_SUITES`' census and needs that item's gate. Not a 0.8.0 matter | **A `chore:` change now** under `gate:item` — three strings and the census entry |
+| **(n)** | **History in the future tense**: `doc/scheduler-upstream.md:194` (a dated quote, *what a run does with a cancel is P34's*), ADR 0014:57 (*a run is over when … leaves `running` and `awaiting_action`*), and ADR 0094:77 (*that ordering is P34's to build and to test* — found by this retro) | **LEAVE all three** — each is true of the version it records, and the upstream quote is followed by S2's later notes; W171's *Out* set the precedent | **A one-line pointer** under each — *built by W174 (ADR 0105)*, *`cancelling` and `interrupted` since P34* |
+| **(o)** | **The CANCEL with a throwing `onFoldInput` on `cancelRequested`** (section 4 (f), read from the code): the element is appended and the run held, no cancel is sent, and a paused run's held tasks are never handed on — `cancelling` for ever, a second call recovering only tasks already handed on. W174 C5 fixed the same shape for the stop | **Fix it BEFORE 0.8.0 — the API is new in it — as ONE row of P35's declaration**, which edits `src/driver/driver.ts` anyway: `takeStop`'s shape — the in-flight set and the release read before the element, the cancels and hand-offs in a `finally`, the throw reaching the caller; an L2 case at rest and mid-step, on a paused run too. **No question** (rule 6: one simple decision) | **Raise Q647** (W173's unused block) — owner P35, `closes-when` that L2 case — or **document it** in `AGENTS.md` section 6 as a limit and ship 0.8.0 with it |
+| **(p)** | **The `OR-R10` escape** (W175 N5 / R14; W174's `takeStop` the same): a consumer's throw on a `paused`, `unpaused` or `interrupted` element TAKEN at `leaveStep()` inside a SCHEDULER EVENT's step leaves `onEvent`'s `finally` into the scheduler's `dispatchEvent` — where `OR-R10` itself says a listener's throw *is discarded* — rather than halting the run. The element is in the log and the run is what it says; what the scheduler does with the throw is NOT measured here | **The same P35 row, before 0.8.0**, with its reading decided at P35's declaration — recommended: catch it at the listener boundary as `OR-R10` catches a refusal (report it, halt the run), since a step the scheduler started has nobody else to throw to. **No question** | **Raise Q655** (W175's unused block), deferred, owner P35 — and say in `AGENTS.md` sections 8 and 18 that `onFoldInput` must not throw |
+| **(q)** | Proposals A and B (section 6) | **A and B** — no workflow edit; B written into P35's draft as a hand-off for its author to copy into its declaration, as P37's retro (k) wrote B′, C, D′ and E into this plan's | any subset; or B as a workflow rule — *the WHOLE of `AGENTS.md`* would then be the `Owns` row's fifteenth refusal, and `doc/workflow.md` has 180 bytes of headroom |
+| **(r)** | **`doc/workflow.md`'s bookkeeping**, outside this retro's files — the three edits P33's and P37's retros made: the Status line *THIRTY-FIVE times, by P1 through P34 and P37*; section 6's ordinal; the ledger's first row *34 times, P2-P37*. And does P34 join the *adopted nothing* list? | **YES to the three edits** (a few bytes, inside the 180 of headroom), **no version, no index entry**; the ordinal **a hundred and one, so the next is the HUNDRED-AND-SECOND** — W169's and W170's, the six unstated ones not counted; **P34 does NOT join the list** if (q) is answered as recommended — B is an adopted sentence, the maintainer's reading at P33 (i) and P37 (l) | **Count the six** at their lower bounds (W173 and W174 one each, the others unknown) — an ordinal of 107 that states four measurements nobody took; or the next plan's retro makes the edits |
+
+**The maintainer's answer, 2026-10-17: *"as recommended"*, to all eight.**
+
+- **(k) YES** — `doc/concept.md` `:85`, `:101` and `:217` fixed at this record step, inside `check:budget`.
+- **(l) YES** — Q583's `note` rewritten and a dated paragraph added; it stays `deferred`.
+- **(m) carried** — a bullet in P35's draft for its first item that edits `test/**`, the two RN-R12 titles together.
+- **(n) LEAVE** — all three history sites unedited.
+- **(o) and (p) — ONE row of P35's declaration, fixed BEFORE 0.8.0**: the cancel's throwing `cancelRequested` callback in
+  `takeStop`'s `finally` shape, and the `OR-R10` escape caught at the listener boundary. **No question raised**; Q647 and
+  Q655 stay SPENT.
+- **(q) A and B** — no change to any rule in `doc/workflow.md`; B′, C, E, D′ with *the whole of `AGENTS.md`* as written,
+  and the two brief sentences, written into P35's draft for its author to copy into its declaration.
+- **(r) YES** — the three bookkeeping edits, made (section 7), no version; **P34 does not join the *adopted nothing*
+  list**.

@@ -289,6 +289,9 @@ snippet is extracted and executed on every `npm run gate`, so none of it can dri
 | | |
 |---|---|
 | A task **cancelled** by its id — the run ends `cancelled` and refuses a resume | [AGENTS.md](AGENTS.md) section 6 |
+| **Cancelling a run** — `driver.cancel`, the run `cancelling` until its last task has stopped | section 6 |
+| **Pausing** a run and unpausing it — every dispatch held, then handed on in order | section 8 |
+| **Stopping** a run to resume it on another runtime — `handle.stop` | section 18 |
 | **Checking** a flow against a running runtime before starting it — `runtime.check` | section 12 |
 | **Trying** a transform on a value you give, the entry node included | section 15 |
 | Holding a **result** to the schema its worker declares | section 16 |
