@@ -424,6 +424,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W175 — ADR 0106, pausing a run: L2 in `test/driver/pause.test.ts`, L1/L3 in `test/fold/paused.test.ts`, each counted
+  // below.
+  'L2 — RN-R35: pausing a run — it routes on, every dispatch is appended and HELD, and an unpause hands them on in dispatch order',
+  'L1 — RN-R34: a run its OWNER paused reads `paused: true` until an `unpaused` element — a flag, never an outcome',
   // W174 — ADR 0105, stopping a run to resume it elsewhere: L2 in `test/driver/stop.test.ts`, L1/L3 in
   // `test/fold/interrupted.test.ts`, and L1 through `createRuntime` in `test/scheduler/runtime.test.ts` — the first two
   // counted below.
@@ -847,6 +851,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/stop.test.ts registers its sixteen: the order, the refusals, the second call, the parked run, RN-R29 (i), the mid-step stop, the resume elsewhere, the stop on `resumed`, the lost tail, deaf with the hold, a throwing callback, the three R9 steps, a second call while pending, and its own membership');
     equal(count('L1 — RN-R32: a run its OWNER stopped reads `interrupted` until a `resumed` element ends it'), 8,
       'test/fold/interrupted.test.ts registers its eight: six claims, L3, and its own membership');
+  });
+  // **W175's two suites, counted the same way and for the same reason.**
+  test('W175`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R35: pausing a run — it routes on, every dispatch is appended and HELD, and an unpause hands them on in dispatch order'), 14,
+      'test/driver/pause.test.ts registers its fourteen: the hold and the order, the refusals, the mid-step pause and its resume, a pause and an unpause in one step, a dispatch on the hand-off`s stack, a throwing callback, the stop, the cancel, a pending stop, a halt in the hand-off, a pause on `resumed`, a cancel on a held task`s own element, a paused resume`s order, and its own membership');
+    equal(count('L1 — RN-R34: a run its OWNER paused reads `paused: true` until an `unpaused` element — a flag, never an outcome'), 8,
+      'test/fold/paused.test.ts registers its eight: six claims, L3, and its own membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

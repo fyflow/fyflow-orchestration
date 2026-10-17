@@ -137,7 +137,7 @@ suite(SUITE, (test) => {
     equal([cancelled.outcome, isTerminal(cancelled)], ['cancelled', true], '`cancelled` is');
     // Section 2's whole shape, one step from the empty state: the request alone, nothing running — `cancelled`.
     equal(step(emptyState(), request('ops', 'r')),
-      { runId: null, outcome: 'cancelled', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: { actor: 'ops', reason: 'r' }, interruption: null, resumes: [], gated: [] } satisfies RunState,
+      { runId: null, outcome: 'cancelled', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: { actor: 'ops', reason: 'r' }, interruption: null, paused: false, resumes: [], gated: [] } satisfies RunState,
       'step() on the empty state: `cancelRequest` and `outcome` set, nothing else');
   });
 

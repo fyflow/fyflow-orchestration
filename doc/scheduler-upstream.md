@@ -33,7 +33,7 @@ had checked; it is only **0.3.0** that is unpublished, on either. That is what f
 is the ONLY ONE THIS REGISTER HAS EVER RAISED - and it was fixed the same day.** 0.3.0 settled four
 without us asking - S4 implemented, S7 fixed, S8 declined and documented - and S1 was answered
 directly by the maintainer on 2026-08-30. S5 stays deferred with a costless workaround; **S2 shipped
-in 0.6.0** without us asking — fyflow-app asked — and S6 waits for P34. S10 is unchanged at 0.6.0
+in 0.6.0** without us asking — fyflow-app asked — and S6 is not needed (P34's pause, W175). S10 is unchanged at 0.6.0
 (W157). **S9 was found by W5**, the first work item to load the library rather than a
 structural stand-in for it, which is the argument for ladder L6 in one sentence.
 
@@ -58,7 +58,7 @@ the last section.
 | [S3](#s3---a-join-or-barrier-primitive) | A join/barrier primitive | **declined by us** | will not raise |
 | [S4](#s4---scheduler-side-timestamps-on-every-event) | Timestamps on every event | no | ✅ **done in 0.3.0** |
 | [S5](#s5---an-event-when-maxcompletedtasks-evicts-a-task) | An event when eviction happens | no | **still deferred at 0.3.0** |
-| [S6](#s6---pause-and-resume) | Pause and resume | no - pause is P34's, at our layer | not raised; **not in 0.6.0** (W157) |
+| [S6](#s6---pause-and-resume) | Pause and resume | **no — not needed**: pause is BUILT at our layer ([W175](work-items/w175-pausing-a-run.md), [ADR 0106](decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md)) and leaves the scheduler's queue untouched | not raised, and will not be (P34 (e)); **not in 0.6.0** (W157) |
 | [S7](#s7---exit-c-drops-a-blocked-task-silently) | Fix the blocked-queue task drop | no longer - **the confounder is gone** | ✅ **fixed in 0.3.0** |
 | [S8](#s8---freeze-or-copy-event-details) | Freeze or copy event details | no | **declined, and now documented** |
 | [S9](#s9---the-published-typescript-source-does-not-load-under-node-and-agentsmd-3-says-a-ts-worker-cannot-either) | `import type` in `core/threadWrapper.ts`, and correct `AGENTS.md` §3 on `.ts` workers | no - and the reason CHANGED: Node reads npm's `dist/` because that is what an npm consumer gets, no longer because it *cannot* read the source | **RAISED 2026-09-07 and FIXED in 0.5.2 the same day** - the only item this register has ever raised, closed by [W37](work-items/w37-the-scheduler-pin-moves-to-0-5-2.md). *(The rest of this cell is the record as it stood when it was raised.)* Its *publication* half is closed: 0.3.0 is on npm and JSR since 2026-08-31 ([ADR 0029](decisions/0029-the-scheduler-is-a-registry-dependency-and-nothing-reaches-the-working-tree.md)), so the cost is no longer a build step in a sibling checkout - it is that **neither one-line fix can be tried locally without unpinning**, which is that ADR's stated cost |
@@ -272,9 +272,9 @@ run stuck at `user_action` (Q17) - stop feeding the pool while a human decides.
 to medium* and sketches the state machine, so this is a "finish the analysis" ask rather than a new
 design.
 
-**What we do without it.** Pause at our layer: stop dispatching new nodes and hold routing
-decisions. In-flight tasks and anything already queued still run, which is the same partial honesty
-as [S2](#s2---cancel-a-queued-task) and has the same fix.
+**What we do without it.** Pause at our layer: routing goes on, and each new dispatch is recorded and held
+back from the scheduler until the unpause ([W175](work-items/w175-pausing-a-run.md)). In-flight tasks and anything
+already queued still run — which a pause at our layer cannot change without cancelling them, the road P34 (e) declined.
 
 > **Not in 0.6.0** — measured by [W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md):
 > neither its `AGENTS.md` nor its source has a pause. **What 0.6.0 changes for the workaround**: the
@@ -282,6 +282,13 @@ as [S2](#s2---cancel-a-queued-task) and has the same fix.
 > — a pause at our layer could cancel what it queued and re-dispatch it on resume, at the price of a
 > cancelled task's lost progress. Whether it does is P34's (#14), which also decides whether a pause
 > needs this want at all.
+
+> **Not needed — P34 (e), built by [W175](work-items/w175-pausing-a-run.md)
+> ([ADR 0106](decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md)).** A pause is
+> ours: `driver.pause()` holds every dispatch AFTER its `dispatched` element — nothing new reaches the scheduler — while
+> what was already handed on runs and settles, and `driver.unpause()` hands the held tasks on in dispatch order. Nothing
+> already queued is cancelled, so the road above (cancel and re-dispatch) is not taken and no progress is lost; what a
+> pause leaves is that a task the scheduler already QUEUED behind a group still runs, which is the owner's to cancel.
 
 ## S7 - exit (c) drops a blocked task silently
 

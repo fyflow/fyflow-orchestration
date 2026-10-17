@@ -308,6 +308,11 @@ const DRIVER_FIELDS = [
   // pending — the resolver and promise its callers wait on, both `null` once it is taken. No result; WALKED. The ratchet
   // fired by name on W174's first L1 run.
   'stopRequest',
+  // W175 — `paused`: one boolean, the owner's pause TAKEN (`RN-R35`, ADR 0106). `pauseHeld`: each dispatch the pause held,
+  // in dispatch order — one `createTask` configuration per held task, no result, empty unless the run is paused. And
+  // `pausePending`: the pause and unpause calls accepted mid-step and not yet taken, empty at rest. All three WALKED; the
+  // ratchet fired by name on W175's first L1 run, naming the three.
+  'paused', 'pauseHeld', 'pausePending',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

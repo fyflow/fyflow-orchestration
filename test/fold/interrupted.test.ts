@@ -142,7 +142,7 @@ suite(SUITE, (test) => {
     // Section 2's whole shape, one step from the empty state: the element alone.
     equal(step(emptyState(), stopped('ops', null)),
       { runId: null, outcome: 'interrupted', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: null,
-        interruption: { actor: 'ops', reason: null }, resumes: [], gated: [] } satisfies RunState,
+        interruption: { actor: 'ops', reason: null }, paused: false, resumes: [], gated: [] } satisfies RunState,
       'step() on the empty state: `interruption` and `outcome` set, nothing else');
   });
 

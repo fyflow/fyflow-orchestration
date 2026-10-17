@@ -1100,6 +1100,7 @@ reached first), appended and routed nowhere. **The run reads `cancelling` until 
 |---|---|
 | a task RUNNING, WAITING behind a group, in a retry BACKOFF, or not yet picked up by a thread | each is cancelled; a waiting or backing-off one settles INSIDE the call, a running one when its worker stops |
 | a task PARKED at `user_action` | nothing is sent — it is not in flight, and the scheduler cannot end it. It stays `suspended`, the run does not wait on it, and `resolve()` is refused (P34 (i)) |
+| a task HELD by a pause (section 8) | handed on to the scheduler, then cancelled at once — so it too ends with the scheduler's own `task.cancelled` |
 | a task a WORKER spawned (`context.spawnTask()`) | **not cancelled** — the driver knows only what it dispatched. Track those ids from `task.spawn_request` and cancel each yourself (the scheduler's own recipe) |
 | a SECOND call | appends nothing, and forwards its `graceMs` to each task still stopping — a shorter one shortens the wait, as pressing Cancel twice does on the scheduler |
 | `graceMs: 0` | **a request, not a guarantee**: the scheduler arms a 0 ms timer, and a worker that honours its signal promptly can still beat it ([S12](doc/scheduler-upstream.md)). A test needing a FORCED stop uses a worker that ignores its signal |
@@ -1482,6 +1483,83 @@ people:**
   `Promise.race([done, timeout])` is your one line — and a library default would be wrong for the
   bullet above.
 
+### Pausing a run — `driver.pause` / `driver.unpause`, and a FLAG that is not an outcome
+
+**`driver.pause({ actor })` holds a run without ending it, and `driver.unpause({ actor })` lets it go on** (`RN-R35`,
+[ADR 0106](doc/decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md)). While it
+is paused the run still ROUTES — a settlement's successor is chosen, a join settles, `resolve()` is accepted — and every
+task it dispatches is RECORDED and HELD: its `dispatched` event is in the log, and nothing new reaches the scheduler.
+The tasks the scheduler already has run on and finish. The unpause hands the held tasks on **in the order they were
+dispatched**. Each call is ONE fold input, `{ kind: 'paused', actor }` or `{ kind: 'unpaused', actor }`.
+
+**The fold reads `state.paused` — a FLAG, NOT one of the nine outcomes above**: a held task is dispatched, so it reads
+`running`, and so does the run. Nothing about `outcome`, `isTerminal` or `done` changes; a paused run whose tasks all
+finish and whose paths all end still `completed`s. **And `paused` can read `true` on a run that has ENDED**: only an
+unpause clears it, and a cancelled or halted run refuses one — read `outcome` first, and `paused` only on a live run.
+
+| | what happens |
+|---|---|
+| a task the scheduler already has | runs on and settles, and its settlement routes as ever — what it routes to is held |
+| `resolve()` on a parked task | accepted; its successor is held |
+| a call from your own callback, mid-step | accepted, and taken when the driver's step ends — so that step's dispatches are handed on. **Pause before the settlement whose successor you want held** |
+| `handle.stop()` / `driver.stop()` of a paused run | cancels only what the scheduler has; a held task is sent nothing and stays in flight — and the checkpoint resumes **PAUSED** elsewhere, EVERY task in flight held until you unpause there, the ones that were running at the stop included (section 18) |
+| `driver.cancel()` of a paused run | hands each held task on and cancels it, so the scheduler settles every one — `cancelling`, then `cancelled` (section 6) |
+| refused | `RunControlRefused`, `control: 'pause'` or `'unpause'`, by `reason`: `not-started`, `halted`, `cancelled`, `interrupted` (a stopped run — pause it where it resumes), `paused` (a second pause), `not-paused` (an unpause of a run not paused), and for a pause only `ended` — nothing recorded |
+
+```ts run
+import { Driver, fold, liveToken, type FlowDefinition } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'pause-run', version: 1, entry: 'split',
+  nodes: [
+    { id: 'split',   kind: 'fanout', branches: ['a', 'b'] },
+    { id: 'a',       kind: 'task', type: 'T', edges: [{ to: 'a2' }] },
+    { id: 'b',       kind: 'task', type: 'T', edges: [{ to: 'b2' }] },
+    { id: 'a2',      kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+    { id: 'b2',      kind: 'task', type: 'T', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+    { id: 'done',    kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// A fake scheduler: it records what it is handed, and a test says when a task completes.
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const added: string[] = [];
+const scheduler = {
+  addTask(task: unknown) { added.push((task as { id: string }).id); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const completes = (id: string) => {
+  for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id, state: 'done', result: { ok: true } } });
+};
+
+const driver = new Driver(flow, {
+  runId: 'run-1', scheduler, createTask: (c: unknown) => c, predicates: new Map(),
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { T: { worker: 'w' } }, joinPolicy: liveToken,
+});
+driver.start({});
+driver.pause({ actor: 'ops' });     // a and b are already with the scheduler: they run on
+completes('run-1:b:1:0');           // b2 is routed, RECORDED and HELD
+completes('run-1:a:0:0');           // and a2
+console.log(added);                 // [ 'run-1:a:0:0', 'run-1:b:1:0' ] — nothing new handed on
+const paused = fold(driver.foldInputs());
+console.log(paused.outcome, paused.paused);   // running true — a held task is in flight, not finished
+if (added.length !== 2 || paused.outcome !== 'running' || !paused.paused) throw new Error('held, recorded, not handed on');
+
+driver.unpause({ actor: 'ops' });
+console.log(added.slice(2));        // [ 'run-1:b2:1:0', 'run-1:a2:0:0' ] — in the order they were dispatched
+if (added.slice(2).join() !== 'run-1:b2:1:0,run-1:a2:0:0') throw new Error('handed on in dispatch order');
+completes('run-1:b2:1:0');
+completes('run-1:a2:0:0');
+const state = fold(driver.foldInputs());
+if (state.outcome !== 'completed' || state.paused) throw new Error('unpaused, and the run completed');
+```
+
+**BREAKING in 0.8.0** (P34 decision 10): `FoldInput` gains the kinds `'paused'` and `'unpaused'`, so an exhaustive
+`switch` over `kind` no longer compiles; `RunState` gains the cell `paused`, which a `RunState` literal must carry;
+`RunControlRefused.control` gains `'pause'` and `'unpause'` and its `reason` `'paused'` and `'not-paused'`.
+`RunOutcome` does not move.
+
 ---
 
 ## 9. Refusals
@@ -1611,6 +1689,7 @@ reported, which is why the rule is about the stack:
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` on a checkpoint it will not resume | throws `ResumeRefused`, whose `reason` is `format`, `run`, `flow`, `halted`, `cancelled` or `diverged` and whose `index` names the position for the last three — nothing is handed to a scheduler ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)). `resume()` on a driver that already started or resumed throws `MultipleRuns` (`ID-R3`). **On a runtime, a refusal DURING the replay spends the run id there** — a driver was built for it, so that runtime answers the id with `RunIdInUse` from then on (ADR 0091 keeps the id after it releases the driver); one refused by its header spends nothing ([Q371](doc/questions/q371.md), section 18) |
 | `driver.cancel(options)` the driver will not make | throws `RunControlRefused`, whose `reason` is `unsupported` (the scheduler has no `cancel`), `not-started`, `halted`, `cancelled`, `ended` or `interrupted` (the run was stopped) — nothing recorded and nothing sent to the scheduler (`RN-R31`, [ADR 0104](doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md), section 6); a `graceMs` that is not a number, or is negative or `NaN`, throws `TypeError` or `RangeError` the same way |
 | `driver.stop(options)` or `handle.stop(options)` the driver will not make | throws `RunControlRefused` with `control: 'stop'`, whose `reason` is `unsupported`, `not-started`, `halted`, `cancelled` (a cancelled run is not resumable) or `ended` — nothing recorded and nothing sent to the scheduler (`RN-R33`, [ADR 0105](doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md), section 18); a bad `graceMs` throws `TypeError` or `RangeError` the same way |
+| `driver.pause(options)` or `driver.unpause(options)` the driver will not make | throws `RunControlRefused` with `control: 'pause'` or `'unpause'`, whose `reason` is `not-started`, `halted`, `cancelled`, `interrupted` (a stopped run — pause or unpause it where it resumes), `paused` (a second pause), `not-paused` (an unpause of a run not paused), or — a pause only — `ended`; nothing recorded (`RN-R35`, [ADR 0106](doc/decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md), section 8) |
 
 `MultipleRuns` is thrown by a second `start()`: a driver's sequence and join state carry no run id,
 so a second run would silently merge into the first. **One driver, one run** — and the run id is a
@@ -1779,7 +1858,7 @@ const documented = [
   MultipleRuns, InvalidRunId, InvalidDefinition, MissingJoinPolicy,      // thrown at you
   NotStarted,                                // thrown at you from checkpoint() before start() — there is no run yet (RN-R14)
   ResumeRefused,                             // thrown at you from resume() — a checkpoint it will not resume, `reason` says why (RN-R23)
-  RunControlRefused,                         // thrown at you from driver.cancel() — nothing recorded or sent, `reason` says why (RN-R31)
+  RunControlRefused,                         // thrown at you from driver.cancel(), stop(), pause() and unpause() — nothing recorded or sent, `reason` says why (RN-R31, RN-R33, RN-R35)
   RegistryError, WorkerMissing, PoolTypeMissing, ConfigRefused, TypeDefaultRefused, GroupTypeMissing,   // thrown at you — a REGISTRY defect,
   GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its twelve (section 13)
   GateTypeRefused,                           // a registered GATE type that is not a GateType — checkRegistry (v0.23)
@@ -2060,7 +2139,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | **pool options on a CLASS type's instance**, and the scheduler's `idleCheckIntervalMs`, `requeueFailedTasks` and `maxWorkerRestarts` anywhere | **no** — [ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) rules 4 and 7: a named instance of a DOCUMENT type may declare `pool` (section 13); a class computes its pool from the instance's `config` and key, so give it a `configSchema` knob. The three are refused as undeclared keys |
 | ~~**cancelling a RUN**~~ | **BUILT** since [W173](doc/work-items/w173-cancelling-a-run.md): `driver.cancel({ actor, reason?, graceMs? })` — section 6; the run reads `cancelling` and `done` settles `cancelled` after its last task has stopped. **Not cancelled with it: tasks a WORKER spawned** (`context.spawnTask()`) — the driver knows only what it dispatched, so track their ids from `task.spawn_request` and cancel each (P34 (j)). **And `graceMs: 0` is a request, not a guarantee** — a 0 ms timer a prompt worker can beat ([S12](doc/scheduler-upstream.md)) |
 | ~~**stopping a run**~~ to resume it elsewhere | **BUILT** since [W174](doc/work-items/w174-stopping-a-run-to-resume-it-elsewhere.md): `handle.stop({ actor, reason?, graceMs? })` or `driver.stop(…)` — section 18; the run reads `interrupted`, its `done` settles once the stop's cancels have resolved, and its checkpoint resumes on a FRESH runtime (this one keeps the run id). **Not stopped with it: tasks a WORKER spawned**, as for a cancel |
-| **pausing** a run | nothing yet: [P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s W175 |
+| ~~**pausing** a run~~ | **BUILT** since [W175](doc/work-items/w175-pausing-a-run.md): `driver.pause({ actor })` / `driver.unpause({ actor })` — section 8; the run routes on, every dispatch is recorded and HELD, and the unpause hands them on in dispatch order. `state.paused` is a flag, not an outcome. **Nothing is cancelled**: a task the scheduler already has — queued behind a group included — runs on. There is no `handle.pause()`: call `handle.driver.pause()` |
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or halted run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
@@ -3738,7 +3817,8 @@ await third.shutdown();
 
 - **It is AT-LEAST-ONCE, and your workers must tolerate running twice.** The resume REPLAYS the
   stored settlements and resolutions through the routing that produced them, with every dispatch
-  held, and then hands every task still in flight to the new scheduler at the SAME task id. That set
+  held, and then hands every task still in flight to the new scheduler at the SAME task id — or, for a checkpoint of a
+  PAUSED run, holds each until you unpause the resumed run (`RN-R21` v0.20, section 8). That set
   is what was in flight at the END of the replay — including a task that finished in the dead process
   whose settlement you had not stored yet, and a task the dying settlement dispatched after your last
   write, which the snippet shows the store never saw. The run records it: a `resumed` event naming
@@ -3794,6 +3874,7 @@ terminal here, and the one terminal outcome a resume accepts.
 |---|---|
 | a task RUNNING, WAITING, in a BACKOFF or not yet picked up | each is cancelled, and its `task.cancelled` is NOT recorded — it stays in flight in the log |
 | a task PARKED at `user_action` | nothing is sent. **`resolve()` is refused on this runtime from the call on** — the person answers on the runtime that resumes the run |
+| a task HELD by a pause (section 8) | sent nothing — the scheduler never had it. It stays in flight in the log, and the checkpoint resumes **PAUSED**: every task in flight held until you unpause there |
 | `done` | settles with `interrupted` once the stop's CANCELS have resolved — not at the stop, so the old runtime's workers have stopped before you resume elsewhere. The run is released then; a sibling run on the same runtime is untouched |
 | the run id | still in use on THIS runtime (`RunIdInUse`) — resume on a FRESH one, which is what an upgrade is |
 | a call from your own callback, mid-step | accepted, and taken when the driver's step ends — so everything that step dispatched is in the log and runs again on resume |

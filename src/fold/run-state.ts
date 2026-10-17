@@ -170,6 +170,16 @@ export interface RunState {
    */
   interruption: Interruption | null;
   /**
+   * **Whether the run's OWNER has paused it NOW** — `RN-R34`, v0.20, W175,
+   * [ADR 0106](../../doc/decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md): `true`
+   * from a `paused` element until an `unpaused` one. **A flag, NOT an outcome** (P34 (e)): a paused run still routes, and
+   * each dispatch it holds is `dispatched` and so `running` in `nodes` — so `outcome` is exactly what it would be without
+   * the pause, and no precedence moves. **CURRENT, not cumulative**: that a run was ever paused is in the input sequence.
+   * Neither a stop, a cancel nor a resume lifts it — only an `unpaused` element does, so a run stopped while paused
+   * resumes paused. **A new cell, BREAKING in 0.8.0 for a consumer that builds a `RunState` literal** (P34 decision 10).
+   */
+  paused: boolean;
+  /**
    * **Every resume this run has had, in order, each the task ids it handed a scheduler AGAIN** —
    * `RN-R22`, [ADR 0065](../../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md),
    * P23 stop-and-ask (a). `[]` for a run nobody resumed; `[[]]` for a run resumed with nothing in
@@ -326,6 +336,23 @@ export type FoldInput =
    */
   | { kind: 'interrupted'; actor: string; reason: string | null }
   /**
+   * **The run's OWNER paused it** — `RN-R34`, `RN-R35`, v0.20,
+   * [W175](../../doc/work-items/w175-pausing-a-run.md),
+   * [ADR 0106](../../doc/decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md), P34
+   * stop-and-ask (e): appended ONCE by `Driver.pause`, at rest — between two of the driver's steps — and from it on every
+   * dispatch is appended and HELD. The fold sets `RunState.paused`; no outcome moves.
+   *
+   * **FED to a replay** (`RN-R19`), at its own position, so a run stopped while paused resumes paused. **A new kind,
+   * BREAKING in 0.8.0 for a consumer switching on `kind` exhaustively** (P34 decision 10).
+   */
+  | { kind: 'paused'; actor: string }
+  /**
+   * **The run's OWNER unpaused it** — `RN-R34`, `RN-R35`, v0.20, W175, ADR 0106: appended ONCE by `Driver.unpause`, at
+   * rest, BEFORE the held tasks are handed on, in dispatch order. The fold clears `RunState.paused`. **FED to a replay**;
+   * **a new kind, BREAKING in 0.8.0** (P34 decision 10).
+   */
+  | { kind: 'unpaused'; actor: string }
+  /**
    * **The run was RESUMED, and these are the tasks handed to a scheduler again** — `RN-R22`,
    * [W89](../../doc/work-items/w89-what-resuming-is.md), P23 stop-and-ask (a), answered: *a resume
    * IS recorded*. Appended by `Driver.resume` after the replay and BEFORE the first re-dispatch, and
@@ -359,7 +386,7 @@ export type FoldInput =
 export function emptyState(): RunState {
   return {
     runId: null, outcome: 'running', nodes: {}, regions: {}, pathEnds: [], haltedBy: null, cancelRequest: null, interruption: null,
-    resumes: [], gated: [],
+    paused: false, resumes: [], gated: [],
   };
 }
 
@@ -390,6 +417,15 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // nothing (the driver appends one per stop: a second call appends nothing, `RN-R33`).
     if (prev.interruption !== null) return prev;
     return withOutcome({ ...prev, interruption: { actor: input.actor, reason: input.reason } });
+  }
+
+  if (input.kind === 'paused' || input.kind === 'unpaused') {
+    // `RN-R34` — the pause is a FLAG and moves nothing else: no outcome is recomputed, because a held dispatch is a
+    // `dispatched` element and already reads `running` (P34 (e), fact 3). One that would not change the flag — a second
+    // `paused`, an `unpaused` of a run not paused, neither of which the driver appends (`RN-R35`) — moves nothing.
+    const paused = input.kind === 'paused';
+    if (prev.paused === paused) return prev;
+    return { ...prev, paused };
   }
 
   if (input.kind === 'region') {

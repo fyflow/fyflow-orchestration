@@ -91,7 +91,8 @@ work that was never routed (P34 fact 3).
   raised before W172's own.
 - **What ADR 0104-0106 inherit**: a cancel and a stop each add their flag to `shut()` and every door follows; a pause
   takes rule 6's deferring form at rule 2's door. A pause must NOT join `shut()`, because a paused run still routes and
-  still accepts a resolution.
+  still accepts a resolution. **W175 took the deferring form and did NOT join `shut()`** ([ADR 0106](0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md) decision 4): a paused run's dispatch passes `shut()`, is appended
+  at rule 2's door, and is held for the unpause.
 - **And a hazard ADR 0104 and 0105 inherit from rule 5's first residue** (W172's conformity reader, C2): a cancel or a
   stop raised on a task's own `dispatched` element runs BEFORE that task is handed to the scheduler, so its
   `scheduler.cancel(id)` names an id the scheduler does not hold — which resolves `false` and does nothing — and the task
@@ -112,7 +113,8 @@ work that was never routed (P34 fact 3).
   hold sits.
 - **P34 decision 8's *three places* are FOUR** (rule 7): `resume()`'s re-dispatch loop was the second `addTask` site
   fact 1 found and the decision did not list. W172 measured the leak (M4) and asked; the maintainer answered YES. W174
-  (a stop raised on the same stack) and W175 (a paused resume) inherit the check.
+  (a stop raised on the same stack) and W175 (a paused resume) inherit the check — **W175 does**: an unpause's hand-off
+  of its held tasks reads it too, before each ([ADR 0106](0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md) decision 5).
 
 ## Alternatives rejected
 
