@@ -1,6 +1,6 @@
 # Workflow
 
-**Status:** v0.30 — **run to completion THIRTY-FIVE times**, by P1 through P34 and P37, six of whose retros
+**Status:** v0.30 — **run to completion THIRTY-SIX times**, by P1 through P35 and P37, six of whose retros
 adopted nothing (P8, P25, P28, P29, P31 and P32), which is section 6 pass 3 rule 1's expected verdict rather than
 a failure to run it; v0.29 is the maintainer's answer to P30's proposal, and v0.30 is section 1 rule 6, the maintainer's direction. **Read this before starting any work item.** Paths are relative to the repo root unless they
 are markdown links.
@@ -339,8 +339,8 @@ ever, came from two briefs naming the same obligations and the same specifics; *
 differed its two and got three**.* So the overlap measures the briefs as much as the readers.
 **The band's denominator is NOT the ordinal, and conflating them is how the band went false** —
 three measurements are outside it (6, 6, 7) and each had a shared priming. **It counts measurements
-TAKEN, not items reviewed, and the ORDINAL is that count: a hundred and one, so the next is the
-HUNDRED-AND-SECOND.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
+TAKEN, not items reviewed, and the ORDINAL is that count: a hundred and six, so the next is the
+HUNDRED-AND-SEVENTH.** *The per-item list is in `git`; P27's Retro has the reconciliation, and W112 is
 why three published ordinals were short by one.* **An item's RECORD states its own overlap — its own
 file, always legal — and only a retro carries the total forward** (v0.26; v0.27).
 
@@ -466,7 +466,7 @@ than restating it.** *The count is of REFUSALS, not of mentions.*
 
 | the proposal | refused | the standing ground |
 |---|---|---|
-| **A check over `doc/`** — prose held true by a script | **34 times**, P2-P37 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](questions/q489.md)* |
+| **A check over `doc/`** — prose held true by a script | **35 times**, P2-P37 | both mechanisms are worse than the problem, and [P27](plans/p27-what-a-register-row-is.md) decision 4 answers it from the other side: **a fact the tree COMPUTES is not written down**. *P27 measured the always-read set deletable to **58 bytes** with `gate` green; the sharp version is the CLOSURE and is [Q489](questions/q489.md)* |
 | **An `Owns` pre-declaration rule / `check-owns.mjs`** | **14 times**, P2-P30 | three miscounts were caused by the record-step list being WRONG, and naming the missing file fixed it with no script. It returns on a miscount with the list correct — **and at P30 it did, refused because a rung in `gate` had found both late files before their edit** |
 | **A ladder LEVEL for the evidence** | 4 times, P11-P14 | answered from the other side by [ADR 0070](decisions/0070-the-local-gate-is-the-ladder-and-proving-the-checks-can-fail-belongs-to-ci.md): not a rung, and not on the local gate |
 | **The dated-ceiling HAND-OFF**, and **keeping the harness so the re-run has a subject** | **4 times**, P18-P20, P27 | the ground CHANGED: *the retro catches it in one command* needs a harness, and at P27 none survived — **0 of 28** declared ceilings re-runnable. It stands on the YIELD, **5 catches in 72** and falling (2/11, 2/23, 1/14, 0/24), with the in-item re-run doing the work ([Q486](questions/q486.md)) |
