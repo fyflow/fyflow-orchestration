@@ -317,8 +317,9 @@ suite('L1 — FD-V27: where a reference POINTS', (test) => {
 
   test('a reference to a node whose kind is not a task', () => {
     // Section 2: **only a task node is ever dispatched**, and therefore only a task
-    // produces an outcome record. A reference to any other kind names something
-    // that has no result to give, at any branch path.
+    // produces an outcome record — and since v0.42 an ASK produces an output too, the
+    // person's answer (W179), so the sentence the message quotes names both. A reference
+    // to any other kind names something that has no result to give, at any branch path.
     const d = doc([
       { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
@@ -329,7 +330,7 @@ suite('L1 — FD-V27: where a reference POINTS', (test) => {
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
     equal(rulesOf(d), ['FD-V27'], 'a fanout is not a task');
-    ok(validateDefinition(d, REGISTRY)[0]!.detail.includes('only a task produces an output'),
+    ok(validateDefinition(d, REGISTRY)[0]!.detail.includes('only a task or an ask produces an output'),
       'and the message says which of section 2`s sentences it is');
   });
 
@@ -779,7 +780,9 @@ suite('L1 — FD-V29 is not dominance, and that is a measurement over the corpus
       const push = (t: string) => out.get(n.id)!.push(t);
       // A gate's edges are arcs like a task's, and DISJUNCTIVE like a task's — one route is taken (W92). Without this
       // arm the oracle dropped every arc out of a gate and disagreed with `certainlySettled` on `gated-map`.
-      if (n.kind === 'task' || n.kind === 'join' || n.kind === 'gate') {
+      // And an ASK's (v0.42, W179): disjunctive, as a task's settlement routes. Without this arm the oracle dropped every
+      // arc out of `ask.flow.json`'s ask and read the two references past it as refused — measured, 4 against 0.
+      if (n.kind === 'task' || n.kind === 'join' || n.kind === 'gate' || n.kind === 'ask') {
         for (const e of (n.edges ?? []) as { to: string }[]) push(e.to);
       } else if (n.kind === 'fanout') for (const b of (n.branches ?? []) as string[]) push(b);
       else if (n.kind === 'map') push(n.branch as string);
@@ -861,8 +864,9 @@ suite('L1 — FD-V29 is not dominance, and that is a measurement over the corpus
         }
       }
       // The ADMITTED set: every (reader, target, form) triple the aiming rules accept.
-      const tasks = base.nodes.filter((n) => n.kind === 'task').map((n) => n.id);
-      const readers = base.nodes.filter((n) => n.kind === 'task' || n.kind === 'map').map((n) => n.id);
+      // An ask PRODUCES an output and may carry `needs` (v0.42, W179), so it is a target and a reader, as a task is.
+      const tasks = base.nodes.filter((n) => n.kind === 'task' || n.kind === 'ask').map((n) => n.id);
+      const readers = base.nodes.filter((n) => n.kind === 'task' || n.kind === 'map' || n.kind === 'ask').map((n) => n.id);
       for (const reader of readers) for (const target of tasks) for (const form of ['one', 'all'] as const) {
         const d = JSON.parse(JSON.stringify(base)) as Doc;
         const rn = d.nodes.find((n) => n.id === reader)! as Record<string, unknown>;

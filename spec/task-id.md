@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.12 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.11 is [W89](../doc/work-items/w89-what-resuming-is.md)**: `ID-R3`'s text gains `resume()` — the second door into one run ([ADR 0065](../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)) — and nothing else moves. **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -62,6 +62,8 @@ change — the one check that exists to notice a stale version row. W36's confor
 
 **v0.10 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
 
+**v0.13 is [W179](../doc/work-items/w179-the-ask-node-in-the-definition.md) under [P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md), and it moves no rule.** `spec/flow-definition.md` v0.42 adds a seventh node kind, `ask` — a node that waits for a person — which is NEVER dispatched and has a task id all the same (stop-and-ask (a), [ADR 0108](../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md)). Section 1 gains *An `ask` has a task id and is never dispatched*: the id is built by the SAME scheme, from the same four segments, so the grammar, `parseTaskId`, `buildTaskId` and every `ID-R` are unchanged. What a run appends for an ask, and how `ID-R1`'s duplicate refusal and `ID-R4`'s inbound tiers read an id nothing dispatched, are P35's next item's.
+
 **Normative.** Answers [Q13](../doc/questions/q13.md).
 **This is a correctness rule, not a naming convention.** Section 2 is why.
 
@@ -96,6 +98,31 @@ Four segments always, and the parse is `split(':')` asserting length 4.
 contain a delimiter and no id is ambiguous. A driver that built an id can always take it apart
 again, which is what lets an outcome record carry the id alone
 ([spec/outcome-record.md](outcome-record.md)) and derive everything else.
+
+### An `ask` has a task id and is never dispatched — v0.13
+
+`spec/flow-definition.md` v0.42's `ask` runs no worker and nothing is ever handed to a scheduler for it — yet it has
+a task id, **built by the scheme above and by nothing else**: `<runId>:<nodeId>:<branchPath>:0`. The reason is
+[P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md) stop-and-ask (a)'s: a person's answer needs an
+ADDRESS — it is given to `resolve(taskId, …)`, as a parked task's resolution is — and a later node may reference that
+answer by `needs`, which names outputs by `(node id, branchPath)` (`FD-C2`). So an ask's id differs from a task's in
+nothing a parser can see:
+
+| segment | an `ask`'s |
+|---|---|
+| `runId`, `nodeId` | as a task's |
+| `branchPath` | as a task's — `-` outside any region, the enclosing regions' indices inside one, and inside a `map` region a property of the reaching (`ID-R6`'s refusal applies unchanged): **one ask, and one id, per item** |
+| `attempt` | `0`, always: an ask is never dispatched, so it is never re-dispatched, and a flow-level retry is P1's held segment for a TASK |
+
+```
+r7c1f:approve:-:0        an ask outside any region
+r7c1f:approve:2:0        the ask reached by item 2 of the enclosing map
+```
+
+**What the id is never used for is a scheduler task.** No `addTask` names it, so the scheduler never sees it — which
+is why section 2's corruption cannot reach it from the scheduler's side. Whether `ID-R1`'s duplicate refusal and
+`ID-R4`'s inbound tiers have anything to say about an id the driver mints and dispatches nowhere is a question about
+what a RUN appends for an ask, and is P35's next item's; this version says only what the id IS.
 
 ### `branchPath` is a property of the node inside a `fanout` region, and of the DISPATCH inside a `map` one
 

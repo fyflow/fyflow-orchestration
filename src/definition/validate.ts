@@ -1,9 +1,12 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Thirty-seven refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
- * deliberately absent — the number `check-spec` prints as *C4 covered 37 definition refusals*, derived
- * from the ids in this file. *(34 until W92 added `FD-V39`-`FD-V41`, the GATE's three, v0.23. This read
+ * Forty-four refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
+ * deliberately absent — the number `check-spec` prints as *C4 covered 44 definition refusals*, derived
+ * from the ids in this file. *(42 until W179 added `FD-V47` and `FD-V48`, the ASK's two, v0.42 — and this
+ * sentence read **thirty-seven** from W92 until W179, stale by five through v0.27's `FD-V42`-`FD-V45` and
+ * v0.28's `FD-V46`, the increment again applied to a number nothing was tracking. 34 until W92 added
+ * `FD-V39`-`FD-V41`, the GATE's three, v0.23. This read
  * 23 before W45 and 24 after it: the increment was applied to a number nothing was tracking, and
  * it had been wrong by three for several plans. W45's conformity reader. **27 until W58 added
  * `FD-V30` and `FD-V31`, 29 until W59 added `FD-V32`-`FD-V34`, 32 until W61 added
@@ -28,7 +31,8 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 // `gate` since v0.23 (W92, ADR 0066) — and adding it HERE alone made this validator THROW: `NODE_KEYS[nd.kind]!`
 // below found no row, a `TypeError` all five typecheck lanes pass, because the table is a `Record<string, …>`.
 // Measured at W92's declaration step, which is why the two tables below and this list move together.
-const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate'] as const;
+// `ask` since v0.42 (W179, ADR 0108) — and the three move together again, for the same measured reason.
+const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'] as const;
 const ROUTABLE = ['done', 'failed'] as const;
 
 const DOC_KEYS = ['flowId', 'version', 'entry', 'nodes'];
@@ -52,7 +56,21 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   // v0.23 (W92, ADR 0066): a gate names a GATE type and carries settings, as a task names a node type — and
   // nothing else a task carries. `needs` is absent on purpose: a gate hands on what reached it, unchanged.
   gate: { req: ['id', 'kind', 'type', 'edges'], opt: ['settings'] },
+  // v0.42 (W179, ADR 0108, P35 stop-and-ask (a)): an ASK waits for a person. It routes like a task (`edges`,
+  // `FD-V7`), receives what its `needs` composes, carries opaque `settings` a UI reads and an `answerSchema` a
+  // `done` answer is held to — and NONE of the keys a task's worker reads: those six are `FD-V47`'s
+  // (`ASK_REFUSED_KEYS`), refused there by name, so `FD-V17` does not report them a second time.
+  ask: { req: ['id', 'kind', 'edges'], opt: ['settings', 'answerSchema', 'needs'] },
 };
+/**
+ * **The six keys a `task` declares that an `ask` REFUSES, each by `FD-V47` and by nothing else** — v0.42, W179,
+ * P35 stop-and-ask (a) and decision 6. Every one is read by a task's WORKER or its scheduler task — a type and its
+ * pool, `optional`, `retryPolicy` and `workerGroups` are handed to the scheduler, and a `transform` is evaluated in
+ * the type's worker wrapper (`FD-C6`) — and an ask has neither: it is never dispatched. **One rule owns them on an
+ * ask**, `FD-V41`'s precedent for `route` on every edge, so `FD-V17`'s message (*undeclared*) does not say the wrong
+ * thing beside the right one. Exported so `test/definition/ask.test.ts` compares it to the spec's row both ways.
+ */
+export const ASK_REFUSED_KEYS: readonly string[] = ['type', 'pool', 'optional', 'retryPolicy', 'workerGroups', 'transform'];
 // `route` since v0.23 (W92): a DECLARED edge key, so `FD-V17` does not move — and one rule, `FD-V41`, owns it on
 // every edge (refused off a gate; on a gate, the only key beside `to`), on `FD-V26`'s precedent for `needs`.
 const EDGE_KEYS = { req: ['to'], opt: ['on', 'when', 'needs', 'route'] };
@@ -1103,7 +1121,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // FD-V24. The rule the other three could not reach: `kind` is present so
       // FD-V23 is silent, it is a string so FD-V21 is silent, and FD-V17 has no
       // declared key set to compare against for an unknown kind.
-      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end|gate`);
+      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end|gate|ask`);
       continue;
     }
 
@@ -1115,7 +1133,15 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     }
     for (const k of Object.keys(nd)) {
       if (!spec.req.includes(k) && !spec.opt.includes(k)) {
-        add('FD-V17', where, `${nd.kind} node carries undeclared key "${k}"`);
+        // **`FD-V47` — a key only a task's WORKER reads, on an ask** (v0.42, W179). One finding per key, naming it,
+        // and `FD-V17` silent for it: the ask's six refused keys are this rule's, not an undeclared key's.
+        if (nd.kind === 'ask' && ASK_REFUSED_KEYS.includes(k)) {
+          add('FD-V47', where, k === 'transform'
+            ? 'ask node carries "transform", which only a task declares — a transform is evaluated in a node type\'s worker wrapper (FD-C6) and an ask runs no worker, so nothing would evaluate it; what reaches an ask is composed by its `needs` (P35 decision 6)'
+            : `ask node carries "${k}", which only a task declares — it is read by a task's worker or its scheduler task, and an ask runs no worker and is never dispatched, so nothing would read it`);
+        } else {
+          add('FD-V17', where, `${nd.kind} node carries undeclared key "${k}"`);
+        }
       }
     }
 
@@ -1377,6 +1403,22 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         }
       }
     }
+    // ---- an ASK's own two keys: `settings` (`FD-V21`) and `answerSchema` (`FD-V48`) — v0.42, W179 ----
+    // `settings` is OPAQUE: the library never reads it, so its whole check is its SHAPE, a plain object — a
+    // declared key of the wrong type, which is `FD-V21`'s sentence; there is no type and no schema to ask, so
+    // neither `FD-V33` (a node TYPE's worker) nor `FD-V40` (a gate TYPE's) is the rule. `answerSchema` is held to the
+    // schema SUBSET at load by the same function a worker's schemas are (`schemaProblem`, ADR 0053) — its own id
+    // because the fix is in the schema, and an `examples` it declares is held to it too (ADR 0056).
+    if (nd.kind === 'ask') {
+      const s = nd.settings;
+      if (s !== undefined && (typeof s !== 'object' || s === null || Array.isArray(s))) {
+        add('FD-V21', where, `ask settings must be a plain object, got ${describeValue(s)}`);
+      }
+      if (nd.answerSchema !== undefined) {
+        const problem = schemaProblem(nd.answerSchema);
+        if (problem !== null) add('FD-V48', where, `answerSchema is not in the built-in schema subset — ${problem}`);
+      }
+    }
     if (nd.kind === 'end') {
       if (nd.edges !== undefined) add('FD-V8', where, 'end node has edges');
       // Both rules apply and section 5 names both: FD-V8 owns "absent or empty",
@@ -1429,8 +1471,8 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     // ---- FD-V26: `needs`' own shape ----
     // `spec/flow-definition.md` section 3, v0.11, and ADR 0040.
     //
-    // **The *"only on a `task` or a `map`"* clause is NOT here, and that is a
-    // measurement rather than an omission**: `needs` is absent from the other three
+    // **The *"only on a `task`, a `map` or (v0.42) an `ask`"* clause is NOT here, and that is a
+    // measurement rather than an omission**: `needs` is absent from the other four
     // kinds' `opt` lists, so `FD-V17`'s undeclared-key clause thirty lines up
     // already refuses it and names the kind. A second rule saying the same thing
     // would be one `FD-V17` could never disagree with, which is `FD-V19`'s own
@@ -1605,23 +1647,26 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   }
 
   // ---- FD-V7: edges ----
+  // **A `task`'s clauses and, since v0.42, an `ask`'s** (W179): an ask routes as a task's settlement does — `on`
+  // and `when`, a `failed` answer being the person declining (P35 (h)) — so it needs the same done edge and the
+  // same default per terminal state, and the message names which of the two it is.
   for (const n of nodes) {
     if (typeof n?.id !== 'string') continue;
-    if (n.kind === 'task') {
+    if (n.kind === 'task' || n.kind === 'ask') {
       // Malformed entries were already reported as FD-V21 above; dropping them here
       // keeps FD-V7 a statement about the edges that exist rather than a crash.
       const edges: Edge[] = (Array.isArray(n.edges) ? n.edges : []).filter(
         (e): e is Edge => e !== null && typeof e === 'object',
       );
       if (edges.length === 0) {
-        add('FD-V7', n.id, 'task node has no edges');
+        add('FD-V7', n.id, `${n.kind} node has no edges`);
         continue;
       }
       const onOf = (e: Edge | null | undefined) =>
         (Array.isArray(e?.on) && e.on.length ? e.on : (['done'] as const));
       const states = new Set<string>();
       for (const e of edges) for (const s of onOf(e)) states.add(s as string);
-      if (!states.has('done')) add('FD-V7', n.id, 'no edge of this task node is eligible for "done"');
+      if (!states.has('done')) add('FD-V7', n.id, `no edge of this ${n.kind} node is eligible for "done"`);
       for (const t of states) {
         const eligible = edges.filter((e) => (onOf(e) as readonly string[]).includes(t));
         const bare = eligible.filter((e) => e.when === undefined);
@@ -1641,7 +1686,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     }
   }
 
-  // ---- FD-V25: a map's branch entry is a task ----
+  // ---- FD-V25: a map's branch entry is a task — or, since v0.42, an ask ----
   // Beside FD-V9's identical clause rather than with the other FD-V25 clauses,
   // because both need `kindOf` and therefore the graph. Requiring a `task` here is
   // what keeps map-inside-map expressible only through that task's edges — the same
@@ -1653,9 +1698,11 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // the driver RUNS it. *(This read "so P10's `not taken` stays not taken rather than being decided in
   // either direction" — true when it was written and false since W84. The rule is unchanged either way,
   // which is what that sentence was really about.)*
+  // **`ask` since v0.42 (W179)**: an ask is allowed wherever a task is (P35 (a)) — one per item, each its own
+  // task id — and it keeps the map-inside-map road the same way, through its own edges.
   for (const m of maps) {
-    if (typeof m.branch === 'string' && g.byId.has(m.branch) && kindOf(m.branch) !== 'task') {
-      add('FD-V25', m.id, `branch "${m.branch}" is a ${kindOf(m.branch)}, not a task`);
+    if (typeof m.branch === 'string' && g.byId.has(m.branch) && kindOf(m.branch) !== 'task' && kindOf(m.branch) !== 'ask') {
+      add('FD-V25', m.id, `branch "${m.branch}" is a ${kindOf(m.branch)}, not a task or an ask`);
     }
   }
 
@@ -1664,9 +1711,10 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
     const b: string[] = Array.isArray(fan.branches) ? fan.branches : [];
     if (b.length < 2) add('FD-V9', fan.id, `fanout has ${b.length} branches, needs at least 2`);
     if (new Set(b).size !== b.length) add('FD-V9', fan.id, 'fanout repeats a branch entry');
+    // `ask` since v0.42 (W179) — allowed wherever a task is, `FD-V25`'s widening one rule over.
     for (const x of b) {
-      if (g.byId.has(x) && kindOf(x) !== 'task') {
-        add('FD-V9', fan.id, `branch entry "${x}" is a ${kindOf(x)}, not a task`);
+      if (g.byId.has(x) && kindOf(x) !== 'task' && kindOf(x) !== 'ask') {
+        add('FD-V9', fan.id, `branch entry "${x}" is a ${kindOf(x)}, not a task or an ask`);
       }
     }
   }
@@ -1788,11 +1836,11 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", which is not a node`);
           continue;
         }
-        if (kindOf(target) !== 'task') {
-          // **Only a task produces an output** — section 2's own sentence. A
-          // reference to a `fanout`, `map`, `join`, `end` or — v0.23 — `gate` names
-          // something that has no result to give, at any branch path.
-          add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", a ${kindOf(target)}; only a task produces an output`);
+        if (kindOf(target) !== 'task' && kindOf(target) !== 'ask') {
+          // **Only a task — and, since v0.42, an ask — produces an output** — section 2's own sentence.
+          // A reference to a `fanout`, `map`, `join`, `end` or — v0.23 — `gate` names something that has no
+          // result to give, at any branch path; an ASK's output is the person's answer (P35 (a), W179).
+          add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", a ${kindOf(target)}; only a task or an ask produces an output`);
           continue;
         }
         // **`target === n.id` was here and is DELETED, on a measurement.** Rule 8

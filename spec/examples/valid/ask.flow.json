@@ -1,0 +1,25 @@
+{
+  "flowId": "ask",
+  "version": 1,
+  "entry": "approve",
+  "nodes": [
+    { "id": "approve", "kind": "ask",
+      "settings": { "question": "Publish this document?" },
+      "answerSchema": {
+        "type": "object", "required": ["approved"], "additionalProperties": false,
+        "properties": { "approved": { "type": "boolean" }, "note": { "type": "string" } },
+        "examples": [ { "approved": true } ]
+      },
+      "needs": { "request": "." },
+      "edges": [
+        { "on": ["failed"], "to": "declined" },
+        { "when": { "path": "outcome.result.approved", "op": "eq", "value": true }, "to": "confirm" },
+        { "to": "revise" }
+      ] },
+    { "id": "confirm",  "kind": "ask", "edges": [ { "to": "done" } ] },
+    { "id": "revise",   "kind": "ask", "needs": { "earlier": "approve" },
+      "edges": [ { "on": ["failed"], "to": "declined" }, { "to": "done" } ] },
+    { "id": "declined", "kind": "end", "outcome": "declined" },
+    { "id": "done",     "kind": "end", "outcome": "completed" }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "flowId": "wiring-ask",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score",   "kind": "task", "type": "Scored",  "edges": [ { "to": "approve" } ] },
+    { "id": "approve", "kind": "ask",
+      "settings": { "question": "Confirm the confidence?" },
+      "answerSchema": { "type": "object", "required": [ "confidence" ],
+                        "properties": { "confidence": { "type": "number", "minimum": 0, "maximum": 1 } },
+                        "additionalProperties": false,
+                        "examples": [ { "confidence": 0.9 } ] },
+      "edges": [ { "on": [ "failed" ], "to": "declined" }, { "to": "weigh" } ] },
+    { "id": "weigh",    "kind": "task", "type": "Bounded", "edges": [ { "to": "done" } ] },
+    { "id": "declined", "kind": "end",  "outcome": "declined" },
+    { "id": "done",     "kind": "end",  "outcome": "completed" }
+  ]
+}

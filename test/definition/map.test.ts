@@ -191,8 +191,9 @@ suite('map — the definition shape (spec/flow-definition.md v0.8 sections 2 and
   });
 
   t('FD-V24 admits `map` and still refuses everything else', () => {
-    // `gate` since v0.23 (W92) — this list is a copy of `KINDS`, and it names every kind the validator admits.
-    const kinds = ['task', 'fanout', 'map', 'join', 'end', 'gate'];
+    // `gate` since v0.23 (W92), `ask` since v0.42 (W179) — this list is a copy of `KINDS`, and it names every kind the
+    // validator admits.
+    const kinds = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'];
     for (const k of ['decision', 'Map', 'MAP', 'fanOut', '']) {
       ok(!kinds.includes(k), `${JSON.stringify(k)} is not a declared kind`);
       const d = doc([{ id: 'ingest', kind: k } as unknown as FlowNode]);

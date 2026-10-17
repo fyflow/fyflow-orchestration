@@ -728,7 +728,8 @@ if (written.length) {
 // **Raised 37 -> 38 by [W173](../doc/work-items/w173-cancelling-a-run.md)**, section 6's *Cancelling a RUN* snippet — in its row's `Owns`.
 // **Raised 38 -> 39 by [W174](../doc/work-items/w174-stopping-a-run-to-resume-it-elsewhere.md)**, section 18's *Stopping a run to resume it ELSEWHERE* snippet — in its row's `Owns`.
 // **Raised 39 -> 40 by [W175](../doc/work-items/w175-pausing-a-run.md)**, section 8's *Pausing a run* snippet — in its row's `Owns`.
-const RUN_FLOOR = 40;
+// **Raised 40 -> 41 by [W179](../doc/work-items/w179-the-ask-node-in-the-definition.md)**, section 3's `ask` snippet — in its row's `Owns`.
+const RUN_FLOOR = 41;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

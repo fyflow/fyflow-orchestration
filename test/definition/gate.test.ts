@@ -326,7 +326,7 @@ suite(SUITE, (test) => {
     // A gate produces NO output — a reference to one is FD-V27.
     const toGate = SHAPES[0]![1](GATE());
     (toGate.nodes.find((n) => n.id === 'setup') as unknown as { needs: unknown }).needs = { g: 'dedupe' };
-    equal(validateDefinition(toGate, registry).map((f) => `${f.rule}@${f.at}`), ['FD-V27@setup'], 'a reference to a gate is FD-V27 — only a task produces an output');
+    equal(validateDefinition(toGate, registry).map((f) => `${f.rule}@${f.at}`), ['FD-V27@setup'], 'a reference to a gate is FD-V27 — only a task or an ask produces an output');
     // Never a branch entry — FD-V9 and FD-V25, unchanged.
     const branchGate = { flowId: 'bg', version: 1, entry: 'ingest', nodes: [
       { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
@@ -336,7 +336,7 @@ suite(SUITE, (test) => {
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ] } as unknown as FlowDefinition;
-    equal(violatedRules(validateDefinition(branchGate, registry)), ['FD-V25'], 'a gate as a map`s branch is FD-V25 — a branch entry is a task');
+    equal(violatedRules(validateDefinition(branchGate, registry)), ['FD-V25'], 'a gate as a map`s branch is FD-V25 — a branch entry is a task or an ask');
     // An ENTRY gate is not refused — FD-V3 refuses only a join or an end.
     const entry = { flowId: 'eg', version: 1, entry: 'dedupe', nodes: [
       GATE(), { id: 'setup', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },

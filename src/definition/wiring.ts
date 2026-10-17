@@ -79,10 +79,17 @@
  * states, one question over, **and with the same scope: a step the producer REQUIRES is not read as
  * never carried.** That scope is W100's, and it is what made `fits`'s `'is open there'` arm dead.
  *
+ * **An ASK is a PRODUCER and never a consumer** (v0.42, [W179](../../doc/work-items/w179-the-ask-node-in-the-definition.md),
+ * ADR 0108). What leaves it is the person's ANSWER, so the arc it sends carries its `answerSchema` exactly as a
+ * task's carries its worker's `outputSchema` — an edge, a branch's arrival at a join, a `needs` naming it — and an
+ * ask declaring none sends an `unchecked` arc naming the ask. What REACHES it is shown to a person and held to no
+ * schema (it runs no worker, so it has no `inputSchema`), so an arc into an ask gets no verdict, as an arc into a
+ * gate or a join gets none of its own.
+ *
  * Pure over data except the one `import()` of an adapter's worker half, which is async and is why
  * `checkWiring` returns a Promise; no `node:` import, no clock (`RT-R3`, `RT-R4`).
  */
-import { describeFindings, findings, type JsonSchema } from './schema.ts';
+import { describeFindings, findings, schemaProblem, type JsonSchema } from './schema.ts';
 import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry, TaskNode } from './types.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
 import { allRegions, branchPathOf, buildGraph, type Graph, type RegionSets } from './regions.ts';
@@ -127,7 +134,7 @@ export interface WiringVerdict {
   consumer: string;
   shape: WiringShape;
   /**
-   * The task whose output arrives, the join whose record arrives, or the opener of the region the consumer sits in.
+   * The task — or, since v0.42, the ask — whose output arrives, the join whose record arrives, or the opener of the region the consumer sits in.
    * **ABSENT on a `given` verdict, and present on every other** (v0.38, W166): a value the caller gave came from no
    * node. **BREAKING in 0.8.0**: this was `string`.
    */
@@ -349,6 +356,10 @@ function entryWalk(
     const n = byId.get(id);
     if (!n || seen.has(id)) return;
     if (n.kind === 'task') { out.push({ node: id, value }); return; }
+    // **An ASK ends the walk and is no target** (v0.42, W179): it runs no worker, so there is no `inputSchema` for
+    // `FD-R4` to hold the payload to at `start()`, and what leaves it is the person's answer, never the payload — so
+    // nothing past it receives the payload either. An entry ask gives `entry: []`.
+    if (n.kind === 'ask') return;
     seen.add(id);
     if (n.kind === 'fanout') for (const b of n.branches) walk(b, value);
     // **A gate hands on what reached it, unchanged, on ONE route** (v0.23, ADR 0066) — so the payload may
@@ -404,7 +415,8 @@ class Wiring {
     const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'join' | 'gate', route?: string) =>
       this.inbound.set(to, [...(this.inbound.get(to) ?? []), { from, kind, route }]);
     for (const n of flow.nodes) {
-      if (n.kind === 'task' || n.kind === 'join') for (const e of n.edges ?? []) add(e.to, n.id, n.kind === 'task' ? 'edge' : 'join');
+      // An ASK's edges are a task's (v0.42, W179): what leaves it is its output, the person's answer.
+      if (n.kind === 'task' || n.kind === 'ask' || n.kind === 'join') for (const e of n.edges ?? []) add(e.to, n.id, n.kind === 'join' ? 'join' : 'edge');
       // **A gate carries what reached it, REFINED by what its route GUARANTEES** (v0.25,
       // ADR 0068). It was a flat PASS-THROUGH until W99 — what left it on any route was exactly what
       // reached it — which made the arc through a gate the arc into it and produced Q391's false `no`.
@@ -568,8 +580,19 @@ class Wiring {
     return { schema: s };
   }
 
-  /** What a task PRODUCES, as an arrival on the arc it sends. */
+  /** What a task — or an ask — PRODUCES, as an arrival on the arc it sends. */
   private produced(taskId: string): Pick<Arrival, 'schema' | 'sample' | 'unchecked'> {
+    // **An ASK produces the person's answer, and its `answerSchema` is what that answer is held to** (v0.42, W179).
+    // A schema outside the subset is `FD-V48`'s, and this check does not run the validator first, so it is reported
+    // here rather than handed to the witness generator, which assumes the subset.
+    const ask = this.byId.get(taskId);
+    if (ask?.kind === 'ask') {
+      if (ask.answerSchema === undefined) return { unchecked: `"${taskId}" is an ask and declares no answerSchema, which is what would hold the person's answer` };
+      const malformed = schemaProblem(ask.answerSchema);
+      if (malformed !== null) return { unchecked: `"${taskId}" is an ask whose answerSchema is not in the built-in subset (FD-V48) — ${malformed}` };
+      const a = sampleOf(ask.answerSchema)!;
+      return { schema: ask.answerSchema, sample: { value: a.value, source: a.source } };
+    }
     const { schema, why } = this.schemaOf(taskId, 'outputSchema');
     if (schema === undefined) return { unchecked: why };
     const s = sampleOf(schema)!;
@@ -650,7 +673,7 @@ class Wiring {
   private arrivingAt(region: RegionSets, branch: string): FlowNode[] {
     const members = region.branchOf.get(branch) ?? new Set<string>();
     return [...members].map((id) => this.byId.get(id)!).filter((n) =>
-      (n.kind === 'task' || n.kind === 'join' || n.kind === 'gate') && (n.edges ?? []).some((e) => e.to === region.joinId));
+      (n.kind === 'task' || n.kind === 'ask' || n.kind === 'join' || n.kind === 'gate') && (n.edges ?? []).some((e) => e.to === region.joinId));
   }
 
   /** `JP-R12`'s record for the region a join closes — exact for a fan-out, keyed by minted paths for a map. */

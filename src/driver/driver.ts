@@ -3183,7 +3183,8 @@ export class Driver {
             regionPath: this.rpathOf(region, itemIndices), branchPath: paths[i]! });
         });
         // **The last two arguments here are unobservable and are kept deliberately**
-        // — W21's adequacy reader. `FD-V9` makes every branch entry a `task`, and
+        // — W21's adequacy reader. `FD-V9` makes every branch entry a `task` (or, since v0.42, an `ask`, which this
+        // driver refuses at `enter` until W180), and
         // `enter`'s `task` arm discards `fromBranch` and `fromRegion`, so nothing
         // downstream reads them. They are passed because the branch entry is the
         // one node whose region and path are known here without a lookup, and the
@@ -3279,7 +3280,8 @@ export class Driver {
         // `JP-R5`, and it is the clause a map is most likely to lose: the arity is
         // known only once the previous node settles, but it is known ALL AT ONCE at
         // this line, so the two-pass emission is available here exactly as it is for
-        // a fanout. Measured: `FD-V25` makes a map's branch a `task`, and entering a
+        // a fanout. Measured: `FD-V25` makes a map's branch a `task` (or, since v0.42, an `ask` — W179 relaxed
+        // both rules; W180's park must keep this order, see W179's notes), and entering a
         // task dispatches without emitting — so no event can appear between two
         // `branch.opened`s, which is `FD-V9`'s role for a fanout played by `FD-V25`
         // for a map. The clause stays unfalsifiable and its two guarantors are now
@@ -3496,6 +3498,26 @@ export class Driver {
         this.append(d);
         this.enter(runId, edge.to, received, fromBranch, fromRegion, itemIndices);
         return;
+      }
+
+      // **An ASK is a VALID definition this driver cannot RUN yet, and it is refused HERE, by name** — v0.42,
+      // [ADR 0108](../../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md) rule 8,
+      // [W179](../../doc/work-items/w179-the-ask-node-in-the-definition.md). Parking, the `asked` element, the kept
+      // input and the answer are W180's, and until then this arm STOPS the run where a branch
+      // ENTERS the ask — P35's W179 row places the refusal at `enter`. It THROWS, as this switch's gate arm does, so
+      // the two boundaries above do the right thing with it: `start()` reports AND rethrows (an entry ask — nothing
+      // was handed to the scheduler), a scheduler event's step reports it and halts the run (`OR-R10`).
+      // *W92 refused its gate at CONSTRUCTION instead, on a measurement: refused at `enter`, a task BEFORE the node
+      // runs first. The same is true here — an ask after a task halts the run when that task settles — and is
+      // W179's reading R6, stated rather than discovered.* `InvalidDefinition` with no rule id, W92's precedent:
+      // no rule is violated, the definition is valid.
+      case 'ask': {
+        throw new InvalidDefinition(
+          [],
+          `definition "${this.def.flowId}" routes into ask "${nodeId}", which this driver cannot run yet. An ask is a ` +
+            'valid definition (spec/flow-definition.md v0.42, ADR 0108) — a node that waits for a person — and asking ' +
+            'and answering in a run are W180\'s, so the run is refused where a branch enters it.',
+        );
       }
 
       // **A node kind this driver cannot execute REFUSES rather than returning.**
