@@ -313,6 +313,10 @@ const DRIVER_FIELDS = [
   // `pausePending`: the pause and unpause calls accepted mid-step and not yet taken, empty at rest. All three WALKED; the
   // ratchet fired by name on W175's first L1 run, naming the three.
   'paused', 'pauseHeld', 'pausePending',
+  // W180 — `asked`: the task ids of the ASKS the run reached (`RN-R37`, ADR 0109), so `RS-R1`'s widened suspended is one
+  // lookup. Ids only, no result — the kept INPUT lives on the `asked` element in `inputs`, already walked. WALKED; the
+  // ratchet fired by name on W180's first L1 run.
+  'asked',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

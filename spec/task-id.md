@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.11 is [W89](../doc/work-items/w89-what-resuming-is.md)**: `ID-R3`'s text gains `resume()` — the second door into one run ([ADR 0065](../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)) — and nothing else moves. **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -62,6 +62,8 @@ change — the one check that exists to notice a stale version row. W36's confor
 
 **v0.10 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
 
+**v0.14 is [W180](../doc/work-items/w180-asking-and-answering-in-a-run.md) under [P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md), and it moves no rule's text — it SETTLES what two say of an ask's id** (the maintainer's answer to W180's S-3): `ID-R1` — an ask's id is minted once per path, and a second park at one id is refused `DuplicateTaskId`, reached only when one settlement is delivered twice (ADR 0022's road); `ID-R4` — a settlement carrying an ask's id is tier 2's `UndispatchedTask`, the driver having dispatched nothing for it. Section 1's ask paragraph says so.
+
 **v0.13 is [W179](../doc/work-items/w179-the-ask-node-in-the-definition.md) under [P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md), and it moves no rule.** `spec/flow-definition.md` v0.42 adds a seventh node kind, `ask` — a node that waits for a person — which is NEVER dispatched and has a task id all the same (stop-and-ask (a), [ADR 0108](../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md)). Section 1 gains *An `ask` has a task id and is never dispatched*: the id is built by the SAME scheme, from the same four segments, so the grammar, `parseTaskId`, `buildTaskId` and every `ID-R` are unchanged. What a run appends for an ask, and how `ID-R1`'s duplicate refusal and `ID-R4`'s inbound tiers read an id nothing dispatched, are P35's next item's.
 
 **Normative.** Answers [Q13](../doc/questions/q13.md).
@@ -122,7 +124,7 @@ r7c1f:approve:2:0        the ask reached by item 2 of the enclosing map
 **What the id is never used for is a scheduler task.** No `addTask` names it, so the scheduler never sees it — which
 is why section 2's corruption cannot reach it from the scheduler's side. Whether `ID-R1`'s duplicate refusal and
 `ID-R4`'s inbound tiers have anything to say about an id the driver mints and dispatches nowhere is a question about
-what a RUN appends for an ask, and is P35's next item's; this version says only what the id IS.
+what a RUN appends for an ask — **settled at v0.14** ([ADR 0109](../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), [W180](../doc/work-items/w180-asking-and-answering-in-a-run.md)): **`ID-R1`** — the driver mints an ask's id once per path, and a second park at one id is refused `DuplicateTaskId` before anything is appended, as a duplicate dispatch is; no valid definition reaches it, and one settlement delivered twice — which routes twice (ADR 0022) — does. **`ID-R4`** — a settlement carrying an ask's id is tier 2's: this driver dispatched nothing at that id, so it is `UndispatchedTask`, reported and the run halted, nothing appended. Both held at L2 (`test/driver/ask.test.ts`).
 
 ### `branchPath` is a property of the node inside a `fanout` region, and of the DISPATCH inside a `map` one
 

@@ -269,16 +269,12 @@ suite('JP-R5 — the region event stream', (test) => {
       2,
       'one branch.opened per declared branch, no more and no fewer',
     );
-    // **This assertion cannot currently distinguish the two-pass emission in
-    // `Driver.enter` from an interleaved one, and that is a property of the spec
-    // rather than a weak test.** `FD-V9` requires every branch entry to be a
-    // `task`, and entering a task dispatches without emitting, so no event can
-    // appear between two `branch.opened`s. The mutation is equivalent today.
-    //
-    // The two-pass loop is kept as insurance: it is what keeps `JP-R5` true if
-    // `FD-V9` or `FD-V19` is ever relaxed (Q27), and the assertion above starts
-    // discriminating the moment a branch entry can emit on entry. Recorded in
-    // `spec/join-policy.md` so the next reader does not mistake it for coverage.
+    // **This assertion cannot distinguish the two-pass emission in `Driver.enter` from an interleaved one ON THIS
+    // FLOW**, whose branch entries are tasks: entering a task dispatches without emitting, so no event can appear
+    // between two `branch.opened`s here. *(It read "the mutation is equivalent today" until W180: `FD-V9` admits an
+    // `ask` as a branch entry since `spec/flow-definition.md` v0.42, and entering an ask EMITS its `branch.suspended`,
+    // so the two-pass loop is now load-bearing — `spec/join-policy.md` v0.23 — and `test/driver/ask.test.ts` is the
+    // case that fails under an interleaved loop, in the fan-out arm and the map arm alike.)*
     equal(h.ids().slice(1, 3), ['r1:scoreA:0:0', 'r1:scoreB:1:0'], 'branch index is the third id segment');
 
     equal(h.events.at(-1), { type: 'branch.arrived', regionId: 'split', regionPath: '-', branchPath: '0' },
@@ -955,7 +951,8 @@ suite('ADR 0002 rule 3 — the definition is validated in full at instantiation'
  * *where the corpus cannot express a case, record that rather than arguing it*).
  * Measured: a node carrying a kind outside the union is refused by **`FD-V24` at
  * construction** — `InvalidDefinition: FD-V24 at b: node kind "teleport" is not
- * task|fanout|map|join|end|gate` (the list gained `gate` at v0.23, W92) — so no definition a
+ * task|fanout|map|join|end|gate|ask` (the list gained `gate` at v0.23, W92, and `ask` at v0.42, W179 — this comment
+ * caught up at W180, W179's S-1) — so no definition a
  * `Driver` will accept can reach the arm. It is kept as defence in depth, and **W33 gave it the exhaustiveness check
  * W32's comment described and could not write**: with every kind handled, `node`
  * narrows to `never` in that arm, so a kind added to `FlowNode` without an arm is a

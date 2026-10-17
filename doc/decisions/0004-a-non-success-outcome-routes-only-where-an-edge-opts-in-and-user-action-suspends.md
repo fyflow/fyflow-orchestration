@@ -56,7 +56,10 @@ and it does it through `optional`. This decision adopts that distinction rather 
 4. **A suspended path resumes only when a resolution record is appended to the log.** A resolution
    states the terminal state the node is to be treated as having — `done` or `failed` — plus the
    result or error that goes with it. Routing then proceeds under rules 1 and 2 as though the node
-   had settled that way.
+   had settled that way. *(Rules 4-6 are AMENDED by
+   [ADR 0109](0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), 2026-10-17: an ASK node
+   is suspended from the moment a run reaches it, with no settlement, and its resolution supplies the outcome of NO
+   dispatch.)*
 5. **This library does not resolve anything.** It makes a suspended path *visible* and accepts a
    resolution as an input. Obtaining the human decision — a queue, a UI, an approval workflow — is
    the consuming application's, and nothing here assumes how it happens.

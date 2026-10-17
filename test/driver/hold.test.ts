@@ -342,8 +342,8 @@ suite(SUITE, (test) => {
   });
 
   test(DECLARED_CASES[10]!, () => {
-    // `RN-R29`'s check (1) on a node that is not a task. Door (a)'s branches are tasks (`FD-V9`, `FD-V25`), so the
-    // dispatch's own check would hold them even without this one; a gate's ROUTE is entered after the `gated`
+    // `RN-R29`'s check (1) on a node that is not a task. Door (a)'s branches are tasks or, since v0.42, asks (`FD-V9`,
+    // `FD-V25`), and each holds them at its own door too (`dispatch`'s check; the ask's, W180); a gate's ROUTE is entered after the `gated`
     // append (`RN-R26`), and here it is an `end`, which dispatches nothing — only the head of `enter` holds it.
     // ingest -> g (built-in `if`: input.n >= 1 takes `then`) -> done (end); the default route to `other`.
     const GATE = {

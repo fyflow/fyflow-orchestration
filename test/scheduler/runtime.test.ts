@@ -1697,7 +1697,7 @@ suite('W76 — the forwarded stream IS the driver`s region stream, at every vari
     flowId: 'shapes', version: 1, entry: 'a',
     nodes: [
       { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'split' }] },
-      // `FD-V9` requires a fan-out's branch ENTRY to be a task, so the map hangs off one rather
+      // `FD-V9` requires a fan-out's branch ENTRY to be a task (or, since v0.42, an ask), so the map hangs off one rather
       // than being one — which is how `nested-map` in the corpus is shaped too.
       { id: 'split', kind: 'fanout', branches: ['pre', 'leaver'] },
       { id: 'pre', kind: 'task', type: 'T', edges: [{ to: 'm' }] },

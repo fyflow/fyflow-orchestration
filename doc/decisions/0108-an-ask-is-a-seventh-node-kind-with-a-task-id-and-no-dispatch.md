@@ -49,7 +49,9 @@ on a node can be held by the same code.
 7. **The six keys only a task declares are REFUSED on an ask by ONE rule, `FD-V47`** — `type`, `pool`, `optional`,
    `retryPolicy`, `workerGroups` and `transform` (decision 6) — one finding per key, `FD-V17` silent for them
    (`FD-V41`'s precedent: one rule owns a key wherever it is refused).
-8. **Until W180 runs one, a `Driver` refuses a run where a branch ENTERS an ask** — `enter()`'s `ask` arm throws
+8. **Until W180 runs one, a `Driver` refuses a run where a branch ENTERS an ask** *(ENDED 2026-10-17 by
+   [ADR 0109](0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), W180: the arm now PARKS the
+   ask; this rule was the interim it names, and its consequences below describe the tree before W180)* — `enter()`'s `ask` arm throws
    `InvalidDefinition` naming the node, reported and rethrown from `start()`, reported and halting from a scheduler
    event's step (`OR-R10`). The plan's W179 row places it at `enter`.
 9. **The wiring check reads an ask as a PRODUCER, never a consumer**: an arc it sends carries its `answerSchema`

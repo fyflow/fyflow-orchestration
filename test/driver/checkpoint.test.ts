@@ -175,6 +175,19 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     driver.start({ seed: 3 });
     return driver;
   },
+  // W180 (`RN-R36`, `RN-R37`, ADR 0109): a run that reaches an ASK after a task — the corpus's own `ask-after-a-task` —
+  // whose task returned what JSON cannot carry, so the `asked` element's `input` (that result, kept) is held to
+  // `structuredClone` round-tripping and to being a COPY a consumer cannot write through. The ask is then answered and
+  // routes on, so the run carries the `asked` element AND the resolution after it. *This entry is why W180's L0 was red
+  // in `typecheck:tests` and nowhere else — the binding doing its job, as at W93.*
+  asked: async () => {
+    const { driver, scheduler } = corpusDriver(await load('valid/ask-after-a-task.flow.json'));
+    driver.start({ seed: 9 });
+    scheduler.settle('r1:summarise:-:0', 'done', { result: RICH() });
+    ok(driver.resolve('r1:approve:-:0', 'done', { result: { approved: true }, actor: 'ana' }), 'the answer was accepted');
+    scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
+    return driver;
+  },
   pathEnded: () => RUN_FOR.outcome(),
   joinSettled: () => RUN_FOR.region(),
   halted: async () => {
@@ -367,7 +380,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 14, 'the union has fourteen kinds since W175 added `paused` and `unpaused` (twelve since W174 added `interrupted`, eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 15, 'the union has fifteen kinds since W180 added `asked` (fourteen since W175 added `paused` and `unpaused`, twelve since W174 added `interrupted`, eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.

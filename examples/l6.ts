@@ -12625,6 +12625,9 @@ if (rowCosts.length !== EXPECTED.length) {
     // and the calls still to be taken — `false` and empty on every run here — WALKED; examples/run-flow.ts' NOT_RUN_STATE is
     // unchanged. In W175's row.
     'paused', 'pauseHeld', 'pausePending',
+    // `asked` since W180 (`RN-R37`, ADR 0109): the ids of the asks the run reached — empty on every run here until W182's
+    // row — WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W180's row.
+    'asked',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

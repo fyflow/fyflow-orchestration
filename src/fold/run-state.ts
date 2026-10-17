@@ -91,6 +91,14 @@ export interface NodeRun {
   state: NodeState;
   result: unknown;
   error: string | null;
+  /**
+   * **What REACHED an ask** — `RN-R36`, v0.22, P35 (f),
+   * [ADR 0109](../../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md): the value
+   * its `needs` composed (or the edge's value without one), as its `asked` element carried it, and KEPT after the answer.
+   * **Present only on an ask's node**, so every other node's entry has the five fields it always had — OPTIONAL, and
+   * additive: a consumer building a `NodeRun` literal is unaffected.
+   */
+  input?: unknown;
 }
 
 export interface RegionRun {
@@ -297,6 +305,21 @@ export type FoldInput =
    */
   | { kind: 'regionEntered'; regionId: string; regionPath: string }
   | { kind: 'dispatched'; taskId: string }
+  /**
+   * **A branch reached an ASK, which parked** — `RN-R36`, `RN-R37`, v0.22,
+   * [W180](../../doc/work-items/w180-asking-and-answering-in-a-run.md),
+   * [ADR 0109](../../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), P35
+   * stop-and-ask (b): appended by the driver where a branch ENTERS an ask, with NOTHING handed to the scheduler — `taskId`
+   * the ask's own (`spec/task-id.md`'s scheme, attempt `0`) and `input` what reached it, composed through its `needs`
+   * (P35 (f)). The fold reads the node `suspended` from here, its `input` kept, until the person's `resolution`.
+   *
+   * **A structural fact, not a terminal state** (P35 decision 5, fact 13): `dispatched`'s precedent — no outcome record is
+   * ever written for an ask, and its only terminal fact is the person's answer. **REGENERATED on resume, never FED**
+   * (`RN-R19`): the replay re-enters the ask and compares the input it composes with the stored one (`RN-R20`). **The
+   * first kind whose payload is a value of ANY shape**, so it is deep-copied on the way out (`freezeInput`, `RN-R17`).
+   * **A new kind, BREAKING in 0.8.0 for a consumer switching on `kind` exhaustively** (P35 decision 8).
+   */
+  | { kind: 'asked'; taskId: string; input: unknown }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
   | { kind: 'joinSettled'; regionId: string; regionPath: string; joinId: string; fired: boolean }
   /**
@@ -445,6 +468,23 @@ export function step(prev: RunState, input: FoldInput): RunState {
     });
   }
 
+  if (input.kind === 'asked') {
+    // `RN-R36` — the node is `suspended` from its `asked` element, with what reached it KEPT as `input` (P35 (c), (f)):
+    // `awaiting_action` then follows from `RN-R7` with no precedence moved (P35 fact 3). A COPY of the input, because
+    // `step` never shares a value it was handed with the state it returns (`RN-R2`). An `asked` for a task already in
+    // `nodes` is ignored rather than re-parking it — `dispatched`'s rule: the driver mints an ask's id once per path.
+    const { runId, nodeId, branchPath } = parseTaskId(input.taskId);
+    if (prev.nodes[input.taskId]) return prev;
+    return withOutcome({
+      ...prev,
+      runId: prev.runId ?? runId,
+      nodes: {
+        ...prev.nodes,
+        [input.taskId]: { nodeId, branchPath, state: 'suspended', result: null, error: null, input: structuredClone(input.input) },
+      },
+    });
+  }
+
   if (input.kind === 'pathEnded') {
     return withOutcome({ ...prev, pathEnds: [...prev.pathEnds, { reason: input.reason, at: input.at }] });
   }
@@ -515,12 +555,16 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // `RN-R9` — a resolved node is indistinguishable from one that settled that
     // way, which is `RS-R3`'s promise kept one layer up. The values come from the
     // effective outcome's rule: the resolution replaces state, result and error.
+    // **v0.22: an ASK's `input` is KEPT through its answer** (`RN-R36`, P35 (f)) — what the person was shown is still
+    // what reached the node — so an answered ask differs from a resolved task in `nodes` by that one key and nothing
+    // else. It is the existing entry's own copy, made by the `asked` arm, and no one else holds it.
     nodes[r.taskId] = {
       nodeId: existing?.nodeId ?? nodeId,
       branchPath: existing?.branchPath ?? branchPath,
       state: r.resolvedAs,
       result: r.result,
       error: r.error,
+      ...(existing !== undefined && 'input' in existing ? { input: existing.input } : {}),
     };
   }
 

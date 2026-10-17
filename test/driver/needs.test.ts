@@ -311,8 +311,15 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // ids / 3 lost**, the three lost being `identify`'s two collapsing ids and `setup`'s one. A gate mints no id,
       // so it adds none here; what it changes is HOW MANY branches reach `setup`, which is its whole point.
       ['gated-map', { ids: 7, nodes: 4, lost: 3, map: true }],
+      // **W180's document — an ASK as a fan-out's branch entry, before the join** (the maintainer's ruling on W179's S-2).
+      // Derived by reading its nodes: `ingest` and `score` are dispatched; `review` is an ask, which PARKS with nothing
+      // handed to the scheduler and mints no dispatched id; nobody answers it here, so its branch stays live, the join
+      // waits (`branch.suspended`, Q7) and `publish` is never dispatched = **2 ids / 2 node ids / 0 lost**. An ask's id is
+      // a task id but not a DISPATCHED one, which is what this census counts.
+      ['ask-in-a-fanout', { ids: 2, nodes: 2, lost: 0, map: false }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
+      ['ask-in-a-fanout', { from: 'ingest' }, (id) => ({ by: id })],
       ['fanout-join', { from: 'ingest' }, (id) => ({ by: id })],
       ['nested-fanout', { from: 'ingest' }, (id) => ({ by: id })],
       ['map-fanout', {}, (id) => (id.includes(':ingest:') ? { items: ['a', 'b', 'c'] } : { by: id })],
@@ -449,10 +456,12 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // **NINE since W93**: `gated-map` carries a map region and RUNS here now that ADR 0066 rule 7 is lifted.
     equal([...expected.values()].filter((v) => v.lost > 0).length, 9,
       'and exactly the NINE flows with a map region lose an output');
-    equal([...expected.values()].filter((v) => !v.map).length, 5,
-      'while FIVE carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
+    // **SIX fanout-only since W180, from five**: `ask-in-a-fanout`, whose ask branch entry parks and mints no dispatch.
+    equal([...expected.values()].filter((v) => !v.map).length, 6,
+      'while SIX carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +
       'optional branch that can fail, with a branch routed away from its join, and — since W50 — ' +
-      'with two SIBLING fanout regions, which is the shape neither corpus contained');
+      'with two SIBLING fanout regions, which is the shape neither corpus contained, and — since W180 — with an ASK as a ' +
+      'branch entry, which dispatches nothing');
   });
 });
 
