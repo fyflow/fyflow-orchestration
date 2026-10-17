@@ -2,7 +2,8 @@
  * **`shard` — the per-item list a SECOND map opens over, and the one worker
  * [P22](../../doc/plans/p22-what-a-regions-identity-is.md) stop-and-ask (c) grants.**
  *
- * A `map` region's branch entry is a TASK, and a map's `over` names a key of what the previous node
+ * A `map` region's branch entry is a TASK — or, since `spec/flow-definition.md` v0.42, an `ask`, whose output is
+ * a person's answer rather than a list this example could compute (W182) — and a map's `over` names a key of what the previous node
  * returned — so *score each item, then fan out per item* needs a node between the two maps whose
  * output carries a list PER ITEM. `split` cannot be that node: it reads `payload.text` through
  * `wordsOf` and a map item is `{ word, confidence }` from `memoisedItems`, so `split` over an item
