@@ -23,7 +23,9 @@ import type { OutcomeRecord } from './log.ts';
 export interface DecisionContext {
   /**
    * `OR-R9` — ALWAYS the node's effective outcome, so a predicate sees one shape
-   * whether the node settled or was resolved, and `terminalState` is never undefined.
+   * whether the node settled or was resolved, and `terminalState` is never undefined. **For an ASK it is derived from
+   * the person's answer** (`spec/outcome-record.md` section 7, v0.18): `result` the answer, `attempts` `0`, and
+   * `schedulerTimestamp` and the timing fields `null` — no scheduler was involved.
    */
   outcome: OutcomeRecord;
   /**
@@ -74,7 +76,9 @@ export function eligibleEdges(node: FlowNode, terminalState: TerminalState): Edg
   // measured why: this is called only from `selectEdge`, which only `advance` calls, for a settled TASK's
   // id — and a gate is dispatched to no scheduler, so it never settles and has no id. A gate's edge is
   // chosen by `gateEdge` below, by the ROUTE its type returned, where a branch ENTERS it.
-  if (node.kind !== 'task' && node.kind !== 'join') return [];
+  // **An ASK routes as a task's settlement does** (P35 (h), ADR 0108 rule 4): `advance` reaches here for an ask once its
+  // answer is a resolution, with the answer's `resolvedAs` (ADR 0109).
+  if (node.kind !== 'task' && node.kind !== 'join' && node.kind !== 'ask') return [];
   const edges: Edge[] = Array.isArray((node as { edges?: Edge[] }).edges) ? (node as { edges: Edge[] }).edges : [];
   return edges.filter((e) => onOf(e).includes(terminalState));
 }

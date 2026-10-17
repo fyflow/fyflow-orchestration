@@ -1,0 +1,25 @@
+{
+  "flowId": "ask-after-a-task",
+  "version": 1,
+  "entry": "summarise",
+  "nodes": [
+    { "id": "summarise", "kind": "task", "type": "IngestWorker", "edges": [ { "to": "approve" } ] },
+    { "id": "approve", "kind": "ask",
+      "settings": { "question": "Publish this summary?" },
+      "answerSchema": {
+        "type": "object", "required": ["approved"], "additionalProperties": false,
+        "properties": { "approved": { "type": "boolean" }, "note": { "type": "string" } },
+        "examples": [ { "approved": true } ]
+      },
+      "edges": [
+        { "on": ["failed"], "to": "declined" },
+        { "when": { "path": "outcome.result.approved", "op": "eq", "value": true }, "to": "publish" },
+        { "to": "revise" }
+      ] },
+    { "id": "publish",  "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "revise",   "kind": "task", "type": "ReviewWorker", "needs": { "draft": "summarise", "answer": "approve" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "declined", "kind": "end", "outcome": "declined" },
+    { "id": "done",     "kind": "end", "outcome": "completed" }
+  ]
+}

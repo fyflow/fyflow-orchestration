@@ -1,0 +1,18 @@
+{
+  "flowId": "ask-in-a-fanout",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": ["review", "score"] },
+    { "id": "review",  "kind": "ask",
+      "settings": { "question": "Is this document fit to publish?" },
+      "answerSchema": { "type": "object", "required": ["ok"], "properties": { "ok": { "type": "boolean" } } },
+      "edges": [ { "on": ["failed"], "to": "dropped" }, { "to": "collect" } ] },
+    { "id": "score",   "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "dropped", "kind": "end", "outcome": "declined" },
+    { "id": "done",    "kind": "end", "outcome": "completed" }
+  ]
+}

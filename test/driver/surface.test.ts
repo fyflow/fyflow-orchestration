@@ -385,7 +385,7 @@ suite('regionOf on a nested flow — the driver reads the INNERMOST region', (te
     // section 1: `g1` and `g2` are branches 0 and 1 of `mid`, which is branch 1 of
     // `outer`, so their joins exit at `1.0` and `1.1`.
     const t = (id: string, to: string) => ({ id, kind: 'task', type: Object.keys(reg.nodeTypes)[0]!, edges: [{ to }] });
-    // `FD-V9` requires a branch entry to be a TASK, so each of `mid`'s branches
+    // `FD-V9` requires a branch entry to be a TASK (or, since v0.42, an ASK), so each of `mid`'s branches
     // is a task that then fans out — which is also the only shape a nested
     // fan-out can take at all, and is worth knowing.
     const nodes = [

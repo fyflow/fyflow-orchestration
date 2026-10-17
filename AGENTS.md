@@ -156,12 +156,10 @@ a wire.
 > answer must satisfy, held to the schema subset at construction (`FD-V48`), and `needs` composes what reaches it.
 > It stands wherever a task may — the entry, a fan-out's branch entry, a map's branch. **What a task's WORKER reads it
 > may not carry**: `type`, `pool`, `optional`, `retryPolicy`, `workerGroups` and `transform` are each refused by
-> `FD-V47`, one finding per key. **A run cannot use one yet**: until
-> [P35](doc/plans/p35-may-a-node-wait-for-a-person-by-design.md)'s next item lands, every `Driver` refuses a run where
-> a branch ENTERS an ask — `InvalidDefinition` naming the node, thrown from `start()` for an entry ask, reported
-> through `onRunFailure` and the run `halted` when a branch reaches one later — as a gate was refused until W93. A task
-> entered BEFORE the ask — the task in front of it, or a sibling branch a fan-out entered first — has already been handed
-> to the scheduler, and **nothing cancels it**.
+> `FD-V47`, one finding per key. **A run PARKS at one** ([W180](doc/work-items/w180-asking-and-answering-in-a-run.md), [ADR 0109](doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), section 7): nothing is handed to the
+> scheduler, the node reads `suspended` with what reached it KEPT as `input`, the run `awaiting_action`, and the
+> person's answer is `driver.resolve(taskId, 'done' | 'failed', …)` — a `done` answer held to `answerSchema`, a
+> `failed` one the person declining. *(Until W180 every `Driver` refused a run where a branch entered an ask, by name.)*
 > **BREAKING in 0.8.0** (P35 decision 8): `FlowNode` gains `AskNode`, so a `switch` exhaustive over `node.kind` no
 > longer compiles until it names `'ask'`.
 
@@ -303,7 +301,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `map` | `over: '<key>'` and `branch: '<node id>'` — **one** branch, opened once per item at run time. Dispatches nothing itself; the RUN opens N instances of its one branch. Optionally **`needs`**, which is what `over` is then a key on | any `edges` at all, a `branch` that is not a `task` or an `ask`, or an `over` outside `^[A-Za-z0-9_-]{1,64}$` (`FD-V25`); a missing `over` or `branch` (`FD-V23`) |
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
-| `ask` | waits for a PERSON — `edges`, and optionally `settings` (opaque), `answerSchema` (what a `done` answer must satisfy) and `needs` (what reaches it). Never dispatched, and has a task id; its answer is its output. A `Driver` refuses a run where a branch enters one until P35's next item | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`, as a task); `settings` that is not a plain object (`FD-V21`); a key only a task declares — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups`, `transform` — one finding per key (`FD-V47`); an `answerSchema` outside the schema subset (`FD-V48`) |
+| `ask` | waits for a PERSON — `edges`, and optionally `settings` (opaque), `answerSchema` (what a `done` answer must satisfy) and `needs` (what reaches it). Never dispatched, and has a task id; its answer is its output. A run PARKS at one and takes the person's answer at `resolve()` (section 7) | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`, as a task); `settings` that is not a plain object (`FD-V21`); a key only a task declares — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups`, `transform` — one finding per key (`FD-V47`); an `answerSchema` outside the schema subset (`FD-V48`) |
 | `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). Built in: `distinct`, `if` and `switch`. Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node — and an `ask` — must have an edge that can be taken when it succeeds.** A node whose only edge is
@@ -1261,9 +1259,92 @@ A non-optional task that runs out of retries ends in `user_action`. The branch *
 keeps waiting, and the run is not stuck.
 
 **A node that waits for a person BY DESIGN is a different thing, and it is the `ask` kind** (section 3, since 0.8.0's
-`spec/flow-definition.md` v0.42): no task fails to get there, and a question is not an error. **It is a valid
-definition and a run cannot use one yet** — until P35's next item every `Driver` refuses a run where a branch enters
-an ask, by name — so a flow that must wait for a person TODAY still uses the parked task below.
+`spec/flow-definition.md` v0.42): no task fails to get there, and a question is not an error. **A run PARKS at it**
+([W180](doc/work-items/w180-asking-and-answering-in-a-run.md), [ADR 0109](doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), `spec/run-state.md` `RN-R36`/`RN-R37`):
+
+- **Nothing is handed to the scheduler** — the scheduler never sees the ask's id. The driver appends ONE fold input,
+  `{ kind: 'asked', taskId, input }`; the fold reads the node `suspended` and the run `awaiting_action`, exactly the
+  words a parked task gives (so `done` waits, below), and the node's entry in `nodes` carries **`input`** — what reached
+  the ask, its `needs` composed — kept after the answer. Tell an ask from a parked failure by the node's KIND, or by the
+  `asked` element, never by an error string. In a fan-out the ask's branch is LIVE, so **its join waits for the person**.
+- **The answer is `driver.resolve(taskId, …)`** — the same call as below. `'done'` with `result` the answer, held to the
+  ask's `answerSchema` (refused as `BoundaryRefused` with NOTHING appended and the ask still parked — answer again;
+  `validateBoundaries: false` turns it off); `'failed'` with an `error` is the person DECLINING, held to nothing.
+- **The answer IS the node's result.** It routes as a task's settlement does — `on: ['failed']` for a decline, a `when`
+  over `outcome.result` — the successor RECEIVES it, and a later `needs` naming the ask reads it; the value that reached
+  the ask stays reachable by naming whatever produced it. A predicate's `ctx.outcome` for an ask has `attempts: 0` and
+  **`schedulerTimestamp`, `startTime`, `endTime` and `executionTime` all `null`** — no scheduler was involved.
+- **BREAKING in 0.8.0** (P35 decision 8): `FoldInput` gains the kind `'asked'`, and `OutcomeRecord.schedulerTimestamp`
+  is `number | null` — `null` only on an ask's effective outcome. `NodeRun.input` is optional and additive.
+- **An answer given from a callback on the driver's own step** — `onFoldInput` on the `asked` element included — is
+  checked at once (a refusal is thrown or `false` returned right there) and, accepted, `resolve()` returns `true` and the
+  resolution is appended when the step ends: so the run's checkpoint resumes. A second answer while it is pending is
+  refused. **The same holds for ANY `resolve()` made from such a callback**, a parked task's included (since 0.8.0).
+- **On a resume** the replay re-enters the ask and REGENERATES its `asked` element — the same id, the same kept input,
+  compared with what you stored as structured-clone data (a different one — a `Map` entry, a `Date` — is refused
+  `diverged`) — and hands nothing to the new scheduler for it.
+
+```ts run
+import { BoundaryRefused, Driver, fold, liveToken, type FlowDefinition } from 'fyflow-orchestration';
+
+// A scheduler double, section 12's shape: it RECORDS what it is handed and fires only what we tell it to.
+const added: string[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const scheduler = {
+  addTask(task: unknown) { added.push((task as { id: string }).id); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const done = (id: string, result: unknown) => {
+  const detail = { id, state: 'done', result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
+  for (const fn of listeners.get('task.completed') ?? []) fn({ detail });
+};
+
+const flow: FlowDefinition = {
+  flowId: 'publish-review', version: 1, entry: 'draft',
+  nodes: [
+    { id: 'draft', kind: 'task', type: 'Draft', edges: [{ to: 'approve' }] },
+    { id: 'approve', kind: 'ask', settings: { question: 'Publish this draft?' },
+      answerSchema: { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } },
+      edges: [
+        { on: ['failed'], to: 'declined' },
+        { when: { path: 'outcome.result.approved', op: 'eq', value: true }, to: 'publish' },
+        { to: 'declined' },
+      ] },
+    { id: 'publish', kind: 'task', type: 'Publish', edges: [{ to: 'end' }] },
+    { id: 'declined', kind: 'end', outcome: 'declined' },
+    { id: 'end', kind: 'end', outcome: 'completed' },
+  ],
+};
+const driver = new Driver(flow, {
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken,
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { Draft: { worker: 'w' }, Publish: { worker: 'w' } },
+});
+driver.start({ topic: 'release notes' });
+done('r1:draft:-:0', { text: 'a draft' });
+
+// The run PARKED at the ask: nothing handed to the scheduler for it, the draft it was shown KEPT.
+const parked = fold(driver.foldInputs());
+console.log(added, parked.outcome, parked.nodes['r1:approve:-:0'].input);
+// [ 'r1:draft:-:0' ] awaiting_action { text: 'a draft' }
+if (added.join() !== 'r1:draft:-:0' || parked.outcome !== 'awaiting_action') throw new Error('the ask should park with nothing dispatched');
+if (JSON.stringify(parked.nodes['r1:approve:-:0'].input) !== '{"text":"a draft"}') throw new Error('the ask keeps what reached it');
+
+// An answer its schema refuses is thrown at you BY NAME — nothing appended, the ask still parked.
+let refused: unknown = null;
+try { driver.resolve('r1:approve:-:0', 'done', { result: { approved: 'yes' }, actor: 'ana' }); } catch (e) { refused = e; }
+if (!(refused instanceof BoundaryRefused)) throw new Error(`a nonconforming answer is BoundaryRefused, got ${String(refused)}`);
+if (fold(driver.foldInputs()).nodes['r1:approve:-:0'].state !== 'suspended') throw new Error('and the ask is still parked');
+
+// The corrected answer IS the node's result: the `when` reads it, and `publish` is dispatched.
+if (!driver.resolve('r1:approve:-:0', 'done', { result: { approved: true }, actor: 'ana' })) throw new Error('the answer was refused');
+const outcome = driver.effectiveOutcomeOf('r1:approve:-:0');
+console.log(added, outcome?.attempts, outcome?.schedulerTimestamp);   // [ 'r1:draft:-:0', 'r1:publish:-:0' ] 0 null
+if (added.join() !== 'r1:draft:-:0,r1:publish:-:0') throw new Error('approved routes to publish');
+if (outcome?.attempts !== 0 || outcome.schedulerTimestamp !== null) throw new Error('an ask`s outcome has no scheduler fields');
+```
+
+**A flow that waits for a person because a task FAILED** is the parked task below — the road an ask replaces for a
+question asked by design, and still the road for a task out of retries.
 
 > **A `user_action` task fires TWO events, and the first one is called `task.failed`.** The scheduler
 > sets `state = 'user_action'` and then dispatches `task.failed` *and* `task.user_action` carrying
@@ -1387,8 +1468,9 @@ if (state.pathEnds.map((p) => p.at).join() !== 'quarantine') {
 ```
 
 `resolve()` returns `false` if the task is not suspended — a rejected command, not a run failure, so
-you may retry. It does **one** thing: supply an outcome for a dispatch that already happened. It
-cannot re-run the node and it cannot send it somewhere else. It also returns `false` once the run has
+you may retry. It does **one** thing: supply an outcome for a dispatch that already happened — or, for
+an ask, the answer to a node that dispatched nothing (above). It cannot re-run the node and it cannot send it
+somewhere else. It also returns `false` once the run has
 been **halted** by a refusal (section 9), and there retrying can never succeed: check
 `driver.hasFailed()` to tell the two `false`s apart.
 
@@ -1884,7 +1966,8 @@ named did not run on your path*, which is the **flow's** shape.
 `BoundaryRefused` is **W73's, and it is the one class here that STOPS NOTHING** — [P19](doc/plans/p19-what-a-schema-buys-an-author.md) decision 5's `FD-R4`. The two values no static check can reach are held to the workers' declared
 schemas ONCE each: the run's payload at `start()`, against the `inputSchema` of every task it reaches with no
 worker in between (the entry, or every branch task of an entry fan-out, or a map's branch once per item),
-and a person's `done` resolution at `resolve()`, against the parked node's worker `outputSchema`. Refused, it is
+and a person's `done` resolution at `resolve()`, against the parked node's worker `outputSchema` — or, for an ASK,
+against the ask's own `answerSchema` (since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md)). Refused, it is
 **thrown at you as a REJECTED COMMAND**: nothing appended, nothing reported, the run unaffected — at `start`
 the driver is still UNSTARTED and a corrected payload starts it, at `resolve` the task is still suspended and
 a corrected value (the worker's declared example is one) resolves it. It carries `boundary`, `nodeId`,
@@ -2218,7 +2301,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | ~~**durability**~~ — resuming a run after a restart | **BUILT** since [W89](doc/work-items/w89-what-resuming-is.md): append the events, resume from them — section 18. A cancelled or halted run is refused |
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
-| **RUNNING an `ask`** — a node that waits for a person, its answer at `resolve()` | **not yet**: the kind is VALID since [W179](doc/work-items/w179-the-ask-node-in-the-definition.md) (section 3), and every `Driver` refuses a run where a branch enters one, `InvalidDefinition` naming the node, until [P35](doc/plans/p35-may-a-node-wait-for-a-person-by-design.md)'s next item runs it. Wait for a person with a non-optional task that parks `user_action` (section 7) until then |
+| ~~**RUNNING an `ask`**~~ — a node that waits for a person, its answer at `resolve()` | **BUILT** since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md): a run parks at an ask with nothing handed to the scheduler, and its answer is its result — section 7. A run waiting only on an ask is not refused `ended` by a cancel, a stop or a pause, and a resume re-parks it (section 18); the rest of run control over a parked ask is P35's next item's |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |
@@ -3903,7 +3986,9 @@ await third.shutdown();
   SETTLES, so the attempts a task spent before the crash are recorded nowhere — measured: a task with
   a budget of two attempts ran THREE times across one kill ([Q365](doc/questions/q365.md)).
 - **A task PARKED for a person is not in flight.** It stays parked, the resumed run is
-  `awaiting_action`, and `resolve()` on the RESUMED driver completes it (section 7).
+  `awaiting_action`, and `resolve()` on the RESUMED driver completes it (section 7). **So is an ASK**: the replay
+  re-enters it and REGENERATES its `asked` element — the same id and the same kept input, compared with what you stored
+  — handing nothing to the new scheduler; answer it on the resumed driver.
 - **The check sees only what you STORED.** The stored events must be a prefix of what the replay
   regenerates, and the first position where they are not is refused `diverged` — so a predicate or a
   flow you changed is caught where the stored run's road crosses it, and NOT where that road lies

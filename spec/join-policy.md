@@ -1,7 +1,8 @@
 # spec/join-policy — the interface the join policies sit behind
 
-**Status:** v0.22 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.23 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md).
+**v0.23 is [W180](../doc/work-items/w180-asking-and-answering-in-a-run.md) under [P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md), and `JP-R5`'s ordering clause becomes LOAD-BEARING** — W179's conformity reader's G1, handed on. [ADR 0109](../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md): `FD-V9` and `FD-V25` admit an ASK as a branch entry since `spec/flow-definition.md` v0.42, and entering an ask PARKS it and EMITS `branch.suspended` (`spec/run-state.md` `RN-R37`), so an event CAN now appear between two `branch.opened`s if the driver interleaves: the subsection *JP-R5's ordering clause is currently unfalsifiable* is REWRITTEN in place — its consequence 1 has fired — and the driver's two-pass loops are named as the clause's only guarantor, held by an L2 case that fails under an interleaved emission. **An ask in a region is a suspended branch**: `branch.suspended` when the run reaches it, `branch.resumed` and then its terminal event when the person answers — the vocabulary unchanged (`JP-R6`). No rule's text and no policy moves.
 **v0.22 is [W174](../doc/work-items/w174-stopping-a-run-to-resume-it-elsewhere.md) under [P34](../doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md), the maintainer's exception E6: a STOP its owner requests is a fourth road to `JP-R12`'s run-level release.** [ADR 0105](../doc/decisions/0105-a-run-its-owner-stops-goes-deaf-before-it-cancels-and-resumes-elsewhere.md), `spec/run-state.md` `RN-R33`: the stop holds the run when it is taken and every region's collection is released then. ONE rule's TEXT moves — `JP-R12`'s lifetime clause; no event is added and no policy changes.
 **v0.21 is [W173](../doc/work-items/w173-cancelling-a-run.md) under [P34](../doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md): a run its OWNER cancels does to a join what v0.20's cancel does — nothing.** [ADR 0104](../doc/decisions/0104-a-run-its-owner-cancels-is-cancelling-until-its-last-task-has-stopped.md), `spec/run-state.md` `RN-R30` and `RN-R31`: from the request on, no region event is emitted for any branch, and the run reads `cancelling` and then `cancelled`, never `stuck`. Section 2's cancelled-branch paragraph gains the request, with the L5 row that holds it under every column; **`JP-R12`'s run-level release names the request as a third road**, beside `OR-R10` and v0.20's cancel. No event is added and no policy changes.
 **v0.20 is [W158](../doc/work-items/w158-cancelled-is-a-library-state-and-a-run-outcome.md) under [P33](../doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md), and it says what a CANCELLED branch does to a join:
@@ -334,29 +335,31 @@ policy sees.
 | id | | Test owed by |
 |---|---|---|
 | `JP-R4` | **The vocabulary is sized for the richer policy.** A policy that needs fewer events ignores the rest. Designing it around what arrival-counting needs would delete `branch.exited` and `branch.lost` — and deleting `branch.exited` makes P1's case unobservable, which decides Q4 by omission | W4, as a matrix column that exercises every event |
-| `JP-R5` | **At most one terminal event per branch, with nothing after it, and every `branch.opened` for a region precedes any other event for that region.** A branch is `opened` once, may be `suspended`/`resumed` any number of times, and then `arrived`, `exited` or `lost` **at most** once — **not** exactly once: a branch that suspends and is never resolved emits no terminal event at all, which section 4 says is a legal and expected state, and neither does any branch in a run still in flight. An assertion written `count === 1` fails on Q5's `user_action` row. The opening rule is a **driver obligation**, not a policy's problem — see below. **`FD-V22` is what makes the one-`opened`-per-branch half true**: without it a token can enter a branch from outside the region and arrive at a join that never opened it. Test: assert both properties over the event stream of every W5 run, including a run where a branch is resolved | W3 |
+| `JP-R5` | **At most one terminal event per branch, with nothing after it, and every `branch.opened` for a region precedes any other event for that region.** A branch is `opened` once, may be `suspended`/`resumed` any number of times, and then `arrived`, `exited` or `lost` **at most** once — **not** exactly once: a branch that suspends and is never resolved emits no terminal event at all, which section 4 says is a legal and expected state, and neither does any branch in a run still in flight. An assertion written `count === 1` fails on Q5's `user_action` row. The opening rule is a **driver obligation**, not a policy's problem — see below. **`FD-V22` is what makes the one-`opened`-per-branch half true**: without it a token can enter a branch from outside the region and arrive at a join that never opened it. Test: assert both properties over the event stream of every W5 run, including a run where a branch is resolved | W3; the ordering clause, v0.23, [W180](../doc/work-items/w180-asking-and-answering-in-a-run.md) |
 | `JP-R6` | **Adding an event is a spec change with its own rationale** (`spec/README.md` rule 1), never a side effect of making a policy work | — |
 
-### JP-R5's ordering clause is currently unfalsifiable, and that is `FD-V9` doing it
+### JP-R5's ordering clause is LOAD-BEARING since v0.23, and the driver's two-pass emission is what makes it true
 
-**Stated because a reader will otherwise mistake the driver's two-pass emission for the thing making
-this true, or mistake a passing test for evidence.** `FD-V9` requires every branch entry to be a
-`task`, and entering a task **dispatches without emitting** — so no event can appear between two
-`branch.opened`s no matter how the driver is written. W3's conformity pass replaced its two-pass
-loop with an interleaved one and the whole suite still passed, because the two implementations are
-**behaviourally identical under `FD-V9`**.
+**Rewritten at v0.23, because the consequence this subsection predicted has fired** (W179's conformity reader, G1;
+[W180](../doc/work-items/w180-asking-and-answering-in-a-run.md)). It read *"currently unfalsifiable, and that is
+`FD-V9` doing it"*: `FD-V9` required every branch entry to be a `task` and `FD-V25` every map branch, and entering a
+task **dispatches without emitting**, so no event could appear between two `branch.opened`s however the driver was
+written — W3's conformity pass replaced the two-pass loop with an interleaved one and the whole suite still passed.
 
-Three consequences, and the third is the one that matters:
+**`spec/flow-definition.md` v0.42 admits an `ask` at both places** (ADR 0108), and since v0.43 entering an ask PARKS it
+and **emits `branch.suspended`** for its branch (`spec/run-state.md` `RN-R37`). So an interleaved driver —
+`opened(0)`, enter branch 0, `opened(1)`, enter branch 1 — now produces `opened(0) suspended(0) opened(1)`, an event
+between two opens. The three consequences the old text listed, at v0.23:
 
-1. The rule is not redundant. It is **insurance**, and it becomes load-bearing the moment `FD-V9` or
-   `FD-V19` is relaxed ([Q27](../doc/questions/q27.md)) — a branch entry that is an `end`, or a
-   shared node, emits on entry and the order becomes observable.
-2. **No test can currently distinguish a conforming driver from a non-conforming one**, so a green
-   suite is not evidence for this clause. W3's test asserts the invariant over a real stream, which
-   catches a driver that emits `branch.opened` *after* a terminal event; it cannot catch
-   interleaving.
-3. **A driver written after `FD-V9` is relaxed will not be caught by the existing test**, which is
-   why this paragraph exists rather than a `TODO`.
+1. **The rule is load-bearing**, as consequence 1 said it would be the moment a branch entry could emit on entry. A
+   counting policy reading `opened(0) suspended(0)` sees nothing wrong, but a third-party policy that, say, settles on
+   the first non-`opened` event is exactly what the clause protects — and section 3's two counting policies already
+   depend on it for their `N` (v0.12, below).
+2. **The driver's two-pass loops — every `branch.opened` emitted, THEN each branch entered — are the clause's ONLY
+   guarantor**, in the `fanout` arm and in the `map` arm alike. Neither `FD-V9` nor `FD-V25` guarantees it any longer.
+3. **A test CAN now distinguish a conforming driver from a non-conforming one, and one does**: `test/driver/ask.test.ts`
+   asserts every `branch.opened` before the ask's `branch.suspended` on a fan-out whose first branch entry is an ask,
+   and on a map whose branch is one — red under an interleaved loop in either arm.
 
 ### Why JP-R5 fixes the opening order, and why that is not a thumb on the scale
 
@@ -372,9 +375,12 @@ sees the count reach zero while branch 1 is still running, and the join fires ea
 > **The clause is still unfalsifiable through a conformant driver, and its guarantor is now two rules
 > rather than one.** `FD-V9` makes every `fanout` branch entry a `task` and `FD-V25` makes a `map`'s
 > branch a `task`; entering a task **dispatches without emitting**, so no event can appear between
-> two `branch.opened`s whichever kind opened the region. Consequence 3 below is therefore unchanged
-> and consequence 1's *"it becomes load-bearing the moment `FD-V9` or `FD-V19` is relaxed"* gains
-> `FD-V25` to its list. **What changed is not whether the rule can be broken but how much rests on
+> two `branch.opened`s whichever kind opened the region. *(True until v0.23: an `ask` may be either since
+> `spec/flow-definition.md` v0.42 and EMITS on entry, so the clause is observable and the guarantor is the driver's
+> two-pass emission — the subsection above.)* Consequence 3 of that subsection as it then read was therefore
+> unchanged, and its consequence 1 — *"it becomes load-bearing the moment `FD-V9` or `FD-V19` is relaxed"* — gained
+> `FD-V25` to its list. *(Both consequences are in the subsection ABOVE, rewritten at v0.23, consequence 1 having
+> fired; the quotes here are of its pre-v0.23 text.)* **What changed is not whether the rule can be broken but how much rests on
 > it**, and that is worth saying in the document rather than leaving a reader to infer it from a
 > policy.
 

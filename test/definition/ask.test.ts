@@ -1,7 +1,7 @@
 /**
  * **What an ASK is, at the definition — every key accepted, every refused key refused by its OWN rule beside its
  * accepted neighbour, a reference to it admitted, its edges held as a task's, the wiring check over its arcs, and
- * the driver's refusal until W180** — `spec/flow-definition.md` v0.42 (section 2's `ask` subsection, section 3's
+ * the driver's interim refusal, which EXPIRED at W180 and now asserts the park** — `spec/flow-definition.md` v0.42 (section 2's `ask` subsection, section 3's
  * wiring subsection, section 5's widened rules and `FD-V47`/`FD-V48`), `spec/task-id.md` v0.13,
  * [ADR 0108](../../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md),
  * [W179](../../doc/work-items/w179-the-ask-node-in-the-definition.md).
@@ -20,7 +20,7 @@ import { typesFor } from '../registry-fixture.ts';
 import { ASK_REFUSED_KEYS, NODE_KEYS_DECLARED, TASK_KEYS_DECLARED, validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import { allRegions, buildGraph } from '../../src/definition/regions.ts';
 import { checkWiring, type WiringRegistry } from '../../src/definition/wiring.ts';
-import { Driver, InvalidDefinition } from '../../src/driver/driver.ts';
+import { Driver } from '../../src/driver/driver.ts';
 import { fold } from '../../src/fold/run-state.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { FlowDefinition, JsonSchema, Registry } from '../../src/definition/types.ts';
@@ -145,7 +145,7 @@ const DECLARED_CASES = [
   'where an ask stands: wherever a task may — entry, branch entry, map branch, nested — and the kinds FD-V9 and FD-V25 still refuse',
   'the corpus: the valid ask flow is clean, and FD-V47`s and FD-V48`s cases are refused by exactly their own rule',
   'the wiring check: an ask is a PRODUCER of its answerSchema and never a consumer, and no FD-R4 target',
-  'the driver refuses a run where a branch ENTERS an ask, by name, until W180 — from start() and from a settlement',
+  'the driver PARKS where a branch ENTERS an ask, nothing handed to the scheduler — W179`s interim refusal, expired at W180',
   'the code`s lists are the spec`s: the ask`s declared keys and its six refused keys, both ways',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
@@ -341,7 +341,8 @@ suite(SUITE, (test) => {
     equal(ask.entry, 'approve', 'its ENTRY is an ask');
     equal(ask.nodes.filter((n) => n.kind === 'ask').map((n) => n.id).sort(), ['approve', 'confirm', 'revise'], 'it carries three asks');
     // Reading R8: no task node and no region, so neither `test/driver/needs.test.ts`'s region census (which RUNS each
-    // region-bearing flow) nor `spec/outcome-record.md` section 4's task-node census moves before P35's next item.
+    // region-bearing flow) nor `spec/outcome-record.md` section 4's task-node census moved before W180 — which added the
+    // task-bearing and region-bearing ask flows beside this one (W179's S-2).
     equal(ask.nodes.filter((n) => n.kind === 'task').length, 0, 'no task node — reading R8');
     equal(allRegions(buildGraph(ask), ask).length, 0, 'no region — reading R8');
     const a = ask.nodes.find((n) => n.id === 'approve') as unknown as Record<string, unknown>;
@@ -416,58 +417,44 @@ suite(SUITE, (test) => {
     equal((await checkWiring(wr, flow({ answerSchema: ANSWER }, 'Approved'))).entry, ['src'], 'the control: an entry task is');
   });
 
-  test('the driver refuses a run where a branch ENTERS an ask, by name, until W180 — from start() and from a settlement', () => {
+  test('the driver PARKS where a branch ENTERS an ask, nothing handed to the scheduler — W179`s interim refusal, expired at W180', () => {
+    // ADR 0108 rule 8's interim refusal ENDED at W180 (ADR 0109): the arm PARKS. The same four roads the refusal was
+    // asserted on, each now a park with nothing handed to the scheduler for the ask — and no failure reported.
     const make = (def: FlowDefinition) => {
       const added: string[] = [];
       const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
       const scheduler = {
         addTask: (t: { id: string }) => { added.push(t.id); },
         addEventListener: (type: string, fn: (e: { detail: unknown }) => void) => { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
-        cancel: (id: string) => { cancels.push(id); },
       };
-      const cancels: string[] = [];
-      const failures: { kind: string; message: string }[] = [];
+      const failures: { kind: string }[] = [];
       const driver = new Driver(def, {
         runId: 'r1', scheduler: scheduler as never, createTask: (c: unknown) => c as never, predicates: new Map(),
         joinPolicy: liveToken as never, ...typesFor(['IngestWorker', 'ScoreWorker', 'PublishWorker', 'ReviewWorker']),
-        onRunFailure: (f: { kind: string; message: string }) => failures.push({ kind: f.kind, message: f.message }),
+        onRunFailure: (f: { kind: string }) => failures.push({ kind: f.kind }),
       } as never);
       const settle = (id: string) => {
         const detail = { id, state: 'done', attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1, result: { files: ['a'] } };
         for (const fn of listeners.get('task.completed') ?? []) fn({ detail });
       };
-      return { driver, added, failures, settle, cancels };
+      return { driver, added, failures, settle };
     };
-    // `kind` is the error class's NAME, which a browser bundle mangles (`_InvalidDefinition`) — so the expected value is the
-    // class's own `name`, in every runtime.
-    // From start(): an entry ask. Rethrown at the caller, reported once, nothing handed to the scheduler.
+    const asked = (d: Driver) => d.foldInputs().filter((e) => e.kind === 'asked').map((e) => (e as { taskId: string }).taskId);
+    // From start(): an entry ask parks, nothing handed on.
     const entry = make(SHAPES[1]![1](ASK()));
-    let err: unknown;
-    try { entry.driver.start({}); } catch (e) { err = e; }
-    ok(err instanceof InvalidDefinition, `start() throws InvalidDefinition: ${String(err)}`);
-    ok(String((err as Error).message).includes('ask "approve"') && String((err as Error).message).includes('W180'), `naming the ask and W180: ${(err as Error).message}`);
-    equal((err as InvalidDefinition).rules, [], 'with no rule id — the definition is valid');
-    equal(entry.added, [], 'nothing handed to the scheduler');
-    equal(entry.failures.map((f) => f.kind), [InvalidDefinition.name], 'reported once through onRunFailure');
-    equal(fold(entry.driver.foldInputs()).outcome, 'halted', 'and the run is halted');
-    // From a settlement: an ask after a task. The task runs (reading R6), its settlement halts the run, nothing escapes.
+    entry.driver.start({});
+    equal([entry.added, asked(entry.driver), entry.failures], [[], ['r1:approve:-:0'], []], 'an entry ask parks: nothing sent, one asked, nothing reported');
+    equal(fold(entry.driver.foldInputs()).outcome, 'awaiting_action', 'the run awaits the person');
+    // From a settlement: an ask after a task.
     const after = make(SHAPES[0]![1](ASK()));
     after.driver.start({});
-    equal(after.added, ['r1:ingest:-:0'], 'the task before the ask is dispatched');
     after.settle('r1:ingest:-:0');
-    equal(after.added, ['r1:ingest:-:0'], 'nothing is handed on past the ask');
-    equal(after.failures.map((f) => f.kind), [InvalidDefinition.name], 'the refusal is reported once, from the scheduler event`s step');
-    ok(after.failures[0]!.message.includes('ask "approve"'), `naming the ask: ${after.failures[0]!.message}`);
-    equal(fold(after.driver.foldInputs()).outcome, 'halted', 'the run is halted');
-    // In a region: a fan-out whose branch entry is an ask refuses at start(); the CONTROL — a task there — dispatches both.
+    equal([after.added, asked(after.driver), after.failures], [['r1:ingest:-:0'], ['r1:approve:-:0'], []], 'an ask after a task parks when the task settles');
+    // In a region: the ask as branch 0, and as branch 1 of an entry fan-out — its sibling task handed on either way.
     const region = make(SHAPES[2]![1](ASK()));
     region.driver.start({});
-    equal(region.added, ['r1:ingest:-:0'], 'a fan-out run starts at its task');
     region.settle('r1:ingest:-:0');
-    equal(region.failures.map((f) => f.kind), [InvalidDefinition.name], 'and is refused where its branch enters the ask');
-    equal(region.added, ['r1:ingest:-:0'], 'the ask is branch 0 and is entered FIRST, so its sibling `other` is never handed on');
-    // The ask SECOND (conformity G4): its sibling task, entered first, IS handed to the scheduler before the refusal —
-    // and nothing cancels it (reading R6's cost, ADR 0108's consequence, AGENTS.md section 3), until W180 parks instead.
+    equal([region.added, asked(region.driver)], [['r1:ingest:-:0', 'r1:other:1:0'], ['r1:approve:0:0']], 'a branch-entry ask parks and its sibling runs');
     const sibling = make({ flowId: 'ask-sibling', version: 1, entry: 'split', nodes: [
       { id: 'split', kind: 'fanout', branches: ['other', 'approve'] },
       { id: 'other', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] },
@@ -475,18 +462,13 @@ suite(SUITE, (test) => {
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ] } as unknown as FlowDefinition);
-    let thrown: unknown;
-    try { sibling.driver.start({}); } catch (e) { thrown = e; }
-    ok(thrown instanceof InvalidDefinition, `start() throws when the entry fan-out's second branch is an ask: ${String(thrown)}`);
-    equal(sibling.added, ['r1:other:0:0'], 'the sibling task entered before the ask WAS handed to the scheduler');
-    equal(sibling.cancels, [], 'and nothing cancels it');
-    equal(sibling.failures.map((f) => f.kind), [InvalidDefinition.name], 'reported once');
-    equal(fold(sibling.driver.foldInputs()).outcome, 'halted', 'the run is halted with that task still sent');
+    sibling.driver.start({});
+    equal([sibling.added, asked(sibling.driver), sibling.failures], [['r1:other:0:0'], ['r1:approve:1:0'], []], 'as the second branch: the sibling sent, the ask parked, nothing reported');
     const control = make(SHAPES[2]![1]({ id: 'approve', kind: 'task', type: 'ReviewWorker', edges: [{ on: ['failed'], to: 'declined' }, { to: 'after' }] }));
     control.driver.start({});
     control.settle('r1:ingest:-:0');
-    equal(control.failures, [], 'the CONTROL: a task in the ask`s place is no refusal');
-    equal(control.added.sort(), ['r1:approve:0:0', 'r1:ingest:-:0', 'r1:other:1:0'], 'and dispatches both branches');
+    equal(control.added.sort(), ['r1:approve:0:0', 'r1:ingest:-:0', 'r1:other:1:0'], 'the CONTROL: a task in the ask`s place IS dispatched');
+    equal(asked(control.driver), [], 'and appends no asked element');
   });
 
   test('the code`s lists are the spec`s: the ask`s declared keys and its six refused keys, both ways', async () => {

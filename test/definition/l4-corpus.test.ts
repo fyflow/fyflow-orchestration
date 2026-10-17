@@ -425,6 +425,11 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W180 — ADR 0109, asking and answering in a run: L2 in `test/driver/ask.test.ts`, L1/L3 in `test/fold/asked.test.ts`,
+  // L5 in `test/matrix/ask.test.ts`, each with its own `DECLARED_CASES`.
+  'L2 — RN-R37: asking and answering in a run — an ask parks with nothing handed to the scheduler, and its answer is its result',
+  'L1 — RN-R36: an `asked` element folds the node `suspended` with its input KEPT, and the run `awaiting_action`',
+  'L5 — an ASK in a fan-out holds its join, under every shipped policy',
   // W179 — ADR 0108, the ask node in the definition (`spec/flow-definition.md` v0.42), in `test/definition/ask.test.ts`
   // with its own `DECLARED_CASES`.
   'W179 — what an ASK is: the seventh kind, FD-V47 and FD-V48, a reference to it, and its arcs',

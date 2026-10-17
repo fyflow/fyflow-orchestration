@@ -17,7 +17,12 @@ export interface OutcomeRecord {
   result: CloneableValue | null;
   error: string | null;
   attempts: number;
-  schedulerTimestamp: number;
+  /**
+   * The scheduler's stamp — and **`null` for an ASK's effective outcome** (`spec/outcome-record.md` v0.18, P35 (e),
+   * [ADR 0109](../../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md)): no
+   * scheduler was involved. A SETTLEMENT always carries a number. **BREAKING in 0.8.0** for a consumer typed on `number`.
+   */
+  schedulerTimestamp: number | null;
   observedAt: number;
   startTime: number | null;
   endTime: number | null;
@@ -51,10 +56,17 @@ export function lastRecordFor(log: readonly LogRecord[], taskId: string): LogRec
   return undefined;
 }
 
-/** `RS-R1` — a task is suspended when its last record is an outcome in `user_action`. */
-export function isSuspended(log: readonly LogRecord[], taskId: string): boolean {
+/**
+ * `RS-R1` — a task is suspended when its last record is an outcome in `user_action`; **or, since v0.18, when it was
+ * ASKED and has no record at all** (P35 (b), ADR 0109): an ask parks with an `asked` fold input — not a log record,
+ * since section 1 fixes the log at two kinds — and the person's answer is the first record its id ever gets, so a
+ * second answer is refused as a second resolution is. `asked` is the caller's: whether the fold-input sequence holds an
+ * `asked` element for the id, which this function cannot see.
+ */
+export function isSuspended(log: readonly LogRecord[], taskId: string, asked = false): boolean {
   const last = lastRecordFor(log, taskId);
-  return last?.kind === 'outcome' && last.terminalState === 'user_action';
+  if (last === undefined) return asked;
+  return last.kind === 'outcome' && last.terminalState === 'user_action';
 }
 
 /**
@@ -68,9 +80,13 @@ export function isSuspended(log: readonly LogRecord[], taskId: string): boolean 
  * `OR-R8`: derived, never appended. Appending it would make the log contain its
  * own conclusions, and a second fold would derive a third record from the second.
  *
+ * **An ASK's** — a resolution with NO settlement before it, which `RS-R1` admits only for an asked task — is DERIVED
+ * from the resolution alone (`spec/outcome-record.md` section 7, v0.18, P35 (e), ADR 0109): the answer is the node's
+ * result, `attempts` `0` and every scheduler field `null`, because no dispatch happened for those fields to describe.
+ *
  * @returns `null` when the task has not settled, or has settled `user_action` and
- *   has no resolution — a suspended node has no effective outcome, which is
- *   exactly right: it has not finished and nothing routes.
+ *   has no resolution, or was asked and has no answer — a suspended node has no
+ *   effective outcome, which is exactly right: it has not finished and nothing routes.
  */
 export function effectiveOutcome(log: readonly LogRecord[], taskId: string): OutcomeRecord | null {
   let settlement: OutcomeRecord | null = null;
@@ -80,7 +96,22 @@ export function effectiveOutcome(log: readonly LogRecord[], taskId: string): Out
     if (r.kind === 'outcome') settlement = r;
     else resolution = r;
   }
-  if (!settlement) return null;
+  if (!settlement) {
+    if (!resolution) return null;
+    return {
+      kind: 'outcome',
+      taskId,
+      terminalState: resolution.resolvedAs,
+      result: resolution.result,
+      error: resolution.error,
+      attempts: 0,
+      schedulerTimestamp: null,
+      observedAt: resolution.observedAt,
+      startTime: null,
+      endTime: null,
+      executionTime: null,
+    };
+  }
   if (!resolution) return settlement.terminalState === 'user_action' ? null : settlement;
   return {
     ...settlement,

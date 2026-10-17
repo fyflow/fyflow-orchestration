@@ -309,6 +309,11 @@ function verdictOf(driver: Driver, joinFired: boolean): Verdict {
   const suspended = dispatched.filter((id) => driver.terminalStateOf(id) === null &&
     driver.snapshot().some((r) => r.taskId === id));
   if (suspended.length > 0) return 'waiting-on-human';
+  // **And an ASK the run reached and nobody answered** (W180, `RN-R37`): it is never DISPATCHED, so the walk above cannot
+  // see it, and without this a run waiting on a person read `stuck`. Public surface only: an `asked` element whose task id
+  // has no record in the log (`RS-R1` v0.18's *suspended*).
+  const asked = driver.foldInputs().flatMap((e) => (e.kind === 'asked' ? [e.taskId] : []));
+  if (asked.some((id) => !driver.snapshot().some((r) => r.taskId === id))) return 'waiting-on-human';
   const inFlight = dispatched.filter((id) => !driver.snapshot().some((r) => r.taskId === id));
   if (inFlight.length > 0) return 'in-flight';
   return 'stuck';

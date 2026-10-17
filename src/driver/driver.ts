@@ -216,9 +216,9 @@ export class UndeclaredRoute extends Error {
 export class BoundaryRefused extends Error {
   /** Which boundary refused: the run's payload at `start`, or a person's value at `resolve`. */
   readonly boundary: 'start' | 'resolve';
-  /** The task node whose worker's schema refused the value. */
+  /** The task node whose worker's schema refused the value — or, at `resolve`, the ASK whose `answerSchema` did (W180). */
   readonly nodeId: string;
-  /** The suspended task, at `resolve`; `start` has dispatched nothing yet. */
+  /** The suspended task — or parked ask — at `resolve`; `start` has dispatched nothing yet. */
   readonly taskId: string | null;
   /** Every way the value failed the schema — `findings`' own list, one line each in `message`. */
   readonly findings: readonly { path: string; says: string }[];
@@ -536,7 +536,8 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
 /**
  * **Is a regenerated element the stored one?** — the prefix check's comparison for every kind the
  * replay REGENERATES (`RN-R20`). Those kinds are flat plain data — strings and booleans, one level of
- * nesting for a region event — so this is structural equality over data, **key order ignored and an
+ * nesting for a region event — **except a `gated` key and, since W180, an `asked` element's `input`, which are values of
+ * any shape**: so this is structural equality over data, recursive, **key order ignored and an
  * `undefined`-valued key treated as absent**: a consumer's store may reorder keys or drop an undefined
  * one, and neither is the run diverging. The kinds the replay is FED (settlements, resolutions and
  * `resumed`) are not compared by this: they are the stored element itself, appended at its own position.
@@ -544,7 +545,30 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
 function sameData(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  // **Structured-clone data, not only JSON** (W180, both readers' R13): an `asked` element's input is whatever reached
+  // the ask, which may hold a `Map`, a `Set`, a `Date` and the rest of what `structuredClone` carries (`RN-R17`). Compared
+  // by own keys alone, every `Map` equalled every other and a changed input resumed silently. So the class must agree;
+  // an array is compared by LENGTH and element (a hole is not a missing tail); a `Map` and a `Set` by their entries in
+  // order (`structuredClone` keeps it); a `Date` by its time, a `RegExp` by its source and flags, an `Error` by its name
+  // and message, binary data by its bytes. A PLAIN object keeps the rule above: key order free, `undefined` as absent.
+  const tag = Object.prototype.toString.call(a);
+  if (tag !== Object.prototype.toString.call(b)) return false;
+  if (Array.isArray(a)) {
+    const y = b as unknown[];
+    return a.length === y.length && a.every((v, i) => sameData(v, y[i]));
+  }
+  if (a instanceof Map || a instanceof Set) {
+    const x = [...(a as Map<unknown, unknown>).entries()], y = [...(b as Map<unknown, unknown>).entries()];
+    return x.length === y.length && x.every((e, i) => sameData(e[0], y[i]![0]) && sameData(e[1], y[i]![1]));
+  }
+  if (a instanceof Date) return Object.is(a.getTime(), (b as Date).getTime());
+  if (a instanceof RegExp) return String(a) === String(b);
+  if (a instanceof Error) return a.name === (b as Error).name && a.message === (b as Error).message;
+  if (ArrayBuffer.isView(a) || a instanceof ArrayBuffer) {
+    const bytes = (v: unknown) => (v instanceof ArrayBuffer ? new Uint8Array(v) : new Uint8Array((v as ArrayBufferView).buffer, (v as ArrayBufferView).byteOffset, (v as ArrayBufferView).byteLength));
+    const x = bytes(a), y = bytes(b);
+    return x.length === y.length && x.every((v, i) => v === y[i]);
+  }
   const ra = a as Record<string, unknown>, rb = b as Record<string, unknown>;
   const ka = Object.keys(ra).filter((k) => ra[k] !== undefined);
   const kb = Object.keys(rb).filter((k) => rb[k] !== undefined);
@@ -568,6 +592,14 @@ function describeElement(e: unknown): string {
   try { s = JSON.stringify(e, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v)); } catch { s = String((e as { kind?: unknown })?.kind); }
   return s.length > 160 ? `${s.slice(0, 157)}...` : s;
 }
+
+/**
+ * **A call accepted mid-step and taken when the driver's step ends** — a pause or an unpause (`RN-R35`), or, since W180,
+ * an ASK's answer (`RN-R37`): the resolution record built and every refusal asked at the call, appended at rest.
+ */
+type PendingCall =
+  | { readonly kind: 'paused' | 'unpaused'; readonly actor: string }
+  | { readonly kind: 'answer'; readonly record: ResolutionRecord; readonly runId: string; readonly nodeId: string; readonly branchPath: string };
 
 /** What `createTask` is handed — held, during a replay, until the resume knows what is in flight. */
 type TaskConfig = Parameters<TaskFactory>[0];
@@ -776,10 +808,13 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
 /**
  * One element of the fold's input sequence, copied and frozen on the way out
  * (ADR 0014). Only the two record kinds carry a `result`; `region` wraps one flat event,
- * `resumed` one array of strings, and `gated` a KEY that may be anything the key path ends on; the
- * other **five** are flat and primitive, so a shallow freeze of a fresh object is the whole copy.
+ * `resumed` one array of strings, `gated` a KEY that may be anything the key path ends on, and `asked` an INPUT
+ * that may be anything; the other **nine** are flat and primitive, so a shallow freeze of a fresh object is the
+ * whole copy. *(Read "five" from W93 until W180 — four flat kinds added by W173-W175 had not moved it.)*
  * *(W93's `gated` is the second kind that is NOT flat — its declaration step found the fall-through
  * handing a consumer the driver's own key object wherever a key path ends on an object.)*
+ * *(W180's `asked` is the third — its `input` is whatever reached the ask, of any shape — and it has its own arm for
+ * the same reason, `RN-R17` and P35 fact 4: the fall-through would hand a consumer the driver's own kept input.)*
  *
  * *(Read "four" until W33 added `regionEntered`. The count is in the sentence that
  * justifies the `{ ...i }` fall-through, so it is load-bearing prose rather than
@@ -798,6 +833,8 @@ function freezeInput(i: FoldInput): FoldInput {
       ? { ...i, taskIds: Object.freeze([...i.taskIds]) as string[] }
       : i.kind === 'gated' && i.key !== undefined
       ? { ...i, key: Object.freeze(cloneValue(i.key)) }
+      : i.kind === 'asked'
+      ? { ...i, input: Object.freeze(cloneValue(i.input)) }
       : { ...i },
   ) as FoldInput;
 }
@@ -1268,6 +1305,13 @@ export class Driver {
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
   private readonly dispatched = new Set<string>();
+  /**
+   * **Every ASK this run has reached, by task id** — `RN-R37`, v0.22, W180, ADR 0109: the ids of the `asked` elements
+   * appended, so `RS-R1`'s widened *suspended* (an `asked` element and no record after it) is one lookup rather than a
+   * scan of the input sequence at every `resolve()`, and an ask's id is minted once per path (`ID-R1`'s guard). Ids only —
+   * the kept INPUT lives on the element alone. `dispatched`'s twin for the one node that is never dispatched.
+   */
+  private readonly asked = new Set<string>();
   private readonly now: () => number;
   private readonly opts: DriverOptions;
   private readonly def: FlowDefinition;
@@ -1481,8 +1525,11 @@ export class Driver {
    * **Pause and unpause calls ACCEPTED mid-step and not yet TAKEN**, in call order (`RN-R35`): a call from a callback on
    * the driver's own step is taken when that step ends (`stepping` back to `0`, `leaveStep()`), as a stop is (`RN-R33`) —
    * so its element lands BETWEEN two steps, where a replay can feed it (`RN-R19`). Empty at rest.
+   * **And, since W180, a RESOLUTION given mid-step** — an ask's answer or a parked task's (`RN-R37`, ADR 0109 rule 5, P35's
+   * brief: *an owner element a resume's replay feeds is TAKEN AT REST*): accepted at the call — every refusal already asked — and its resolution
+   * appended when the step ends, in the same call order as the pauses beside it.
    */
-  private readonly pausePending: { readonly kind: 'paused' | 'unpaused'; readonly actor: string }[] = [];
+  private readonly pausePending: PendingCall[] = [];
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -1528,10 +1575,11 @@ export class Driver {
    * every task it handed on is in flight for the stop to cancel. **And a pause or an unpause called on it** (`RN-R35`,
    * W175), each in call order and BEFORE the stop — a pause or an unpause after a stop is refused, so any pending one was
    * called first. Each take is a step of its own and ends here too, so the next pending call is taken after it.
+   * **And a resolution given on the step** (`RN-R37`, W180), in the same queue and the same call order.
    */
   private leaveStep(): void {
     this.stepping -= 1;
-    while (this.stepping === 0 && this.pausePending.length > 0) this.takePause(this.pausePending.shift()!);
+    while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
     if (this.stepping === 0 && this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
   }
 
@@ -2065,8 +2113,9 @@ export class Driver {
       this.settle(cloneRecord(record as OutcomeRecord), runId, nodeId, branchPath);
       return;
     }
-    // `RS-R1`, asked of the REPLAY: the stored run accepted this resolution, so its task was parked.
-    if (!isSuspended(this.log, record.taskId)) throw this.diverged(i, 'that task is not parked in the replay');
+    // `RS-R1`, asked of the REPLAY: the stored run accepted this resolution, so its task was parked — a task at
+    // `user_action`, or since v0.22 an ASK the replay has re-entered and re-parked (`RN-R37`), never answered.
+    if (!this.parked(record.taskId)) throw this.diverged(i, 'that task is not parked in the replay');
     this.appendResolution(cloneRecord(record as ResolutionRecord), nodeId, branchPath);
     // *No `shut()` check here, unlike `resolve()`'s door (b), and deliberately* (W172's conformity reader, C7): a
     // replay delivers no callback for a stored position (`RN-R24`), so nothing on this stack can halt the run between
@@ -2122,6 +2171,11 @@ export class Driver {
    * second resolution is refused like any other. A rejected command, not a run
    * failure: it came from outside and a caller can retry.
    *
+   * **And an ASK's answer** — `RS-R1` v0.18, `RN-R37`, ADR 0109: an ask the run reached and nobody has answered is
+   * suspended too, so the person's answer is this call — `'done'` with the answer as `result`, held to the ask's
+   * `answerSchema` (`FD-R4`), or `'failed'` with an `error`, the person DECLINING, held to nothing. The answer IS the
+   * node's result and routes as a task's settlement does.
+   *
    * @returns `false` when refused. Nothing is appended and the run is unaffected.
    */
   resolve(
@@ -2129,9 +2183,11 @@ export class Driver {
     resolvedAs: 'done' | 'failed',
     value: { result?: unknown; error?: string; actor: string },
   ): boolean {
+    // Read BEFORE this call counts itself in: a call made from a callback on the driver's own step (`RN-R37`).
+    const midStep = this.stepping > 0;
     this.stepping += 1;
     try {
-      return this.resolveStep(taskId, resolvedAs, value);
+      return this.resolveStep(taskId, resolvedAs, value, midStep);
     } finally {
       this.leaveStep();
     }
@@ -2142,8 +2198,12 @@ export class Driver {
     taskId: string,
     resolvedAs: 'done' | 'failed',
     value: { result?: unknown; error?: string; actor: string },
+    midStep = false,
   ): boolean {
-    if (!isSuspended(this.log, taskId)) return false;
+    if (!this.parked(taskId)) return false;
+    // **An answer already given on this step and pending is the ask's answer** — a second is refused as a second
+    // resolution is (`RS-R1`): the ask is not suspended for anyone else to answer (`RN-R37`).
+    if (this.pausePending.some((c) => c.kind === 'answer' && c.record.taskId === taskId)) return false;
     const { runId, nodeId, branchPath } = parseTaskId(taskId);
     // `OR-R10` — *"the driver has stopped routing it"*, and that has to hold on
     // the INBOUND edge too. `onEventOrThrow` checks this; `resolve` did not, so a
@@ -2163,6 +2223,19 @@ export class Driver {
     // resolution carries an error string and no result, so nothing holds it.
     if (resolvedAs === 'done' && this.opts.validateBoundaries !== false) {
       const n = this.graph.byId.get(nodeId);
+      // **An ASK's answer is held to the ASK's `answerSchema`** (`FD-R4` v0.43, P35 (d), ADR 0109) — the node's own
+      // contract for what a person may answer, where a task's resolution is held to its worker's `outputSchema`. Absent,
+      // the answer is held to nothing; the same refusal, thrown by name before anything is appended, the ask still parked.
+      if (n?.kind === 'ask') {
+        const schema = n.answerSchema;
+        const fs = schema === undefined ? [] : findings(schema, value.result ?? null);
+        if (fs.length) {
+          throw new BoundaryRefused('resolve', nodeId, taskId, fs,
+            `the answer to "${taskId}" (ask "${nodeId}") does not satisfy the ask's answerSchema — ${describeFindings(fs)}. ` +
+              'FD-R4: a person`s answer to an ask is held to the schema the ask declares; nothing was appended and the ask is still ' +
+              'parked, so answer it again with a conforming value. `validateBoundaries: false` turns the check off.');
+        }
+      }
       const type = n?.kind === 'task' ? this.nodeTypes.get(n.type) : undefined;
       const schema = type?.worker === undefined ? undefined : this.workers.get(type.worker)?.outputSchema;
       if (schema !== undefined) {
@@ -2176,7 +2249,7 @@ export class Driver {
         }
       }
     }
-    this.appendResolution({
+    const record: ResolutionRecord = {
       kind: 'resolution',
       taskId,
       resolvedAs,
@@ -2184,7 +2257,19 @@ export class Driver {
       error: resolvedAs === 'failed' ? (value.error ?? 'resolved as failed') : null,
       actor: value.actor,
       observedAt: this.now(),
-    }, nodeId, branchPath);
+    };
+    // **A resolution given MID-STEP is accepted now and TAKEN AT REST** (`RN-R37`, `RS-R1` v0.18, W180 — the conformity
+    // reader's R4 for an ask's answer, and the maintainer's answer to W180's S-4 for EVERY resolution, a parked task's
+    // too): every refusal above has been asked — not parked, halted, stopped, `FD-R4`, an uncloneable value (`OR-R12`) —
+    // so the call returns `true`, *accepted*; the resolution is appended when the driver's step ends (`takeAnswer`),
+    // BETWEEN two steps, where a resume's replay feeds it (`RN-R19`). Appended in the call instead, a parked task resolved
+    // on its own `user_action` element in a region was announced `branch.suspended` AFTER its branch arrived, and its
+    // checkpoint was refused `diverged` (W180's S-4, measured).
+    if (midStep) {
+      this.pausePending.push({ kind: 'answer', record, runId, nodeId, branchPath });
+      return true;
+    }
+    this.appendResolution(record, nodeId, branchPath);
     // **`RN-R29` — door (b)'s SECOND check** (ADR 0103, Q605): the resolution and its `branch.resumed` are appended,
     // and a consumer's callback on either can have halted the run on this stack. Accepted — its element is in the
     // log, so `true` — and routed nowhere.
@@ -2319,7 +2404,7 @@ export class Driver {
     const inFlight = this.inFlight();
     // **`ended` only AT REST** (D-1): mid-step a prefix with nothing in flight is the moment between a settlement and the
     // dispatch it causes — accepted there, the hold stops that dispatch and the run reads `cancelled`.
-    if (this.stepping === 0 && inFlight.length === 0 && !this.dispatchedIds().some((id) => isSuspended(this.log, id))) {
+    if (this.stepping === 0 && inFlight.length === 0 && !this.hasParked()) {
       throw new RunControlRefused('cancel', 'ended',
         `RunControlRefused (ended): run "${this.runId}" has nothing in flight and nothing parked on a person — it has finished, ` +
           'and a cancel would rewrite its outcome. Nothing was recorded and nothing was sent.');
@@ -2440,7 +2525,7 @@ export class Driver {
     }
     // **`ended` only AT REST**, as for a cancel (`RN-R31` D-1): mid-step a prefix with nothing in flight is the instant
     // before the step dispatches more — and the stop is taken once it has.
-    if (this.stepping === 0 && this.inFlight().length === 0 && !this.dispatchedIds().some((id) => isSuspended(this.log, id))) {
+    if (this.stepping === 0 && this.inFlight().length === 0 && !this.hasParked()) {
       throw new RunControlRefused('stop', 'ended',
         `RunControlRefused (ended): run "${this.runId}" has nothing in flight and nothing parked on a person — it has finished, ` +
           'and there is nothing to resume elsewhere. Nothing was recorded and nothing was sent.');
@@ -2520,16 +2605,16 @@ export class Driver {
     this.refuseRunHeld('pause');
     if (this.pauseWanted()) {
       throw new RunControlRefused('pause', 'paused',
-        `RunControlRefused (paused): run "${this.runId}" is already paused${this.pausePending.length > 0 ? ' — by a call earlier in this step, taken when it ends' : ''} ` +
+        `RunControlRefused (paused): run "${this.runId}" is already paused${this.pausePending.some((c) => c.kind !== 'answer') ? ' — by a call earlier in this step, taken when it ends' : ''} ` +
           '(RN-R35, P34 (e)). Unpause it first. Nothing was recorded.');
     }
-    if (this.stepping === 0 && this.inFlight().length === 0 && !this.dispatchedIds().some((id) => isSuspended(this.log, id))) {
+    if (this.stepping === 0 && this.inFlight().length === 0 && !this.hasParked()) {
       throw new RunControlRefused('pause', 'ended',
         `RunControlRefused (ended): run "${this.runId}" has nothing in flight and nothing parked on a person — it has finished, ` +
           'and there is nothing left to hold. Nothing was recorded.');
     }
     this.pausePending.push({ kind: 'paused', actor: options.actor });
-    while (this.stepping === 0 && this.pausePending.length > 0) this.takePause(this.pausePending.shift()!);
+    while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
   }
 
   /**
@@ -2543,16 +2628,16 @@ export class Driver {
     this.refuseRunHeld('unpause');
     if (!this.pauseWanted()) {
       throw new RunControlRefused('unpause', 'not-paused',
-        `RunControlRefused (not-paused): run "${this.runId}" is not paused${this.pausePending.length > 0 ? ' — an unpause earlier in this step already lifts it' : ''} ` +
+        `RunControlRefused (not-paused): run "${this.runId}" is not paused${this.pausePending.some((c) => c.kind !== 'answer') ? ' — an unpause earlier in this step already lifts it' : ''} ` +
           '(RN-R35, P34 (e)). Nothing was recorded and nothing was handed on.');
     }
     this.pausePending.push({ kind: 'unpaused', actor: options.actor });
-    while (this.stepping === 0 && this.pausePending.length > 0) this.takePause(this.pausePending.shift()!);
+    while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
   }
 
   /** The pause the owner has ASKED for: the last call still to be taken, else the pause taken (`RN-R35`). */
   private pauseWanted(): boolean {
-    const last = this.pausePending.at(-1);
+    const last = this.pausePending.filter((c) => c.kind !== 'answer').at(-1);
     return last !== undefined ? last.kind === 'paused' : this.paused;
   }
 
@@ -2594,6 +2679,39 @@ export class Driver {
    * and on a SCHEDULER EVENT's step the listener boundary, which reports it and halts the run (`onEvent`, P35 (j)). A dispatch a callback on the element causes joins the end
    * of the held queue (`dispatch`), so the order is the dispatch order still.
    */
+  private takePending(c: PendingCall): void {
+    if (c.kind === 'answer') this.takeAnswer(c);
+    else this.takePause(c);
+  }
+
+  /**
+   * **A resolution given mid-step, TAKEN at rest** — `RN-R37`, W180 (the conformity reader's R4; S-4 for every
+   * resolution): a step of its own, so the resolution lands BETWEEN two steps — where a resume's replay FEEDS it
+   * (`RN-R19`) — after the step that parked its node has completed (an ask's `asked` or a task's `user_action`
+   * settlement, and in a region `branch.suspended`). Answered on its own `asked` element and appended
+   * there instead, it sat between two elements of one step, and the replay — which regenerates a step whole — refused the
+   * run's checkpoint `diverged` at it. **Dropped, recording nothing, when the step it was given on HALTED or CANCELLED the
+   * run** (or the node is no longer parked) — `takePause`'s rule: it would be refused were it given now. It routes as
+   * `resolve()` at rest routes: a throw from routing is reported and then reaches whoever is on the stack — a driver
+   * call's caller, or the listener boundary of a scheduler event's step (`onEvent`, `OR-R10`).
+   */
+  private takeAnswer(c: Extract<PendingCall, { kind: 'answer' }>): void {
+    if (this.failed || this.cancelled || this.cancelRequest !== null || !this.parked(c.record.taskId)) return;
+    this.stepping += 1;
+    try {
+      this.appendResolution(c.record, c.nodeId, c.branchPath);
+      if (this.shut()) return;
+      try {
+        this.advance(c.runId, c.nodeId, c.branchPath);
+      } catch (e) {
+        this.failRun(e);
+        throw e;
+      }
+    } finally {
+      this.leaveStep();
+    }
+  }
+
   private takePause(p: { readonly kind: 'paused' | 'unpaused'; readonly actor: string }): void {
     // **A call accepted mid-step whose step then HALTED or CANCELLED the run is DROPPED, recording nothing** (W175's
     // conformity reader, G1): it would be refused `halted` or `cancelled` were it made now, and a pause recorded after a
@@ -3183,10 +3301,9 @@ export class Driver {
             regionPath: this.rpathOf(region, itemIndices), branchPath: paths[i]! });
         });
         // **The last two arguments here are unobservable and are kept deliberately**
-        // — W21's adequacy reader. `FD-V9` makes every branch entry a `task` (or, since v0.42, an `ask`, which this
-        // driver refuses at `enter` until W180), and
-        // `enter`'s `task` arm discards `fromBranch` and `fromRegion`, so nothing
-        // downstream reads them. They are passed because the branch entry is the
+        // — W21's adequacy reader. `FD-V9` makes every branch entry a `task` or, since v0.42, an `ask`, and
+        // `enter`'s `task` and `ask` arms discard `fromBranch` and `fromRegion` (an ask derives its path from the
+        // graph, as a dispatch does), so nothing downstream reads them. They are passed because the branch entry is the
         // one node whose region and path are known here without a lookup, and the
         // moment `FD-V9` is lifted (or a branch entry may be a `join`) the arm
         // stops discarding them. **Said in place rather than left for the next
@@ -3280,12 +3397,11 @@ export class Driver {
         // `JP-R5`, and it is the clause a map is most likely to lose: the arity is
         // known only once the previous node settles, but it is known ALL AT ONCE at
         // this line, so the two-pass emission is available here exactly as it is for
-        // a fanout. Measured: `FD-V25` makes a map's branch a `task` (or, since v0.42, an `ask` — W179 relaxed
-        // both rules; W180's park must keep this order, see W179's notes), and entering a
-        // task dispatches without emitting — so no event can appear between two
-        // `branch.opened`s, which is `FD-V9`'s role for a fanout played by `FD-V25`
-        // for a map. The clause stays unfalsifiable and its two guarantors are now
-        // two rules rather than one.
+        // a fanout. **Since W180 this two-pass loop is the clause's ONLY guarantor** (`spec/join-policy.md` v0.23):
+        // `FD-V25` makes a map's branch a `task` or, since v0.42, an `ask`, and entering an ask EMITS — its park's
+        // `branch.suspended` — so a loop that interleaved `branch.opened` with entering each instance would put branch
+        // 0's `branch.suspended` before branch 1's `branch.opened`. `test/driver/ask.test.ts` fails on that interleaving,
+        // here and in the `fanout` arm above.
         for (const p of paths) {
           this.emit({ type: 'branch.opened', regionId: region.fanoutId,
             regionPath: this.rpathOf(region, itemIndices), branchPath: p });
@@ -3500,25 +3616,12 @@ export class Driver {
         return;
       }
 
-      // **An ASK is a VALID definition this driver cannot RUN yet, and it is refused HERE, by name** — v0.42,
-      // [ADR 0108](../../doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md) rule 8,
-      // [W179](../../doc/work-items/w179-the-ask-node-in-the-definition.md). Parking, the `asked` element, the kept
-      // input and the answer are W180's, and until then this arm STOPS the run where a branch
-      // ENTERS the ask — P35's W179 row places the refusal at `enter`. It THROWS, as this switch's gate arm does, so
-      // the two boundaries above do the right thing with it: `start()` reports AND rethrows (an entry ask — nothing
-      // was handed to the scheduler), a scheduler event's step reports it and halts the run (`OR-R10`).
-      // *W92 refused its gate at CONSTRUCTION instead, on a measurement: refused at `enter`, a task BEFORE the node
-      // runs first. The same is true here — an ask after a task halts the run when that task settles — and is
-      // W179's reading R6, stated rather than discovered.* `InvalidDefinition` with no rule id, W92's precedent:
-      // no rule is violated, the definition is valid.
-      case 'ask': {
-        throw new InvalidDefinition(
-          [],
-          `definition "${this.def.flowId}" routes into ask "${nodeId}", which this driver cannot run yet. An ask is a ` +
-            'valid definition (spec/flow-definition.md v0.42, ADR 0108) — a node that waits for a person — and asking ' +
-            'and answering in a run are W180\'s, so the run is refused where a branch enters it.',
-        );
-      }
+      // **An ASK PARKS, and nothing is handed to the scheduler** — `RN-R37`, v0.22,
+      // [ADR 0109](../../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md),
+      // [W180](../../doc/work-items/w180-asking-and-answering-in-a-run.md), P35 (b)-(f). It replaces ADR 0108 rule 8's
+      // interim refusal at this arm. See `ask()`.
+      case 'ask':
+        return this.ask(runId, node, received, itemIndices);
 
       // **A node kind this driver cannot execute REFUSES rather than returning.**
       // Added by [W32](../../doc/work-items/w32-what-a-map-fanout-is.md) as a
@@ -4086,6 +4189,72 @@ export class Driver {
       return;
     }
     this.handOn(taskId, config);
+  }
+
+  /**
+   * **A branch reached an ASK: it parks, keeping what reached it, and NOTHING is handed to the scheduler** — `RN-R37`,
+   * v0.22, [ADR 0109](../../doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md),
+   * P35 stop-and-asks (b), (c) and (f), decision 5.
+   *
+   *   1. **The hold** (`RN-R29`), as `dispatch`'s: `enter` checked it at its head and `compose` ran consumer code since.
+   *   2. **Its task id** by `spec/task-id.md`'s scheme, attempt `0` — the address a person's answer names. Minted once
+   *      per path: a second `asked` at one id is `ID-R1`'s defect and refused as one (`DuplicateTaskId`), never a
+   *      second park.
+   *   3. **ONE `asked` element**, carrying `received` — what reached the ask, composed through its `needs` — as the
+   *      driver's OWN deep copy: at the entry `received` is the caller's own `start()` payload, and a kept input must not
+   *      move when the caller's object does (P35 (f)). No `dispatched` element, no `createTask`, no `addTask`: the ask is
+   *      never in flight (`RN-R21`), so a stop cancels nothing for it and a resume re-dispatches nothing (P35 fact 5).
+   *   4. **In a region, `branch.suspended`** — what a parked task emits (`settle`'s `user_action` arm): the branch is
+   *      live and its join waits for the person (Q7), which is how an ask in a fan-out holds its join. AFTER the element,
+   *      as the parked task's follows its settlement, and the hold checked between them (`RN-R29`): a consumer's
+   *      callback on `asked` may halt the run, and a halted run emits nothing further. It may also ANSWER the ask: the
+   *      answer is accepted and PENDING until the step ends (reading R4), so the park completes first.
+   *
+   * **During a replay this is how the park is REGENERATED** (`RN-R19`): the element is compared with the stored one,
+   * input and all (`sameData`, `RN-R20`), so a replay that composes a different input is refused `diverged` here.
+   */
+  private ask(
+    runId: string,
+    node: FlowNode & { kind: 'ask' },
+    received: unknown,
+    itemIndices: ReadonlyMap<string, number>,
+  ): void {
+    if (this.shut()) return;
+    const branchPath = this.pathOf(node.id, itemIndices);
+    const taskId = buildTaskId(runId, node.id, branchIndices(branchPath), 0);
+    if (this.asked.has(taskId) || this.dispatched.has(taskId)) {
+      throw new DuplicateTaskId(`"${taskId}" was already asked in run "${runId}" — an ask's id is minted once per path (ID-R1)`);
+    }
+    this.asked.add(taskId);
+    this.append({ kind: 'asked', taskId, input: cloneValue(received) });
+    // An answer given on this step — even on the `asked` element's own callback — is PENDING until the step ends
+    // (`resolve()`, `takeAnswer`), so the park always completes here and the resolution follows it at rest.
+    if (this.shut()) return;
+    const region = this.regionOf(node.id);
+    if (region) {
+      this.emit({ type: 'branch.suspended', regionId: region.fanoutId,
+        regionPath: this.rpathOf(region, itemIndices), branchPath, at: node.id });
+    }
+  }
+
+  /**
+   * **`RS-R1`'s *suspended*, for one task id** — a dispatched task whose last record is a `user_action` settlement, or,
+   * since v0.18 (`RN-R37`, ADR 0109), an ask this run reached that has no record at all. The FIVE readers of the
+   * predicate read it here: `resolve()`, the replay's fed resolution, and the three `ended` refusals (`hasParked`).
+   */
+  private parked(taskId: string): boolean {
+    return isSuspended(this.log, taskId, this.asked.has(taskId));
+  }
+
+  /**
+   * **Whether anything in the run waits on a person** — a parked task or an unanswered ask. `cancel`, `stop` and `pause`
+   * refuse a run `ended` only when nothing is in flight and THIS is false: a run whose only live node is a parked ask is
+   * waiting on a person, not finished (P35 fact 5 (iv); W181 owns the rest of an ask under run control).
+   */
+  private hasParked(): boolean {
+    for (const id of this.dispatched) if (isSuspended(this.log, id)) return true;
+    for (const id of this.asked) if (this.parked(id)) return true;
+    return false;
   }
 
   /**

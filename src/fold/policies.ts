@@ -101,11 +101,10 @@ export interface ArrivalCountState {
  * That rule's own section says *"`arrival-count` is immune, because its `N` comes
  * from `region.branches.length` at `open`"* — true until this change and false
  * after it. Every `branch.opened` for a region precedes any other event for it, so
- * `need` is final before any arrival can be counted against it. The clause remains
- * unfalsifiable through a conformant driver — `FD-V25` makes a map's branch a
- * `task` and entering a task dispatches without emitting, which is `FD-V9`'s role
- * for a fanout played by a second rule — but what RESTS on it is now both counting
- * policies rather than one.
+ * `need` is final before any arrival can be counted against it. *(This read "the clause remains unfalsifiable through
+ * a conformant driver" until W180: since `spec/flow-definition.md` v0.42 a branch entry or a map's branch may be an
+ * `ask`, which EMITS on entry, so the clause's guarantor is the driver's two-pass emission — `spec/join-policy.md`
+ * v0.23.)* What RESTS on it is now both counting policies rather than one.
  */
 export const arrivalCount: JoinPolicy<ArrivalCountState> = {
   id: 'arrival-count',
