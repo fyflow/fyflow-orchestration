@@ -200,6 +200,18 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     await driver.stop({ actor: 'ops', reason: 'upgrade' });
     return driver;
   },
+  // W175 (`RN-R34`, `RN-R35`): a run its OWNER paused while `ingest` ran, so `publish` is dispatched and HELD; then
+  // unpaused, which hands it on, and the run completes — the one run carries both elements, each with its actor.
+  paused: async () => {
+    const { driver, scheduler } = corpusDriver(await load('valid/linear.flow.json'));
+    driver.start({ seed: 8 });
+    driver.pause({ actor: 'ops' });
+    scheduler.settle('r1:ingest:-:0', 'done', { result: RICH() });
+    driver.unpause({ actor: 'ana' });
+    scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
+    return driver;
+  },
+  unpaused: () => RUN_FOR.paused(),
   // W89 (`RN-R22`): a run RESUMED from its own checkpoint, cut with `ingest` in flight, so the
   // `resumed` element names one task and the run then completes on the resumed driver.
   resumed: async () => {
@@ -355,7 +367,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 12, 'the union has twelve kinds since W174 added `interrupted` (eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 14, 'the union has fourteen kinds since W175 added `paused` and `unpaused` (twelve since W174 added `interrupted`, eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.

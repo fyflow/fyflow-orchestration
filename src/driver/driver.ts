@@ -277,25 +277,28 @@ export class NotStarted extends Error {
  * | `not-started` | before `start()` or `resume()`, or on a driver whose resume was refused before it regenerated a run (`RN-R23`) — one refused for a halt regenerated in its lost tail keeps that run, and is `halted` |
  * | `halted` | the run was halted by a refusal (`OR-R10`) |
  * | `cancelled` | a task of the run settled `cancelled` with no request before it, so `RN-R28` ended it — and, for a STOP, a cancel its owner requested too (P34 (c): *after a cancel, a stop is refused*) |
- * | `interrupted` | a CANCEL of a run its owner has STOPPED (`RN-R33`, P34 (c): *a cancel after a stop is refused by name*) — v0.19 |
- * | `ended` | nothing is in flight and nothing is parked AT REST — the run has finished. Mid-step (a callback on the driver's own step) it is not refused: see `stepping` |
+ * | `interrupted` | a CANCEL of a run its owner has STOPPED (`RN-R33`, P34 (c): *a cancel after a stop is refused by name*) — v0.19; and since v0.20 a PAUSE or an UNPAUSE of one (`RN-R35`) |
+ * | `paused` | a PAUSE of a run already paused — or whose pause, called mid-step, is still to be taken (`RN-R35`, P34 (e): *a second pause is refused by name*) — v0.20 |
+ * | `not-paused` | an UNPAUSE of a run that is not paused (`RN-R35`, P34 (e)) — v0.20 |
+ * | `ended` | nothing is in flight and nothing is parked AT REST — the run has finished. Mid-step (a callback on the driver's own step) it is not refused: see `stepping`. A cancel, a stop and a pause — never an unpause, which rewrites no outcome |
  *
  * **A SECOND cancel, and a SECOND stop, is not refused**: each forwards its `graceMs` (`RN-R31`, `RN-R33`). **Widened
- * by W174 with `interrupted`**, and W175's pause is to widen `control` and `reason` again; a consumer branching on either
- * should not switch on it exhaustively.
+ * by W174 with `interrupted`, and by W175 with `paused` and `not-paused`** (`control` `'pause'` and `'unpause'`); a
+ * consumer branching on either should not switch on it exhaustively.
  */
-export type RunControlRefusalReason = 'unsupported' | 'not-started' | 'halted' | 'cancelled' | 'interrupted' | 'ended';
+export type RunControlRefusalReason = 'unsupported' | 'not-started' | 'halted' | 'cancelled' | 'interrupted' | 'paused' | 'not-paused' | 'ended';
 
 /**
  * **A run-control call the driver will not make, thrown at the caller BEFORE anything is recorded or sent** —
  * `RN-R31`, ADR 0104. Thrown, as `MultipleRuns` and `ResumeRefused` are, because the caller is on the stack and nothing
  * has been appended; **one class with a `reason`**, on `ResumeRefused`'s precedent, so a consumer catches one class and
- * branches on `reason`. `control` names the call — `'cancel'`, or since v0.19 `'stop'` (`RN-R33`, ADR 0105).
+ * branches on `reason`. `control` names the call — `'cancel'`, since v0.19 `'stop'` (`RN-R33`, ADR 0105), and since
+ * v0.20 `'pause'` and `'unpause'` (`RN-R35`, ADR 0106).
  */
 export class RunControlRefused extends Error {
-  readonly control: 'cancel' | 'stop';
+  readonly control: 'cancel' | 'stop' | 'pause' | 'unpause';
   readonly reason: RunControlRefusalReason;
-  constructor(control: 'cancel' | 'stop', reason: RunControlRefusalReason, message: string) {
+  constructor(control: 'cancel' | 'stop' | 'pause' | 'unpause', reason: RunControlRefusalReason, message: string) {
     super(message);
     this.name = 'RunControlRefused';
     this.control = control;
@@ -331,6 +334,16 @@ export interface RunStopOptions {
    * escalates the tasks still stopping.
    */
   graceMs?: number;
+}
+
+/**
+ * **What `Driver.pause` and `Driver.unpause` take** — `RN-R35`, P34 stop-and-ask (e): who paused or unpaused the run,
+ * recorded on the `paused` or `unpaused` element. Nothing else: a pause cancels nothing, so it has no `reason` to hand
+ * the scheduler and no `graceMs`.
+ */
+export interface RunPauseOptions {
+  /** Who paused (or unpaused) the run — recorded on the element. */
+  actor: string;
 }
 
 /**
@@ -540,10 +553,12 @@ function sameData(a: unknown, b: unknown): boolean {
 
 /**
  * The kinds a replay is FED rather than regenerates — `RN-R19`: three, and since v0.19 a fourth, `interrupted` (`RN-R32`,
- * ADR 0105), which only its owner's call can produce and which the replay therefore cannot regenerate.
+ * ADR 0105), which only its owner's call can produce and which the replay therefore cannot regenerate — and since v0.20
+ * a fifth and a sixth, `paused` and `unpaused` (`RN-R34`, ADR 0106), for the same reason.
  */
 function isFed(e: FoldInput): boolean {
-  return e.kind === 'outcome' || e.kind === 'resolution' || e.kind === 'resumed' || e.kind === 'interrupted';
+  return e.kind === 'outcome' || e.kind === 'resolution' || e.kind === 'resumed' || e.kind === 'interrupted' ||
+    e.kind === 'paused' || e.kind === 'unpaused';
 }
 
 /** One stored element, in a sentence a refusal can carry. */
@@ -1439,6 +1454,30 @@ export class Driver {
    * `cancel()` refuses `ended` only at rest: mid-step, *nothing in flight and nothing parked* is not *finished*.
    */
   private stepping = 0;
+  /**
+   * **The run's OWNER has paused it, and the pause is TAKEN** — `RN-R35`, v0.20, W175,
+   * [ADR 0106](../../doc/decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md):
+   * set when a `paused` element is appended (by `pause()`, or fed to a replay) and cleared when an `unpaused` one is —
+   * so it is always what `RunState.paused` folds to on the driver's own sequence. **Not a halt**: it does not join
+   * `shut()`, because a paused run still routes and still accepts a resolution (ADR 0103's consequence). It is the
+   * dispatch hold's DEFERRED form, at the dispatch door (ADR 0103 rule 6): each dispatch is appended, and held.
+   */
+  private paused = false;
+  /**
+   * **Every dispatch the pause HELD, in dispatch order** (`RN-R35`): appended — so the fold reads each `running`, in flight
+   * under `RN-R21` (P34 fact 3) — and NOT handed to the scheduler. An `unpause` hands each on, first held first; a
+   * `cancel` hands each on and cancels it (ADR 0104 rule 7); a `stop` sends nothing for them, so they stay in flight in
+   * the log for a resume to hold again. Empty unless the run is paused — or an unpause's hand-off is under way, while
+   * which a dispatch joins the END of it, so the order holds; or a halt broke that hand-off off, after which nothing is
+   * handed on for the run and what is left here never is. One `createTask` configuration per held task, no result.
+   */
+  private readonly pauseHeld = new Map<string, TaskConfig>();
+  /**
+   * **Pause and unpause calls ACCEPTED mid-step and not yet TAKEN**, in call order (`RN-R35`): a call from a callback on
+   * the driver's own step is taken when that step ends (`stepping` back to `0`, `leaveStep()`), as a stop is (`RN-R33`) —
+   * so its element lands BETWEEN two steps, where a replay can feed it (`RN-R19`). Empty at rest.
+   */
+  private readonly pausePending: { readonly kind: 'paused' | 'unpaused'; readonly actor: string }[] = [];
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -1481,10 +1520,13 @@ export class Driver {
   /**
    * **The driver's own step ends** — each of `start`, `resume`, `resolve` and a scheduler event counts itself out here.
    * At rest again, a stop called on that step is TAKEN (`RN-R33`, W174): the step's routing is whole in the log, and
-   * every task it handed on is in flight for the stop to cancel.
+   * every task it handed on is in flight for the stop to cancel. **And a pause or an unpause called on it** (`RN-R35`,
+   * W175), each in call order and BEFORE the stop — a pause or an unpause after a stop is refused, so any pending one was
+   * called first. Each take is a step of its own and ends here too, so the next pending call is taken after it.
    */
   private leaveStep(): void {
     this.stepping -= 1;
+    while (this.stepping === 0 && this.pausePending.length > 0) this.takePause(this.pausePending.shift()!);
     if (this.stepping === 0 && this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
   }
 
@@ -1821,8 +1863,8 @@ export class Driver {
    * **In order, and each step is a rule:**
    *   1. **Refuse what the header says** (`RN-R23`) — {@link resumeRefusal}.
    *   2. **REPLAY** (`RN-R19`): enter the entry node with a copy of `header.entryPayload` exactly as
-   *      `start()` enters it, then FEED every stored settlement, resolution and `resumed` element at its
-   *      own position through the routing the listener and `resolve()` use — every dispatch HELD. Every
+   *      `start()` enters it, then FEED every stored settlement, resolution and `resumed` element — and, since
+   *      v0.19 and v0.20, every `interrupted`, `paused` and `unpaused` one — at its own position through the routing the listener and `resolve()` use — every dispatch HELD. Every
    *      other element the replay REGENERATES.
    *   3. **The PREFIX check** (`RN-R20`): each regenerated element at a position the stored events cover
    *      must be the stored one; the first that is not is refused as `diverged`, naming its position, and
@@ -1831,7 +1873,8 @@ export class Driver {
    *      DELIVERED, because the consumer does not hold it (`RN-R24`).
    *   4. **A run the replay HALTS is refused** as `halted` (P23 decision 10), its tail delivered first.
    *   5. **Append `resumed`** naming the IN-FLIGHT set — dispatched and never settled, in dispatch order
-   *      (`RN-R21`, `RN-R22`) — and then hand each to the scheduler at the SAME task id.
+   *      (`RN-R21`, `RN-R22`) — and then hand each to the scheduler at the SAME task id; or, where the replay
+   *      ends PAUSED (a fed `paused`, no `unpaused` after it), HOLD each again for an unpause (`RN-R35`).
    *
    * **At-least-once, and that is the contract rather than a defect** (P23 decision 6): a task named in
    * `resumed` may have finished in the process that is gone, and runs again here with a FRESH retry
@@ -1902,14 +1945,29 @@ export class Driver {
     // taken when `resume()` returns — after `resumed` and every hand-off below, which it then cancels.
     if (this.stopRequest !== null && this.stopRequest.pending === null) this.stopRequest = null;
     const inFlight = this.inFlight();
-    // **Not yet handed back, until each is** (`RN-R31`, W173): a cancel raised on the `resumed` element below sends the
-    // scheduler nothing for these, and each is cancelled as it is handed on.
-    for (const id of inFlight) this.unhanded.add(id);
+    // **A run whose replay ends PAUSED resumes PAUSED** (`RN-R35`, `RN-R21` v0.20, P34 (e), W175): the replay fed its
+    // `paused` element and no `unpaused` after it, so the WHOLE in-flight set is HELD again — a task the stored run had
+    // handed on as much as one it held, since the log cannot tell them apart and this driver has handed on neither — for an
+    // unpause here to hand on. **Held BEFORE `resumed` is appended**, in dispatch order (W175's conformity reader, D2): a
+    // dispatch a consumer's callback on that element causes joins the END of the queue, as on any paused run; and a cancel
+    // raised there releases them, handing each on and cancelling it (`cancel()`, ADR 0104 rule 7).
+    const holding = this.paused;
+    if (holding) {
+      for (const id of inFlight) {
+        const config = replay.held.get(id);
+        if (config === undefined) throw new Error(`resume: in-flight task "${id}" has no held dispatch — this is a defect in the driver`);
+        this.pauseHeld.set(id, config);
+      }
+    } else {
+      // **Not yet handed back, until each is** (`RN-R31`, W173): a cancel raised on the `resumed` element below sends the
+      // scheduler nothing for these, and each is cancelled as it is handed on.
+      for (const id of inFlight) this.unhanded.add(id);
+    }
     // **`resumed` BEFORE the first re-dispatch** (P23 stop-and-ask (a)): a consumer and the fold learn
     // what is being run again before any of it can settle.
     this.append({ kind: 'resumed', taskIds: inFlight });
     try {
-      for (const id of inFlight) {
+      for (const id of holding ? [] : inFlight) {
         // **`RN-R29` — the hold, before EACH re-dispatch** (ADR 0103 rule 5, the maintainer's answer to W172's S-1,
         // 2026-10-16): a consumer's callback on the `resumed` element above — or one a hand-off below reaches — can
         // halt the run on this stack, and a halted run hands nothing further to the scheduler.
@@ -1955,7 +2013,7 @@ export class Driver {
     if (this.inputs.length < stored.length) throw this.diverged(this.inputs.length, 'the replay ended before it');
   }
 
-  /** One fed element — a settlement, a resolution, or an earlier resume — at stored position `i`. */
+  /** One fed element — a settlement, a resolution, an earlier resume, a stop, a pause or an unpause — at stored position `i`. */
   private feedOne(e: FoldInput, i: number): void {
     if (e.kind === 'resumed') {
       // **An earlier resume, fed and CHECKED** (`RN-R22`): the ids it names must be exactly what is in
@@ -1974,6 +2032,14 @@ export class Driver {
       // **A stored STOP, fed** (`RN-R19` v0.19, W174): a stop is taken at rest — between the driver's steps — so the
       // replay reaches its position between the steps it regenerates, and holds from here as the stored run was held.
       this.feedInterrupted(e);
+      return;
+    }
+    if (e.kind === 'paused' || e.kind === 'unpaused') {
+      // **A stored PAUSE or UNPAUSE, fed** (`RN-R19` v0.20, `RN-R35`, W175): taken at rest, so the replay reaches it between
+      // the steps it regenerates. The flag is set as the stored run's was; the replay holds every dispatch anyway, and
+      // what the stored unpause handed on is the resume's to decide (`RN-R21`). Appended as stored, its actor its own.
+      this.paused = e.kind === 'paused';
+      this.append({ kind: e.kind, actor: e.actor });
       return;
     }
     if (e.kind !== 'outcome' && e.kind !== 'resolution') return;
@@ -2185,7 +2251,8 @@ export class Driver {
    *   3. **Record** ONE `cancelRequested` element, BEFORE the scheduler is asked for anything.
    *   4. **Cancel** each task in flight the scheduler holds — `RN-R21`'s set, so a PARKED task, settled already, is sent
    *      nothing (P34 (i); the scheduler cannot end it, fact 8). A task not yet handed on is cancelled by `handOn` after
-   *      its hand-off (`RN-R29` (i)). Tasks a worker SPAWNED are not this run's (P34 (j)).
+   *      its hand-off (`RN-R29` (i)), and so is each task a PAUSE held (`RN-R35`, P34 (c)). Tasks a worker SPAWNED are
+   *      not this run's (P34 (j)).
    *
    * **A SECOND call** appends nothing and forwards its `graceMs` to each task still stopping — the scheduler's own
    * escalation — and resolves once those have stopped. It is never refused for the halt its own first call made.
@@ -2262,8 +2329,21 @@ export class Driver {
     // 3. RECORD.
     this.append({ kind: 'cancelRequested', actor: options.actor, reason: reason ?? null });
     // 4. CANCEL — read AFTER the append: a callback on the element may have settled a task.
-    for (const id of this.inFlight()) {
-      if (this.handedOn(id)) this.cancelTask(id);
+    // **A PAUSED run's held tasks are handed on and THEN cancelled** (P34 (c), `RN-R35`, W175): each is `dispatched`
+    // and unsettled, so the run reads `cancelling` until the scheduler settles it — and only the scheduler writes a
+    // settlement (ADR 0007). Taken out of the hold and marked `unhanded` first, so a second cancel raised inside one
+    // hand-off sends nothing for those not yet handed; `handOn` cancels each after its `addTask` (the request is set).
+    const released = new Map(this.pauseHeld);
+    this.pauseHeld.clear();
+    for (const id of released.keys()) this.unhanded.add(id);
+    try {
+      for (const id of this.inFlight()) {
+        const config = released.get(id);
+        if (config !== undefined) this.handOn(id, config);
+        else if (this.handedOn(id)) this.cancelTask(id);
+      }
+    } finally {
+      for (const id of released.keys()) this.unhanded.delete(id);
     }
     // A microtask on, the synchronous stack this call was made from has finished — a `dispatch` or a `resume()` that
     // was handing a task on when the call arrived has handed it and cancelled it (`handOn`) — so every promise is in.
@@ -2288,7 +2368,8 @@ export class Driver {
    *   3. **Go DEAF**: nothing the scheduler fires for this run is heard again — from BEFORE the element, so not even a
    *      settlement a callback on it provokes — and no `task.cancelled` of the stop is appended.
    *   4. **Record** ONE `interrupted` element.
-   *   5. **Cancel** each task in flight the scheduler holds — none for a parked task (P34 fact 4).
+   *   5. **Cancel** each task in flight the scheduler holds — none for a parked task (P34 fact 4), and none for a task a
+   *      PAUSE held, which the scheduler was never handed and which stays in flight for the resume (`RN-R35`).
    *
    * **Steps 2-5 are taken at REST** — at once when the call is made at rest, and when the driver's own step ends when it
    * is made from a callback on that step (`stepping`). A hold taken mid-step would drop the rest of the step's routing
@@ -2400,9 +2481,154 @@ export class Driver {
     return Promise.resolve().then(() => Promise.all([...req.stopping.values()])).then(() => undefined);
   }
 
-  /** Whether the scheduler holds this task — dispatched, not held by a replay, and past its `addTask` (`RN-R31`). */
+  /**
+   * **Pause the run: it routes on, and every dispatch it makes from here is appended and HELD until `unpause()`** —
+   * `RN-R35`, `spec/run-state.md` section 15,
+   * [ADR 0106](../../doc/decisions/0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md),
+   * P34 stop-and-ask (e). Tasks already handed to the scheduler run on and settle, and their settlements route as ever; a
+   * person's `resolve()` is accepted. **Not a halt** (`shut()` is untouched): only the scheduler's `addTask` waits. The
+   * fold reads `RunState.paused` and no new outcome — a held task is `dispatched`, so it reads `running` (P34 fact 3).
+   *
+   * **In order**: (1) **refused by name** before anything is recorded — {@link RunControlRefused} with `control: 'pause'`:
+   * `not-started`, `halted`, `cancelled` (`RN-R28`'s or a requested cancel), `interrupted` (a stop, taken or pending),
+   * `paused` (already paused, or a pause called earlier in this step still to be taken — P34 (e): *a second pause is
+   * refused by name*) and `ended` (nothing in flight and nothing parked, at rest only); (2) **TAKEN AT REST** — at once
+   * when called at rest, and when the driver's own step ends when called from a callback on it: the run is paused and ONE
+   * `paused` element is appended, BETWEEN two steps, where a resume's replay can feed it (`RN-R19`). A pause taken
+   * mid-step would land between two elements of one step, and the replay — which regenerates a step whole — would refuse
+   * its checkpoint `diverged` there; so the step a pause is called on finishes unpaused, its dispatches handed on.
+   */
+  pause(options: RunPauseOptions): void {
+    this.refuseRunHeld('pause');
+    if (this.pauseWanted()) {
+      throw new RunControlRefused('pause', 'paused',
+        `RunControlRefused (paused): run "${this.runId}" is already paused${this.pausePending.length > 0 ? ' — by a call earlier in this step, taken when it ends' : ''} ` +
+          '(RN-R35, P34 (e)). Unpause it first. Nothing was recorded.');
+    }
+    if (this.stepping === 0 && this.inFlight().length === 0 && !this.dispatchedIds().some((id) => isSuspended(this.log, id))) {
+      throw new RunControlRefused('pause', 'ended',
+        `RunControlRefused (ended): run "${this.runId}" has nothing in flight and nothing parked on a person — it has finished, ` +
+          'and there is nothing left to hold. Nothing was recorded.');
+    }
+    this.pausePending.push({ kind: 'paused', actor: options.actor });
+    while (this.stepping === 0 && this.pausePending.length > 0) this.takePause(this.pausePending.shift()!);
+  }
+
+  /**
+   * **Unpause the run: record it, then hand every held task to the scheduler in DISPATCH ORDER** — `RN-R35`, ADR 0106,
+   * P34 (e). Refused by name — `control: 'unpause'`: `not-started`, `halted`, `cancelled`, `interrupted` (a stopped
+   * run's held tasks are a resume's: unpause it where it resumes) and `not-paused`. **Never `ended`**: an unpause rewrites
+   * no outcome, so a paused run that finished may still be unpaused. Taken at rest, as a pause is: ONE `unpaused` element,
+   * then the hand-off — each held task's `createTask` and `addTask`, first held first.
+   */
+  unpause(options: RunPauseOptions): void {
+    this.refuseRunHeld('unpause');
+    if (!this.pauseWanted()) {
+      throw new RunControlRefused('unpause', 'not-paused',
+        `RunControlRefused (not-paused): run "${this.runId}" is not paused${this.pausePending.length > 0 ? ' — an unpause earlier in this step already lifts it' : ''} ` +
+          '(RN-R35, P34 (e)). Nothing was recorded and nothing was handed on.');
+    }
+    this.pausePending.push({ kind: 'unpaused', actor: options.actor });
+    while (this.stepping === 0 && this.pausePending.length > 0) this.takePause(this.pausePending.shift()!);
+  }
+
+  /** The pause the owner has ASKED for: the last call still to be taken, else the pause taken (`RN-R35`). */
+  private pauseWanted(): boolean {
+    const last = this.pausePending.at(-1);
+    return last !== undefined ? last.kind === 'paused' : this.paused;
+  }
+
+  /**
+   * The refusals a pause and an unpause share, in `RN-R35`'s order — each a run that is not this driver's to hold or
+   * release: none started, or the run halted, cancelled or stopped. Thrown before anything is recorded.
+   */
+  private refuseRunHeld(control: 'pause' | 'unpause'): void {
+    if (this.header === null) {
+      throw new RunControlRefused(control, 'not-started',
+        `RunControlRefused (not-started): driver for run "${this.runId}" holds no run to ${control} — it has not started, or its ` +
+          'resume was refused and it is spent (RN-R23). Nothing was recorded.');
+    }
+    if (this.failed) {
+      throw new RunControlRefused(control, 'halted',
+        `RunControlRefused (halted): run "${this.runId}" was HALTED by a refusal (OR-R10) — it dispatches nothing again, so there ` +
+          `is nothing to ${control === 'pause' ? 'hold' : 'hand on'}. Nothing was recorded.`);
+    }
+    if (this.cancelled || this.cancelRequest !== null) {
+      throw new RunControlRefused(control, 'cancelled',
+        `RunControlRefused (cancelled): run "${this.runId}" was CANCELLED${this.cancelRequest !== null ? ' by its owner (RN-R31)' : ' by a task the scheduler cancelled on its own (RN-R28)'} ` +
+          `— it dispatches nothing again, so there is nothing to ${control === 'pause' ? 'hold' : 'hand on'}. Nothing was recorded.`);
+    }
+    if (this.stopRequest !== null) {
+      throw new RunControlRefused(control, 'interrupted',
+        `RunControlRefused (interrupted): run "${this.runId}" was STOPPED by its owner (RN-R33) — its in-flight tasks, held ` +
+          `ones included, are a resume\`s to run. Resume its checkpoint on another runtime and ${control} it there. Nothing was recorded.`);
+    }
+  }
+
+  /**
+   * **A pause or an unpause, TAKEN** — `RN-R35`, at rest: from the call itself, or from the end of the driver's own step
+   * (`leaveStep()`). **A step of its own** (`stepping`), so a call a consumer makes from a callback on the element — a
+   * second pause, a stop, a `resolve()` that dispatches — is taken, or routes, as on any step. **A pause** sets the flag
+   * BEFORE its element, so a dispatch a callback on the element causes is held. **An unpause** clears it before its
+   * element and hands the held tasks on AFTER it, in a `finally`: a consumer's `onFoldInput` that throws on the element
+   * still has the element in the log, and the run it says is unpaused is — the throw then reaches whoever is on the stack
+   * (W174's conformity reader's finding 5, the stop's lesson). A dispatch a callback on the element causes joins the end
+   * of the held queue (`dispatch`), so the order is the dispatch order still.
+   */
+  private takePause(p: { readonly kind: 'paused' | 'unpaused'; readonly actor: string }): void {
+    // **A call accepted mid-step whose step then HALTED or CANCELLED the run is DROPPED, recording nothing** (W175's
+    // conformity reader, G1): it would be refused `halted` or `cancelled` were it made now, and a pause recorded after a
+    // cancel would read `paused` on a run that can never be unpaused. Not a stop: a pause or an unpause pending beside a
+    // stop was called before it (`refuseRunHeld`), and is taken before it (`leaveStep()`).
+    if (this.failed || this.cancelled || this.cancelRequest !== null) return;
+    this.stepping += 1;
+    try {
+      if (p.kind === 'paused') {
+        this.paused = true;
+        this.append({ kind: 'paused', actor: p.actor });
+      } else {
+        this.paused = false;
+        try {
+          this.append({ kind: 'unpaused', actor: p.actor });
+        } finally {
+          this.drainHeld();
+        }
+      }
+    } finally {
+      this.leaveStep();
+    }
+  }
+
+  /**
+   * **The unpause's hand-off**: each held task to the scheduler, first held first (`RN-R35`). Taken out of the hold and
+   * marked `unhanded` before its `addTask`, as a resume's re-dispatch is (`RN-R31`), so a cancel raised inside one
+   * hand-off sends nothing for a task not yet handed — and `handOn` then cancels it. **Held for a HALT** — checked before
+   * each, as a resume's re-dispatch is (`RN-R29` (4), `holdsResume()`): a halt raised inside one hand-off hands nothing
+   * further on, and what is left is never handed. A dispatch made on this stack joins the end of the queue and is handed
+   * on in its turn (the `Map` visits what is added while it is walked). Caller-initiated, so a throw from the scheduler
+   * is reported AND rethrown, `start()`'s and `resume()`'s treatment.
+   */
+  private drainHeld(): void {
+    try {
+      for (const [id, config] of this.pauseHeld) {
+        if (this.holdsResume()) break;
+        this.pauseHeld.delete(id);
+        this.unhanded.add(id);
+        this.handOn(id, config);
+      }
+    } catch (e) {
+      this.failRun(e);
+      throw e;
+    }
+  }
+
+  /**
+   * Whether the scheduler holds this task — dispatched, not held by a replay, past its `addTask` (`RN-R31`), and not held
+   * by a pause (`RN-R35`, W175): a stop of a paused run cancels only what this says the scheduler holds (ADR 0105's last
+   * consequence), and a cancel hands each held task on before it cancels it.
+   */
   private handedOn(taskId: string): boolean {
-    return this.replay === null && !this.unhanded.has(taskId);
+    return this.replay === null && !this.unhanded.has(taskId) && !this.pauseHeld.has(taskId);
   }
 
   // --- the scheduler's side ----------------------------------------------------
@@ -3680,7 +3906,7 @@ export class Driver {
     // its head and then calls `compose`, which for an entry declaring `needs: { v: "." }` clones the CALLER's payload
     // (`start()` hands `enter` the value it was called with), and a clone runs that payload's getters — consumer code
     // between the two checks, which can halt the run (`test/driver/hold.test.ts`). It is also the dispatch's own
-    // door, which P34's pause (W175) widens with the replay's DEFER form below.
+    // door, which P34's pause (W175) widens with the replay's DEFER form below: a paused run's dispatch passes this check.
     //
     // **What it does NOT hold** (`RN-R29` (i)): a halt raised on THIS dispatch's own `dispatched` element, below — the
     // task is still handed on. P34's cancel and stop (W173, W174) must cancel such a task AFTER its hand-off, since a
@@ -3762,6 +3988,20 @@ export class Driver {
     // release, so a factory sees exactly the tasks handed to a scheduler.
     if (this.replay !== null) {
       this.replay.held.set(taskId, config);
+      return;
+    }
+    // **HELD by a PAUSE** (`RN-R35`, ADR 0106, W175) — the hold's DEFERRED form at this door (ADR 0103 rules 2 and 6):
+    // the element is appended ABOVE, so the fold reads the task `running` and a stop leaves it in flight for a resume
+    // (P34 fact 3), and `addTask` waits for the unpause. **And while an unpause is still handing the held tasks on**
+    // (`pauseHeld` not empty, the run no longer paused): a dispatch made on that stack joins the END of the queue, so the
+    // tasks reach the scheduler in dispatch order. A halt that broke that hand-off off is `shut()`, checked at the head.
+    // **Not once a HALT or a CANCEL is on the run** (W175's conformity reader, D1): one raised on THIS task's own
+    // `dispatched` element, above, came after `shut()` was read at the head — so the task is handed on, as `RN-R29` (i)
+    // hands on the dispatch in progress, and a requested cancel then cancels it (`handOn`). Held here, after the cancel
+    // had already released the hold, it would never be handed on, never settle, and the run would read `cancelling` for ever.
+    if ((this.paused || this.pauseHeld.size > 0) && !this.shut()) {
+      this.pauseHeld.set(taskId, config);
+      this.unhanded.delete(taskId);
       return;
     }
     this.handOn(taskId, config);

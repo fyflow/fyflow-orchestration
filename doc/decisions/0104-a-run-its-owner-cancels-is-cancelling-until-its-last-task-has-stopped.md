@@ -64,7 +64,8 @@ element runs BEFORE that task is handed to the scheduler (ADR 0103's inherited h
 7. **Every task's end is the scheduler's own settlement** (ADR 0007). So a task not yet handed on when the cancel
    arrives is handed on and THEN cancelled: the one whose `dispatched` element carried the call (`RN-R29` (i) — ADR 0103's
    hazard, closed) and a resumed run's in-flight set not yet handed back (`RN-R29` (4) does not hold those under a
-   request: held, they would never settle and the run would read `cancelling` for ever).
+   request: held, they would never settle and the run would read `cancelling` for ever). *(Since [ADR 0106](0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md) (W175)
+   a third: each task a PAUSE held is handed on and then cancelled, in dispatch order — P34 (c).)*
 8. **A second call appends nothing** and forwards its `graceMs` to each task still stopping — the scheduler's escalation.
    It is never refused for the halt its own first call made, nor for a refusal after it. **It resolves as the first does**
    — a microtask on, on every task still stopping — so a task not yet handed on when it was made is waited on too

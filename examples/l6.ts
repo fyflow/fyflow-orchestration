@@ -11834,6 +11834,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // `stopRequest` since W174 (`RN-R33`, ADR 0105): the owner's stop — `null` on every run here — WALKED;
     // examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W174's row.
     'stopRequest',
+    // `paused`, `pauseHeld` and `pausePending` since W175 (`RN-R35`, ADR 0106): the owner's pause, the dispatches it held
+    // and the calls still to be taken — `false` and empty on every run here — WALKED; examples/run-flow.ts' NOT_RUN_STATE is
+    // unchanged. In W175's row.
+    'paused', 'pauseHeld', 'pausePending',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

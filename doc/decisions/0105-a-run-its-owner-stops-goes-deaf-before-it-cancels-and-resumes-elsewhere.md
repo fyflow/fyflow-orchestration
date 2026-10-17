@@ -110,6 +110,8 @@ cannot say when the tasks have stopped. And a run id stays in use on the runtime
 - **For W175's pause** (P34 (e)): a paused run's held tasks are appended and never handed; a stop of a paused run
   cancels only what `handedOn` says the scheduler holds, so the held tasks stay in flight in the log and the resume
   re-dispatches them — and a resume FEEDS `paused`, which W175 adds to the fed kinds as this ADR adds `interrupted`.
+  **W175 did** ([ADR 0106](0106-a-run-its-owner-pauses-routes-on-and-holds-every-dispatch-until-unpaused.md) decisions 7 and 8): the held tasks are sent nothing, and a resume HOLDS them again —
+  a run stopped while paused resumes paused.
 
 ## Alternatives rejected
 
