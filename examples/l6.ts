@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's** and **P37's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's** and **P34's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -85,6 +85,7 @@
  * | **W155 — `if-then-switch` at 1, 0.9, 0.5 and 0.2** | **P32's EXIT ARTIFACT: a flow whose ENTRY is the built-in `if` over the PAYLOAD and which routes a TASK's result through the built-in `switch`, with no predicate and no gate type registered.** `triage` (`input.confidence gte 0.5`) sends three payloads to `score` and one, by the edge with no `route`, to `shelve`; `grade` routes `score`'s result by its `score` key — `certain` (a scalar case) to `publish`, `likely` (an array case) and `default` each to their own `end`. One payload per route the `switch` can take plus the `if`'s `else`, the 0.5 row being the `if`'s BOUNDARY and the `switch`'s no-case row at once. Each row asserts its decisions IN PLACE among its dispatches, settlements and path end; the cross-row block asserts every route of both taken by exactly those payloads, against the routes each gate declares, and the same document with one `switch` case left unwired refused at LOAD by `FD-V41` naming the case |
  * | **W160 — `cancel` while RUNNING, inline and threaded, and while QUEUED** | **P33's EXIT ARTIFACT: a run's task cancelled by its id through `runtime.scheduler.cancel(id)`, and the run ENDS.** The scheduler's two cancel roads on one linear flow (`work` then `after`): a task RUNNING — the worker emits `started` through `context.emit`, the harness cancels, the worker's `context.signal` aborts with the reason given and it returns, `task.cancelling` then `task.cancelled` — on an inline pool and a threaded one; and a task QUEUED behind a `ConcurrentLimitGroup(1)` the harness holds, removed at once with `task.cancelled` alone and `resource.unblocked` reason `cancelled`, never having run. Each run's fold sequence ends at the cancelled settlement with `after` never dispatched (`RN-R28`), the runtime's `done` SETTLES with `cancelled` — after `task.cancelled`, not at the request — and equals the caller's fold (Q606's L6 clause, *`done` settles `cancelled`*; the release half is P34's `test/scheduler/runtime.test.ts` case, and with one run per runtime routing to a sibling is not exercised), nothing is dispatched further and nothing reported, and a resume of its checkpoint on a fresh runtime is refused `cancelled` at the first stored cancel (`RN-R23`) — beside the CONTROL, a fourth run parked `user_action` whose checkpoint the same instrument resumes. Its registry is written in the block, not `registry.json` |
  * | **W167 — ONE runtime that is its registry, given no flow** | **P37's EXIT ARTIFACT: a running runtime takes a flow it was never shown.** ONE runtime from `createRuntime` with the registry's `languages` and NO flow — every pool it built, the built-in `Transform`'s and a NAMED instance's included, carrying the one language. On it, in order: a flow that transforms nothing runs to `done`; a flow with two definition defects is checked and refused, `check`'s rule ids equal to the `InvalidDefinition` `start` throws; a flow reaching the document's `KeyedRateLimitGroup` is `FD-R6` by `check` and `LimitKeyMissing` by `start`, nothing reaching the scheduler; and a flow never shown before — a JSONata `transform` on a node of a DOCUMENT type and on a second one running on a named pool instance that declares its own pool options — is checked `[]` and completes, each transformed node's WORKER reporting the transformed value it received, the instance's own `maxThreads` and its type's merged `idleTimeout` read off the scheduler's pool. `tryTransform` given an input on that flow's ENTRY returns one `'given'` verdict; the worker schemas carry `title`, `description`, `readOnly` and `writeOnly` and are kept as declared, and the same document with `format` is refused by name. Its registry is written in the block, not `registry.json` |
+ * | **W176 — a run its owner CANCELS, STOPS and PAUSES** | **P34's EXIT ARTIFACT: run control, every call the owner's, on real workers in both runtimes.** (1) A fan-out cancelled through `driver.cancel` while two tasks RUN on one threaded pool — one honouring its signal, one not — and a third waits behind a held group: the fold reads `cancelling` from the request on, nothing is dispatched or routed after it, a second cancel at `graceMs: 0` appends nothing and stops the ignoring task before its own end (never asserting `forced` — S12), `done` settles `cancelled` after the LAST `task.cancelled`, equal to the caller's fold, and a resume of the checkpoint is refused `cancelled` at the request. (2) A run STOPPED through `RunHandle.stop` while two tasks run and a third waits behind a held group, a sibling on the same runtime running on to `completed`: the log ends at `interrupted` with nothing settled, `done` settles after the stop's cancels, the old runtime refuses the resume, and a FRESH one re-dispatches exactly the in-flight ids to `completed`. (3) A PARKED run stopped — `resolve()` refused there, accepted on the runtime that resumes it. (4) A fan-out PAUSED at once — its running tasks finish, their successors are dispatched and held, nothing reaches the scheduler — and UNPAUSED, the held tasks handed on in dispatch order, to `completed`. (5) A cancel PRE-PICKUP on a cold thread and one in a retry BACKOFF, each folding as P34 fact 8 says — through the scheduler's own `cancel(id)` and through `driver.cancel`. (6) Q633's transforming ENTRY: `tryTransform` first gives each payload its verdict, and `start` holds neither (ADR 0101) — the untransformed entry is still held, the control. (7) A built-in `KeyedRateLimitGroup` held resident refused by `createRuntime` naming the pool and the group. Its registries are written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -141,6 +142,11 @@ import {
   // **W90, P23's EXIT ARTIFACT**: block (2g) resumes runs through `runtime.resume` and names the refusal a
   // wrongly-keyed store gets, the header it stores and the driver it reads back — through the package ROOT.
   ResumeRefused,
+  // **W176, P34's EXIT ARTIFACT**: the refusal its Q633 control gets at `start` (`FD-R4`), and the one `createRuntime` refuses
+  // a built-in keyed group held resident with (Q619 option B) — through the package ROOT, as a consumer would.
+  BoundaryRefused,
+  DerivationRefused,
+  type Checkpoint,
   type CheckpointHeader,
   type Driver,
   type FlowDefinition,
@@ -195,6 +201,9 @@ import { type RunHandle } from '../src/scheduler/index.ts';
 import { createRuntime } from '../src/scheduler/index.ts';
 // **W167**: the class `start` refuses a node reaching a built-in keyed group with (ADR 0097), through the same sub-path entry.
 import { LimitKeyMissing } from '../src/scheduler/index.ts';
+// **W176**: the class a runtime refuses a resume of a run it still holds with (`RN-R25`) — clause (2)'s control, through the
+// same sub-path entry.
+import { RunIdInUse } from '../src/scheduler/index.ts';
 // **W163**: its keyed block's `createTask` builds the scheduler's own task with a `limitKey` — P37 fact 1's working road,
 // written as a consumer writes it (`run-flow.ts` imports the class the same way).
 import { FyflowTask } from 'fyflow-scheduler';
@@ -5949,6 +5958,58 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W176**: P34's exit-artifact block — forty-seven subjects, by exit clause: (1) eleven, the cancel; (2) nine, the stop
+  // beside a sibling, when stop() resolves, and the resume elsewhere; (3) four, the parked stop and its CONTROL; (4) four per
+  // run over two arranged runs, the pause; (5) two per run over four runs, the pre-pickup and backoff roads through the
+  // scheduler's own cancel(id) and through driver.cancel; (6) four, Q633's road and its CONTROL; (7) three, the resident
+  // keyed group and its CONTROL.
+  'W176 exit (1): at the cancel, `honours` and `ignores` RUN on ONE threaded pool',
+  'W176 exit (1): the fold reads the cancel from the request on',
+  'W176 exit (1): the log is the fan-out`s start, the request, and the three cancelled settlements',
+  'W176 exit (1): nothing dispatched further',
+  'W176 exit (1): `honours` honoured its signal',
+  'W176 exit (1): `queued` left its queue at the first cancel',
+  'W176 exit (1): a second cancel, called while the first is still pending',
+  'W176 exit (1): with graceMs 0 it ESCALATES the one that did not stop',
+  'W176 exit (1): `done` settled cancelled only after the LAST task.cancelled',
+  'W176 exit (1): what `done` resolved with IS fold(driver.foldInputs())',
+  'W176 exit (1): a resume of its checkpoint on a FRESH runtime is refused `cancelled`',
+  'W176 exit (2): at the stop, S`s two tasks and the sibling`s ran',
+  'W176 exit (2): S`s log ends at its `interrupted` element',
+  'W176 exit (2): A`s `done` for S settled interrupted',
+  'W176 exit (2): and stop() RESOLVED only once every task it cancelled had stopped',
+  'W176 exit (2): and it IS fold(driver.foldInputs())',
+  'W176 exit (2): the sibling on A was untouched',
+  'W176 exit (2): A refuses to resume S',
+  'W176 exit (2): on a FRESH runtime B the resume re-dispatched EXACTLY the in-flight tasks',
+  'W176 exit (2): B ran S to completed',
+  'W176 exit (3): the run PARKED',
+  'W176 exit (3): stopped, its `done` settled interrupted',
+  'W176 exit (3): resolve() on A is REFUSED',
+  'W176 exit (3): CONTROL — resumed on a fresh runtime, the SAME resolve() is accepted',
+  'W176 exit (4, `a` slow): while PAUSED the run routed on',
+  'W176 exit (4, `a` slow): and NOTHING was handed to the scheduler while paused',
+  'W176 exit (4, `a` slow): UNPAUSED, the held tasks were handed on in DISPATCH order',
+  'W176 exit (4, `a` slow): and the run COMPLETED',
+  'W176 exit (4, `b` slow): while PAUSED the run routed on',
+  'W176 exit (4, `b` slow): and NOTHING was handed to the scheduler while paused',
+  'W176 exit (4, `b` slow): UNPAUSED, the held tasks were handed on in DISPATCH order',
+  'W176 exit (4, `b` slow): and the run COMPLETED',
+  'W176 exit (5): PRE-PICKUP through scheduler.cancel — the scheduler`s road',
+  'W176 exit (5): PRE-PICKUP through scheduler.cancel — the fold',
+  'W176 exit (5): PRE-PICKUP through driver.cancel — the scheduler`s road',
+  'W176 exit (5): PRE-PICKUP through driver.cancel — the fold',
+  'W176 exit (5): BACKOFF through scheduler.cancel — the scheduler`s road',
+  'W176 exit (5): BACKOFF through scheduler.cancel — the fold',
+  'W176 exit (5): BACKOFF through driver.cancel — the scheduler`s road',
+  'W176 exit (5): BACKOFF through driver.cancel — the fold',
+  'W176 exit (6): tryTransform FIRST',
+  'W176 exit (6): start ADMITS both of Q633`s payloads',
+  'W176 exit (6): the worker RECEIVED the transform`s result',
+  'W176 exit (6): CONTROL — the same entry UNTRANSFORMED is held at start',
+  'W176 exit (7): a built-in KeyedRateLimitGroup resident on a TYPE`s default pool is refused',
+  'W176 exit (7): and on a NAMED instance`s pool',
+  'W176 exit (7): CONTROL — the same documents with a RateLimitGroup resident are built',
   // **W167**: P37's exit-artifact block — eighteen subjects, by exit clause: (1) the pools' languages and the resolved ones;
   // (2) A's run; (3) check(B), B's run, the CONTROL (the untransformed entry), each transformed node's received value, the
   // pools the scheduler ran them on and the instance's own options; (4) check(C) against the thrown rules; (5) the annotated schemas kept, and `format` refused; (6) the given verdict, its CONTROL, and the given result held to the inputSchema; (7) check(D)
@@ -9304,7 +9365,8 @@ if (setupFails !== null) {
  *
  * **The consumer's road, and nothing else.** A run's task is cancelled by its ID on the runtime's own scheduler —
  * `runtime.scheduler` is the scheduler itself, typed as one, and `cancel(id)` is public at the pin — with the id
- * derived from `spec/task-id.md`'s four segments and the run id the block chose. No call in `src/` cancels: what this
+ * derived from `spec/task-id.md`'s four segments and the run id the block chose. No call in `src/` makes THIS cancel *(it read *"no call in `src/` cancels"*, false since
+ * W173's `driver.cancel` and W174's `driver.stop` — W176's conformity reader)*: what this
  * block proves is that a cancel nobody in the library asked for is HEARD — the listener records it at `task.cancelled`
  * and not at `task.cancelling` (`OR-R3`, `OR-R4`), the driver halts the run and dispatches nothing further (`RN-R28`),
  * the runtime's `done` settles with `cancelled` (ADR 0058 rule 3 — [Q606](../doc/questions/q606.md)'s L6 clause, *`done`
@@ -10030,6 +10092,708 @@ if (exitBlock !== null) {
     [r.d.refused, r.d.held, r.d.namesRoads], ['LimitKeyMissing at d2', 0, true]);
 }
 
+/**
+ * **W176 — a run its owner CANCELS, STOPS and PAUSES, on real workers in both runtimes: P34's EXIT ARTIFACT** —
+ * [W176](../doc/work-items/w176-the-exit-artifact-run-control-on-real-workers.md),
+ * [P34](../doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)'s seven clauses, ADR 0101 and ADR 0104-0106.
+ *
+ * **The owner's road, and nothing else**: `driver.cancel`, `RunHandle.stop`, `driver.pause` / `driver.unpause`, `resolve`,
+ * `runtime.resume`, `tryTransform` and `createRuntime` — every call a consumer makes — on runtimes built from registry
+ * documents written here with `data:` workers. Where W160's block cancelled a TASK through `runtime.scheduler.cancel(id)`,
+ * which nothing in the library asked for, every cancel here is the DRIVER's, requested by the run's owner.
+ *
+ * **The seven clauses, in the header's order**:
+ * (1) a fan-out of three — `honours` and `ignores` on ONE threaded pool (two threads; the node's `settings` choose whether
+ *     the worker honours its signal) and `queued` behind a `ConcurrentLimitGroup(1)` the harness holds — cancelled through
+ *     `driver.cancel` with a LONG `graceMs` once both run; then cancelled AGAIN with `graceMs: 0` once `honours` and `queued`
+ *     have stopped — and past the scheduler's DEFAULT grace, every pool here holding its own far longer — which ESCALATES
+ *     `ignores`; its checkpoint resumed on a fresh runtime and refused `cancelled`.
+ * (2) on runtime A, a three-branch fan-out S — `a` honouring its signal, `b` not, `c` WAITING behind a held group — beside
+ *     a one-task sibling T, the three tasks that can run RUNNING; S stopped through `RunHandle.stop` with a short `graceMs`,
+ *     so `a` stops at once, `c` inside the call and `b` last; A refuses to resume it; its checkpoint resumes on a FRESH
+ *     runtime B, all three re-dispatched, to `completed`.
+ * (3) a run PARKED at `user_action`, stopped: `resolve()` refused on A, `done` settled — and, the CONTROL, the same
+ *     `resolve()` accepted on the runtime that resumes it (P34 decision 9).
+ * (4) a two-branch fan-out paused at once after `start`, its running tasks finishing, the successors they route to held;
+ *     unpaused, to `completed` — run TWICE, `a` the slow branch in one and `b` in the other, so the held order is ARRANGED.
+ * (5) a cancel BEFORE a thread picks its task up (synchronously after `start`, on a cold threaded pool — P34 fact 8's
+ *     PRE-PICKUP road) and one in a retry BACKOFF (`maxRetries: 1, backoffMs: 3000`, the cancel a macrotask after
+ *     `task.retrying`) — each through the scheduler's own `cancel(id)`, fact 8's road and its literal fold, and through
+ *     `driver.cancel`, whose log carries the request before the scheduler's settlement.
+ * (6) Q633's own fixture: a TRANSFORMING entry whose worker's `inputSchema` requires `label`, the transform
+ *     `{ "label": word }`, given each of Q633's two payloads — `tryTransform` FIRST, as (a) tells a caller who wants the
+ *     check, then `start`, which holds neither (`FD-R4` v0.40, ADR 0101); the same entry UNTRANSFORMED is the control.
+ * (7) `createRuntime` given a built-in `KeyedRateLimitGroup` in `residentGroups` — a type's default pool, a named
+ *     instance's — refused naming the pool and the group (Q619 option B, W169); a `RateLimitGroup` there is the control.
+ *
+ * **Never a completion order, never `task.running` order on threads, never `forced`.** A set where the order is the
+ * scheduler's; the log's own dispatch order where the claim IS an order (clause (4)'s hand-off). At `graceMs: 0` the claim
+ * is that `cancel()` resolved, `done` settled, and the ignoring task stopped BEFORE its worker's own end — which it reaches
+ * only if nothing stops it — and never `cancellation.forced` (P34 (g), [S12](../doc/scheduler-upstream.md): `0` is a timer
+ * race on an honouring worker; this one ignores its signal).
+ *
+ * **Every expected value is the spec's or this fixture's**: the ids from `spec/task-id.md` section 1 (run id, node id, the
+ * fan-out branch index or `-`, attempt 0); a fan-out's first elements from `JP-R5` (every `branch.opened` before any branch
+ * is entered) and the branches' declared order; the outcomes from `spec/run-state.md` section 3's precedence — `cancelling`
+ * and `cancelled` (`RN-R30`), `interrupted` (`RN-R32`), `paused` a cell and not an outcome (`RN-R34`); the refusals from
+ * `RN-R23` (a cancelled run refused AT ITS REQUEST), `RN-R25` (a run id in use) and `RN-R33` (`resolve()` refused once a
+ * stop is accepted); the re-dispatch from `RN-R21`/`RN-R22`; the roads from the scheduler's `AGENTS.md` section 5 and P34
+ * fact 8; each value a worker received from the payload and the JSONata expression, evaluated BY HAND beside it.
+ */
+const RC_DEADLINE_MS = 15_000;
+const RC_ACTOR = 'w176-owner';
+const RC_REASON = 'W176 L6: the owner pressed Cancel';
+/** The IGNORING worker's own end: it runs this long whatever its signal says — clause (1)'s escalation reads that it never got there. */
+const RC_IGNORE_MS = 6_000;
+/**
+ * How long clause (1) waits after its first cancel before the second — PAST the scheduler's DEFAULT `cancelGraceMs`, 2000 ms
+ * (its AGENTS.md section 5), so a pool on the default would have forced `ignores` already, and the claim reads it was not
+ * (W176's adequacy reader, M1: with the default, the FIRST cancel forced it whatever the driver forwarded).
+ */
+const RC_PAST_DEFAULT_GRACE_MS = 2_500;
+/** Every threaded pool here that a cancel or a stop reaches holds THIS grace — far past every worker's own end — so only a
+ * `graceMs` the driver FORWARDS can force a task (M1's fix). */
+const RC_POOL_GRACE_MS = 600_000;
+/** Clause (2)'s stop `graceMs`: S's ignoring task is forced this long after the stop, its honouring one stops at once — so
+ * "after the stop's cancels" can tell the FIRST `task.cancelled` from the LAST (the adequacy reader, M8). */
+const RC_STOP_GRACE_MS = 300;
+/** A HOLDING worker's own end when nothing stops it — the sibling's on A, and S's three tasks re-run on B. */
+const RC_HOLD_MS = 1_500;
+/** Clause (4)'s ARRANGED order: the slow branch's first task returns this much after the fast one's (the adequacy reader, M12d). */
+const RC_SLOW_MS = 400;
+const rcUrl = (src: string) => `data:text/javascript,${encodeURIComponent(src)}`;
+// `Stops` reads its NODE's settings (`FD-C5`'s envelope). Honouring: waits for its signal — an 8 s backstop — and reports the
+// reason. Ignoring: runs RC_IGNORE_MS whatever its signal says, emits `finished`, and returns 50 ms later, so the message is
+// flushed before the result (the scheduler batches `emit` for 20 ms, its AGENTS.md section 5) — a run that reached the
+// worker's own end SAYS so, in the messages, before its settlement.
+const RC_STOPS = 'export default class { async setup() {} async run(p, ctx) { ctx.emit("started", null); ' +
+  'if (p.settings && p.settings.honour === true) { const reason = await new Promise((resolve) => { if (ctx.signal.aborted) { resolve(ctx.signal.reason); return; } ' +
+  'const t = setTimeout(() => resolve("NO CANCEL ARRIVED"), 8000); ' +
+  'ctx.signal.addEventListener("abort", () => { clearTimeout(t); resolve(ctx.signal.reason); }, { once: true }); }); ' +
+  'ctx.emit("aborted", { reason: String(reason) }); return { by: "signal" }; } ' +
+  `await new Promise((r) => setTimeout(r, ${RC_IGNORE_MS})); ctx.emit("finished", null); ` +
+  'await new Promise((r) => setTimeout(r, 50)); return { by: "own end" }; } }';
+// `Holds`: waits for its signal OR its own end, and reports which — unless its node's settings say `honour: false`, when it
+// runs to its own end whatever its signal says, and SAYS so (`finished`, flushed 50 ms before it returns, as `Stops` does).
+const RC_HOLDS = 'export default class { async setup() {} async run(p, ctx) { ctx.emit("started", null); ' +
+  `if (p.settings && p.settings.honour === false) { await new Promise((r) => setTimeout(r, ${RC_HOLD_MS})); ctx.emit("finished", null); ` +
+  'await new Promise((r) => setTimeout(r, 50)); return { by: "own end" }; } ' +
+  'const by = await new Promise((resolve) => { if (ctx.signal.aborted) { resolve("signal"); return; } ' +
+  `const t = setTimeout(() => resolve("own end"), ${RC_HOLD_MS}); ` +
+  'ctx.signal.addEventListener("abort", () => { clearTimeout(t); resolve("signal"); }, { once: true }); }); return { by }; } }';
+// `Work`: returns what it received, after its node's `settings.delayMs` — clause (4)'s arrangement.
+const RC_WORK = 'export default class { async setup() {} async run(p) { const ms = p.settings && p.settings.delayMs; ' +
+  'if (ms) await new Promise((r) => setTimeout(r, ms)); return p.input; } }';
+const RC_READY = 'export default class { async setup() {} run(p) { return p.input; } }';
+const RC_FAILS = 'export default class { async setup() {} run() { throw new Error("W176: a person must look"); } }';
+const rcDoc = () => ({
+  workers: {
+    stops: { url: rcUrl(RC_STOPS) },
+    holds: { url: rcUrl(RC_HOLDS) },
+    work: { url: rcUrl(RC_WORK) },
+    ready: { url: rcUrl(RC_READY) },
+    fails: { url: rcUrl(RC_FAILS) },
+  },
+  groups: { hold: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } },
+  nodeTypes: {
+    // ONE threaded pool, two threads: clause (1)'s `honours` and `ignores` run on it at once.
+    Stops: { worker: 'stops', inline: false, pool: { maxThreads: 2, cancelGraceMs: RC_POOL_GRACE_MS } },
+    Queued: { worker: 'ready', inline: true, groups: ['hold'] },
+    Ready: { worker: 'ready', inline: true },
+    Holds: { worker: 'holds', inline: false, pool: { maxThreads: 3, cancelGraceMs: RC_POOL_GRACE_MS } },
+    // Clause (2)'s WAITING task: behind the group the harness holds on A, so its `task.cancelled` fires INSIDE the stop's
+    // `cancel()` call (P34 fact 8) — the one road on which a driver not yet deaf would append a settlement after the stop.
+    HeldHolds: { worker: 'holds', inline: false, groups: ['hold'] },
+    // Non-optional and out of retries at once, so the scheduler parks it `user_action` (ADR 0007 rule 2).
+    Fails: { worker: 'fails', inline: true, retryPolicy: { maxRetries: 0, backoffMs: 0 } },
+    // Its first attempt fails into a 3 s backoff — P34 fact 8's arrangement.
+    Retries: { worker: 'fails', inline: false, retryPolicy: { maxRetries: 1, backoffMs: 3000 } },
+    Work: { worker: 'work', inline: false, pool: { maxThreads: 2 } },
+  },
+});
+const rcFlow = (flowId: string, nodes: Record<string, unknown>[]) =>
+  ({ flowId, version: 1, entry: nodes[0]!.id, nodes: [...nodes, { id: 'done', kind: 'end', outcome: 'completed' }] }) as unknown as FlowDefinition;
+const RC_CANCEL_FLOW = rcFlow('w176-cancel', [
+  { id: 'split', kind: 'fanout', branches: ['honours', 'ignores', 'queued'] },
+  { id: 'honours', kind: 'task', type: 'Stops', settings: { honour: true }, edges: [{ to: 'honours2' }] },
+  { id: 'ignores', kind: 'task', type: 'Stops', settings: { honour: false }, edges: [{ to: 'ignores2' }] },
+  { id: 'queued', kind: 'task', type: 'Queued', edges: [{ to: 'queued2' }] },
+  { id: 'honours2', kind: 'task', type: 'Ready', edges: [{ to: 'collect' }] },
+  { id: 'ignores2', kind: 'task', type: 'Ready', edges: [{ to: 'collect' }] },
+  { id: 'queued2', kind: 'task', type: 'Ready', edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+]);
+// (2): `a` honours its signal, `b` does not (forced RC_STOP_GRACE_MS after the stop), `c` WAITS behind a held group.
+const RC_STOP_FLOW = rcFlow('w176-stop', [
+  { id: 'split', kind: 'fanout', branches: ['a', 'b', 'c'] },
+  { id: 'a', kind: 'task', type: 'Holds', edges: [{ to: 'collect' }] },
+  { id: 'b', kind: 'task', type: 'Holds', settings: { honour: false }, edges: [{ to: 'collect' }] },
+  { id: 'c', kind: 'task', type: 'HeldHolds', edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+]);
+const RC_SIBLING_FLOW = rcFlow('w176-sibling', [{ id: 's', kind: 'task', type: 'Holds', edges: [{ to: 'done' }] }]);
+const RC_PARKED_FLOW = rcFlow('w176-parked', [
+  { id: 'work', kind: 'task', type: 'Fails', edges: [{ to: 'after' }] },
+  { id: 'after', kind: 'task', type: 'Ready', edges: [{ to: 'done' }] },
+]);
+// (4), run TWICE: once with `a` the slow branch and once with `b`, so the held successors' dispatch order is ARRANGED each
+// way and a hand-off in any FIXED order fails one of the two runs.
+const rcPauseFlow = (slow: 'a' | 'b') => rcFlow(`w176-pause-${slow}-last`, [
+  { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+  { id: 'a', kind: 'task', type: 'Work', settings: { delayMs: slow === 'a' ? RC_SLOW_MS : 0 }, edges: [{ to: 'a2' }] },
+  { id: 'b', kind: 'task', type: 'Work', settings: { delayMs: slow === 'b' ? RC_SLOW_MS : 0 }, edges: [{ to: 'b2' }] },
+  { id: 'a2', kind: 'task', type: 'Work', edges: [{ to: 'collect' }] },
+  { id: 'b2', kind: 'task', type: 'Work', edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+]);
+const RC_PRE_FLOW = rcFlow('w176-pre-pickup', [
+  { id: 'work', kind: 'task', type: 'Holds', edges: [{ to: 'after' }] },
+  { id: 'after', kind: 'task', type: 'Ready', edges: [{ to: 'done' }] },
+]);
+const RC_BACKOFF_FLOW = rcFlow('w176-backoff', [
+  { id: 'work', kind: 'task', type: 'Retries', edges: [{ to: 'after' }] },
+  { id: 'after', kind: 'task', type: 'Ready', edges: [{ to: 'done' }] },
+]);
+// (6) Q633's fixture, as its file states it: a worker requiring `label`, an entry declaring `{ "label": word }`.
+const RC_Q633_IN = { type: 'object', required: ['label'], properties: { label: { type: 'string' } } };
+const RC_Q633_TRANSFORM = { lang: 'jsonata', expr: '{ "label": word }' };
+const rcQ633Doc = () => ({
+  workers: { seen: { url: rcUrl('export default class { async setup() {} run(p) { return { seen: p.input }; } }'), inputSchema: RC_Q633_IN } },
+  // Threaded, so the transform is evaluated by the envelope worker in a real thread (ADR 0051).
+  nodeTypes: { Labels: { worker: 'seen', inline: false } },
+  languages: ['jsonata'],
+});
+const RC_Q633_FLOW = rcFlow('w176-q633', [{ id: 'label', kind: 'task', type: 'Labels', transform: RC_Q633_TRANSFORM, edges: [{ to: 'done' }] }]);
+const RC_Q633_CONTROL = rcFlow('w176-q633-control', [{ id: 'label', kind: 'task', type: 'Labels', edges: [{ to: 'done' }] }]);
+// By hand: `{ "label": word }` over `{ word: "x" }` is `{ label: "x" }`; over `{ label: "y" }` `word` is absent, its value
+// undefined, and JSONata drops an undefined value from an object — `{}`, which the inputSchema refuses (`label` required).
+const RC_Q633_PAYLOADS = [{ word: 'x' }, { label: 'y' }];
+const RC_Q633_RECEIVES = [{ label: 'x' }, {}];
+// (7): the group either way round, held resident by a type's default pool or by a named instance's.
+const rcResidentDoc = (groupType: 'KeyedRateLimitGroup' | 'RateLimitGroup', where: 'type' | 'instance') => ({
+  workers: { ready: { url: rcUrl(RC_READY) } },
+  groups: { api: { type: groupType, config: { windows: [{ limit: 5, windowMs: 1000 }] } } },
+  nodeTypes: where === 'type'
+    ? { Holds: { worker: 'ready', inline: false, pool: { idleTimeout: 1000, residentGroups: ['api'] } } }
+    : { Plain: { worker: 'ready', inline: false } },
+  ...(where === 'instance' ? { pools: { 'holds-api': { type: 'Plain', pool: { idleTimeout: 1000, residentGroups: { api: 1 } } } } } : {}),
+});
+/** A fold input as one line: the kind, and the task id, settled state, region event and branch path where it has them. */
+const rcSeqOf = (inputs: readonly FoldInput[]): string[] => inputs.map((i) =>
+  i.kind === 'dispatched' ? `dispatched ${i.taskId}`
+    : i.kind === 'outcome' ? `outcome ${i.record.taskId} ${i.record.kind === 'outcome' ? i.record.terminalState : ''}`
+      : i.kind === 'resolution' ? `resolution ${i.record.taskId} ${i.record.kind === 'resolution' ? i.record.resolvedAs : ''}`
+        : i.kind === 'region' ? `region ${i.event.type} ${'branchPath' in i.event ? String(i.event.branchPath) : ''}`
+          : i.kind);
+const rcMacrotask = () => new Promise<void>((r) => setTimeout(r, 25));
+/**
+ * What the scheduler fired for the ids a clause names — lifecycle events, `context.emit` messages, `resource.*` — and a
+ * LATCH on any of it: `until(pred)` resolves at the first event after which `pred` holds. Signals, not sleeps.
+ */
+const rcWatch = (rt: { scheduler: { addEventListener: (n: never, f: never) => void } }, ids: readonly string[]) => {
+  const events: Record<string, string[]> = Object.fromEntries(ids.map((id) => [id, []]));
+  const messages: Record<string, string[]> = Object.fromEntries(ids.map((id) => [id, []]));
+  const resource: Record<string, string[]> = Object.fromEntries(ids.map((id) => [id, []]));
+  const ticks: (() => void)[] = [];
+  const tick = () => { for (const t of [...ticks]) t(); };
+  const on = (name: string, fn: (d: Record<string, unknown>) => void) =>
+    rt.scheduler.addEventListener(name as never, ((e: { detail: Record<string, unknown> }) => { fn(e.detail); tick(); }) as never);
+  for (const n of ['task.running', 'task.retrying', 'task.cancelling', 'task.cancelled', 'task.completed', 'task.failed', 'task.user_action']) {
+    on(n, (d) => { events[String(d.id)]?.push(n); });
+  }
+  on('task.message', (d) => {
+    const reason = (d.data as { reason?: unknown } | null)?.reason;
+    messages[String(d.taskId)]?.push(reason === undefined ? String(d.name) : `${String(d.name)}:${String(reason)}`);
+  });
+  for (const n of ['resource.blocked', 'resource.unblocked']) {
+    on(n, (d) => { resource[String(d.holderId)]?.push(d.reason === undefined ? n : `${n}:${String(d.reason)}`); });
+  }
+  const until = (pred: () => boolean) => new Promise<void>((resolve) => {
+    const t = () => { if (pred()) { ticks.splice(ticks.indexOf(t), 1); resolve(); } };
+    ticks.push(t);
+    t();
+  });
+  return { events, messages, resource, until };
+};
+/** A latch that throws a NAMED error at the deadline — a clause whose arrangement never happened is a crash, not a pass. */
+const rcAwait = async (p: Promise<unknown>, what: string) => {
+  const w = await settleWithin(p, RC_DEADLINE_MS);
+  if (w.by !== 'done') throw new Error(`W176: ${what} never happened within ${RC_DEADLINE_MS} ms`);
+};
+const rcState = (rt: { scheduler: { tasks: Map<string, unknown> } }, id: string): string =>
+  (rt.scheduler.tasks.get(id) as { state?: string } | undefined)?.state ?? 'NOT HELD';
+type RcRuntime = ReturnType<typeof createRuntime>;
+let rcBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  // **A clause that THROWS fails its OWN claims, by name, and the next clause still runs** — each claim then reads a value
+  // nothing wrote, and the throw is reported beside them. W141's block-level guard below is for what is left.
+  const rcClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W176 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  // ---- (1) CANCELLED through driver.cancel: two RUNNING on a threaded pool, one QUEUED; a second cancel at graceMs 0 ----
+  await rcClause('1', async () => {
+    const runId = 'w176c';
+    // spec/task-id.md section 1: run id, node id, the branch's path (its index in `branches`), attempt 0.
+    const ids = { honours: `${runId}:honours:0:0`, ignores: `${runId}:ignores:1:0`, queued: `${runId}:queued:2:0` };
+    const rt = createRuntime(rcDoc() as never, {});
+    const hold = rt.groups.hold as unknown as { onStart(): void; onFinish(): void };
+    // Taken BEFORE `start`, so `queued` finds the slot gone at its first dispatch (W160's queued road).
+    hold.onStart();
+    let fresh: RcRuntime | null = null;
+    try {
+      const w = rcWatch(rt, Object.values(ids));
+      const reported: unknown[] = [];
+      const h = rt.start(RC_CANCEL_FLOW, {}, { runId, onRunFailure: (f) => { reported.push(f); } });
+      runs.push(RC_CANCEL_FLOW.flowId);
+      let doneSettled = false;
+      const atDoneP = h.done.then(() => {
+        doneSettled = true;
+        return {
+          cancelledIds: Object.values(ids).filter((id) => w.events[id]!.includes('task.cancelled')).sort(),
+          states: Object.values(ids).map((id) => rcState(rt, id)),
+          ignoresMessages: [...w.messages[ids.ignores]!],
+          length: h.driver.foldInputs().length,
+        };
+      });
+      // Both running tasks are IN their worker — each said so through `context.emit` — and `queued` is blocked.
+      await rcAwait(w.until(() => w.messages[ids.honours]!.includes('started') && w.messages[ids.ignores]!.includes('started')
+        && w.resource[ids.queued]!.includes('resource.blocked')), 'both running tasks starting');
+      r.c1 = [rcState(rt, ids.honours), rcState(rt, ids.ignores), [...w.resource[ids.queued]!], rcState(rt, ids.queued),
+        // STRICT both ways (W176's conformity reader): a pool missing, or `inline` not a boolean, reads as neither.
+        ((p) => p?.inline === true ? 'inline' : p?.inline === false ? 'threaded' : `NO Stops POOL (${String(p?.inline)})`)(
+          (rt.scheduler.workerPools as Record<string, { inline?: unknown }>).Stops),
+        // The pool's OWN grace, read back: so far past RC_IGNORE_MS that only a forwarded graceMs can stop `ignores`.
+        (rt.scheduler.workerPools as Record<string, { cancelGraceMs?: unknown }>).Stops?.cancelGraceMs];
+      const before = h.driver.foldInputs().length;
+      const outcomeBefore = fold(h.driver.foldInputs()).outcome;
+      // The FIRST cancel: a grace far past the ignoring worker's own end, so nothing but the second call can force it — and
+      // the POOL's own grace is as long (`RC_POOL_GRACE_MS`, read back above): the scheduler's DEFAULT, 2000 ms, would have
+      // forced `ignores` under the first call whatever the driver forwarded (W176's adequacy reader, M1).
+      let p1State = 'pending';
+      const firstAt = Date.now();
+      const p1 = h.driver.cancel({ actor: RC_ACTOR, reason: RC_REASON, graceMs: 60_000 });
+      p1.then(() => { p1State = 'resolved'; }, () => { p1State = 'rejected'; });
+      // `honours` stops by its signal and `queued` leaves its queue; `ignores` does not stop.
+      await rcAwait(w.until(() => w.events[ids.honours]!.includes('task.cancelled') && w.events[ids.queued]!.includes('task.cancelled')),
+        '`honours` and `queued` stopping');
+      // **And past the scheduler's DEFAULT grace** before the second call — a real clock, and the one this clause is about:
+      // a pool on the default would have forced `ignores` by now, and the claim below reads that it was not.
+      await new Promise<void>((res) => setTimeout(res, Math.max(25, RC_PAST_DEFAULT_GRACE_MS - (Date.now() - firstAt))));
+      const atSecond = {
+        p1: p1State, done: doneSettled, outcome: fold(h.driver.foldInputs()).outcome, length: h.driver.foldInputs().length,
+        ignoresStopped: w.events[ids.ignores]!.includes('task.cancelled'), ignoresState: rcState(rt, ids.ignores),
+      };
+      // The SECOND cancel, graceMs 0 — the scheduler's escalation, forwarded (RN-R31).
+      const p2 = h.driver.cancel({ actor: RC_ACTOR, graceMs: 0 });
+      const appended = h.driver.foldInputs().length - atSecond.length;
+      const w2 = await settleWithin(p2, RC_DEADLINE_MS);
+      const w1 = await settleWithin(p1, RC_DEADLINE_MS);
+      const won = await settleWithin(h.done, RC_DEADLINE_MS);
+      const atDoneW = await settleWithin(atDoneP, RC_DEADLINE_MS);
+      const atDone = atDoneW.by === 'done' ? atDoneW.value : { cancelledIds: ['NEVER SETTLED'], states: [], ignoresMessages: [], length: -1 };
+      await rcMacrotask();
+      const inputs = h.driver.foldInputs();
+      const seq = rcSeqOf(inputs);
+      const folded = fold(inputs);
+      r.c2 = [outcomeBefore, inputs.slice(before).map((_, k) => fold(inputs.slice(0, before + k + 1)).outcome), folded.cancelRequest];
+      r.c3 = [seq.slice(0, before + 1), [...seq.slice(before + 1)].sort()];
+      r.c4 = [atDone.length, inputs.length, ['honours2', 'ignores2', 'queued2'].filter((n) => rt.scheduler.tasks.has(`${runId}:${n}:${n === 'honours2' ? 0 : n === 'ignores2' ? 1 : 2}:0`)),
+        Object.values(folded.nodes).map((n) => `${n.nodeId}:${n.state}`).sort(), reported.length, h.driver.hasFailed()];
+      r.c5 = [[...w.messages[ids.honours]!], [...w.events[ids.honours]!]];
+      r.c6 = [[...w.events[ids.queued]!], [...w.resource[ids.queued]!], [...w.messages[ids.queued]!]];
+      r.c7 = [atSecond.p1, atSecond.done, atSecond.outcome, atSecond.ignoresStopped, atSecond.ignoresState, appended];
+      r.c8 = [w2.by, w1.by, won.by, atDone.ignoresMessages];
+      r.c9 = [won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value), atDone.cancelledIds, atDone.states];
+      r.c10 = won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded);
+      // **The resume, on a FRESH runtime** — so `RunIdInUse` cannot be the refusal; a refusal hands it nothing (ADR 0065).
+      fresh = createRuntime(rcDoc() as never, {});
+      let refused = 'NOT REFUSED';
+      try { fresh.resume(RC_CANCEL_FLOW, h.driver.checkpoint()); } catch (err) { refused = refusalOf(err); }
+      r.c11 = [refused, fresh.scheduler.tasks.size];
+    } finally {
+      hold.onFinish();
+      await rt.shutdown();
+      if (fresh !== null) await fresh.shutdown();
+    }
+  });
+  // ---- (2) STOPPED on A while two tasks run and one waits, a sibling on A untouched; resumed on a FRESH runtime B ----
+  await rcClause('2', async () => {
+    // spec/task-id.md section 1: S's three branches at paths 0, 1 and 2; the sibling's task outside every region, `-`.
+    const sIds = { a: 'w176s:a:0:0', b: 'w176s:b:1:0', c: 'w176s:c:2:0' };
+    const all = [sIds.a, sIds.b, sIds.c];
+    const tId = 'w176t:s:-:0';
+    const A = createRuntime(rcDoc() as never, {});
+    const hold = A.groups.hold as unknown as { onStart(): void; onFinish(): void };
+    // Taken BEFORE `start`, so S's `c` WAITS behind the group: its `task.cancelled` fires INSIDE the stop's `cancel()` call
+    // (P34 fact 8), the road on which a driver that were not yet deaf would append a settlement after `interrupted` (M5).
+    hold.onStart();
+    let B: RcRuntime | null = null;
+    try {
+      const w = rcWatch(A, [...all, tId]);
+      const t = A.start(RC_SIBLING_FLOW, {}, { runId: 'w176t' });
+      runs.push(RC_SIBLING_FLOW.flowId);
+      const s = A.start(RC_STOP_FLOW, {}, { runId: 'w176s' });
+      runs.push(RC_STOP_FLOW.flowId);
+      const cancelledNow = () => all.filter((id) => w.events[id]!.includes('task.cancelled'));
+      const atDoneP = s.done.then(() => ({ cancelled: cancelledNow(), states: all.map((id) => rcState(A, id)), bMessages: [...w.messages[sIds.b]!] }));
+      await rcAwait(w.until(() => [sIds.a, sIds.b, tId].every((id) => w.messages[id]!.includes('started'))
+        && w.resource[sIds.c]!.includes('resource.blocked')), 'S`s two running tasks and the sibling`s starting, S`s third waiting');
+      r.s1 = [rcState(A, sIds.a), rcState(A, sIds.b), [...w.resource[sIds.c]!], rcState(A, sIds.c), rcState(A, tId)];
+      // The stop's graceMs is FORWARDED to each cancel: `a` honours its signal at once, `b` ignores it and is forced
+      // RC_STOP_GRACE_MS later — the pool's own grace being RC_POOL_GRACE_MS — and `c` leaves its queue inside the call.
+      const stopP = s.stop({ actor: RC_ACTOR, reason: 'W176 L6: upgrade', graceMs: RC_STOP_GRACE_MS });
+      // **When `stop()` RESOLVES, read THEN** (the adequacy reader, M6/M7): every task it cancelled has stopped by then.
+      const atStopP = stopP.then(() => cancelledNow());
+      const won = await settleWithin(s.done, RC_DEADLINE_MS);
+      const stopW = await settleWithin(atStopP, RC_DEADLINE_MS);
+      const atDoneW = await settleWithin(atDoneP, RC_DEADLINE_MS);
+      const atDone = atDoneW.by === 'done' ? atDoneW.value : { cancelled: ['NEVER SETTLED'], states: [], bMessages: [] };
+      const sibW = await settleWithin(t.done, RC_DEADLINE_MS);
+      await rcMacrotask();
+      const folded = fold(s.driver.foldInputs());
+      r.s2 = [rcSeqOf(s.driver.foldInputs()), folded.interruption, [...w.events[sIds.c]!]];
+      r.s3 = [won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value), atDone.cancelled, atDone.states, atDone.bMessages];
+      r.s4 = won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded);
+      const sib = sibW.by === 'done' ? sibW.value : null;
+      r.s5 = [[...w.events[tId]!], sib?.outcome ?? 'NEVER SETTLED', sib === null ? null : Object.values(sib.nodes).map((n) => n.result)];
+      r.s9 = stopW.by === 'done' ? stopW.value : 'NEVER RESOLVED';
+      // A consumer storing the run copies what the driver hands it (ADR 0064 rule 5) — so B resumes from a copy.
+      const checkpoint = structuredClone(s.driver.checkpoint()) as Checkpoint;
+      let onA = 'NOT REFUSED';
+      try { A.resume(RC_STOP_FLOW, checkpoint); } catch (err) { onA = err instanceof RunIdInUse ? 'RunIdInUse' : refusalOf(err); }
+      r.s6 = onA;
+      // B is FRESH: its own `hold` group, which nothing holds — so `c` runs there.
+      B = createRuntime(rcDoc() as never, {});
+      const res = B.resume(RC_STOP_FLOW, checkpoint);
+      runs.push(`${RC_STOP_FLOW.flowId} resumed on B`);
+      const heldAtResume = [...B.scheduler.tasks.keys()];
+      const bWon = await settleWithin(res.done, RC_DEADLINE_MS);
+      const bInputs = res.driver.foldInputs();
+      const bFolded = fold(bInputs);
+      r.s7 = [heldAtResume, bFolded.resumes, rcSeqOf(bInputs).filter((l) => l.startsWith('dispatched '))];
+      r.s8 = [bWon.by === 'done' ? bWon.value.outcome : 'NEVER SETTLED', bWon.by === 'done' && isTerminal(bWon.value),
+        Object.values(bFolded.nodes).map((n) => `${n.nodeId}:${n.state}:${JSON.stringify(n.result)}`).sort(),
+        bWon.by === 'done' && JSON.stringify(bWon.value) === JSON.stringify(bFolded)];
+    } finally {
+      hold.onFinish();
+      await A.shutdown();
+      if (B !== null) await B.shutdown();
+    }
+  });
+  // ---- (3) PARKED at user_action, stopped: resolve() refused on A; resolved on the runtime that resumes it ----
+  await rcClause('3', async () => {
+    const workId = 'w176k:work:-:0';
+    const A = createRuntime(rcDoc() as never, {});
+    let B: RcRuntime | null = null;
+    try {
+      let park!: () => void;
+      const parked = new Promise<void>((res) => { park = res; });
+      const k = A.start(RC_PARKED_FLOW, {}, {
+        runId: 'w176k',
+        onFoldInput: (i) => { if (i.kind === 'outcome' && i.record.kind === 'outcome' && i.record.terminalState === 'user_action') park(); },
+      });
+      runs.push(RC_PARKED_FLOW.flowId);
+      await rcAwait(parked, 'the task parking');
+      // A macrotask on, the step that appended the settlement has finished — the run is at rest, waiting on a person.
+      await rcMacrotask();
+      r.k1 = [rcSeqOf(k.driver.foldInputs()), fold(k.driver.foldInputs()).outcome];
+      const stopP = k.stop({ actor: RC_ACTOR, reason: 'W176 L6: upgrade' });
+      const stopW = await settleWithin(stopP, RC_DEADLINE_MS);
+      const won = await settleWithin(k.done, RC_DEADLINE_MS);
+      const folded = fold(k.driver.foldInputs());
+      r.k2 = [stopW.by, won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value),
+        rcSeqOf(k.driver.foldInputs()), rcState(A, workId), won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded)];
+      const length = k.driver.foldInputs().length;
+      const accepted = k.driver.resolve(workId, 'done', { actor: 'w176-person', result: { checked: true } });
+      await rcMacrotask();
+      r.k3 = [accepted, k.driver.foldInputs().length - length, A.scheduler.tasks.has('w176k:after:-:0')];
+      B = createRuntime(rcDoc() as never, {});
+      const res = B.resume(RC_PARKED_FLOW, structuredClone(k.driver.checkpoint()) as Checkpoint);
+      runs.push(`${RC_PARKED_FLOW.flowId} resumed`);
+      const acceptedOnB = res.driver.resolve(workId, 'done', { actor: 'w176-person', result: { checked: true } });
+      const bWon = await settleWithin(res.done, RC_DEADLINE_MS);
+      r.k4 = [acceptedOnB, bWon.by === 'done' ? bWon.value.outcome : 'NEVER SETTLED',
+        bWon.by === 'done' ? (Object.values(bWon.value.nodes).find((n) => n.nodeId === 'after')?.result ?? 'NO after') : null];
+    } finally {
+      await A.shutdown();
+      if (B !== null) await B.shutdown();
+    }
+  });
+  // ---- (4) PAUSED mid-fan-out, the running tasks finishing, nothing handed on; UNPAUSED, to completed — TWICE ----
+  // Once with `a` the slow branch and once with `b`, so the held successors' dispatch order is ARRANGED each way: a hand-off
+  // in any FIXED order — by id, or reversed — fails one of the two runs (the adequacy reader, M12d: unarranged, `b` won in
+  // every run measured, so dispatch order and reverse-id order were the same order).
+  await rcClause('4', async () => {
+    for (const slow of ['a', 'b'] as const) {
+      const runId = `w176p${slow}`;
+      const ids = { a: `${runId}:a:0:0`, b: `${runId}:b:1:0`, a2: `${runId}:a2:0:0`, b2: `${runId}:b2:1:0` };
+      // The FAST branch settles first, so its successor is dispatched — and held — first.
+      const arranged = slow === 'a' ? [ids.b2, ids.a2] : [ids.a2, ids.b2];
+      const flow = rcPauseFlow(slow);
+      const rt = createRuntime(rcDoc() as never, {});
+      try {
+        let settledAB = 0;
+        let both!: () => void;
+        const bothSettled = new Promise<void>((res) => { both = res; });
+        let atUnpaused = -1;
+        const h = rt.start(flow, {}, {
+          runId,
+          onFoldInput: (i) => {
+            if (i.kind === 'outcome' && (i.record.taskId === ids.a || i.record.taskId === ids.b) && ++settledAB === 2) both();
+            // **What the scheduler holds ON the `unpaused` element** (the adequacy reader, M11): the element lands BEFORE
+            // the hand-off (`RN-R35`), so a consumer told of it has been handed nothing yet — `a` and `b` alone.
+            if (i.kind === 'unpaused') atUnpaused = rt.scheduler.tasks.size;
+          },
+        });
+        runs.push(flow.flowId);
+        // At once, at rest: `start` has handed `a` and `b` to the scheduler; nothing after this may be.
+        h.driver.pause({ actor: RC_ACTOR });
+        await rcAwait(bothSettled, '`a` and `b` settling while paused');
+        // A macrotask past the last settlement, so a dispatch the pause let through has reached the scheduler by now.
+        await rcMacrotask();
+        const whilePaused = h.driver.foldInputs();
+        const pausedState = fold(whilePaused);
+        r[`u1${slow}`] = [rcSeqOf(whilePaused).slice(0, 6), [...rcSeqOf(whilePaused).slice(6)].sort(), pausedState.outcome, pausedState.paused];
+        r[`u2${slow}`] = [...rt.scheduler.tasks.keys()];
+        h.driver.unpause({ actor: RC_ACTOR });
+        // Read at once: the hand-off is synchronous inside `unpause()`, and the scheduler's map keeps `addTask`'s order.
+        const handedOn = [...rt.scheduler.tasks.keys()];
+        const heldOrder = rcSeqOf(whilePaused).filter((l) => l === `dispatched ${ids.a2}` || l === `dispatched ${ids.b2}`).map((l) => l.slice('dispatched '.length));
+        const won = await settleWithin(h.done, RC_DEADLINE_MS);
+        const inputs = h.driver.foldInputs();
+        const folded = fold(inputs);
+        r[`u3${slow}`] = [[handedOn, heldOrder, rcSeqOf(inputs)[whilePaused.length], atUnpaused], [[ids.a, ids.b, ...arranged], arranged, 'unpaused', 2]];
+        r[`u4${slow}`] = [won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value), folded.paused,
+          Object.values(folded.nodes).map((n) => `${n.nodeId}:${n.state}`).sort(), won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded)];
+      } finally {
+        await rt.shutdown();
+      }
+    }
+  });
+  // ---- (5) a cancel BEFORE a thread picks the task up, and one in a retry BACKOFF — each through the scheduler's OWN
+  // `cancel(id)`, fact 8's road and its literal fold, and through `driver.cancel`, the owner's (W176's conformity reader) ----
+  await rcClause('5', async () => {
+    for (const road of ['pre-pickup', 'backoff'] as const) {
+      for (const via of ['scheduler', 'driver'] as const) {
+        const runId = `w176${road === 'pre-pickup' ? 'q' : 'b'}${via === 'scheduler' ? 's' : 'd'}`;
+        const workId = `${runId}:work:-:0`;
+        const flow = road === 'pre-pickup' ? RC_PRE_FLOW : RC_BACKOFF_FLOW;
+        // A FRESH runtime each, so the pre-pickup road's thread is cold — no worker of that pool exists yet.
+        const rt = createRuntime(rcDoc() as never, {});
+        try {
+          const w = rcWatch(rt, [workId]);
+          const h = rt.start(flow, {}, { runId });
+          runs.push(`${flow.flowId} through ${via}.cancel`);
+          if (road === 'backoff') {
+            await rcAwait(w.until(() => w.events[workId]!.includes('task.retrying')), 'the first attempt failing into its backoff');
+            await rcMacrotask();
+          }
+          const reason = `W176 L6: cancelled ${road}`;
+          const c: Promise<unknown> = via === 'driver' ? h.driver.cancel({ actor: RC_ACTOR, reason }) : rt.scheduler.cancel(workId, { reason });
+          // Read on the call's own stack, synchronously: what the call itself made the log.
+          const rightAfter = rcSeqOf(h.driver.foldInputs());
+          const won = await settleWithin(h.done, RC_DEADLINE_MS);
+          const cw = await settleWithin(c, RC_DEADLINE_MS);
+          await rcMacrotask();
+          const folded = fold(h.driver.foldInputs());
+          const task = rt.scheduler.tasks.get(workId) as { attempts?: unknown } | undefined;
+          r[`${road} ${via} road`] = [[...w.events[workId]!], [...w.messages[workId]!], rightAfter, ...(road === 'backoff' ? [task?.attempts] : [])];
+          r[`${road} ${via} fold`] = [cw.by, won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value),
+            rcSeqOf(h.driver.foldInputs()), won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded)];
+        } finally {
+          await rt.shutdown();
+        }
+      }
+    }
+  });
+  // ---- (6) a TRANSFORMING entry started on Q633's road: tryTransform first, then start, which holds neither payload ----
+  await rcClause('6', async () => {
+    const rt = createRuntime(rcQ633Doc() as never, { languages: LANGUAGES }, {});
+    try {
+      const verdicts: unknown[] = [];
+      const started: unknown[] = [];
+      const received: unknown[] = [];
+      for (const [k, payload] of RC_Q633_PAYLOADS.entries()) {
+        const v = await tryTransform(rt.registry, RC_Q633_FLOW, 'label', RC_Q633_TRANSFORM, { input: structuredClone(payload) });
+        verdicts.push(v.map((x) => [x.kind, x.why.includes('$.label required')]));
+        try {
+          const h = rt.start(RC_Q633_FLOW, structuredClone(payload), { runId: `w176x${k}` });
+          runs.push(`${RC_Q633_FLOW.flowId} ${JSON.stringify(payload)}`);
+          const won = await settleWithin(h.done, RC_DEADLINE_MS);
+          started.push(won.by === 'done' ? won.value.outcome : 'NEVER SETTLED');
+          // What the worker RETURNED — its own report of the `input` it received.
+          received.push(((fold(h.driver.foldInputs()).nodes[`w176x${k}:label:-:0`]?.result ?? null) as { seen?: unknown } | null)?.seen ?? 'NO RESULT');
+        } catch (err) {
+          started.push(`REFUSED ${err instanceof Error ? err.name : String(err)}`);
+          received.push('NOT RUN');
+        }
+      }
+      r.t1 = verdicts;
+      r.t2 = started;
+      r.t3 = received;
+      const heldBefore = rt.scheduler.tasks.size;
+      let control: unknown = 'NOT REFUSED';
+      try { rt.start(RC_Q633_CONTROL, structuredClone(RC_Q633_PAYLOADS[0]), { runId: 'w176z' }); } catch (err) {
+        control = err instanceof BoundaryRefused ? [err.boundary, err.nodeId, err.findings.map((f) => `${f.path} ${f.says}`)] : refusalOf(err);
+      }
+      r.t4 = [control, rt.scheduler.tasks.size - heldBefore];
+    } finally {
+      await rt.shutdown();
+    }
+  });
+  // ---- (7) a built-in KeyedRateLimitGroup held RESIDENT, refused by createRuntime naming the pool and the group ----
+  await rcClause('7', async () => {
+    const build = async (groupType: 'KeyedRateLimitGroup' | 'RateLimitGroup', where: 'type' | 'instance', names: string[]) => {
+      try {
+        const built = createRuntime(rcResidentDoc(groupType, where) as never, {});
+        await built.shutdown();
+        return 'built';
+      } catch (err) {
+        return [err instanceof DerivationRefused ? 'DerivationRefused' : err instanceof Error ? err.name : String(err),
+          names.filter((n) => !(err instanceof Error && err.message.includes(n)))];
+      }
+    };
+    r.r1 = await build('KeyedRateLimitGroup', 'type', ['node type "Holds"\'s default instance', 'group "api"', 'KeyedRateLimitGroup', 'residentGroups']);
+    r.r2 = await build('KeyedRateLimitGroup', 'instance', ['pool "holds-api"', 'group "api"', 'KeyedRateLimitGroup', 'residentGroups']);
+    r.r3 = [await build('RateLimitGroup', 'type', []), await build('RateLimitGroup', 'instance', [])];
+  });
+  rcBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W176 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (rcBlock !== null) {
+  const key = 'cross-row';
+  const r = rcBlock.r;
+  const c = { honours: 'w176c:honours:0:0', ignores: 'w176c:ignores:1:0', queued: 'w176c:queued:2:0' };
+  // (1) — the request lands at position 7: `regionEntered`, the three `branch.opened` (JP-R5: every one before any branch
+  // is entered), and the three `dispatched`, in the branches' declared order (RN-R4).
+  const START = ['regionEntered', 'region branch.opened 0', 'region branch.opened 1', 'region branch.opened 2',
+    `dispatched ${c.honours}`, `dispatched ${c.ignores}`, `dispatched ${c.queued}`];
+  check(key, 'W176 exit (1): at the cancel, `honours` and `ignores` RUN on ONE threaded pool and `queued` waits behind the held group — ' +
+    'the arrangement, read back off the scheduler, the pool`s own cancelGraceMs far past the ignoring worker`s end', r.c1,
+  ['running', 'running', ['resource.blocked'], 'pending', 'threaded', RC_POOL_GRACE_MS]);
+  check(key, 'W176 exit (1): the fold reads the cancel from the request on — `running` before it, `cancelling` at the request and at ' +
+    'each settlement while one task is unsettled, `cancelled` at the last (RN-R30), and the request`s actor and reason (c)', r.c2,
+  ['running', ['cancelling', 'cancelling', 'cancelling', 'cancelled'], { actor: RC_ACTOR, reason: RC_REASON }]);
+  check(key, 'W176 exit (1): the log is the fan-out`s start, the request, and the three cancelled settlements — NOTHING dispatched or routed ' +
+    'after it (RN-R29, RN-R31; the settlements a set, their order the scheduler`s)', r.c3,
+  [[...START, 'cancelRequested'], [`outcome ${c.honours} cancelled`, `outcome ${c.ignores} cancelled`, `outcome ${c.queued} cancelled`].sort()]);
+  check(key, 'W176 exit (1): nothing dispatched further — the log the same length at `done` and a macrotask later, the scheduler holding no ' +
+    'successor, the three nodes cancelled and nothing else, nothing reported (a cancel is not a refusal)', r.c4,
+  [11, 11, [], ['honours:cancelled', 'ignores:cancelled', 'queued:cancelled'], 0, false]);
+  check(key, 'W176 exit (1): `honours` honoured its signal — the worker saw it abort with the reason given — and the scheduler took the ' +
+    'RUNNING road (task.cancelling, then task.cancelled)', r.c5, [['started', `aborted:${RC_REASON}`], ['task.running', 'task.cancelling', 'task.cancelled']]);
+  check(key, 'W176 exit (1): `queued` left its queue at the first cancel — task.cancelled ALONE, resource.unblocked `cancelled`, its worker ' +
+    'never run (the WAITING road, the scheduler`s AGENTS.md section 5)', r.c6, [['task.cancelled'], ['resource.blocked', 'resource.unblocked:cancelled'], []]);
+  check(key, 'W176 exit (1): a second cancel, called while the first is still pending, `done` unsettled and the fold `cancelling`, appends ' +
+    'NOTHING (RN-R31: a second call records nothing) — made PAST the scheduler`s default 2 s grace, `ignores` still running and not ' +
+    'cancelled then (M1)', r.c7, ['pending', false, 'cancelling', false, 'running', 0]);
+  check(key, 'W176 exit (1): with graceMs 0 it ESCALATES the one that did not stop — both cancels resolved and `done` settled, and `ignores` ' +
+    'stopped BEFORE its worker`s own end, which says `finished` (never `forced`: P34 (g), S12)', r.c8, ['done', 'done', 'done', ['started']]);
+  check(key, 'W176 exit (1): `done` settled cancelled only after the LAST task.cancelled — terminal, and at that moment the scheduler had ' +
+    'fired task.cancelled for all three and held each cancelled (ADR 0104)', r.c9,
+  ['cancelled', true, [c.honours, c.ignores, c.queued].sort(), ['cancelled', 'cancelled', 'cancelled']]);
+  assertThat(key, 'W176 exit (1): what `done` resolved with IS fold(driver.foldInputs()) — the caller`s own expression', r.c10 === true);
+  check(key, 'W176 exit (1): a resume of its checkpoint on a FRESH runtime is refused `cancelled` AT THE REQUEST, position 7 (RN-R23), ' +
+    'and that scheduler holds no task', r.c11, ['ResumeRefused cancelled at 7', 0]);
+  // (2) — S's ids from spec/task-id.md; its first seven elements as (1)'s start, three branches.
+  const s = { a: 'w176s:a:0:0', b: 'w176s:b:1:0', c: 'w176s:c:2:0' };
+  const sStart = ['regionEntered', 'region branch.opened 0', 'region branch.opened 1', 'region branch.opened 2',
+    `dispatched ${s.a}`, `dispatched ${s.b}`, `dispatched ${s.c}`];
+  check(key, 'W176 exit (2): at the stop, S`s two tasks and the sibling`s ran on runtime A, and S`s third WAITED behind the held group',
+    r.s1, ['running', 'running', ['resource.blocked'], 'pending', 'running']);
+  check(key, 'W176 exit (2): S`s log ends at its `interrupted` element — deaf before it cancelled, so no task.cancelled of the stop is ' +
+    'appended, not even the WAITING task`s, which the scheduler fired inside the stop`s own cancel() call, and all three stay dispatched ' +
+    'and unsettled (RN-R33) — and the fold names who stopped it and why (RN-R32)', r.s2,
+  [[...sStart, 'interrupted'], { actor: RC_ACTOR, reason: 'W176 L6: upgrade' }, ['task.cancelled']]);
+  check(key, 'W176 exit (2): A`s `done` for S settled interrupted, terminal, after its tasks had stopped — at that moment the scheduler ' +
+    'had fired task.cancelled for all three and held each cancelled (d) — the ignoring `b` last, stopped by the stop`s FORWARDED ' +
+    'graceMs before its worker`s own end, which says `finished` (never `forced`)', r.s3,
+  ['interrupted', true, [s.a, s.b, s.c], ['cancelled', 'cancelled', 'cancelled'], ['started']]);
+  check(key, 'W176 exit (2): and stop() RESOLVED only once every task it cancelled had stopped — read in its own then()', r.s9, [s.a, s.b, s.c]);
+  assertThat(key, 'W176 exit (2): and it IS fold(driver.foldInputs()) — the caller`s own expression', r.s4 === true);
+  check(key, 'W176 exit (2): the sibling on A was untouched — its task never cancelling, run to its own end, its run completed', r.s5,
+    [['task.running', 'task.completed'], 'completed', [{ by: 'own end' }]]);
+  check(key, 'W176 exit (2): A refuses to resume S — the run id stays in use there (RN-R25, ADR 0091 rule 2), so it resumes on a FRESH one',
+    r.s6, 'RunIdInUse');
+  check(key, 'W176 exit (2): on a FRESH runtime B the resume re-dispatched EXACTLY the in-flight tasks at the SAME ids — the waiting one ' +
+    'with the two that ran — what B`s scheduler holds when resume() returns, `resumes`, and no new `dispatched` element (RN-R21, RN-R22)', r.s7,
+  [[s.a, s.b, s.c], [[s.a, s.b, s.c]], [`dispatched ${s.a}`, `dispatched ${s.b}`, `dispatched ${s.c}`]]);
+  check(key, 'W176 exit (2): B ran S to completed — terminal, all three tasks done by their own end, `done` equal to the caller`s fold', r.s8,
+    ['completed', true, ['a:done:{"by":"own end"}', 'b:done:{"by":"own end"}', 'c:done:{"by":"own end"}'], true]);
+  // (3)
+  const kWork = 'w176k:work:-:0';
+  check(key, 'W176 exit (3): the run PARKED — its task settled user_action, the run awaiting_action, nothing in flight', r.k1,
+    [[`dispatched ${kWork}`, `outcome ${kWork} user_action`], 'awaiting_action']);
+  check(key, 'W176 exit (3): stopped, its `done` settled interrupted — terminal, with nothing to cancel: the log ends at the element and ' +
+    'the scheduler`s task is still user_action (P34 facts 4 and 8) — equal to the caller`s fold', r.k2,
+  ['done', 'interrupted', true, [`dispatched ${kWork}`, `outcome ${kWork} user_action`, 'interrupted'], 'user_action', true]);
+  check(key, 'W176 exit (3): resolve() on A is REFUSED — `false`, nothing appended, nothing dispatched (RN-R33, P34 decision 9)', r.k3,
+    [false, 0, false]);
+  check(key, 'W176 exit (3): CONTROL — resumed on a fresh runtime, the SAME resolve() is accepted there and the run completes, the value ' +
+    'reaching the next node', r.k4, [true, 'completed', { checked: true }]);
+  // (4), each run — the start as a two-branch fan-out's, then `paused` at position 5; the four elements while paused a set
+  // (their order is the arranged completion order, asserted by the third claim).
+  for (const slow of ['a', 'b'] as const) {
+    const at = `W176 exit (4, \`${slow}\` slow)`;
+    const pid = `w176p${slow}`;
+    const p = { a: `${pid}:a:0:0`, b: `${pid}:b:1:0`, a2: `${pid}:a2:0:0`, b2: `${pid}:b2:1:0` };
+    check(key, `${at}: while PAUSED the run routed on — \`a\` and \`b\` settled and their successors were DISPATCHED, appended and ` +
+      'held; the fold reads running, paused (RN-R34, RN-R35)', r[`u1${slow}`],
+    [['regionEntered', 'region branch.opened 0', 'region branch.opened 1', `dispatched ${p.a}`, `dispatched ${p.b}`, 'paused'],
+      [`outcome ${p.a} done`, `dispatched ${p.a2}`, `outcome ${p.b} done`, `dispatched ${p.b2}`].sort(), 'running', true]);
+    check(key, `${at}: and NOTHING was handed to the scheduler while paused — it holds \`a\` and \`b\` alone, a macrotask past both ` +
+      'settlements', r[`u2${slow}`], [p.a, p.b]);
+    const u3 = (r[`u3${slow}`] ?? ['NOT RUN', 'NOT RUN']) as [unknown, unknown];
+    check(key, `${at}: UNPAUSED, the held tasks were handed on in DISPATCH order — the order this run ARRANGED (the fast branch's ` +
+      'successor first), in the log and in the scheduler`s addTask order — and `unpaused` is the next element, the scheduler holding ' +
+      '`a` and `b` alone ON it (RN-R35)', u3[0], u3[1]);
+    check(key, `${at}: and the run COMPLETED — terminal, no longer paused, all four tasks done, equal to the caller\`s fold`, r[`u4${slow}`],
+      ['completed', true, false, ['a2:done', 'a:done', 'b2:done', 'b:done'], true]);
+  }
+  // (5) — each road twice: through the scheduler's own `cancel(id)`, fact 8's road, whose fold is fact 8's literal
+  // `[dispatched, outcome cancelled]` (RN-R28); and through `driver.cancel`, whose request precedes the settlement (RN-R31).
+  for (const road of ['pre-pickup', 'backoff'] as const) {
+    for (const via of ['scheduler', 'driver'] as const) {
+      const id = `w176${road === 'pre-pickup' ? 'q' : 'b'}${via === 'scheduler' ? 's' : 'd'}:work:-:0`;
+      const ROAD = road === 'pre-pickup' ? 'PRE-PICKUP' : 'BACKOFF';
+      const req = via === 'driver' ? ['cancelRequested'] : [];
+      const settled = [`dispatched ${id}`, ...req, `outcome ${id} cancelled`];
+      check(key, road === 'pre-pickup'
+        ? `W176 exit (5): ${ROAD} through ${via}.cancel — the scheduler\`s road is task.cancelling then task.cancelled with NO task.running, ` +
+          'the worker never ran, and the call did not settle it (P34 fact 8)'
+        : `W176 exit (5): ${ROAD} through ${via}.cancel — the scheduler\`s road is task.running, task.retrying, task.cancelled with NO ` +
+          'task.cancelling, settled INSIDE the call, the 3 s backoff not waited; its task`s attempts 1 (P34 fact 8)',
+      r[`${road} ${via} road`], road === 'pre-pickup'
+        ? [['task.cancelling', 'task.cancelled'], [], [`dispatched ${id}`, ...req]]
+        : [['task.running', 'task.retrying', 'task.cancelled'], [], settled, 1]);
+      check(key, `W176 exit (5): ${ROAD} through ${via}.cancel — the fold ${road === 'backoff' ? 'saw nothing of the retry: ' : 'is '}` +
+        `${via === 'scheduler' ? 'fact 8`s own — the dispatch and the cancelled settlement' : 'the dispatch, the request and the cancelled settlement'}; ` +
+        '`done` cancelled, terminal, equal to the caller`s fold', r[`${road} ${via} fold`], ['done', 'cancelled', true, settled, true]);
+    }
+  }
+  // (6)
+  check(key, 'W176 exit (6): tryTransform FIRST, given each payload, is the check before a run — `{ word }` transform-passes, `{ label }` ' +
+    'transform-fails naming $.label required (ADR 0101, W166)', r.t1, [[['transform-passes', false]], [['transform-fails', true]]]);
+  check(key, 'W176 exit (6): start ADMITS both of Q633`s payloads — a transforming entry is not held at start (FD-R4 v0.40) — and each ' +
+    'run completes', r.t2, ['completed', 'completed']);
+  check(key, 'W176 exit (6): the worker RECEIVED the transform`s result, on a thread — `{ label: "x" }`, and `{}`', r.t3, RC_Q633_RECEIVES);
+  check(key, 'W176 exit (6): CONTROL — the same entry UNTRANSFORMED is held at start: BoundaryRefused at `label`, naming $.label required, ' +
+    'the scheduler handed nothing (FD-R4 unmoved)', r.t4, [['start', 'label', ['$.label required']], 0]);
+  // (7)
+  check(key, 'W176 exit (7): a built-in KeyedRateLimitGroup resident on a TYPE`s default pool is refused by createRuntime — ' +
+    'DerivationRefused, naming the pool and the group (Q619 option B)', r.r1, ['DerivationRefused', []]);
+  check(key, 'W176 exit (7): and on a NAMED instance`s pool — naming that pool', r.r2, ['DerivationRefused', []]);
+  check(key, 'W176 exit (7): CONTROL — the same documents with a RateLimitGroup resident are built', r.r3, ['built', 'built']);
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -10050,7 +10814,10 @@ if (exitBlock !== null) {
 // control's parked run and its resume — on the same precedent. The three refused resumes build no driver and are not runs.
 // **And `+ keyedBlock.runs.length` since W163**: its ONE run, the `createTask` road; the refused start builds no driver.
 // **And `+ exitBlock.runs.length` since W167**: its TWO runs, A and B; the refused starts of C and D build no driver.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0);
+// **And `+ rcBlock.runs.length` since W176**: its FOURTEEN runs — (1) the cancelled fan-out; (2) the sibling, S, and S
+// resumed on B; (3) the parked run and its resume; (4) the paused fan-out, each branch slow in turn; (5) the pre-pickup and
+// the backoff runs, each through the scheduler's cancel(id) and through driver.cancel; (6) Q633's two payloads. The refused resumes and the refused start of (6)'s control build no driver and are not runs.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -10369,7 +11136,14 @@ const PER_PLAIN_ROW = 22;
 // **+1 after W167's readers** (2026-10-16): the given result held to the entry worker's inputSchema (the adequacy reader,
 // A3); A1, A2 and the conformity reader's F2 widened existing claims and moved no count. 330 + 1 = 331. *(Written as 331
 // before the file was re-run.)*
-const CROSS_ROW = 331;
+// **+38 since W167, by W176 — P34's EXIT ARTIFACT**: the run-control block's thirty-eight clauses — eleven for the cancel,
+// eight for the stop, four each for the parked stop, the pause, the two cancel roads and Q633's road, three for the resident
+// keyed group — all cross-row because the block is outside the row loop. 331 + 38 = 369. *(Written as 369 at the
+// declaration; the block's first run read 2703 against a declared 2664 — the 38 passing and the count's own failure line.)*
+// **+9 after W176's readers**: (2) +1, when stop() resolves (the adequacy reader, M6/M7); (4) +4, the pause run a second
+// time with the other branch slow (M12d); (5) +4, each road through the scheduler's own cancel(id) beside driver.cancel (the
+// conformity reader's R1 gap). 369 + 9 = 378. *(Written as 378 before the file was re-run.)*
+const CROSS_ROW = 378;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -12543,14 +13317,20 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // 18 new assertions passing and 176 runs, in node — and one of the eighteen was removed as unable to fail, see `CROSS_ROW`.)*
 // **2664 / 176 after W167's readers** — `CROSS_ROW` 330 -> 331, the one new claim; no run moved. *(Written as 2664 / 176
 // before the file was re-run.)*
-const DECLARED_TOTAL = 2664;
+// **2702 / 187 since W176 — P34's EXIT ARTIFACT, +38 and eleven runs**, DERIVED at the declaration: the run-control block's
+// thirty-eight cross-row assertions (`CROSS_ROW` 331 -> 369) over its eleven runs. No row moved. *(The block's first run, in
+// node, read 2703 with exactly ONE failure — this guard's own line, which counts itself — and 176 runs before `pairRunCount`
+// counted the block.)*
+// **2711 / 190 after W176's readers** — `CROSS_ROW` 369 -> 378, and three runs: the second arranged pause, and the two
+// cancels through the scheduler's own cancel(id). No row moved. *(Written as 2711 / 190 before the file was re-run.)*
+const DECLARED_TOTAL = 2711;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 176;
+const DECLARED_RUNS = 190;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
