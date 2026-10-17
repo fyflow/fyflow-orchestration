@@ -18,7 +18,9 @@ answered *"as recommended"* by the maintainer 2026-10-17, with decisions 5, 8 an
 `spec/outcome-record.md` v0.18 (`RS-R1`, section 7), `spec/flow-definition.md` v0.43 (`FD-R4`'s resolve boundary) and
 `spec/join-policy.md` v0.23 (`JP-R5`'s guarantor). **It decides what a RUN does with an ask**; the node itself is
 [ADR 0108](0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md)'s, and an ask under cancel, stop,
-pause and resume beyond what rule 2 forces is W181's (P35 (g)).
+pause and resume beyond what rule 2 forces is W181's (P35 (g)). *(2026-10-17: settled by
+[W181](../work-items/w181-an-ask-under-run-control.md) as `spec/run-state.md` v0.23 `RN-R38` — a parked ask is a parked task to
+run control — with no driver line changed; nothing in this ADR moves.)*
 
 ## Context
 

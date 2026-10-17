@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W181 — P35 (g), an ask under cancel, stop, pause and resume: L2 in `test/driver/ask-control.test.ts`, and through
+  // `createRuntime` in `test/scheduler/runtime.test.ts` — both counted below.
+  'L2 — RN-R38: an ask under cancel, stop, pause and resume — a parked ask is a parked task to run control',
+  'W181 — a run parked on an ASK: cancelled and stopped with nothing sent and done settling at once, resumed on a fresh runtime, and answered while paused',
   // W180 — ADR 0109, asking and answering in a run: L2 in `test/driver/ask.test.ts`, L1/L3 in `test/fold/asked.test.ts`,
   // L5 in `test/matrix/ask.test.ts`, each with its own `DECLARED_CASES`.
   'L2 — RN-R37: asking and answering in a run — an ask parks with nothing handed to the scheduler, and its answer is its result',
@@ -869,6 +873,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/pause.test.ts registers its fifteen: the hold and the order, the refusals, the mid-step pause and its resume, a pause and an unpause in one step, a dispatch on the hand-off`s stack, a throwing callback, the stop, the cancel, a pending stop, a halt in the hand-off, a pause on `resumed`, a cancel on a held task`s own element, a paused resume`s order, W178`s throw on a pause or an unpause taken at a scheduler event`s step end, and its own membership');
     equal(count('L1 — RN-R34: a run its OWNER paused reads `paused: true` until an `unpaused` element — a flag, never an outcome'), 8,
       'test/fold/paused.test.ts registers its eight: six claims, L3, and its own membership');
+  });
+  // **W181's two suites, counted the same way and for the same reason.**
+  test('W181`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R38: an ask under cancel, stop, pause and resume — a parked ask is a parked task to run control'), 20,
+      'test/driver/ask-control.test.ts registers its twenty: three cancels, five stops and resumes, five answers while paused, the mid-step answer, four run controls on the `asked` element, the call order, and its own membership');
+    equal(count('W181 — a run parked on an ASK: cancelled and stopped with nothing sent and done settling at once, resumed on a fresh runtime, and answered while paused'), 2,
+      'test/scheduler/runtime.test.ts registers W181`s two');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
