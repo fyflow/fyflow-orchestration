@@ -3142,7 +3142,7 @@ suite('W174 — a STOPPED run`s done settles `interrupted` once its cancels reso
    * `cancelRequested` — the throw at the caller, both tasks still sent their cancel, and `done` settles `cancelled` once
    * both have stopped.
    */
-  test('W178: a callback THROWING on `paused` taken at a settlement`s step end settles done `halted`, reported once, nothing escaping the event; one THROWING on `cancelRequested` still sends every cancel, and done settles `cancelled`', async () => {
+  test('W178: a callback THROWING on `paused` taken at a settlement`s step end settles done `halted`, reported once, nothing escaping the event; one THROWING on `cancelRequested` still sends every cancel — and, since W184, HALTS the run: done settles `halted` at once', async () => {
     const LINE2 = {
       flowId: 'line2', version: 1, entry: 'x',
       nodes: [
@@ -3188,13 +3188,90 @@ suite('W174 — a STOPPED run`s done settles `interrupted` once its cancels reso
     equal(thrown, boom, 'the throw reaches cancel()`s caller');
     equal(A.cancels.filter(([id]) => id.startsWith('ko:')).map(([id]) => id), ['ko:a:0:0', 'ko:b:1:0'],
       'and both tasks in flight were sent their cancel through the per-run view — though the callback threw');
-    let settled = false;
-    void run.done.then(() => { settled = true; });
+    // W184 (P36 (b), `OR-R10` v0.19): the throw on the cancel's own element HALTS the run, and `halted` outranks
+    // `cancelling` — so `done` settles `halted` AT ONCE, not after the last task stops (`RN-R33`'s clause: a halted run's
+    // tasks run on unheard by construction). Before W184 it settled `cancelled` after the last.
+    equal((await w77Settlement(run.done)).outcome, 'halted', 'done settles `halted` at once — both tasks still stopping');
     A.stops('ko:a:0:0');
-    await turn();
-    equal(settled, false, 'done PENDING while b stops');
     A.stops('ko:b:1:0');
-    equal((await w77Settlement(run.done)).outcome, 'cancelled', 'done settles `cancelled` after the last');
+  });
+});
+
+/**
+ * **W184 — a consumer callback that THROWS, through `createRuntime`**: P35's retro (k), P36 stop-and-asks (b) and (c),
+ * `spec/outcome-record.md` `OR-R10` v0.19, `spec/run-state.md` `RN-R22` and `RN-R33` v0.24,
+ * [W184](../../doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md). Its own suite (the readers' C6):
+ * the run it drives settles `halted`, never `interrupted`. The L2 sweep is `test/driver/throwing-callback.test.ts`.
+ */
+suite('W184 — through createRuntime: a callback that THROWS on a stop`s element or on `resumed` HALTS the run — done `halted` at once, the cancels sent, nothing handed on, the run id spent', (test) => {
+  const SPLIT = {
+    flowId: 'split', version: 1, entry: 'split',
+    nodes: [
+      { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+      { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+      { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  /** A runtime on `routedSeams`, its scheduler's `cancel` left UNRESOLVED until the case says a task stopped. */
+  function stoppable() {
+    const s = routedSeams();
+    const cancels: [string, unknown][] = [];
+    const stopping = new Map<string, (v: boolean) => void>();
+    const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
+      const sch = s.createScheduler(p, g) as unknown as Record<string, unknown>;
+      sch.cancel = (id: string, o: unknown) => {
+        cancels.push([id, o]);
+        return new Promise<boolean>((res) => { stopping.set(id, res); });
+      };
+      return sch as never;
+    };
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler });
+    const stops = (id: string) => { s.emit('task.cancelled', s.detail(id, 'cancelled')); stopping.get(id)!(true); };
+    return { s, r, cancels, stops };
+  }
+
+  test('handle.stop() whose callback THROWS on `interrupted` halts the run, done settling `halted` at once with the cancels sent; runtime.resume() whose callback throws on `resumed` throws the consumer`s error, hands NOTHING on, and spends the run id (P36 (b), (c))', async () => {
+    const boom = new Error('W184: the consumer`s store failed');
+    const A = stoppable();
+    // (b) a stop at rest through the handle: the cancels sent through the per-run view, the throw at the caller, and
+    // `done` `halted` — not `interrupted`, so it does not wait on the cancels.
+    const failures: unknown[] = [];
+    const run = A.r.start(SPLIT, { x: 1 }, {
+      runId: 'hs',
+      onFoldInput: (e: FoldInput) => { if (e.kind === 'interrupted') throw boom; },
+      onRunFailure: (f) => { failures.push(f.cause); },
+    });
+    let thrown: unknown = null;
+    try { void run.stop({ actor: 'ops' }); } catch (x) { thrown = x; }
+    equal(thrown, boom, 'the consumer`s throw reaches handle.stop()`s caller');
+    equal(A.cancels.filter(([id]) => id.startsWith('hs:')).map(([id]) => id), ['hs:a:0:0', 'hs:b:1:0'],
+      'both tasks in flight were sent their cancel through the per-run view — in the take`s `finally`');
+    equal(failures, [boom], 'onRunFailure hears it ONCE');
+    equal((await w77Settlement(run.done)).outcome, 'halted', 'done settles `halted` at once, both cancels unresolved');
+    A.stops('hs:a:0:0');
+    A.stops('hs:b:1:0');
+
+    // (c) a resume on a FRESH runtime whose callback throws on `resumed`: the consumer's error at runtime.resume()'s
+    // caller, nothing handed to B's scheduler, and B keeps the run id — a driver was built for it (ADR 0091 rule 4).
+    const first = A.r.start(SPLIT, { x: 1 }, { runId: 'hr' });
+    const cp = structuredClone(first.driver.checkpoint()) as Checkpoint;
+    const B = stoppable();
+    const bFailures: unknown[] = [];
+    let resumeThrew: unknown = null;
+    try {
+      B.r.resume(SPLIT, cp, {
+        onFoldInput: (e: FoldInput) => { if (e.kind === 'resumed') throw boom; },
+        onRunFailure: (f) => { bFailures.push(f.cause); },
+      });
+    } catch (x) { resumeThrew = x; }
+    equal(resumeThrew, boom, 'the consumer`s own error reaches runtime.resume()`s caller — not ResumeRefused');
+    equal(B.s.added.map((t) => t.id), [], 'NOTHING handed to the fresh runtime`s scheduler: the in-flight a and b stay unhanded');
+    equal(bFailures, [boom], 'reported ONCE');
+    let inUse: unknown = null;
+    try { B.r.resume(SPLIT, cp); } catch (x) { inUse = x; }
+    ok(inUse instanceof RunIdInUse, `and the run id is spent on that runtime: ${String(inUse)}`);
   });
 });
 

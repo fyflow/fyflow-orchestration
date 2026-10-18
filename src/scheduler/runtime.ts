@@ -327,6 +327,9 @@ export interface RunHandle {
    * id in use (`RN-R25`). **BREAKING in 0.8.0 for code that BUILDS a `RunHandle`** (P34 decision 10) — a new member.
    *
    * @throws RunControlRefused — `control: 'stop'`, as `driver.stop` throws it; nothing recorded or sent.
+   * @throws the consumer's own error — an `onFoldInput` that threw on the `interrupted` element (`OR-R10` v0.19, `RN-R33`
+   *   v0.24, P36 (b), W184): the cancels are still sent, and the run is HALTED and reported once — `halted` outranks
+   *   `interrupted`, so it is NOT resumable and `done` settles `halted` at once, without waiting on the cancels.
    */
   stop(options: RunStopOptions): Promise<void>;
   /**
@@ -387,6 +390,11 @@ export interface Runtime {
    * regenerated past the stored events (the lost tail), then `resumed`, then whatever the run does next — so a store that
    * appends what it is handed holds the whole run again (`RN-R24`). `done` resolves with the terminal `RunState` of the
    * WHOLE run, stored elements included.
+   *
+   * **A consumer `onFoldInput` that THROWS on the `resumed` element** (`RN-R22` v0.24, P36 (c), W184): the run is HALTED and
+   * reported once, NOTHING of the in-flight set is handed to this runtime's scheduler, and the consumer's own error is
+   * thrown here — after the driver was built, so the run id is spent on this runtime (ADR 0091 rule 4, as for a resume
+   * refused during its replay).
    */
   resume(flow: FlowDefinition, checkpoint: Checkpoint, options?: ResumeOptions): RunHandle;
   /** The scheduler's, forwarded — a runtime owns its pools, so it owns their shutdown. */

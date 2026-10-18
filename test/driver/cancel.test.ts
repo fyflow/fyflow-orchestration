@@ -190,8 +190,8 @@ const DECLARED_CASES = [
   'on the RUNNING road: a cancel on a task`s own `dispatched` element, and on a `resumed` element, resolves only once the task stops',
   'a cancel raised on a REGENERATED element of a resume`s lost tail sends nothing until the task is handed back — then one cancel, pending until it stops',
   'a run with one task DONE and one PARKED is not `ended`: the cancel is accepted, and reads `cancelled` at the element',
-  'W178 (o), P35 fact 9: a callback THROWING on the `cancelRequested` element AT REST — beside its control, and on a PAUSED run with a task HELD: the throw reaches cancel()`s caller, every task in flight is sent its cancel and every held task handed on and then cancelled, `cancelled` once the last stops',
-  'W178 (o): a cancel raised MID-STEP on a PAUSED run whose callback THROWS on the `cancelRequested` element: every task in flight sent its cancel, every held task handed on and cancelled — the throw at the callback that called cancel(), and, uncaught there, OR-R10`s halt with the cancels still sent',
+  'W178 (o), P35 fact 9: a callback THROWING on the `cancelRequested` element AT REST — beside its control, and on a PAUSED run with a task HELD: every task in flight is sent its cancel and every held task handed on and then cancelled, and then — W184, P36 (b) — the run HALTED, reported once, and the throw at cancel()`s caller',
+  'W178 (o): a cancel raised MID-STEP on a PAUSED run whose callback THROWS on the `cancelRequested` element: every task in flight sent its cancel, every held task handed on and cancelled — the run HALTED and reported once at cancel()`s own boundary (W184), the throw at the callback that called cancel(), and, uncaught there, nothing reported twice',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -624,28 +624,30 @@ suite(SUITE, (test) => {
     await cp;
     equal([cDone, fold(c.driver.foldInputs()).outcome], [true, 'cancelled'], 'and `cancelled` once both stopped');
 
-    // ROW 2 — the callback THROWS on the element, AT REST: the throw reaches cancel()'s caller, AFTER the element and the
-    // cancels — `RN-R31` v0.21's `finally`. Today's tree sent NONE (fact 9).
+    // ROW 2 — the callback THROWS on the element, AT REST: every task in flight is sent its cancel — `RN-R31` v0.21's
+    // `finally` (today's tree before W178 sent NONE, fact 9) — and then, since W184 (P36 (b), `OR-R10` v0.19), the run is
+    // HALTED and reported ONCE, and the throw reaches cancel()'s caller. Before W184 it read `cancelling`, unhalted.
     const r = harness(FORK, new CancelFake(), throwing);
     r.driver.start({});
     const before = r.log();
     equal(thrownBy(() => r.driver.cancel({ actor: 'ana' })), boom, 'at rest the consumer`s throw reaches cancel()`s caller');
-    equal(r.log(), [...before, 'cancelRequested ana null'], 'ONE element, in the log before the throw');
+    equal(r.log(), [...before, 'cancelRequested ana null', 'halted'], 'ONE element, then `halted` after it');
     equal(r.scheduler.cancels.map((x) => [x.id, x.held]), [[A, true], [B, true]],
       'and every task in flight IS sent its cancel, in dispatch order, though the callback threw — the same two as the control');
-    equal([fold(r.driver.foldInputs()).outcome, r.failures, r.driver.hasFailed()], ['cancelling', [], false],
-      '`cancelling`, and NOT halted: a throw at a caller`s own call is the caller`s, never OR-R10`s');
-    // A SECOND call appends nothing, and resolves once both have stopped — the run reaches `cancelled`.
+    equal([fold(r.driver.foldInputs()).outcome, r.failures, r.driver.hasFailed()], ['halted', ['Error'], true],
+      '`halted` — it outranks `cancelling` (RN-R8) — and reported ONCE under the consumer`s class');
+    // A SECOND call appends nothing — never refused for the halt (`RN-R31`) — and resolves once both have stopped.
     let rDone = false;
     const second = r.driver.cancel({ actor: 'ana' }).then(() => { rDone = true; });
     equal(r.log().filter((l) => l.startsWith('cancelRequested')), ['cancelRequested ana null'], 'the second call appends nothing');
     equal(r.scheduler.cancels.map((x) => x.id), [A, B, A, B], 'and re-sends to a and b, each still stopping — the first call`s request is whole');
     r.scheduler.finish(A);
     await turn();
-    equal([rDone, fold(r.driver.foldInputs()).outcome], [false, 'cancelling'], 'pending while b stops');
+    equal([rDone, fold(r.driver.foldInputs()).outcome], [false, 'halted'], 'pending while b stops');
     r.scheduler.finish(B);
     await second;
-    equal([rDone, fold(r.driver.foldInputs()).outcome], [true, 'cancelled'], '`cancelled` once the last stopped');
+    equal([rDone, fold(r.driver.foldInputs()).outcome, r.failures], [true, 'halted', ['Error']],
+      'resolved once the last stopped — each settlement appended, the run still `halted`, nothing reported again');
 
     // ROW 3 — the same on a PAUSED run, `a` settled and `a2` HELD: a2 handed on and THEN cancelled; b cancelled. Today's
     // tree sent nothing, never handed a2 on, and a second call sent b alone — `cancelling` for ever (fact 9).
@@ -659,12 +661,14 @@ suite(SUITE, (test) => {
     equal(p.scheduler.cancels.map((x) => [x.id, x.held]), [[B, true], [A2, true]],
       'and every task in flight is sent its cancel in dispatch order — b, then a2 right after its hand-off');
     const ps = fold(p.driver.foldInputs());
-    equal([ps.outcome, ps.paused], ['cancelling', true], '`cancelling`, the flag unmoved (a cancel does not lift a pause)');
+    equal([ps.outcome, ps.paused, p.failures], ['halted', true, ['Error']],
+      '`halted` and reported once (W184), the flag unmoved (a cancel does not lift a pause)');
     equal((p.driver as unknown as { pauseHeld: Map<string, unknown> }).pauseHeld.size, 0, 'nothing is left in the hold');
     p.scheduler.finish(B);
     p.scheduler.finish(A2);
     await turn();
-    equal(fold(p.driver.foldInputs()).outcome, 'cancelled', '`cancelled` once the last — the held a2, settled by the scheduler — stopped');
+    equal(p.log().slice(-2), [`outcome ${B} cancelled`, `outcome ${A2} cancelled`],
+      'the scheduler settled both — the held a2 included — each appended after the halt and routed nowhere');
 
     // R1: the in-flight set is read AFTER the element. A callback on it that has b SETTLE (the driver still hears, unlike a
     // stop's) and then throws: b is no longer in flight and is sent nothing; a is sent its cancel.
@@ -674,7 +678,8 @@ suite(SUITE, (test) => {
     });
     q.driver.start({});
     equal(thrownBy(() => q.driver.cancel({ actor: 'ana' })), boom, 'the throw reaches the caller');
-    equal(q.log().slice(-2), ['cancelRequested ana null', `outcome ${B} done`], 'b`s settlement, heard on the element, appended after it');
+    equal(q.log().slice(-3), ['cancelRequested ana null', `outcome ${B} done`, 'halted'],
+      'b`s settlement, heard on the element, appended after it — then the halt');
     equal(q.scheduler.cancels.map((x) => x.id), [A], 'a is sent its cancel and b — settled on the element — nothing');
   });
 
@@ -708,18 +713,21 @@ suite(SUITE, (test) => {
     let escaped: unknown = null;
     try { h.scheduler.settle(C, 'done'); } catch (x) { escaped = x; }
     equal([box.called, box.caught, escaped], [true, boom, null], 'mid-step the throw reaches the callback that called cancel(), and nothing leaves the event');
-    equal(h.log().slice(-2), [`outcome ${C} done`, 'cancelRequested ana null'], 'the element, on c`s step');
+    equal(h.log().slice(-3), [`outcome ${C} done`, 'cancelRequested ana null', 'halted'],
+      'the element, on c`s step — and `halted` after it: cancel() is a DRIVER CALL whose own element threw (W184, reading R2)');
     equal(h.scheduler.added, [A, B, C, A2], 'the HELD a2 handed on, and nothing else: the hold stops the step`s join');
     equal(h.scheduler.cancels.map((x) => [x.id, x.held]), [[B, true], [A2, true]],
       'every task in flight sent its cancel, in dispatch order — b, then a2 after its hand-off');
-    equal([fold(h.driver.foldInputs()).outcome, h.failures], ['cancelling', []], '`cancelling`, nothing reported');
+    equal([fold(h.driver.foldInputs()).outcome, h.failures], ['halted', ['Error']],
+      '`halted` and reported ONCE, though the callback caught the throw — before W184, `cancelling` and nothing reported');
     h.scheduler.finish(B);
     h.scheduler.finish(A2);
     await turn();
-    equal(fold(h.driver.foldInputs()).outcome, 'cancelled', '`cancelled` once the last stopped');
+    equal([fold(h.driver.foldInputs()).outcome, h.failures], ['halted', ['Error']], 'still `halted` once the last stopped, nothing reported again');
 
-    // UNCAUGHT by the callback: the throw leaves it on the settlement's element — OR-R10, reported and halted — and the
-    // cancels and the hand-off were still made, in the cancel's `finally`.
+    // UNCAUGHT by the callback: the throw leaves it on the settlement's element — OR-R10 — and the cancels and the
+    // hand-off were still made, in the cancel's `finally`; halted at cancel()'s boundary, and reported ONCE, not again at
+    // the listener's.
     const u = arrange(false);
     let uEscaped: unknown = null;
     try { u.h.scheduler.settle(C, 'done'); } catch (x) { uEscaped = x; }

@@ -71,6 +71,9 @@ replay's — append, defer `addTask` — which ADR 0103 rule 6 keeps beside the 
    lesson), and the throw reaches whoever is on the stack.
    *(2026-10-17, [W178](../work-items/w178-the-throwing-callback-fixes-and-ms-titles.md), P35 (j): on a SCHEDULER EVENT's step that is the listener boundary, which reports the
    throw and halts the run — a pause's and an unpause's alike; `OR-R10` v0.17, `RN-R35` v0.21.)*
+   *(2026-10-18, [W184](../work-items/w184-a-consumer-callback-that-throws-on-every-road.md), P35's retro (k), P36 (b): on EVERY road — the take HALTS the run at its element, after the
+   hand-off, reported once, and a pause, unpause or answer pending behind it on the step is dropped; on a driver call
+   the throw then reaches the caller; `OR-R10` v0.19, `RN-R35` v0.24.)*
 6. **The fold reads a FLAG, `RunState.paused`, and NO outcome** (P34 (e)): `true` from `paused` until `unpaused`; a held
    task is `dispatched`, so `running`, and the outcome of any sequence is the outcome without its pause elements — no
    precedence moves, `isTerminal` does not widen. **CURRENT**, and lifted by nothing but `unpaused` — not a stop, a

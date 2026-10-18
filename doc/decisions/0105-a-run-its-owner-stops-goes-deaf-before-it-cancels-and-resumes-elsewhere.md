@@ -69,6 +69,9 @@ cannot say when the tasks have stopped. And a run id stays in use on the runtime
    hold.
    *(2026-10-17, [W178](../work-items/w178-the-throwing-callback-fixes-and-ms-titles.md), P35 (j): a stop taken at the end of a SCHEDULER EVENT's step whose element a consumer
    callback throws on — the throw is caught at the listener boundary, reported, and the run halted, so not resumable; `OR-R10` v0.17, `RN-R33` v0.21.)*
+   *(2026-10-18, [W184](../work-items/w184-a-consumer-callback-that-throws-on-every-road.md), P35's retro (k), P36 (b): on EVERY road — at rest and on a driver call's step as well — the
+   throw on the element HALTS the run at the take, after the cancels, reported once, so a stop so thrown is not
+   resumable; a stop taken after its step already halted the run is taken silently; `OR-R10` v0.19, `RN-R33` v0.24.)*
 5. **The fold reads a NINTH outcome, `interrupted`, from the element until a `resumed` element ends it** (`RN-R32`), and a
    CURRENT cell `RunState.interruption: { actor, reason } | null` — `regions[*].suspended`'s precedent: that a run was
    ever stopped is in the input sequence. **Terminal** (`isTerminal` unchanged), so `done` settles and the runtime

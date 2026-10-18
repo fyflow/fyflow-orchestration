@@ -110,7 +110,7 @@ const DECLARED_CASES = [
   'an answer given MID-STEP on the `asked` element is accepted and TAKEN AT REST: the park completes, the resolution follows the step, and the checkpoint resumes',
   'the same, in a MAP, and the refusals still at the call: a second answer while one is pending, an FD-R4 refusal thrown at once, a cancel on the step dropping the pending answer',
   'the `asked` input is compared as STRUCTURED-CLONE data at a resume: a changed Map, Set, Date or array hole is refused diverged, the unchanged one resumes',
-  'a consumer callback throwing on a driver call`s step: on `resolve()` the throw reaches its caller after the element; on `resume()` it reaches the caller and the run is halted',
+  'a consumer callback throwing on a driver call`s step: on `resolve()` the throw reaches its caller after the element, the run HALTED and reported once (W184); on `resume()` it reaches the caller and the run is halted',
   'a resume RE-CREATES the `asked` element at its position: the same input re-parks with nothing re-dispatched, a different one is refused diverged there',
   'a consumer callback THROWING on `asked`: on a driver call it reaches the caller after the element; on a scheduler event`s step it is reported once and halts the run',
   'the three `ended` refusals count an unanswered ask as parked: cancel, stop and pause are each accepted on a run waiting only on an ask',
@@ -539,9 +539,12 @@ suite(SUITE, (test) => {
     let err: unknown;
     try { r.driver.resolve(A, 'done', { result: { approved: true }, actor: 'ana' }); } catch (e) { err = e; }
     equal(err, boom, 'on resolve() the consumer`s throw reaches the caller');
-    equal(r.seen.slice(0, 2), ['asked', 'resolution'], 'after the element, which is in the log');
-    // *What the run does after it is a driver call's road for a TASK's resolution too, and is not W180's: the throw
-    // leaves `appendResolution`, so neither `branch.resumed`, routing nor a halt follows — recorded in W180's Notes.*
+    // **W184** (P35 (k), P36 fact 11 R2): the run is HALTED after the element and reported once — nothing routed, the
+    // successor never dispatched. *Before W184 the throw left `appendResolution` with nothing else done, and the run folded
+    // `completed` — a run that never reached its end (W180's Notes).*
+    equal(r.seen, ['asked', 'resolution', 'halted'], 'after the element, which is in the log — then `halted`, and nothing routed');
+    equal([r.failures.map((f) => f.message), outcome(r.driver), r.sch.ids()], [['consumer callback threw'], 'halted', []],
+      'reported ONCE, the run `halted` — not `completed` — and nothing handed to the scheduler');
     // On `resume()`'s step: the store LOST the `asked` element (the tail past its last write), so the replay regenerates
     // it past the stored events and DELIVERS it (`RN-R24`) — and the callback throws there. The replay's boundary halts the
     // run and reports it once, and the resume is refused `ResumeRefused('halted')` at the element after it (`RN-R23`).
