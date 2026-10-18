@@ -74,7 +74,10 @@ What W89's declaration step re-took before deciding anything:
    `stopped` included, has been delivered.
 7. **What is in flight is re-dispatched at the same ids** (`RN-R21`): dispatched and never settled in the
    replayed sequence, at the END of the replay, in dispatch order; a `user_action` settlement is a
-   settlement, so a parked task stays parked. **At-least-once**, with a fresh retry budget.
+   settlement, so a parked task stays parked. **At-least-once**, with a fresh retry budget. *(2026-10-18,
+   [ADR 0113](0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md), W186: no longer a FRESH budget — each
+   task is re-dispatched with `attemptsSpent`, the highest attempt the stored run recorded for it (`RN-R40`, `RN-R21`
+   v0.26). At-least-once is unchanged.)*
 8. **`resumed` is appended after the replay and before the first re-dispatch, always** (`RN-R22`), naming
    the in-flight ids — `[]` when none — and the fold records it in `RunState.resumes`. A stored `resumed` is
    fed and checked against what is in flight in the replay there.
@@ -96,7 +99,9 @@ one moment it would matter (P23 decision 9).
 1. **At-least-once** (P23 decision 6): a task in flight at the kill may have finished in the process that
    is gone and runs again, and the log cannot say which. Workers must tolerate running twice.
 2. **A fresh retry budget** ([Q365](../questions/q365.md), measured): a task that had spent its retries
-   in the process that is gone runs them all again.
+   in the process that is gone runs them all again. *(2026-10-18, ADR 0113, W186: this cost is REMOVED — each attempt
+   is recorded as an `attempted` fold input and handed on as `attemptsSpent`, so a spent budget runs once more and no
+   more; [Q365](../questions/q365.md) resolved.)*
 3. **The prefix check sees only what was stored.** A predicate that changed where the stored run's road
    lies past its stored events is not seen, and the resumed run takes the new road. Asserted as the
    limit, not hidden.

@@ -17,7 +17,8 @@ import { parseTaskId } from '../driver/ids.ts';
  * `user_action` is `suspended` here — it is not terminal at flow level. And there
  * is **no `pending`**: `OR-R4` says `task.running` writes no record, so the only
  * signal the fold has is the dispatch itself, and a task is `running` from that
- * moment. A state nothing can produce is not a state.
+ * moment. A state nothing can produce is not a state. *(Since v0.26 `task.running` produces a FOLD INPUT, `attempted`
+ * (`RN-R40`, W186) — still no record, and it moves no state: a task is `running` from its dispatch either way.)*
  *
  * **`cancelled` is W158's** ([ADR 0094](../../doc/decisions/0094-a-cancelled-task-is-a-terminal-state-that-routes-no-edge-and-ends-its-run-cancelled.md)),
  * copied verbatim from the settlement as `done` and `failed` are. **Widening this union is BREAKING for a
@@ -404,7 +405,25 @@ export type FoldInput =
    * **A new kind, and it is BREAKING for a consumer switching on `kind` exhaustively** — the cost
    * stop-and-ask (b) priced, which is why the package moves at W94's close, on `resumed`'s precedent.
    */
-  | ({ kind: 'gated' } & GateDecision);
+  | ({ kind: 'gated' } & GateDecision)
+  /**
+   * **An ATTEMPT of a task started** — `RN-R40`, v0.26,
+   * [W186](../../doc/work-items/w186-attempts-recorded-and-carried-across-a-resume.md),
+   * [ADR 0113](../../doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md), P36 stop-and-ask (f):
+   * appended by the driver for the scheduler's `task.running` of a task THIS run dispatched, carrying the scheduler's
+   * 1-based `attemptNumber` — and ONLY when that number EXCEEDS the last one recorded for the task, so a requeue (which
+   * repeats its number) appends nothing. For every task, with or without a `retryPolicy`. **Appended at REST**: a
+   * `task.running` heard on the driver's own step — an inline pool fires it INSIDE `addTask` — is appended when that step
+   * ends, so the element always lies BETWEEN two steps, where a resume's replay feeds it (`RN-R19`).
+   *
+   * **FED to a replay** (`RN-R19`'s seventh kind): only the scheduler can produce it, so the replay cannot regenerate it;
+   * the highest number the replay was fed for a task is what a resume re-hands it with as `attemptsSpent` (`RN-R21`), so a
+   * task's retry budget is NOT reset by a crash (Q365). **Moves nothing in `RunState` at v0.26** — the fold accepts it and
+   * keeps its state; the run, the nodes and the outcome are what they would be without it. **Never a log record**
+   * (`OR-R4`: `task.running` writes none) — `cancelRequested`'s precedent. **A new kind, BREAKING in 0.8.0 for a consumer
+   * switching on `kind` exhaustively** (P36 decision 8, (p)).
+   */
+  | { kind: 'attempted'; taskId: string; attemptNumber: number };
 
 export function emptyState(): RunState {
   return {
@@ -526,6 +545,13 @@ export function step(prev: RunState, input: FoldInput): RunState {
     const d: GateDecision = { gateId: input.gateId, branchPath: input.branchPath, route: input.route };
     if (input.key !== undefined) d.key = structuredClone(input.key);
     return { ...prev, gated: [...prev.gated, d] };
+  }
+
+  if (input.kind === 'attempted') {
+    // `RN-R40` — recorded in the INPUT sequence, and nothing in run state moves at v0.26: what an attempt changes is what a
+    // resume re-hands (`RN-R21`), which the driver reads off its own sequence. *Without this arm the fold THREW* — every
+    // kind `step` does not name reaches `input.record` below (W93's measurement, `gated`'s precedent).
+    return prev;
   }
 
   if (input.kind === 'joinSettled') {

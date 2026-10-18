@@ -1482,12 +1482,14 @@ function routeHarnessListener(
 }
 
 /**
- * **What a driver's listener is HANDED, one entry per scheduler event, the task id as it arrived** —
+ * **What a driver's listener is HANDED, one entry per SETTLEMENT event, the task id as it arrived** —
  * W142, and it is the observer of ADR 0088's one claim: *a settlement reaches only its own run's
- * driver, and an id no driver minted reaches every driver.*
+ * driver, and an id no driver minted reaches every driver.* **`task.running` is passed through and NOT recorded** — W186:
+ * the driver hears it since then (`RN-R40`), and an inline pool fires it INSIDE `addTask`, so the first task's is heard
+ * before this can be installed; a count of it would be a sample of that timing, not of the routing.
  *
  * **The instrument is on the driver's ENTRY, not on the scheduler and not on the router.** The
- * driver's four subscriptions (three until W158 added `task.cancelled`) call `this.onEvent(name, detail)` by property lookup at call time, so an
+ * driver's five subscriptions (four settlements — three until W158 added `task.cancelled` — and `task.running` since W186) call `this.onEvent(name, detail)` by property lookup at call time, so an
  * own property on the instance shadows the prototype's method and sees every event the driver hears,
  * from whatever delivered it — the scheduler's broadcast before ADR 0088, the runtime's routing after.
  * Installed synchronously after `runtime.start` returns, which is before anything can settle: the
@@ -1508,8 +1510,10 @@ export function onDelivery(d: Driver, seen: (taskId: string) => void): void {
   Object.defineProperty(d, 'onEvent', {
     enumerable: false, configurable: true, writable: true,
     value: function (this: unknown, name: string, detail: unknown) {
-      const id = (detail as { id?: unknown } | undefined)?.id;
-      seen(typeof id === 'string' ? id : '(no string id)');
+      if (name !== 'task.running') {
+        const id = (detail as { id?: unknown } | undefined)?.id;
+        seen(typeof id === 'string' ? id : '(no string id)');
+      }
       return original.call(this, name, detail);
     },
   });

@@ -425,6 +425,11 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W186 — P36 (f)-(i), `RN-R40`: a task's attempts recorded and carried across a resume — L2 in `test/driver/attempts.test.ts`,
+  // L1/L3 in `test/fold/attempted.test.ts`, and through `createRuntime` in `test/scheduler/runtime.test.ts`; all three counted below.
+  'L2 — RN-R40: a task`s attempts — one `attempted` element per attempt started, fed to a replay, and carried across a resume as attemptsSpent (P36 (f)-(i))',
+  'L1 — RN-R40: an `attempted` element moves NOTHING in run state — the fold accepts it, at every prefix, whatever the outcome',
+  'W186 — through createRuntime: task.running is ROUTED to its own run, and a resume hands the scheduler a FyflowTask carrying attemptsSpent',
   // W185 — P36 decision 1, (d) and (e), `RN-R39`: the header before the first event — L2 in `test/driver/on-header.test.ts`,
   // and through `createRuntime` in `test/scheduler/runtime.test.ts`; both counted below.
   'L2 — RN-R39: onHeader — the header handed over ONCE inside start(), before the first element and before anything reaches the scheduler (P36 (d), (e))',
@@ -904,6 +909,16 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/on-header.test.ts registers its nine: an entry task, an entry fan-out of three, the consumer`s own copy, a throw and its retry, the three refusals, resume(), a call back into the driver, a run with no onHeader unmoved, and its own membership');
     equal(count('W185 — through createRuntime: onHeader is handed the header inside start(), before the first element and before anything reaches the scheduler — and a throw starts nothing and spends the run id'), 3,
       'test/scheduler/runtime.test.ts registers W185`s three: the order and handle.header, a throw spending the run id, and resume()');
+  });
+  // **W186's three suites, counted the same way and for the same reason.**
+  test('W186`s three suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R40: a task`s attempts — one `attempted` element per attempt started, fed to a replay, and carried across a resume as attemptsSpent (P36 (f)-(i))'), 13,
+      'test/driver/attempts.test.ts registers its thirteen: the rise and the requeue, the dropped ids, every policy, the inline step end, the attempts taken first, (h)`s stop, the fed resume, the spent budget, the diverged forgeries, the paused resume, a throwing callback, a run with no attempt unmoved, and its own membership');
+    equal(count('L1 — RN-R40: an `attempted` element moves NOTHING in run state — the fold accepts it, at every prefix, whatever the outcome'), 4,
+      'test/fold/attempted.test.ts registers its four: the eight outcomes at every prefix, step`s identity, L3, and its own membership');
+    equal(count('W186 — through createRuntime: task.running is ROUTED to its own run, and a resume hands the scheduler a FyflowTask carrying attemptsSpent'), 2,
+      'test/scheduler/runtime.test.ts registers W186`s two: the routing, and the FyflowTask a resume hands on');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

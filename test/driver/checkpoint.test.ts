@@ -50,6 +50,10 @@ class FakeScheduler {
     }
   }
   private fire(type: string, detail: unknown): void { for (const fn of this.listeners.get(type) ?? []) fn({ detail }); }
+  /** W186 — an attempt STARTS: `task.running`, its detail the task with the scheduler's 1-based `attemptNumber` (`RN-R40`). */
+  running(id: string, attemptNumber: number): void {
+    this.fire('task.running', { id, state: 'running', attempts: attemptNumber - 1, attemptNumber, timestamp: 1 });
+  }
   /** W173 — `cancel` on the WAITING road (P34 fact 8): `task.cancelled` fires inside the call, and it resolves `true`. */
   cancel(id: string): Promise<boolean> {
     this.fire('task.cancelled', { id, state: 'cancelled', attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 });
@@ -186,6 +190,18 @@ const RUN_FOR: Record<FoldInput['kind'], () => Promise<Driver>> = {
     scheduler.settle('r1:summarise:-:0', 'done', { result: RICH() });
     ok(driver.resolve('r1:approve:-:0', 'done', { result: { approved: true }, actor: 'ana' }), 'the answer was accepted');
     scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
+    return driver;
+  },
+  // W186 (`RN-R40`, ADR 0113): a run whose task STARTS twice — attempt 1 fails into a retry, attempt 2 succeeds — so the
+  // run carries two `attempted` elements, each a task id and a number, and a requeue repeating number 2 appends nothing.
+  // *This entry is why W186's L0 was red in `typecheck:tests` and nowhere else — the binding doing its job, as at W93.*
+  attempted: async () => {
+    const { driver, scheduler } = corpusDriver(await load('valid/linear.flow.json'));
+    driver.start({ seed: 10 });
+    scheduler.running('r1:ingest:-:0', 1);
+    scheduler.running('r1:ingest:-:0', 2);
+    scheduler.running('r1:ingest:-:0', 2);
+    scheduler.settle('r1:ingest:-:0', 'done', { result: RICH(), attempts: 1 });
     return driver;
   },
   pathEnded: () => RUN_FOR.outcome(),
@@ -380,7 +396,7 @@ suite(SUITE, (test) => {
 
   test('RN-R17 — every fold-input KIND round-trips structuredClone as data AND prototype', async () => {
     const kinds = Object.keys(RUN_FOR) as FoldInput['kind'][];
-    equal(kinds.length, 15, 'the union has fifteen kinds since W180 added `asked` (fourteen since W175 added `paused` and `unpaused`, twelve since W174 added `interrupted`, eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
+    equal(kinds.length, 16, 'the union has sixteen kinds since W186 added `attempted` (fifteen since W180 added `asked`, fourteen since W175 added `paused` and `unpaused`, twelve since W174 added `interrupted`, eleven since W173 added `cancelRequested`, ten since W93 added `gated`, nine since W89 added `resumed`) — the Record is what binds it, this is the COUNT beside that membership');
     // **The kinds VISITED, bound to the kinds DECLARED** - W88's own rule 8 set (`d2`): with the
     // loop truncated to one kind the count above still read 8 and every per-kind clause below was
     // simply never asked, for ZERO. The count is of the list; this is of the iterations.

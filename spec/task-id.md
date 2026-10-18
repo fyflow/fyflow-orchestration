@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.15 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.11 is [W89](../doc/work-items/w89-what-resuming-is.md)**: `ID-R3`'s text gains `resume()` — the second door into one run ([ADR 0065](../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)) — and nothing else moves. **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -61,6 +61,8 @@ which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacu
 change — the one check that exists to notice a stale version row. W36's conformity reader.)*
 
 **v0.10 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
+
+**v0.15 is [W186](../doc/work-items/w186-attempts-recorded-and-carried-across-a-resume.md) under [P36](../doc/plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md), and it moves no rule — one sentence of section 1's `attempt` bullet.** The scheduler's own counter, which that bullet sets apart from this segment, is now RECORDED per attempt — an `attempted` fold input carrying its 1-based `attemptNumber` (`spec/run-state.md` `RN-R40`, [ADR 0113](../doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md)) — and CARRIED across a resume, so a settlement's `attempts` counts every process's retries of the one task id. Still the scheduler's counter, still not this segment: a resume re-dispatches at the SAME id, attempt `0`.
 
 **v0.14 is [W180](../doc/work-items/w180-asking-and-answering-in-a-run.md) under [P35](../doc/plans/p35-may-a-node-wait-for-a-person-by-design.md), and it moves no rule's text — it SETTLES what two say of an ask's id** (the maintainer's answer to W180's S-3): `ID-R1` — an ask's id is minted once per path, and a second park at one id is refused `DuplicateTaskId`, reached only when one settlement is delivered twice (ADR 0022's road); `ID-R4` — a settlement carrying an ask's id is tier 2's `UndispatchedTask`, the driver having dispatched nothing for it. Section 1's ask paragraph says so.
 
@@ -220,7 +222,11 @@ claimed both were unchanged was wrong about the second.
   scheduler task and are reported on that task's `attempts` field
   (`../fyflow-scheduler/core/FyflowScheduler.ts:1107-1143`, and `AGENTS.md` section 5 —
   *"`stats.failed` counts tasks that failed... a task with retries counts once"*). Two retry
-  counters exist; this segment is ours, and conflating them is what Q16 is about.
+  counters exist; this segment is ours, and conflating them is what Q16 is about. *(v0.15: the
+  scheduler's is now RECORDED — each attempt's start an `attempted` fold input carrying its 1-based
+  `attemptNumber` — and CARRIED across a resume as `attemptsSpent`, so a settlement's `attempts` counts
+  every process's retries of the one task id (`spec/run-state.md` `RN-R40`, `RN-R21`). It is still the
+  scheduler's counter: a resume re-dispatches at the SAME id, and this segment stays `0`.)*
 
   **A resolution does not increment it.** Resuming a suspended node
   ([spec/outcome-record.md](outcome-record.md) section 5) supplies an outcome for the dispatch that

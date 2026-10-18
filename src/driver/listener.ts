@@ -21,6 +21,11 @@ export interface TaskDetailLike {
   result?: unknown;
   error?: string;
   attempts?: number;
+  /**
+   * The scheduler's 1-based number of the attempt, read on `task.running` ONLY — `RN-R40`, W186, by the driver while its
+   * listener runs. Never on a record: the record's `attempts` is the scheduler's count (`OR-R4`, P36 (i)).
+   */
+  attemptNumber?: number;
   timestamp?: number;
   startTime?: number;
   endTime?: number;
@@ -76,7 +81,9 @@ export function normalizeEvent(
   now: number,
 ): OutcomeRecord | null {
   // OR-R4 — not settlements, and not resolutions either. Whether they are logged
-  // at all, and in what shape, is Q26. **`task.cancelling` is the third** (ADR 0094 rule 4): a cancel
+  // at all, and in what shape, WAS Q26 — answered by W186 (P36 (f), ADR 0113): `task.running` is recorded as the FOLD
+  // INPUT `attempted`, by the driver (`Driver`'s `heardRunning`), and still never as a record here; `task.progress` is not
+  // recorded at all. **`task.cancelling` is the third** (ADR 0094 rule 4): a cancel
   // REQUESTED of a running task, whose state still reads `running` — a request is not a settlement, and a
   // run whose cancel the driver requested is recorded as the fold input `cancelRequested` (ADR 0104), not here.
   if (eventName === 'task.running' || eventName === 'task.progress' || eventName === 'task.cancelling') return null;

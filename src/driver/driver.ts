@@ -539,8 +539,9 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
  * nesting for a region event — **except a `gated` key and, since W180, an `asked` element's `input`, which are values of
  * any shape**: so this is structural equality over data, recursive, **key order ignored and an
  * `undefined`-valued key treated as absent**: a consumer's store may reorder keys or drop an undefined
- * one, and neither is the run diverging. The kinds the replay is FED (settlements, resolutions and
- * `resumed`) are not compared by this: they are the stored element itself, appended at its own position.
+ * one, and neither is the run diverging. The kinds the replay is FED (settlements, resolutions, `resumed`, and since
+ * v0.19-v0.26 `interrupted`, `paused`, `unpaused` and `attempted` — `isFed`) are not compared by this: they are the
+ * stored element itself, appended at its own position.
  */
 function sameData(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
@@ -578,11 +579,23 @@ function sameData(a: unknown, b: unknown): boolean {
 /**
  * The kinds a replay is FED rather than regenerates — `RN-R19`: three, and since v0.19 a fourth, `interrupted` (`RN-R32`,
  * ADR 0105), which only its owner's call can produce and which the replay therefore cannot regenerate — and since v0.20
- * a fifth and a sixth, `paused` and `unpaused` (`RN-R34`, ADR 0106), for the same reason.
+ * a fifth and a sixth, `paused` and `unpaused` (`RN-R34`, ADR 0106), for the same reason — and since v0.26 a SEVENTH,
+ * `attempted` (`RN-R40`, ADR 0113, W186): a scheduler stimulus, as a settlement is, which nothing the replay does produces.
  */
 function isFed(e: FoldInput): boolean {
   return e.kind === 'outcome' || e.kind === 'resolution' || e.kind === 'resumed' || e.kind === 'interrupted' ||
-    e.kind === 'paused' || e.kind === 'unpaused';
+    e.kind === 'paused' || e.kind === 'unpaused' || e.kind === 'attempted';
+}
+
+/**
+ * **The attempt a `task.running` announces** — `RN-R40`, W186, P36 (f): the detail's `attemptNumber`, copied while the
+ * listener runs (`OR-R1`: the detail IS the live task, and the scheduler moves the number on the next attempt), or `null`
+ * when it is not a positive integer — a scheduler older than the pin, or a double that sends none — in which case nothing is
+ * recorded. `0` is the scheduler's *before the first dispatch* and is never an attempt. Module-private: not surface.
+ */
+function attemptNumberOf(detail: TaskDetailLike | undefined): number | null {
+  const n = detail?.attemptNumber;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 1 ? n : null;
 }
 
 /** One stored element, in a sentence a refusal can carry. */
@@ -809,8 +822,9 @@ function cloneRecord<T extends { result?: unknown }>(r: T): T {
  * One element of the fold's input sequence, copied and frozen on the way out
  * (ADR 0014). Only the two record kinds carry a `result`; `region` wraps one flat event,
  * `resumed` one array of strings, `gated` a KEY that may be anything the key path ends on, and `asked` an INPUT
- * that may be anything; the other **nine** are flat and primitive, so a shallow freeze of a fresh object is the
- * whole copy. *(Read "five" from W93 until W180 — four flat kinds added by W173-W175 had not moved it.)*
+ * that may be anything; the other **ten** are flat and primitive, so a shallow freeze of a fresh object is the
+ * whole copy. *(Read "five" from W93 until W180 — four flat kinds added by W173-W175 had not moved it; "nine" until W186's
+ * `attempted`, a task id and a number.)*
  * *(W93's `gated` is the second kind that is NOT flat — its declaration step found the fall-through
  * handing a consumer the driver's own key object wherever a key path ends on an object.)*
  * *(W180's `asked` is the third — its `input` is whatever reached the ask, of any shape — and it has its own arm for
@@ -1056,6 +1070,18 @@ export type TaskFactory = (config: {
   retryPolicy?: RetryPolicy;
   /** Present only when the node declared it — W58. The scheduler unions it with the pool's. */
   workerGroups?: string[];
+  /**
+   * **The attempts this task ALREADY made, in an earlier process** — `RN-R21` v0.26, `RN-R40`,
+   * [ADR 0113](../../doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md), W186, P36 (g). Present
+   * ONLY on a task `resume()` hands on again, and only when the stored run recorded an attempt of it (an `attempted`
+   * element): the HIGHEST `attemptNumber` recorded — so the attempt in flight at the crash or the stop counts as spent (P36
+   * (h)). With or without a `retryPolicy`: the scheduler's attempt numbering continues either way. **A spent budget is
+   * handed on all the same**, and the scheduler runs the task ONCE more and settles it — at most one attempt over budget
+   * per resume; the driver writes no settlement (P36 decision 7). The scheduler's own `FyflowTask` field of the same name.
+   * **A `createTask` that builds the task FIELD BY FIELD must copy it**, or the resumed task starts at a fresh budget again.
+   * Additive in 0.8.0: a dispatch that is not a resume's never carries it.
+   */
+  attemptsSpent?: number;
 }) => unknown;
 
 /**
@@ -1299,6 +1325,12 @@ export interface DriverOptions {
  * run never ended (P33 fact 1). `task.cancelling` is NOT here — a request is not a settlement (`OR-R4`).
  */
 const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action', 'task.cancelled'] as const;
+/**
+ * **And the one scheduler event the driver hears that is NOT a settlement** — `task.running`, since W186 (`RN-R40`, P36
+ * (f), ADR 0113): each attempt's start, recorded as the fold input `attempted` and never as a record (`OR-R4`). So the
+ * driver subscribes FIVE names. `task.progress`, `task.retrying` and `task.message` are not heard (P36 (n); W187).
+ */
+const SUBSCRIBED_EVENTS = [...SETTLEMENT_EVENTS, 'task.running'] as const;
 
 export class Driver {
   /**
@@ -1554,6 +1586,21 @@ export class Driver {
    * appended when the step ends, in the same call order as the pauses beside it.
    */
   private readonly pausePending: PendingCall[] = [];
+  /**
+   * **The highest attempt number RECORDED for each task, by task id** — `RN-R40`, v0.26, W186, P36 (f) and (g): the
+   * number the last `attempted` element for it carried — appended, or fed by a replay. What decides that a `task.running`
+   * repeating a number (a requeue) appends nothing, and what a resume re-hands an in-flight task with as `attemptsSpent`.
+   * One integer per task that ever started an attempt, no result; kept for the life of the run, as `dispatched`'s ids are.
+   */
+  private readonly lastAttempt = new Map<string, number>();
+  /**
+   * **`attempted` elements HEARD and not yet appended**, in the order heard (`RN-R40`): a `task.running` arrives on the
+   * driver's OWN step when an inline pool starts the task inside `addTask`, and an element appended there would sit between
+   * two elements of one step — where the replay, which regenerates a step whole, would refuse the checkpoint `diverged`. So
+   * every one is appended when the step ends, BEFORE a pause, an unpause, an answer or a stop pending on that step is taken
+   * (`leaveStep()`): the attempt started before any of them. Empty at rest.
+   */
+  private readonly attemptsPending: { readonly taskId: string; readonly attemptNumber: number }[] = [];
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -1600,11 +1647,44 @@ export class Driver {
    * W175), each in call order and BEFORE the stop — a pause or an unpause after a stop is refused, so any pending one was
    * called first. Each take is a step of its own and ends here too, so the next pending call is taken after it.
    * **And a resolution given on the step** (`RN-R37`, W180), in the same queue and the same call order.
+   * **And FIRST, every `attempted` element heard on the step** (`RN-R40`, W186): the attempts started before anything
+   * taken here, and a stop taken before them would leave them unrecorded — the driver deaf — under P36 (h)'s *a stopped
+   * attempt counts*.
    */
   private leaveStep(): void {
     this.stepping -= 1;
+    if (this.stepping === 0 && this.attemptsPending.length > 0) this.takeAttempts();
     while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
     if (this.stepping === 0 && this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
+  }
+
+  /**
+   * **Every `attempted` element heard and not yet appended, appended — AT REST, as ONE step of their own** (`RN-R40`,
+   * W186): in the order heard, each BETWEEN two of the driver's steps, where a replay feeds it (`RN-R19`). A step, so a
+   * call a consumer makes from a callback on one — a pause, a stop — is taken after the last of them. **Appended on a
+   * halted run too**, as a settlement is: the scheduler started the attempt whatever the run's routing does. A consumer's
+   * `onFoldInput` THROWING on one HALTS the run, reported once (`OR-R10` v0.19, W184), and the throw reaches whoever is on
+   * the stack — a driver call's caller, or the listener boundary of a scheduler event's step; the elements still pending
+   * behind it are appended by this step's own end, SILENTLY (the run is halted, its failure reported), and so is a throw
+   * on any of them once the run is halted.
+   */
+  private takeAttempts(): void {
+    this.stepping += 1;
+    try {
+      while (this.attemptsPending.length > 0) {
+        const a = this.attemptsPending.shift()!;
+        const silent = this.failed;
+        try {
+          this.append({ kind: 'attempted', taskId: a.taskId, attemptNumber: a.attemptNumber });
+        } catch (e) {
+          if (silent) continue;
+          this.haltOnce(e);
+          throw e;
+        }
+      }
+    } finally {
+      this.leaveStep();
+    }
   }
 
   /**
@@ -1820,7 +1900,7 @@ export class Driver {
     // duplicate dispatch. Those three are what make the derived key TOTAL, and they
     // are why lifting this costs no new refusal.
 
-    for (const name of SETTLEMENT_EVENTS) {
+    for (const name of SUBSCRIBED_EVENTS) {
       // ADR 0007 rule 1: the normalization happens HERE, synchronously, while the
       // listener runs. Nothing downstream ever sees `e.detail`.
       // The seam's listener takes `object` (see `SchedulerLike`); `detail` is read here, once,
@@ -1975,7 +2055,7 @@ export class Driver {
    *   1. **Refuse what the header says** (`RN-R23`) — {@link resumeRefusal}.
    *   2. **REPLAY** (`RN-R19`): enter the entry node with a copy of `header.entryPayload` exactly as
    *      `start()` enters it, then FEED every stored settlement, resolution and `resumed` element — and, since
-   *      v0.19 and v0.20, every `interrupted`, `paused` and `unpaused` one — at its own position through the routing the listener and `resolve()` use — every dispatch HELD. Every
+   *      v0.19 and v0.20, every `interrupted`, `paused` and `unpaused` one, and since v0.26 every `attempted` one — at its own position through the routing the listener and `resolve()` use — every dispatch HELD. Every
    *      other element the replay REGENERATES.
    *   3. **The PREFIX check** (`RN-R20`): each regenerated element at a position the stored events cover
    *      must be the stored one; the first that is not is refused as `diverged`, naming its position, and
@@ -1984,13 +2064,16 @@ export class Driver {
    *      DELIVERED, because the consumer does not hold it (`RN-R24`).
    *   4. **A run the replay HALTS is refused** as `halted` (P23 decision 10), its tail delivered first.
    *   5. **Append `resumed`** naming the IN-FLIGHT set — dispatched and never settled, in dispatch order
-   *      (`RN-R21`, `RN-R22`) — and then hand each to the scheduler at the SAME task id; or, where the replay
+   *      (`RN-R21`, `RN-R22`) — and then hand each to the scheduler at the SAME task id, with `attemptsSpent` the highest
+   *      attempt recorded for it where one was (v0.26, W186); or, where the replay
    *      ends PAUSED (a fed `paused`, no `unpaused` after it), HOLD each again for an unpause (`RN-R35`).
    *
    * **At-least-once, and that is the contract rather than a defect** (P23 decision 6): a task named in
-   * `resumed` may have finished in the process that is gone, and runs again here with a FRESH retry
-   * budget ([Q365](../../doc/questions/q365.md) — measured: a budget of two attempts ran three times
-   * across one kill). A task parked at `user_action` has SETTLED and is not in flight: it stays parked,
+   * `resumed` may have finished in the process that is gone, and runs again here. **Not at a fresh retry budget since
+   * W186** (`RN-R21` v0.26, ADR 0113): it is handed on with `attemptsSpent`, the highest attempt the stored run recorded
+   * for it — the attempt in flight at the kill or the stop counted as spent — so a spent budget runs ONCE more and no more.
+   * *Until W186 it ran at a FRESH budget ([Q365](../../doc/questions/q365.md) — measured: a budget of two attempts ran
+   * three times across one kill).* A task parked at `user_action` has SETTLED and is not in flight: it stays parked,
    * and `resolve()` works on it.
    *
    * @throws MultipleRuns — the driver has already started or resumed a run.
@@ -2065,6 +2148,16 @@ export class Driver {
     // dispatch a consumer's callback on that element causes joins the END of the queue, as on any paused run; and a cancel
     // raised there releases them, handing each on and cancelling it (`cancel()`, ADR 0104 rule 7).
     const holding = this.paused;
+    // **Each in-flight task re-handed with the attempts it SPENT** (`RN-R21` v0.26, `RN-R40`, P36 (g), (h), ADR 0113, W186):
+    // `attemptsSpent` the HIGHEST `attemptNumber` the replay was fed for it — so the attempt in flight at the crash, or at a
+    // stop, counts as spent — and ABSENT where none was recorded. With or without a `retryPolicy`, and a spent budget handed
+    // on all the same: the scheduler runs it once more and settles it; no settlement is written here (P36 decision 7).
+    // *Until W186 every task here started at a FRESH budget — two attempts ran three times across one kill (Q365).*
+    for (const id of inFlight) {
+      const config = replay.held.get(id);
+      const spent = this.lastAttempt.get(id) ?? 0;
+      if (config !== undefined && spent > 0) replay.held.set(id, { ...config, attemptsSpent: spent });
+    }
     if (holding) {
       for (const id of inFlight) {
         const config = replay.held.get(id);
@@ -2130,7 +2223,7 @@ export class Driver {
     if (this.inputs.length < stored.length) throw this.diverged(this.inputs.length, 'the replay ended before it');
   }
 
-  /** One fed element — a settlement, a resolution, an earlier resume, a stop, a pause or an unpause — at stored position `i`. */
+  /** One fed element — a settlement, a resolution, an earlier resume, a stop, a pause, an unpause or an attempt — at stored position `i`. */
   private feedOne(e: FoldInput, i: number): void {
     if (e.kind === 'resumed') {
       // **An earlier resume, fed and CHECKED** (`RN-R22`): the ids it names must be exactly what is in
@@ -2157,6 +2250,21 @@ export class Driver {
       // what the stored unpause handed on is the resume's to decide (`RN-R21`). Appended as stored, its actor its own.
       this.paused = e.kind === 'paused';
       this.append({ kind: e.kind, actor: e.actor });
+      return;
+    }
+    if (e.kind === 'attempted') {
+      // **A stored ATTEMPT, fed** (`RN-R19` v0.26, `RN-R40`, W186): appended at rest, so the replay reaches it between the
+      // steps it regenerates. `ID-R4`'s question asked of the replay, as for a settlement — the stored run recorded attempts
+      // of tasks it had dispatched only — and the number must be one the driver could have recorded: a positive integer
+      // GREATER than the last one stored for that task (W186's adequacy reader A3, conformity C5 — the driver appends only
+      // a rise, so a stored element that does not rise is a store the run did not write). Appended as stored; so the LAST
+      // number fed per task is also its highest, which is what the resume re-hands it with (`RN-R21`).
+      const n = e.attemptNumber;
+      if (typeof e.taskId !== 'string' || !this.dispatched.has(e.taskId)) throw this.diverged(i, 'the replay never dispatched that task');
+      if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) throw this.diverged(i, 'its attemptNumber is not a positive integer');
+      if (n <= (this.lastAttempt.get(e.taskId) ?? 0)) throw this.diverged(i, 'its attemptNumber does not exceed the one stored before it for that task');
+      this.lastAttempt.set(e.taskId, n);
+      this.append({ kind: 'attempted', taskId: e.taskId, attemptNumber: n });
       return;
     }
     if (e.kind !== 'outcome' && e.kind !== 'resolution') return;
@@ -2949,6 +3057,34 @@ export class Driver {
     }
   }
 
+  /**
+   * **A `task.running`: an attempt started** — `RN-R40`, W186, P36 (f). Its id and number are COPIED here, while the
+   * listener runs (`OR-R1`). Recorded only for a task THIS run dispatched, and only when the number EXCEEDS the last one
+   * recorded for it — a requeue repeats its number and appends nothing (the scheduler's own recipe's `max`). **Everything
+   * else is dropped in SILENCE, and none of it is a refusal**: an id that does not parse (a plain task on a shared
+   * scheduler — its SETTLEMENT is what `onUnmintedTask` reports, `ID-R5`), another run's (`ID-R4` tier 1), one this run
+   * never dispatched (its settlement is `ID-R4` tier 2's `UndispatchedTask`), and a detail carrying no positive integer
+   * `attemptNumber` (a scheduler older than the pin, or a double). An attempt start never stops a run by existing. **Queued, not
+   * appended**: {@link Driver.takeAttempts} appends it when the step it was heard on ends — at once, on a scheduler
+   * event's own step; at the step's end when an inline pool fires it inside the driver's `addTask`.
+   */
+  private heardRunning(detail: TaskDetailLike): void {
+    const taskId = detail?.id;
+    const attemptNumber = attemptNumberOf(detail);
+    if (typeof taskId !== 'string' || attemptNumber === null) return;
+    let runId: string;
+    try {
+      runId = parseTaskId(taskId).runId;
+    } catch (e) {
+      if (e instanceof InvalidTaskId) return;
+      throw e;
+    }
+    if (runId !== this.runId || !this.dispatched.has(taskId)) return;
+    if (attemptNumber <= (this.lastAttempt.get(taskId) ?? 0)) return;
+    this.lastAttempt.set(taskId, attemptNumber);
+    this.attemptsPending.push({ taskId, attemptNumber });
+  }
+
   /** Whether this run has been HALTED by a refusal (`OR-R10`; its outcome `halted`). */
   hasFailed(): boolean {
     return this.failed;
@@ -3014,6 +3150,10 @@ export class Driver {
   }
 
   private onEventOrThrow(name: string, detail: TaskDetailLike): void {
+    if (name === 'task.running') {
+      this.heardRunning(detail);
+      return;
+    }
     // **`ID-R4` — ADR 0023. Ownership is decided from the TASK ID ALONE, before
     // anything else reads the detail**, and the order is the whole rule.
     //
