@@ -292,7 +292,10 @@ snippet is extracted and executed on every `npm run gate`, so none of it can dri
 | **Cancelling a run** — `driver.cancel`, the run `cancelling` until its last task has stopped | section 6 |
 | **Pausing** a run and unpausing it — every dispatch held, then handed on in order | section 8 |
 | A node that **waits for a person** by design — an `ask`, which keeps what reached it and holds the answer to a schema | section 7 |
+| A task's **messages and progress**, each with its run, node and attempt as fields — `onTaskMessage`, `onTaskProgress` | section 8 |
 | **Stopping** a run to resume it on another runtime — `handle.stop` | section 18 |
+| Writing a run's **header first**, before its first event — `onHeader` | section 18 |
+| A resumed task **keeps its retry budget** — the attempts it already made, handed on as `attemptsSpent` | section 18 |
 | **Checking** a flow against a running runtime before starting it — `runtime.check` | section 12 |
 | **Trying** a transform on a value you give, the entry node included | section 15 |
 | Holding a **result** to the schema its worker declares | section 16 |
