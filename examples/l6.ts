@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's** and **P35's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's** and **P36's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -87,6 +87,7 @@
  * | **W167 — ONE runtime that is its registry, given no flow** | **P37's EXIT ARTIFACT: a running runtime takes a flow it was never shown.** ONE runtime from `createRuntime` with the registry's `languages` and NO flow — every pool it built, the built-in `Transform`'s and a NAMED instance's included, carrying the one language. On it, in order: a flow that transforms nothing runs to `done`; a flow with two definition defects is checked and refused, `check`'s rule ids equal to the `InvalidDefinition` `start` throws; a flow reaching the document's `KeyedRateLimitGroup` is `FD-R6` by `check` and `LimitKeyMissing` by `start`, nothing reaching the scheduler; and a flow never shown before — a JSONata `transform` on a node of a DOCUMENT type and on a second one running on a named pool instance that declares its own pool options — is checked `[]` and completes, each transformed node's WORKER reporting the transformed value it received, the instance's own `maxThreads` and its type's merged `idleTimeout` read off the scheduler's pool. `tryTransform` given an input on that flow's ENTRY returns one `'given'` verdict; the worker schemas carry `title`, `description`, `readOnly` and `writeOnly` and are kept as declared, and the same document with `format` is refused by name. Its registry is written in the block, not `registry.json` |
  * | **W176 — a run its owner CANCELS, STOPS and PAUSES** | **P34's EXIT ARTIFACT: run control, every call the owner's, on real workers in both runtimes.** (1) A fan-out cancelled through `driver.cancel` while two tasks RUN on one threaded pool — one honouring its signal, one not — and a third waits behind a held group: the fold reads `cancelling` from the request on, nothing is dispatched or routed after it, a second cancel at `graceMs: 0` appends nothing and stops the ignoring task before its own end (never asserting `forced` — S12), `done` settles `cancelled` after the LAST `task.cancelled`, equal to the caller's fold, and a resume of the checkpoint is refused `cancelled` at the request. (2) A run STOPPED through `RunHandle.stop` while two tasks run and a third waits behind a held group, a sibling on the same runtime running on to `completed`: the log ends at `interrupted` with nothing settled, `done` settles after the stop's cancels, the old runtime refuses the resume, and a FRESH one re-dispatches exactly the in-flight ids to `completed`. (3) A PARKED run stopped — `resolve()` refused there, accepted on the runtime that resumes it. (4) A fan-out PAUSED at once — its running tasks finish, their successors are dispatched and held, nothing reaches the scheduler — and UNPAUSED, the held tasks handed on in dispatch order, to `completed`. (5) A cancel PRE-PICKUP on a cold thread and one in a retry BACKOFF, each folding as P34 fact 8 says — through the scheduler's own `cancel(id)` and through `driver.cancel`. (6) Q633's transforming ENTRY: `tryTransform` first gives each payload its verdict, and `start` holds neither (ADR 0101) — the untransformed entry is still held, the control. (7) A built-in `KeyedRateLimitGroup` held resident refused by `createRuntime` naming the pool and the group. Its registries are written in the block, not `registry.json` |
  * | **W182 — a node that waits for a PERSON** | **P35's EXIT ARTIFACT: the `ask` node kind on real workers in both runtimes.** (1) An ask reached after a task on a THREADED pool PARKS with nothing handed to the scheduler — its id in no `addTask`, no `scheduler.tasks`, no event — the fold reading the run `awaiting_action` and the node `suspended`, its kept input exactly the value the task returned. (2) A `done` answer its `answerSchema` refuses is THROWN as `BoundaryRefused` with nothing appended, and the conforming one on the SAME driver routes by a `when` over the answer — to one end in one run and the other in a second. (3) A decline routes `on: ["failed"]`. (4) An ask as a fan-out's branch holds the join — answered after its sibling arrived, the join fires AT the answer; answered while the sibling still runs, at the sibling's settlement. (5) A parked run STOPPED on one runtime and resumed on a FRESH one re-parks at the same id with the same kept input, nothing handed for it, and is answered there to `completed`. (6) A parked run CANCELLED sends the scheduler nothing and settles `cancelled` — beside a cancel while the task before it runs, which IS sent. (7) A PAUSED run's answer has its successor held until the unpause — beside an unpaused answer handing it on at once. Its registry is written in the block, not `registry.json`; and the every-kind clause reads its flows, so `ask` is no longer exempt there |
+ * | **W188 — whose task it is, and what survives a resume** | **P36's EXIT ARTIFACT: a task's attribution and its attempts on real workers in both runtimes.** (1) Two runs of one fan-out on ONE runtime — a task on a THREADED pool and one INLINE, each emitting three lines per attempt, one run's tasks failing their first attempt — each run's `onTaskMessage` receiving every message of its own tasks with `runId`, `nodeId`, `branchPath`, `taskId`, `flowAttempt` and the scheduler's `attemptNumber` as FIELDS, frozen, in `seq` order per attempt, the retried attempt's under number 2, and nothing of the other run's; its `onTaskProgress` the same. (2) Each fold's `nodes` entry carrying its run, flow-level attempt `0` and the attempts the scheduler MADE — 2 against 1, read off the scheduler's task, its `task.running` events and the worker's own count. (3) `onHeader` called once inside `start()` before anything is appended or handed on, a frozen header equal to the handle's — and a throwing one starting nothing. (4) A task of `maxRetries: 2` whose worker always fails, the consumer's store frozen in its SECOND attempt and resumed on a FRESH runtime: handed `attemptsSpent: 2`, run once — THREE calls across both processes, where the same checkpoint less its attempt elements makes FIVE. (5) A run STOPPED in an attempt and resumed elsewhere counting that attempt as spent. (6) A task whose budget was spent at the kill handed on, run once and folded from the scheduler's own settlement. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -165,6 +166,9 @@ import {
   type RunOutcome,
   type RegionRun,
   type RunState,
+  // **W188, P36's EXIT ARTIFACT**: what `onTaskMessage` and `onTaskProgress` hand a run's owner — through the package ROOT.
+  type TaskMessage,
+  type TaskProgress,
   type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
@@ -5959,6 +5963,35 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W188**: P36's exit-artifact block — twenty-four subjects, by exit clause: (1) four per run over two runs on ONE runtime,
+  // each the other's control — every message attributed, seq order per attempt, nothing of the other run, and the progress;
+  // (2) one per run, the fold's entries against the attempts the scheduler made; (3) four, the header before anything, its
+  // copy, its CONTROL and the throw; (4) four, the kill in attempt 2, the resume, the three calls and the CONTROL's five;
+  // (5) three, the stop, the counted attempt and its CONTROL; (6) three, the spent budget handed on and run once.
+  'W188 exit (1, the run that retried): its onTaskMessage received every message of its two tasks',
+  'W188 exit (1, the run that retried): in seq order per attempt, the retried attempt`s messages under the NEXT attempt number',
+  'W188 exit (1, the run that retried): EVERY message the scheduler fired for its tasks, and NOTHING of the other run',
+  'W188 exit (1, the run that retried): and each attempt`s progress through onTaskProgress',
+  'W188 exit (1, the SIBLING): its onTaskMessage received every message of its two tasks',
+  'W188 exit (1, the SIBLING): in seq order per attempt',
+  'W188 exit (1, the SIBLING): EVERY message the scheduler fired for its tasks, and NOTHING of the other run',
+  'W188 exit (1, the SIBLING): and each attempt`s progress through onTaskProgress',
+  'W188 exit (2, the run that retried): the fold`s entry for each task carries its run id',
+  'W188 exit (2, the SIBLING): the fold`s entry for each task carries its run id',
+  'W188 exit (3): onHeader is called ONCE, INSIDE start()',
+  'W188 exit (3): its header is a FROZEN copy equal to the handle`s',
+  'W188 exit (3): CONTROL — the same observers then saw the entry step`s five elements',
+  'W188 exit (3): a run whose onHeader THROWS',
+  'W188 exit (4): the store FROZEN during the task`s SECOND attempt',
+  'W188 exit (4): resumed on a FRESH runtime, re-handed with attemptsSpent 2',
+  'W188 exit (4): THREE worker calls across both processes',
+  'W188 exit (4): CONTROL — the same checkpoint with its attempt elements removed',
+  'W188 exit (5): STOPPED during its first attempt',
+  'W188 exit (5): resumed elsewhere, the STOPPED attempt COUNTED as spent',
+  'W188 exit (5): CONTROL — the same checkpoint with its attempt element removed',
+  'W188 exit (6): the budget SPENT at the kill',
+  'W188 exit (6): handed on ANYWAY on a FRESH runtime',
+  'W188 exit (6): run ONCE (#3), folding from the SCHEDULER`s own settlement',
   // **W182**: P35's exit-artifact block — thirty-two subjects, by exit clause: (1) four, the park, its CONTROL beside it;
   // (2) three per run over two runs, the refused answer and the `when` selecting each end; (3) two, the decline; (4) four
   // per run over two runs, the join held — answered after the sibling arrived and while it still ran; (5) five, the stop on
@@ -6338,7 +6371,7 @@ const CROSS_ROW_SUBJECTS = [
   'P23 prediction 2 at L6',
   'the at-least-once set is NOT the stored events` in-flight set',
   'AT-LEAST-ONCE, visible',
-  'RN-R18 at L6: the HEADER arrives AFTER the first events',
+  'RN-R18 at L6: the HANDLE`s header arrives AFTER the first events',
   'THREE processes, ONE store keyed by position',
   'the store holds the WHOLE run again',
   'a store keyed by an ARRIVAL counter per process',
@@ -8931,7 +8964,9 @@ if (killResume !== null) {
     kr.points.map((p) => `${p.label} ${p.ids?.length ?? 0}/${p.ids?.length ?? 0} completed`));
   // (9)-(12) the chain.
   const c = kr.chain;
-  assertThat(key, 'RN-R18 at L6: the HEADER arrives AFTER the first events — the handle is returned once start has delivered at ' +
+  // *The HANDLE's header* since W188 (W185's hand-on): `onHeader` (RN-R39, since W185) hands it BEFORE the first event — W188's
+  // clause (3) — and this row reads `handle.header`, which still arrives after them.
+  assertThat(key, 'RN-R18 at L6: the HANDLE`s header arrives AFTER the first events — the handle is returned once start has delivered at ' +
     'least one — so a store keyed by position is the one that does not care',
     c !== null && c.beforeHandle >= 1, `delivered before the handle: ${c?.beforeHandle}`);
   check(key, 'THREE processes, ONE store keyed by position: the third completes identically, and RunState.resumes records BOTH ' +
@@ -11469,6 +11504,495 @@ if (askBlock !== null) {
 // **The every-kind clause, here and not where it is written** — it reads the flows the block above STARTED.
 await everyKindAtL6(askBlock?.flows ?? []);
 
+/**
+ * **W188 — a task's ATTRIBUTION and what SURVIVES A RESUME, on real workers in both runtimes: P36's EXIT ARTIFACT** —
+ * [W188](../doc/work-items/w188-the-exit-artifact-attribution-and-attempts-on-real-workers.md),
+ * [P36](../doc/plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md)'s six clauses, ADR 0112, ADR 0113 and
+ * ADR 0114.
+ *
+ * **Through the owner's road and nothing else**: `createRuntime`, `start` with `onHeader`, `onFoldInput`, `onTaskMessage` and
+ * `onTaskProgress`, `RunHandle.stop`, `runtime.resume` — on runtimes built from a registry document written here with `data:`
+ * workers. **Observers that are the scheduler's own**: its `addTask` wrapped before any run starts (every id handed, and the
+ * `attemptsSpent` the `FyflowTask` it was handed carries), and every `task.*` event it fires, recorded by id — the worker's
+ * own `call` messages counting its CALLS, `task.running` counting its ATTEMPTS. **A consumer's store** in clauses (4) and (6)
+ * is `onHeader` plus `onFoldInput` at its POSITION (`AGENTS.md` section 18), frozen at the kill.
+ *
+ * **The six clauses, in the header's order**:
+ * (1) a fan-out of `t` (a THREADED pool) and `i` (INLINE), each worker emitting three lines per attempt and failing its first,
+ *     beside a SIBLING run of the same flow on the SAME runtime that fails nothing: each run's `onTaskMessage` hears every
+ *     message of its own tasks, attributed as fields, in `seq` order per attempt, attempt 2's under number 2 — and nothing of
+ *     the other's.
+ * (2) the same runs' folds: each task's entry reads its run, flow-level attempt `0` and the scheduler's attempt number — 2
+ *     where it retried, 1 in the sibling — equal to what the scheduler and the worker report.
+ * (3) a run whose `onHeader` THROWS — nothing appended, nothing handed — and on the same runtime one whose `onHeader` is called
+ *     once inside `start()` before anything is appended or handed, a frozen header equal to the handle's.
+ * (4) `maxRetries: 2`, a worker that always fails, the store frozen in attempt 2 and resumed on a FRESH runtime: attempt 3
+ *     only — THREE calls in all — beside the same checkpoint less its `attempted` elements: FIVE.
+ * (5) `maxRetries: 1`, STOPPED in attempt 1 and resumed elsewhere: the stopped attempt counted — one attempt more, not two.
+ * (6) `maxRetries: 1`, the budget SPENT at the kill: handed on, run once, folded from the scheduler's own settlement.
+ *
+ * **Never an order across tasks** (`doc/workflow.md` section 5 rule 5): messages are compared SORTED by `(taskId,
+ * attemptNumber, seq)`, and the one order claimed — `seq` within ONE attempt — is the scheduler's own promise (its `AGENTS.md`
+ * §6, *in order, per attempt*). **Every expected value is the spec's, the pin's or this fixture's**: the ids from
+ * `spec/task-id.md` section 1; the message lines from the worker's source beside it, BY HAND; the attempt numbers and
+ * `attemptsSpent` from `RN-R40` and the scheduler's §5 table (*`attempts` starts at `attemptsSpent`; `attemptNumber` is
+ * `attempts + 1` at dispatch; a non-optional task out of retries ends `user_action`*); the header from `RN-R39`.
+ */
+const AT_DEADLINE_MS = 15_000;
+const AT_ACTOR = 'w188-owner';
+/** Clause (5)'s ARRANGEMENT: each attempt holds this long unless its signal stops it — the stop arrives long before. */
+const AT_HOLD_MS = 1_000;
+// `Emit` (clauses (1)-(2)): per attempt, three lines — `start`, `mid`, `end` — and one progress report, then it returns
+// `{ role, calls }` — each line and report carrying a NESTED `deep: { call }`, so a copy is read one level down — `calls` the worker's OWN count of its calls for that run and role (a module-level map: a thread keeps it
+// between attempts, and the inline realm keeps it across runtimes, so the key carries the run's topic). Given `failFirst`, its
+// first call throws AFTER its three lines.
+const AT_EMIT = 'const calls = new Map(); export default class { async setup() {} async run(p, ctx) { const i = p.input || {}; ' +
+  'const role = String(p.settings.role); const key = String(i.topic) + "/" + role; const n = (calls.get(key) || 0) + 1; calls.set(key, n); ' +
+  'ctx.emit("line", { role, call: n, at: "start", deep: { call: n } }); ctx.sendProgress(0.5, role + " half", { role, call: n, deep: { call: n } }); ' +
+  'ctx.emit("line", { role, call: n, at: "mid", deep: { call: n } }); await new Promise((r) => setTimeout(r, 30)); ' +
+  'ctx.emit("line", { role, call: n, at: "end", deep: { call: n } }); ' +
+  'if (i.failFirst && n === 1) throw new Error("W188: " + role + " fails its first attempt"); return { role, calls: n }; } }';
+// `Fail` (clauses (4)-(6)): emits `call` with its thread's count, waits `holdMs` (150 by default) or until its signal aborts,
+// and THROWS — every call, so only a retry budget decides how many calls there are.
+const AT_FAIL = 'let calls = 0; export default class { async setup() {} async run(p, ctx) { const i = p.input || {}; calls += 1; const n = calls; ' +
+  'ctx.emit("call", { n }); await new Promise((resolve) => { if (ctx.signal.aborted) { resolve(null); return; } ' +
+  'const t = setTimeout(resolve, i.holdMs || 150); ctx.signal.addEventListener("abort", () => { clearTimeout(t); resolve(null); }, { once: true }); }); ' +
+  'throw new Error("W188: always fails, call " + n + " in this thread"); } }';
+const atDoc = () => ({
+  workers: { emit: { url: rcUrl(AT_EMIT) }, fail: { url: rcUrl(AT_FAIL) } },
+  nodeTypes: {
+    EmitT: { worker: 'emit', inline: false, pool: { maxThreads: 1 } },
+    EmitI: { worker: 'emit', inline: true },
+    FailT: { worker: 'fail', inline: false, pool: { maxThreads: 1 } },
+  },
+});
+const atFlowOf = (flowId: string, nodes: Record<string, unknown>[]) =>
+  ({ flowId, version: 1, entry: nodes[0]!.id, nodes }) as unknown as FlowDefinition;
+// (1)-(3): `t` is branch 0 on a thread, `i` branch 1 inline; each may retry once.
+const AT_MESSAGE_FLOW = atFlowOf('w188-messages', [
+  { id: 'split', kind: 'fanout', branches: ['t', 'i'] },
+  { id: 't', kind: 'task', type: 'EmitT', settings: { role: 't' }, retryPolicy: { maxRetries: 1, backoffMs: 20 }, edges: [{ to: 'collect' }] },
+  { id: 'i', kind: 'task', type: 'EmitI', settings: { role: 'i' }, retryPolicy: { maxRetries: 1, backoffMs: 20 }, edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+]);
+// (4)-(6): one task, a budget of `maxRetries + 1` attempts, a worker that never succeeds.
+const atBudgetFlow = (maxRetries: number) => atFlowOf(`w188-budget-${maxRetries}`, [
+  { id: 'work', kind: 'task', type: 'FailT', retryPolicy: { maxRetries, backoffMs: 100 }, edges: [{ to: 'done' }] },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+]);
+/** A latch that throws a NAMED error at the deadline — a clause whose arrangement never happened is a crash, not a pass. */
+const atAwait = async <T>(p: Promise<T>, what: string): Promise<T> => {
+  const w = await settleWithin(p, AT_DEADLINE_MS);
+  if (w.by !== 'done') throw new Error(`W188: ${what} never happened within ${AT_DEADLINE_MS} ms`);
+  return w.value;
+};
+/** A runtime from `atDoc`, its scheduler's `addTask` wrapped and its `task.*` events recorded by id, BEFORE any run starts. */
+const atRuntime = () => {
+  const rt = createRuntime(atDoc() as never, {});
+  const sch = rt.scheduler as unknown as {
+    addTask: (t: { id: string; attemptsSpent?: unknown }, o?: unknown) => unknown;
+    addEventListener: (n: string, f: (e: { detail: Record<string, unknown> }) => void) => void;
+  };
+  const handed: [string, unknown][] = [];
+  const add = sch.addTask.bind(sch);
+  sch.addTask = (t, o) => { handed.push([String(t.id), t.attemptsSpent]); return add(t, o); };
+  /** Every event by id, in arrival order: `task.running #n`, `call`, `line`, a settlement's name. */
+  const events = new Map<string, string[]>();
+  const messages: Record<string, unknown>[] = [];
+  const waiting: [(id: string, what: string) => boolean, () => void][] = [];
+  const record = (id: string, what: string) => {
+    events.set(id, [...(events.get(id) ?? []), what]);
+    for (const [p, f] of [...waiting]) if (p(id, what)) f();
+  };
+  for (const n of ['task.running', 'task.retrying', 'task.completed', 'task.failed', 'task.user_action', 'task.cancelled']) {
+    sch.addEventListener(n, (e) => { record(String(e.detail.id), n === 'task.running' ? `task.running #${String(e.detail.attemptNumber)}` : n); });
+  }
+  sch.addEventListener('task.message', (e) => {
+    // Copied in the listener: the scheduler's own fields of the message, the second observer of what a run's callback hears.
+    messages.push({ taskId: e.detail.taskId, attemptNumber: e.detail.attemptNumber, name: e.detail.name, seq: e.detail.seq, data: structuredClone(e.detail.data),
+      // The scheduler's OWN `data` object — kept UNCOPIED, so (1)'s copy claim can mutate it after delivery (A1).
+      raw: e.detail.data });
+    record(String(e.detail.taskId), String(e.detail.name));
+  });
+  /** Each `task.progress`'s OWN `details` object, uncopied, by task and attempt — (1)'s copy claim for the progress (A1). */
+  const progressRaw: { id: string; attemptNumber: unknown; raw: unknown }[] = [];
+  sch.addEventListener('task.progress', (e) => { progressRaw.push({ id: String(e.detail.id), attemptNumber: e.detail.attemptNumber, raw: e.detail.details }); });
+  const heard = (id: string, what: string) => new Promise<void>((res) => {
+    if ((events.get(id) ?? []).includes(what)) res(); else waiting.push([(i, w) => i === id && w === what, res]);
+  });
+  const of = (id: string) => events.get(id) ?? [];
+  const calls = (id: string) => of(id).filter((w) => w === 'call').length;
+  const attempts = (id: string) => of(id).filter((w) => w.startsWith('task.running')).map((w) => Number(w.slice('task.running #'.length)));
+  const pool = (type: string) => ((p) => p?.inline === false ? 'threaded' : p?.inline === true ? 'inline' : `NEITHER (${String(p?.inline)})`)(
+    (rt.scheduler.workerPools as Record<string, { inline?: unknown }>)[type]);
+  return { rt, handed, events, messages, progressRaw, heard, of, calls, attempts, pool };
+};
+type AtRuntime = ReturnType<typeof atRuntime>;
+let attBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  // **A clause that THROWS fails its OWN claims, by name, and the next clause still runs** — W182's `askClause`.
+  const atClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W188 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  /** A message as the claims compare it: every attribution field, the scheduler's name and seq, and the data. */
+  const msgLine = (m: TaskMessage) => [m.runId, m.nodeId, m.branchPath, m.taskId, m.flowAttempt, m.attemptNumber, m.name, m.seq, askCanon(m.data)];
+  const byIdAttemptSeq = (a: unknown[], b: unknown[]) => JSON.stringify([a[3], a[5], a[7]]) < JSON.stringify([b[3], b[5], b[7]]) ? -1 : 1;
+  // ---- (1) and (2): two runs on ONE runtime, each hearing its own tasks' messages; each fold carrying the attempts made ----
+  await atClause('1, 2', async () => {
+    const a = atRuntime();
+    try {
+      const heard: Record<'m' | 'n', TaskMessage[]> = { m: [], n: [] };
+      const progress: Record<'m' | 'n', TaskProgress[]> = { m: [], n: [] };
+      const m = a.rt.start(AT_MESSAGE_FLOW, { topic: 'w188m', failFirst: true }, {
+        runId: 'w188m', onTaskMessage: (x) => { heard.m.push(x); }, onTaskProgress: (x) => { progress.m.push(x); },
+      });
+      runs.push(`${AT_MESSAGE_FLOW.flowId} w188m`);
+      const n = a.rt.start(AT_MESSAGE_FLOW, { topic: 'w188n' }, {
+        runId: 'w188n', onTaskMessage: (x) => { heard.n.push(x); }, onTaskProgress: (x) => { progress.n.push(x); },
+      });
+      runs.push(`${AT_MESSAGE_FLOW.flowId} w188n (the sibling)`);
+      const sm = await atAwait(m.done, 'the retrying run settling');
+      const sn = await atAwait(n.done, 'the sibling run settling');
+      for (const runId of ['w188m', 'w188n'] as const) {
+        const own = heard[runId === 'w188m' ? 'm' : 'n'];
+        const own2 = progress[runId === 'w188m' ? 'm' : 'n'];
+        // The ARRIVAL order within one attempt: `taskId #attemptNumber` -> its `seq`s as they arrived.
+        const perAttempt: Record<string, number[]> = {};
+        for (const x of own) (perAttempt[`${x.taskId} #${String(x.attemptNumber)}`] ??= []).push(x.seq);
+        // What the SCHEDULER fired for this run's tasks, by its own listener — the second observer of "every message".
+        const fired = a.messages.filter((x) => String(x.taskId).startsWith(`${runId}:`))
+          .map((x) => [x.taskId, x.attemptNumber, x.name, x.seq, askCanon(x.data)]).sort((p, q) => JSON.stringify(p) < JSON.stringify(q) ? -1 : 1);
+        const received = own.map((x) => [x.taskId, x.attemptNumber, x.name, x.seq, askCanon(x.data)]).sort((p, q) => JSON.stringify(p) < JSON.stringify(q) ? -1 : 1);
+        r[`m1${runId}`] = [own.map(msgLine).sort(byIdAttemptSeq), own.every((x) => Object.isFrozen(x)),
+          [...new Set(own.map((x) => Object.keys(x).sort().join(',')))], own.every((x) => typeof x.timestamp === 'number'),
+          [a.pool('EmitT'), a.pool('EmitI')]];
+        r[`m2${runId}`] = askCanon(perAttempt);
+        r[`m3${runId}`] = [own.filter((x) => x.runId !== runId || !x.taskId.startsWith(`${runId}:`)).length,
+          fired.length, JSON.stringify(received) === JSON.stringify(fired)];
+        r[`m4${runId}`] = [own2.map((x) => [x.runId, x.nodeId, x.branchPath, x.taskId, x.flowAttempt, x.attemptNumber, x.progress, x.message, askCanon(x.details)])
+          .sort(byIdAttemptSeq), [...new Set(own2.map((x) => Object.keys(x).sort().join(',')))], own2.every((x) => Object.isFrozen(x))];
+        // (2): each task's entry beside the scheduler's own count, its `task.running` events, and the worker's own count.
+        const s = runId === 'w188m' ? sm : sn;
+        const h = runId === 'w188m' ? m : n;
+        r[`n1${runId}`] = [s.outcome, ...['t:0', 'i:1'].map((t) => {
+          const id = `${runId}:${t}:0`;
+          const e = s.nodes[id];
+          return [e?.runId ?? 'NO ENTRY', e?.flowAttempt, e?.attemptNumber, e?.state,
+            (a.rt.scheduler.tasks.get(id) as { attemptNumber?: unknown } | undefined)?.attemptNumber ?? 'NOT HELD', a.attempts(id),
+            (e?.result as { calls?: unknown } | null | undefined)?.calls ?? 'NO RESULT'];
+        }), rcSeqOf(h.driver.foldInputs()).filter((l) => l.startsWith('attempted ')).sort()];
+      }
+      // **A COPY, read on the copy both ways and one level down** (the adequacy reader, A1) — only now, every line above read:
+      // each delivered `data` / `details` is not the scheduler's own object, is frozen, and a NESTED field mutated on either
+      // side after delivery leaves the other as it was. `[delivered, not the scheduler's, frozen, detached both ways]`.
+      type Nested = { deep: { call: number } };
+      const copyOf = (pairs: [unknown, unknown][]) => {
+        const notSame = pairs.every(([d, raw]) => raw !== undefined && d !== raw);
+        const frozen = pairs.every(([d]) => Object.isFrozen(d));
+        let detached = true;
+        pairs.forEach(([d, raw]) => {
+          if (raw === undefined || d === null || typeof d !== 'object') { detached = false; return; }
+          try { (d as Nested).deep.call = -1; } catch { /* frozen at depth: nothing reaches the scheduler's either */ }
+          if ((raw as Nested).deep.call === -1) detached = false;
+          (raw as Nested).deep.call = -2;
+          if ((d as Nested).deep.call === -2) detached = false;
+        });
+        return [pairs.length, notSame, frozen, detached];
+      };
+      for (const runId of ['w188m', 'w188n'] as const) {
+        const own = heard[runId === 'w188m' ? 'm' : 'n'];
+        const own2 = progress[runId === 'w188m' ? 'm' : 'n'];
+        (r[`m1${runId}`] as unknown[]).push(copyOf(own.map((x) => [x.data,
+          a.messages.find((y) => y.taskId === x.taskId && y.attemptNumber === x.attemptNumber && y.seq === x.seq)?.raw])));
+        (r[`m4${runId}`] as unknown[]).push(copyOf(own2.map((x) => [x.details,
+          a.progressRaw.find((y) => y.id === x.taskId && y.attemptNumber === x.attemptNumber)?.raw])));
+      }
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  // ---- (3) a throwing onHeader starts NOTHING; a run's onHeader is called once, inside start(), before anything ----
+  await atClause('3', async () => {
+    const a = atRuntime();
+    try {
+      class W188StoreDown extends Error {}
+      let thrown: unknown = 'NOT THROWN';
+      let xFolds = 0;
+      let xReported = 0;
+      try {
+        a.rt.start(AT_MESSAGE_FLOW, { topic: 'w188x' }, {
+          runId: 'w188x',
+          onHeader: () => { throw new W188StoreDown('W188: the store could not write the header'); },
+          onFoldInput: () => { xFolds++; },
+          onRunFailure: () => { xReported++; },
+        });
+      } catch (err) { thrown = err; }
+      // The run that WRITES its header — on the same runtime, after the throw, so the observers are live past it.
+      let returned = false;
+      let headers = 0;
+      let inside: unknown = 'NEVER CALLED';
+      let given: unknown = null;
+      let atHeader: unknown = 'NEVER CALLED';
+      const kinds: string[] = [];
+      // A payload with a NESTED field, kept by the caller: (3)'s copy claim mutates it, and the header handed over (A2).
+      const payload = { topic: 'w188h', deep: { n: 1 } };
+      const h = a.rt.start(AT_MESSAGE_FLOW, payload, {
+        runId: 'w188h',
+        onHeader: (header) => {
+          headers++;
+          inside = !returned;
+          given = header;
+          atHeader = [kinds.length, a.handed.filter(([id]) => id.startsWith('w188h:')).length];
+        },
+        onFoldInput: (i) => { kinds.push(i.kind); },
+      });
+      returned = true;
+      runs.push(`${AT_MESSAGE_FLOW.flowId} w188h`);
+      // At `start()`'s return: the entry step's elements (every kind but an INLINE attempt, which the pool's timing
+      // decides) and every hand-off.
+      const atReturn = [kinds.filter((k) => k !== 'attempted'), a.handed.filter(([id]) => id.startsWith('w188h:')).map(([id]) => id)];
+      const done = await atAwait(h.done, 'the header run settling');
+      r.h1 = [headers, inside, atHeader];
+      r.h2 = [Object.isFrozen(given), JSON.stringify(given) === JSON.stringify(h.header),
+        JSON.stringify(given) === JSON.stringify(h.driver.checkpoint().header), askCanon(given)];
+      // **A COPY OF ITS OWN, one level down** (the adequacy reader, A2): the header handed over shares its entry payload with
+      // neither the caller's object nor the run's — the caller's nested field mutated leaves it as it was, and its own mutated
+      // leaves the run's header (the handle's, the checkpoint's) as it was. Read once the run has SETTLED.
+      const gp = (given as { entryPayload?: { deep?: { n?: unknown } } } | null)?.entryPayload;
+      payload.deep.n = -1;
+      const afterCaller = gp?.deep?.n;
+      try { if (gp?.deep !== undefined) gp.deep.n = -2; } catch { /* frozen at depth is a copy too */ }
+      (r.h2 as unknown[]).push([gp !== undefined && gp !== (payload as unknown), afterCaller,
+        (h.header.entryPayload as { deep?: { n?: unknown } }).deep?.n, (h.driver.checkpoint().header.entryPayload as { deep?: { n?: unknown } }).deep?.n]);
+      // The CONTROL for every observer the throwing run is read on: the header run's tasks in the task map and on events.
+      r.h3 = [atReturn, done.outcome, [...a.rt.scheduler.tasks.keys()].filter((k) => String(k).startsWith('w188h:')).sort(),
+        [...a.events.keys()].filter((k) => k.startsWith('w188h:')).sort()];
+      // Read once the header run has SETTLED — a horizon told by an event, long after anything the throwing run could
+      // have handed on would have reached the scheduler.
+      r.h4 = [thrown instanceof W188StoreDown ? 'W188StoreDown' : refusalOf(thrown), thrown instanceof Error ? thrown.message : String(thrown),
+        xFolds, xReported, a.handed.filter(([id]) => id.startsWith('w188x:')),
+        [...a.rt.scheduler.tasks.keys()].filter((k) => String(k).startsWith('w188x:')), [...a.events.keys()].filter((k) => k.startsWith('w188x:'))];
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  /** A consumer's store — the header from `onHeader`, every element at its POSITION — frozen at `attempted #freezeAt`. */
+  const atKill = async (flow: FlowDefinition, runId: string, freezeAt: number) => {
+    const A = atRuntime();
+    const id = `${runId}:work:-:0`;
+    let killed = false;
+    try {
+      const store: { header?: CheckpointHeader; events: FoldInput[] } = { events: [] };
+      let froze!: () => void;
+      const frozen = new Promise<void>((res) => { froze = res; });
+      let isFrozen = false;
+      A.rt.start(flow, { topic: runId }, {
+        runId,
+        onHeader: (header) => { store.header = structuredClone(header); },
+        onFoldInput: (e, at) => {
+          if (isFrozen) return;
+          store.events[at] = structuredClone(e);
+          if (e.kind === 'attempted' && e.attemptNumber === freezeAt) { isFrozen = true; froze(); }
+        },
+      });
+      runs.push(`${flow.flowId} ${runId} killed`);
+      await atAwait(frozen, `attempt #${freezeAt} starting`);
+      // THE KILL: the store is frozen; the runtime shut down (it DRAINS — the attempt running finishes, nothing new starts).
+      await A.rt.shutdown();
+      killed = true;
+      // Read AFTER the drain: every call and attempt process A made.
+      return { checkpoint: { header: store.header!, events: store.events } as Checkpoint, callsA: A.calls(id), attemptsA: A.attempts(id), pool: A.pool('FailT') };
+    } finally {
+      if (!killed) await A.rt.shutdown();
+    }
+  };
+  /** `checkpoint` resumed on a FRESH runtime, read when `resume()` returns and once the task has settled there. */
+  const atResume = async (flow: FlowDefinition, checkpoint: Checkpoint, label: string) => {
+    const B = atRuntime();
+    const id = `${checkpoint.header.runId}:work:-:0`;
+    try {
+      let settled!: () => void;
+      const outcome = new Promise<void>((res) => { settled = res; });
+      const h = B.rt.resume(flow, checkpoint, { onFoldInput: (e) => { if (e.kind === 'outcome') settled(); } });
+      runs.push(`${flow.flowId} ${checkpoint.header.runId} resumed ${label}`);
+      const atReturn = rcSeqOf(h.driver.foldInputs()).slice(checkpoint.events.length);
+      await atAwait(outcome, `the resumed task settling (${label})`);
+      await atAwait(B.heard(id, 'task.user_action'), `the scheduler's task.user_action (${label})`);
+      const inputs = h.driver.foldInputs();
+      const s = fold(inputs);
+      const out = inputs.find((i) => i.kind === 'outcome');
+      const rec = out?.kind === 'outcome' && out.record.kind === 'outcome' ? out.record : null;
+      return {
+        handed: B.handed.filter(([x]) => x === id), atReturn, tail: rcSeqOf(inputs).slice(checkpoint.events.length),
+        calls: B.calls(id), attempts: B.attempts(id), fired: B.of(id).filter((w) => w !== 'call'),
+        record: rec === null ? 'NO RECORD' : [rec.terminalState, rec.attempts, rec.error],
+        entry: ((e) => e === undefined ? 'NO ENTRY' : [e.attemptNumber, e.state, e.error])(s.nodes[id]), outcome: s.outcome, pool: B.pool('FailT'),
+      };
+    } finally {
+      await B.rt.shutdown();
+    }
+  };
+  /** The same checkpoint as a store that never recorded an attempt — what a resume read before 0.8.0. */
+  const withoutAttempts = (c: Checkpoint): Checkpoint => structuredClone({ header: c.header, events: c.events.filter((e) => e.kind !== 'attempted') });
+  // ---- (4) maxRetries 2, frozen in attempt 2, resumed on a FRESH runtime: attempt 3 only — beside the stripped control ----
+  await atClause('4', async () => {
+    const flow = atBudgetFlow(2);
+    const k = await atKill(flow, 'w188r', 2);
+    r.k1 = [rcSeqOf(k.checkpoint.events), k.callsA, k.attemptsA, k.pool];
+    const b = await atResume(flow, structuredClone(k.checkpoint), 'on B');
+    r.k2 = [b.handed, b.atReturn, b.tail, b.attempts, b.calls, b.pool];
+    r.k3 = [k.callsA + b.calls, b.record, b.entry, b.outcome];
+    const c = await atResume(flow, withoutAttempts(k.checkpoint), 'on C, its attempt elements removed');
+    r.k4 = [c.handed, c.tail, c.attempts, c.calls, k.callsA + c.calls];
+  });
+  // ---- (5) maxRetries 1, STOPPED in attempt 1 and resumed elsewhere: the stopped attempt counted as spent ----
+  await atClause('5', async () => {
+    const flow = atBudgetFlow(1);
+    const runId = 'w188s';
+    const id = `${runId}:work:-:0`;
+    const A = atRuntime();
+    let checkpoint: Checkpoint;
+    try {
+      const h = A.rt.start(flow, { topic: runId, holdMs: AT_HOLD_MS }, { runId });
+      runs.push(`${flow.flowId} ${runId} stopped`);
+      // The ARRANGEMENT: the worker has said `call` — its first attempt RUNS — and a macrotask on, at rest, the owner stops.
+      await atAwait(A.heard(id, 'call'), 'the first attempt starting');
+      await rcMacrotask();
+      const stopW = await settleWithin(h.stop({ actor: AT_ACTOR, reason: 'W188 L6: move it' }), AT_DEADLINE_MS);
+      const done = await atAwait(h.done, 'the stopped run settling');
+      await atAwait(A.heard(id, 'task.cancelled'), 'the stopped attempt ending');
+      checkpoint = structuredClone(h.driver.checkpoint()) as Checkpoint;
+      r.s1 = [stopW.by, done.outcome, rcSeqOf(checkpoint.events), A.of(id).filter((w) => w !== 'call'), A.calls(id), A.pool('FailT')];
+    } finally {
+      await A.rt.shutdown();
+    }
+    const b = await atResume(flow, structuredClone(checkpoint), 'on B');
+    r.s2 = [b.handed, b.tail, b.attempts, b.calls, b.record];
+    const c = await atResume(flow, withoutAttempts(checkpoint), 'on C, its attempt element removed');
+    r.s3 = [c.handed, c.tail, c.attempts, c.calls];
+  });
+  // ---- (6) maxRetries 1, the budget SPENT at the kill: handed on, run once, folded from the scheduler's settlement ----
+  await atClause('6', async () => {
+    const flow = atBudgetFlow(1);
+    const k = await atKill(flow, 'w188b', 2);
+    r.b1 = [rcSeqOf(k.checkpoint.events), k.callsA, k.attemptsA, k.pool];
+    const b = await atResume(flow, structuredClone(k.checkpoint), 'on B');
+    r.b2 = [b.handed, b.atReturn];
+    r.b3 = [b.calls, b.fired, b.tail, b.record, b.entry, b.outcome];
+  });
+  attBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W188 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (attBlock !== null) {
+  const key = 'cross-row';
+  const r = attBlock.r;
+  // (1) BY HAND from `AT_EMIT`: per attempt n, three lines `start`, `mid`, `end` at seq 0, 1, 2, each `{ role, call: n, at }`;
+  // `t` is branch 0 and `i` branch 1 (spec/task-id.md section 1), flowAttempt 0 on every id minted today (RN-R41).
+  const lines = (runId: string, attempts: number) => (['i', 't'] as const).flatMap((role) => {
+    const path = role === 't' ? '0' : '1';
+    return Array.from({ length: attempts }, (_, k) => k + 1).flatMap((n) => (['start', 'mid', 'end'] as const).map((at, seq) =>
+      [runId, role, path, `${runId}:${role}:${path}:0`, 0, n, 'line', seq, askCanon({ at, call: n, deep: { call: n }, role })]));
+  });
+  const MESSAGE_KEYS = 'attemptNumber,branchPath,data,flowAttempt,name,nodeId,runId,seq,taskId,timestamp';
+  const PROGRESS_KEYS = 'attemptNumber,branchPath,details,flowAttempt,message,nodeId,progress,runId,taskId,timestamp';
+  const perAttempt = (runId: string, attempts: number) => askCanon(Object.fromEntries((['i:1', 't:0'] as const).flatMap((t) =>
+    Array.from({ length: attempts }, (_, k) => [`${runId}:${t}:0 #${k + 1}`, [0, 1, 2]]))));
+  const progressOf = (runId: string, attempts: number) => (['i', 't'] as const).flatMap((role) => {
+    const path = role === 't' ? '0' : '1';
+    return Array.from({ length: attempts }, (_, k) => [runId, role, path, `${runId}:${role}:${path}:0`, 0, k + 1, 0.5, `${role} half`, askCanon({ call: k + 1, deep: { call: k + 1 }, role })]);
+  });
+  for (const [runId, attempts, other] of [['w188m', 2, 'w188n'], ['w188n', 1, 'w188m']] as const) {
+    const at = `W188 exit (1, ${runId === 'w188m' ? 'the run that retried' : 'the SIBLING'})`;
+    check(key, `${at}: its onTaskMessage received every message of its two tasks — the THREADED \`t\` and the INLINE \`i\` — with ` +
+      'runId, nodeId, branchPath, taskId, flowAttempt and the scheduler`s attemptNumber as FIELDS, each a FROZEN copy carrying ' +
+      `exactly those and the scheduler\`s name, data, seq and timestamp — its data a COPY: not the scheduler\`s object, frozen, ` +
+      'and detached one level down both ways (RN-R42)', r[`m1${runId}`],
+    [lines(runId, attempts), true, [MESSAGE_KEYS], true, ['threaded', 'inline'], [6 * attempts, true, true, true]]);
+    check(key, `${at}: in seq order per attempt${attempts === 2 ? ', the retried attempt`s messages under the NEXT attempt number' : ''} ` +
+      '— the arrival order WITHIN each attempt (its AGENTS.md §6), as the callback received it' +
+      // **Narrowed after the readers (A4)**: the scheduler delivers an attempt's FIRST emit at once and the rest a flush (~20 ms)
+      // later, so on an idle loop a delivery made late by less than a flush reorders nothing — measured
+      // (`C:/tmp-w188/m/scratch-w188/timing.ts`). This claim holds the ORDER delivered; a late-delivery probe is separable
+      // only where two lines of one attempt share a flush, which no arrangement here fixes (the item file's ceiling R5).
+      (attempts === 2 ? '' : ' — not a delay finer than the scheduler`s flush'), r[`m2${runId}`], perAttempt(runId, attempts));
+    check(key, `${at}: EVERY message the scheduler fired for its tasks, and NOTHING of the other run (\`${other}\`) on the same runtime`,
+      r[`m3${runId}`], [0, 6 * attempts, true]);
+    check(key, `${at}: and each attempt\`s progress through onTaskProgress, attributed the same way and carrying none of the task\`s own fields, ` +
+      'its details a COPY as the data is',
+      r[`m4${runId}`], [progressOf(runId, attempts), [PROGRESS_KEYS], true, [2 * attempts, true, true, true]]);
+  }
+  // (2) — the attempts the scheduler MADE, on three observers beside the entry: its task's attemptNumber, its task.running
+  // events, the worker's own count. The two runs are each other's control: 2 where the worker failed first, 1 where not.
+  for (const [runId, n] of [['w188m', 2], ['w188n', 1]] as const) {
+    const tries = Array.from({ length: n }, (_, k) => k + 1);
+    check(key, `W188 exit (2, ${runId === 'w188m' ? 'the run that retried' : 'the SIBLING'}): the fold\`s entry for each task carries its run ` +
+      `id, its flow-level attempt 0 and the scheduler\`s attempt number ${n} — EQUAL to the attempts the scheduler made, read off its ` +
+      'task, its task.running events and the worker`s own count — and the run`s `attempted` elements name its own tasks only (RN-R40, RN-R41)',
+    r[`n1${runId}`], ['completed', [runId, 0, n, 'done', n, tries, n], [runId, 0, n, 'done', n, tries, n],
+      [...['i:1', 't:0'].flatMap((t) => tries.map((k) => `attempted ${runId}:${t}:0 #${k}`))].sort()]);
+  }
+  // (3)
+  check(key, 'W188 exit (3): onHeader is called ONCE, INSIDE start(), with NOTHING yet appended and NOTHING handed to the scheduler (RN-R39)',
+    r.h1, [1, true, [0, 0]]);
+  check(key, 'W188 exit (3): its header is a FROZEN copy equal to the handle`s and to the checkpoint`s — the five facts (RN-R15) — and a ' +
+    'copy of its OWN: its entry payload neither the caller`s object nor the run`s, one level down both ways (RN-R39)', r.h2,
+    [true, true, true, askCanon({ format: 1, runId: 'w188h', flowId: 'w188-messages', version: 1, entryPayload: { deep: { n: 1 }, topic: 'w188h' } }),
+      [true, 1, 1, 1]]);
+  // An entry fan-out of two: `regionEntered`, two `branch.opened`, two `dispatched` — 2N + 1 (ADR 0064 fact 5) — and both tasks
+  // handed on, all inside start(); the run then completes.
+  check(key, 'W188 exit (3): CONTROL — the same observers then saw the entry step`s five elements and both hand-offs before start() returned, ' +
+    'and the run`s two tasks in the task map and on events', r.h3,
+  [[['regionEntered', 'region', 'region', 'dispatched', 'dispatched'], ['w188h:t:0:0', 'w188h:i:1:0']], 'completed',
+    ['w188h:i:1:0', 'w188h:t:0:0'], ['w188h:i:1:0', 'w188h:t:0:0']]);
+  check(key, 'W188 exit (3): a run whose onHeader THROWS — the consumer`s error at start()`s caller, onFoldInput and onRunFailure never ' +
+    'called, nothing handed to the scheduler, its id in no task map and on no event (RN-R39)', r.h4,
+  ['W188StoreDown', 'W188: the store could not write the header', 0, 0, [], [], []]);
+  // (4) — §5's table: `maxRetries: 2` is up to 3 attempts; `attemptsSpent: 2` leaves ONE, numbered 3; the last failure does
+  // not increment `attempts`, which starts at `attemptsSpent` — so 2. A non-optional task out of retries: `user_action`.
+  const k = 'w188r:work:-:0';
+  check(key, 'W188 exit (4): the store FROZEN during the task`s SECOND attempt and the runtime shut down — two worker calls, two attempts, ' +
+    'on a THREADED pool', r.k1, [[`dispatched ${k}`, `attempted ${k} #1`, `attempted ${k} #2`], 2, [1, 2], 'threaded']);
+  check(key, 'W188 exit (4): resumed on a FRESH runtime, re-handed with attemptsSpent 2 and run ONCE more as attempt 3 — nothing ' +
+    'settled by resume() itself — to user_action (RN-R40)', r.k2,
+  [[[k, 2]], ['resumed'], ['resumed', `attempted ${k} #3`, `outcome ${k} user_action`], [3], 1, 'threaded']);
+  check(key, 'W188 exit (4): THREE worker calls across both processes — the record`s attempts 2, both processes` (P36 (i)), the entry ' +
+    'on attempt 3, the run awaiting_action', r.k3, [3, ['user_action', 2, 'W188: always fails, call 1 in this thread'], [3, 'suspended',
+      'W188: always fails, call 1 in this thread'], 'awaiting_action']);
+  check(key, 'W188 exit (4): CONTROL — the same checkpoint with its attempt elements removed: attemptsSpent 0, attempts 1 to 3 on the ' +
+    'fresh runtime — FIVE calls, what the driver made before 0.8.0', r.k4,
+  [[[k, 0]], ['resumed', `attempted ${k} #1`, `attempted ${k} #2`, `attempted ${k} #3`, `outcome ${k} user_action`], [1, 2, 3], 3, 5]);
+  // (5) — RN-R40 (h): the attempt started before the stop is in the log before `interrupted`, and counts; `maxRetries: 1` with
+  // `attemptsSpent: 1` leaves ONE attempt, numbered 2 (§5).
+  const s = 'w188s:work:-:0';
+  check(key, 'W188 exit (5): STOPPED during its first attempt — the attempt in the log BEFORE `interrupted`, the task cancelled, one call',
+    r.s1, ['done', 'interrupted', [`dispatched ${s}`, `attempted ${s} #1`, 'interrupted'], ['task.running #1', 'task.cancelled'], 1, 'threaded']);
+  check(key, 'W188 exit (5): resumed elsewhere, the STOPPED attempt COUNTED as spent — attemptsSpent 1, ONE attempt more (#2), its last, ' +
+    'user_action, the record`s attempts 1', r.s2,
+  [[[s, 1]], ['resumed', `attempted ${s} #2`, `outcome ${s} user_action`], [2], 1, ['user_action', 1, 'W188: always fails, call 1 in this thread']]);
+  check(key, 'W188 exit (5): CONTROL — the same checkpoint with its attempt element removed: attemptsSpent 0, TWO attempts', r.s3,
+    [[[s, 0]], ['resumed', `attempted ${s} #1`, `attempted ${s} #2`, `outcome ${s} user_action`], [1, 2], 2]);
+  // (6) — `maxRetries: 1` frozen at #2: the budget of two attempts SPENT; §5: `attemptsSpent` 2 > `maxRetries` — ONE attempt
+  // (#3), and `attempts` starts at 2. The settlement is the scheduler's: its task.failed and task.user_action, the worker's text.
+  const b = 'w188b:work:-:0';
+  check(key, 'W188 exit (6): the budget SPENT at the kill — both attempts of maxRetries 1 started, the store frozen in the second', r.b1,
+    [[`dispatched ${b}`, `attempted ${b} #1`, `attempted ${b} #2`], 2, [1, 2], 'threaded']);
+  check(key, 'W188 exit (6): handed on ANYWAY on a FRESH runtime — attemptsSpent 2 — and NOTHING settled by resume() itself', r.b2,
+    [[[b, 2]], ['resumed']]);
+  check(key, 'W188 exit (6): run ONCE (#3), folding from the SCHEDULER`s own settlement — its task.failed and task.user_action, the ' +
+    'record`s error the worker`s own text — no settlement the driver wrote', r.b3,
+  [1, ['task.running #3', 'task.failed', 'task.user_action'], ['resumed', `attempted ${b} #3`, `outcome ${b} user_action`],
+    ['user_action', 2, 'W188: always fails, call 1 in this thread'], [3, 'suspended', 'W188: always fails, call 1 in this thread'], 'awaiting_action']);
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -11495,7 +12019,10 @@ await everyKindAtL6(askBlock?.flows ?? []);
 // **And `+ askBlock.runs.length` since W182**: its THIRTEEN runs — (1) the park; (2) the two answered runs; (3) the decline;
 // (4) the fan-out answered last and answered first; (5) the run stopped on A and its resume on B; (6) the cancelled park and
 // its control; (7) the paused answer, its witness (since the readers) and its control. A's refused resume builds no driver and is not a run.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0);
+// **And `+ attBlock.runs.length` since W188**: its ELEVEN runs — (1) the run that retried and its sibling; (3) the header run;
+// (4) the run killed in attempt 2, its resume on B and the stripped control's on C; (5) the stopped run, its resume and the
+// control's; (6) the run killed with its budget spent and its resume. (3)'s throwing start starts no run and is not one.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -11826,7 +12353,12 @@ const PER_PLAIN_ROW = 22;
 // for the cancel, three for the pause — all cross-row because the block is outside the row loop. 378 + 32 = 410. *(Written
 // as 410 at the build; the block's first run, in node, read 32 new assertions — `2699` derived against `2731` counted,
 // before this line moved.)* The every-kind clause MOVED below the block and is still one assertion.
-const CROSS_ROW = 410;
+// **410 at W182, +24 by W188 — P36's EXIT ARTIFACT**: the attribution-and-attempts block's twenty-four clauses — four per run
+// over clause (1)'s two runs, one per run for (2), four for the header, four for the kill in attempt 2, three for the stop,
+// three for the spent budget — all cross-row because the block is outside the row loop. 410 + 24 = 434. *(Written as 434
+// after the block's first complete run, in node, read 24 new assertions — `2731` derived against `2755` — every one of them
+// green, before this line moved.)*
+const CROSS_ROW = 434;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -13270,8 +13802,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // and a declared exception of W89's, seeded at its declaration from W88's own row.
     'replay',
     // `gateMemory` and `gateTypes` since W93 (`RN-R26`, ADR 0067): each gate's memory — run state, WALKED,
-    // `RN-R13`'s fourth term, empty on every run here since no L6 row runs a gate — and the gate types, whose
-    // `fn` is a FUNCTION, SKIPPED as `languages` is. A declared exception of W93's, seeded by P24.
+    // `RN-R13`'s fourth term, one entry per gate ID a run reached — the TV rows' and block (2h)'s `dedupe`
+    // (a `distinct`, W94), the `if-then-switch` rows' `triage` and `grade` (an `if` and a `switch`, W155); *empty on every run here since no L6 row runs a gate* until
+    // P35's retro (l), false since W94, corrected by W188 — and the gate types, whose `fn` is a FUNCTION, SKIPPED as
+    // `languages` is. A declared exception of W93's, seeded by P24.
     'gateMemory', 'gateTypes',
     // `gateRoutes` since W153 (ADR 0092 rule 3): each gate's resolved route set by gate id, built at construction —
     // route names, no result, WALKED (examples/run-flow.ts' NOT_RUN_STATE is unchanged). Stop-and-ask (e'), YES.
@@ -14018,14 +14552,18 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // assertions (`CROSS_ROW` 378 -> 410) over its twelve runs. **2743 / 203 after its readers** — clause (7)'s WITNESS run
 // (the adequacy reader, A1); no claim added, two widened. *(Written as 2743 / 203 before the file was re-run.)* No row moved (P35 prediction 5). *(The block's first run, in
 // node, read 2744 with the count's own failure line among them — 2743 — and 190 runs before `pairRunCount` counted it.)*
-const DECLARED_TOTAL = 2743;
+// **2767 / 214 since W188 — P36's EXIT ARTIFACT, +24 and eleven runs**, DERIVED: the attribution-and-attempts block's
+// twenty-four cross-row assertions (`CROSS_ROW` 410 -> 434) over its eleven runs. No row moved (P36 prediction 5). *(The
+// block's first run, in node, read 2768 with the count's own failure line among them — 2767 — and 203 runs before
+// `pairRunCount` counted it.)*
+const DECLARED_TOTAL = 2767;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 203;
+const DECLARED_RUNS = 214;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
