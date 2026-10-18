@@ -352,6 +352,7 @@ that object and nothing else — there is no wrapper and no reserved key.
 | a reference is | and you get |
 |---|---|
 | `"."` | what the node would have received anyway — the previous node's result, and for a `map` instance **its own item** |
+| `"$payload"` | **what the RUN was handed** — the payload `start()` took, from any node and any edge, however many hops in (since 0.8.0, below). Always there: no `?`, no array form |
 | `"someNode"` | that node's result, **on your own branch** |
 | `["someNode"]` | that node's results as an **array**, in ascending branch-path order. Legal only when you are OUTSIDE a region that node is in — which is what makes it more than one |
 | **a `?` on either of those** — `"someNode?"`, `["someNode?"]` | the same thing, except that **nothing to give leaves the key out** (or gives `[]` for the array form) instead of stopping the run. This is how you say *if it ran* |
@@ -484,6 +485,100 @@ a report channel exists (`onUnmintedTask`'s shape) and is declined because *this
 once per item* is a fact about your document rather than about your run. **Measuring is not the
 obstacle** — a size measurement is about 0.03% of what it would warn about at arity 1000.
 `spec/flow-definition.md` section 3 carries the whole verdict and the measurements.
+
+### `"$payload"` — what reached the RUN, from any node
+
+**`"$payload"` names the value the run was STARTED with** — `start(flow, payload)`'s `payload` — on any node that may
+declare `needs` (a `task`, a `map`, an `ask`) and on any edge, the entry included (`spec/flow-definition.md` v0.44,
+[ADR 0117](doc/decisions/0117-a-reference-may-name-what-reached-the-run.md), since 0.8.0). Until it, a node reached the
+run's payload only through `"."` on the node that received it — and an ASK breaks that: its result is the person's
+answer (section 7), so the node after an ENTRY ask had no road to what the run started with except a task before the ask
+that passed it through.
+
+| | |
+|---|---|
+| what it is | the copy the run's checkpoint HEADER keeps (`header.entryPayload`, section 18) — so a caller changing its payload object after `start()` changes nothing. Each key is its own deep copy, per read: no node receives an object another holds, and a worker writing into it reaches nothing |
+| where it is legal | every node and every edge — at the entry, on a task, it equals `"."`, and both spellings are accepted. **On an edge it is NOT refused** the way `"."` is: a predicate has no `ctx.payload`, so `needs: { run: '$payload' }` is how a decision routes on `needs.run.amount` with no task before it |
+| always there | no `?` and no array form: `["$payload"]` and `"$payload?"` are `FD-V26`, each naming the bare form. The whole `$` prefix is reserved — `$` is outside the node-id charset (`FD-V16`), so the token can never collide with a node — and any other `$` spelling (`"$input"`, a typo) is `FD-V26` naming the two `$` references |
+| `"$item"` | the prefix's second reference, a map instance's own item — **not composed yet**: `FD-V26` refuses it, naming `"."` on the map's branch entry, which is where an instance receives its item today |
+| on a resume | the same value, from the stored header: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` stays 1) |
+| at `start()` | `FD-R4` holds a task's composed `"$payload"` key to its worker's `inputSchema` like any other key (section 9) — composed from the value you passed, before the run exists |
+| in the wiring check | an arc composed through a `"$payload"` key is `unchecked`: the run's payload is a value no schema declares (section 15) |
+| what it costs | one copy of the whole payload **per key per read** — inside a `map`, once per instance (the cliff above, at its largest: name the small part's producer instead, or give the `map` a `needs` that projects what each instance needs). Nothing warns, as above. On an ASK the copy is also written into the run's LOG: the `asked` element keeps what reached the ask (section 7) |
+
+**`givenVerdict` and `tryTransform(…, { input })` compose nothing** (section 15): the value you give them IS what the node
+receives, so a node declaring `needs: { run: "$payload" }` is given `{ run: <the payload> }` — composing it is yours, as
+for every `needs` key.
+
+The app's case — an ENTRY ask whose successor needs the invoice the run started with beside the person's answer, and an
+edge that routes on the invoice's amount:
+
+```ts run
+import { Driver, fold, liveToken, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+// A scheduler double, section 12's shape: it records what it is handed and fires only what we tell it to.
+const added: { id: string; payload: { input: unknown } }[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const scheduler = {
+  addTask(task: unknown) { added.push(task as { id: string; payload: { input: unknown } }); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const inputOf = (id: string) => added.find((t) => t.id === id)?.payload.input;
+
+const flow: FlowDefinition = {
+  flowId: 'pay-invoice', version: 1, entry: 'approve',
+  nodes: [
+    // The ENTRY is an ask: what it shows the person is the run's payload, and its result is the ANSWER alone.
+    { id: 'approve', kind: 'ask', needs: { invoice: '$payload' },
+      answerSchema: { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } },
+      edges: [{ on: ['failed'], to: 'declined' }, { to: 'pay' }] },
+    // `pay` reaches BOTH: the invoice the run started with, and the person's answer.
+    { id: 'pay', kind: 'task', type: 'Pay', needs: { invoice: '$payload', answer: 'approve' },
+      edges: [
+        // An EDGE may name it too, so its predicate routes on the run's payload with no task in between.
+        { when: { path: 'needs.run.amount', op: 'gt', value: 100 }, to: 'audit', needs: { run: '$payload' } },
+        { to: 'done' },
+      ] },
+    { id: 'audit', kind: 'task', type: 'Pay', edges: [{ to: 'done' }] },
+    { id: 'declined', kind: 'end', outcome: 'declined' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const types = { workers: { w: { url: 'worker.js' } }, nodeTypes: { Pay: { worker: 'w' } } };
+const registry = { predicates: [], ...types };
+if (validateDefinition(flow, registry).length) throw new Error('"$payload" is legal on an entry ask, on a task and on an edge');
+
+const driver = new Driver(flow, { runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken, ...types });
+const invoice = { id: 'INV-1', amount: 120 };
+driver.start(invoice);
+invoice.amount = 1;   // yours to change: the run holds its own copy
+
+driver.resolve('r1:approve:-:0', 'done', { result: { approved: true }, actor: 'ana' });
+console.log(inputOf('r1:pay:-:0'));   // { invoice: { id: 'INV-1', amount: 120 }, answer: { approved: true } }
+if (JSON.stringify(inputOf('r1:pay:-:0')) !== '{"invoice":{"id":"INV-1","amount":120},"answer":{"approved":true}}') {
+  throw new Error(`pay received ${JSON.stringify(inputOf('r1:pay:-:0'))}`);
+}
+
+// `pay` settles; its edge reads `needs.run.amount` — 120, the run's — and routes to the audit.
+for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id: 'r1:pay:-:0', state: 'done', result: { paid: true } } });
+console.log(added.map((t) => t.id));   // [ 'r1:pay:-:0', 'r1:audit:-:0' ]
+if (added.map((t) => t.id).join() !== 'r1:pay:-:0,r1:audit:-:0') throw new Error('120 > 100 routes to the audit');
+if (fold(driver.foldInputs()).outcome !== 'running') throw new Error('the audit is in flight');
+
+// The refusals name their fix: one payload, always there, and the `$` prefix is reserved.
+const refuse = (ref: unknown) => validateDefinition({ ...flow, nodes: flow.nodes.map((n) =>
+  (n.id === 'pay' ? { ...n, needs: { invoice: ref } } : n)) } as FlowDefinition, registry).map((f) => `${f.rule}: ${f.detail}`);
+for (const [ref, fix] of [[['$payload'], 'write "$payload"'], ['$payload?', 'without "?"'], ['$input', '"$payload" (the run\'s payload)']] as const) {
+  const [finding] = refuse(ref);
+  if (!finding?.startsWith('FD-V26') || !finding.includes(fix)) throw new Error(`${JSON.stringify(ref)}: ${finding}`);
+}
+```
+
+**BREAKING in 0.8.0** (P38 (h)): `referenceTarget`'s return type gains two variants, `{ form: 'payload' }` and
+`{ form: 'item' }`, each with `node: null` — so code switching exhaustively on `form` stops compiling, and code reading
+`node === null` as *the `"."` form* reads `"$payload"` as `"."` in silence: switch on `form`. The `Reference` TYPE does
+not move (every token is a string), and a flow that names neither token is unchanged — every tree before 0.8.0's W190
+refuses both.
 
 ### Validation happens at construction, not at routing time
 
@@ -654,8 +749,9 @@ flagged low confidence* was not expressible until v0.12 —
 answering [Q8](doc/questions/q8.md).
 
 **An edge may carry `needs`, and its predicate sees the result under `ctx.needs`.** Same grammar as
-a node's (section 3) — a node id, or a one-element array holding one — **minus `"."`**, which an edge
-has no use for: *what a predicate would have received anyway* is `ctx.outcome`.
+a node's (section 3) — a node id, or a one-element array holding one, and since 0.8.0 `"$payload"` — **minus `"."`**,
+which an edge has no use for: *what a predicate would have received anyway* is `ctx.outcome`. `"$payload"` is not
+refused there: a predicate has no other road to the run's payload (section 3's `"$payload"` subsection routes on it).
 
 ```ts run
 import { validateDefinition, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
@@ -716,7 +812,8 @@ changes what its **worker** receives, so you could not give a predicate reach wi
 worker; and *what the node received* is not something the driver can reconstruct when the decision is
 made — the **entry** node's payload is never written to the log at all, and reconstructing any other
 node's would mean re-deriving the whole payload contract a second time. **A reference resolves from
-what the run produced**, which is available either way.
+what the run produced**, which is available either way — **and from what the run was HANDED**, since 0.8.0: the
+checkpoint header keeps the run's payload for the life of the run, and `"$payload"` names it (section 3).
 
 **`ctx.needs` is `{}` when the edge declares nothing**, never `undefined`; it is **frozen**, so a
 predicate that writes to it throws rather than editing what the next predicate reads; and a reference
@@ -1274,7 +1371,10 @@ keeps waiting, and the run is not stuck.
   `validateBoundaries: false` turns it off); `'failed'` with an `error` is the person DECLINING, held to nothing.
 - **The answer IS the node's result.** It routes as a task's settlement does — `on: ['failed']` for a decline, a `when`
   over `outcome.result` — the successor RECEIVES it, and a later `needs` naming the ask reads it; the value that reached
-  the ask stays reachable by naming whatever produced it. A predicate's `ctx.outcome` for an ask has `attempts: 0` and
+  the ask stays reachable by naming whatever produced it — and where NOTHING produced it, an ask at the ENTRY, by
+  `"$payload"`, the run's payload (since 0.8.0, section 3: `needs: { invoice: '$payload', answer: 'approve' }`). A
+  `"$payload"` key in an ask's OWN `needs` puts a copy of the whole payload into the `asked` element, and so into the
+  run's log, once per ask — that element keeps what reached the ask, whatever its size. A predicate's `ctx.outcome` for an ask has `attempts: 0` and
   **`schedulerTimestamp`, `startTime`, `endTime` and `executionTime` all `null`** — no scheduler was involved.
 - **BREAKING in 0.8.0** (P35 decision 8): `FoldInput` gains the kind `'asked'`, and `OutcomeRecord.schedulerTimestamp`
   is `number | null` — `null` only on an ask's effective outcome. `NodeRun.input` is optional and additive.
@@ -3708,7 +3808,8 @@ whatever arcs reach the node, on the entry node too** (W166, P37 stop-and-ask (d
 
 **The value is `$` as you give it: no `needs` is composed over it**, because a `needs` composes what
 arrives and this is what arrived — and on a `map`'s branch task it is ONE instance's value, evaluated
-once. `input: undefined` is no input (the arcs answer, as before); `null` is a value. *What it is not*:
+once. **That includes a `"$payload"` key** (since 0.8.0): give the node what it RECEIVES, the payload already under
+that key — neither function composes one, so a given input and a run agree only when you compose as the run does. `input: undefined` is no input (the arcs answer, as before); `null` is a value. *What it is not*:
 a statement about the producer or the flow — it says what this expression does to this value, and a
 value that passes is *the sample passed — the given input*, never *fits*. **`givenVerdict(registry, flow,
 node, input)`**, exported beside `checkWiring`, is the same road on the node as the flow DECLARES it —
@@ -3722,7 +3823,9 @@ a task that declares a `transform` to its worker's `inputSchema` ([ADR 0101](doc
 start* — but on the value each transforming TASK receives, because a given value is `$` with no `needs` composed:
 `boundaryTargets(flow, payload)` lists the tasks the payload reaches and the value reaching each (for a map's branch,
 each element under `over`; through an entry gate, every route's target), and where the task declares `needs` (at an
-entry only `"."`) compose it first — `needs: { own: "." }` receives `{ own: value }`. Call
+entry `"."` and, since 0.8.0, `"$payload"`) compose it first — `needs: { own: "." }` receives `{ own: value }`, and
+`needs: { run: "$payload" }` receives `{ run: payload }`, the PAYLOAD even on a map's branch, where the value is an
+element. Call
 `givenVerdict(registry, flow, task, received)` on each that transforms; a fan-out, map or gate ENTRY is no task and
 gives `[]`. Start on `transform-passes`; `unchecked` (no `inputSchema`, or a language, type or worker the registry
 lacks) checked nothing. Until W170 `start()`

@@ -30,7 +30,9 @@ export interface DecisionContext {
   outcome: OutcomeRecord;
   /**
    * **What this EDGE declared it needs** — the object its `needs` describes, resolved
-   * against the run's own outputs exactly as a node's is (`FD-C1`, `FD-C2`).
+   * against the run's own outputs exactly as a node's is (`FD-C1`, `FD-C2`) — and, since
+   * v0.44, against the value the RUN entered with, for a `"$payload"` key (`FD-C3`,
+   * ADR 0117): so a predicate routes on `needs.run.amount` with no task before it.
    *
    * **`{}` when the edge declares none, never `undefined`**, for rule 4's own reason
    * one level out: *a predicate written `ctx.needs.flag` must mean one thing*, and a

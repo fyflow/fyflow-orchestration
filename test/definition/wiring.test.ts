@@ -583,7 +583,7 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     const map = flow([{ id: 'each', kind: 'map', over: 'items', branch: 'b' }, task('b', 'A', 'join'), { id: 'join', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }], 'each');
     equal(boundaryTargets(map, { items: [1, 2] }), [{ node: 'b', value: 1 }, { node: 'b', value: 2 }], 'a map entry: one per item');
     equal(boundaryTargets(map, { items: 'no' }), [], 'not an array: nothing to hold — FD-R2 is the run`s');
-    // An entry map's own `needs` — only `"."` can be named at an entry — is composed before `over` is read (the conformity reader, 15).
+    // An entry map's own `needs` — at an entry no NODE can be named, so only `"."` and (v0.44, W190) `"$payload"`, both the payload — is composed before `over` is read (the conformity reader, 15).
     const mapNeeds = flow([{ id: 'each', kind: 'map', over: 'items', branch: 'b', needs: { items: '.' } }, task('b', 'A', 'join'), { id: 'join', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }], 'each');
     equal(boundaryTargets(mapNeeds, [1, 2]), [{ node: 'b', value: 1 }, { node: 'b', value: 2 }], 'a map entry composing ".": the payload IS the array');
     // RECURSIVELY (the adequacy reader's s5): a fan-out nested in an entry fan-out — a walk that stops at the

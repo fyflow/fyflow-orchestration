@@ -35,17 +35,21 @@ export type TerminalState = 'done' | 'failed' | 'user_action' | 'cancelled';
  * `spec/flow-definition.md` section 3's `needs`, and
  * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md).
  *
- * Three forms, all of them data (ADR 0002 rule 1 — nothing here is a function and
+ * Four forms, all of them data (ADR 0002 rule 1 — nothing here is a function and
  * everything survives `JSON.parse(JSON.stringify(x))`):
  *
  * | | |
  * |---|---|
- * | `"."` | what this node would have received anyway — the ordinary edge's value, and for a `map` instance its own item (`JP-R11`). The one token outside `FD-V16`'s charset, so it can never collide with a node id |
+ * | `"."` | what this node would have received anyway — the ordinary edge's value, and for a `map` instance its own item (`JP-R11`). Outside `FD-V16`'s charset, so it can never collide with a node id |
+ * | `"$payload"` | **the value the RUN entered with** — what `start()` was handed, from any node and any edge (v0.44, [ADR 0117](../../doc/decisions/0117-a-reference-may-name-what-reached-the-run.md)). Always there, so no `?` and no array form. `$` is outside `FD-V16`'s charset, and the whole `$` prefix is reserved: `"$item"` — a map instance's item — is W191's, and any other `$` spelling is `FD-V26` |
  * | `"score"` | that node's output **on this node's own branch path**. Exactly one, or the run stops (`FD-R3`) |
  * | `["score"]` | that node's outputs as an **array**, in ascending segment-wise-numeric `branchPath` order. Legal only where the reader is outside a region containing the named node (`FD-V28`) |
  *
  * **The array form uses JSON's own array syntax rather than a sigil**, so the
- * grammar needs exactly one invented token (`"."`) rather than two.
+ * grammar invents tokens only for what has no node id: `"."`, the `?` modifier
+ * (v0.13), and — v0.44 — the `$` prefix. *(This read *"exactly one invented token"*
+ * until v0.13 and stayed so until W190.)* A `string` covers every token, so the
+ * TYPE does not move; `referenceTarget`'s parse does.
  */
 export type Reference = string | readonly [string];
 
