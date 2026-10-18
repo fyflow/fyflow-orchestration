@@ -1164,7 +1164,7 @@ reached first), appended and routed nowhere. **The run reads `cancelling` until 
 | `graceMs: 0` | **a request, not a guarantee**: the scheduler arms a 0 ms timer, and a worker that honours its signal promptly can still beat it ([S12](doc/scheduler-upstream.md)). A test needing a FORCED stop uses a worker that ignores its signal |
 | refused | **`RunControlRefused`, by `reason`, with nothing recorded or sent**: `unsupported` (the scheduler has no `cancel` — section 12), `not-started`, `halted`, `cancelled` (a task the scheduler cancelled on its own already ended the run), `ended` (nothing in flight, nothing parked, the driver at rest — a cancel from your own callback mid-step is accepted, and stops what the step would have dispatched) and `interrupted` (the run was STOPPED — cancel it where it resumes, section 18) — and a bad `graceMs` throws `TypeError` or `RangeError`, as the scheduler would |
 | a resume | refused, `reason: 'cancelled'`, at the `cancelRequested` element (section 18) |
-| your `onFoldInput` THROWS on the `cancelRequested` element | the throw reaches `cancel()`'s caller — AFTER every task in flight was sent its cancel and every task a pause held was handed on and cancelled (`RN-R31`), so the run still reaches `cancelled`. *Until 0.8.0's W178 it sent none, and a paused run read `cancelling` for ever* |
+| your `onFoldInput` THROWS on the `cancelRequested` element | every task in flight is still sent its cancel and every task a pause held handed on and cancelled — in a `finally` (`RN-R31`) — and THEN the run is HALTED and reported once, and the throw reaches `cancel()`'s caller (section 9, [W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md)). `halted` outranks `cancelling`, so a runtime's `done` settles `halted` at once; the tasks still stop, routed nowhere. *Until 0.8.0's W178 it sent none, and a paused run read `cancelling` for ever; until W184 the run read `cancelling`, unhalted* |
 
 ```ts run
 import { Driver, RunControlRefused, fold, liveToken, resumeRefusal, type FlowDefinition } from 'fyflow-orchestration';
@@ -1692,7 +1692,8 @@ people:**
   resolves it with `cancelled` on the FIRST cancel, while the run's other tasks may still be running —
   section 6 — and `driver.cancel` resolves it with `cancelled` only once its LAST task has stopped,
   the run reading `cancelling` until then. A run its owner STOPPED (`handle.stop()`, section 18)
-  resolves it with `interrupted` once the stop's cancels have resolved — not at the stop.
+  resolves it with `interrupted` once the stop's cancels have resolved — not at the stop. **Either resolves it with
+  `halted` AT ONCE if your callback threw on the `cancelRequested` or `interrupted` element** (section 9).
 - **`awaiting_action` is NOT terminal, so `done` waits through it.** A run parked on a person stays
   pending until somebody calls `resolve()`, which is correct and is the trap: if you are waiting for
   a run and a human is in it, you are waiting for the human. Section 7 is the worked case.
@@ -1723,6 +1724,7 @@ unpause clears it, and a cancelled or halted run refuses one — read `outcome` 
 | `handle.stop()` / `driver.stop()` of a paused run | cancels only what the scheduler has; a held task is sent nothing and stays in flight — and the checkpoint resumes **PAUSED** elsewhere, EVERY task in flight held until you unpause there, the ones that were running at the stop included (section 18) |
 | `driver.cancel()` of a paused run | hands each held task on and cancels it, so the scheduler settles every one — `cancelling`, then `cancelled` (section 6) |
 | refused | `RunControlRefused`, `control: 'pause'` or `'unpause'`, by `reason`: `not-started`, `halted`, `cancelled`, `interrupted` (a stopped run — pause it where it resumes), `paused` (a second pause), `not-paused` (an unpause of a run not paused), and for a pause only `ended` — nothing recorded |
+| your `onFoldInput` THROWS on the `paused` or `unpaused` element | the element is in the log — an unpause's held tasks still handed on, in a `finally` — and then the run is HALTED and reported once, and the throw reaches the caller of `pause()` or `unpause()`, or of the call whose step took it; on a scheduler event's step nothing is thrown (section 9, `RN-R35`). *Until [W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md) a throw on your own call's step reached you with the run going on, paused or running* |
 
 ```ts run
 import { Driver, fold, liveToken, type FlowDefinition } from 'fyflow-orchestration';
@@ -1958,11 +1960,75 @@ a throw from your own `onFoldInput` on any element a scheduler event's step appe
 `paused`, `unpaused` or `interrupted` element of a pause, unpause or stop you called from a callback on
 that step, which is taken when the step ends (sections 8 and 18): reported under your error's class and
 the run HALTED, the element already in the log (`OR-R10`). A stopped run halted so is not resumable.
-*Until 0.8.0's W178 that throw left the listener and ended the process.* On YOUR call's step — `start`,
-`resolve`, `resume`, or the control called at rest — it is thrown to you instead. **Two callbacks must not
-throw at all: `onFoldInput` on the `halted` element, and `onRunFailure`.** Each runs after the run is
-halted and the failure reported, so inside a scheduler event listener their throw is DISCARDED — lost, with
-nobody told (`OR-R10`); on your own call's step it reaches you.
+*Until 0.8.0's W178 that throw left the listener and ended the process.* **On YOUR call's step it is the
+SAME — and then it is thrown to you as well** (`OR-R10` v0.19, [W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md)): `start`, `resume`, `resolve`,
+`cancel`, `stop`, `pause` and `unpause`, called at rest, or with a pause, an unpause, a stop or an answer you
+called from a callback and that is taken when the step ends. Your error is reported ONCE under its class, the run
+is HALTED right after the element — the element's own side effects made first: a stop's and a cancel's cancels sent, an
+unpause's and a cancel's held tasks handed on — and THEN your error is thrown at you. **The FIRST throw halts**: a
+pause, an unpause or an answer you called on the same step and still pending behind it is DROPPED — nothing more is
+dispatched or routed — and a stop pending behind it is still taken, silently, its own throw discarded; so the error
+thrown at you is the one reported. So is a throw from the SCHEDULER once your call is accepted — its `cancel` failing
+inside `driver.cancel` or a stop: reported under its class, the run halted, the error thrown at you. A `cancel()` you call from a
+callback appends its element where you call it, so a throw on it halts the run there even if your callback catches
+it. A `resume()` whose `resumed` element you throw on hands NOTHING on (section 18); one whose lost tail you throw on
+is still refused `ResumeRefused('halted')`. **A call REFUSED before it is accepted halts nothing** —
+`RunControlRefused`, `BoundaryRefused`, `ResumeRefused`, `MultipleRuns`, a `DataCloneError`: nothing was appended.
+**Two callbacks must not throw at all: `onFoldInput` on the `halted` element, and `onRunFailure`.** Each runs
+after the run is halted and the failure reported, so inside a scheduler event listener their throw is DISCARDED —
+lost, with nobody told (`OR-R10`); on your own call's step it reaches you.
+
+**BREAKING in 0.8.0** (P36 (b), (c) and (p), [W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md)): until W184 a throw from your `onFoldInput` on your OWN
+call's step reached you and the run went ON. A `resolve()` whose `resolution` element you threw on left the answered
+node routed nowhere and the run folding **`completed`** — a run that never reached its end; a stop at rest so thrown
+stayed `interrupted` and resumable, a cancel `cancelling`, a pause or an unpause running; a `resume()` threw with its
+in-flight set never handed on, `running` for ever. Each is now **`halted`** — so a store that failed on a stop's
+`interrupted` element holds a run that is NOT resumable, and a runtime's `done` settles `halted` at once.
+
+```ts run
+import { Driver, fold, liveToken, type FlowDefinition, type FoldInput } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'store-fails', version: 1, entry: 'x',
+  nodes: [
+    { id: 'x', kind: 'task', type: 'T', edges: [{ to: 'y' }] },
+    { id: 'y', kind: 'task', type: 'T', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+// A scheduler double, section 12's shape: it records what it is handed and fires only what we tell it to.
+const added: string[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const scheduler = {
+  addTask(task: unknown) { added.push((task as { id: string }).id); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const fire = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+
+// YOUR store, which fails on ONE element: the resolution a person's answer appends.
+class StoreDown extends Error {}
+const reported: string[] = [];
+const driver = new Driver(flow, {
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken,
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { T: { worker: 'w' } },
+  onFoldInput: (e: FoldInput) => { if (e.kind === 'resolution') throw new StoreDown('the store is down'); },
+  onRunFailure: (f) => { reported.push(f.kind); },
+});
+driver.start({});
+// x runs out of retries and parks for a person: the scheduler's PAIR, `task.failed` then `task.user_action`.
+fire('task.failed', { id: 'r1:x:-:0', state: 'user_action', error: 'a person must look' });
+fire('task.user_action', { id: 'r1:x:-:0', state: 'user_action' });
+
+// YOUR call: your error is thrown at you — AND the run is HALTED, and reported once.
+let thrown: unknown = null;
+try { driver.resolve('r1:x:-:0', 'done', { result: { ok: true }, actor: 'ana' }); } catch (e) { thrown = e; }
+const state = fold(driver.foldInputs());
+console.log(thrown instanceof StoreDown, reported, state.outcome, added);   // true [ 'StoreDown' ] halted [ 'r1:x:-:0' ]
+if (!(thrown instanceof StoreDown)) throw new Error('your own error is thrown at you');
+if (reported.join() !== 'StoreDown') throw new Error(`reported ONCE, under its class: ${reported.join()}`);
+if (state.outcome !== 'halted') throw new Error(`the run is HALTED, got ${state.outcome} — before W184 it folded completed`);
+if (added.includes('r1:y:-:0')) throw new Error('nothing is routed from the resolution you threw on');
+```
 
 **`InvalidTaskId` is the ninth class and it is the one that does NOT stop a run.** It is thrown by
 `buildTaskId` and `parseTaskId`, both exported, and it is how you check an id yourself — *did some
@@ -4081,6 +4147,11 @@ await third.shutdown();
   with `RunIdInUse` from then on, as it refuses any id it ever built a driver for, a finished run's
   included, long after it released the driver (section 12). Resume on a fresh runtime
   ([Q371](doc/questions/q371.md)).
+- **A throw from your `onFoldInput` on the `resumed` element HALTS the resumed run** ([W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md), `RN-R22`): it is
+  reported once, NOTHING of the in-flight set is handed to the new scheduler, and your own error is thrown at
+  `resume()`'s caller — so the stored run, `resumed` and `halted` are a checkpoint refused `halted`, and on a runtime the
+  run id is spent there. A throw on an element the replay regenerated in the LOST TAIL is refused
+  `ResumeRefused('halted')`, as above. *Until W184 it reached you with nothing handed on: `running` for ever.*
 - **`shutdown()` is not a kill.** It DRAINS: measured in node and deno, a run one settlement in
   completes inside it, while a retry waiting on its backoff runs only if the backoff ends inside the
   drain — the drain dispatches like any other moment, and a backoff still pending when it ends is
@@ -4114,6 +4185,7 @@ terminal here, and the one terminal outcome a resume accepts.
 | a SECOND call | appends nothing, and forwards its `graceMs` to each task still stopping |
 | refused | `RunControlRefused` with `control: 'stop'`, by `reason`: `unsupported` (the scheduler has no `cancel`), `not-started`, `halted`, `cancelled` (a cancelled run is not resumable) and `ended` — nothing recorded or sent. And a `driver.cancel` AFTER a stop is refused `interrupted`: cancel it where it resumes |
 | a task that finished before its cancel arrived | runs AGAIN on the resume — its settlement was never heard. At-least-once, as across a crash |
+| your `onFoldInput` THROWS on the `interrupted` element | every task in flight is still cancelled and every promise settles, in a `finally` — then the run is HALTED and reported once, and the throw reaches `stop()`'s caller (section 9, `RN-R33`). `halted` outranks `interrupted`: the run is NOT resumable, and `done` settles `halted` at once. *Until [W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md) a stop at rest so thrown stayed `interrupted`, resumable* |
 
 ```ts run
 import { Driver, fold, liveToken, resumeRefusal, type FlowDefinition } from 'fyflow-orchestration';

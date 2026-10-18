@@ -183,7 +183,7 @@ const DECLARED_CASES = [
   'a stop raised on a resumed run`s `resumed` element: each task handed on by the resume, then cancelled when it returns',
   'a stop raised on an element of a resume`s LOST TAIL is taken when resume() returns: `resumed`, each task handed on, then the element and the cancels',
   'DEAF with the hold: a settlement a callback on the `interrupted` element provokes is not heard — the task stays in flight and runs again on the resume',
-  'a callback that THROWS on the `interrupted` element — at rest and mid-step: the throw reaches the caller, and the cancels are still sent and every promise settles',
+  'a callback that THROWS on the `interrupted` element — at rest and mid-step: the cancels are still sent and every promise settles — and then the run HALTED, reported once, NOT resumable, and the throw at the caller (W184, P36 (b))',
   'R9: a stop raised on the settlement that ENDS the run is taken after the step — the element last, the promise resolved, `interrupted`',
   'R9: a stop whose step then HALTS the run is taken after it — the element after `halted`, the promise resolved, the fold `halted`',
   'R9: a stop whose step then has a task settle `cancelled` (RN-R28) is taken after it — the promise resolved, the fold `cancelled`',
@@ -631,8 +631,10 @@ suite(SUITE, (test) => {
     let thrown: unknown = null;
     try { void rest.driver.stop({ actor: 'ops' }); } catch (e) { thrown = e; }
     equal(thrown, boom, 'at rest the throw reaches stop()`s caller');
-    equal(rest.log().at(-1), 'interrupted ops null', 'the element is in the log');
+    equal(rest.log().slice(-2), ['interrupted ops null', 'halted'], 'the element is in the log — then, since W184, `halted` after it');
     equal(rest.scheduler.cancels.map((c) => c.id), [A, B], 'and the tasks it says were stopped ARE cancelled — in a finally');
+    equal([rest.failures, fold(rest.driver.foldInputs()).outcome, resumeRefusal(TWO, rest.driver.checkpoint())?.reason], [['Error'], 'halted', 'halted'],
+      'reported ONCE, `halted` — it outranks `interrupted` (RN-R8) — so the checkpoint is NOT resumable (P36 (b), fact 12)');
     let again = false;
     const second = rest.driver.stop({ actor: 'ops' }).then(() => { again = true; });
     rest.scheduler.finish(A);
@@ -655,6 +657,7 @@ suite(SUITE, (test) => {
     try { mid.driver.start({}); } catch (e) { midThrown = e; }
     equal(midThrown, boom, 'mid-step the throw reaches the step`s caller — here start()');
     equal(mid.scheduler.cancels.map((c) => c.id), [A, B], 'both tasks cancelled after their hand-off, though the element`s callback threw');
+    equal([mid.log().slice(-2), mid.failures], [['interrupted ops null', 'halted'], ['Error']], 'and halted at start()`s boundary, reported once');
     let settled = false;
     void promise!.then(() => { settled = true; });
     mid.scheduler.finish(A);

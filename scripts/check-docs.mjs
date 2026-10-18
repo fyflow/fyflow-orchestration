@@ -731,7 +731,8 @@ if (written.length) {
 // **Raised 40 -> 41 by [W179](../doc/work-items/w179-the-ask-node-in-the-definition.md)**, section 3's `ask` snippet — in its row's `Owns`.
 // **Raised 41 -> 42 by [W180](../doc/work-items/w180-asking-and-answering-in-a-run.md)**, section 7's *an ask PARKS* snippet — in its row's `Owns`.
 // **Raised 42 -> 43 by [W181](../doc/work-items/w181-an-ask-under-run-control.md)**, section 7's *Stopped, resumed elsewhere, and answered while paused* snippet — in its row's `Owns`.
-const RUN_FLOOR = 43;
+// **Raised 43 -> 44 by [W184](../doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md)**, section 9's *your store fails on your own call's step* snippet — in its row's `Owns`.
+const RUN_FLOOR = 44;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

@@ -48,6 +48,8 @@ element runs BEFORE that task is handed to the scheduler (ADR 0103's inherited h
    cancelled has stopped.
    *(2026-10-17, [W178](../work-items/w178-the-throwing-callback-fixes-and-ms-titles.md), P35 decision 4: the cancels — and a paused run's hand-offs — are sent in a `finally`
    around the element, so a consumer callback that throws on it still sends every one; `RN-R31` v0.21.)*
+   *(2026-10-18, [W184](../work-items/w184-a-consumer-callback-that-throws-on-every-road.md), P35's retro (k), P36 (b): and THEN the run is HALTED and reported once, the throw reaching the
+   caller — at rest or mid-step; `halted` outranks `cancelling`; `OR-R10` v0.19, `RN-R31` v0.24.)*
 3. **Refusals, one class with a `reason`** — `RunControlRefused`: `unsupported` (no `cancel` on the scheduler),
    `not-started`, `halted` (`OR-R10`), `cancelled` (`RN-R28` already ended it) and `ended` (nothing in flight, nothing
    parked — **at rest only**: mid-step, on the stack of the driver's own step, that prefix is the instant before the step
