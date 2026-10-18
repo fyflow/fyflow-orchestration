@@ -77,7 +77,7 @@ diff from 0.5.2's, not by running each row — the first pin since 0.3.0 at whic
 |---|---|
 | `addTask` / `addTasks` | dispatch, with `{ createPromise: true }` for a settled result. Throws on unknown `workerType` |
 | Events | `task.running`, `task.completed`, `task.failed`, `task.progress`, `task.user_action`, `task.spawn_request`, `scheduler.completed` — **all carrying `timestamp` since 0.3.0** |
-| Events (at the pin, new) | `task.retrying`, `task.cancelling`, `task.cancelled`, `task.message` (and `worker.message`, on the POOL, not the scheduler) — none subscribed yet: `task.cancelled` is W158's, the rest P36's |
+| Events (at the pin, new) | `task.retrying`, `task.cancelling`, `task.cancelled`, `task.message` (and `worker.message`, on the POOL, not the scheduler) — `task.cancelled` subscribed since W158, `task.message` when a run asks (W187); `task.retrying` and `task.cancelling` not heard |
 | Events (0.3.0, new) | `resource.acquired` / `.released` / `.blocked` / `.unblocked`, and `getAdmissionQueue()` (a fifth `unblocked` reason, `cancelled`, at the pin). **Scheduler-level, not flow-level** — useful for diagnosing a stalled pool, useless for a stuck join |
 | `FyflowTask` after the run | `state`, `result`, `error`, `attempts`, `startTime`, `endTime`, `executionTime`; at the pin also `attemptNumber`, `cancellation` |
 | Resource groups | `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup` - per-task and per-worker (`residentGroups`) |

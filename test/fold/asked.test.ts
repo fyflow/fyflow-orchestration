@@ -40,7 +40,8 @@ const DECLARED_CASES = [
 suite(SUITE, (test) => {
   test(DECLARED_CASES[0]!, () => {
     const s = fold([asked(A, { request: { n: 1 } })]);
-    equal(s.nodes, { [A]: { nodeId: 'approve', branchPath: '-', state: 'suspended', result: null, error: null, input: { request: { n: 1 } } } },
+    // W187 (RN-R41): an ask is never handed to a scheduler — its attemptNumber is null.
+    equal(s.nodes, { [A]: { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'suspended', result: null, error: null, input: { request: { n: 1 } } } },
       'one entry, keyed by the ask`s task id, its node and path parsed from it');
     equal(s.runId, 'r1', 'the run id read from the task id, as a dispatch`s is');
     equal(s.outcome, 'awaiting_action', 'RN-R7: a suspended node, so the run waits on a person');
@@ -77,7 +78,7 @@ suite(SUITE, (test) => {
 
   test(DECLARED_CASES[3]!, () => {
     const s = fold([asked(A, 7), answer(A, 'failed', null, 'no thanks')]);
-    equal(s.nodes[A], { nodeId: 'approve', branchPath: '-', state: 'failed', result: null, error: 'no thanks', input: 7 },
+    equal(s.nodes[A], { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'failed', result: null, error: 'no thanks', input: 7 },
       'the decline`s state and error, the input still kept');
   });
 

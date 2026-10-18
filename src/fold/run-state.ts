@@ -85,10 +85,36 @@ export interface Interruption {
 /** How a branch left its region. `null` while it is still live. */
 export type BranchSettlement = 'arrived' | 'exited' | 'lost';
 
+/**
+ * **One task's entry in `RunState.nodes`** — `RN-R5`, and since v0.27 its ATTRIBUTION as fields (`RN-R41`,
+ * [ADR 0114](../../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md), P36
+ * stop-and-ask (j)): the run, the flow-level attempt and the scheduler's attempt number, so a reader holding an entry on
+ * its own needs no parse of its key. **`runId`, `flowAttempt` and `attemptNumber` are REQUIRED, and that is BREAKING in
+ * 0.8.0 for code that builds a `NodeRun` literal** (P36 (p)); a reader is unaffected. Fold OUTPUT only: no fold input
+ * carries a field derived from the task id (`spec/outcome-record.md` section 2), and none moves.
+ */
 export interface NodeRun {
+  /**
+   * **The run the task belongs to** — v0.27, `RN-R41`: the task id's first segment (`spec/task-id.md` section 1), equal to
+   * `RunState.runId` on every entry of a run's fold. On the entry so it travels with it.
+   */
+  runId: string;
   nodeId: string;
   /** `'-'` when the node is in no fan-out region. */
   branchPath: string;
+  /**
+   * **The FLOW-LEVEL attempt** — v0.27, `RN-R41`: the task id's fourth segment, `0` on every id this library mints today
+   * ([Q16](../../doc/questions/q16.md)'s flow half mints nothing above it). NOT the scheduler's attempt number: that is
+   * {@link NodeRun.attemptNumber}, named apart so the two cannot be confused (P36 (j)).
+   */
+  flowAttempt: number;
+  /**
+   * **The SCHEDULER's attempt number** — v0.27, `RN-R41`: the 1-based `attemptNumber` the LATEST `attempted` element for this
+   * task carried (`RN-R40`), so a retried task reads the attempt it is on, or settled on. **`null`** before its first
+   * attempt starts, on an ASK (never handed to a scheduler), and on every entry of a log written before 0.8.0, which holds
+   * no `attempted` element — never derived from a settlement's `attempts`.
+   */
+  attemptNumber: number | null;
   state: NodeState;
   result: unknown;
   error: string | null;
@@ -418,8 +444,9 @@ export type FoldInput =
    *
    * **FED to a replay** (`RN-R19`'s seventh kind): only the scheduler can produce it, so the replay cannot regenerate it;
    * the highest number the replay was fed for a task is what a resume re-hands it with as `attemptsSpent` (`RN-R21`), so a
-   * task's retry budget is NOT reset by a crash (Q365). **Moves nothing in `RunState` at v0.26** — the fold accepts it and
-   * keeps its state; the run, the nodes and the outcome are what they would be without it. **Never a log record**
+   * task's retry budget is NOT reset by a crash (Q365). **Moved nothing in `RunState` at v0.26; since v0.27 it sets ONE
+   * cell, its task's `NodeRun.attemptNumber`** (`RN-R41`, W187) — the run's outcome, every state and every other cell are
+   * what they would be without it. **Never a log record**
    * (`OR-R4`: `task.running` writes none) — `cancelRequested`'s precedent. **A new kind, BREAKING in 0.8.0 for a consumer
    * switching on `kind` exhaustively** (P36 decision 8, (p)).
    */
@@ -475,15 +502,19 @@ export function step(prev: RunState, input: FoldInput): RunState {
   }
 
   if (input.kind === 'dispatched') {
-    const { runId, nodeId, branchPath } = parseTaskId(input.taskId);
+    const { runId, nodeId, branchPath, attempt } = parseTaskId(input.taskId);
     // A dispatch that arrives for a task already settled is ignored rather than
     // resurrecting it: `ID-R1` refuses a duplicate dispatch before it reaches the
     // scheduler, so this can only be a malformed input sequence.
     if (prev.nodes[input.taskId]) return prev;
+    // `RN-R41` — the attribution from the id, and no attempt yet: the scheduler has not started one.
     return withOutcome({
       ...prev,
       runId: prev.runId ?? runId,
-      nodes: { ...prev.nodes, [input.taskId]: { nodeId, branchPath, state: 'running', result: null, error: null } },
+      nodes: {
+        ...prev.nodes,
+        [input.taskId]: { runId, nodeId, branchPath, flowAttempt: attempt, attemptNumber: null, state: 'running', result: null, error: null },
+      },
     });
   }
 
@@ -492,14 +523,18 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // `awaiting_action` then follows from `RN-R7` with no precedence moved (P35 fact 3). A COPY of the input, because
     // `step` never shares a value it was handed with the state it returns (`RN-R2`). An `asked` for a task already in
     // `nodes` is ignored rather than re-parking it — `dispatched`'s rule: the driver mints an ask's id once per path.
-    const { runId, nodeId, branchPath } = parseTaskId(input.taskId);
+    // `RN-R41`: an ask is never handed to a scheduler, so its `attemptNumber` is `null` and stays so.
+    const { runId, nodeId, branchPath, attempt } = parseTaskId(input.taskId);
     if (prev.nodes[input.taskId]) return prev;
     return withOutcome({
       ...prev,
       runId: prev.runId ?? runId,
       nodes: {
         ...prev.nodes,
-        [input.taskId]: { nodeId, branchPath, state: 'suspended', result: null, error: null, input: structuredClone(input.input) },
+        [input.taskId]: {
+          runId, nodeId, branchPath, flowAttempt: attempt, attemptNumber: null,
+          state: 'suspended', result: null, error: null, input: structuredClone(input.input),
+        },
       },
     });
   }
@@ -548,10 +583,15 @@ export function step(prev: RunState, input: FoldInput): RunState {
   }
 
   if (input.kind === 'attempted') {
-    // `RN-R40` — recorded in the INPUT sequence, and nothing in run state moves at v0.26: what an attempt changes is what a
-    // resume re-hands (`RN-R21`), which the driver reads off its own sequence. *Without this arm the fold THREW* — every
-    // kind `step` does not name reaches `input.record` below (W93's measurement, `gated`'s precedent).
-    return prev;
+    // `RN-R40` — recorded in the INPUT sequence; what it changes for a resume (`RN-R21`) the driver reads off its own
+    // sequence. **v0.27 (`RN-R41`, W187): and the task's `NodeRun.attemptNumber` is the number it carries** — the latest
+    // element's, which the driver appends only when the number RISES. Nothing else moves: no state, no outcome, so
+    // `withOutcome` has nothing to recompute. One for a task not in `nodes` — never appended by a driver, which records only
+    // its own dispatched tasks — moves nothing. *Without this arm the fold THREW* — every kind `step` does not name reaches
+    // `input.record` below (W93's measurement, `gated`'s precedent).
+    const node = prev.nodes[input.taskId];
+    if (node === undefined) return prev;
+    return { ...prev, nodes: { ...prev.nodes, [input.taskId]: { ...node, attemptNumber: input.attemptNumber } } };
   }
 
   if (input.kind === 'joinSettled') {
@@ -563,14 +603,20 @@ export function step(prev: RunState, input: FoldInput): RunState {
   }
 
   const r = input.record;
-  const { runId, nodeId, branchPath } = parseTaskId(r.taskId);
+  const { runId, nodeId, branchPath, attempt } = parseTaskId(r.taskId);
   const nodes = { ...prev.nodes };
   const existing = nodes[r.taskId];
+  // `RN-R41` — a settlement or a resolution KEEPS the attempt number the entry already carried: it comes from `attempted`
+  // elements alone, never from the record's `attempts` (a log written before 0.8.0 reads `null` throughout).
+  const attemptNumber = existing?.attemptNumber ?? null;
 
   if (r.kind === 'outcome') {
     nodes[r.taskId] = {
+      runId,
       nodeId,
       branchPath,
+      flowAttempt: attempt,
+      attemptNumber,
       // `user_action` is `suspended` at flow level: a resolution resumes it, and
       // calling it terminal is what makes a design drop the fifth state.
       state: r.terminalState === 'user_action' ? 'suspended' : r.terminalState,
@@ -585,8 +631,11 @@ export function step(prev: RunState, input: FoldInput): RunState {
     // what reached the node — so an answered ask differs from a resolved task in `nodes` by that one key and nothing
     // else. It is the existing entry's own copy, made by the `asked` arm, and no one else holds it.
     nodes[r.taskId] = {
+      runId: existing?.runId ?? runId,
       nodeId: existing?.nodeId ?? nodeId,
       branchPath: existing?.branchPath ?? branchPath,
+      flowAttempt: existing?.flowAttempt ?? attempt,
+      attemptNumber,
       state: r.resolvedAs,
       result: r.result,
       error: r.error,

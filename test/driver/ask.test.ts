@@ -138,7 +138,7 @@ suite(SUITE, (test) => {
     equal(m.driver.foldInputs()[0], { kind: 'asked', taskId: A, input: { request: { doc: { title: 'x' } } } },
       'its task id by task-id`s scheme, attempt 0, and its input what `needs: { request: "." }` composed');
     equal(m.driver.snapshot(), [], 'the LOG is empty: a park is not a record (P35 decision 5)');
-    equal(nodeOf(m.driver, A), { nodeId: 'approve', branchPath: '-', state: 'suspended', result: null, error: null, input: { request: { doc: { title: 'x' } } } },
+    equal(nodeOf(m.driver, A), { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'suspended', result: null, error: null, input: { request: { doc: { title: 'x' } } } },
       'the node `suspended`, its input KEPT');
     equal(outcome(m.driver), 'awaiting_action', 'the run `awaiting_action` (RN-R7)');
     payload.doc.title = 'MOVED';
@@ -193,7 +193,7 @@ suite(SUITE, (test) => {
       { kind: 'resolution', taskId: A, resolvedAs: 'done', result: { approved: true }, error: null, actor: 'ana', observedAt: 42 },
     ], 'the answer is the EXISTING resolution record (P35 (b)) — the log gains no new kind');
     const n = nodeOf(yes.driver, A);
-    equal(n, { nodeId: 'approve', branchPath: '-', state: 'done', result: { approved: true }, error: null, input: { text: 's' } },
+    equal(n, { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { approved: true }, error: null, input: { text: 's' } },
       'the node `done`, its result the answer, its input KEPT after the answer (P35 (f))');
     // The other road: not approved — the DEFAULT edge, to `revise`, whose `needs` reaches BOTH the input's producer and the answer.
     const no = make(await load('valid/ask-after-a-task.flow.json'));

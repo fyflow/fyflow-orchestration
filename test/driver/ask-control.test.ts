@@ -360,7 +360,7 @@ suite(SUITE, (test) => {
     equal(c.driver.foldInputs()[at], cp.events[at], 'the stored answer FED at its position (RN-R19)');
     equal(c.driver.foldInputs().filter((e) => e.kind === 'asked').length, 1, 'and the ask asked ONCE — re-parked by the replay, then answered by the fed element');
     equal(c.sch.added, [PUBLISH], 'only publish, in flight, handed on — nothing for the answered ask');
-    equal(state(c.driver).nodes[APPROVE], { nodeId: 'approve', branchPath: '-', state: 'done', result: { approved: true }, error: null, input: { text: 's' } },
+    equal(state(c.driver).nodes[APPROVE], { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { approved: true }, error: null, input: { text: 's' } },
       'the ask reads answered, its input kept');
     equal(c.driver.resolve(APPROVE, 'done', { result: { approved: false }, actor: 'bob' }), false, 'and a second answer is refused');
     c.sch.settle(PUBLISH, 'done', 'p');

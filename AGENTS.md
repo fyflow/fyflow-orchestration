@@ -1781,6 +1781,91 @@ if (state.outcome !== 'completed' || state.paused) throw new Error('unpaused, an
 `RunControlRefused.control` gains `'pause'` and `'unpause'` and its `reason` `'paused'` and `'not-paused'`.
 `RunOutcome` does not move.
 
+### Whose task it is — the attribution on a `nodes` entry, and a task's messages and progress
+
+**Every `nodes` entry says which run and which attempt it is, as FIELDS** (`RN-R41`,
+[ADR 0114](doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md)): `runId`
+and `flowAttempt` are the task id's first and fourth segments — `flowAttempt` is `0` on every id minted today — and
+`attemptNumber` is the SCHEDULER's 1-based number of the attempt the task is on or settled on, from the latest `attempted`
+event (section 18). **`attemptNumber` is `null`** before the task's first attempt starts, on an ASK (never handed to a
+scheduler), and on every entry of a log written before 0.8.0 — it is never read off a settlement's `attempts`. Two names,
+so the two attempts cannot be confused.
+
+**And a task's `context.emit()` and progress reach you through the run, with the same attribution** (`RN-R42`):
+`onTaskMessage(m)` and `onTaskProgress(p)` on the `Driver`'s options or `runtime.start`'s (and `runtime.resume`'s). `m`
+carries `runId`, `nodeId`, `branchPath`, `taskId`, `flowAttempt`, `attemptNumber` and the scheduler's `name`, `data`,
+`seq`, `timestamp` — `dropped` and `error` only when the scheduler set them; `p` the same attribution with `progress`,
+`message`, `details` and `timestamp`, and NONE of the task's own fields. Each is a FROZEN copy that is yours.
+
+| | what happens |
+|---|---|
+| you pass neither | the driver does not subscribe `task.message` or `task.progress` — and the scheduler sends nothing while nobody listens, so your workers' emits cost nothing |
+| an event for another run's task, an id no driver minted, or a task this run has not dispatched | dropped in silence — nothing reported, nothing halted. On a runtime ANOTHER run's task never even reaches this run's driver: the router reads `taskId` where the detail has no string `id`. An id that does not parse reaches every driver that asked (each drops it), and an undispatched task of THIS run reaches this run's driver, which drops it |
+| after `stop()`, or once a runtime has released the run (its `done` settled) | nothing more is delivered. A HALTED run's tasks still run, and their events still arrive |
+| a value that cannot be cloned (a function in an inline worker's `details`) | handed to you as `undefined` — the scheduler does the same with an `emit` it cannot clone. **You cannot tell it from a worker that gave nothing**: no marker says the clone failed (a message's `error` is set only when the SCHEDULER refused the clone) |
+| your callback THROWS | reported once through `onRunFailure` and the run HALTED — the treatment `onUnmintedTask` gets (section 9) |
+| the fold, the checkpoint, the routing | untouched: neither callback is ever a fold input |
+
+```ts run
+import { Driver, fold, type FlowDefinition, type TaskMessage, type TaskProgress } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'attributed', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a',    kind: 'task', type: 'T', retryPolicy: { maxRetries: 1, backoffMs: 0 }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+// A fake scheduler: it records what the driver SUBSCRIBED to, and a test fires the scheduler's events by hand.
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const subscribed: string[] = [];
+const scheduler = {
+  addTask() {},
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) {
+    subscribed.push(type);
+    listeners.set(type, [...(listeners.get(type) ?? []), fn]);
+  },
+};
+const fire = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+
+const messages: TaskMessage[] = [];
+const progress: TaskProgress[] = [];
+const driver = new Driver(flow, {
+  runId: 'run-1', scheduler, createTask: (c: unknown) => c, predicates: new Map(),
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { T: { worker: 'w' } },
+  onTaskMessage: (m) => { messages.push(m); },
+  onTaskProgress: (p) => { progress.push(p); },
+});
+if (!subscribed.includes('task.message') || !subscribed.includes('task.progress')) throw new Error('subscribed, because you asked');
+driver.start({});
+
+fire('task.running', { id: 'run-1:a:-:0', state: 'running', attemptNumber: 1 });
+fire('task.running', { id: 'run-1:a:-:0', state: 'running', attemptNumber: 2 });   // the retry starts
+// `task.message` names its task `taskId`; `task.progress` is the task spread flat, so its id is `id`.
+fire('task.message', { taskId: 'run-1:a:-:0', workerId: 'w1', attemptNumber: 2, name: 'log', data: { line: 'fetched 3 rows' }, seq: 0, timestamp: 1 });
+fire('task.message', { taskId: 'run-2:a:-:0', workerId: 'w1', attemptNumber: 1, name: 'log', data: {}, seq: 0, timestamp: 1 });   // another run's
+fire('task.progress', { id: 'run-1:a:-:0', state: 'running', attemptNumber: 2, workerType: 'inline', progress: 0.5, message: 'half', details: null, timestamp: 2 });
+// Messages are BATCHED, so attempt 1's last line can arrive after attempt 2 started: it is attributed to attempt 1.
+fire('task.message', { taskId: 'run-1:a:-:0', workerId: 'w1', attemptNumber: 1, name: 'log', data: { line: 'retrying' }, seq: 1, timestamp: 1 });
+
+const m = messages[0]!;
+console.log(messages.length, m.runId, m.nodeId, m.flowAttempt, m.attemptNumber, m.name, m.data);   // 2 run-1 a 0 2 log { line: 'fetched 3 rows' }
+if (messages.length !== 2 || m.attemptNumber !== 2 || !Object.isFrozen(m)) throw new Error('this run`s messages alone, attributed, frozen');
+if (messages[1]!.attemptNumber !== 1) throw new Error('a late message carries the attempt that EMITTED it, not the latest');
+if (progress.length !== 1 || progress[0]!.progress !== 0.5 || 'workerType' in progress[0]!) throw new Error('the report, not the task');
+
+const entry = fold(driver.foldInputs()).nodes['run-1:a:-:0']!;
+console.log(entry.runId, entry.flowAttempt, entry.attemptNumber);   // run-1 0 2
+if (entry.runId !== 'run-1' || entry.flowAttempt !== 0 || entry.attemptNumber !== 2) throw new Error('the entry carries its attribution — 2, beside the late message`s 1');
+if (driver.foldInputs().length !== 3) throw new Error('dispatched and two attempts — nothing for the message or the progress');
+```
+
+**BREAKING in 0.8.0** (P36 (j), (p)): `NodeRun` gains three REQUIRED fields — `runId`, `flowAttempt` and `attemptNumber` —
+so code that builds a `NodeRun` literal (a test's expected entry, a hand-made `RunState`) no longer compiles until it
+carries them. Reading an entry is unaffected. `onTaskMessage`, `onTaskProgress` and the types `TaskMessage`,
+`TaskProgress` and `TaskAttribution` are additive.
+
 ---
 
 ## 9. Refusals
@@ -1977,7 +2062,10 @@ it. A `resume()` whose `resumed` element you throw on hands NOTHING on (section 
 is still refused `ResumeRefused('halted')`. **A call REFUSED before it is accepted halts nothing** —
 `RunControlRefused`, `BoundaryRefused`, `ResumeRefused`, `MultipleRuns`, a `DataCloneError`: nothing was appended. **Nor
 does a throw from your `onHeader`** (section 18): it runs inside `start` before anything is appended, so it is that
-call's refusal — thrown at you, nothing reported, the driver unstarted.
+call's refusal — thrown at you, nothing reported, the driver unstarted. **And a throw from your `onTaskMessage` or
+`onTaskProgress`** (section 8) is always a scheduler event's: reported once, the run halted, never thrown at you. That is
+the driver's guarantee, not only the timing: both reach your callback only through the driver's scheduler-event listener,
+which catches whatever it throws — and the scheduler delivers both on its own step anyway, never inside your call.
 **Two callbacks must not throw at all: `onFoldInput` on the `halted` element, and `onRunFailure`.** Each runs
 after the run is halted and the failure reported, so inside a scheduler event listener their throw is DISCARDED —
 lost, with nobody told (`OR-R10`); on your own call's step it reaches you.
@@ -2268,8 +2356,9 @@ const frozen: Record<string, boolean> = {};
 const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 
 // **`onRegionEvent` is FORWARDED, so this road can watch a fan-out open and close** — W76. It was
-// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's twenty-one
-// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's; `gateTypes` ADR 0067's, W93's; `onHeader` ADR 0112's, W185's)
+// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's twenty-three
+// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's; `gateTypes` ADR 0067's, W93's; `onHeader` ADR 0112's, W185's;
+// `onTaskMessage` and `onTaskProgress` ADR 0114's, W187's)
 // this was the one no `createRuntime` consumer could reach at all, which is
 // [Q297](doc/questions/q297.md). **The previous version of this snippet asserted the opposite and
 // passed a CAST**, because that was the only way to try; there is no cast now, and the two counts
@@ -2671,7 +2760,8 @@ not routed, and both are yours to size:
   that are not its run's (`ID-R4`). That is correct, and N of them on one scheduler is N² deliveries.
   For a handful of runs it does not matter; for thousands, go through `start`.
 - **A listener of your own** on `runtime.scheduler` — a dashboard, a logger — hears every event of
-  every run. Key it on `detail.id` and do O(1) work per event, or N such listeners are N² again.
+  every run. Key it on `detail.id` — or `detail.taskId` for `task.message`, which has no `id` — and do O(1) work per
+  event, or N such listeners are N² again.
 
 A task id that does not parse — work this library did not mint — still reaches EVERY live run's
 driver, which each report it through `onUnmintedTask` (section 9): nobody owns it, so everybody says so.
@@ -2865,7 +2955,8 @@ const definition: FlowDefinition = {
 // `new FyflowScheduler({ ... })` — see section 12.
 //
 // **Key the listeners by event type.** The driver subscribes to five of them — the four
-// settlements and, since 0.8.0, `task.running` — and normalizes a settlement on the task's
+// settlements and, since 0.8.0, `task.running` (and `task.message` and `task.progress` when you pass
+// `onTaskMessage` or `onTaskProgress`, section 8) — and normalizes a settlement on the task's
 // terminal STATE rather than the event name (`OR-R3`), so a
 // double that fans one settlement to every listener writes FOUR records for it and
 // the run stops on a `DuplicateTaskId`. A real `EventTarget` does not do this; a
@@ -3154,8 +3245,10 @@ built-in factory's keyed group from your own — as a `Driver` built by hand is 
 the same object the scheduler handed the envelope worker, so `context.signal` (an `AbortSignal`, aborted
 when `scheduler.cancel(taskId)` is called for the task) and `context.emit(name, data)` (a `task.message`
 on the scheduler) work in a typed worker exactly as in one the scheduler loads itself, and its
-constructor gets the worker context. The library reads neither: a `task.message` is yours to listen
-for on `runtime.scheduler`, and what cancelling a task does to its RUN is section 6's.
+constructor gets the worker context. The library reads the signal never, and a `task.message` only when you ask:
+pass `onTaskMessage` to `start` (since 0.8.0, section 8) and each message of the run's own tasks reaches you with
+its run, node, branch and attempts as fields — or listen for it on `runtime.scheduler` yourself, as before; what
+cancelling a task does to its RUN is section 6's.
 
 **A transform — what a node may DO to its input before its worker sees it** — `spec/flow-definition.md`
 v0.18, [ADR 0051](doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md),
@@ -4360,8 +4453,9 @@ run is stopped NOW — a `resumed` event ends it), which a `RunState` literal mu
 hears the scheduler's `task.running` and appends `{ kind: 'attempted', taskId, attemptNumber }` — the scheduler's
 1-based number — for a task of its run, each time that number RISES: a requeue (a worker died under the task, and the
 pool ran it again) repeats its number and records nothing. Every task, with a `retryPolicy` or without. It is a FOLD
-INPUT, never a log record, and it moves nothing in run state — what it changes is what a resume does: each task it
-runs again is handed on with `attemptsSpent`, the highest number your store holds for it.
+INPUT, never a log record, and it moves no outcome and no state — only its task's `attemptNumber` on the `nodes` entry
+(section 8, since W187). What it changes besides is what a resume does: each task it runs again is handed on with
+`attemptsSpent`, the highest number your store holds for it.
 
 | | what happens |
 |---|---|
@@ -4410,7 +4504,8 @@ const attempts = driver.foldInputs().filter((e) => e.kind === 'attempted');
 console.log(attempts.length);   // 2 — one per attempt STARTED
 if (attempts.length !== 2) throw new Error('one event per attempt started, and none for the requeue');
 if (driver.snapshot().length !== 0) throw new Error('an attempt is a fold input, never a log record');
-if (fold(driver.foldInputs()).outcome !== 'running') throw new Error('and it moves nothing in run state');
+if (fold(driver.foldInputs()).outcome !== 'running') throw new Error('and it moves no outcome');
+if (fold(driver.foldInputs()).nodes['run-1:fetch:-:0']!.attemptNumber !== 2) throw new Error('only the entry`s attemptNumber (section 8)');
 
 // PROCESS TWO: resumed from the stored events — `fetch` is handed on with the two attempts it SPENT.
 const second = fakeScheduler();

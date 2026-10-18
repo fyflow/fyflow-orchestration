@@ -64,7 +64,9 @@ replay — which regenerates a step whole — refuses the checkpoint `diverged`.
 7. **`OutcomeRecord.attempts` stays the scheduler's own count** ((i)) — which starts at `attemptsSpent`, so a settlement
    after a resume counts every process's attempts; the listener subtracts nothing.
 8. **The fold moves nothing for it at v0.26.** What an attempt changes is what a resume re-hands, which the driver reads off
-   its own sequence; `NodeRun`'s attempt fields are W187's (P36 (j)).
+   its own sequence; `NodeRun`'s attempt fields are W187's (P36 (j)). ***Since 2026-10-18 (W187, `spec/run-state.md`
+   v0.27 `RN-R41`, [ADR 0114](0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md)) it
+   sets ONE cell: its task's `NodeRun.attemptNumber`, the latest element's number.***
 
 ## Consequences
 

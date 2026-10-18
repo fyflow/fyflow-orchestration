@@ -11358,8 +11358,10 @@ if (askBlock !== null) {
   const r = askBlock.r;
   // The kept input, BY HAND: `Draft` over `{ topic: <runId> }` returns `{ summary: <runId> + " (drafted)" }`.
   const drafted = (runId: string) => ({ summary: `${runId} (drafted)` });
+  // W187 (`RN-R41`, P36 (j)): the entry's attribution as fields — the run's id, the id's flow-level attempt `0`, and NO
+  // scheduler attempt number: an ask is never handed to a scheduler, so `null` before and after its answer.
   const askEntry = (runId: string, state: string, result: unknown, error: string | null) =>
-    askCanon({ nodeId: 'approve', branchPath: '-', state, result, error, input: drafted(runId) });
+    askCanon({ runId, nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state, result, error, input: drafted(runId) });
   // (1)
   const a = { draft: 'w182a:draft:-:0', approve: 'w182a:approve:-:0' };
   check(key, 'W182 exit (1): the ask PARKED and the scheduler never saw its id — not handed to addTask, not in scheduler.tasks, ' +
