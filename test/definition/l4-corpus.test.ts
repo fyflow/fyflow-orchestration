@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W185 — P36 decision 1, (d) and (e), `RN-R39`: the header before the first event — L2 in `test/driver/on-header.test.ts`,
+  // and through `createRuntime` in `test/scheduler/runtime.test.ts`; both counted below.
+  'L2 — RN-R39: onHeader — the header handed over ONCE inside start(), before the first element and before anything reaches the scheduler (P36 (d), (e))',
+  'W185 — through createRuntime: onHeader is handed the header inside start(), before the first element and before anything reaches the scheduler — and a throw starts nothing and spends the run id',
   // W184 — P35 (k), P36 (b) and (c): a consumer callback that throws, on every road — the L2 SWEEP in
   // `test/driver/throwing-callback.test.ts`, and through `createRuntime` in `test/scheduler/runtime.test.ts`; both counted below.
   'W184 — through createRuntime: a callback that THROWS on a stop`s element or on `resumed` HALTS the run — done `halted` at once, the cancels sent, nothing handed on, the run id spent',
@@ -892,6 +896,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     equal(count('L2 — OR-R10 v0.19: a consumer callback that THROWS on any element a step appends — reported once, the run halted, and on a driver call the throw at the caller (P35 (k))'), 28,
       'test/driver/throwing-callback.test.ts registers its twenty-eight: twenty-three roads swept — start, resolve of an ask and of a parked task, a pause taken at resolve()`s end, pause, unpause, stop and two cancels at rest, a scheduler event`s step, two resumes, a stop, a cancel, an answer, a pause on `resumed` and an unpause mid-step, three mid-step cancels for ONCE, and three with a call pending behind the one thrown on (C1) — the double throw, the scheduler`s throw (R3), the halted resume, the refused call, and its own membership');
     equal(count('W184 — through createRuntime: a callback that THROWS on a stop`s element or on `resumed` HALTS the run — done `halted` at once, the cancels sent, nothing handed on, the run id spent'), 1, 'test/scheduler/runtime.test.ts registers W184`s one');
+  });
+  // **W185's two suites, counted the same way and for the same reason.**
+  test('W185`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R39: onHeader — the header handed over ONCE inside start(), before the first element and before anything reaches the scheduler (P36 (d), (e))'), 9,
+      'test/driver/on-header.test.ts registers its nine: an entry task, an entry fan-out of three, the consumer`s own copy, a throw and its retry, the three refusals, resume(), a call back into the driver, a run with no onHeader unmoved, and its own membership');
+    equal(count('W185 — through createRuntime: onHeader is handed the header inside start(), before the first element and before anything reaches the scheduler — and a throw starts nothing and spends the run id'), 3,
+      'test/scheduler/runtime.test.ts registers W185`s three: the order and handle.header, a throw spending the run id, and resume()');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

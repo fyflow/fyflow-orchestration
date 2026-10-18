@@ -1228,6 +1228,21 @@ export interface DriverOptions {
    */
   onFoldInput?: (input: FoldInput, seq: number) => void;
   /**
+   * **The run's checkpoint header, handed over BEFORE its first event** — `RN-R39`,
+   * [ADR 0112](../../doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md), P36 decision 1, (d) and (e).
+   * Called ONCE, synchronously, inside `start()` — after `FD-R4`'s check and the entry payload's clone, and BEFORE anything is
+   * appended (so before the first `onFoldInput`) or handed to the scheduler — with a FROZEN copy of its own, equal to
+   * `checkpoint().header` and to a runtime's `handle.header`. So a store writes the header first and every element after it.
+   * *The copy is SHALLOW-frozen with a fresh clone of the entry payload — `checkpoint()`'s own shape — so it is a whole copy
+   * only while every other `CheckpointHeader` field is a primitive; a field added holding an object must be cloned here too.*
+   *
+   * **A THROW from it leaves the driver UNSTARTED**: nothing appended, nothing handed on, `onRunFailure` NOT called — no run
+   * exists yet, as after an `FD-R4` refusal — and the throw reaches `start()`'s caller; a corrected retry may start the same
+   * driver. **Never called** when `start()` is refused (`MultipleRuns`, `BoundaryRefused`, a `DataCloneError`), and never by
+   * `resume()`: its caller already holds the header. Additive in 0.8.0.
+   */
+  onHeader?: (header: CheckpointHeader) => void;
+  /**
    * **`FD-R4`'s switch — W73.** `true` (the default): the run's payload is held to the input schema of
    * every task it reaches with no worker in between at `start()`, and a person's `done` resolution to
    * the parked node's worker output schema at `resolve()`, each refused as a `BoundaryRefused`
@@ -1917,7 +1932,25 @@ export class Driver {
     // function started a run on an inline pool; it cannot be checkpointed, and a run that cannot be
     // checkpointed is refused before it exists rather than discovered when someone asks for one.
     const entryPayload = structuredClone(payload);
-    this.header = { format: CHECKPOINT_FORMAT, runId, flowId: this.def.flowId, version: this.def.version, entryPayload };
+    const header: CheckpointHeader = { format: CHECKPOINT_FORMAT, runId, flowId: this.def.flowId, version: this.def.version, entryPayload };
+    // **`RN-R39` — the header handed to `onHeader` BEFORE anything is appended or handed to the scheduler** (P36 decision 1,
+    // (d), (e), [ADR 0112](../../doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md)): after `FD-R4` and
+    // the clone above, so a payload either refuses never reaches it. A FROZEN copy of its own, equal to `checkpoint().header`.
+    // **A throw leaves the driver UNSTARTED** — nothing appended, nothing handed on, nothing reported: no run exists yet, as
+    // after an `FD-R4` refusal — and reaches the caller; a corrected retry may start this driver. While it runs the driver
+    // counts as started with NO header — the state `checkpoint()`, `cancel`, `stop`, `pause` and a scheduler event already
+    // read as *holds no run* — so a `start()` or `resume()` the callback makes is `MultipleRuns`, never a second entry.
+    const onHeader = this.opts.onHeader;
+    if (onHeader !== undefined) {
+      this.started = true;
+      try {
+        onHeader(Object.freeze({ ...header, entryPayload: structuredClone(entryPayload) }));
+      } catch (e) {
+        this.started = false;
+        throw e;
+      }
+    }
+    this.header = header;
     this.started = true;
     try {
       this.enter(runId, this.def.entry, payload);

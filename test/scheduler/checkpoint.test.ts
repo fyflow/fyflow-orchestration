@@ -94,7 +94,7 @@ suite(SUITE, (test) => {
     for (let i = 0; i < s.added.length && i < 20; i += 1) if (s.added[i]!.id.startsWith('r2:')) s.settle(s.added[i]!.id, { ok: i });
     const all = h.driver.checkpoint().events;
     ok(beforeReturn >= 1,
-      `the consumer had ${beforeReturn} element(s) before start() returned the handle — which is why the header cannot be written strictly first, and why the position exists`);
+      `the consumer had ${beforeReturn} element(s) before start() returned the handle — which is why the HANDLE's header cannot be written strictly first (onHeader's can, since W185 — RN-R39), and why the position exists`);
     ok(all.length > 4, `the CONTROL: a real sequence, ${all.length} elements`);
     equal(seen.map((x) => x.seq), all.map((_, i) => i), 'the positions the CONSUMER receives are the driver`s, 0 … n-1');
     for (const x of seen) ok(deepEqual(x.input, all[x.seq]), `position ${x.seq} is the element the checkpoint holds there`);

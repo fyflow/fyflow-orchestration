@@ -72,7 +72,7 @@ decision 9).
 
 **What this makes hard, and the cost is real.**
 
-1. **The header arrives after the first events.** Measured, 1 to 5 of them. A consumer who writes
+1. **The header arrives after the first events** — on the HANDLE; since [ADR 0112](0112-a-run-delivers-its-header-before-its-first-event.md) (2026-10-18, W185) `onHeader` delivers it before them. Measured, 1 to 5 of them. A consumer who writes
    strictly in arrival order must buffer until `start` returns; one who writes by position need not.
    The position exists for that reason as much as for naming a prefix. *(This read *1 to 5*; that is L6's range, and an entry fan-out of N delivers 2N + 1 — W88's conformity reader.)*
 2. **The driver RETAINS one more value**: its own copy of the entry payload, for the life of the run.
@@ -115,3 +115,5 @@ a class instance and its clone equal.
 | a `NotCloneable` class for an uncloneable entry payload | `OR-R12` already rules that a caller-initiated boundary throws the platform's `DataCloneError`; a second class for the same fact at the second boundary would make the two disagree |
 | the position as a property ON the event | the event is a fold input the fold reads and a stored element a resume compares; a field the fold ignores would be a field two sequences can disagree on for no reason |
 | a runtime-side `onHeader` callback, so the header could be written before the first event | a second channel for one fact; the position already makes write order irrelevant |
+
+*(2026-10-18, [W185](../work-items/w185-the-header-before-the-first-event.md), P36 decision 1: **the last row is REVERSED by [ADR 0112](0112-a-run-delivers-its-header-before-its-first-event.md)**. Its ground was true of write ORDER and silent on a CRASH between the first element's write and the header's, which leaves a store holding events no resume can read (fyflow-app's #9). `onHeader` is a DRIVER option, not a runtime-side one — only the driver stands between the header and the first dispatch — called by `start()` before the first event. Consequence 1 above is so qualified: the header arrives after the first events ON THE HANDLE, and before them through `onHeader`.)*
