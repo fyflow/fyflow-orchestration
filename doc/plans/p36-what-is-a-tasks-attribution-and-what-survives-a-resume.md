@@ -1,6 +1,6 @@
 # P36 — What is a task's attribution, and what survives a resume?
 
-**Status:** declared — 2026-10-18 on `77cf810`, from the draft carrying the maintainer's decisions 1-3 of 2026-10-14/15 and the hand-offs of P35's retro (k), (l) and (m); facts 1-14 measured at this declaration; stop-and-asks (a)-(q) ANSWERED by the maintainer 2026-10-18, all as recommended; no item started — the next is W184
+**Status:** complete and retro'd 2026-10-18 — declared 2026-10-18 on `77cf810`, from the draft carrying the maintainer's decisions 1-3 of 2026-10-14/15 and the hand-offs of P35's retro (k), (l) and (m); facts 1-14 measured at this declaration; stop-and-asks (a)-(q) ANSWERED by the maintainer 2026-10-18, all as recommended; W184-W188 done 2026-10-18; the exit artifact met on W188's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-18 over `ad4bdb5`, and the maintainer answered its stop-and-asks (r)-(u) the same day, all as recommended, and DEFERRED (v): chores come before the 0.8.0 publish (Retro section 8)
 **Question this plan answers:** *which run and attempt does a task's activity belong to, without
 parsing its id, and what of a run — its header, its attempts — survives a crash and a resume?*
 **Exit artifact:** *on the final tree, one cross-row block in `examples/l6.ts`, green in node 24 and in deno, in which:
@@ -408,7 +408,10 @@ amended by one clause in W187; **(p)** everything ships in 0.8.0, each BREAKING 
 **Two sentences for every item's brief**: ***each item's Record states its readers' overlap***; and ***an owner
 element a resume's replay feeds is TAKEN AT REST, between two steps*** (`RN-R19`) — here (f)'s `attempted` is a SCHEDULER
 element, fed but appended on a scheduler event's own step, so the sentence binds W186 at the replay's feed and at a
-stop's deafness, not at a caller's call.
+stop's deafness, not at a caller's call. *(Corrected at the Record, by pass 3 rule 6: **false on an INLINE pool**, where
+`task.running` fires synchronously INSIDE `addTask`, on the driver's own step — measured by W186 (M3), raised by its
+conformity reader (C1). W186 applied the sentence itself instead: every attempt heard on a step is appended when that
+step ENDS (`RN-R40`, its reading R1, confirmed by the coordinator).)*
 
 **D′ applied — the sites each row moves.** **`RUN_FOR`** with the `attempted` kind — W186, forced at L0 (fact 6).
 **`isFed`**'s six — W186. **`LATE_SUITES`** and the counted suites' per-suite counts with every new suite and case —
@@ -470,4 +473,269 @@ W188 Q694-Q696; Q697-Q699 the plan's, expected unused.
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Written 2026-10-18 over `ad4bdb5`, the tree clean before it. Every figure is read from the five items' own files; none
+is re-measured here. Ids are bare text, as in P33's, P34's, P35's and P37's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and both readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W184** `890e243` | P35 (k)'s ONE rule on every road: `haltOnce` at every boundary that reported, EVERY take (`takePause`, `takeAnswer`, `takeStop`) halting at its OWN element after that element's `finally` (cancels, hand-offs), a pause, unpause or answer pending behind it dropped, a stop behind it taken silently; (b)'s at-rest controls halt; (c) a throw on `resumed` hands nothing on (fact 11's R11 hang gone); fact 11's R2/R4 false `completed` now `halted`; any throw after a call is accepted halts it, a scheduler's included (R3); the L2 SWEEP, `test/driver/throwing-callback.test.ts` — 23 roads × every element; one `run` snippet | outcome-record v0.19, run-state v0.24 | — / — | none; R1 WITHDRAWN at the readers (the BLOCKER); R7 — `interrupted` the one element that may follow `halted` (a pending stop, `RN-R33`) — stated, not asked; ADR 0104 rule 2, ADR 0105 rule 4, ADR 0106 rule 5 a dated pointer each | conformity **C1 BLOCKER** (a take pending BEHIND the throwing one ran before a deferred halt and handed a task on for a run reported halted), C2 (the first error reached neither channel), C3-C7; adequacy A1 (R3 untested), A2 (cancels-before-halt unobserved), A5; 27 probes, 27 killed. **Overlap 3** | 75 / 1988; 2743 / 203 | `gate:item` EXIT 0, selftests 977 s |
+| **W185** `d2f724d` | `onHeader` — a `DriverOptions` member in `StartOptions`' `Pick`, OMITTED from `ResumeOptions`; called once in `startStep` after `MultipleRuns`, `FD-R4` and the clone, before anything is kept or appended, with a frozen copy whose entry payload is its own clone; a throw leaves the driver UNSTARTED, reported nowhere, a retry accepted; re-entry from inside it refused (R1); ADR 0112; one `run` snippet | run-state v0.25 (`RN-R39`; `RN-R15`, `RN-R18`, `RN-R25`) | — / — | none; R3 (`RN-R25`'s clause, found by the PREMISE grep beyond the row's parenthetical) and R4 (an `onHeader` throw is a refusal, `OR-R10` not edited) stated; ADR 0064 and ADR 0065 rule 1 a dated pointer each | conformity C1-C6, no BLOCKER — **C4** (`RN-R15`'s *`FD-R4` runs first*, false since W73) fixed, **C5** (`OR-R10`'s refusal list omits the `onHeader` throw) OUTSIDE `Owns`, for this retro; adequacy **A1** (the copy case could not see the CALLER's payload handed over — its probe SURVIVED at L2), A2, A3; 15 probes, 15 killed. **Overlap 1** (the copy; 0 under the stricter predicate, the coordinator's reading) | 76 / 2002; 2743 / 203 | `gate:item` EXIT 0, selftests 1023.6 s |
+| **W186** `99001d6` | `task.running` subscribed; the FED fold input `attempted` (BREAKING), appended for an own dispatched task only when the number RISES, at the END of the step it was heard on (R1 — M3: an inline pool fires `task.running` INSIDE `addTask`); `isFed`'s seventh kind, `RUN_FOR`'s sixteenth; a resume re-hands each in-flight task with `attemptsSpent` the highest recorded, absent at 0, a spent budget handed on; (h) a stopped attempt counted; a stored `attempted` the replay cannot place — undispatched, malformed, or not rising — refused `diverged` (R3); `DRIVER_FIELDS` +2; ADR 0113; one `run` snippet | run-state v0.26 (`RN-R40`), outcome-record v0.20, task-id v0.15 | **Q365, Q26 closed** / — | none; **R1 and R4 CONFIRMED by the coordinator** (R4: the 39 L6 assertions and `examples/run-flow.ts`'s `onDelivery`, edited beyond the row's parentheticals); ADR 0065's rule 7 and consequence 2 a dated pointer each | conformity C1 (the plan's own premise, P36:409-411, false on inline pools — corrected in place by this Record), C2 (L6 never observed `task.running`'s ROUTING — to W188), C3 (the author's own false note, withdrawn), C4, C6, C7; adequacy **A1** (an attempt heard inside `resume()`'s and `unpause()`'s inline hand-off), **A2** (one heard after a halt), **A3 = C5** (a stored attempt that does not RISE accepted — code and spec fixed), A4, A5; 25 probes, 24 killed, P3 a declared equivalent. **Overlap 2** (1 under the stricter predicate) | 78 / 2022; 2743 / 203 (39 assertions MOVED, `X10` unmoved) | `gate:item` EXIT 0, selftests 995.0 s |
+| **W187** `382cf3e` | `NodeRun` gains REQUIRED `runId`, `flowAttempt`, `attemptNumber: number \| null` (BREAKING), `attemptNumber` the latest `attempted`; `onTaskMessage` / `onTaskProgress` as `DriverOptions` members, subscribed only when given, own tasks only, frozen deep copies (an uncloneable value `undefined`, R3), the EVENT's attempt number (R6), a throw on `onUnmintedTask`'s road, a halted run still delivering (R2); the router reads `detail.id`, else `detail.taskId`; `doc/concept.md` section 3's clause ((o), +63 bytes); ADR 0114; one `run` snippet | run-state v0.27 (`RN-R41`, `RN-R42`), task-id v0.16 | — / — | none; **S-1 YES** (the maintainer: `ResumeOptions` KEEPS both pass-throughs); R4 (`examples/l6.ts`'s `askEntry`) and R5 (W186's fold suite re-written and renamed) stated; ADR 0088 rule 3 and ADR 0113 rule 8 a dated pointer each | conformity C1-C8, no BLOCKER — C3 (an uncloneable value carries no marker) closed by TEXT, no marker; **C4** (a delivery after a halt against `OR-R10`'s *nothing … emitted*) fixed in `RN-R42`, `OR-R10` outside `Owns`; adequacy **A1** (no task in a region — `branchPath` unread), **A2** (a SHALLOW copy survived), **A3** (R6 never arranged), A4-A7 declared equivalents, A8 to W188; 37 probes, 32 killed, 5 declared equivalents. **Overlap 1** | 80 / 2047; 2743 / 203 | `gate:item` EXIT 0, selftests 979.2 s |
+| **W188** `ad4bdb5` | the `W188 exit` block — six clauses, **24 claims over 11 runs**, on a threaded and an inline pool; P35 (l)'s `gateMemory` phrase; the two `RN-R18 at L6` texts reworded to *the HANDLE's header* (W185's hand-on) | none | — / — | none | conformity: the six clauses CONFORM, C1 (W186's C2 claimed met without the compound that shows it) and NITs C2-C5 acted on; adequacy **A1, A2** (both copy claims read only at the top level, over FLAT values), **A3** (A3's ceiling shown live by the compound R1b), A4 (an order claim over a batched channel — narrowed, a declared ceiling); 43 distinct probes, 35 killed, 6 survived as declared, R5 coincident, H4 re-cut; compounds T11 and R1b killed. **Overlap 1** | 80 / 2047; **2767 / 214** | **`gate:full` EXIT 0**, 11/11 self-tests, 2254.0 s |
+
+**Every confirming gate was green on its FIRST run, one command each** (sentence C), firefox and webkit NOT RUN in any.
+Two `npm run gate` runs BEFORE the readers went red first, both in the chromium lane alone and both on one cause — a
+module-scope `class Boom` in a test file renamed by the browser bundle (W184; W186, where W93's `gate.test.ts` then saw
+`Boom2`) — and W186's also at `check:scheduler` `D7` (the pin's number written in two comments); each was green on the
+re-run, nothing behavioural moved. **No item raised a question; W186 closed two. No item took an exception. The readers'
+overlap, every Record stating its own: 3, 1, 2, 1, 1.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured (W188's Record and its *How each exit clause is asserted*) | verdict |
+|---|---|---|
+| on the final tree, ONE cross-row block in `examples/l6.ts`, green in node 24 and in deno | the `W188 exit` block; **2767 / 214, 0 failed in node 24.20.0 and deno 2.9.6** — in `npm run gate`, in `test:l6` and `test:l6:deno` 5/5 each besides (6/6 with the gate's), after the readers, and in `gate:full` | **met** |
+| (1) a worker on a THREADED pool and one INLINE call `context.emit`; `onTaskMessage` receives every message with the six attribution fields, in `seq` order per attempt, a retried attempt's under the next number — and NOTHING of a sibling run on the same runtime, whose own messages reach its own callback | ONE fan-out, `t` threaded and `i` inline, each failing its first attempt, three emits per attempt; each run's lines EXACTLY those `AT_EMIT` makes by hand, frozen, the ten keys, `6 × attempts` and equal field for field to the harness's own `task.message` listener (R4); the retried run 12 lines under `#1` and `#2`, the sibling 6 under `#1` — each run the other's control; a nested field detached both ways (A1). Per-attempt order is the ARRIVAL order within one attempt (R2) — across tasks node and deno interleave differently; *not late* is measurable only as finely as the scheduler's 20 ms flush (A4, a declared ceiling). Beyond the header: each attempt's `onTaskProgress`, attributed the same way (R3) | **met** |
+| (2) the same run's fold carries, on that task's `nodes` entry, its run id, `flowAttempt` and `attemptNumber` equal to the attempts the scheduler made | each entry `[runId, 0, attemptNumber, 'done']` beside THREE observers (R6) — the scheduler's task `attemptNumber`, its `task.running` numbers, the worker's own call count: `2, [1, 2], 2` where it retried, `1, [1], 1` in the sibling; each run's `attempted` elements naming its own tasks only — `task.running` ROUTED per run at L6, shown live by the COMPOUND R1b (R7, C1) | **met** |
+| (3) `onHeader` called ONCE inside `start()`, before the first `onFoldInput` and before anything reaches the scheduler, equal to the handle's — and a THROWING `onHeader`, nothing appended and nothing handed on | read AT the call — 0 elements, 0 hand-offs, `start()` not yet returned — beside the CONTROL at its return, 5 elements (2N + 1) and 2 hand-offs (R8); frozen, equal to `handle.header`, `checkpoint().header` and a hand-written `{ format: 1, runId, flowId, version: 1, entryPayload }`, a copy of its OWN one level down (A2); the throwing run: `W188StoreDown` at the caller, 0 `onFoldInput`, 0 `onRunFailure`, nothing on `addTask`, the task map or an event, read once the header run had SETTLED (R9). W185's ceiling stands: no one-clause edit separates the two *before*s | **met** |
+| (4) `maxRetries: 2`, a worker that always fails, the store frozen in the SECOND attempt and resumed on a fresh runtime: `attemptsSpent: 2`, run once more as attempt 3 — THREE worker calls where today's driver makes five, the control the same checkpoint less its attempt elements | the store `[dispatched, attempted #1, attempted #2]`, 2 calls in A (threaded; `shutdown()` drains attempt 2 and never starts its retry, R13); B handed `attemptsSpent: 2`, only `resumed` appended by `resume()`, then `#3` and `user_action`, 1 call — THREE in all, `OutcomeRecord.attempts` 2 (both processes', (i)); the control on C: `attemptsSpent` 0, `#1`-`#3` — FIVE. *"Today's driver"* is the stripped checkpoint resumed by THIS driver (R10) | **met** |
+| (5) a run STOPPED during an attempt and resumed elsewhere counting the stopped attempt as spent ((h)) | `maxRetries: 1`, stopped in attempt 1: `done` `interrupted`, the log `[dispatched, attempted #1, interrupted]`, `task.cancelled`; on B `attemptsSpent: 1`, ONE attempt (`#2`), `user_action`; the control less its `attempted` element: TWO calls (R11) | **met** |
+| (6) a task whose budget was spent at the kill, handed on and run once, folding from the scheduler's own settlement | `maxRetries: 1` frozen at `#2`: B handed `attemptsSpent: 2`, only `resumed` appended by `resume()`, ONE call (`#3`), the scheduler's own `task.failed` and `task.user_action` on an independent listener, the record's error the worker's own text from B's fresh thread (`call 1 in this thread`) — three readings of *no settlement the driver wrote* (R12) | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W188, ONE command on the final tree after the readers' items: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **74 / 1958 → 80 / 2047** in node, deno and
+chromium; L6 **2743 / 203 → 2767 / 214** in node and deno; `check:spec` **7 / 81 / 147 → 7 / 81 / 151**; `check:docs`
+**43 → 47 `run` snippets** (6 `check`); spec/run-state **v0.23 → v0.27**, outcome-record **v0.18 → v0.20**, task-id
+**v0.14 → v0.16**, flow-definition and join-policy unmoved; next free rule ids `RN-R43`, `OR-R14`; `DRIVER_FIELDS` +2;
+`RUN_FOR` 15 → 16 kinds, `isFed` 6 → 7; `doc/concept.md` **+63 bytes** of its 636 of headroom.
+
+**What the plan answered — yes, both halves.** *Which run and attempt*: a `nodes` entry carries `runId`, `flowAttempt`
+and the scheduler's `attemptNumber` as FIELDS (ADR 0114), and a task's `task.message` and `task.progress` reach
+`onTaskMessage` / `onTaskProgress` with the same fields, frozen, for its own run only — the runtime routing a message by
+`taskId`, so N runs on one runtime cost N deliveries, not N². Nobody parses an id. *What survives*: the HEADER, handed
+to `onHeader` inside `start()` before the first event (ADR 0112, reversing ADR 0064's rejected row), so a store can
+write it first; and the ATTEMPTS, each recorded as a fed `attempted` element and handed back to a fresh scheduler as
+`attemptsSpent` (ADR 0113) — three worker calls across a kill where five ran before, a stopped attempt counted as a
+kill's is, a spent budget run ONCE more by the scheduler and settled by it, never by the driver. Beside it, P35 (k)'s
+throwing-callback class was closed on every road by ONE rule before 0.8.0 (W184). **fyflow-app's asks**: #8, #9, #10 and
+#18 BUILT as (a)-(l) answered — #10's *fold it as failed* recommended against and not built ((g)); #11 deferred, as
+declared. **What 0.8.0 ships as BREAKING from this plan** ((p)): `FoldInput`'s `attempted` and a resume re-handing
+`attemptsSpent` (W186); `OutcomeRecord.attempts` after a resume counting every process's ((i), W186); `NodeRun`'s three
+required fields (W187); the at-rest controls HALTING on a consumer throw ((b), W184). Additive: `onHeader`,
+`onTaskMessage`, `onTaskProgress`, the types `TaskMessage` and `TaskProgress`, `TaskFactory`'s optional `attemptsSpent`.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W184's sweep RED on today's tree exactly at fact 11's non-halting roads, in both runtimes, and green after; the assertions that move are the *thrown, not halted* ones in pause, stop, cancel and the ask suites, and `AGENTS.md` section 9's sentence; no settlement-road assertion moves | **red/green HOLDS** — 16 of 21 cases red in node and deno at fact 11's roads — **and found one more road** (a throw on a resolution's `branch.resumed`); **the *moves* half PARTLY FALSIFIED** — pause, stop and cancel moved as named, the ask suite moved NOTHING (it never asserted the absence of a halt), the runtime's W178 case moved unnamed, and ONE row on a scheduler event's step moved: cancel case 13's caught row (R2) | W184 M2-M4 |
+| 2 | W185 moves nothing on a run that passes no `onHeader`; the only forced edits the binding test's pins and `ResumeOptions`' type | **HOLDS** — three binding cases red, no sequence | W185 M2 |
+| 3 | W186 leaves every flow on a double that fires no `task.running` byte-identical; on real workers each sequence grows by one `attempted` per attempt started, so L6's whole-sequence and counting rows MOVE, named by the copy; `RUN_FOR` the one L0 site | **HOLDS, with one refinement** — five L1-L5 cases red, none a sequence; 39 L6 assertions moved, each by one `attempted` per attempt its own observers show started, `X10` unmoved; and block (2g)'s and (2h)'s *where `resumed` lands* moved too — a counted position, not a compared sequence (R5) | W186 M2, M5 |
+| 4 | W187 moves no fold input; every `NodeRun` literal — in `test/**` and `AGENTS.md`'s snippets — fails L0 until it carries the three fields, and nothing else moves at L1-L5 | **PARTLY REFUTED** — *no fold input moves* HOLDS; *every literal fails L0* holds only for the one TYPED literal: NINE expected values are `NodeRun`-shaped and typed as nothing, so they failed at L1/L2, and five L6 assertions through W182's `askEntry`; `AGENTS.md` has no such literal; *nothing else* is false by the three binding cases D′ forecast | W187 M2 |
+| 5 | W188 moves `X10` by its block alone, and no existing L6 row; P35 (l)'s phrase is its one edit outside the block | **clause 1 HOLDS** — 2743 / 203 → 2767 / 214, exactly the block's 24 claims and 11 runs, no `EXPECTED` row, pair row or other block moved; **clause 2 REFUTED in letter** — besides the `gateMemory` phrase, W185's hand-on (written after the prediction) reworded the `RN-R18 at L6` subject and its assertion's label to *the HANDLE's header*, and the file header gained P36 and one table row (the census every exit artifact moves). Text only; no count | W188 M8, C4 |
+
+**The D′ paragraph's census predictions** (*Work items*), scored the same way: **right at every site it named** —
+`RUN_FOR` and `isFed` at W186 (L0, as fact 6 said); `LATE_SUITES` and the per-suite counts at W184-W187 and not at W188
+(no suite); `RUN_FLOOR` 43 → 47, one per item W184-W187; `DRIVER_FIELDS` at W186 (+2) and not at W187, as their B′
+copies said; `X10` at W188; the binding test at W185 (20 → 21, `RESUME_OMITS`) and W187 (21 → 23); the router at W187;
+every `spec/README.md` row. **The premise grep earned its clause**: W185's found `RN-R25`'s *every `StartOptions` member
+but `runId`*, which the row's parenthetical did not name (R3). **Short at three sites**, each found by its own lane in
+B′'s copy before an edit, none needing an exception: W186's subscription COUNTS (`4` → `5` in three runtime cases and a
+list in `cancelled.test.ts`) and `examples/run-flow.ts`'s `onDelivery`; W187's nine untyped `NodeRun`-shaped expected
+values and `examples/l6.ts`'s `askEntry`; W184's runtime W178 case. **And twice a rule in a spec NO row owned went
+incomplete** — `OR-R10`'s refusal list without the `onHeader` throw (W185 C5) and its *nothing … emitted* without the
+pass-through deliveries (W187 C4): Retro section 4 (d), section 8 (r).
+
+**Questions**: **raised none; closed two** — [Q365](../questions/q365.md) and [Q26](../questions/q26.md), `resolved-by`
+ADR 0113 at W186's record step. [Q599](../questions/q599.md) gains a dated note (no P36 run turned its rows red); it stays
+deferred. `npm run q -- --where status=open` lists **Q580, Q581**.
+
+**Handed on**, each with its owner — gathered from the five items' Out sections, Notes and readers, and from P35's:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| `OR-R10` (`spec/outcome-record.md`) names neither an `onHeader` throw among the calls refused before acceptance nor the pass-through deliveries a halted run still makes; `RN-R39`, `RN-R42` and `AGENTS.md` section 9 state both | W185 C5; W187 C4 | **open — (r)** | Retro section 8 |
+| a stop pending behind a halt is TAKEN SILENTLY, `interrupted` after `halted` | W184 R7 | **stands** — it is `OR-R10` v0.19's and `RN-R33`'s text (*a stop behind it taken silently*), so it was decided where decisions live; the run reads `halted` (`RN-R7`) and is not resumable, and the stop's cancels and promise are still honoured | Retro section 4 (a) |
+| P36:409-411's premise, *`attempted` … appended on a scheduler event's own step* | W186 C1 | **done** — corrected in place at this Record (pass 3 rule 6) | this plan |
+| L6 never observing `task.running`'s ROUTING (`onDelivery` filters it) | W186 C2 | **done** — W188's clause (2), shown live by the compound R1b; a single guard is not separable through a runtime (a kept ceiling) | W188's Record |
+| the 3-vs-5 worker calls and `attempts` after a resume pinned only by a probe; the pass-through shapes on a real scheduler | W186 A5/C6; W187 A8 | **done** — W188's clauses (4)-(6) and (1) | W188's Record |
+| an uncloneable pass-through value handed on `undefined` with no marker | W187 C3 | closed by TEXT (`RN-R42`, ADR 0114 rule 9, `AGENTS.md` section 8); a marker would change the shape (k) fixed — **no owner** | W187's Record |
+| P35 (k): a consumer throw on every road; W178 R2's *the second reported*; the re-entrant double report on `onEventStep` | P35's retro and Record | **done** — W184: one rule, and the FIRST throw is the one reported and thrown (R5); `haltOnce` (R4) | W184's Record |
+| P35 (l): `DRIVER_FIELDS`' `gateMemory` comment | P35's retro | **done** — W188, naming the gate IDS (C2) | W188's Record |
+| P35 (m): B′, C, D′ with three clauses, E, the two brief sentences | P35's retro | **done** — copied into the declaration and FOLLOWED; Retro section 2 | this plan |
+| the three stale assertion MESSAGES, *dispatchEvent discards a listener throw* | P35's W178 S-2 | **left** — the maintainer's ruling, unchanged | W178's Record |
+| #11 (a changed definition under a resume — Q372, Q249); Q16's flow half; `worker.message`; `task.retrying` | this plan's *Answered here* and *Out* | deferred; Out | this plan |
+| the byte copies and probes `C:/tmp-p36` and `C:/tmp-w184`-`C:/tmp-w188` | every item | **the maintainer** — left in place, outside the repository; nothing reads them | each item's Record |
+| orchestration **0.8.0**, published after this plan | decision 3 | **the maintainer** — (v) | Retro section 8 |
+
+## Retro
+
+*Pass 3 ran on 2026-10-18 over `ad4bdb5`, the working tree clean before it, in a subagent at the coordinator's request.
+Every figure is read from the five items' Records; this retro re-ran no harness and no measurement, and `npm run gate`
+only to confirm its own edits. **Its routings and proposals are put to the maintainer in section 8; none is acted on
+outside the record step's four files.***
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P36's declaration | — | (a)-(q), all as recommended | — | — |
+| W184 | — | — | 2 (C1 BLOCKER, C2 — one family: the deferred halt) | — |
+| W185 | — | — | 2 (C4, a spec clause false since W73; A1, a copy probe surviving) | — |
+| W186 | — | R1 and R4 **confirmed** by the coordinator | 1 (A3 = C5, a stored attempt that does not rise, accepted) | — / Q365, Q26 |
+| W187 | — | **S-1 YES** (`ResumeOptions` keeps the pass-throughs) | 0 (gaps A1-A3; text C1, C3-C8) | — |
+| W188 | — | — | 0 (adequacy A1-A4; NITs) | — |
+| **P36** | **0 exceptions** | **1 maintainer answer (S-1) and 2 coordinator confirmations** | **5** | **0 raised, 2 closed** |
+
+**No exception in any item** — against P35's six and P34's eighteen; the class P34 paid twelve exceptions for (an
+`AGENTS.md` section outside `Owns`) has now not recurred for two plans running. Section 2.
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E held
+
+**D′ was FOLLOWED as written and held**: every row touching `AGENTS.md` owned the whole file, and P35's three added
+clauses each bit — the counted suites' per-suite counts moved with every new suite (W184-W187), no flow was added under
+`spec/examples/`, and the PREMISE grep found what the name grep could not (W185's `RN-R25`, R3). **B′ held**: every
+census site was found by its own lane going red by name in the copy, before its edit (Record, *The D′ paragraph's census
+predictions*). **C held**: every confirming gate green on its first run, one command each. **E held**: every multi-edit
+probe was declared as ONE clause or as a compound (W184 U1; W185 P1, P7, P8; W186's `attemptNumberOf` copy, named and not
+counted; W188 T11 and R1b, each counted as killing neither of its halves).
+
+**What D′ still did not say** is two things, each met more than once:
+
+| site | met at | cost |
+|---|---|---|
+| an `Owns` cell's PARENTHETICAL — *(`RN-R31`, …)*, *(if moved)*, *(the census sites, if moved)* — read as a LIMIT, where the change moved more of the same file | W185 R3 (`RN-R25`); W186 R4 (39 L6 assertions, `onDelivery`); W187 R4 (`askEntry`) | no exception; three readings stated, one needing the coordinator's confirmation with the gate red meanwhile (W186) |
+| a LIST or a rule in a spec the row does not own, which the change adds a member to — the refusals before acceptance, *nothing … emitted* after a halt | W185 C5; W187 C4 | two incomplete rules shipped (`OR-R10`), each found by a conformity reader; and kin to P35's (b) — an enumeration found by grepping its PREMISE, not its names |
+
+A grep for a changed NAME cannot find a list that should name it and does not. A grep for a SIBLING member — `MultipleRuns`
+for a new refusal, `onFoldInput` for a new callback — finds the list. Section 6 B.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W184 | C1 BLOCKER, C2-C7 | A1-A5; 27 probes, 27 killed | **3** — R5 (C2 = A3), R3 untested (C3 = A1), the narrow *after `halted`* check (C4 = A4) | 107th |
+| W185 | C1-C6 | A1-A3; 15 probes, 15 killed | **1** — the copy handed to `onHeader` (C3, A1); 0 under the stricter predicate | 108th |
+| W186 | C1-C7 | A1-A5; 25 probes, 24 killed, 1 equivalent | **2** — a stored attempt that does not rise (A3 = C5); the uncommitted probe as the only pin (A5, C6); 1 under the stricter predicate | 109th |
+| W187 | C1-C8 | A1-A8; 37 probes, 32 killed, 5 equivalents | **1** — R6, the event's attempt number against the fold's (A3, C5) | 110th |
+| W188 | conforms; C1-C5 | A1-A4; 43 probes, 35 killed, 6 declared survivors | **1** — `task.running`'s routing at L6 (C1, A3) | 111th |
+
+**Every Record states its overlap** — the brief sentence held for the second plan running. **Five measurements, all
+inside section 6's 0-4 band**, by section 6's own predicate (a shared SUBJECT); W185 and W186 each also stated the
+stricter one, and the band holds under both. **The ordinal is a hundred and eleven, so the next is the
+HUNDRED-AND-TWELFTH** — for `doc/workflow.md` by (t).
+
+**The readers are the mechanism for the twelfth plan running.** Every defect of P36 is a reader's, each found AFTER the
+author's own set ran green over it: W184's C1 after 27 of 27 probes killed — a sweep built to close a class still let a
+take pending BEHIND the throw run before a deferred halt and hand a task to a scheduler for a run reported halted; W186's
+A3 (a forged store accepted); W185's C4 and A1. The authors' finds were MEASUREMENTS, each before an edit and each
+reshaping the design: W184 M3 (a road fact 11 did not name), **W186 M3 (an inline pool fires `task.running` inside
+`addTask`, which made the plan's premise false and put every `attempted` at the step's end)**, W187 M3 (neither
+pass-through arrives on a driver call's step, so no conflict with W184's rule).
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) P35 (k)'s replacement mechanism — ONE rule and an L2 SWEEP over every door** | **FOLLOWED, and it WORKED as a mechanism**: the sweep found fact 11's roads RED and one more (a resolution's `branch.resumed`), and the class P35 met six roads of one at a time over four items is closed by one rule. **Its first assertion was narrow**: *`halted` somewhere after the element, nothing dispatched after* — satisfied by work done BETWEEN the throw and a deferred halt (C1, both readers) | the conformity and adequacy readers (C1, C4 = A4) | **No change**: one occurrence; the lesson is the rule's own letter — *a halt lands AT the element thrown on: `halted` immediately after it, nothing after it but a pending stop taken silently* (R7, which **stands**: `OR-R10` v0.19, `RN-R33`). The sweep's shape recurred at W186 unprompted — A1 and A2 are doors (`resume()`'s and `unpause()`'s inline hand-offs, a step after a halt) its rule named and its cases did not: *a rule stated over ROADS needs a case per door* |
+| **(b) a COPY claim, one layer further out each time** — W185: the copy read on the driver's header, not the caller's payload (A1); W186's brief carried *read on the copy both ways*; W187: followed, and a SHALLOW copy survived one level down (A2); W188's brief carried *both ways and one level down*; W188: followed for the FIELDS, and could not bite where the values inside them were FLAT (A1, A2) | **FOLLOWED each time**, each lesson carried by the brief and each failing at the next layer | the adequacy readers, three items running | **The sharpest finding of P36 (rule 3)**: a lesson stated as a LAYER (*both ways*, *one level down*) is met at the next layer. Kin to the ledger's *fourth list below `CROSS_ROW_SUBJECTS`* — *three iterations each closed one layer further out*. **Proposal B states the PROBE SET instead of the layer**: a copy claim is provoked by an ALIAS and by a SHALLOW copy over a fixture whose value is NESTED, read in both directions; the shape of every value a claim reads is part of the arrangement (W188's lesson) |
+| **(c) a premise the plan WROTE rather than measured** — P36:409-411, *`attempted` … appended on a scheduler event's own step*, false on an inline pool (W186 M3, C1); P35's (d) was the same in a fact (`sameData`) | — | **the item's declaration step, measuring** (M3) before any edit; the conformity reader named it | **No change**: `CLAUDE.md`'s *a written claim nobody ran*, and B′'s copy did its job — the item applied the plan's other sentence (*taken at rest*) and the design held. **Corrected in place** (rule 6) |
+| **(d) a spec rule the row did not own went incomplete** — `OR-R10`'s refusal list (W185 C5) and its *nothing … emitted* (W187 C4); in each, the mirror the row DID own (`AGENTS.md` section 9, `RN-R39`, `RN-R42`) was written right | **FOLLOWED** — D′'s name grep and premise grep; neither finds a list that omits the new name | the conformity readers | **Two occurrences, two items** — Proposal B's SIBLING grep (section 2), and (r) for the text. The ledger's *a check over `doc/`* is the other answer and is not proposed (section 7) |
+| **(e) a prediction about where a type change fails** — *every `NodeRun` literal fails L0* (prediction 4): only a TYPED literal does; an expected value in an assertion is untyped and fails at run time, and five went through one L6 helper | — | W187's B′ copy (M2), before an edit | **No change**: one occurrence; B′ found every site |
+| **(f) test and harness lessons** — a module-scope class name in a test file is a bundle-wide identifier in the browser lane (W184 `Boom`; W186 `Boom` → `Boom2`); a grader's crash control graded KILLED on the first pass, an import failure printing as a FAIL line (W184; W187); a scheduler DEFAULT is part of the arrangement (W188 R5: an absent `attemptsSpent` reads `0`; R13: `shutdown()` drains the running attempt and never starts its retry); an order claim over a BATCHED channel discriminates only as finely as the batch (W188 A4 — the scheduler's documented 20 ms flush); two guards in SERIES cannot be cut one at a time through a runtime, so a COMPOUND is the control that shows the observer live (W188 A3, T9, T10, R2b; T11, R1b) | the class name twice and the grader twice — **each caught by the rung or the control built for it** (`test:browser`; the GRADER-CRASH control), at the cost of one re-run; the rest one occurrence each | the chromium lane; the grader controls; the adequacy reader (A3, A4) | **No change**: the mechanisms worked. **P35's lessons were CARRIED and WORKED** — W188's *held* is read at a horizon told by an EVENT (R9), every observer is shown live by a control (R8, R9, X9-X11), and E counted both compounds as killing neither half |
+
+**Pass 3 rule 5 over P36's defects**, by what caught them: **a rung in `gate`** — the chromium lane twice (the class
+name), `check:scheduler` `D7` (W186), `typecheck:tests` (W187's typed literal, `RUN_FOR` at W186), and every census
+site in B′'s copies; **the authors, measuring** — W184 M3, W186 M3, W187 M3; **the conformity readers** — W184 C1-C3,
+C5; W185 C1, C2, C4, C5; W186 C1, C3, C4, C6; W187 C1, C3-C8; W188 C1-C5; **the adequacy readers** — W184 A1, A2, A5;
+W185 A1-A3; W186 A1-A4; W187 A1-A3; W188 A1-A4. **No rung would have caught** the deferred halt (an L2 case written to
+the rule's letter would have — the sweep's own assertion was the gap), the copy layers (b), or `OR-R10`'s incompleteness (d).
+
+**The flaky rows ([Q599](../questions/q599.md)).** **None went red in any P36 run its Records report** — every
+W184-W187 gate that reached L6, 0 failed in node and deno, each `gate:item` included; W188's six node and six deno runs
+before its readers, one after them and its `gate:full`. The two red first gates were the chromium lane, not L6. A dated note is
+added; it stays deferred.
+
+### 5. The scheduler
+
+**No S entry raised** ((q)): `task.message` carries `taskId` and no `id`, and (l)'s router line is the workaround.
+**Measured at the pin, none of them an S entry**: on an INLINE pool `task.running` fires synchronously INSIDE `addTask`
+while the worker's body runs after it returns (W186 M3, W187 M3) — not stated in its `AGENTS.md`, and the one that
+falsified this plan's premise; `task.message` is batched, the first emit of an attempt at once and the rest a flush later
+(W188 A4 — its `AGENTS.md` documents `flushIntervalMs: 20`); `shutdown()` drains the running attempt and never starts its
+retry (W188 M3); a config without `attemptsSpent` reads `0` (W188 R5); a malformed `attemptsSpent` throws in the
+`FyflowTask` constructor (its §5, W186 R3). Fact 3's attempt table held on real workers in both runtimes (W188 (4)-(6)).
+**No contract was found broken.**
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′, C, D′ and E held (section 2); every Record stated its
+overlap; no item took an exception; every defect was caught before its Record by a reader whose job it already is; and
+the mechanism failures of section 4 are briefing failures, answered in a brief.
+
+**B. Recommended, for P38's AUTHOR, not the workflow** — B′, C and E carried UNCHANGED; D′ carried with its *whole of
+`AGENTS.md`* and P35's three clauses, and **two clauses added** (section 2, section 4 (d)): *a parenthetical in an `Owns`
+cell is a forecast of where in the file, not a limit — the row owns the whole of each file it names, as it owns the whole
+of `AGENTS.md`*; and *a grep for a SIBLING of each member the change adds — another refusal, another callback, another
+kind — to find every list and rule that should now name it, in any spec, not only the row's*. **The two brief sentences
+unchanged** (*each item's Record states its readers' overlap*; *an owner element a resume's replay feeds is TAKEN AT
+REST* — which bit W186 correctly where the plan's own premise was wrong), and **a third** (section 4 (b)): ***a COPY
+claim is provoked by an ALIAS and by a SHALLOW copy, over a fixture whose value is NESTED, and read in both directions***.
+- **Replaces**: P36's D′ and brief sentences in P38's declaration.
+- **Saves**: W186's coordinator confirmation with the gate red (R4); the two incomplete `OR-R10` clauses; W187's and
+  W188's three adequacy SHOULDs on copies (A2; A1, A2).
+- **Ledger**: kin to the *`Owns` pre-declaration* row (14 refusals), as P34's and P35's B were — not proposed as a rule or
+  a check. **No P38 draft exists** (`doc/plans/` has none, and no plan or retro names the next plan), so B is carried
+  HERE, for P38's author to copy as P36 copied P35's — not written into a file.
+
+**C. Recommended, for the text: `OR-R10` names the `onHeader` throw and the pass-through deliveries** — section 8 (r).
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it would be the 36th refusal, P2-P37.** Section 4 (d) is the
+  class: a spec rule and its `AGENTS.md` mirror diverging (W185 C5, W187 C4), each found by a reading. The row's standing
+  ground holds, and B's SIBLING grep is the cheaper answer. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; the dated correction under *Work items* of P36:409-411's premise (pass 3 rule 6, W186 C1); this Record and Retro |
+| `doc/questions/q599.md` | a dated paragraph — none of its three rows red in any P36 run its Records report; still `deferred` |
+| `README.md` | *More examples* gains three rows for what 0.8.0 ships from this plan and the package's README is read by — a task's messages and progress attributed to its run and attempt (section 8), the header written before the first event (section 18), a resumed task keeping its retry budget (section 18); no snippet, no claim beyond `AGENTS.md`'s |
+
+`doc/decisions/**` already carries every pointer the items' record steps owed (ADR 0064, 0065, 0088, 0104-0106, 0113)
+and the three new ADRs; Q365 and Q26 were closed by W186's record step. **Not edited**: `doc/workflow.md` ((t)),
+`spec/outcome-record.md` ((r)), `CLAUDE.md` ((u)).
+
+**Ids.**
+
+- **Issued**: W184, W185, W186, W187, W188; ADR 0112, ADR 0113, ADR 0114; no question; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3):
+  - W189 CLOSED unissued, as the declaration expected;
+  - Q680-Q682 SPENT (W184's), Q683-Q685 SPENT (W185's), Q686-Q689 SPENT (W186's), Q690-Q693 SPENT (W187's), Q694-Q696
+    SPENT (W188's), Q697-Q699 SPENT (the plan's). None exists in the tree;
+  - ADR 0115-0116 SKIPPED — every answer fitted the three ADRs decision 9 named.
+
+**The next plan starts at W190, Q700 and ADR 0117.** The next S id is S13; the next plan id is P38.
+
+*`npm run state` before this section printed the tree's W189 / Q694 / ADR 0115 against the ledger's W184 / Q680 /
+ADR 0112, the ledger being P35's sentence. P36 closes W189, Q680-Q699 and ADR 0115-0116 unissued — P35's precedent for
+W183, Q660-Q679 and ADR 0110-0111; after this section the two AGREE at P38, W190, Q700 and ADR 0117. None of
+section 8's recommendations takes an id.*
+
+### 8. Stop-and-asks for the maintainer
+
+**Lettered after the declaration's (a)-(q). Each site is OUTSIDE the record step's four files and is NOT edited here.**
+**ANSWERED by the maintainer, 2026-10-18: (r)-(u) as recommended — (r) is its own `spec:` commit, (t)'s three edits are made with this Record, (u) leaves `CLAUDE.md` as it is; (v) is DEFERRED — the maintainer has chores done before 0.8.0 is published.**
+*0.8.0* is the one publish after P36 (decision 3); the package ships `dist/`, `README.md` and `AGENTS.md` only, so
+nothing below but (v) touches what it ships.
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(r)** | **`OR-R10` in `spec/outcome-record.md` is incomplete in two places.** Its list of calls *refused before they are accepted* (which halt nothing) does not include a throw from `onHeader`, and its *nothing … emitted* after a halt does not mention that a halted run still delivers `onTaskMessage` / `onTaskProgress`. `RN-R39`, `RN-R42` and `AGENTS.md` section 9 already say both correctly; only `OR-R10` lags, because no item owned that file | **A small `spec:` commit now, under `gate:item`**: `spec/outcome-record.md` v0.20 → v0.21, two clauses — *a throw from `onHeader` (`RN-R39`)* added to the refused-before-accepted list, and *a pass-through delivery is no element: a halted run still delivers (`RN-R42`)* beside *nothing … emitted* — and its `spec/README.md` row. No rule id, no behaviour | **Carry it as a row of P38's first item** that touches `spec/outcome-record.md` — it may wait for a plan nobody has named; or **leave it** — the two correct statements stand elsewhere, and the spec that is the source of truth stays the one that is incomplete |
+| **(s)** | **Proposal B** (section 6): what P38's author copies into its declaration | **YES — carried in this retro** for P38's author to copy: B′, C and E unchanged; D′ with P35's three clauses and two more (*a parenthetical in an `Owns` cell is a forecast, not a limit*; *a grep for a SIBLING of each added member*); the two brief sentences unchanged and a third (*a COPY claim is provoked by an ALIAS and by a SHALLOW copy, over a NESTED fixture, read both ways*) | **Carry B′, C, D′, E and the two sentences unchanged** — the parentheticals, the sibling lists and the copy layers are then found by readers again, at the cost P36 paid (a confirmation with the gate red; two incomplete spec clauses; three adequacy SHOULDs); or **make any of them a workflow rule** — the *`Owns`* ledger row's fifteenth refusal, against `doc/workflow.md`'s 165 bytes of headroom |
+| **(t)** | **`doc/workflow.md`'s bookkeeping**, the three edits P33's-P35's and P37's retros made: the Status line *THIRTY-SEVEN times, by P1 through P37*; section 6, *a hundred and eleven, so the next is the HUNDRED-AND-TWELFTH*; the ledger's first row, *36 times, P2-P37*. And does P36 join the *adopted nothing* list? | **YES to the three edits** (about one byte net), **no version, no index entry**; **P36 does NOT join the list** if (s) is answered YES — B is adopted sentences, the reading at P33 (i), P34 (r), P35 (n) and P37 (l) | **The next plan's retro makes them**; or **P36 joins the list** if (s) is NO |
+| **(u)** | **`CLAUDE.md`'s *Facts about fyflow-scheduler that catch people out*** lacks one P36 met: on an INLINE pool `task.running` fires synchronously inside `addTask`, on the caller's own step — it made this plan's own premise false (section 5). Its `AGENTS.md` does not say it | **LEAVE it** — `RN-R40`, ADR 0113 and W186's L2 case hold it where the code meets it, the driver now absorbs it (every attempt appended at the step's end), and it caught one plan once; `CLAUDE.md` has 470 bytes of headroom | **One bullet** (about 200 bytes): *an inline pool fires `task.running` inside `addTask`; the worker's body runs after it returns* — `check:budget` re-run, `check:budget:selftest` with it |
+| **(v)** | **Publishing orchestration 0.8.0** (decision 3: after this plan). Nothing in the four files blocks it: the manifests read `0.8.0`, the scheduler peer is 0.6.0 in both registries, `AGENTS.md` states each BREAKING change where it changes, and this record step added `README.md`'s three rows. There is no changelog file; this Record's *What 0.8.0 ships as BREAKING* is P36's share of the release notes (P34's and P35's Records hold theirs) | **Publish from the commit that carries this Record**, `npm run gate:full` green on it first (a doc-only diff over W188's `gate:full` tree), `runtimeCompat` set on jsr.io by the maintainer; no version bump and no repository edit | **Hold the publish for (r)** — the spec does not ship, so nothing a consumer reads would change; or **publish now from `ad4bdb5`**, without this Record's `README.md` rows |
