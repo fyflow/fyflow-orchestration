@@ -2090,9 +2090,13 @@ export class Driver {
     // callers), each value composed through the node's `needs` exactly as `enter` will compose it,
     // and held to the task's worker `inputSchema`; a task whose worker declares none is unchecked, and so
     // is a task that declares a `transform` (ADR 0101, below).
-    // The composition cannot throw here: at an entry `FD-V27` admits no reference but `"."`, and
-    // composing `"."` reads the value whole (W73's adequacy reader measured the guard dead on every
-    // valid definition — a `needs` naming anything else is refused at construction, `FD-V11`/`FD-V27`).
+    // The composition cannot throw here: at an entry `FD-V27` admits no NODE reference, so what an entry can
+    // name is `"."` — the value whole — and, since v0.44, `"$payload"` — the run's payload (W73's adequacy reader
+    // measured the guard dead on every valid definition — a `needs` naming a node is refused at construction,
+    // `FD-V11`/`FD-V27`). **The run's payload is HANDED to the composition, and it is the caller's `payload`**
+    // (P38 (f)): the header does not exist yet — it is built below, after this check — so a `"$payload"` key read
+    // from `this.header` here would read nothing, and the boundary would hold a DIFFERENT value than the run
+    // receives, the defect class Q633 was. The value is the one the header's copy is taken from just below, after this check and before `onHeader`.
     if (this.opts.validateBoundaries !== false) {
       // **Through an entry GATE, only the route it will take** (W93): without the chooser the walk holds the
       // payload to every route's target, and a run could be refused by a task it never reaches.
@@ -2113,7 +2117,7 @@ export class Driver {
         const worker = type?.worker === undefined ? undefined : this.workers.get(type.worker);
         const schema = worker?.inputSchema;
         if (schema === undefined) continue;
-        const received = this.compose(n, value, new Map());
+        const received = this.compose(n, value, new Map(), payload);
         const fs = findings(schema, received);
         if (fs.length) {
           throw new BoundaryRefused('start', node, null, fs,
@@ -3584,7 +3588,12 @@ export class Driver {
     // derivation re-implements `compose`, `JP-R11` and `JP-R12` at a second site, which
     // ADR 0040 rule 2 refuses by name. Keeping it instead would be a payload retained
     // per dispatched node — [Q19](../../doc/questions/q19.md)'s own subject.
-    // **The references are derivable; the payload is not.**
+    // **The references are derivable; the payload is not.** *(Still true of what a NODE
+    // received. What the RUN entered with is no derivation either — it is the header's own
+    // copy, retained for the life of the run (`RN-R15`, `RN-R13`) and not a log record — and
+    // since v0.44 an edge may name it, `"$payload"`, read by `resolveNeeds` from that copy
+    // (ADR 0117, P38 fact 10: this paragraph's *no derivation at all* was the end of the
+    // sentence until then).)*
     //
     // *(This comment cited a DIAMOND — a node reachable from two predecessors that both
     // settle — and said choosing between them needs append order. W42's conformity
@@ -3681,7 +3690,7 @@ export class Driver {
     // already do the right thing with a throw — `onEvent` catches and reports
     // (`OR-R10`), `start` catches, reports and rethrows — and catching it here would
     // make `start()` stop rethrowing.
-    const received = this.compose(node, payload, itemIndices);
+    const received = this.compose(node, payload, itemIndices, this.runPayload());
 
     switch (node.kind) {
       case 'task':
@@ -4335,7 +4344,7 @@ export class Driver {
    *
    * @throws UnresolvedReference — `FD-R3`.
    */
-  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>): unknown {
+  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>, runPayload: unknown): unknown {
     const needs = (node as { needs?: Record<string, unknown> }).needs;
     if (!needs) return edgeValue;
     const here = this.pathOf(node.id, itemIndices);
@@ -4354,12 +4363,27 @@ export class Driver {
       // `../definition/validate.ts`, and **the reader's finding is that this item
       // applied that argument in one file and not in the other** — so both go.
       //
-      // What remains is `"."`, which is a real form and the only one with no node:
-      // it composes what the node would have received anyway, whichever of this
-      // document's four arcs it sits on.
-      if (t.node === null) {
+      // **The node-less forms, switched on BY NAME** (P38 fact 7, W190): reading `t.node === null` as *the
+      // `"."` form* — which this line did until v0.44, when `"."` was the only one — hands a `"$payload"` key the
+      // edge's value in silence.
+      //
+      // `"."` composes what the node would have received anyway, whichever of this document's four arcs it
+      // sits on. `"$payload"` composes the value the RUN entered with — `FD-C1` v0.44, ADR 0117 — handed in by
+      // the caller (P38 (f)): the header's copy in a run and on a resume, the caller's own value at `FD-R4`.
+      // **Each its own copy, per key, per read** (`JP-R11`, ADR 0040 rule 6): no node ever receives an object
+      // another holds, and no worker can reach the header through what it was handed.
+      if (t.form === 'self') {
         out[key] = cloneValue(edgeValue);
         continue;
+      }
+      if (t.form === 'payload') {
+        out[key] = cloneValue(runPayload);
+        continue;
+      }
+      if (t.form === 'item') {
+        // `FD-V26` refuses `"$item"` at construction until W191 composes it (W190's reading R1), so no accepted
+        // definition reaches this arm — the same assertion the `!` above makes for a malformed reference.
+        throw new Error(`node "${node.id}" declares needs[${JSON.stringify(key)}] = "$item", which FD-V26 refuses at this version and no composition reads`);
       }
       const v = this.resolveReference(node.id, here, produced, key, t, 'needs');
       // **`ABSENT` and not `null`, and the reason is measured** — W45. A reference
@@ -4449,6 +4473,17 @@ export class Driver {
   }
 
   /**
+   * **The value the run ENTERED with — the header's copy** (`RN-R15`, P38 fact 4 and (f)): taken at `start()` from the
+   * caller's payload, or on a resume from the stored header, and held for the life of the run. What a `"$payload"`
+   * reference composes from, in both doors; `FD-R4` hands the caller's own value instead, because it runs before the
+   * header exists. Read only where a node or an edge composes the token — a run declaring none never clones it
+   * (P38 decision 2). The header is set before the first `enter` in both doors, so `null` here is not a run.
+   */
+  private runPayload(): unknown {
+    return this.header?.entryPayload;
+  }
+
+  /**
    * **What a decision sees, beyond its node's outcome** — `FD-C3`, and
    * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md).
    *
@@ -4458,7 +4493,10 @@ export class Driver {
    *
    * **No `"."`, and `FD-V26` refuses it on an edge**: *what this predicate would have
    * received anyway* is `ctx.outcome`, which it already has. So there is no
-   * `edgeValue` parameter here and none is derivable — see the call site.
+   * `edgeValue` parameter here and none is derivable — see the call site. **A
+   * `"$payload"` key needs none either** (v0.44, ADR 0117): it is not derived from what
+   * the NODE received but read from the run's header, `runPayload()` above, its own
+   * copy per key per read.
    *
    * @throws UnresolvedReference — `FD-R3`, from the same expression a node's does.
    */
@@ -4473,9 +4511,20 @@ export class Driver {
     const produced = this.outputs();
     const out: Record<string, unknown> = {};
     for (const [key, ref] of Object.entries(needs)) {
-      // `FD-V26` refuses a malformed reference AND the `"."` form on an edge, both at
-      // construction, so `t.node` is a string for any definition a `Driver` accepted.
-      const t = referenceTarget(ref) as { form: 'one' | 'all'; node: string; conditional: boolean };
+      // `FD-V26` refuses a malformed reference, the `"."` form and — until W191 — `"$item"` on an edge, all at
+      // construction, so the one node-less form a `Driver` accepts here is `"$payload"`. **Switched on by
+      // `form`**: this read `referenceTarget(ref) as { … node: string … }` until v0.44, a cast that asserted no
+      // node-less form could reach it — true while `"."` was the only one (P38 fact 9).
+      const t = referenceTarget(ref)!;
+      if (t.form === 'payload') {
+        // **The run's payload, its own copy per key per read** — `FD-C3` v0.44, the same expression `compose`
+        // uses, so `ctx.needs.run` and a worker's `input.run` mean one thing (ADR 0041 rule 4's *one resolver*).
+        out[key] = cloneValue(this.runPayload());
+        continue;
+      }
+      if (t.form === 'self' || t.form === 'item') {
+        throw new Error(`node "${node.id}"'s edge declares needs[${JSON.stringify(key)}] = ${JSON.stringify(ref)}, which FD-V26 refuses on an edge`);
+      }
       const v = this.resolveReference(node.id, here, produced, key, t, 'edge needs');
       // The same omission as `compose`'s, at the second site and by the same
       // expression, so `ctx.needs.f` and `payload.f` mean one thing — ADR 0041

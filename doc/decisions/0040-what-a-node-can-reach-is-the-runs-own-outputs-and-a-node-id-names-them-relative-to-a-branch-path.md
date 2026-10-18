@@ -89,7 +89,9 @@ rest on.**
 
 2. **What a node can reach is the run's own outputs, and it is a PROJECTION rather than new state.**
    Derived from the log on demand, through `effectiveOutcome` so a resumed node has one answer and a
-   suspended one has none. **Computed rather than maintained**, deliberately: a maintained index is a
+   suspended one has none. ***Amended 2026-10-19 by [ADR 0117](0117-a-reference-may-name-what-reached-the-run.md)* (W190): a node can reach the run's own outputs AND the
+   value the run was handed — `"$payload"`, read from the checkpoint header the driver already keeps, so still no new
+   state.** **Computed rather than maintained**, deliberately: a maintained index is a
    second source that can disagree with the log, which is the defect [Q43](../questions/q43.md),
    `arrival-count`'s re-sourcing and
    [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s
@@ -122,7 +124,9 @@ rest on.**
    received anyway; `"n"` is that node's output **on this node's path**, exactly one; `["n"]` is that
    node's outputs as an **array** in ascending `branchPath` order, `JP-R12`'s order rule and its
    reason. **The array form is JSON's own array syntax rather than a second sigil**, and `"."` is
-   safe because `.` is outside `FD-V16`'s charset, so no node may ever be called it.
+   safe because `.` is outside `FD-V16`'s charset, so no node may ever be called it. ***Amended 2026-10-19 by
+   [ADR 0117](0117-a-reference-may-name-what-reached-the-run.md)* (W190): v0.13 added the `?` modifier, and v0.44 a fourth form, `"$payload"`, under a reserved `$`
+   PREFIX — `"$item"` its second reference (W191).**
 
    **Which form is legal is a property of the GRAPH and is refused at instantiation** (`FD-V28`): a
    node produces more than one output for a reader exactly when the reader is outside a region

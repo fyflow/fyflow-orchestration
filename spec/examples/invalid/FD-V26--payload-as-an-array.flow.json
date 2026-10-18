@@ -1,0 +1,10 @@
+{
+  "flowId": "payload-as-an-array",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "needs": { "run": [ "$payload" ], "own": "." }, "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

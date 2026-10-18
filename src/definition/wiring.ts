@@ -316,7 +316,8 @@ interface Arrival {
  * **The first task(s) a run's payload reaches with no worker in between** — the entry task, or the
  * branch tasks of an entry region, recursively; for a map, one per element of the array the
  * payload carries under `over`. `FD-R4`'s targets at `start()`; the driver composes each value
- * through the node's `needs` (a `"."` is the only reference an entry can carry) and holds it to the
+ * through the node's `needs` (an entry names no NODE, `FD-V27`: what it can carry is `"."` and, since v0.44,
+ * `"$payload"` — the payload this walk was handed, P38 (f)) and holds it to the
  * task's worker `inputSchema` — the value the node RECEIVES — unless the task declares a `transform` (ADR 0101, W170). ONE walk, two callers — the driver with the payload, and
  * `checkWiring` with none for `WiringReport.entry` (W73's adequacy reader found a second walk
  * beside this one whose map arm nothing bound; there is one walk now, `entryWalk`).
@@ -370,10 +371,16 @@ function entryWalk(
     if (n.kind === 'gate') for (const e of choose ? choose(n, value) : n.edges ?? []) walk(e.to, value);
     if (n.kind === 'map') {
       if (!sampled) { walk(n.branch, undefined); return; }
-      // A map's own `needs` composed as `enter` composes it — at an entry only `"."` can be named
-      // (`FD-V27`), so the composition is the value under each such key. W73's conformity reader (15).
+      // A map's own `needs` composed as `enter` composes it — W73's conformity reader (15). At an entry no NODE
+      // can be named (`FD-V27`), so the composition is the value under each `"."` key and — since v0.44 — the
+      // WALK's own payload under each `"$payload"` key (P38 fact 8, (i)): on `form`, never on `r === '.'`, which
+      // DROPPED a `"$payload"` key and read `over` off the wrong object. `"$item"` is `FD-V26`'s until W191 and
+      // no map at an entry is inside a map instance, so it composes nothing here.
       const composed = n.needs === undefined ? value
-        : Object.fromEntries(Object.entries(n.needs).filter(([, r]) => r === '.').map(([k]) => [k, value]));
+        : Object.fromEntries(Object.entries(n.needs).flatMap(([k, r]) => {
+          const form = referenceTarget(r)?.form;
+          return form === 'self' ? [[k, value]] : form === 'payload' ? [[k, payload]] : [];
+        }));
       const arr = (composed as Record<string, unknown> | null | undefined)?.[n.over];
       if (Array.isArray(arr)) for (const v of arr) walk(n.branch, v);
     }
@@ -769,7 +776,13 @@ class Wiring {
       const t = referenceTarget(ref);
       if (t === null) return { ...base, unchecked: `needs.${key} is not a reference` };
       let schema: JsonSchema | undefined, value: unknown, src: ArcSampleSource = 'example';
-      if (t.node === null) {
+      // **`"$payload"` is UNCHECKED** — P38 (i): the run's payload is a value no schema declares (the entry's worker
+      // may transform it, may have `needs`, may be no task at all), so an arc composed through it has no schema to
+      // hold and reads `unchecked`, never a false `fits`. On `form`, never on `t.node === null`, which read it as
+      // `"."` and gave the key the EDGE's schema (P38 fact 8). `"$item"` is `FD-V26`'s until W191, unchecked here.
+      if (t.form === 'payload') return { ...base, unchecked: `needs.${key} is "$payload" — the run's payload, which no schema declares` };
+      if (t.form === 'item') return { ...base, unchecked: `needs.${key} is "$item", which this version does not compose` };
+      if (t.form === 'self') {
         if (a.schema === undefined) return { ...base, unchecked: a.unchecked ?? a.refused ?? `needs.${key} is "." and the edge's value has no schema` };
         schema = a.schema; value = a.sample?.value; src = a.sample?.source ?? 'witness';
         dot.push(key);

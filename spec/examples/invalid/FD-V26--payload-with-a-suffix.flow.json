@@ -1,0 +1,15 @@
+{
+  "flowId": "payload-with-a-suffix",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "score" } ] },
+    { "id": "score",   "kind": "task", "type": "ScoreWorker",  "edges": [
+        { "when": { "path": "needs.run.priority", "op": "gt", "value": 5 }, "to": "review", "needs": { "run": "$payload?" } },
+        { "to": "publish" }
+    ] },
+    { "id": "review",  "kind": "task", "type": "ReviewWorker",  "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

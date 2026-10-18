@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W190 — P38 (b), (d), (f)-(j), ADR 0117: the run's payload as a reference — L1 in `test/definition/run-payload.test.ts`,
+  // L2 in `test/driver/run-payload.test.ts`; both counted below.
+  'W190 — "$payload" in the grammar: referenceTarget`s new forms, FD-V26`s "$" clauses at both sites, every site it is legal, and the wiring check`s unchecked',
+  'L2 — W190: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, each its own copy',
   // W187 — P36 (j)-(l), `RN-R41`, `RN-R42`: a task's attribution on the fold, and its messages and progress passed through —
   // L1/L3 in `test/fold/attribution.test.ts`, L2 in `test/driver/pass-through.test.ts`, and through `createRuntime` in
   // `test/scheduler/runtime.test.ts`; all three counted below. (W187 also RENAMED W186's fold suite: its claim *moves NOTHING*
@@ -936,6 +940,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/pass-through.test.ts registers its nine: the message, the progress, the drops, the subscription list, the frozen copy, the stop, a throw, no fold input, and its own membership');
     equal(count('W187 — through createRuntime: a task`s messages and progress are ROUTED to its own run, handed to that run`s callback alone, and nothing after its release'), 3,
       'test/scheduler/runtime.test.ts registers W187`s three: the routing of two runs, a run with no callback, and the release');
+  });
+  // **W190's two suites, counted the same way and for the same reason.**
+  test('W190`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W190 — "$payload" in the grammar: referenceTarget`s new forms, FD-V26`s "$" clauses at both sites, every site it is legal, and the wiring check`s unchecked'), 9,
+      'test/definition/run-payload.test.ts registers its nine: the parse, FD-V26 at a node and at an edge, "$item" refused, five sites accepted, FD-V16, the wiring check, the walk, and its own membership');
+    equal(count('L2 — W190: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, each its own copy'), 11,
+      'test/driver/run-payload.test.ts registers its eleven: the entry, two hops, a map node, an ask, the app`s entry ask, an edge, FD-R4, a resume, the copy claim, a flow unchanged, and its own membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

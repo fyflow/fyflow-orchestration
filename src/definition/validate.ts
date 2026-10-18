@@ -1019,17 +1019,27 @@ function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs',
 }
 
 /**
- * **The one place `needs`' reference grammar is parsed** — `FD-V26`'s three forms,
+ * **The one place `needs`' reference grammar is parsed** — `FD-V26`'s four forms (`"."`, `"$payload"`, `"n"`, `["n"]` — `"$item"` parsed beside them since v0.44),
  * and `spec/flow-definition.md` section 3's table. `null` is *not a reference at
  * all*, which is what `FD-V26` reports; every other return is well formed and
  * `FD-V27`/`FD-V28` decide whether it is well AIMED.
  *
- * **`"."` and `"?"` are the only invented tokens in the grammar**, and both are safe
- * because they are outside `FD-V16`'s charset, so no node may ever be called `.` or
- * end in `?`.
+ * **The grammar's invented tokens are `"."`, `"?"` and — v0.44 — the whole `"$"` PREFIX**, and
+ * each is safe because it is outside `FD-V16`'s charset, so no node may ever be called `.`, end
+ * in `?` or begin with `$` (P38 fact 1). *(This read *"`"."` and `"?"` are the only invented
+ * tokens"* until W190.)* Two `$` tokens are references: **`"$payload"`** — the value the RUN
+ * entered with, from any node and any edge (v0.44,
+ * [ADR 0117](../../doc/decisions/0117-a-reference-may-name-what-reached-the-run.md)) — and
+ * **`"$item"`** — the innermost enclosing map instance's item, PARSED here so the union is one
+ * type for both (P38 (h)) and refused by `FD-V26` until W191 composes it. Every other `$`
+ * spelling — `["$payload"]`, `"$payload?"`, `"$other"` — is `null`, and `FD-V26` names the fix.
+ * **They are `form`s and not a flag**, and `node` is `null` on all three node-less forms, so a
+ * caller that reads `node === null` as *the `"."` form* reads `"$payload"` as `"."` in silence —
+ * **switch on `form`** (P38 fact 7, the reason the union is widened rather than `'self'` reused).
  * **On an EDGE the `"."` form is refused** — `FD-V26`s v0.12 clause — but that is the
  * CALLER`s rule: this function parses ONE grammar, and the two sites differ in what
- * they accept of it rather than in how it is read.
+ * they accept of it rather than in how it is read. *`"$payload"` is NOT refused there*: a
+ * predicate has no `ctx.payload`, so naming it is not redundant (P38 decision 3).
  *
  * **The `?` suffix is v0.13's, and it decides what happens when the target produced
  * NOTHING on this path rather than which outputs are named** —
@@ -1043,9 +1053,15 @@ function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs',
 export function referenceTarget(
   ref: unknown,
 ): { form: 'self'; node: null; conditional: false }
+  // P38 (h)'s `{ form: 'payload' | 'item'; … }`, written as two members so a switch on `form` NARROWS: one member
+  // with a two-literal discriminant is not split by a `===`, and every caller below would need a cast.
+  | { form: 'payload'; node: null; conditional: false }
+  | { form: 'item'; node: null; conditional: false }
   | { form: 'one' | 'all'; node: string; conditional: boolean }
   | null {
   if (ref === '.') return { form: 'self', node: null, conditional: false };
+  if (ref === PAYLOAD_TOKEN) return { form: 'payload', node: null, conditional: false };
+  if (ref === ITEM_TOKEN) return { form: 'item', node: null, conditional: false };
   if (typeof ref === 'string') return aimed(ref, 'one');
   if (Array.isArray(ref) && ref.length === 1 && typeof ref[0] === 'string') {
     return aimed(ref[0], 'all');
@@ -1059,6 +1075,37 @@ function aimed(s: string, form: 'one' | 'all'): { form: 'one' | 'all'; node: str
   const node = conditional ? s.slice(0, -1) : s;
   return ID_RE.test(node) ? { form, node, conditional } : null;
 }
+
+/** The run's payload as a reference — v0.44, P38 (b). */
+const PAYLOAD_TOKEN = '$payload';
+/** A map instance's item as a reference — PARSED since v0.44 (P38 (h)), composed by W191. */
+const ITEM_TOKEN = '$item';
+
+/**
+ * **What `FD-V26` says about a `$` spelling that is not a reference** — P38 (g): the whole `$` prefix is
+ * reserved, so a spelling that starts with it is never read as a node id (`FD-V16` refuses `$` in an id, so it
+ * could never name one) and the message names the FIX rather than the grammar. `null` for anything that does
+ * not start with `$`, which the caller words as before. The ARRAY form is asked first: `["$payload?"]` is told
+ * to drop the brackets, and dropping them leaves the suffix to be told next.
+ */
+function dollarProblem(ref: unknown): string | null {
+  const one = Array.isArray(ref) && ref.length === 1 ? ref[0] : ref;
+  if (typeof one !== 'string' || !one.startsWith('$')) return null;
+  const bare = one.endsWith('?') ? one.slice(0, -1) : one;
+  const known = bare === PAYLOAD_TOKEN || bare === ITEM_TOKEN;
+  if (known && Array.isArray(ref)) {
+    return `${JSON.stringify(ref)} is an array form, and there is ONE ${bare === PAYLOAD_TOKEN ? 'run payload' : 'item per map instance'}: write ${JSON.stringify(bare)}`;
+  }
+  if (known) return `${JSON.stringify(one)} carries "?", and ${JSON.stringify(bare)} is always there: write ${JSON.stringify(bare)} without "?"`;
+  return `${JSON.stringify(ref)} is not a reference: the "$" prefix is reserved, and its references are "$payload" (the run's payload) and "$item" (a map instance's item)`;
+}
+
+/**
+ * **`"$item"` is refused until W191 composes it** — W190's reading R1: P38 (h) widens `referenceTarget`'s union
+ * for both tokens in one item, and accepting one no reader composes would hand a worker nothing it asked for. The
+ * message names the road that exists: the map's branch entry receives its item as `"."`.
+ */
+const ITEM_NOT_YET = `is "$item", a map instance's item, which this version does not compose yet: name the item where the map's branch entry receives it, as "."`;
 
 export function validateDefinition(doc: FlowDefinition, registry: Registry): Finding[] {
   const f: Finding[] = [];
@@ -1491,8 +1538,15 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         for (const [k, ref] of Object.entries(nv as Record<string, unknown>)) {
           if (!ID_RE.test(k)) add('FD-V26', where, `needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
           const target = referenceTarget(ref);
-          if (target === null) {
-            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , a node id with an optional "?" suffix, or a one-element array holding one`);
+          // **The `$` clauses first, v0.44** (P38 (g)): a `$` spelling that is not a reference is told its fix —
+          // `["$payload"]` the bare form, `"$payload?"` without the suffix, anything else the two references there are.
+          const dollar = target === null ? dollarProblem(ref) : null;
+          if (dollar !== null) {
+            add('FD-V26', where, `needs[${JSON.stringify(k)}]: ${dollar}`);
+          } else if (target === null) {
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", a node id with an optional "?" suffix, or a one-element array holding one`);
+          } else if (target.form === 'item') {
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] ${ITEM_NOT_YET}`);
           }
         }
       }
@@ -1586,10 +1640,18 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           for (const [k, ref] of Object.entries(nv as Record<string, unknown>)) {
             if (!ID_RE.test(k)) add('FD-V26', at, `edge needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
             const target = referenceTarget(ref);
-            if (target === null) {
-              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not a node id with an optional "?" suffix or a one-element array holding one`);
-            } else if (target.node === null) {
+            const dollar = target === null ? dollarProblem(ref) : null;
+            if (dollar !== null) {
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}]: ${dollar}`);
+            } else if (target === null) {
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", a node id with an optional "?" suffix or a one-element array holding one`);
+            } else if (target.form === 'self') {
+              // **On `form`, never on `node === null`** (P38 fact 9): `"$payload"` has no node either, and an edge MAY
+              // name it — a predicate has no `ctx.payload` (decision 3). Read as `node === null` this clause refused it
+              // with a message about `ctx.outcome`.
               add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ".", which an EDGE may not use: what a predicate would have received anyway is its node's own outcome, and \`ctx.outcome\` already carries it`);
+            } else if (target.form === 'item') {
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] ${ITEM_NOT_YET}`);
             }
           }
         }
@@ -1830,7 +1892,12 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // own — so nothing below distinguishes them except the message.
       for (const [k, ref, site, at] of aimedReferences(n)) {
         const t = referenceTarget(ref);
-        if (t === null || t.node === null) continue; // FD-V26's, or the `"."` form
+        if (t === null) continue; // FD-V26's
+        // **The node-less forms, BY NAME** (P38 fact 7): `"."`, `"$payload"` and `"$item"` name no node, so there is
+        // nothing to aim — *always there*, no `?`, nothing like `FD-V29` (the app's ask). Named rather than read off
+        // `node === null`, so a fourth node-less form is a compile error here and not a silent skip; `"$item"` is
+        // `FD-V26`'s until W191, whose aim rule (`FD-V49`, P38 (g)) sits on this arm.
+        if (t.form === 'self' || t.form === 'payload' || t.form === 'item') continue;
         const target = t.node;
         if (!g.byId.has(target)) {
           add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", which is not a node`);

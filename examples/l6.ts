@@ -128,6 +128,9 @@ import {
   // `AGENTS.md`'s own snippets import this name from `'fyflow-orchestration'`, so
   // asserting a refusal here asserts the refusal a consumer gets.
   validateDefinition,
+  // **W190**: the four reference censuses below read a reference by the library's own PARSE — a `"$payload"` is no node
+  // id and no `"."`, and two of them read it as one or the other by its spelling (P38 fact 9).
+  referenceTarget,
   // **W94**: the route-coverage clause reads the routes the built-in TYPE declares — a second source beside the file
   // table the TV rows derive their counts from — through the package ROOT, as a consumer would.
   distinct,
@@ -6454,10 +6457,26 @@ const referenceFormsInSpec = () => REFERENCE_FORMS_IN_SPEC;
  * naming one more spelling than it has rows.
  */
 const spellingOf = (ref: unknown): string => {
-  const one = Array.isArray(ref) ? ref[0] : ref;
-  const suffix = typeof one === 'string' && one.endsWith('?') ? '?' : '';
-  return ref === '.' ? '.' : `${Array.isArray(ref) ? '["n"]' : '"n"'}${suffix}`;
+  // **By the PARSE, never by the spelling** — W190 (P38 fact 9): this read `ref === '.'` and bucketed every other string
+  // as a node id, so section 3's `"$payload"` row collapsed into `"n"` and the count below moved with nothing to point at.
+  const t = referenceTarget(ref);
+  if (t === null) return `unparsed ${JSON.stringify(ref)}`;
+  switch (t.form) {
+    case 'self': return '.';
+    case 'payload': return '"$payload"';
+    case 'item': return '"$item"';
+    case 'one': return `"n"${t.conditional ? '?' : ''}`;
+    case 'all': return `["n"]${t.conditional ? '?' : ''}`;
+  }
 };
+
+/**
+ * **The rows of section 3's table that NO L6 row runs yet, by NAME — W190.** v0.44 added `"$payload"` and this rung
+ * runs no flow naming it: P38's W192 is the exit artifact that does, and empties this list. Named rather than
+ * subtracted as a count, and held BOTH WAYS below — a form L6 starts running must leave the list, and a row the table
+ * has must be in L6's set or here — so the list cannot hide a row the table lost.
+ */
+const NOT_YET_AT_L6: readonly string[] = ['payload'];
 
 async function referenceSpellingsInSpecAsync(): Promise<string[]> {
   const deno = (globalThis as Record<string, unknown>).Deno as
@@ -12529,16 +12548,10 @@ if (rowCosts.length !== EXPECTED.length) {
           // with no row to point at. *A bucketing that cannot express the thing the
           // table just gained is a list bound to nothing* (`doc/workflow.md`
           // section 5 rule 8 obligation (e)'s third shape).
-          const spelling = Array.isArray(ref) ? ref[0] : ref;
-          forms.add(
-            ref === '.'
-              ? 'self'
-              : typeof spelling === 'string' && spelling.endsWith('?')
-                ? 'suffix'
-                : Array.isArray(ref)
-                  ? 'all'
-                  : 'one',
-          );
+          // **By the library's PARSE since W190** (P38 fact 9): this bucketed by spelling, so a `"$payload"` would have
+          // read as `one` — a node id — and the clause below compared the wrong buckets.
+          const t = referenceTarget(ref);
+          forms.add(t === null ? `unparsed ${JSON.stringify(ref)}` : t.conditional ? 'suffix' : t.form);
         }
       }
     }
@@ -12557,13 +12570,17 @@ if (rowCosts.length !== EXPECTED.length) {
   // COMPUTED half**, and the two clauses above — one per site — are what stand
   // against it. The claim is corrected rather than the bound removed, because the
   // bound is right for the reason that survives.
-  check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
-    [...forms].length, referenceFormsInSpec());
+  check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table — less the rows named NOT_YET_AT_L6',
+    [...forms].length + NOT_YET_AT_L6.length, referenceFormsInSpec());
   // And WHICH four, so a fifth bucket appearing is a finding rather than a silently
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
-  check('cross-row', 'and they are the four the table names, not four of something else',
-    [...forms].sort(), ['all', 'one', 'self', 'suffix']);
+  check('cross-row', 'and they are the table`s rows, not four of something else — L6`s with NOT_YET_AT_L6`s, `payload` since v0.44 (W190)',
+    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'one', 'payload', 'self', 'suffix']);
+  // **W190: the not-yet list is held BOTH WAYS by the two clauses above, with no clause of its own** — a new clause here
+  // moves `X10`, which this item does not own. The COUNT adds the list to L6's forms, and the SET below compares the two
+  // CONCATENATED: a form L6 starts running while still named in the list appears TWICE and fails the equality, and a row
+  // the table has that is in neither fails the count.
 
   /**
    * **`FD-V29`'s REFUSAL, made observable at L6 — W47, and it is this item's
@@ -12688,8 +12705,9 @@ if (rowCosts.length !== EXPECTED.length) {
       'so the set equality below is over five and not over four',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
       `the table names: ${REFERENCE_SPELLINGS_IN_SPEC.join(', ')}`);
-    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included',
-      [...l6Spellings].sort(), REFERENCE_SPELLINGS_IN_SPEC);
+    // **Less the not-yet rows' spellings — W190**: `"$payload"` is the table's and no L6 row's until W192 (the list above).
+    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — with NOT_YET_AT_L6`s spellings beside them',
+      [...l6Spellings, ...NOT_YET_AT_L6.map((f) => spellingOf(`$${f}`))].sort(), REFERENCE_SPELLINGS_IN_SPEC);
     // **And that the fifth one's `?` is LOAD-BEARING where L6 runs it**, which is
     // what stops it being a spelling somebody wrote for the sake of the count:
     // strip the suffix from `nested-map`'s own reference and `FD-V29` refuses the
@@ -13547,9 +13565,11 @@ if (rowCosts.length !== EXPECTED.length) {
       const needs = (n as unknown as { needs?: Record<string, unknown> }).needs;
       if (!needs) continue;
       for (const v of Object.values(needs)) {
-        const raw = Array.isArray(v) ? v[0] : v;
-        if (typeof raw !== 'string' || raw === '.') continue;
-        out.push(sharedRegionDepth(rs, n.id as string, raw.replace(/\?$/, '')));
+        // **The AIMED forms, by the PARSE** — W190 (P38 fact 9): this skipped `"."` by its spelling and would have read a
+        // `"$payload"` as a NODE id and asked its shared depth with a node of that name.
+        const t = referenceTarget(v);
+        if (t === null || (t.form !== 'one' && t.form !== 'all')) continue;
+        out.push(sharedRegionDepth(rs, n.id as string, t.node));
       }
     }
     return out;
@@ -13604,9 +13624,10 @@ if (rowCosts.length !== EXPECTED.length) {
         const needs = (n as unknown as { needs?: Record<string, unknown> }).needs;
         if (!needs || !rs.some((r) => r.members.has(n.id as string))) return false;
         return Object.values(needs).some((v) => {
-          const raw = Array.isArray(v) ? v[0] : v;
-          if (typeof raw !== 'string' || raw === '.') return false;
-          const target = raw.replace(/\?$/, '');
+          // The AIMED forms, by the PARSE — W190, as the census above.
+          const t = referenceTarget(v);
+          if (t === null || (t.form !== 'one' && t.form !== 'all')) return false;
+          const target = t.node;
           // the target is inside a region too, and the two share none
           return rs.some((r) => r.members.has(target)) &&
             sharedRegionDepth(rs, n.id as string, target) === 0;

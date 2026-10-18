@@ -80,6 +80,9 @@ function rowOf(v: unknown): string {
   const t = referenceTarget(v)!;
   return t.conditional ? 'suffix' : t.form;
 }
+// **v0.44 added a row, `"$payload"`** (W190, ADR 0117): a fifth row and a sixth accepted spelling, and the bound below
+// moved by it — which is what the bound is for. `"$item"` PARSES (P38 (h)) and is refused by `FD-V26` until W191, so
+// it is in no row and in neither list here: `test/definition/run-payload.test.ts` holds both of its halves.
 
 /** `ingest -> subject -> done`, with `subject` carrying whatever `needs` is given. */
 const linear = (needs: unknown) =>
@@ -100,7 +103,7 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     // a `?` are the ways the suffix can be written wrong: it goes on the END of a
     // node id, and what is left after stripping it must still be an id, so `"?"`,
     // `".?"` and `"ingest??"` need no clause of their own.
-    const accepted: unknown[] = ['.', 'ingest', ['ingest'], 'ingest?', ['ingest?']];
+    const accepted: unknown[] = ['.', '$payload', 'ingest', ['ingest'], 'ingest?', ['ingest?']];
     const refusedBy = new Map<string, unknown>([
       ['an object', { node: 'ingest' }],
       ['a number', 7],
@@ -141,9 +144,9 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     equal(rowsHit.length, referenceTableRows(),
       'every ROW of section 3`s `needs` reference table is exercised by a spelling in this list — ' +
       'the count is read from the normative document, so satisfying it needs an edit there');
-    equal(rowsHit.sort(), ['all', 'one', 'self', 'suffix'],
-      'and the four rows are the ones this file names, so a fifth appearing is a finding rather ' +
-      'than a silently absorbed bucket');
+    equal(rowsHit.sort(), ['all', 'one', 'payload', 'self', 'suffix'],
+      'and the five rows are the ones this file names, so a sixth appearing is a finding rather ' +
+      'than a silently absorbed bucket — `payload` since v0.44 (W190)');
     // **And every AIMED form appears with AND without the suffix** - rule 8 found
     // that the row bound above cannot see a missing spelling *within* a row:
     // dropping `['ingest?']` still hits all four rows, for **0**. The suffix is a

@@ -47,7 +47,8 @@ sites (P34 fact 10), and `FD-R4`'s *thrown at the caller* would become a rejecti
    received)`, which is `tryTransform(registry, flow, task, node.transform, { input: received })` on the node as declared
    (W166). It is called on each transforming TARGET, never on a fan-out, map or gate entry, which is no task and returns
    `[]`. `received` is the value that task RECEIVES, because a given value is `$` with no `needs` composed: the payload
-   composed through the task's `needs` (at an entry only `"."`, so `needs: { own: "." }` receives `{ own: payload }`),
+   composed through the task's `needs` (at an entry only `"."`, so `needs: { own: "." }` receives `{ own: payload }` —
+   *dated 2026-10-19, [ADR 0117](0117-a-reference-may-name-what-reached-the-run.md) (W190): and `"$payload"` too, `needs: { run: "$payload" }` receiving `{ run: payload }`*),
    and for a map's branch each element under `over`. `boundaryTargets(flow, payload)` lists the targets and the value
    reaching each. It is asynchronous, it is named, and on `transform-passes` it gives the verdict the worker's schema
    would give. An `unchecked` verdict checked nothing. *Check, then start.*
