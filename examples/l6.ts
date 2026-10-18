@@ -8511,6 +8511,14 @@ const KILL_RESUME_DEADLINE_MS = 10_000;
 const refusalOf = (err: unknown): string =>
   err instanceof ResumeRefused ? `ResumeRefused ${err.reason} at ${err.index}` : `${err instanceof Error ? err.name : 'a throw'}: ${String(err).slice(0, 120)}`;
 const isStimulus = (i: FoldInput): boolean => i.kind === 'outcome' || i.kind === 'resolution';
+/**
+ * **Every element a replay is FED — `RN-R19`'s kinds, `attempted` the seventh since W186** (`RN-R40`). A kill point is still
+ * a SETTLEMENT (`isStimulus`, which the sweep counts), but where a replay stops regenerating — the killed process's next
+ * element past the cut that nothing the replay does produces, and so where `resumed` lands — is the next FED element: since
+ * W186 that is often the `attempted` element a settlement's step ends with, which a mid-step cut loses.
+ */
+const isFedElement = (i: FoldInput): boolean => isStimulus(i) || i.kind === 'attempted' || i.kind === 'resumed' ||
+  i.kind === 'interrupted' || i.kind === 'paused' || i.kind === 'unpaused';
 // **In KEY order, never insertion order — W97.** The fold inserts a node's key when its task is DISPATCHED, and a dispatch
 // can depend on a completion (`recheck` goes out when `grade:0.1` settles), so `JSON.stringify` of `RunState.nodes`
 // carried a completion order into every identity that compared two runs' nodes. With `ScoreWorker` threaded
@@ -8562,7 +8570,7 @@ type KillResume = {
     beforeHandle: number; identical: boolean; refused: string; resumes: string[][]; resumedIds: string[][];
     holes: number; foldIsDone: boolean; arrivalDiffers: boolean; arrivalRefused: string;
   } | null;
-  cuts: { midStored: number; quietStored: number; quietStimuli: number; midAt: number; quietAt: number; midIds: string[]; quietIds: string[]; refused: string;
+  cuts: { midQ: number; lost: [string[], string[]]; midStored: number; quietStored: number; quietStimuli: number; midAt: number; quietAt: number; midIds: string[]; quietIds: string[]; refused: string;
     midStoredInFlight: string[]; quietStoredInFlight: string[]; bothCompleted: boolean } | null;
   parked: { ids: string[] | null; before: string; parkedStored: boolean; scoreFirst: boolean; accepted: boolean; refused: string;
     outcome: string; identical: boolean } | null;
@@ -8671,7 +8679,7 @@ try {
       const k = await killedRun(flow, payload, runId, (_i, n) => (n === K ? 'now' : 'no'));
       const killed = k.driver.foldInputs();
       const p = k.mid.length - 1;
-      let q = killed.findIndex((i, j) => j > p && isStimulus(i));
+      let q = killed.findIndex((i, j) => j > p && isFedElement(i));
       if (q < 0) q = killed.length;
       const r = await resumedRun(flow, k.header, k.mid.slice());
       const seq = r.driver?.foldInputs() ?? [];
@@ -8794,7 +8802,16 @@ try {
       return { at, ids: e?.kind === 'resumed' ? [...e.taskIds] : [] };
     };
     const m = resumedOf(mid.driver), qq = resumedOf(quiet.driver);
+    // **W186 (`RN-R40`)**: the step the mid-step cut falls in ENDS with the `attempted` elements of the tasks it handed an
+    // INLINE pool — appended at the step's end, so the quiescent store holds them and the mid-step store does not. They are
+    // fed, never regenerated: so the mid-step replay stops where they begin, in the KILLED process's own sequence, and its
+    // `resumed` lands THERE — before the quiescent one's, which lands at its store's length. Both derived from the killed run.
+    const killedSeq = k.driver.foldInputs();
+    let midQ = killedSeq.findIndex((i, j) => j >= k.mid.length && isFedElement(i));
+    if (midQ < 0) midQ = killedSeq.length;
+    const stepDispatched = killedSeq.slice(k.mid.length, midQ).flatMap((i) => (i.kind === 'dispatched' ? [`attempted ${i.taskId} #1`] : []));
     cuts = {
+      midQ, lost: [killedSeq.slice(midQ, k.quiet.length).map((i) => (i.kind === 'attempted' ? `attempted ${i.taskId} #${i.attemptNumber}` : i.kind)), stepDispatched],
       midStored: k.mid.length, quietStored: k.quiet.length, quietStimuli: k.quiet.filter(isStimulus).length,
       midAt: m.at, quietAt: qq.at, midIds: m.ids, quietIds: qq.ids,
       midStoredInFlight: inFlightIn(k.mid, k.mid.length), quietStoredInFlight: inFlightIn(k.quiet, k.quiet.length),
@@ -8933,10 +8950,16 @@ if (killResume !== null) {
   // `shard@1`'s three at 60 ms each is the arrangement; its effect — the quiescent store holds exactly TWO stimuli — is
   // asserted here, so that delay now names it. Found by a SPEED-UP, which obligation (f)'s *delayed past its peers* never
   // tries ([Q401](../doc/questions/q401.md)).
-  check(key, 'a MID-STEP cut and a QUIESCENT cut of ONE killed run: the quiescent store is longer, `resumed` lands at the same ' +
-    'position after both, and both re-dispatch the SAME tasks — the set is the replay`s, not the store`s; and the arrangement holds, the quiescent store two stimuli',
-    u === null ? null : [u.midStored < u.quietStored, u.midAt, u.quietAt, u.midIds, u.bothCompleted, u.refused, u.quietStimuli],
-    u === null ? 'two cuts' : [true, u.quietStored, u.quietStored, u.quietIds, true, '', 2]);
+  // **W186 moved one clause of this claim** (`RN-R40`): `resumed` landed at the SAME position after both cuts while every
+  // fed element was a settlement; now the step the mid-step cut falls in ends with fed `attempted` elements the quiescent
+  // store holds and the mid-step store lost — so `resumed` lands at the killed run's next FED element after the mid-step cut
+  // (the first of those attempts) and at the quiescent store's length after the other, and the elements between are
+  // EXACTLY the attempts of the tasks that step dispatched. The SET re-dispatched is still the same.
+  check(key, 'a MID-STEP cut and a QUIESCENT cut of ONE killed run: the quiescent store is longer, `resumed` lands at the killed run`s next ' +
+    'FED element after each — the mid-step store losing only the step`s attempts (W186) — and both re-dispatch the SAME tasks — the set is ' +
+    'the replay`s, not the store`s; and the arrangement holds, the quiescent store two stimuli',
+    u === null ? null : [u.midStored < u.quietStored, u.midAt, u.quietAt, u.midIds, u.bothCompleted, u.refused, u.quietStimuli, u.lost[0]],
+    u === null ? 'two cuts' : [true, u.midQ, u.quietStored, u.quietIds, true, '', 2, u.lost[1]]);
   check(key, 'and that is the PAIR: the stored events` in-flight set is right at the quiescent cut and WRONG at the mid-step one',
     u === null ? null : [JSON.stringify(u.quietStoredInFlight) === JSON.stringify(u.quietIds), JSON.stringify(u.midStoredInFlight) === JSON.stringify(u.midIds)],
     [true, false]);
@@ -9100,7 +9123,8 @@ try {
     const post = gatedIn(killed.slice(store.length));
     const preKeys = new Set(pre.map((x) => JSON.stringify(x.key)));
     const p = store.length - 1;
-    let q = killed.findIndex((i, j) => j > p && isStimulus(i));
+    // The next FED element past the cut (W186: an `attempted` element counts — block (2g)'s `isFedElement`).
+    let q = killed.findIndex((i, j) => j > p && isFedElement(i));
     if (q < 0) q = killed.length;
     // ---- the RESUME on a fresh runtime.
     const rt2 = buildRuntime(false);
@@ -9534,6 +9558,8 @@ type CancelControl = { sequence: string[]; refused: string; resumedOutcome: stri
 let cancelBlock: { runs: string[]; results: CancelRun[]; control: CancelControl } | null = null;
 const seqOf = (inputs: readonly FoldInput[]) => inputs.map((i) => i.kind === 'dispatched' ? `dispatched ${i.taskId}`
   : i.kind === 'outcome' || i.kind === 'resolution' ? `${i.kind} ${i.record.taskId} ${i.record.kind === 'outcome' ? i.record.terminalState : ''}`
+  // W186 (`RN-R40`): an attempt's start, by its task and the scheduler's number — so a clause names WHICH attempt it saw.
+  : i.kind === 'attempted' ? `attempted ${i.taskId} #${i.attemptNumber}`
   : i.kind);
 try {
   const results: CancelRun[] = [];
@@ -9698,8 +9724,12 @@ if (cancelBlock !== null) {
   ['running inline inline', 'running threaded threaded', 'queued inline inline']);
   for (const r of cancelBlock.results) {
     const at = `W160 cancel (${r.road}, ${r.mode})`;
-    check(key, `${at}: the run's whole fold sequence is the entry dispatched under spec/task-id.md's id and its CANCELLED settlement, ` +
-      'and nothing after it — `after` never dispatched (RN-R28)', r.sequence, [`dispatched ${r.workId}`, `outcome ${r.workId} cancelled`]);
+    // **W186 (`RN-R40`)**: the RUNNING road's task started ONE attempt — the scheduler fired `task.running` once (the next
+    // clause's table) — so its `attempted` element, number 1, lies between the dispatch and the settlement; the QUEUED
+    // road's task never ran, and has none. So the sequence is three elements on the first road and two on the second.
+    const started = r.road === 'running' ? [`attempted ${r.workId} #1`] : [];
+    check(key, `${at}: the run's whole fold sequence is the entry dispatched under spec/task-id.md's id, ${r.road === 'running' ? 'its ONE attempt (W186) ' : ''}and its CANCELLED settlement, ` +
+      'and nothing after it — `after` never dispatched (RN-R28)', r.sequence, [`dispatched ${r.workId}`, ...started, `outcome ${r.workId} cancelled`]);
     check(key, `${at}: the scheduler's own events for the task are its ${r.road} road — section 5's table`, r.schedulerEvents,
       r.road === 'running' ? ['task.running', 'task.cancelling', 'task.cancelled'] : ['task.cancelled']);
     check(key, `${at}: what the worker sent through context.emit, and the group's exits — a running worker saw context.signal abort ` +
@@ -9720,16 +9750,17 @@ if (cancelBlock !== null) {
     assertThat(key, `${at}: and that record's result is null — compared with ===, not through JSON (spec/outcome-record.md section 4)`,
       r.resultIsNull);
     check(key, `${at}: the driver dispatched NOTHING further — its sequence the same length at \`done\`, a macrotask later and after ` +
-      'shutdown, and the scheduler holding no task for `after` (RN-R28)', r.later, [2, 2, 2, false]);
+      'shutdown, and the scheduler holding no task for `after` (RN-R28)', r.later, [2 + started.length, 2 + started.length, 2 + started.length, false]);
     check(key, `${at}: and nothing was REPORTED — a cancel is not a refusal: onRunFailure never called, hasFailed() false`,
       r.reported, [0, false]);
     check(key, `${at}: a resume of the run's checkpoint on a FRESH runtime is refused \`cancelled\` at the first stored cancel, ` +
-      'and that scheduler holds no task (RN-R23)', [r.refused, r.heldAfterRefusal], ['ResumeRefused cancelled at 1', 0]);
+      'and that scheduler holds no task (RN-R23)', [r.refused, r.heldAfterRefusal], [`ResumeRefused cancelled at ${1 + started.length}`, 0]);
   }
   check(key, 'W160 cancel CONTROL: a checkpoint holding a NON-cancel settlement — `work` parked user_action, a run nobody cancelled — ' +
     'is RESUMED by the same instrument on the same fresh runtime, not refused, to a run still waiting on its person',
   [cancelBlock.control.sequence, cancelBlock.control.refused, cancelBlock.control.resumedOutcome],
-  [['dispatched w160pc:work:-:0', 'outcome w160pc:work:-:0 user_action'], 'not refused', 'awaiting_action']);
+  // W186: `work`'s type `Fails` declares `maxRetries: 0`, so it made ONE attempt before it parked.
+  [['dispatched w160pc:work:-:0', 'attempted w160pc:work:-:0 #1', 'outcome w160pc:work:-:0 user_action'], 'not refused', 'awaiting_action']);
 }
 
 /**
@@ -10339,7 +10370,9 @@ const rcSeqOf = (inputs: readonly FoldInput[]): string[] => inputs.map((i) =>
     : i.kind === 'outcome' ? `outcome ${i.record.taskId} ${i.record.kind === 'outcome' ? i.record.terminalState : ''}`
       : i.kind === 'resolution' ? `resolution ${i.record.taskId} ${i.record.kind === 'resolution' ? i.record.resolvedAs : ''}`
         : i.kind === 'region' ? `region ${i.event.type} ${'branchPath' in i.event ? String(i.event.branchPath) : ''}`
-          : i.kind);
+          // W186 (`RN-R40`): an attempt's start, by its task and the scheduler's number.
+          : i.kind === 'attempted' ? `attempted ${i.taskId} #${i.attemptNumber}`
+            : i.kind);
 const rcMacrotask = () => new Promise<void>((r) => setTimeout(r, 25));
 /**
  * What the scheduler fired for the ids a clause names — lifecycle events, `context.emit` messages, `resource.*` — and a
@@ -10456,7 +10489,9 @@ try {
       const seq = rcSeqOf(inputs);
       const folded = fold(inputs);
       r.c2 = [outcomeBefore, inputs.slice(before).map((_, k) => fold(inputs.slice(0, before + k + 1)).outcome), folded.cancelRequest];
-      r.c3 = [seq.slice(0, before + 1), [...seq.slice(before + 1)].sort()];
+      // W186 (`RN-R40`): the two RUNNING tasks' `attempted` elements lie between the fan-out's start and the request — a
+      // SET, because which thread picked its task up first is the scheduler's order.
+      r.c3 = [seq.slice(0, 7), [...seq.slice(7, before)].sort(), seq.slice(before, before + 1), [...seq.slice(before + 1)].sort()];
       r.c4 = [atDone.length, inputs.length, ['honours2', 'ignores2', 'queued2'].filter((n) => rt.scheduler.tasks.has(`${runId}:${n}:${n === 'honours2' ? 0 : n === 'ignores2' ? 1 : 2}:0`)),
         Object.values(folded.nodes).map((n) => `${n.nodeId}:${n.state}`).sort(), reported.length, h.driver.hasFailed()];
       r.c5 = [[...w.messages[ids.honours]!], [...w.events[ids.honours]!]];
@@ -10511,7 +10546,10 @@ try {
       const sibW = await settleWithin(t.done, RC_DEADLINE_MS);
       await rcMacrotask();
       const folded = fold(s.driver.foldInputs());
-      r.s2 = [rcSeqOf(s.driver.foldInputs()), folded.interruption, [...w.events[sIds.c]!]];
+      // W186 (`RN-R40`): between the start's seven and the element, the RUNNING tasks' attempts — a set, their order the
+      // threads'; the element itself still LAST.
+      const sSeq = rcSeqOf(s.driver.foldInputs());
+      r.s2 = [[...sSeq.slice(0, 7), ...[...sSeq.slice(7, -1)].sort(), ...sSeq.slice(-1)], folded.interruption, [...w.events[sIds.c]!]];
       r.s3 = [won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value), atDone.cancelled, atDone.states, atDone.bMessages];
       r.s4 = won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(folded);
       const sib = sibW.by === 'done' ? sibW.value : null;
@@ -10737,12 +10775,16 @@ if (rcBlock !== null) {
   check(key, 'W176 exit (1): the fold reads the cancel from the request on — `running` before it, `cancelling` at the request and at ' +
     'each settlement while one task is unsettled, `cancelled` at the last (RN-R30), and the request`s actor and reason (c)', r.c2,
   ['running', ['cancelling', 'cancelling', 'cancelling', 'cancelled'], { actor: RC_ACTOR, reason: RC_REASON }]);
+  // W186 (`RN-R40`): `honours` and `ignores` each STARTED one attempt before the cancel (the first clause reads both
+  // running) — two `attempted` elements, number 1, a set — and `queued` never ran, so none of its own. So the request lands
+  // at position 9, and the log is 13 long: the seven of the start, two attempts, the request, three settlements.
+  const STARTED = [`attempted ${c.honours} #1`, `attempted ${c.ignores} #1`].sort();
   check(key, 'W176 exit (1): the log is the fan-out`s start, the request, and the three cancelled settlements — NOTHING dispatched or routed ' +
-    'after it (RN-R29, RN-R31; the settlements a set, their order the scheduler`s)', r.c3,
-  [[...START, 'cancelRequested'], [`outcome ${c.honours} cancelled`, `outcome ${c.ignores} cancelled`, `outcome ${c.queued} cancelled`].sort()]);
+    'after it, the two RUNNING tasks` attempts before the request (RN-R29, RN-R31, W186; the attempts and the settlements sets, their order the scheduler`s)', r.c3,
+  [START, STARTED, ['cancelRequested'], [`outcome ${c.honours} cancelled`, `outcome ${c.ignores} cancelled`, `outcome ${c.queued} cancelled`].sort()]);
   check(key, 'W176 exit (1): nothing dispatched further — the log the same length at `done` and a macrotask later, the scheduler holding no ' +
     'successor, the three nodes cancelled and nothing else, nothing reported (a cancel is not a refusal)', r.c4,
-  [11, 11, [], ['honours:cancelled', 'ignores:cancelled', 'queued:cancelled'], 0, false]);
+  [13, 13, [], ['honours:cancelled', 'ignores:cancelled', 'queued:cancelled'], 0, false]);
   check(key, 'W176 exit (1): `honours` honoured its signal — the worker saw it abort with the reason given — and the scheduler took the ' +
     'RUNNING road (task.cancelling, then task.cancelled)', r.c5, [['started', `aborted:${RC_REASON}`], ['task.running', 'task.cancelling', 'task.cancelled']]);
   check(key, 'W176 exit (1): `queued` left its queue at the first cancel — task.cancelled ALONE, resource.unblocked `cancelled`, its worker ' +
@@ -10756,18 +10798,20 @@ if (rcBlock !== null) {
     'fired task.cancelled for all three and held each cancelled (ADR 0104)', r.c9,
   ['cancelled', true, [c.honours, c.ignores, c.queued].sort(), ['cancelled', 'cancelled', 'cancelled']]);
   assertThat(key, 'W176 exit (1): what `done` resolved with IS fold(driver.foldInputs()) — the caller`s own expression', r.c10 === true);
-  check(key, 'W176 exit (1): a resume of its checkpoint on a FRESH runtime is refused `cancelled` AT THE REQUEST, position 7 (RN-R23), ' +
-    'and that scheduler holds no task', r.c11, ['ResumeRefused cancelled at 7', 0]);
+  check(key, 'W176 exit (1): a resume of its checkpoint on a FRESH runtime is refused `cancelled` AT THE REQUEST, position 9 (RN-R23), ' +
+    'and that scheduler holds no task', r.c11, ['ResumeRefused cancelled at 9', 0]);
   // (2) — S's ids from spec/task-id.md; its first seven elements as (1)'s start, three branches.
   const s = { a: 'w176s:a:0:0', b: 'w176s:b:1:0', c: 'w176s:c:2:0' };
   const sStart = ['regionEntered', 'region branch.opened 0', 'region branch.opened 1', 'region branch.opened 2',
     `dispatched ${s.a}`, `dispatched ${s.b}`, `dispatched ${s.c}`];
   check(key, 'W176 exit (2): at the stop, S`s two tasks and the sibling`s ran on runtime A, and S`s third WAITED behind the held group',
     r.s1, ['running', 'running', ['resource.blocked'], 'pending', 'running']);
+  // W186 (`RN-R40`, P36 (h)): `a` and `b` each STARTED one attempt before the stop — recorded, number 1, BEFORE the element:
+  // the attempts a resume counts as spent; `c` waited and has none.
   check(key, 'W176 exit (2): S`s log ends at its `interrupted` element — deaf before it cancelled, so no task.cancelled of the stop is ' +
     'appended, not even the WAITING task`s, which the scheduler fired inside the stop`s own cancel() call, and all three stay dispatched ' +
-    'and unsettled (RN-R33) — and the fold names who stopped it and why (RN-R32)', r.s2,
-  [[...sStart, 'interrupted'], { actor: RC_ACTOR, reason: 'W176 L6: upgrade' }, ['task.cancelled']]);
+    'and unsettled (RN-R33) — the two RUNNING tasks` attempts recorded before it (W186) — and the fold names who stopped it and why (RN-R32)', r.s2,
+  [[...sStart, ...[`attempted ${s.a} #1`, `attempted ${s.b} #1`].sort(), 'interrupted'], { actor: RC_ACTOR, reason: 'W176 L6: upgrade' }, ['task.cancelled']]);
   check(key, 'W176 exit (2): A`s `done` for S settled interrupted, terminal, after its tasks had stopped — at that moment the scheduler ' +
     'had fired task.cancelled for all three and held each cancelled (d) — the ignoring `b` last, stopped by the stop`s FORWARDED ' +
     'graceMs before its worker`s own end, which says `finished` (never `forced`)', r.s3,
@@ -10785,11 +10829,13 @@ if (rcBlock !== null) {
     ['completed', true, ['a:done:{"by":"own end"}', 'b:done:{"by":"own end"}', 'c:done:{"by":"own end"}'], true]);
   // (3)
   const kWork = 'w176k:work:-:0';
-  check(key, 'W176 exit (3): the run PARKED — its task settled user_action, the run awaiting_action, nothing in flight', r.k1,
-    [[`dispatched ${kWork}`, `outcome ${kWork} user_action`], 'awaiting_action']);
+  // W186 (`RN-R40`): `work`'s type `Fails` declares `maxRetries: 0` — ONE attempt, recorded between the dispatch and the
+  // settlement.
+  check(key, 'W176 exit (3): the run PARKED — its task settled user_action after its one attempt, the run awaiting_action, nothing in flight', r.k1,
+    [[`dispatched ${kWork}`, `attempted ${kWork} #1`, `outcome ${kWork} user_action`], 'awaiting_action']);
   check(key, 'W176 exit (3): stopped, its `done` settled interrupted — terminal, with nothing to cancel: the log ends at the element and ' +
     'the scheduler`s task is still user_action (P34 facts 4 and 8) — equal to the caller`s fold', r.k2,
-  ['done', 'interrupted', true, [`dispatched ${kWork}`, `outcome ${kWork} user_action`, 'interrupted'], 'user_action', true]);
+  ['done', 'interrupted', true, [`dispatched ${kWork}`, `attempted ${kWork} #1`, `outcome ${kWork} user_action`, 'interrupted'], 'user_action', true]);
   check(key, 'W176 exit (3): resolve() on A is REFUSED — `false`, nothing appended, nothing dispatched (RN-R33, P34 decision 9)', r.k3,
     [false, 0, false]);
   check(key, 'W176 exit (3): CONTROL — resumed on a fresh runtime, the SAME resolve() is accepted there and the run completes, the value ' +
@@ -10800,10 +10846,13 @@ if (rcBlock !== null) {
     const at = `W176 exit (4, \`${slow}\` slow)`;
     const pid = `w176p${slow}`;
     const p = { a: `${pid}:a:0:0`, b: `${pid}:b:1:0`, a2: `${pid}:a2:0:0`, b2: `${pid}:b2:1:0` };
-    check(key, `${at}: while PAUSED the run routed on — \`a\` and \`b\` settled and their successors were DISPATCHED, appended and ` +
+    // W186 (`RN-R40`): `a` and `b` run on a THREADED pool, so each one's `task.running` arrives after `start` returned and
+    // after the pause — its `attempted` element, number 1, is among the elements while paused; the held `a2` and `b2` never
+    // started, and have none.
+    check(key, `${at}: while PAUSED the run routed on — \`a\` and \`b\` started and settled and their successors were DISPATCHED, appended and ` +
       'held; the fold reads running, paused (RN-R34, RN-R35)', r[`u1${slow}`],
     [['regionEntered', 'region branch.opened 0', 'region branch.opened 1', `dispatched ${p.a}`, `dispatched ${p.b}`, 'paused'],
-      [`outcome ${p.a} done`, `dispatched ${p.a2}`, `outcome ${p.b} done`, `dispatched ${p.b2}`].sort(), 'running', true]);
+      [`attempted ${p.a} #1`, `outcome ${p.a} done`, `dispatched ${p.a2}`, `attempted ${p.b} #1`, `outcome ${p.b} done`, `dispatched ${p.b2}`].sort(), 'running', true]);
     check(key, `${at}: and NOTHING was handed to the scheduler while paused — it holds \`a\` and \`b\` alone, a macrotask past both ` +
       'settlements', r[`u2${slow}`], [p.a, p.b]);
     const u3 = (r[`u3${slow}`] ?? ['NOT RUN', 'NOT RUN']) as [unknown, unknown];
@@ -10820,7 +10869,10 @@ if (rcBlock !== null) {
       const id = `w176${road === 'pre-pickup' ? 'q' : 'b'}${via === 'scheduler' ? 's' : 'd'}:work:-:0`;
       const ROAD = road === 'pre-pickup' ? 'PRE-PICKUP' : 'BACKOFF';
       const req = via === 'driver' ? ['cancelRequested'] : [];
-      const settled = [`dispatched ${id}`, ...req, `outcome ${id} cancelled`];
+      // W186 (`RN-R40`): the BACKOFF road's first attempt STARTED (`task.running`) and failed into its backoff — one
+      // `attempted` element, number 1, and no second: the retry never started. The PRE-PICKUP road never started at all.
+      const started = road === 'backoff' ? [`attempted ${id} #1`] : [];
+      const settled = [`dispatched ${id}`, ...started, ...req, `outcome ${id} cancelled`];
       check(key, road === 'pre-pickup'
         ? `W176 exit (5): ${ROAD} through ${via}.cancel — the scheduler\`s road is task.cancelling then task.cancelled with NO task.running, ` +
           'the worker never ran, and the call did not settle it (P34 fact 8)'
@@ -10829,7 +10881,7 @@ if (rcBlock !== null) {
       r[`${road} ${via} road`], road === 'pre-pickup'
         ? [['task.cancelling', 'task.cancelled'], [], [`dispatched ${id}`, ...req]]
         : [['task.running', 'task.retrying', 'task.cancelled'], [], settled, 1]);
-      check(key, `W176 exit (5): ${ROAD} through ${via}.cancel — the fold ${road === 'backoff' ? 'saw nothing of the retry: ' : 'is '}` +
+      check(key, `W176 exit (5): ${ROAD} through ${via}.cancel — the fold ${road === 'backoff' ? 'saw the first attempt start (W186) and nothing of the retry: ' : 'is '}` +
         `${via === 'scheduler' ? 'fact 8`s own — the dispatch and the cancelled settlement' : 'the dispatch, the request and the cancelled settlement'}; ` +
         '`done` cancelled, terminal, equal to the caller`s fold', r[`${road} ${via} fold`], ['done', 'cancelled', true, settled, true]);
     }
@@ -11314,9 +11366,11 @@ if (askBlock !== null) {
     'on no task event (RN-R37: no dispatch, no createTask, no addTask)', r.a1, [false, false, false]);
   check(key, 'W182 exit (1): CONTROL — the task before it WAS handed, held and seen by the same three observers, on a THREADED pool',
     r.a2, [[a.draft], [a.draft], [a.draft], 'threaded']);
+  // W186 (`RN-R40`): `draft`'s one attempt is recorded between its dispatch and its settlement — and the ask, never handed to
+  // the scheduler, has NO `attempted` element: nothing ran for it.
   check(key, 'W182 exit (1): the log is the task`s dispatch and settlement, then ONE `asked` element carrying the ask`s own task id and ' +
-    'what reached it — and no `dispatched` for the ask', r.a3,
-  [[`dispatched ${a.draft}`, `outcome ${a.draft} done`, `asked ${a.approve}`], askCanon({ kind: 'asked', taskId: a.approve, input: drafted('w182a') })]);
+    'what reached it — and no `dispatched` for the ask, nor an attempt (W186)', r.a3,
+  [[`dispatched ${a.draft}`, `attempted ${a.draft} #1`, `outcome ${a.draft} done`, `asked ${a.approve}`], askCanon({ kind: 'asked', taskId: a.approve, input: drafted('w182a') })]);
   check(key, 'W182 exit (1): the fold reads the run awaiting_action and the node suspended, its kept input EXACTLY the value the task ' +
     'returned — not terminal, `done` pending (RN-R36, RN-R7)', r.a4,
   ['awaiting_action', false, false, askEntry('w182a', 'suspended', null, null), askCanon(drafted('w182a'))]);
@@ -11349,13 +11403,15 @@ if (askBlock !== null) {
     [['regionEntered', 'region branch.opened 0', 'region branch.opened 1', `asked ${ids.review}`, 'region branch.suspended 0', `dispatched ${ids.score}`],
       false, false]);
     if (order === 'last') {
+      // W186 (`RN-R40`): `score` (threaded) started one attempt before it settled; `publish` is on an INLINE pool, which
+      // starts it INSIDE the answer's `addTask` — so its attempt is recorded when the answer's step ENDS, still in the call.
       check(key, `${at}: with \`score\` ARRIVED the join did NOT fire — no joinSettled, \`publish\` not handed, the ask\`s branch ` +
         'suspended, the run awaiting_action', r[`d2${runId}`],
-      [[`outcome ${ids.score} done`, 'region branch.arrived 1'], ['0'], { 1: 'arrived' }, false, [ids.score], 'awaiting_action']);
+      [[`attempted ${ids.score} #1`, `outcome ${ids.score} done`, 'region branch.arrived 1'], ['0'], { 1: 'arrived' }, false, [ids.score], 'awaiting_action']);
       check(key, `${at}: and the join fired AT the answer — resumed, arrived, joinSettled and \`publish\` dispatched and handed, in the ` +
-        'answer`s own call', r[`d3${runId}`],
-      [true, [`resolution ${ids.review} done`, 'region branch.resumed 0', 'region branch.arrived 0', 'joinSettled collect true', `dispatched ${ids.publish}`],
-        [ids.score, ids.publish]]);
+        'answer`s own call — its inline attempt recorded at the call`s step end (W186)', r[`d3${runId}`],
+      [true, [`resolution ${ids.review} done`, 'region branch.resumed 0', 'region branch.arrived 0', 'joinSettled collect true', `dispatched ${ids.publish}`,
+        `attempted ${ids.publish} #1`], [ids.score, ids.publish]]);
     } else {
       check(key, `${at}: answered while \`score\` still RAN, the ask\`s branch arrived and the join did NOT fire — no joinSettled, ` +
         '`publish` not handed, the run running', r[`d2${runId}`],
@@ -11370,7 +11426,8 @@ if (askBlock !== null) {
   }
   // (5)
   const s = { draft: 'w182s:draft:-:0', approve: 'w182s:approve:-:0', publish: 'w182s:publish:-:0' };
-  const sParked = [`dispatched ${s.draft}`, `outcome ${s.draft} done`, `asked ${s.approve}`];
+  // W186 (`RN-R40`): `draft`'s one attempt between its dispatch and its settlement — so the `asked` element is at position 3.
+  const sParked = [`dispatched ${s.draft}`, `attempted ${s.draft} #1`, `outcome ${s.draft} done`, `asked ${s.approve}`];
   check(key, 'W182 exit (5): parked on A and STOPPED — no cancel sent for the ask, `done` interrupted, the log ending at its `interrupted` ' +
     'element, the node still suspended, `done` its fold (RN-R38 (2))', r.e1,
   ['done', 'interrupted', true, [...sParked, 'interrupted'], [], 'suspended', true]);
@@ -11378,7 +11435,7 @@ if (askBlock !== null) {
     'resumes on a FRESH runtime', r.e2, [false, 0, [s.draft], 'RunIdInUse']);
   check(key, 'W182 exit (5): on B the ask RE-PARKED at the SAME task id with the SAME kept input — its `asked` element regenerated at its ' +
     'stored position, equal to A`s — the run awaiting_action', r.e3,
-  [2, askCanon({ kind: 'asked', taskId: s.approve, input: drafted('w182s') }), true, askEntry('w182s', 'suspended', null, null), 'awaiting_action']);
+  [sParked.length - 1, askCanon({ kind: 'asked', taskId: s.approve, input: drafted('w182s') }), true, askEntry('w182s', 'suspended', null, null), 'awaiting_action']);
   check(key, 'W182 exit (5): and NOTHING was handed to B`s scheduler for it — B`s addTask and task map empty when resume() returns, the ' +
     '`resumed` element naming no task (RN-R21, RN-R22)', r.e4, [[], 0, [[]], ['resumed']]);
   check(key, 'W182 exit (5): answered THERE — accepted, `publish` B`s only task, receiving the answer — to completed, `done` its fold, B`s ' +
@@ -11389,11 +11446,12 @@ if (askBlock !== null) {
     '(RN-R38 (1))', r.f1, [[], [c.draft]]);
   check(key, 'W182 exit (6): `done` settled cancelled — terminal, the log ending at the request, the ask`s node still suspended, the ' +
     'request`s actor and reason, `done` its fold (RN-R30)', r.f2,
-  ['done', 'cancelled', true, [`dispatched ${c.draft}`, `outcome ${c.draft} done`, `asked ${c.approve}`, 'cancelRequested'], 'suspended',
+  ['done', 'cancelled', true, [`dispatched ${c.draft}`, `attempted ${c.draft} #1`, `outcome ${c.draft} done`, `asked ${c.approve}`, 'cancelRequested'], 'suspended',
     { actor: ASK_ACTOR, reason: 'W182 L6: the owner pressed Cancel' }, true]);
   check(key, 'W182 exit (6): and the answer is refused from the cancel on — `false`, nothing appended (RS-R1, the run held)', r.f3, [false, 0]);
+  // W186: the control's `draft` said `started`, so its attempt was recorded BEFORE the request.
   check(key, 'W182 exit (6): CONTROL — the same flow cancelled while `draft` RUNS: its cancel IS sent, `done` cancelled, nothing asked',
-    r.f4, [['w182cc:draft:-:0'], 'cancelled', ['dispatched w182cc:draft:-:0', 'cancelRequested', 'outcome w182cc:draft:-:0 cancelled']]);
+    r.f4, [['w182cc:draft:-:0'], 'cancelled', ['dispatched w182cc:draft:-:0', 'attempted w182cc:draft:-:0 #1', 'cancelRequested', 'outcome w182cc:draft:-:0 cancelled']]);
   // (7)
   const p = { draft: 'w182p:draft:-:0', approve: 'w182p:approve:-:0', publish: 'w182p:publish:-:0' };
   check(key, 'W182 exit (7): PAUSED, the answer is ACCEPTED and routed — the resolution and the successor`s dispatch appended — and the ' +
@@ -13239,6 +13297,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // what this measurement walks (`reports`): the one place an ask runs here is W182's block, which is not a row — WALKED;
     // examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W180's row; the clause amended by W182.
     'asked',
+    // `lastAttempt` and `attemptsPending` since W186 (`RN-R40`, ADR 0113): the highest attempt number recorded per task —
+    // one integer per task that started, on every run here — and the attempts heard and not yet appended, empty at rest.
+    // No result; both WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W186's row.
+    'attemptsPending', 'lastAttempt',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

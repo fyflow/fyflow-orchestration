@@ -317,6 +317,11 @@ const DRIVER_FIELDS = [
   // lookup. Ids only, no result — the kept INPUT lives on the `asked` element in `inputs`, already walked. WALKED; the
   // ratchet fired by name on W180's first L1 run.
   'asked',
+  // W186 — `lastAttempt`: the highest attempt number recorded per task (`RN-R40`, ADR 0113), one integer per task that ever
+  // started an attempt, kept for the life of the run as `dispatched`'s ids are — what a requeue is told apart by and what a
+  // resume re-hands as `attemptsSpent`. `attemptsPending`: the `attempted` elements heard on a step and not yet appended,
+  // empty at rest. No result in either; both WALKED. The ratchet fired by name on W186's first L1 run, naming both.
+  'attemptsPending', 'lastAttempt',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

@@ -2528,10 +2528,10 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     const { s, runs, subscribedBeforeAnyRun } = threeRuns();
     equal(subscribedBeforeAnyRun, [], 'a runtime that has started nothing has subscribed nothing');
     equal(runs.map((x) => x.driver.runId), ['r1', 'r2', 'r3'], 'the CONTROL: three runs really started on this one runtime');
-    // The driver subscribes to four names (`SETTLEMENT_EVENTS`, `src/driver/driver.ts`; `task.cancelled` since W158): one
-    // each, not three each.
-    equal([...s.subscriptions].sort(), ['task.cancelled', 'task.completed', 'task.failed', 'task.user_action'],
-      'one subscription per event NAME — a broadcast would show twelve, four per driver');
+    // The driver subscribes to five names (`SUBSCRIBED_EVENTS`, `src/driver/driver.ts`: the four settlements — `task.cancelled`
+    // since W158 — and `task.running` since W186, `RN-R40`): one each, not three each.
+    equal([...s.subscriptions].sort(), ['task.cancelled', 'task.completed', 'task.failed', 'task.running', 'task.user_action'],
+      'one subscription per event NAME — a broadcast would show fifteen, five per driver');
   });
 
   test('rule 4, row 1: a settlement is handed to the driver holding its run id, and to NO other — in all three terminal states', () => {
@@ -2657,7 +2657,7 @@ suite('W142 — ADR 0088: a settlement reaches only the driver holding its run i
     const subscribed = s.subscriptions.length;
     const byHand = new Driver(FLOW, { ...r.registry, runId: 'hand', scheduler: r.scheduler, joinPolicy: liveToken });
     const heard = handed(byHand);
-    equal(s.subscriptions.length - subscribed, 4, 'its four subscriptions went to the scheduler itself');
+    equal(s.subscriptions.length - subscribed, 5, 'its five subscriptions (four settlements and, since W186, `task.running`) went to the scheduler itself');
     s.done('r1:a:-:0');
     equal([heard, ...handedBy(runs)], [['r1:a:-:0'], ['r1:a:-:0'], [], []], 'the hand-built driver hears r1`s settlement; r2 and r3 still do not');
   });
@@ -2851,7 +2851,7 @@ suite('W151 — ADR 0091: a runtime releases a run when its done settles, keeps 
     for (const x of runs) s.done(`${x.driver.runId}:a:-:0`);
     for (const x of runs) await w77Settlement(x.done);
     const subscribed = [...s.subscriptions];
-    equal(subscribed.length, 4, 'the ARRANGEMENT: one subscription per settlement event, and every run released');
+    equal(subscribed.length, 5, 'the ARRANGEMENT: one subscription per subscribed event — the four settlements and `task.running` (W186) — and every run released');
     const late = open('r3');
     s.done('r3:a:-:0');
     s.done('nightly-cleanup');
@@ -3888,5 +3888,58 @@ suite('W163 — FD-R6 on a REAL scheduler: P37 fact 1`s refusal before addTask, 
     } finally {
       await runtime.shutdown();
     }
+  });
+});
+
+suite('W186 — through createRuntime: task.running is ROUTED to its own run, and a resume hands the scheduler a FyflowTask carrying attemptsSpent', (test) => {
+  /** An entry fan-out of two `Scorer` tasks, so a resume has one task WITH attempts recorded and one without. */
+  const PAIR = {
+    flowId: 'w186-pair', version: 1, entry: 'split',
+    nodes: [
+      { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+      { id: 'a', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+      { id: 'b', kind: 'task', type: 'Scorer', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+  const running = (id: unknown, attemptNumber: number) => ({ id, state: 'running', attemptNumber, attempts: attemptNumber - 1, timestamp: 1 });
+  const attemptsOf = (inputs: readonly FoldInput[]) => inputs.flatMap((e) => (e.kind === 'attempted' ? [`${e.taskId} #${e.attemptNumber}`] : []));
+
+  test('two runs on ONE runtime: each records its OWN task`s attempts and not the other`s, and an id no driver minted is recorded and reported by neither', () => {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const unminted: string[] = [];
+    const one = r.start(FLOW, { x: 1 }, { runId: 'r1', onUnmintedTask: (u) => { unminted.push(`r1 ${String(u.taskId)}`); } });
+    const two = r.start(FLOW, { x: 1 }, { runId: 'r2', onUnmintedTask: (u) => { unminted.push(`r2 ${String(u.taskId)}`); } });
+    equal(s.subscriptions.filter((n) => n === 'task.running'), ['task.running'], 'the CONTROL: the scheduler is subscribed to task.running ONCE (ADR 0088 rule 2)');
+    s.emit('task.running', running('r1:a:-:0', 1));
+    s.emit('task.running', running('r2:a:-:0', 1));
+    s.emit('task.running', running('r2:a:-:0', 2));
+    s.emit('task.running', running('nightly-cleanup', 1));
+    equal([attemptsOf(one.driver.foldInputs()), attemptsOf(two.driver.foldInputs())], [['r1:a:-:0 #1'], ['r2:a:-:0 #1', 'r2:a:-:0 #2']],
+      'r1 recorded its one attempt, r2 its two — each routed by its id to its own driver (ADR 0088 rule 4, row 1)');
+    equal(unminted, [], 'and the unminted id`s task.running — broadcast to both (row 3) — is recorded by neither and REPORTED by neither: only a settlement reports it');
+    s.done('nightly-cleanup');
+    equal(unminted.sort(), ['r1 nightly-cleanup', 'r2 nightly-cleanup'], 'the CONTROL: its SETTLEMENT reaches both drivers` onUnmintedTask');
+  });
+
+  test('runtime.resume with the DEFAULT createTask: the FyflowTask the scheduler is handed carries attemptsSpent — the highest recorded — and a task with none, the scheduler`s own 0', () => {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const h = r.start(PAIR, { x: 1 }, { runId: 'w186' });
+    s.emit('task.running', running('w186:a:0:0', 1));
+    s.emit('task.running', running('w186:a:0:0', 2));
+    const cp = structuredClone(h.driver.checkpoint()) as Checkpoint;
+    const s2 = routedSeams();
+    const fresh = createRuntime(DOC, {}, { createPool: s2.createPool, createScheduler: s2.createScheduler });
+    fresh.resume(PAIR, cp);
+    const handed = s2.added as unknown as FyflowTask[];
+    equal(handed.map((t) => [t.id, t instanceof FyflowTask]), [['w186:a:0:0', true], ['w186:b:1:0', true]],
+      'the ARRANGEMENT: the fresh runtime`s scheduler was handed both in-flight tasks as the scheduler`s own FyflowTask (no createTask given)');
+    equal(handed.map((t) => [t.attemptsSpent, t.attempts, t.attemptNumber]), [[2, 2, 0], [0, 0, 0]],
+      '`a` carries attemptsSpent 2 — the scheduler`s `attempts` STARTS there, so its next attempt is number 3 — and `b`, none recorded, the scheduler`s own default 0');
+    // The CONTROL for the source: the first runtime's own hand-off carried no attempts.
+    equal((s.added as unknown as FyflowTask[]).map((t) => t.attemptsSpent), [0, 0], 'the CONTROL: on start nothing is spent — the same field reads 0 on both');
   });
 });

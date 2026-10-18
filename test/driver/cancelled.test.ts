@@ -136,8 +136,11 @@ suite('L1 — OR-R3 and OR-R4: a cancel writes ONE record, keyed on its state; a
 
   test('the driver SUBSCRIBES `task.cancelled` and not `task.cancelling`', () => {
     const h = harness();
-    equal([...h.scheduler.subscriptions].sort(), ['task.cancelled', 'task.completed', 'task.failed', 'task.user_action'],
-      'four settlement events, one per terminal state — without `task.cancelled` a cancelled task is never heard (P33 fact 1)');
+    // W186 (`RN-R40`): and `task.running`, each attempt's start — the one subscription that is not a settlement, and still
+    // not `task.cancelling`, a request.
+    equal([...h.scheduler.subscriptions].sort(), ['task.cancelled', 'task.completed', 'task.failed', 'task.running', 'task.user_action'],
+      'four settlement events, one per terminal state — without `task.cancelled` a cancelled task is never heard (P33 fact 1) — and, since ' +
+        'W186, `task.running`');
   });
 
   test('`on: ["cancelled"]` is refused at construction — FD-V18 still admits only `done` and `failed`', () => {

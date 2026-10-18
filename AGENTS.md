@@ -321,7 +321,7 @@ reaching the scheduler, which would drop it in silence.
 
 | key | | |
 |---|---|---|
-| `retryPolicy` | `{ maxRetries, backoffMs }` — **exactly** the scheduler's shape, an integer >= 0 and a finite number >= 0, no other key (`FD-V30`) | the scheduler retries a failed attempt **inside the same task id**, and the outcome record's `attempts` says how many retries were used. `{}` and a string count are refused because the scheduler would accept them and mean something else |
+| `retryPolicy` | `{ maxRetries, backoffMs }` — **exactly** the scheduler's shape, an integer >= 0 and a finite number >= 0, no other key (`FD-V30`) | the scheduler retries a failed attempt **inside the same task id**, and the outcome record's `attempts` says how many retries were used — since 0.8.0 across a crash or a stop too: a resume hands the attempts already made on, and the budget is not reset (section 18). `{}` and a string count are refused because the scheduler would accept them and mean something else |
 | `workerGroups` | a non-empty array of distinct group ids, every one in the registry's **`groups`** set (`FD-V31`) | the task acquires these **in addition to** its pool's `groups`. Pass `groups: Object.keys(scheduler.groups)` to the `Driver`, as you pass `nodeTypes` — **omitting it means the registry declares NO groups**, and any node naming one is refused, because a group id the scheduler does not know is silently ignored at run time |
 
 **A driver may carry a `defaultRetryPolicy`**, applied to every task node that declares none — held
@@ -334,7 +334,8 @@ with the exact object it was before, so nothing you have already written changes
 
 **Flow-level retry — re-dispatching a NODE under a new attempt, possibly routing elsewhere — is
 still not built** (section 11). This is the scheduler's retry of one task, and it is the whole of
-what `attempts` counts.
+what `attempts` counts — and, since 0.8.0, what the run RECORDS: each attempt's start is a fold input,
+`{ kind: 'attempted', taskId, attemptNumber }`, with the scheduler's 1-based number (section 18).
 
 ### `needs` — reaching an output the previous node did not produce
 
@@ -2771,7 +2772,11 @@ pools from, as above, rather than a second list; every task the driver dispatche
 envelope `{ settings, input }` (section 13), which is what this repository's worker reads `input`
 from. Pass `createTask` only to run against a
 double — ladder L2-L5 here hand the driver `(c) => c` and read the plain object back — or to build
-something other than a plain `FyflowTask`.
+something other than a plain `FyflowTask`. **A `createTask` that builds the task FIELD BY FIELD must copy
+`attemptsSpent`** (since 0.8.0): a resume hands a task it runs again the attempts it already made, as that key, only
+when there were some — and a factory that drops it starts the task at a fresh retry budget again, silently (section
+18). `(c) => new FyflowTask({ ...c, limitKey })` copies it; `new FyflowTask({ id: c.id, workerType: c.workerType, … })`
+does not.
 
 **The `scheduler` option takes a `FyflowScheduler` as it is.** Until W57 it did not, under the one
 configuration most consumers have: `FyflowScheduler extends EventTarget`, so with the DOM lib in
@@ -2859,8 +2864,9 @@ const definition: FlowDefinition = {
 // A fake scheduler, so this snippet runs with no workers. In your program this is
 // `new FyflowScheduler({ ... })` — see section 12.
 //
-// **Key the listeners by event type.** The driver subscribes to four of them and
-// normalizes on the task's terminal STATE rather than the event name (`OR-R3`), so a
+// **Key the listeners by event type.** The driver subscribes to five of them — the four
+// settlements and, since 0.8.0, `task.running` — and normalizes a settlement on the task's
+// terminal STATE rather than the event name (`OR-R3`), so a
 // double that fans one settlement to every listener writes FOUR records for it and
 // the run stops on a `DuplicateTaskId`. A real `EventTarget` does not do this; a
 // hand-written double is where it happens.
@@ -4180,16 +4186,25 @@ if (JSON.stringify(store.header) !== JSON.stringify(driver.checkpoint().header))
 **What a resume PROMISES, and what it does not** — [ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9:
 
 - **It is AT-LEAST-ONCE, and your workers must tolerate running twice.** The resume REPLAYS the
-  stored settlements and resolutions through the routing that produced them, with every dispatch
+  stored settlements and resolutions through the routing that produced them — and the stored stops, pauses,
+  unpauses, earlier resumes and, since 0.8.0, attempts at their positions — with every dispatch
   held, and then hands every task still in flight to the new scheduler at the SAME task id — or, for a checkpoint of a
   PAUSED run, holds each until you unpause the resumed run (`RN-R21` v0.20, section 8). That set
   is what was in flight at the END of the replay — including a task that finished in the dead process
   whose settlement you had not stored yet, and a task the dying settlement dispatched after your last
   write, which the snippet shows the store never saw. The run records it: a `resumed` event naming
   those ids, and `state.resumes`.
-- **A re-run task gets a FRESH retry budget.** The log records a task's `attempts` only when it
-  SETTLES, so the attempts a task spent before the crash are recorded nowhere — measured: a task with
-  a budget of two attempts ran THREE times across one kill ([Q365](doc/questions/q365.md)).
+- **A re-run task KEEPS its retry budget** (since 0.8.0 — `RN-R40`,
+  [ADR 0113](doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md)). The run RECORDS each
+  attempt as it starts — one event, `{ kind: 'attempted', taskId, attemptNumber }`, each time the scheduler's
+  `task.running` number for a task of the run RISES (a requeue repeats its number and records nothing) — and the resume
+  hands each task it runs again to the new scheduler with **`attemptsSpent`, the highest number your store holds for it**:
+  the attempt in flight at the crash COUNTS as spent, and so does one a STOP interrupted. A task whose budget is already
+  spent is handed on all the same and runs ONCE more — the scheduler settles it; the library writes no settlement — and a
+  task with no attempt stored gets no key. So the record's `attempts` after a resume counts the attempts of EVERY
+  process, as the scheduler reports it. Two limits: a task whose attempts only the LOST TAIL saw starts fresh, and a
+  `createTask` that builds the task field by field must copy `attemptsSpent` (section 12). *Until 0.8.0 a re-run task got
+  a FRESH budget — a budget of two attempts ran THREE times across one kill ([Q365](doc/questions/q365.md)).*
 - **A task PARKED for a person is not in flight.** It stays parked, the resumed run is
   `awaiting_action`, and `resolve()` on the RESUMED driver completes it (section 7). **So is an ASK**: the replay
   re-enters it and REGENERATES its `asked` element — the same id and the same kept input, compared with what you stored
@@ -4201,7 +4216,9 @@ if (JSON.stringify(store.header) !== JSON.stringify(driver.checkpoint().header))
   ([Q372](doc/questions/q372.md)). Change a flow, change its `version`.
 - **The store is TRUSTED for what the resume feeds.** A stored settlement's result and a stored
   person's resolution are replayed as stored — nothing can check they are what the process saw
-  ([Q374](doc/questions/q374.md)). A store you do not trust is a store you should not resume from.
+  ([Q374](doc/questions/q374.md)) — and so is a stored `attempted` event's number, which a re-run task is handed as
+  the attempts it SPENT (one naming a task the replay never dispatched, carrying no positive integer, or not RISING over
+  the last stored for its task, is refused `diverged` at its position). A store you do not trust is a store you should not resume from.
 - **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes), `run` (the
   header's run is not the driver's), `flow` (another flow id or `version` — there is no migration),
   `halted`, `cancelled` and `diverged` — the last three with the `index` of the position. **A HALTED
@@ -4253,6 +4270,7 @@ terminal here, and the one terminal outcome a resume accepts.
 | a SECOND call | appends nothing, and forwards its `graceMs` to each task still stopping |
 | refused | `RunControlRefused` with `control: 'stop'`, by `reason`: `unsupported` (the scheduler has no `cancel`), `not-started`, `halted`, `cancelled` (a cancelled run is not resumable) and `ended` — nothing recorded or sent. And a `driver.cancel` AFTER a stop is refused `interrupted`: cancel it where it resumes |
 | a task that finished before its cancel arrived | runs AGAIN on the resume — its settlement was never heard. At-least-once, as across a crash |
+| a task's ATTEMPT that had started | COUNTED as spent, as a crash's is — its `attempted` event is in the log before `interrupted`, so the resume hands the task on with that number as `attemptsSpent`. A stop costs a task one RETRY, never its last run: a task out of retries still runs once (since 0.8.0, `RN-R40`) |
 | your `onFoldInput` THROWS on the `interrupted` element | every task in flight is still cancelled and every promise settles, in a `finally` — then the run is HALTED and reported once, and the throw reaches `stop()`'s caller (section 9, `RN-R33`). `halted` outranks `interrupted`: the run is NOT resumable, and `done` settles `halted` at once. *Until [W184](doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md) a stop at rest so thrown stayed `interrupted`, resumable* |
 
 ```ts run
@@ -4334,6 +4352,78 @@ stopped; then you resume the checkpoint on a fresh runtime, as the snippet above
 so an exhaustive `switch` over either no longer compiles; `RunState` gains the cell `interruption` (`null` unless the
 run is stopped NOW — a `resumed` event ends it), which a `RunState` literal must carry; `RunControlRefused.control` gains
 `'stop'` and its `reason` `'interrupted'`; and `RunHandle` gains `stop`, which breaks only code that builds a handle.
+
+### What a run records of each ATTEMPT — and what a resume hands on
+
+**Each attempt a task STARTS is one event in the run, and a resume hands the count on** (`RN-R40`,
+[ADR 0113](doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md), since 0.8.0). The driver
+hears the scheduler's `task.running` and appends `{ kind: 'attempted', taskId, attemptNumber }` — the scheduler's
+1-based number — for a task of its run, each time that number RISES: a requeue (a worker died under the task, and the
+pool ran it again) repeats its number and records nothing. Every task, with a `retryPolicy` or without. It is a FOLD
+INPUT, never a log record, and it moves nothing in run state — what it changes is what a resume does: each task it
+runs again is handed on with `attemptsSpent`, the highest number your store holds for it.
+
+| | what happens |
+|---|---|
+| an inline pool starts the task INSIDE the driver's `addTask` | the event is appended when the driver's step ENDS — after everything that step recorded, before a pause or a stop called on it — so it always sits between two steps, where a resume can feed it |
+| an id of another run, an id no driver minted, a task the run never dispatched, a detail with no attempt number | nothing recorded and nothing reported — an attempt never stops a run |
+| a stopped driver (section 18's stop) | records nothing more: the attempt running at the stop is in the log, one after it is not |
+| your `onFoldInput` THROWS on the event | section 9's rule: the run halted, reported once, and on your own call's step thrown to you |
+
+```ts run
+import { Driver, fold, liveToken, type FlowDefinition } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'attempts', version: 1, entry: 'fetch',
+  nodes: [
+    { id: 'fetch', kind: 'task', type: 'T', retryPolicy: { maxRetries: 2, backoffMs: 1000 }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+// A fake scheduler: it records what it is handed, and a test says when an attempt STARTS — the scheduler's
+// `task.running`, with its 1-based `attemptNumber`.
+function fakeScheduler() {
+  const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+  const added: Record<string, unknown>[] = [];
+  return {
+    added,
+    starts: (id: string, attemptNumber: number) => {
+      for (const fn of listeners.get('task.running') ?? []) fn({ detail: { id, state: 'running', attemptNumber } });
+    },
+    addTask(task: unknown) { added.push(task as Record<string, unknown>); },
+    addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+  };
+}
+const options = {
+  runId: 'run-1', createTask: (c: unknown) => c, predicates: new Map(),
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { T: { worker: 'w' } }, joinPolicy: liveToken,
+};
+
+// PROCESS ONE: `fetch` fails its first attempt and starts its second — and then the process dies.
+const first = fakeScheduler();
+const driver = new Driver(flow, { ...options, scheduler: first });
+driver.start({});
+first.starts('run-1:fetch:-:0', 1);
+first.starts('run-1:fetch:-:0', 2);
+first.starts('run-1:fetch:-:0', 2);   // a worker died under it and the pool REQUEUED it: the same number, nothing recorded
+const attempts = driver.foldInputs().filter((e) => e.kind === 'attempted');
+console.log(attempts.length);   // 2 — one per attempt STARTED
+if (attempts.length !== 2) throw new Error('one event per attempt started, and none for the requeue');
+if (driver.snapshot().length !== 0) throw new Error('an attempt is a fold input, never a log record');
+if (fold(driver.foldInputs()).outcome !== 'running') throw new Error('and it moves nothing in run state');
+
+// PROCESS TWO: resumed from the stored events — `fetch` is handed on with the two attempts it SPENT.
+const second = fakeScheduler();
+new Driver(flow, { ...options, scheduler: second }).resume(structuredClone(driver.checkpoint()));
+console.log(second.added[0]?.attemptsSpent);   // 2 — the scheduler runs it as attempt 3, its LAST, not as attempt 1
+if (second.added[0]?.attemptsSpent !== 2) throw new Error('the retry budget survives the crash');
+```
+
+**BREAKING in 0.8.0** (P36 (p)): `FoldInput` gains the kind `'attempted'`, so an exhaustive `switch` over `kind` no
+longer compiles; a run on a real scheduler appends one more event per attempt started, so your store grows by about one
+event per task; and a resumed task is handed on with `attemptsSpent`, so its retries are not reset and the record's
+`attempts` counts every process's. Additive: `TaskFactory`'s config gains the optional `attemptsSpent` — which a
+`createTask` building the task field by field must copy (section 12).
 
 **`0.5.0` is BREAKING for a consumer of the fold, in two ways.** `FoldInput` has a new kind,
 `resumed`, so a `switch` that is exhaustive over `kind` no longer compiles, and `RunState` has a new
