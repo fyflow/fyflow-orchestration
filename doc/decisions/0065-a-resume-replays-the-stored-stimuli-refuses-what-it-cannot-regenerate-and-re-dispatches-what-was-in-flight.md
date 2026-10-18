@@ -49,6 +49,9 @@ What W89's declaration step re-took before deciding anything:
    door once (`ID-R3`, widened). `runtime.resume(flow, checkpoint, options)` builds that driver exactly as
    `start` builds one — through ONE function, so every `StartOptions` member but `runId` reaches it by the
    same road — and returns the same `{ driver, done, header }` (`RN-R25`).
+   *(2026-10-18, [W185](../work-items/w185-the-header-before-the-first-event.md), P36 (d), its conformity reader C1: every
+   `StartOptions` member but `runId` AND `onHeader` — [ADR 0112](0112-a-run-delivers-its-header-before-its-first-event.md) omits it from `ResumeOptions`, since
+   the resume's caller already holds the header and `resume()` never calls it.)*
 2. **Refuse the header before anything else** (`RN-R23`): `format` (not `{ header, events[] }`,
    `header.format` not `CHECKPOINT_FORMAT`, or the identifying fields not format 1's types), `run` (`header.runId` not the driver's), `flow` (flow id or
    version not the definition's — **no migration**, P23 decision 7) and `stopped` (a stored `stopped`

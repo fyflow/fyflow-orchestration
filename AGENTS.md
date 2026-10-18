@@ -1677,7 +1677,7 @@ the block — W78's conformity reader, finding 3.)*
 `header` is the run's CHECKPOINT header since
 [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
 and `driver.checkpoint()` hands out the header with every event so far (`spec/run-state.md`
-section 8); `runtime.resume(flow, checkpoint)` resumes a run from one, returning the same handle
+section 8) — and, since 0.8.0, `start`'s `onHeader` option hands you the same header BEFORE the first event (section 18); `runtime.resume(flow, checkpoint)` resumes a run from one, returning the same handle
 ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9 — section 18 teaches it, as an executed snippet) — and `done`
 resolves with the first `RunState` this predicate calls terminal
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). It
@@ -1904,6 +1904,7 @@ reported, which is why the rule is about the stack:
 | `driver.start()` a **second time** | throws `MultipleRuns` — a driver serves one run and its id was fixed at construction (`ID-R3`) |
 | `driver.resolve()` with a `result` that is not structured-cloneable | throws the platform's own `DataCloneError`, **not** `UncloneableResult`, and the run is not halted |
 | `driver.start()` with a payload that is not structured-cloneable | throws the platform's own `DataCloneError` with the driver UNSTARTED — a run whose entry payload cannot be copied into its checkpoint header cannot be checkpointed, so it is refused before it exists (`RN-R15`, [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)). **New in W88, and BREAKING**: such a payload used to start a run on an inline pool |
+| `driver.start()` or `runtime.start()` whose `onHeader` THROWS | throws YOUR error with the driver UNSTARTED — nothing recorded, nothing handed to the scheduler, `onRunFailure` not called: the run never existed, so it is not halted (`RN-R39`, [ADR 0112](doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md), section 18). A `Driver` may be started again; on a runtime the run id is SPENT (`RunIdInUse` after), as for any `start` that throws once its driver exists |
 | `driver.checkpoint()` before `start()` | throws `NotStarted` — there is no run, and no entry payload to put in a header (`RN-R14`) |
 | `driver.resume(checkpoint)` or `runtime.resume(flow, checkpoint)` with an entry payload that is not structured-cloneable | throws the platform's `DataCloneError` before anything is replayed — the driver unstarted, and on a runtime no run id spent (`RN-R15`) |
 | `driver.checkpoint()` on a driver whose resume was refused | throws `NotStarted` — a refused resume leaves the driver SPENT and deaf to its scheduler, with no run to checkpoint (`RN-R23`) — **except** a resume refused `halted` because its replay regenerated a stop in the lost tail: that driver keeps the HALTED run, and its checkpoint is one a store may take. *(This row said `NotStarted` without the exception until W90 read it against `RN-R23`.)* |
@@ -1973,7 +1974,9 @@ inside `driver.cancel` or a stop: reported under its class, the run halted, the 
 callback appends its element where you call it, so a throw on it halts the run there even if your callback catches
 it. A `resume()` whose `resumed` element you throw on hands NOTHING on (section 18); one whose lost tail you throw on
 is still refused `ResumeRefused('halted')`. **A call REFUSED before it is accepted halts nothing** —
-`RunControlRefused`, `BoundaryRefused`, `ResumeRefused`, `MultipleRuns`, a `DataCloneError`: nothing was appended.
+`RunControlRefused`, `BoundaryRefused`, `ResumeRefused`, `MultipleRuns`, a `DataCloneError`: nothing was appended. **Nor
+does a throw from your `onHeader`** (section 18): it runs inside `start` before anything is appended, so it is that
+call's refusal — thrown at you, nothing reported, the driver unstarted.
 **Two callbacks must not throw at all: `onFoldInput` on the `halted` element, and `onRunFailure`.** Each runs
 after the run is halted and the failure reported, so inside a scheduler event listener their throw is DISCARDED —
 lost, with nobody told (`OR-R10`); on your own call's step it reaches you.
@@ -2264,8 +2267,8 @@ const frozen: Record<string, boolean> = {};
 const HANDLES = ['onFoldInput', 'onRegionEvent', 'snapshot', 'foldInputs'];
 
 // **`onRegionEvent` is FORWARDED, so this road can watch a fan-out open and close** — W76. It was
-// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's twenty
-// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's; `gateTypes` ADR 0067's, W93's)
+// not, until W76: `StartOptions` is a `Pick` of the driver's options, and of the driver's twenty-one
+// (eighteen when W76 wrote this; `onNonconformingResult` is ADR 0060's, W80's; `gateTypes` ADR 0067's, W93's; `onHeader` ADR 0112's, W185's)
 // this was the one no `createRuntime` consumer could reach at all, which is
 // [Q297](doc/questions/q297.md). **The previous version of this snippet asserted the opposite and
 // passed a CAST**, because that was the only way to try; there is no cast now, and the two counts
@@ -2468,7 +2471,8 @@ is recorded rather than added to the gate.
 name the document uses against the code you supply, refuses every defect at construction by a named
 error, builds one pool per type instance and one object per group, holds a `FyflowScheduler` over
 them, and hands you **`{ driver, done, header }` per run** — the driver already running, `done` a
-promise that resolves with the run's terminal `RunState`, and `header` the run's checkpoint header
+promise that resolves with the run's terminal `RunState`, and `header` the run's checkpoint header — handed to
+`start`'s `onHeader` option too, before the run's first event, for a store that writes it first (section 18)
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md);
 section 8 is what it waits for). **What stays yours is exactly what is code**: predicates,
 language adapters, custom group types and custom node-type classes, in one `code` argument.
@@ -3976,14 +3980,20 @@ checkpoint is an append to it**. You never have to call `driver.checkpoint()` to
 
 | | where you get it | what you do with it |
 |---|---|---|
-| the header | `runtime.start(…)` returns it as `header`, beside `driver` and `done` | write it once |
+| the header | **`onHeader(header)`** on `start`'s options — handed to you inside `start`, BEFORE the first event and before anything reaches the scheduler; and `runtime.start(…)` returns the same one as `header`, beside `driver` and `done` | write it once, FIRST |
 | every event | `onFoldInput(event, position)` | write it AT `position` — the driver's index, never a count you start again in each process |
-| a resumed run | `runtime.resume(flow, { header, events }, options)` returns the same `{ driver, done, header }` | keep writing: it hands you positions from the STORED LENGTH on |
+| a resumed run | `runtime.resume(flow, { header, events }, options)` returns the same `{ driver, done, header }` — and calls no `onHeader`: you hold the header already | keep writing: it hands you positions from the STORED LENGTH on |
 
-**Key the store by POSITION, and the reason is measured.** The first events are delivered WHILE
-`start` runs, so the header arrives after them — a store that must write its header first cannot —
-and a resumed run's first position is the length you stored, not 0, so an arrival counter per process
-overwrites the run it is resuming. ([W90](doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)
+**Write the header FIRST, through `onHeader`** (`RN-R39`, [ADR 0112](doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md),
+since 0.8.0). The first events are delivered WHILE `start` runs, so the handle's `header` arrives after them, and a process
+that died between your first event write and that header write left events no resume can read. `onHeader` is called ONCE,
+before the first `onFoldInput`, with a frozen copy equal to `handle.header` — and **if it throws** (your store could not
+write it), `start` throws your error with NOTHING started: nothing recorded, nothing handed to the scheduler, nothing
+reported. A `Driver` you built may be started again; on a runtime that run id is spent, so retry under another (or let it
+mint one). It is never called on a refused `start` (`BoundaryRefused`, `DataCloneError`, `MultipleRuns`), nor by `resume`.
+
+**And still key the store by POSITION, and the reason is measured.** A resumed run's first position is the length you
+stored, not 0, so an arrival counter per process overwrites the run it is resuming. ([W90](doc/work-items/w90-a-run-killed-and-resumed-on-real-workers.md)
 runs exactly that wrong store at L6 and it is refused `diverged` at position 0.) **The contract is
 `structuredClone`, not JSON**: a result is whatever survived `OR-R2`'s clone, which includes `Map`,
 `Set`, `Date`, `BigInt` and `-0` — pick a serializer that keeps them, or revive them.
@@ -4032,7 +4042,10 @@ let die!: () => void;
 const died = new Promise<void>((resolve) => { die = resolve; });
 const first = createRuntime(registry, {}, { base: import.meta.url });
 const run = first.start(flow, { region: 'ab c' }, {
+  // The header FIRST — called once, inside `start`, before the first event below and before any task is handed on.
+  onHeader: (header) => { store.header = header; },
   onFoldInput: (event, position) => {
+    if (store.header === undefined) throw new Error('an event before the header: the store would hold events no resume can read');
     if (!alive) return;                                   // a dead process writes nothing
     store.events[position] = structuredClone(event);     // your durable append, BY POSITION
     // THE CRASH, simulated: the process dies the instant the first `expand` settles — inside the
@@ -4040,9 +4053,9 @@ const run = first.start(flow, { region: 'ab c' }, {
     if (event.kind === 'outcome' && event.record.taskId.includes(':expand:')) { alive = false; die(); }
   },
 });
-// The header arrives on the handle, AFTER the first events: they were delivered while `start` ran.
-// A store that had to write its header first could not; one keyed by position does not care.
-store.header = run.header;
+// The handle carries the SAME header — it arrives AFTER the first events, which were delivered while `start` ran, and
+// that is why the store took it from `onHeader` instead.
+if (JSON.stringify(store.header) !== JSON.stringify(run.header)) throw new Error('onHeader and the handle carry one header');
 await died;
 // `shutdown()` is cleanup, NOT the kill: it lets running work finish, and here that finishes the
 // whole run. What makes this a crash is the store — nothing after `alive = false` reached it.
@@ -4107,6 +4120,61 @@ try {
 }
 await second.shutdown();
 await third.shutdown();
+```
+
+**A store that cannot write the header stops the run BEFORE it exists** — `onHeader`'s throw, on a `Driver` you build
+(section 12's double, so you can see what reaches the scheduler):
+
+```ts run
+import { Driver, NotStarted, liveToken, type CheckpointHeader, type FlowDefinition, type FoldInput } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'header-first', version: 1, entry: 'split',
+  nodes: [
+    { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+    { id: 'a', kind: 'task', type: 'T', edges: [{ to: 'join' }] },
+    { id: 'b', kind: 'task', type: 'T', edges: [{ to: 'join' }] },
+    { id: 'join', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+// ONE log: what your store wrote, and what reached the scheduler, in the order it happened.
+const log: string[] = [];
+const scheduler = { addTask(task: unknown) { log.push(`handed on ${(task as { id: string }).id}`); }, addEventListener() {} };
+
+// YOUR store, down for the first attempt.
+class StoreDown extends Error {}
+let storeUp = false;
+const store: { header?: CheckpointHeader; events: FoldInput[] } = { events: [] };
+const driver = new Driver(flow, {
+  runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken,
+  workers: { w: { url: 'worker.js' } }, nodeTypes: { T: { worker: 'w' } },
+  onHeader: (header) => {
+    if (!storeUp) throw new StoreDown('the store could not write the header');
+    store.header = header;
+    log.push('header written');
+  },
+  onFoldInput: (event, position) => { store.events[position] = event; log.push(`event ${position} written`); },
+});
+
+// The store is down: `start` throws YOUR error, and NOTHING started — no event, nothing handed on.
+let thrown: unknown = null;
+try { driver.start({ batch: 7 }); } catch (e) { thrown = e; }
+console.log(thrown instanceof StoreDown, log);   // true []
+if (!(thrown instanceof StoreDown) || log.length !== 0) throw new Error(`nothing starts when the header cannot be written: ${log.join()}`);
+let unstarted = false;
+try { driver.checkpoint(); } catch (e) { unstarted = e instanceof NotStarted; }
+if (!unstarted) throw new Error('the driver is UNSTARTED — there is no run to checkpoint');
+
+// The store is back: the SAME driver starts, and the header is written before the first event and the first hand-off.
+storeUp = true;
+driver.start({ batch: 7 });
+console.log(log[0], log.length);   // 'header written' 8 — then the five events of an entry fan-out of two and its two hand-offs
+if (log[0] !== 'header written') throw new Error(`the header is written FIRST: ${log.join(' | ')}`);
+if (log.filter((l) => l.startsWith('event ')).length !== 5 || log.filter((l) => l.startsWith('handed on ')).length !== 2) {
+  throw new Error(`an entry fan-out of two appends five events and hands on two tasks, all after the header: ${log.join(' | ')}`);
+}
+if (JSON.stringify(store.header) !== JSON.stringify(driver.checkpoint().header)) throw new Error('the header written is the run`s');
 ```
 
 **What a resume PROMISES, and what it does not** — [ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9:

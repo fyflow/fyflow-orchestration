@@ -234,9 +234,16 @@ export interface RuntimeOptions {
  * `Pick` and not in `RuntimeOptions` beside `validateBoundaries`: that one is a POLICY every driver
  * a runtime starts inherits, and this one names a `runId`. The orphan count stays **0** and its pin
  * moved 18 to 19 in the same diff, which is what the test's own comment asks for.
+ *
+ * **`onHeader` is the TWENTY-FIRST `DriverOptions` member and the twelfth here** — `RN-R39`,
+ * [ADR 0112](../../doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md), P36 (d),
+ * [W185](../../doc/work-items/w185-the-header-before-the-first-event.md). A DRIVER member, because only the driver stands
+ * between the header and the run's first dispatch: `start` dispatches synchronously inside `driver.start`, so a runtime
+ * could call it no earlier than the handle it returns. Conditionally spread, the binding's first road, and OMITTED from
+ * {@link ResumeOptions} below: `resume()` never calls it.
  */
 export interface StartOptions extends Pick<DriverOptions,
-  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onNonconformingResult' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
+  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onHeader' | 'onNonconformingResult' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
   /**
    * Omitted, the runtime mints `r<n>` from its own counter — inside `ID-R2`'s charset, unique per RUNTIME and not globally
    * (decision 10). **Since W89 the counter SKIPS an id in use on this runtime, and a caller naming one is refused** (`RunIdInUse`,
@@ -248,8 +255,10 @@ export interface StartOptions extends Pick<DriverOptions,
 /**
  * **What `resume` may say about the run it resumes: everything `start` may, but its id** — `RN-R25`. The run id is the
  * checkpoint's (`header.runId`), because every task id the stored run dispatched embeds it; there is nothing to choose.
+ * **Nor its `onHeader`** (`RN-R39`, P36 (d)): the caller of `resume` already holds the header — it is the checkpoint's —
+ * and `Driver.resume` never calls it, so a member here would be a typed option that does nothing.
  */
-export type ResumeOptions = Omit<StartOptions, 'runId'>;
+export type ResumeOptions = Omit<StartOptions, 'runId' | 'onHeader'>;
 
 /**
  * **What a driver is handed, and therefore what `runtime.registry` IS** — decision 14. Note
@@ -337,13 +346,15 @@ export interface RunHandle {
    * decision 4, [ADR 0064](../../doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)
    * rule 5. Equal to `driver.checkpoint().header` and a separate copy of it.
    *
-   * **It arrives AFTER the run's first events, and that is measured rather than avoidable.** `start`
-   * dispatches the entry node synchronously, so a consumer's `onFoldInput` has been handed **1 to 5**
-   * elements before this handle exists — 1 on 59 of L6's 62 starts, 5 on a nested map at the entry
-   * (W88's declaration step) — and it is not bounded by 5: an entry FAN-OUT of N branches delivers
-   * `regionEntered`, N `branch.opened` and N `dispatched`, 2N + 1, before `start` returns (W88's
-   * conformity reader, finding 11). That is what `onFoldInput`'s `seq` is for: a store keyed by position
-   * does not care which was written first (`RN-R18`).
+   * **ON THE HANDLE it arrives AFTER the run's first events.** `start` dispatches the entry node synchronously, so a
+   * consumer's `onFoldInput` has been handed **1 to 5** elements before this handle exists — 1 on 59 of L6's 62 starts, 5
+   * on a nested map at the entry (W88's declaration step) — and it is not bounded by 5: an entry FAN-OUT of N branches
+   * delivers `regionEntered`, N `branch.opened` and N `dispatched`, 2N + 1, before `start` returns (W88's conformity
+   * reader, finding 11). **A store that must write its header FIRST passes `onHeader`** (`StartOptions`, `RN-R39`,
+   * [ADR 0112](../../doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md)): the same header, handed over
+   * inside `start` before the first element and before anything reaches the scheduler. *(This read *measured rather than
+   * avoidable* until W185: true of the handle, and the avoidance is the driver's.)* `onFoldInput`'s `seq` still names what a
+   * store holds whichever is written first (`RN-R18`).
    */
   readonly header: CheckpointHeader;
 }
@@ -680,9 +691,11 @@ export function createRuntime(
 
   /**
    * **One run opened — by `start` from a payload, or by `resume` from a checkpoint — and the ONE place a runtime builds a
-   * `Driver`.** Both doors share it so that every `StartOptions` member reaches a resumed driver by the same road it reaches a
-   * started one (`test/scheduler/runtime.test.ts` binds the literal below both ways), and so that the run id in use, the
-   * flow's refusal and `done` cannot differ between the two.
+   * `Driver`.** Both doors share it so that every `ResumeOptions` member — every `StartOptions` member but `runId` and `onHeader` —
+   * reaches a resumed driver by the same road it reaches a started one (`test/scheduler/runtime.test.ts` binds the literal below
+   * both ways), and so that the run id in use, the flow's refusal and `done` cannot differ between the two. *(This read *every
+   * `StartOptions` member* until W185's conformity reader, C2: an `onHeader` passed to `resume` past the type is spread here
+   * like any member, and `Driver.resume` never calls it — `RN-R39`.)*
    */
   function openRun(flow: FlowDefinition, payload: unknown, startOptions: StartOptions, from: Checkpoint | null): RunHandle {
     // **The flow is refused FROM `check`, before a run id is minted or a driver built** — ADR 0096 rule 5. The
@@ -830,6 +843,7 @@ export function createRuntime(
         queueMicrotask(settleIfTerminal);
         startOptions.onFoldInput?.(input, seq);
       },
+      ...(startOptions.onHeader !== undefined ? { onHeader: startOptions.onHeader } : {}),
       ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
       ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
       ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),

@@ -1253,7 +1253,11 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
     // on road (b) — `RuntimeRegistry` — because they are CODE registered once per runtime, as `languages` are. This pin
     // FIRED by name on W93's first run (`expected: 19 actual: 20`) and the orphan clause did not, because the road was
     // added in the same edit — moved here deliberately, with the road.
-    equal(s.all.length, 20, 'DriverOptions has twenty members — the eighteen P20 fact 1 counted, W80`s, and W93`s gateTypes. Move this deliberately, with the roads');
+    // **21 since [W185](../../doc/work-items/w185-the-header-before-the-first-event.md)**: `onHeader` (`RN-R39`, ADR 0112,
+    // P36 (d)) on road (d), `StartOptions`' `Pick`, conditionally spread. This pin FIRED by name on W185's first run
+    // (`expected: 20 actual: 21`, its declaration step, `src/` changed and no test touched) and the orphan clause did not,
+    // because the road was added in the same edit — moved here deliberately, with the road.
+    equal(s.all.length, 21, 'DriverOptions has twenty-one members — the eighteen P20 fact 1 counted, W80`s, W93`s gateTypes and W185`s onHeader. Move this deliberately, with the roads');
   });
 
   /**
@@ -1503,6 +1507,16 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
         saw: () => kinds.length > 0, want: true,
       };
     },
+    // **W185, `RN-R39`** — what the driver hands `onHeader` is ITS header, once: forwarded, the one call carries the
+    // driver's own checkpoint header; dropped, nothing is seen. Start-only: `ResumeOptions` omits it (`RESUME_OMITS`).
+    onHeader: () => {
+      const seen: unknown[] = [];
+      return {
+        option: { onHeader: (h) => { seen.push(h); } }, flow: LINEAR, drive: () => {},
+        saw: (d) => ({ calls: seen.length, isTheDrivers: seen.length === 1 && deepEqual(seen[0], d.checkpoint().header) }),
+        want: { calls: 1, isTheDrivers: true },
+      };
+    },
     onRegionEvent: () => {
       const types: string[] = [];
       const frozen: boolean[] = [];
@@ -1574,6 +1588,8 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
       };
     },
   };
+  /** The `StartOptions` members `ResumeOptions` OMITS — held to the source's `Omit` by the last case of this suite. */
+  const RESUME_OMITS: readonly string[] = ['runId', 'onHeader'];
 
   /**
    * **The membership, both ways** — `doc/workflow.md` rule 8 obligation (d) at v0.14: the list above
@@ -1609,8 +1625,10 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
   // claim: each observer again, on a run RESUMED from a checkpoint whose header a real run on another
   // runtime handed out and whose events are EMPTY — a store that kept the header and lost every
   // element, which replays from the entry and delivers every element, so each observer sees exactly
-  // the run `start` gave it. `runId` is not a `ResumeOptions` member: the run's id is the header's.
-  for (const name of Object.keys(OBSERVERS).filter((n) => n !== 'runId')) {
+  // the run `start` gave it. `runId` is not a `ResumeOptions` member: the run's id is the header's — and since W185 nor is
+  // `onHeader` (`RN-R39`, P36 (d)): the resume's caller holds the header already. `RESUME_OMITS` is held to the `Omit` in
+  // the source by the membership case below, both ways.
+  for (const name of Object.keys(OBSERVERS).filter((n) => !RESUME_OMITS.includes(n))) {
     test(`${name} reaches the driver resume() built`, () => {
       const s = seams();
       const o = OBSERVERS[name]!(s);
@@ -1625,14 +1643,20 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
     });
   }
 
-  // **The loop above is a membership over `StartOptions` minus `runId`, and it is bound as one** —
+  // **The loop above is a membership over `StartOptions` minus what `ResumeOptions` omits, and it is bound as one** —
   // `doc/workflow.md` rule 8 obligation (d): filtered to nothing, it registers no case and every case
-  // it would have run is silent. So the cases that REGISTERED are compared with the members, both ways.
-  test('every StartOptions member but runId has a resume() observer that registered', async () => {
-    const members = w76StartMembers(await readText(ROOT + 'src/scheduler/runtime.ts')).filter((n) => n !== 'runId');
+  // it would have run is silent. So the cases that REGISTERED are compared with the members, both ways — and since W185
+  // the FILTER is a list too (`RESUME_OMITS`), so it is compared with the `Omit` the source declares, both ways: a name
+  // added to the `Omit` and not here would register an observer for a member resume() no longer takes, and one here and
+  // not in the `Omit` would leave a member resume() takes with none.
+  test('every StartOptions member ResumeOptions keeps has a resume() observer that registered — the Omit read from the source', async () => {
+    const src = await readText(ROOT + 'src/scheduler/runtime.ts');
+    const omitted = w76PickNames(src, 'export type ResumeOptions = Omit<StartOptions,').sort();
+    equal(omitted, [...RESUME_OMITS].sort(), 'RESUME_OMITS is what ResumeOptions` Omit names — runId and, since W185, onHeader');
+    const members = w76StartMembers(src).filter((n) => !omitted.includes(n));
     const suffix = ' reaches the driver resume() built';
     const registered = collected().flatMap((x) => x.cases.map((c) => c.name)).filter((n) => n.endsWith(suffix)).map((n) => n.slice(0, -suffix.length)).sort();
-    ok(members.length >= 9, `the CONTROL: StartOptions minus runId read from the shipped source, ${members.length} members`);
+    ok(members.length >= 9, `the CONTROL: StartOptions minus the Omit read from the shipped source, ${members.length} members`);
     equal(registered, members, 'one registered resume() observer per ResumeOptions member, and none for a name that is not one');
   });
 });
@@ -3272,6 +3296,98 @@ suite('W184 — through createRuntime: a callback that THROWS on a stop`s elemen
     let inUse: unknown = null;
     try { B.r.resume(SPLIT, cp); } catch (x) { inUse = x; }
     ok(inUse instanceof RunIdInUse, `and the run id is spent on that runtime: ${String(inUse)}`);
+  });
+});
+
+/**
+ * **W185 — `RN-R39` through the runtime**: P36 decision 1, stop-and-asks (d) and (e),
+ * [ADR 0112](../../doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md),
+ * [W185](../../doc/work-items/w185-the-header-before-the-first-event.md). `onHeader` is a `DriverOptions` member in
+ * `StartOptions`' `Pick` and the DRIVER calls it, so the runtime's only part is to forward it — and to be what a store
+ * meets: the header it hands `onHeader` IS the one `handle.header` carries, it comes before the first element the
+ * COMPOSED `onFoldInput` hands on and before the first `addTask` the per-run view passes to the scheduler, and a throw
+ * from it costs what any opening that throws after its driver exists costs — the run id (ADR 0091 rule 4). Expected values
+ * from (e) and `RN-R15`, never read off a run; each order beside the control showing the log SAW what follows.
+ */
+suite('W185 — through createRuntime: onHeader is handed the header inside start(), before the first element and before anything reaches the scheduler — and a throw starts nothing and spends the run id', (test) => {
+  /** A runtime on `seams()`, its scheduler's `addTask` writing to `log` too — the one log the order is read from. */
+  function logged(log: string[]) {
+    const s = seams();
+    const createScheduler = (p: Record<string, unknown>, g: Record<string, unknown>) => {
+      const sch = s.createScheduler(p, g) as unknown as { addTask: (t: unknown) => void };
+      const add = sch.addTask.bind(sch);
+      sch.addTask = (t: unknown) => { log.push(`add ${(t as { id: string }).id}`); add(t); };
+      return sch as never;
+    };
+    return { s, r: createRuntime(DOC, {}, { createPool: s.createPool, createScheduler }) };
+  }
+
+  test('once, BEFORE the first element and BEFORE the first addTask, and equal to handle.header — on the runtime`s second minted run', () => {
+    const log: string[] = [];
+    const { s, r } = logged(log);
+    r.start(FLOW, { first: true });
+    log.length = 0;
+    const headers: unknown[] = [];
+    const payload = { n: 1, nested: { k: 'v' } };
+    const h = r.start(FLOW, payload, {
+      onHeader: (x) => { log.push('header'); headers.push(x); },
+      onFoldInput: (e, seq) => { log.push(`fold ${seq} ${e.kind}`); },
+    });
+    payload.nested.k = 'MUTATED AFTER START';
+    // The CONTROL: the log SAW this run's element and its hand-off.
+    equal(log.slice(1).sort(), ['add r2:a:-:0', 'fold 0 dispatched'], 'the CONTROL: the run`s one element and one hand-off are in the log');
+    equal(log[0], 'header', 'and the header came FIRST — before the element the composed onFoldInput handed on AND before the addTask');
+    equal(headers.length, 1, 'onHeader is called ONCE');
+    equal(headers[0], { format: 1, runId: 'r2', flowId: 'f', version: 1, entryPayload: { n: 1, nested: { k: 'v' } } },
+      'RN-R15`s five facts — the runtime`s SECOND minted run, r2, so a default position differs — the payload as it was passed');
+    equal(headers[0], h.header, 'the SAME header the handle carries, field for field');
+    ok(headers[0] !== h.header && Object.isFrozen(headers[0]), 'a separate, frozen copy of it');
+    equal(s.added.map((t) => t.id), ['r1:a:-:0', 'r2:a:-:0'], 'and each run handed on its own entry task');
+  });
+
+  test('a THROW: start() throws the consumer`s error, NOTHING reaches the scheduler, nothing is reported — and the run id is SPENT on this runtime', () => {
+    const log: string[] = [];
+    const { s, r } = logged(log);
+    const boom = new Error('W185: the store could not write the header');
+    const failures: unknown[] = [];
+    let folds = 0;
+    let thrown: unknown = null;
+    try {
+      r.start(FLOW, { n: 1 }, {
+        runId: 'hx',
+        onHeader: () => { throw boom; },
+        onFoldInput: () => { folds += 1; },
+        onRunFailure: (f) => { failures.push(f); },
+      });
+    } catch (x) { thrown = x; }
+    ok(thrown === boom, `the consumer's own error reaches runtime.start()'s caller: ${String(thrown)}`);
+    equal(s.added.map((t) => t.id), [], 'NOTHING handed to the scheduler');
+    equal([folds, failures.length], [0, 0], 'no element handed on, and onRunFailure not called — no run exists');
+    let inUse: unknown = null;
+    try { r.start(FLOW, { n: 2 }, { runId: 'hx' }); } catch (x) { inUse = x; }
+    ok(inUse instanceof RunIdInUse, `the id is SPENT: a driver was built for it before onHeader threw (ADR 0091 rule 4) — ${String(inUse)}`);
+    // The CONTROL: the same runtime, another id, the SAME three observers — each shown live: this run's hand-off, its
+    // element, and a failure its settlement reports (a result `structuredClone` refuses: `UncloneableResult`, `OR-R6`).
+    let controlFolds = 0;
+    const controlFailures: string[] = [];
+    r.start(FLOW, { n: 3 }, { runId: 'hy', onFoldInput: () => { controlFolds += 1; }, onRunFailure: (f) => { controlFailures.push(f.kind); } });
+    equal(s.added.map((t) => t.id), ['hy:a:-:0'], 'the CONTROL: another run on the same runtime IS handed on, and the log sees it');
+    equal(log, ['add hy:a:-:0'], 'and the one log holds exactly that');
+    s.settle('hy:a:-:0', { fn: () => 1 });
+    ok(controlFolds > 0, `the CONTROL: the fold observer is live — ${controlFolds} element(s)`);
+    equal(controlFailures, ['UncloneableResult'], 'the CONTROL: the failure observer is live — it hears a refusal');
+  });
+
+  test('runtime.resume() never calls it — ResumeOptions omits it, and one passed anyway is not called', () => {
+    const first = logged([]);
+    const run = first.r.start(FLOW, { n: 1 }, { runId: 'rr' });
+    const cp = structuredClone(run.driver.checkpoint()) as Checkpoint;
+    const second = logged([]);
+    let calls = 0;
+    // A caller defeating the type: `ResumeOptions` has no onHeader, and the driver's resume() never calls one.
+    second.r.resume(FLOW, cp, { onHeader: () => { calls += 1; } } as never);
+    equal(second.s.added.map((t) => t.id), ['rr:a:-:0'], 'the CONTROL: the resume ran and re-dispatched what was in flight');
+    equal(calls, 0, 'and onHeader was not called');
   });
 });
 
