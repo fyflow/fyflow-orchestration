@@ -1,6 +1,6 @@
 # spec/task-id — the scheduler task id scheme
 
-**Status:** v0.15 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.16 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.11 is [W89](../doc/work-items/w89-what-resuming-is.md)**: `ID-R3`'s text gains `resume()` — the second door into one run ([ADR 0065](../doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md)) — and nothing else moves. **v0.2 acts on the W1 spec-conformity pass**:
 section 2 point 3 was **wrong about the source** and is corrected (finding D7), `branchPath` is
 pinned against convergent branches (B3), and the rules name the item owing their test (D8, N19).
@@ -61,6 +61,8 @@ which left `spec/README.md`'s column unchanged and made `check-spec`'s `C8` vacu
 change — the one check that exists to notice a stale version row. W36's conformity reader.)*
 
 **v0.10 is [W37](../doc/work-items/w37-the-scheduler-pin-moves-to-0-5-2.md), and it is the SAME re-dating one version on.** The pin moved 0.5.1 to **0.5.2**, which is the fix for [S9](../doc/scheduler-upstream.md) — the first item in that register ever raised and fixed. **`core/FyflowScheduler.ts` is byte-identical between 0.5.1 and 0.5.2 as well**, 1851 lines with zero changed, so every line this document cites is unmoved for a second consecutive bump; the whole diff is **six files** — four `import type` splits, `deno.json` gaining `verbatimModuleSyntax: true`, and `README.md`. *(This read "two `import type` lines" and "1850": the first was measured over four downloaded files and stated of the whole diff, the second counts newlines in a file whose last line is unterminated. W37's conformity reader, and `doc/workflow.md` section 1 rule 5's writing clause both times.)* No rule id, no rule text and no test owed changed.
+
+**v0.16 is [W187](../doc/work-items/w187-attribution-on-the-fold-and-messages-passed-through.md) under [P36](../doc/plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md), and it moves no rule — one sentence of section 1's `attempt` bullet.** This segment is now a FIELD of every `RunState.nodes` entry under its own name, `flowAttempt`, beside the run id, and so is the scheduler's own counter, under `attemptNumber` — named apart so the two cannot be confused (`spec/run-state.md` `RN-R41`, `RN-R42`, [ADR 0114](../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md)). The grammar, `parseTaskId` and `buildTaskId` are unchanged; no id moves.
 
 **v0.15 is [W186](../doc/work-items/w186-attempts-recorded-and-carried-across-a-resume.md) under [P36](../doc/plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md), and it moves no rule — one sentence of section 1's `attempt` bullet.** The scheduler's own counter, which that bullet sets apart from this segment, is now RECORDED per attempt — an `attempted` fold input carrying its 1-based `attemptNumber` (`spec/run-state.md` `RN-R40`, [ADR 0113](../doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md)) — and CARRIED across a resume, so a settlement's `attempts` counts every process's retries of the one task id. Still the scheduler's counter, still not this segment: a resume re-dispatches at the SAME id, attempt `0`.
 
@@ -226,7 +228,10 @@ claimed both were unchanged was wrong about the second.
   scheduler's is now RECORDED — each attempt's start an `attempted` fold input carrying its 1-based
   `attemptNumber` — and CARRIED across a resume as `attemptsSpent`, so a settlement's `attempts` counts
   every process's retries of the one task id (`spec/run-state.md` `RN-R40`, `RN-R21`). It is still the
-  scheduler's counter: a resume re-dispatches at the SAME id, and this segment stays `0`.)*
+  scheduler's counter: a resume re-dispatches at the SAME id, and this segment stays `0`.)* *(v0.16: both are FIELDS of
+  a task's `RunState.nodes` entry, and of what `onTaskMessage` and `onTaskProgress` hand a caller — this segment as
+  `flowAttempt`, the scheduler's as `attemptNumber`, named apart so the two cannot be confused (`spec/run-state.md`
+  `RN-R41`, `RN-R42`, P36 (j)).)*
 
   **A resolution does not increment it.** Resuming a suspended node
   ([spec/outcome-record.md](outcome-record.md) section 5) supplies an outcome for the dispatch that

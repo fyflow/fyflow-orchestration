@@ -99,7 +99,9 @@ function seams() {
       shutdown() { return Promise.resolve(); },
     } as never;
   };
-  return { pools, built, added, settle, emitSettlement, createPool, createScheduler };
+  /** Any scheduler event, to every listener on its name — W187's `task.message` and `task.progress`, whose details are not tasks. */
+  const emit = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+  return { pools, built, added, settle, emitSettlement, emit, createPool, createScheduler };
 }
 
 /** The minimum document: one worker, one type, one named instance of it, one group the type holds. */
@@ -1257,7 +1259,11 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
     // P36 (d)) on road (d), `StartOptions`' `Pick`, conditionally spread. This pin FIRED by name on W185's first run
     // (`expected: 20 actual: 21`, its declaration step, `src/` changed and no test touched) and the orphan clause did not,
     // because the road was added in the same edit — moved here deliberately, with the road.
-    equal(s.all.length, 21, 'DriverOptions has twenty-one members — the eighteen P20 fact 1 counted, W80`s, W93`s gateTypes and W185`s onHeader. Move this deliberately, with the roads');
+    // **23 since [W187](../../doc/work-items/w187-attribution-on-the-fold-and-messages-passed-through.md)**: `onTaskMessage`
+    // and `onTaskProgress` (`RN-R42`, ADR 0114, P36 (k)) on road (d), conditionally spread. This pin FIRED by name on W187's
+    // declaration step (`expected: 21 actual: 23`, `src/` changed and no test touched) and the orphan clause did not — moved
+    // here deliberately, with the road.
+    equal(s.all.length, 23, 'DriverOptions has twenty-three members — the eighteen P20 fact 1 counted, W80`s, W93`s gateTypes, W185`s onHeader and W187`s onTaskMessage and onTaskProgress. Move this deliberately, with the roads');
   });
 
   /**
@@ -1515,6 +1521,29 @@ suite('W76 — every StartOptions member ARRIVES at the driver, and the observer
         option: { onHeader: (h) => { seen.push(h); } }, flow: LINEAR, drive: () => {},
         saw: (d) => ({ calls: seen.length, isTheDrivers: seen.length === 1 && deepEqual(seen[0], d.checkpoint().header) }),
         want: { calls: 1, isTheDrivers: true },
+      };
+    },
+    // **W187, `RN-R42`** — a worker's `context.emit()` of the run's own task, as the scheduler fires it (`taskId`, no `id`):
+    // forwarded, the callback is handed it with the node's id as a FIELD; dropped, the driver never subscribed and sees nothing.
+    onTaskMessage: () => {
+      const seen: string[] = [];
+      return {
+        option: { onTaskMessage: (m) => { seen.push(`${m.nodeId} ${m.name} ${m.seq}`); } }, flow: LINEAR,
+        drive: (s) => {
+          s.emit('task.message', { taskId: String(s.added[0]!.id), workerId: 'w-1', attemptNumber: 1, name: 'log', data: { line: 1 }, seq: 0, timestamp: 1 });
+        },
+        saw: () => seen, want: ['a log 0'],
+      };
+    },
+    // **W187, `RN-R42`** — a progress report of the run's own task, its detail the task SPREAD FLAT (`id`, as the scheduler's).
+    onTaskProgress: () => {
+      const seen: string[] = [];
+      return {
+        option: { onTaskProgress: (p) => { seen.push(`${p.nodeId} ${p.progress}`); } }, flow: LINEAR,
+        drive: (s) => {
+          s.emit('task.progress', { ...s.added[0]!, attemptNumber: 1, progress: 0.5, message: 'half', details: null, workerId: 'w-1', workerType: 'inline', timestamp: 1 });
+        },
+        saw: () => seen, want: ['a 0.5'],
       };
     },
     onRegionEvent: () => {
@@ -3941,5 +3970,98 @@ suite('W186 — through createRuntime: task.running is ROUTED to its own run, an
       '`a` carries attemptsSpent 2 — the scheduler`s `attempts` STARTS there, so its next attempt is number 3 — and `b`, none recorded, the scheduler`s own default 0');
     // The CONTROL for the source: the first runtime's own hand-off carried no attempts.
     equal((s.added as unknown as FyflowTask[]).map((t) => t.attemptsSpent), [0, 0], 'the CONTROL: on start nothing is spent — the same field reads 0 on both');
+  });
+});
+
+/**
+ * **W187 — through `createRuntime`: a task's `task.message` and `task.progress` are ROUTED to its own run's driver, and
+ * handed to that run's callback alone** — `spec/run-state.md` v0.27 `RN-R42`,
+ * [ADR 0114](../../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md),
+ * which amends ADR 0088 rule 3 (P36 (l)): the router reads `detail.id`, else `detail.taskId` — `task.message`'s only name
+ * for its task (P36 fact 2). Without it a message would be rule 4's third row — no string `id` — and BROADCAST to every run's
+ * driver, N per message, each dropping the others' in silence: a cost no callback could see, so what each driver is
+ * HANDED is read at its ENTRY, the W142 suite's instrument, here reading `taskId` too.
+ */
+suite('W187 — through createRuntime: a task`s messages and progress are ROUTED to its own run, handed to that run`s callback alone, and nothing after its release', (test) => {
+  /** What a driver's listener is handed from here on: the event's name and the task it names, by `id` or `taskId`. */
+  const entries = (d: Driver): string[] => {
+    const seen: string[] = [];
+    const original = (d as unknown as { onEvent: (n: string, x: unknown) => void }).onEvent;
+    Object.defineProperty(d, 'onEvent', {
+      enumerable: false, configurable: true, writable: true,
+      value: function (this: unknown, n: string, x: unknown) {
+        const t = x as { id?: unknown; taskId?: unknown } | undefined;
+        seen.push(`${n} ${String(t?.id ?? t?.taskId)}`);
+        return original.call(this, n, x);
+      },
+    });
+    return seen;
+  };
+  const message = (taskId: unknown, seq = 0) => ({ taskId, workerId: 'w-1', attemptNumber: 1, name: 'log', data: { seq }, seq, timestamp: 1 });
+  const progress = (id: unknown) => ({ id, state: 'running', attempts: 0, attemptNumber: 1, workerType: 'inline', progress: 0.5, message: 'half', details: null, workerId: 'w-1', timestamp: 1 });
+
+  test('two runs on ONE runtime: each run`s message and progress reach its OWN driver and callback and NOT the other`s — one delivery per event, not N', () => {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const got: string[] = [];
+    const open = (runId: string) => {
+      const h = r.start(FLOW, { x: 1 }, {
+        runId,
+        onTaskMessage: (m) => { got.push(`${runId} heard message ${m.taskId} #${m.seq}`); },
+        onTaskProgress: (p) => { got.push(`${runId} heard progress ${p.taskId}`); },
+      });
+      return entries(h.driver);
+    };
+    const one = open('r1');
+    const two = open('r2');
+    equal(s.subscriptions.filter((n) => n === 'task.message' || n === 'task.progress').sort(), ['task.message', 'task.progress'],
+      'the CONTROL: the scheduler is subscribed to each pass-through ONCE however many runs ask (ADR 0088 rule 2)');
+    s.emit('task.message', message('r1:a:-:0', 0));
+    s.emit('task.message', message('r2:a:-:0', 0));
+    s.emit('task.message', message('r2:a:-:0', 1));
+    s.emit('task.progress', progress('r1:a:-:0'));
+    equal([one, two], [
+      ['task.message r1:a:-:0', 'task.progress r1:a:-:0'],
+      ['task.message r2:a:-:0', 'task.message r2:a:-:0'],
+    ], 'each driver HANDED its own run`s events and none of the other`s: four events, four deliveries — rule 3 reading taskId, rule 4 row 1');
+    equal(got, ['r1 heard message r1:a:-:0 #0', 'r2 heard message r2:a:-:0 #0', 'r2 heard message r2:a:-:0 #1', 'r1 heard progress r1:a:-:0'],
+      'and each callback heard exactly its own run`s');
+    // The CONTROL that the instrument would see a broadcast: a message whose taskId no driver minted is rule 4's third
+    // row — handed to EVERY driver — and delivered by none.
+    s.emit('task.message', message('nightly-cleanup'));
+    equal([one.slice(2), two.slice(2), got.length], [['task.message nightly-cleanup'], ['task.message nightly-cleanup'], 4],
+      'the CONTROL: an unparseable taskId reaches BOTH drivers (rule 4 row 3) — the instrument sees a broadcast — and no callback');
+  });
+
+  test('a run that passes NO pass-through callback is never handed a message, and a runtime whose runs pass none never subscribes the scheduler', () => {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const quiet = entries(r.start(FLOW, { x: 1 }, { runId: 'q1' }).driver);
+    equal(s.subscriptions.filter((n) => n === 'task.message' || n === 'task.progress'), [],
+      'no run asked: the scheduler is NOT subscribed to task.message or task.progress — its workers emit at no cost');
+    const heard: string[] = [];
+    const loud = entries(r.start(FLOW, { x: 1 }, { runId: 'q2', onTaskMessage: (m) => { heard.push(m.taskId); } }).driver);
+    equal(s.subscriptions.filter((n) => n === 'task.message'), ['task.message'], 'the first run that asks subscribes it, once');
+    s.emit('task.message', message('q1:a:-:0'));
+    s.emit('task.message', message('q2:a:-:0'));
+    equal([quiet, loud, heard], [[], ['task.message q2:a:-:0'], ['q2:a:-:0']],
+      'q1, which passed none, was handed NOTHING — not even its own task`s message — and q2 its own');
+  });
+
+  test('NOTHING after the run is released: its task`s message is delivered while it runs, and reaches no driver once its done settled', async () => {
+    const s = routedSeams();
+    const r = createRuntime(DOC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const heard: number[] = [];
+    const h = r.start(FLOW, { x: 1 }, { runId: 'rel', onTaskMessage: (m) => { heard.push(m.seq); } });
+    const handed = entries(h.driver);
+    s.emit('task.message', message('rel:a:-:0', 0));
+    equal(heard, [0], 'the CONTROL: while the run runs, its task`s message is delivered');
+    s.done('rel:a:-:0');
+    const state = await Promise.race([h.done, new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 2000))]);
+    equal(state === 'timeout' ? 'NEVER SETTLED' : state.outcome, 'completed', 'the run completed and its done settled — so it is RELEASED (ADR 0091)');
+    s.emit('task.message', message('rel:a:-:1', 1));
+    s.emit('task.message', message('rel:a:-:0', 2));
+    equal([heard, handed], [[0], ['task.message rel:a:-:0', 'task.completed rel:a:-:0']],
+      'after the release NOTHING is handed to the driver for the run — rule 4 row 2 — and the callback hears nothing more');
   });
 });

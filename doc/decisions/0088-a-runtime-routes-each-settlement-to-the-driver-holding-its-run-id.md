@@ -66,7 +66,10 @@ to its prediction-3 stop — and W55's command reads 68.0 MiB and 868 ms at N = 
    function — and from `detail.id` ALONE.** The grammar stays in one place (`spec/task-id.md`
    section 2), and the router reads no other field, so `OR-R1` (nothing retained) and `ID-R4`'s
    *ownership from the task id alone, before anything else reads the detail* hold for it as for the
-   driver: `OR-R6`'s clone cannot run before a settlement is routed.
+   driver: `OR-R6`'s clone cannot run before a settlement is routed. ***Amended 2026-10-18 by
+   [ADR 0114](0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md) rule 8*** (W187, P36
+   (l)): the router reads `detail.id` when it is a string, else `detail.taskId` — `task.message` names its task `taskId` and
+   carries no `id`, so without it every message reached every run's driver. Rule 4's rows are unchanged.
 4. **Where a settlement goes:**
 
    | `detail.id` | delivered to |

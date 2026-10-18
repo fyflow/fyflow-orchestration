@@ -241,9 +241,16 @@ export interface RuntimeOptions {
  * between the header and the run's first dispatch: `start` dispatches synchronously inside `driver.start`, so a runtime
  * could call it no earlier than the handle it returns. Conditionally spread, the binding's first road, and OMITTED from
  * {@link ResumeOptions} below: `resume()` never calls it.
+ *
+ * **`onTaskMessage` and `onTaskProgress` are the TWENTY-SECOND and TWENTY-THIRD members, and the thirteenth and fourteenth
+ * here** — `RN-R42`, [ADR 0114](../../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md),
+ * P36 (k), [W187](../../doc/work-items/w187-attribution-on-the-fold-and-messages-passed-through.md). Per-RUN callbacks, as
+ * every `on*` member here is; conditionally spread, the binding's first road — and KEPT by {@link ResumeOptions}: a
+ * resumed run's re-dispatched tasks emit as a started run's do, and nothing about the pass-through is the stored run's.
  */
 export interface StartOptions extends Pick<DriverOptions,
-  'createTask' | 'joinPolicy' | 'onFoldInput' | 'onHeader' | 'onNonconformingResult' | 'onRegionEvent' | 'onRunFailure' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
+  | 'createTask' | 'joinPolicy' | 'onFoldInput' | 'onHeader' | 'onNonconformingResult' | 'onRegionEvent' | 'onRunFailure' | 'onTaskMessage'
+  | 'onTaskProgress' | 'onUnsatisfiableJoin' | 'onUnmintedTask' | 'now'> {
   /**
    * Omitted, the runtime mints `r<n>` from its own counter — inside `ID-R2`'s charset, unique per RUNTIME and not globally
    * (decision 10). **Since W89 the counter SKIPS an id in use on this runtime, and a caller naming one is refused** (`RunIdInUse`,
@@ -846,6 +853,10 @@ export function createRuntime(
       ...(startOptions.onHeader !== undefined ? { onHeader: startOptions.onHeader } : {}),
       ...(startOptions.onRegionEvent !== undefined ? { onRegionEvent: startOptions.onRegionEvent } : {}),
       ...(startOptions.onRunFailure !== undefined ? { onRunFailure: startOptions.onRunFailure } : {}),
+      // **Spread only when given** (`RN-R42`): the driver subscribes the pass-through events for a callback present, so an
+      // `undefined` forwarded here must stay ABSENT — and on a runtime the scheduler is subscribed once the first run asks.
+      ...(startOptions.onTaskMessage !== undefined ? { onTaskMessage: startOptions.onTaskMessage } : {}),
+      ...(startOptions.onTaskProgress !== undefined ? { onTaskProgress: startOptions.onTaskProgress } : {}),
       ...(startOptions.onUnsatisfiableJoin !== undefined ? { onUnsatisfiableJoin: startOptions.onUnsatisfiableJoin } : {}),
       ...(startOptions.onUnmintedTask !== undefined ? { onUnmintedTask: startOptions.onUnmintedTask } : {}),
       ...(startOptions.onNonconformingResult !== undefined ? { onNonconformingResult: startOptions.onNonconformingResult } : {}),
@@ -877,8 +888,12 @@ export function createRuntime(
  *
  * **What it does, rule by rule.** `forRun(runId)` is the `SchedulerLike` a driver is handed (rule 1): `addTask` is the
  * scheduler's own, and `addEventListener` files the listener under `runId` and that event name. The scheduler is subscribed
- * ONCE per event name, by the first driver that asks (rule 2). Each event is read for `detail.id` and nothing else, and that
- * id is put through `parseTaskId` — `ID-R4`'s tier-0 parse, the same function, so the grammar is in one place (rule 3).
+ * ONCE per event name, by the first driver that asks (rule 2). Each event is read for `detail.id` — or, where the detail
+ * carries no string `id`, for `detail.taskId` (rule 3 as
+ * [ADR 0114](../../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md)
+ * amends it, W187, P36 (l): `task.message` names its task `taskId` and has no `id`, so without it every message reached
+ * EVERY run's driver, N² per message across N runs) — and nothing else, and that id is put through `parseTaskId` —
+ * `ID-R4`'s tier-0 parse, the same function, so the grammar is in one place.
  * Then (rule 4): a run id some driver here holds goes to that run's listeners and to no other; a run id none holds goes
  * nowhere, which is what every driver's tier 1 did with it; and an id that does not parse — or is not a string — goes to
  * EVERY driver subscribed to that event, in subscription order, so each still reports it through `onUnmintedTask` under
@@ -917,7 +932,9 @@ function settlementRouter(scheduler: SchedulerLike): { forRun(runId: string): Sc
   const every = new Map<string, Listener[]>();
   const deliver = (name: string): Listener => (e) => {
     const detail = 'detail' in e ? (e as { detail?: unknown }).detail : undefined;
-    const id = typeof detail === 'object' && detail !== null ? (detail as { id?: unknown }).id : undefined;
+    const d = typeof detail === 'object' && detail !== null ? (detail as { id?: unknown; taskId?: unknown }) : undefined;
+    // Rule 3, amended by ADR 0114 (W187): `id`, else `taskId` — `task.message`'s name for its task (P36 fact 2).
+    const id = typeof d?.id === 'string' ? d.id : d?.taskId;
     let runId: string | null = null;
     if (typeof id === 'string') {
       try {

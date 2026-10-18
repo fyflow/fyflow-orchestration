@@ -3,10 +3,12 @@
  * [ADR 0113](../../doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md),
  * [W186](../../doc/work-items/w186-attempts-recorded-and-carried-across-a-resume.md), P36 stop-and-ask (f).
  *
- * **Every input sequence here is hand-written from the spec** — no driver produced any of it — and the one expected value
- * is `RN-R40`'s sentence: *the fold accepts it and moves NOTHING in run state at v0.26* — so each sequence is folded beside
- * its CONTROL, the same sequence with the `attempted` elements removed, and the two must be equal at EVERY prefix, over
- * each outcome a run can have. A fold that threw on the kind — every kind `step` does not name falls through to
+ * **Every input sequence here is hand-written from the spec** — no driver produced any of it — and the expected value
+ * is `RN-R40`'s sentence as v0.27 amends it (`RN-R41`, [W187](../../doc/work-items/w187-attribution-on-the-fold-and-messages-passed-through.md),
+ * P36 (j)): *the fold accepts it and moves ONE cell — its task's `NodeRun.attemptNumber`* (v0.26: *moves NOTHING*) — so each
+ * sequence is folded beside its CONTROL, the same sequence with the `attempted` elements removed, and the two must be equal
+ * at EVERY prefix with that one cell set aside, over each outcome a run can have — and the cell itself is held to the number
+ * the latest element carried, hand-written per sequence. A fold that threw on the kind — every kind `step` does not name falls through to
  * `input.record` (W93's measurement) — fails every case here.
  */
 import { equal, collected, suite } from '../harness.ts';
@@ -38,6 +40,20 @@ const SEQUENCES: Record<string, FoldInput[]> = {
   'cancelling with an attempt in flight': [dispatched(A), attempted(A, 1), { kind: 'cancelRequested', actor: 'ana', reason: null }],
 };
 const without = (seq: readonly FoldInput[]) => seq.filter((e) => e.kind !== 'attempted');
+/** The state with every `NodeRun.attemptNumber` set to `null` — what the control's own fold carries (`RN-R41`): the one cell set aside. */
+const masked = (s: RunState): RunState =>
+  ({ ...s, nodes: Object.fromEntries(Object.entries(s.nodes).map(([k, n]) => [k, { ...n, attemptNumber: null }])) });
+/** Each sequence's `attemptNumber` per task at its END — hand-written: the number of the LAST `attempted` element for it. */
+const LAST: Record<string, Record<string, number | null>> = {
+  'running, an attempt in flight': { [A]: 1 },
+  'completed after a retry': { [A]: 2, [B]: 1 },
+  'failed — no eligible edge — after its attempts': { [A]: 1 },
+  'awaiting_action: out of retries': { [A]: 2 },
+  'interrupted with an attempt in flight': { [A]: 1 },
+  'resumed: the stored attempts, then the new process`s next one': { [A]: 3 },
+  'halted after an attempt': { [A]: 1 },
+  'cancelling with an attempt in flight': { [A]: 1 },
+};
 /** The state after EACH element of the sequence with the `attempted` elements, against the control at the same point. */
 const prefixes = (seq: readonly FoldInput[]): [RunState, RunState][] => {
   const out: [RunState, RunState][] = [];
@@ -50,32 +66,38 @@ const prefixes = (seq: readonly FoldInput[]): [RunState, RunState][] => {
   return out;
 };
 
-const SUITE = 'L1 — RN-R40: an `attempted` element moves NOTHING in run state — the fold accepts it, at every prefix, whatever the outcome';
+const SUITE = 'L1 — RN-R40, RN-R41: an `attempted` element moves ONE cell — its task`s attemptNumber — at every prefix, whatever the outcome';
 const DECLARED_CASES = [
-  'folded with and without its `attempted` elements, every sequence reads the SAME state — at its end and at every prefix — over eight outcomes',
-  'step on an `attempted` element returns the state it was handed — from the empty state, and from a settled one',
+  'folded with and without its `attempted` elements, every sequence reads the SAME state but its attemptNumber cells — at its end and at every prefix — over eight outcomes',
+  'step on an `attempted` element: the state it was handed for a task not in nodes, and ONE cell moved for a settled one',
   'L3 — every sequence above folded twice, deep-equal, and a stepped prefix equal to its fold',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
 suite(SUITE, (test) => {
-  test('folded with and without its `attempted` elements, every sequence reads the SAME state — at its end and at every prefix — over eight outcomes', () => {
+  test('folded with and without its `attempted` elements, every sequence reads the SAME state but its attemptNumber cells — at its end and at every prefix — over eight outcomes', () => {
     // The CONTROL that the eight are eight: their outcomes, hand-written from section 3's precedence.
     equal(Object.values(SEQUENCES).map((s) => fold(without(s)).outcome),
       ['running', 'completed', 'failed', 'awaiting_action', 'interrupted', 'running', 'halted', 'cancelling'],
       'the CONTROL: the eight sequences reach eight readings of section 3 without their attempts');
     for (const [name, seq] of Object.entries(SEQUENCES)) {
-      equal(fold(seq), fold(without(seq)), `${name}: the same RunState with its attempts as without`);
-      const at = prefixes(seq).findIndex(([s, c]) => JSON.stringify(s) !== JSON.stringify(c));
+      equal(masked(fold(seq)), fold(without(seq)), `${name}: the same RunState with its attempts as without, the attemptNumber cells set aside`);
+      const at = prefixes(seq).findIndex(([s, c]) => JSON.stringify(masked(s)) !== JSON.stringify(c));
       equal(at, -1, `${name}: and at EVERY prefix (RN-R2) — the first that differs, -1 for none`);
+      // The cell itself (RN-R41): the latest element's number — and the control's, with no element, null on every entry.
+      equal(Object.fromEntries(Object.entries(fold(seq).nodes).map(([k, n]) => [k, n.attemptNumber])), LAST[name], `${name}: each task's attemptNumber is its LAST attempted element's`);
+      equal(Object.values(fold(without(seq)).nodes).map((n) => n.attemptNumber), Object.keys(LAST[name]!).map(() => null), `${name}: and null on every entry without the elements`);
     }
   });
 
-  test('step on an `attempted` element returns the state it was handed — from the empty state, and from a settled one', () => {
+  test('step on an `attempted` element: the state it was handed for a task not in nodes, and ONE cell moved for a settled one', () => {
     const empty = emptyState();
-    equal(step(empty, attempted(A, 1)) === empty, true, 'from the empty state: the SAME object back — nothing copied, nothing moved');
+    equal(step(empty, attempted(A, 1)) === empty, true, 'from the empty state: the SAME object back — no entry to set, nothing copied, nothing moved');
     const s = fold([dispatched(A), settled(A, 'done')]);
-    equal(step(s, attempted(A, 7)) === s, true, 'from a settled run: the same object back');
+    const after = step(s, attempted(A, 7));
+    equal(after === s, false, 'from a settled run: a NEW state (RN-R2: step never mutates the one it was handed)');
+    equal(s.nodes[A]!.attemptNumber, null, 'the state it was handed is untouched: still null');
+    equal(after, { ...s, nodes: { [A]: { ...s.nodes[A]!, attemptNumber: 7 } } }, 'and the new one differs by that ONE cell: the state and the result kept, the outcome unmoved');
   });
 
   test('L3 — every sequence above folded twice, deep-equal, and a stepped prefix equal to its fold', () => {

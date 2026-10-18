@@ -64,7 +64,7 @@ const NEIGHBOURS: [RunOutcome, FoldInput[]][] = [
 suite('L1 — a cancelled settlement folds to a cancelled NODE, verbatim (spec/run-state.md section 4)', (test) => {
   test('the node is `cancelled`, carrying the record`s result and error, and the run is `cancelled`', () => {
     const s = fold(CANCEL);
-    equal(s.nodes['r1:c:-:0'], { nodeId: 'c', branchPath: '-', state: 'cancelled', result: null, error: null },
+    equal(s.nodes['r1:c:-:0'], { runId: 'r1', nodeId: 'c', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'cancelled', result: null, error: null },
       'the state is COPIED from the record (OR-R3, ADR 0007 rule 2), as `done` and `failed` are — not `failed`, not `suspended`');
     equal(s.outcome, 'cancelled', 'and the run`s outcome is the seventh, `cancelled` (RN-R28)');
     equal(s.haltedBy, null, 'with no `halted` element in the sequence, nothing names a refusal: a cancel is not a halt');

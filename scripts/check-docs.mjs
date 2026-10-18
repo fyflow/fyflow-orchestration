@@ -734,7 +734,8 @@ if (written.length) {
 // **Raised 43 -> 44 by [W184](../doc/work-items/w184-a-consumer-callback-that-throws-on-every-road.md)**, section 9's *your store fails on your own call's step* snippet — in its row's `Owns`.
 // **Raised 44 -> 45 by [W185](../doc/work-items/w185-the-header-before-the-first-event.md)**, section 18's *a store that cannot write the header stops the run before it exists* snippet — in its row's `Owns`.
 // **Raised 45 -> 46 by [W186](../doc/work-items/w186-attempts-recorded-and-carried-across-a-resume.md)**, section 18's *what a run records of each ATTEMPT* snippet — in its row's `Owns`.
-const RUN_FLOOR = 46;
+// **Raised 46 -> 47 by [W187](../doc/work-items/w187-attribution-on-the-fold-and-messages-passed-through.md)**, section 8's *Whose task it is* snippet — in its row's `Owns`.
+const RUN_FLOOR = 47;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

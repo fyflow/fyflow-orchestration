@@ -593,6 +593,20 @@ function isFed(e: FoldInput): boolean {
  * when it is not a positive integer — a scheduler older than the pin, or a double that sends none — in which case nothing is
  * recorded. `0` is the scheduler's *before the first dispatch* and is never an attempt. Module-private: not surface.
  */
+/**
+ * **A pass-through's value, as the consumer receives it** — `RN-R42`, W187: a structured clone of its own, SHALLOW-frozen,
+ * as `freezeInput` hands out a fold input's values; a primitive as it is. A value `structuredClone` refuses — a function in
+ * an inline worker's progress `details`, which no thread boundary cloned first — is handed on `undefined`, the scheduler's
+ * own treatment of an `emit` it cannot clone (its §6): a pass-through never stops a run by existing (P36 (k)).
+ */
+function frozenCopy(v: unknown): unknown {
+  try {
+    return Object.freeze(cloneValue(v));
+  } catch {
+    return undefined;
+  }
+}
+
 function attemptNumberOf(detail: TaskDetailLike | undefined): number | null {
   const n = detail?.attemptNumber;
   return typeof n === 'number' && Number.isInteger(n) && n >= 1 ? n : null;
@@ -995,6 +1009,71 @@ export interface NonconformingResult {
 }
 
 /**
+ * **Whose task this is, as FIELDS** — `RN-R42`, v0.27,
+ * [ADR 0114](../../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md),
+ * P36 stop-and-ask (k): what {@link TaskMessage} and {@link TaskProgress} carry beside the scheduler's own fields, so a
+ * consumer never parses a task id. `runId`, `nodeId`, `branchPath` and `flowAttempt` are the id's four segments
+ * (`spec/task-id.md` section 1) — `NodeRun`'s names for them (`RN-R41`); `attemptNumber` is the SCHEDULER's 1-based
+ * number of the attempt the event came from, as the event carried it, and `null` where it carried no positive integer (a
+ * scheduler older than the pin, or a double).
+ */
+export interface TaskAttribution {
+  runId: string;
+  nodeId: string;
+  /** `'-'` when the node is in no fan-out region. */
+  branchPath: string;
+  taskId: string;
+  /** The task id's flow-level attempt segment — `0` on every id minted today (P36 (j)). Not the scheduler's number. */
+  flowAttempt: number;
+  /** The scheduler's attempt number, from the event itself. */
+  attemptNumber: number | null;
+}
+
+/**
+ * **One `context.emit()` of a task THIS run dispatched — the scheduler's `task.message`, passed through** — `RN-R42`,
+ * v0.27, ADR 0114, P36 stop-and-ask (k), what {@link DriverOptions.onTaskMessage} is handed. The scheduler's own fields
+ * (`name`, `data`, `seq`, `timestamp`, and `dropped` and `error` only when the event carried them — its `AGENTS.md` §6)
+ * beside the attribution. A COPY taken while the listener runs (ADR 0007 rule 1) and FROZEN (`OR-R7`): `data` is the
+ * driver's own clone, shallow-frozen as `onFoldInput`'s values are. `workerId` is not carried: it names a pool's worker,
+ * not the run's task.
+ */
+export interface TaskMessage extends TaskAttribution {
+  /** The name the worker emitted under — the scheduler defines none. */
+  name: string;
+  /**
+   * What it emitted. `undefined` when the SCHEDULER could not clone it — `error` is then set — and, with NO marker, when the
+   * driver's own copy could not clone it (`RN-R42`; unreachable for a message the scheduler cloned at the `emit`).
+   */
+  data: unknown;
+  /** The emit's index within its attempt, from 0 — a retry starts again at 0 under the next `attemptNumber`. */
+  seq: number;
+  /** `Date.now()` at the emit, in the worker. */
+  timestamp: number;
+  /** Emits the scheduler discarded at its cap immediately before this one. Present only when the event carried it. */
+  dropped?: number;
+  /** Why `data` is missing. Present only when the event carried it. */
+  error?: string;
+}
+
+/**
+ * **One progress report of a task THIS run dispatched — the scheduler's `task.progress`, passed through** — `RN-R42`, v0.27,
+ * ADR 0114, P36 stop-and-ask (k), what {@link DriverOptions.onTaskProgress} is handed: the report's own fields beside the
+ * attribution, and NONE of the task's — the scheduler spreads the whole task flat into this event's detail (its §6), and
+ * its `workerType` there is `'inline'`/`'thread'`, not the pool key, so neither is carried. A frozen COPY, as
+ * {@link TaskMessage} is.
+ */
+export interface TaskProgress extends TaskAttribution {
+  /** A fraction, 0-1, as the worker reported it. */
+  progress: number;
+  /** The worker's message, if it gave one. */
+  message: string | undefined;
+  /** The worker's details, if it gave any — the driver's own clone; `undefined`, with no marker, if they cannot be cloned. */
+  details: unknown;
+  /** `Date.now()` when the report was made. */
+  timestamp: number;
+}
+
+/**
  * What the driver needs from a scheduler. Structural, so W3 is testable without one — and
  * satisfied by a real `FyflowScheduler` under EVERY lib configuration, which is what closed
  * [Q71](../../doc/questions/q71.md) ([W57](../../doc/work-items/w57-the-scheduler-is-a-dependency.md)).
@@ -1269,6 +1348,34 @@ export interface DriverOptions {
    */
   onHeader?: (header: CheckpointHeader) => void;
   /**
+   * **Every `context.emit()` of a task this run dispatched, with its attribution as fields** — `RN-R42`, v0.27,
+   * [ADR 0114](../../doc/decisions/0114-a-tasks-attribution-is-fields-and-its-messages-and-progress-are-passed-through.md),
+   * P36 stop-and-ask (k): the scheduler's `task.message`, copied while the listener runs and handed over FROZEN
+   * ({@link TaskMessage}). **A PASS-THROUGH, never a fold input**: nothing is appended, nothing a checkpoint holds moves,
+   * and the run routes exactly as it would without it.
+   *
+   * **The driver subscribes to `task.message` ONLY when this is given** — the scheduler sends nothing while nobody listens
+   * (its §6), so a run that passes none costs its workers nothing to emit. **Delivered only for a task THIS run dispatched**:
+   * another run's, an id no driver minted and a task this run never dispatched are DROPPED in silence — never
+   * `onUnmintedTask`, never `UndispatchedTask`: a message never stops a run by existing. **Nothing once the driver is
+   * deaf** — stopped (`RN-R33`) or spent by a refused resume (`RN-R23`) — and, on a runtime, nothing once the run is
+   * released (ADR 0091). A HALTED run's tasks still run, and their messages still arrive.
+   *
+   * **A THROW from it takes `onUnmintedTask`'s road** (`OR-R10`): caught at the listener boundary, reported ONCE through
+   * `onRunFailure` under its own class, and the run HALTED — a scheduler event's step, so nothing is thrown on; on a run
+   * already halted it is discarded. The scheduler delivers `task.message` asynchronously (its §6; W187's declaration step
+   * measured an inline and a threaded pool at the pin), so it never arrives on a driver call's own step. Additive in 0.8.0.
+   */
+  onTaskMessage?: (message: TaskMessage) => void;
+  /**
+   * **Every progress report of a task this run dispatched, with its attribution as fields** — `RN-R42`, v0.27, ADR 0114,
+   * P36 stop-and-ask (k): the scheduler's `task.progress`, copied and handed over FROZEN ({@link TaskProgress}) — the
+   * report's fields and none of the task's. Everything {@link DriverOptions.onTaskMessage} says holds here too: subscribed
+   * only when given, this run's dispatched tasks only, nothing once deaf or released, a throw reported once and the run
+   * halted. Additive in 0.8.0.
+   */
+  onTaskProgress?: (progress: TaskProgress) => void;
+  /**
    * **`FD-R4`'s switch — W73.** `true` (the default): the run's payload is held to the input schema of
    * every task it reaches with no worker in between at `start()`, and a person's `done` resolution to
    * the parked node's worker output schema at `resolve()`, each refused as a `BoundaryRefused`
@@ -1328,9 +1435,17 @@ const SETTLEMENT_EVENTS = ['task.completed', 'task.failed', 'task.user_action', 
 /**
  * **And the one scheduler event the driver hears that is NOT a settlement** — `task.running`, since W186 (`RN-R40`, P36
  * (f), ADR 0113): each attempt's start, recorded as the fold input `attempted` and never as a record (`OR-R4`). So the
- * driver subscribes FIVE names. `task.progress`, `task.retrying` and `task.message` are not heard (P36 (n); W187).
+ * driver subscribes FIVE names, always. `task.retrying` is never heard (P36 (n)); `task.message` and `task.progress` are
+ * the {@link PASS_THROUGH} pair, subscribed only for a callback given (W187).
  */
 const SUBSCRIBED_EVENTS = [...SETTLEMENT_EVENTS, 'task.running'] as const;
+/**
+ * **The two scheduler events the driver PASSES THROUGH, each subscribed only when its callback is given** — `RN-R42`, v0.27,
+ * W187, ADR 0114, P36 (k): the scheduler sends nothing while nobody listens (its §6), so a run that asks for neither leaves
+ * its workers free to emit at no cost, and subscribes exactly {@link SUBSCRIBED_EVENTS}. Never a record and never a fold
+ * input (P36 decision 5).
+ */
+const PASS_THROUGH = [['task.message', 'onTaskMessage'], ['task.progress', 'onTaskProgress']] as const;
 
 export class Driver {
   /**
@@ -1907,6 +2022,11 @@ export class Driver {
       // and an event without one — which no `FyflowScheduler` emits — reaches `onEvent` as
       // `undefined`, where ADR 0027's producer table already says what a detail with no `id` is.
       opts.scheduler.addEventListener(name, (e) => this.onEvent(name, detailOf(e) as TaskDetailLike));
+    }
+    // `RN-R42` — the pass-through pair, each ONLY for a callback given (P36 (k)); through `onEvent`, so a pass-through is a
+    // scheduler event's step like any other: deafness, the listener boundary and a pause or stop called from it all hold.
+    for (const [name, callback] of PASS_THROUGH) {
+      if (opts[callback] !== undefined) opts.scheduler.addEventListener(name, (e) => this.onEvent(name, detailOf(e) as TaskDetailLike));
     }
   }
 
@@ -3085,6 +3205,49 @@ export class Driver {
     this.attemptsPending.push({ taskId, attemptNumber });
   }
 
+  /**
+   * **A `task.message` or a `task.progress`: PASSED THROUGH to its callback** — `RN-R42`, W187, P36 (k), ADR 0114. The
+   * task's id is the detail's `taskId` for a message — `task.message` carries no `id` (P36 fact 2) — and its `id` for a
+   * progress report, whose detail is the task spread flat. Handed on only for a task THIS run dispatched (`ID-R4`'s two
+   * tiers, asked SILENTLY, as {@link Driver.heardRunning} asks them): anything else is dropped and is not a refusal. Every
+   * field is COPIED here, while the listener runs (ADR 0007 rule 1, `OR-R1`), and the copy FROZEN (`OR-R7`); a value that
+   * cannot be cloned is handed on `undefined` — the scheduler's own treatment of an uncloneable `emit` (its §6) — so a
+   * pass-through never stops a run by existing. **The consumer's throw is NOT caught here**: it leaves through
+   * `onEventOrThrow` to the listener boundary, which reports it and halts the run (`onUnmintedTask`'s road, `OR-R10`).
+   */
+  private heardPassThrough(name: 'task.message' | 'task.progress', detail: Record<string, unknown> | undefined): void {
+    const isMessage = name === 'task.message';
+    const taskId = isMessage ? detail?.taskId : detail?.id;
+    if (typeof taskId !== 'string' || detail === undefined) return;
+    let parts: TaskIdParts;
+    try {
+      parts = parseTaskId(taskId);
+    } catch (e) {
+      if (e instanceof InvalidTaskId) return;
+      throw e;
+    }
+    if (parts.runId !== this.runId || !this.dispatched.has(taskId)) return;
+    const attribution: TaskAttribution = {
+      runId: parts.runId, nodeId: parts.nodeId, branchPath: parts.branchPath, taskId, flowAttempt: parts.attempt,
+      attemptNumber: attemptNumberOf(detail as unknown as TaskDetailLike),
+    };
+    if (isMessage) {
+      const m: TaskMessage = {
+        ...attribution, name: detail.name as string, data: frozenCopy(detail.data), seq: detail.seq as number,
+        timestamp: detail.timestamp as number,
+      };
+      if (detail.dropped !== undefined) m.dropped = detail.dropped as number;
+      if (detail.error !== undefined) m.error = detail.error as string;
+      this.opts.onTaskMessage?.(Object.freeze(m));
+      return;
+    }
+    const p: TaskProgress = {
+      ...attribution, progress: detail.progress as number, message: frozenCopy(detail.message) as string | undefined,
+      details: frozenCopy(detail.details), timestamp: detail.timestamp as number,
+    };
+    this.opts.onTaskProgress?.(Object.freeze(p));
+  }
+
   /** Whether this run has been HALTED by a refusal (`OR-R10`; its outcome `halted`). */
   hasFailed(): boolean {
     return this.failed;
@@ -3152,6 +3315,10 @@ export class Driver {
   private onEventOrThrow(name: string, detail: TaskDetailLike): void {
     if (name === 'task.running') {
       this.heardRunning(detail);
+      return;
+    }
+    if (name === 'task.message' || name === 'task.progress') {
+      this.heardPassThrough(name, detail as unknown as Record<string, unknown> | undefined);
       return;
     }
     // **`ID-R4` — ADR 0023. Ownership is decided from the TASK ID ALONE, before

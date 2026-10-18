@@ -135,9 +135,10 @@ suite('RN-R8 — halted outranks everything, INCLUDING records that follow it', 
     equal(fold(legacy), {
       runId: 'r1', outcome: 'halted',
       nodes: {
-        'r1:a:-:0': { nodeId: 'a', branchPath: '-', state: 'done', result: { of: 'r1:a:-:0' }, error: null },
-        'r1:b:-:0': { nodeId: 'b', branchPath: '-', state: 'done', result: { of: 'r1:b:-:0' }, error: null },
-        'r1:c:-:0': { nodeId: 'c', branchPath: '-', state: 'suspended', result: null, error: 'boom' },
+        // W187 (RN-R41): a 0.7.0 log holds no `attempted` element, so every entry's attemptNumber is null.
+        'r1:a:-:0': { runId: 'r1', nodeId: 'a', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { of: 'r1:a:-:0' }, error: null },
+        'r1:b:-:0': { runId: 'r1', nodeId: 'b', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { of: 'r1:b:-:0' }, error: null },
+        'r1:c:-:0': { runId: 'r1', nodeId: 'c', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'suspended', result: null, error: 'boom' },
       },
       regions: {}, pathEnds: [], haltedBy: 'DuplicateTaskId: r1:b:-:0', cancelRequest: null, interruption: null, paused: false, resumes: [], gated: [],
     } satisfies RunState, 'RN-R8 v0.16: the stored `stopped` is the halt, and nothing after it moves the outcome');

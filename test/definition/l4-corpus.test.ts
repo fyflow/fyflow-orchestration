@@ -425,10 +425,17 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W187 — P36 (j)-(l), `RN-R41`, `RN-R42`: a task's attribution on the fold, and its messages and progress passed through —
+  // L1/L3 in `test/fold/attribution.test.ts`, L2 in `test/driver/pass-through.test.ts`, and through `createRuntime` in
+  // `test/scheduler/runtime.test.ts`; all three counted below. (W187 also RENAMED W186's fold suite: its claim *moves NOTHING*
+  // became *moves ONE cell* under `RN-R41`.)
+  'L1 — RN-R41: a task`s attribution as fields on its nodes entry — runId, flowAttempt and attemptNumber (P36 (j))',
+  'L2 — RN-R42: onTaskMessage and onTaskProgress — a task`s messages and progress passed through with its attribution as fields (P36 (k))',
+  'W187 — through createRuntime: a task`s messages and progress are ROUTED to its own run, handed to that run`s callback alone, and nothing after its release',
   // W186 — P36 (f)-(i), `RN-R40`: a task's attempts recorded and carried across a resume — L2 in `test/driver/attempts.test.ts`,
   // L1/L3 in `test/fold/attempted.test.ts`, and through `createRuntime` in `test/scheduler/runtime.test.ts`; all three counted below.
   'L2 — RN-R40: a task`s attempts — one `attempted` element per attempt started, fed to a replay, and carried across a resume as attemptsSpent (P36 (f)-(i))',
-  'L1 — RN-R40: an `attempted` element moves NOTHING in run state — the fold accepts it, at every prefix, whatever the outcome',
+  'L1 — RN-R40, RN-R41: an `attempted` element moves ONE cell — its task`s attemptNumber — at every prefix, whatever the outcome',
   'W186 — through createRuntime: task.running is ROUTED to its own run, and a resume hands the scheduler a FyflowTask carrying attemptsSpent',
   // W185 — P36 decision 1, (d) and (e), `RN-R39`: the header before the first event — L2 in `test/driver/on-header.test.ts`,
   // and through `createRuntime` in `test/scheduler/runtime.test.ts`; both counted below.
@@ -915,10 +922,20 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L2 — RN-R40: a task`s attempts — one `attempted` element per attempt started, fed to a replay, and carried across a resume as attemptsSpent (P36 (f)-(i))'), 13,
       'test/driver/attempts.test.ts registers its thirteen: the rise and the requeue, the dropped ids, every policy, the inline step end, the attempts taken first, (h)`s stop, the fed resume, the spent budget, the diverged forgeries, the paused resume, a throwing callback, a run with no attempt unmoved, and its own membership');
-    equal(count('L1 — RN-R40: an `attempted` element moves NOTHING in run state — the fold accepts it, at every prefix, whatever the outcome'), 4,
-      'test/fold/attempted.test.ts registers its four: the eight outcomes at every prefix, step`s identity, L3, and its own membership');
+    equal(count('L1 — RN-R40, RN-R41: an `attempted` element moves ONE cell — its task`s attemptNumber — at every prefix, whatever the outcome'), 4,
+      'test/fold/attempted.test.ts registers its four: the eight outcomes at every prefix, step on an `attempted` element, L3, and its own membership');
     equal(count('W186 — through createRuntime: task.running is ROUTED to its own run, and a resume hands the scheduler a FyflowTask carrying attemptsSpent'), 2,
       'test/scheduler/runtime.test.ts registers W186`s two: the routing, and the FyflowTask a resume hands on');
+  });
+  // **W187's three suites, counted the same way and for the same reason.**
+  test('W187`s three suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1 — RN-R41: a task`s attribution as fields on its nodes entry — runId, flowAttempt and attemptNumber (P36 (j))'), 8,
+      'test/fold/attribution.test.ts registers its eight: before the first attempt at both segment values, a retry, a resume, an ask and a parked task, a pre-0.8.0 log, a fan-out, L3, and its own membership');
+    equal(count('L2 — RN-R42: onTaskMessage and onTaskProgress — a task`s messages and progress passed through with its attribution as fields (P36 (k))'), 9,
+      'test/driver/pass-through.test.ts registers its nine: the message, the progress, the drops, the subscription list, the frozen copy, the stop, a throw, no fold input, and its own membership');
+    equal(count('W187 — through createRuntime: a task`s messages and progress are ROUTED to its own run, handed to that run`s callback alone, and nothing after its release'), 3,
+      'test/scheduler/runtime.test.ts registers W187`s three: the routing of two runs, a run with no callback, and the release');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
