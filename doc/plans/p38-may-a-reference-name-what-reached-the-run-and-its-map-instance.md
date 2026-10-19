@@ -1,6 +1,6 @@
 # P38 — May a reference name what reached the run, and what opened its map instance?
 
-**Status:** declared 2026-10-18 — on `c43566f` (the tree clean), answering fyflow-app's *pass 1 follow-up, before the 0.8.0 publish*; facts 1-12 measured at this declaration; stop-and-asks (a)-(n) ANSWERED by the maintainer 2026-10-18, all as recommended — both references, in 0.8.0 (a), (k); spelled `$payload` (b); the union widened (h); no item started
+**Status:** complete and retro'd 2026-10-19 — declared 2026-10-18 on `c43566f` (the tree clean), answering fyflow-app's *pass 1 follow-up, before the 0.8.0 publish*; facts 1-12 measured at this declaration; stop-and-asks (a)-(n) ANSWERED by the maintainer 2026-10-18, all as recommended — both references, in 0.8.0 (a), (k); spelled `$payload` (b); the union widened (h); W190-W192 done 2026-10-19; the exit artifact met on W192's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-19 over `997c898`, and the maintainer answered its stop-and-asks (o)-(t) the same day, all as recommended, and asked for a `README.md` cleanup folded into this close (Retro section 8)
 **Question this plan answers:** *may a `needs` reference name the value that reached the RUN and, inside a `map`
 instance, the item that opened it — always there, copied like any reference, refused where it means nothing, and
 derived again on a resume with nothing new in the checkpoint?*
@@ -241,6 +241,13 @@ what each would have moved.
 | **(m)** | **An `ask` keeps the composed input on its `asked` element** (`RN-R37`) — a `$payload` key in an ask's `needs` therefore writes a copy of the whole payload into the LOG per ask | **Accept it, and say so** in `AGENTS.md`'s ask section: it is what `asked.input` is for (P35: the composed input, *no size cap*), and the replay regenerates it (fact 6) | **Exclude `$` keys from `asked.input`** — then `NodeRun.input` is not what the ask received, which is the field's whole definition |
 | **(n)** | **The reply to fyflow-app** | **Written by the coordinator after (a)-(m) are answered**, from this file — the rule ids, the refusals, the section, the road for case 1 if declined — outside this repository; this plan's Record names it | **Wait for the Record** — the app plans its adoption tickets on the answer to (k), not on the build |
 
+*Corrected at the Record, by pass 3 rule 6, 2026-10-19:* **(e)'s *released when that INSTANCE's branch goes terminal …
+after which no node of that instance can be entered* is FALSE** where a join NESTED in the instance is fired before every
+branch is terminal by a consumer's policy: the instance's branch arrives while a nested branch can still enter a node that
+reads `"$item"` (W191's conformity reader, C1, a BLOCKER). (e)'s horizon is the clause after the dash; W191 releases on
+it — the instance's branch terminal AND no branch of a region nested in it live (ADR 0118 rule 5, `RN-R13` v0.28). **And
+decision 7's *a fourth retained term* is ADR 0046's count**: in `RN-R13` the term is its SIXTH (W191 prediction 1).
+
 ## Work items
 
 **The sentences P36's retro proposal B carried, copied as its section 8 (s) directs (the maintainer: YES, 2026-10-18)** —
@@ -341,3 +348,261 @@ plan's, expected unused.
 | [Q186](../questions/q186.md) | a reference to a large value inside a map — `$payload` is its largest instance (fact 11); `deferred`, its decision recorded, applied by (l) | — |
 | [Q583](../questions/q583.md) | a join that fires before every branch settles — why (e) releases per INSTANCE, not per region; `deferred` | — |
 | [Q166](../questions/q166.md) | *what does a map instance lose by receiving its own item* — `resolved`, *"Nothing it cannot ask for"*; true of the branch entry, false one hop later until W191 (fact 10) | W191 (a dated note) |
+
+## Record
+
+*Written 2026-10-19 over `997c898`, the tree clean before it. Every figure is read from the three items' own files; none
+is re-measured here. Ids are bare text, as in P33's-P37's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W190** `68f9f3b` | `"$payload"` on every `needs` site — a node's and an edge's, on a task, a map and an ask; `referenceTarget`'s union +2 MEMBERS, `'payload'` and `'item'` (BREAKING, a type; R2: two members, not (h)'s one); `FD-V26`'s `$` clauses at both sites — an array form, a `?` suffix, any other `$` token — each naming the fix; `"$item"` PARSED and REFUSED until W191 (R1); `compose` and `resolveNeeds` composing from the run's payload handed in explicitly at each door — the caller's at `FD-R4`, the header's in a run and on a resume, a copy per key per read; `entryWalk`'s map arm; an arrival composed through any `"$payload"` key wholly `unchecked` (R3); the L6 censuses' `NOT_YET_AT_L6` (R4); ADR 0117; one `run` snippet (the app's entry ask) | flow-definition v0.44 | — / — | none; **S-1** — a PRE-EXISTING `FD-R4` crash its own L2 case surfaced: `start()` threw a raw `UnresolvedBranchPath` for an ENTRY map whose branch task declared ANY `needs` and whose worker declared an `inputSchema`. **Answered by the maintainer 2026-10-19: W191 fixes it.** A first relay of that answer read alternative (b), *fix it in W190*; the fix was BUILT and then REVERTED on the maintainer's correction, byte-compared against the round-1 tree. ADR 0040 rules 2 and 5, ADR 0041's *not derivable* row and ADR 0101:50 (found by the premise grep, not named by this plan) a dated pointer each | conformity C1-C5, no BLOCKER — C1 (a test comment's *only "." at an entry*), C2, C3, C5 fixed, **C4 left** (`test/fold/result-value.test.ts:589`, outside `Owns`, harmless: `FD-V16`); **S-1 widened** (`"$payload"` on such a task crashes the same way); adequacy **A1** (*a copy per KEY* untested with two keys on one node or edge), **A2** (a resume ALIASING the stored header's payload), A3, A4, A6 fixed, A5 declared (R6); 34 probes, 31 killed, 3 declared equivalents (P19, P21, R6). **Overlap 1** | 82 / 2071; 2767 / 214 | `gate:item` EXIT 0, selftests 985.4 s |
+| **W191** `9aa51b1` | `"$item"` composed: the INNERMOST map region containing the reader as a member (`innermostMapOf`, an ADDITIVE export, R1); `FD-V26`'s interim refusal RETIRED; `FD-V49` at a node and an edge, naming both fixes; `Driver.items` — `kept` from the document, `held` per instance BY REFERENCE (its OWN copy where the element may be the CALLER's, R3), released once nothing of the instance may still be entered — its branch terminal AND no branch of a region nested in it live — and at the four run-level moments (R4), rebuilt by the replay; `FD-R4` composing from the walk's element; `compose` deriving a branch path only for a NODE reference (S-1 FIXED, a `"."` and a `"$payload"` regression case); `checkWiring` over the enclosing map's item arrival, `unchecked` for an entry map or two arrivals (R7); `DRIVER_FIELDS` +1; ADR 0118; one `run` snippet (the app's map-branch ask) | flow-definition v0.45 (`FD-V49`), run-state v0.28 (`RN-R13`'s SIXTH term) | — / — | none; W190's S-1 fixed as answered; W190's R6 no longer an equivalent (D8 KILLED); ADR 0117 rule 7, ADR 0040 rule 2 and ADR 0046 rule 3 a dated pointer each; Q166 a dated note | round 1 — conformity **C1 BLOCKER** (an item released EARLY: a join NESTED in the instance, fired at its first arrival by a consumer's policy, let the instance's branch arrive while the nested fanout's other branch could still enter a node reading `"$item"` — `itemOf` threw, the run HALTED on a valid document; ADR 0118 rule 5's and `RN-R13`'s *after which no node of the instance is entered* false), C2-C6; adequacy **A1** (*per INSTANCE, never with the region's join* untested — every case `liveToken`), A2-A5. **Round 2**, one reader on C1's fix alone: the fix CORRECT over thirteen shapes, FOUR clauses unbound (the instance key's depth, a nested branch ending `lost` or `exited`, per-instance counting, nesting deeper than one level), two declared equivalents, one text NIT. 61 probes, 56 killed, 5 declared equivalents. **Overlap 1** (round 1; round 2 a single reader, none measured) | 84 / 2098; 2767 / 214 | `gate:item` EXIT 0, selftests 1036.6 s |
+| **W192** `997c898` | the `W192 exit` block — the header's five clauses and a sixth beyond it (the release horizon on real workers), **22 claims over 8 runs**, on a threaded and an inline pool; `NOT_YET_AT_L6` REMOVED, the reference censuses reading the block's own flows (X11, X12) | none | — / — | none; readings R1-R6 (R4: *no kind the control lacks* as a set difference — the resumed run's kinds less the control's exactly `interrupted` and `resumed` — ACCEPTED by the conformity reader) | conformity **C1 SHOULD** (the copy flow's *the caller's write reaches none* could not fail — its entry is a map, so every `touch` is handed INSIDE `start()`, before the caller writes), C2-C4 NITs; adequacy **A1 SHOULD** ((5)'s *nothing handed* could not fail — the refused flow entered through an ask, which hands nothing anyway), A2-A4, and its own seven mutants E1-E7 KILLED in node and deno; the author's first pass found the POOL claims unbound (X1, X14, X15 — each read a TYPE NAME's pool); 40 probes, 39 killed, D17 declared. **Overlap 1** (clause (6)'s instance-1 race, C2 = A2) | 84 / 2098; **2789 / 222** | **`gate:full` EXIT 0**, 11/11 self-tests, 2272.9 s |
+
+**Every confirming gate was green on its FIRST run, one command each** (sentence C), firefox and webkit NOT RUN in any;
+every `npm run gate` the three Records report before and after their readers was EXIT 0. **No item raised a question
+or closed one. No item took an exception — the second plan running. The readers' overlap, every Record stating its own:
+1, 1, 1** (W191's round 2, a single reader, measured none).
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured (W192's Record and its *How each exit clause is asserted*) | verdict |
+|---|---|---|
+| on the final tree, ONE cross-row block in `examples/l6.ts`, green in node 24 and in deno | the `W192 exit` block; **2789 / 222, 0 failed in node 24.20.0 and deno 2.9.6** — in `npm run gate` and `test:l6` / `test:l6:deno` 4/4 each before the readers (none flaked: clauses (2) and (6) are arranged by latches and hold times), after them, and in `gate:full` | **met** |
+| (1) an ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice, answer }`; an edge predicate on that task routing on `needs.run.amount`, one run each way | two runs, 120 and 50, each the other's control: nothing handed at the park, the `asked` element `{ invoice: P }`; `pay` handed `{ invoice: P, answer: { approved: true, by: 'ana' } }` on a pool read back off the HANDED task as `threaded` (C3); 120 handed `[pay, audit, file]` and 50 `[pay, file]`, `completed`. The predicate is the `when` subset (R2), the app's and `AGENTS.md`'s own example; X13 (both runs at 120) kills the route | **met** |
+| (2) a `map` whose branch is an ask followed by a task on an INLINE pool, each task its OWN item beside its own answer, at an arity of at least three | three instances, answered OUT OF ORDER (2, 0, 1), each next answer only after the previous instance's branch ARRIVED (R6 — the map's `branch.arrived` order `['2', '0', '1']` is a claim); each `pay` handed `{ invoice: item_i, answer: { approved: true, by: 'p<i>' } }` on `inline`; `audit` for 0 and 2 only, on `threaded`, reading `"$item"`, `"$payload"` and `"."` two hops in. D11 (the first held instance's item) and X4 (answered in order) kill it | **met** |
+| (3) the copy claim over a NESTED payload and NESTED items, both ways — a caller mutating after `start()`, a worker mutating a nested field — changing nothing any other node or instance receives | TWO keys of each token on ONE node and ONE edge (W190's A1); an INLINE worker and a registered predicate writing a nested field of each, every writer's own object SHOWING its write (X2, X3, X9) beside the second key, the next THREADED node and the other instances reading `original`; the caller's direction read off `check`, handed AFTER both writes (C1's fix), and off clause (1)'s header, `asked` element and hand-offs. Killed by an ALIAS and a SHALLOW copy of each of `compose`'s and `resolveNeeds`' two arms (D1-D8, node and deno) | **met** |
+| (4) a run parked at an ask in a map instance, STOPPED and resumed on a fresh runtime: the successors the uninterrupted control's values, the header the five keys at `format: 1`, no fold-input kind the control lacks | instance 1 answered and ARRIVED on A before the stop (R5, W191's C5), the asks stored with no resolution `[review:0, review:2]` (C4); the header `[entryPayload, flowId, format, runId, version]`, `format` 1; on B `completed`, B handed exactly `[audit@0, audit@2, pay@0, pay@2]`, equal to clause (2)'s run; the kinds against that run both ways `[['interrupted', 'resumed'], []]` — R4's reading of *no kind the control lacks*. D16 (no rebuild) kills it; a store rebuilt from the WRONG element is refused by the replay's divergence check first (A4, noted) | **met**, under R4's reading |
+| (5) a flow naming the item outside any map instance refused at construction with the finding that names the fix | `validateDefinition`: `['FD-V49']` at `report`, the detail naming `"."` and *move this node inside the map*, its `"."` control `[]`; `start()` of a flow whose ENTRY task reads `"$item"` throwing `InvalidDefinition` naming `FD-V49` with nothing handed, beside its `"."` control that STARTS and IS handed (A1's fix — the eighth run) | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W192, ONE command on the final tree after the readers' items: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included, 2272.9 s | **met** |
+| *beyond the header* — (6) the release horizon on real workers (R1) | three instances each nesting a fanout in a fanout, both inner joins fired at their FIRST arrival by a consumer's policy, the reader two levels down: instances 0 and 2 ARRIVE before their `x` is entered, instance 1 after, held at `l` AND `p` so neither branch of the race fires first (C2/A2's fix); each `x` its own item, `completed`. W191's C1 restored (D12) halts the run | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **80 / 2047 → 84 / 2098** in node, deno and
+chromium; L6 **2767 / 214 → 2789 / 222** in node and deno; `check:spec` **7 / 81 / 151 → 7 / 86 / 152**; `check:docs`
+**47 → 49 `run` snippets** (6 `check`); `spec/examples/invalid/` **47 → 52**; spec/flow-definition **v0.43 → v0.45**,
+run-state **v0.27 → v0.28**, outcome-record, join-policy and task-id unmoved; next free rule ids `FD-V50`, `FD-C9`,
+`FD-R7`, `RN-R43`, `OR-R14`; `DRIVER_FIELDS` +1; `NOT_RUN_STATE`, `CHECKPOINT_FORMAT`, `RUN_FOR`, `isFed` and
+`snapshot()` unmoved; `doc/concept.md` untouched.
+
+**What the plan answered — yes, both references.** A `needs` reference may name the value that reached the RUN,
+`"$payload"` (ADR 0117), and inside a `map` instance the item that opened it, `"$item"` (ADR 0118) — on a node's `needs`
+and an edge's, on a task, a map and an ask; always there, so neither has a `?` form; each a copy per key per read; refused
+at construction where it means nothing (`FD-V26`'s `$` clauses for the form, `FD-V49` for an item outside any map
+instance); and derived again on a resume with nothing new in the checkpoint — `"$payload"` reads the header the driver
+already kept, `"$item"` state the map arm writes and the replay rebuilds, `CHECKPOINT_FORMAT` 1. The app's two cases need
+no pass-through task (fact 3). **Beside it**, a pre-existing crash was removed: `start()` no longer throws
+`UnresolvedBranchPath` for an entry map's branch task with any `needs` and an `inputSchema` (S-1, W191).
+**fyflow-app's request**: every clause BUILT as (a)-(n) answered, in the spelling (b) chose — `"$payload"`, not the app's
+`"$input"`; (j)'s two sites compose nothing, as the plan said. **What 0.8.0 ships as BREAKING from this plan** ((h)):
+`referenceTarget`'s return type gains `{ form: 'payload' }` and `{ form: 'item' }`, each with `node: null`. Additive: the
+two tokens (refused by every tree before), `FD-V49`, `innermostMapOf`.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W190 moves no fold input and no dispatched payload of any existing flow; what moves at L0-L5 only reads the PARSE; `examples/l6.ts`'s forms census does NOT move unless an `EXPECTED` flow uses the token | **HOLDS for `src/`** — the `src/` change alone moved nothing, L0-L6; **REFUTED for the census half**: two L6 censuses and the L1 table bound moved with NO flow using the token, because they count the spec TABLE's rows — the predicate was wrong | W190 M2, M3 |
+| 2 | W191's store empty on every existing flow; `DRIVER_FIELDS` moves by its NAME, no retention assertion by a VALUE; `RN-R13`'s text by one term | **HOLDS** — the term is `RN-R13`'s SIXTH (decision 7's *fourth* was ADR 0046's count, corrected above) | W191 M2, M5, prediction 1 |
+| 3 | No item moves `CHECKPOINT_FORMAT`, `RUN_FOR`, `isFed` or `snapshot()` | **HOLDS** — none edited; the header five keys at `format` 1 at L2 (W190, W191) and at L6 (W192 (4)) | W190 M5; W191 prediction 2; W192 (4) |
+| 4 | W192 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2767 / 214 → 2789 / 221, the block's 22 claims and 7 runs, and 2789 / 222 after its readers ((5)'s control run); no `EXPECTED` row, pair row or other block moved | W192 prediction 1 |
+| 5 | (k) answered YES costs the publish three items and no BREAKING change beyond (h)'s one type | **HOLDS** — three items, W193 unused; the one BREAKING change is (h)'s type; `innermostMapOf` is ADDITIVE (W191 R1) and S-1's fix removes a crash | W190-W192 |
+
+**The D′ paragraph's census predictions** (*Work items*), scored the same way: **right at every site it named but
+one** — `RUN_FLOOR` 47 → 48 → 49; `LATE_SUITES` +2 and a count case at W190 and W191, none at W192; `spec/README.md`'s rows
+(v0.44, v0.45, v0.28); `DRIVER_FIELDS` +1 at W191 and not at W190; `X10` at W192 alone; the four L6 reference censuses
+at W190; `spec/examples/invalid/` one per new clause. **The one it over-forecast**: `NOT_RUN_STATE`, which W191 measured
+UNMOVED (the byte walk serialises `items`). **Short at three sites**, each found by its own lane or grep before an edit,
+none needing an exception: `check:spec`'s two count sentences (W191, in `Owns`); ADR 0101:50's *at an entry only `"."`*
+(W190 M6, the PREMISE grep, a record-step file); and the census-reading-the-TABLE predicate (prediction 1). **And W190
+designed AROUND its `Owns`**: a new L6 census clause would have moved `X10` in `examples/README.md`, outside the row, so
+R4 named the not-yet-run rows in a list the two EXISTING clauses read instead (W190 M3) — which W192 removed.
+
+**Questions**: **raised none; closed none.** [Q166](../questions/q166.md) gained a dated note at W191's record step;
+[Q599](../questions/q599.md) (no P38 run turned its rows red) and [Q583](../questions/q583.md) (W191's C1 is its shape,
+reached through the public seam) gain one each at this Record; both stay deferred. [Q186](../questions/q186.md) is applied
+by (l) unchanged. `npm run q -- --where status=open` lists **Q580, Q581**.
+
+**Handed on**, each with its owner — gathered from the three items' Out sections, Notes and readers:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **the reply to fyflow-app** — the spellings `"$payload"` and `"$item"` ((b), not `"$input"`), the rule ids (`FD-V26`'s `$` clauses, `FD-V49`), `AGENTS.md` section 3's two subsections and their `run` snippets, (j)'s two sites unchanged and why, (l)'s cost, and that 0.8.0 is committed and UNPUBLISHED until (s) | (n) | **the coordinator — OWED**, written from this Record, outside this repository | this Record |
+| orchestration **0.8.0**, published after this plan (P36 (v) deferred it for the maintainer's chores; (k) put P38 in it) | (k); P36 (v) | **the maintainer** — (s) | Retro section 8 |
+| (e)'s premise, *after which no node of that instance can be entered*; decision 7's *a fourth retained term* | W191 C1; W191 prediction 1 | **done** — corrected in place at this Record (pass 3 rule 6) | this plan |
+| W190's S-1 — the pre-existing `FD-R4` crash on an entry map's branch task with `needs` | W190 | **done** — W191, as the maintainer answered | W191's Record |
+| `test/fold/result-value.test.ts:589` reads a spelling `!== '.'` as a node id | W190 C4 | **left** — harmless (`FD-V16`); outside every row — no owner | W190's Record |
+| `test/definition/needs.test.ts`'s case names *the five spellings* (seven now), and `test/driver/map-item.test.ts`'s suite name *released by its branch's terminal event* (the horizon is now wider) | W191 | **left** — case and suite NAMES are census-bound (`l4-corpus`) — no owner | W191's Record |
+| D17 — the release horizon not tracked during a replay — survives at L6: a leak, never a value | W192 | **stands** — L2 holds the rebuilt store across an ended instance (W191's C5 case) | W192's Record |
+| a store rebuilt from the WRONG element is refused by the replay's divergence check, not by clause (4)'s values | W192 A4 | **noted** — D16 (no rebuild) is killed by the values | W192's Record |
+| an INLINE pool hands the worker the composed object itself; a threaded pool clones (W192 M3) | W192 | **the maintainer** — (r) | Retro section 5 |
+| P36's retro (s): B′, C, D′ with five clauses, E, the three brief sentences | P36's retro | **done** — copied into the declaration and FOLLOWED; Retro section 2 | this plan |
+| the byte copies and probes `C:/tmp-w190`-`C:/tmp-w192` and the session scratchpad's probes | every item | **the maintainer** — left in place, outside the repository; nothing reads them | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-19 over `997c898`, the working tree clean before it, in a subagent at the coordinator's request.
+Every figure is read from the three items' Records; this retro re-ran no harness and no measurement, and `npm run gate`
+only to confirm its own edits. **Its routings and proposals are put to the maintainer in section 8; none is acted on
+outside the record step's four files.***
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P38's declaration | — | (a)-(n), all as recommended | — | — |
+| W190 | — | **S-1** — the maintainer: *W191 fixes it* (after one mis-relay, built and reverted) | 2 (A1 a copy per key, A2 a resume's alias — test gaps; S-1 pre-existing, found by the item's own case) | — |
+| W191 | — | — | 5 (C1 BLOCKER; round 2's four unbound clauses — one family: the release horizon) | — |
+| W192 | — | — | 2 (C1, A1 — two vacuous absence claims, one family) | — |
+| **P38** | **0 exceptions** | **1 maintainer answer (S-1)** | **9**, three families | **0 raised, 0 closed** |
+
+**No exception in any item, the second plan running.** The one design ask was a PRE-EXISTING defect, asked under
+section 1 rule 6 rather than raised — and the cost was in the relay, not the rule (section 4 (g)).
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E held
+
+**D′ was FOLLOWED as written and held**: every row touching `AGENTS.md`, `spec/flow-definition.md` and `examples/l6.ts`
+owned the whole file and said so (*a parenthetical is a forecast*, P36's clause — W190 and W191 both cite it); the PREMISE
+grep found ADR 0101:50, which the plan did not name (W190 M6); the SIBLING grep found no other list naming `FD-V47`'s
+siblings (W191 M6). **B′ held**: every census site was found by its own lane in the copy before its edit (Record, *The D′
+paragraph's census predictions*). **C held**: every confirming gate green on its first run. **E held**: every probe ONE
+clause; the readers' survivors were re-cut alone (W190 R1-R12, W191 R1r-R12r and H1-H5, W192 R1-R6).
+
+**What D′ still did not say** is one thing, met once and then applied as a prediction that held:
+
+| site | met at | cost |
+|---|---|---|
+| a census that reads a SPEC TABLE — `referenceFormsInSpec()`, `REFERENCE_SPELLINGS_IN_SPEC`, `needs.test.ts`'s table bound — moves with the TABLE's rows, not with the flows that use them | W190 M3 (prediction 1's *unless an `EXPECTED` flow uses the token*); applied by W191 as its prediction 3, and it HELD | no exception: two L6 clauses and an L1 bound red in the copy, before the edit; and W190's R4, a design chosen to keep `X10` inside `Owns` |
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W190 | C1-C5, no BLOCKER; S-1 widened | A1-A6; 34 probes, 31 killed, 3 equivalents | **1** — `FD-R4` over an entry map's branch task (A5, the walked value; the widening of S-1) | 112th |
+| W191 | C1 BLOCKER, C2-C6; **round 2**: one reader, the fix correct, four clauses unbound | A1-A5; 61 probes, 56 killed, 5 equivalents | **1** — the per-INSTANCE release under a join that fires before every branch is terminal (C1, nested; A1, the map's own join) | 113th |
+| W192 | C1 SHOULD, C2-C4 | A1 SHOULD, A2-A4; E1-E7 KILLED; 40 probes, 39 killed | **1** — clause (6)'s instance-1 race (C2, A2) | 114th |
+
+**Every Record states its overlap** — the brief sentence held for the third plan running. **Three measurements, all
+inside section 6's 0-4 band.** W191's round 2 was ONE reader and measures nothing. **The ordinal is a hundred and
+fourteen, so the next is the HUNDRED-AND-FIFTEENTH** — for `doc/workflow.md` by (q).
+
+**The readers are the mechanism for the thirteenth plan running**, and **this plan adds a second ROUND to it.** Every
+defect of P38 that reached a reader was found AFTER the author's own set ran green over it: W191's C1 after 42 of 45 probes
+killed and three declared equivalents — a horizon the plan's own (e) stated wrongly and every case exercised under
+`liveToken`; then W191's round 2, after 52 probes killed, found four clauses of the FIX unbound, one of which (the instance
+key's depth under an outer fanout) was C1 again. W192's C1 and A1 after 33 of 34. The authors' finds were MEASUREMENTS and
+PROVOCATIONS, each before the readers: W190 M3 (the census reads the table), W190 P4 (a refusal message's prefix), W191
+W3 (a map with two arrivals), W192 M3 (an inline pool does not clone) and X1/X14/X15 (the pool claims unbound).
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) the COPY claim's probe set** — P36's third brief sentence, *an ALIAS and a SHALLOW copy, over a NESTED fixture, read both ways* | **FOLLOWED** in all three items; at W190 it was met one DIMENSION over: *a copy per KEY* satisfied by a copy per SITE, because no case put two keys on one node or edge (A1) | the adequacy reader (W190 A1) | **The set extended by one clause, then HELD**: W191 and W192 carried *two keys on one node and one edge*, and W192's adequacy reader's E5 and E6 (one clone shared by two keys) were KILLED at L6 in both runtimes. P36's finding (b) — *a lesson stated as a layer is met at the next layer* — recurred once and was closed by naming the dimension. Proposal B carries it in the sentence |
+| **(b) an observer is vacuous until a control shows it sees** — carried by every brief since P35 | **FOLLOWED** at W192: every writer's own object SHOWS its write (X2, X3, X9), the observers live — and still TWO claims of ABSENCE could not fail: *the caller's write reaches none* was read on objects handed INSIDE `start()`, before the caller could write (C1); *nothing handed* was read on a flow that hands nothing at its start anyway (A1) | the conformity and adequacy readers, one finding from two sides | **The sharpest finding of P38 (rule 3)**: the control showed the observer SEES; it did not show the observer could see THIS event. **Kin to W182's A3** (an event observer never shown live on B) and P36's (b). Proposal B states it as the probe: *a claim of absence is shown able to fail by a control on the SAME observer, taken AFTER the event it denies* |
+| **(c) a premise the plan WROTE rather than measured** — (e)'s *released when that INSTANCE's branch goes terminal … after which no node of that instance can be entered* | the item built to the plan's words; its cases all used `liveToken`, under which the premise is true | **W191's conformity reader, constructing a counterexample** (a consumer's early-firing policy on a NESTED join) — a BLOCKER; round 2 then found the fix's own depth, per-instance and deeper-nesting clauses unbound | **The third plan running** (P35's `sameData`, P36:409-411, P38 (e)) — and the first where it shipped to the readers as a BLOCKER. D′'s premise grep finds premises in the TREE; this one was in the PLAN, about a horizon, and the item cited it. **Corrected in place** (rule 6). Proposal B: *a premise sentence about when something can no longer happen is attacked with a constructed counterexample at the declaration step* — and *a release horizon is provoked by an early-firing policy, by nesting deeper than one level, and per instance with at least two instances* |
+| **(d) a census that reads a spec table** | — | W190's B′ copy (M3), before an edit | **D′ gains a clause** (section 2); W191 applied it and held |
+| **(e) a second, focused reader round after a BLOCKER's fix** | not a rule: W191's coordinator ran one, as P35's W180 ran a second round of both readers | the round-2 reader: four unbound clauses, one of them the BLOCKER again under an outer fanout | **Two occurrences, two items, two plans** (W180: R4 and R13 found in round 2; W191: R2-1 to R2-5) — and W184's BLOCKER fix (P36) had no second round, so no measurement there. Rule 2's bar is met. Proposal C, (p) |
+| **(f) test and harness lessons** — a substring assertion on a refusal message that is a PREFIX of a sibling clause's message (W190 P4: the array clause disabled for nothing); a fixture SPREADING its overrides before `edges`, so the first L1 edge cases tested nothing (W191); a pool claim reading a TYPE NAME's pool rather than the pool the task was handed to (W192 X1, X14, X15, and C3 one step further: the definition's pool rather than the hand-off's); an arrangement held by delay on ONE branch of a race (W192 C2/A2); pool capacity and an inline pool's aliasing as part of the arrangement (W192 M3, M4) | each caught by the author's own one-clause provocations and its grader control (G2 graded CLEAN where WRONG-REASON was declared — the control did its job by failing), by a failing assertion, or by the readers | the provocations; G2; the readers | **No change to a rule**: one occurrence each, and the mechanisms worked. The race and the pool claim go into Proposal B's sentence beside (b), where they share a cause: an observation taken on a different object, or at a different time, than the claim's |
+| **(g) S-1's answer, relayed** — the maintainer's terse answer to a three-option stop-and-ask was relayed as alternative (b) where the maintainer meant the recommendation | section 1 rule 6 was FOLLOWED (asked, not raised); the item acted on the relay as given | the maintainer, correcting it | **Not the workflow's**: the item could not tell; the coordinator could have. One build and one byte-compared revert. (t) |
+
+**Pass 3 rule 5 over P38's defects**, by what caught them: **a rung in `gate`** — `check:spec`'s count sentences (W191),
+L6 `cross-row` and the L1 table bound (W190 M3, W191 M3), `DRIVER_FIELDS` (W191 M2), every census site in B′'s copies;
+**the authors, measuring and provoking** — W190 M3, P4; W191 W3 and the fixture order; W192 M3, X1/X14/X15; **the
+conformity readers** — W190 C1-C5 and S-1's widening; W191 C1-C6; W192 C1-C4; **the adequacy readers** — W190 A1-A6;
+W191 A1-A5; W192 A1-A4; **the second round** — W191 R2-1 to R2-7. **No rung would have caught** the early release (a
+consumer's policy at L2 would have — no case had one), the two vacuous absence claims, or the per-key copy: each is an
+arrangement no lane can see is missing.
+
+**The flaky rows ([Q599](../questions/q599.md)).** **None went red in any P38 run its Records report** — every gate of
+W190 and W191 that reached L6, W192's four node and four deno runs before its readers, its runs after them and its
+`gate:full`. A dated note is added; it stays deferred.
+
+### 5. The scheduler
+
+**No S entry raised.** **Measured at the pin, none of them an S entry**: **an INLINE pool hands the worker the object
+`addTask` was given ITSELF, and a THREADED pool a clone** (W192 M3) — so an alias or a shallow copy in the driver's
+composition is visible on real workers only through an INLINE writer; its `AGENTS.md` says `context.emit`'s `data` is
+cloned *on inline pools too* and says nothing of the task's input. The second inline-pool fact in two plans: P36's was
+*`task.running` fires inside `addTask`* (W186 M3), left out of `CLAUDE.md` by P36 (u). And the default pool —
+`maxThreads: 2 × maxConcurrentTasks: 1` — serialises held tasks (W192 M4, documented). **No contract was found broken.**
+(r).
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule** but (p)'s, which is offered with the alternative of a brief
+sentence. B′, C, D′ and E held; every Record stated its overlap; no item took an exception; every defect was caught before
+its Record by a reader or the author's own provocations.
+
+**B. Recommended, for the NEXT plan's author, not the workflow** — B′, C and E carried UNCHANGED; D′ carried with its five
+clauses and **one added** (section 2): *a census that reads a SPEC TABLE moves with the table's rows, not with the flows
+that use them*. **The three brief sentences**, the copy sentence widened by its own dimension — *a COPY claim is provoked by
+an ALIAS and by a SHALLOW copy, over a fixture whose value is NESTED, read in both directions, **and with two keys on one
+node and one edge where the claim is per key*** — and **three added** (section 4 (b), (c), (f)):
+- ***a claim of ABSENCE is shown able to fail by a control on the SAME observer, taken AFTER the event it denies; an
+  arrangement held by delay holds BOTH branches of its race; a claim about a pool reads the pool the TASK was handed to***;
+- ***a premise sentence about when something can no longer happen is attacked with a constructed counterexample at the
+  declaration step, not cited***;
+- ***a retention or release horizon is provoked by an early-firing policy, by nesting deeper than one level, and per
+  instance with at least two instances***.
+- **Replaces**: P38's D′ and brief sentences in the next plan's declaration.
+- **Saves**: W191's BLOCKER and its round-2 findings; W192's C1 and A1; W190's A1.
+- **Ledger**: kin to the *`Owns` pre-declaration* row (14 refusals), as P34's-P36's B were — not proposed as a rule or a
+  check. **No next plan is named** anywhere in the tree, so B is carried HERE, for its author to copy as P38 copied P36's.
+
+**C. Offered for the workflow, or for the brief: a BLOCKER's fix is read again** — section 4 (e), (p).
+
+**D. Offered for `CLAUDE.md`: the inline pool's two facts in one bullet** — section 5, (r).
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it would be the 37th refusal, P2-P38.** P38's text defects were a
+  spec row's value list omitting `"$item"` (W191 C2), an `AGENTS.md` sentence true only of one shape (W191 C3), a test
+  comment stating a falsified premise (W190 C1) — each found by a reading, and the census that DOES read the spec (the
+  table censuses) did its job. The row's standing ground holds. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; the dated correction under the stop-and-asks of (e)'s premise and decision 7's count (pass 3 rule 6, W191 C1 and prediction 1); this Record and Retro |
+| `doc/questions/q599.md` | a dated paragraph — none of its three rows red in any P38 run its Records report; still `deferred` |
+| `doc/questions/q583.md` | a dated paragraph — a consumer's policy through `StartOptions.joinPolicy` already fires a join early, and W191's C1 was that shape releasing a map instance's item; the library is now tested under it at L2 and L6; still `deferred` |
+| `README.md` | *More examples* gains two rows for what 0.8.0 ships from this plan — a reference to what reached the run, `"$payload"`, and to what opened the map instance, `"$item"` (both section 3); no snippet, no claim beyond `AGENTS.md`'s |
+
+`doc/decisions/**` already carries every pointer the items' record steps owed (ADR 0040, 0041, 0046, 0101, 0117) and the
+two new ADRs; Q166's note was W191's. **Not edited**: `doc/workflow.md` ((p), (q)), `CLAUDE.md` ((r)).
+
+**Ids.**
+
+- **Issued**: W190, W191, W192; ADR 0117, ADR 0118; no question; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3):
+  - W193 CLOSED unissued, as the declaration expected;
+  - Q700-Q704 SPENT (W190's), Q705-Q709 SPENT (W191's), Q710-Q713 SPENT (W192's), Q714-Q719 SPENT (the plan's). None
+    exists in the tree;
+  - ADR 0119 SKIPPED — every answer fitted the two ADRs decision 7 named.
+
+**The next plan starts at W194, Q720 and ADR 0120.** The next S id is S13; the next plan id is P39.
+
+*`npm run state` before this section printed the tree's W193 / Q710 / ADR 0119 against the ledger's W190 / Q700 /
+ADR 0117, the ledger being P36's sentence. P38 closes W193, Q710-Q719 and ADR 0119 unissued — P36's precedent for W189,
+Q680-Q699 and ADR 0115-0116; after this section the two AGREE at P39, W194, Q720 and ADR 0120. None of section 8's
+recommendations takes an id.* **No plan or retro names the next plan**; the candidates the tree holds are the two open
+questions, [Q580](../questions/q580.md) and [Q581](../questions/q581.md) — both about text that ships — and (s).
+
+### 8. Stop-and-asks for the maintainer
+
+**Lettered after the declaration's (a)-(n). Each site is OUTSIDE the record step's four files and is NOT edited here.**
+**ANSWERED by the maintainer, 2026-10-19: (o)-(t) as recommended.** (o) and (p) are carried in section 6 for the next plan's author; (q)'s three edits and (r)'s bullet are made in this close's commit, `check:budget` and `check:budget:selftest` re-run; (s) — publish from the commit carrying this Record after the chores, when the maintainer says so; nothing is published here; (t) is the coordinator's own note, outside this repository.
+
+**And a chore the maintainer asked for at this close, folded into its commit**: `README.md` trimmed to what a person using the library needs ([ADR 0073](../decisions/0073-the-readme-is-for-a-person-the-reference-is-for-an-agent.md) decision 1) — the opening's reasoning, the install section's two paragraphs, and the section introductions shortened; and the comments inside its three examples cut to what the code does (ADR and rule-id citations and internal reasoning removed, the assertions kept under one *Verified by the docs gate* line). `X8` holds each example byte for byte to its `AGENTS.md` snippet, so sections 2, the routing section's runtime snippet and 15 of `AGENTS.md` carry the same cut. The `X8` and selftest anchors (*THE REGISTRY — what exists.*, *THE FLOW — a DECISION, a FAN-OUT, a JOIN.*, the `hello world !` literal) are kept. The release sentence changed, so [Q581](../questions/q581.md) gains a dated note.
+The package ships `dist/`, `README.md` and `AGENTS.md` only, so nothing below but (s) touches what it ships.
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(o)** | **Proposal B** (section 6): what the next plan's author copies into its declaration | **YES — carried in this retro**: B′, C and E unchanged; D′ with its five clauses and one more (*a census that reads a spec TABLE moves with the table*); the three brief sentences, the copy one widened (*with two keys on one node and one edge where the claim is per key*), and three added — *a claim of absence shown able to fail by a control on the same observer, taken after the event it denies; an arrangement held by delay holds both branches of its race; a pool claim reads the pool the task was handed to*; *a premise about when something can no longer happen is attacked with a counterexample at the declaration step*; *a release horizon is provoked by an early-firing policy, nesting deeper than one level, and per instance with at least two instances* | **Carry P38's sentences unchanged** — the absence claims, the horizon and the premise are then found by readers again, at the cost P38 paid (a BLOCKER, a second round, two SHOULDs); or **make any of them a workflow rule** — the *`Owns`* ledger row's fifteenth refusal, against `doc/workflow.md`'s 168 bytes of headroom |
+| **(p)** | **A second, focused reader round after a BLOCKER's fix.** W191's found four clauses of the fix unbound, one of them the BLOCKER again under an outer fanout; P35's W180 second round found two defects. Two occurrences, two plans | **As a sentence in the next plan's brief, not a rule**: *a BLOCKER's fix is read again before the confirming gate, by one reader on the fix alone, who reports the fix's clauses no case binds*. No bytes in the always-read set | **A rule in `doc/workflow.md` section 6**, after *both **report; they do not fix***: *"**A BLOCKER's fix is read again, by one reader on the fix alone, before the confirming gate** — W180's and W191's second rounds each found it incomplete."* — about 160 bytes of the 164 left after (q), v0.31 and a version-index line, which do not fit; or **neither** — the next BLOCKER's fix is confirmed by the author's re-run alone, which killed 52 of 55 probes over W191's fix while four of its clauses were unbound |
+| **(q)** | **`doc/workflow.md`'s bookkeeping**, the three edits P33's-P37's retros made: the Status line *run to completion THIRTY-SEVEN times*, by P1 through P37 → ***THIRTY-EIGHT times**, by P1 through P38*; section 6 *a hundred and eleven, so the next is the HUNDRED-AND-TWELFTH* → *a hundred and fourteen, so the next is the HUNDRED-AND-FIFTEENTH*; the ledger's first row ***36 times**, P2-P37* → ***37 times**, P2-P38*. And does P38 join the *adopted nothing* list? | **YES to the three edits** (+4 bytes of 168), **no version, no index entry**; **P38 does NOT join the list** if (o) is answered YES — B is adopted sentences, the reading at P33 (i) … P36 (t) | **The next plan's retro makes them**; or **P38 joins the list** if (o) and (p) are NO |
+| **(r)** | **`CLAUDE.md`'s *Facts about fyflow-scheduler that catch people out*** lacks two inline-pool facts, now met in two plans: `task.running` fires inside `addTask` (P36, W186 M3 — (u) answered LEAVE), and the worker is handed the input object ITSELF where a threaded pool clones it (P38, W192 M3). Neither is in the scheduler's `AGENTS.md` | **One bullet, both facts** (about 290 bytes of 470): *"- **An INLINE pool fires `task.running` inside `addTask`, and does not clone**: the worker is handed the object `addTask` was given, where a threaded pool hands a clone — so an alias is visible on real workers only through an inline writer (W186 M3, W192 M3)."* — `check:budget` and `check:budget:selftest` re-run with it. Rule 2's two occurrences are met, which (u) was not | **LEAVE it again** — `RN-R40`, W192's M3 and its L6 writers hold both where the code meets them, and each was caught by a measurement before harm; or **raise an S entry (S13)** asking upstream to state both in its `AGENTS.md` — the workaround is the driver's own per-key copy, so it is a wish, not a blocker |
+| **(s)** | **Publishing orchestration 0.8.0** — P36 (v) deferred it for your chores, and (k) put P38 in it. Nothing in the four files blocks it: the manifests read `0.8.0`, the scheduler peer is 0.6.0 in both registries, `AGENTS.md` states (h)'s BREAKING change where it changes, and this record step added `README.md`'s two rows. **The two open questions, Q580 and Q581, both concern text that ships** (a sentence that the envelope worker is served beside a bundle; the README's release statement) | **Publish from the commit that carries this Record**, `npm run gate:full` green on it first (a doc-only diff over W192's `gate:full` tree), `runtimeCompat` set on jsr.io by the maintainer; no version bump and no repository edit — after the chores, and with Q580 and Q581 answered or explicitly left if they are among them | **Hold for the chores** (the state since P36 (v)); or **publish from `997c898`**, without this Record's `README.md` rows |
+| **(t)** | **The relay of a terse answer.** S-1's answer was relayed as alternative (b) where the maintainer meant the recommendation; W190's author built (b) and reverted it on the correction. Section 4 (g) | **A coordinator's working note, outside this repository** (its own memory): *a one-word answer to a stop-and-ask with lettered alternatives is confirmed BY LETTER before it is relayed as an instruction*. No repository edit | **A sentence in `doc/workflow.md` section 1 rule 6** — the workflow governs items, and the item could not have known; or **nothing** — one occurrence, one build and one byte-compared revert |
