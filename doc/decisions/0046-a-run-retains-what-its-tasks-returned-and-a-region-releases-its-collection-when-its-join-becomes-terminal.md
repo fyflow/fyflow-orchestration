@@ -159,7 +159,10 @@ the exception stated rather than left to the clear site.**
    invariant hangs off. **Not taken, and P15 decision 2 is why.**
 
 3. **A region's collection is RELEASED when its join becomes TERMINAL, and there are exactly three
-   moments the driver can observe.** Two are per region and one is per run:
+   moments the driver can observe.** Two are per region and one is per run: ***Dated 2026-10-19, [ADR 0118](0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md)* (W191):
+   a run now retains one more term with its OWN window — each map instance's item, where its region has a `"$item"`
+   reader, released per INSTANCE once nothing of it may still be entered, never with this rule's join — and it is
+   released whole at the same run-level moments.**
 
    | moment | where | why nothing can read it again |
    |---|---|---|

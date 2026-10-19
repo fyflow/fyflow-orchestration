@@ -91,7 +91,9 @@ rest on.**
    Derived from the log on demand, through `effectiveOutcome` so a resumed node has one answer and a
    suspended one has none. ***Amended 2026-10-19 by [ADR 0117](0117-a-reference-may-name-what-reached-the-run.md)* (W190): a node can reach the run's own outputs AND the
    value the run was handed — `"$payload"`, read from the checkpoint header the driver already keeps, so still no new
-   state.** **Computed rather than maintained**, deliberately: a maintained index is a
+   state.** ***Amended 2026-10-19 by [ADR 0118](0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md)* (W191): and the item of the reader's own map instance — `"$item"` —
+   which IS new state, the one structure this rule's "computed rather than maintained" gives way for: each instance keeps
+   its item while a node of it may still be entered (`RN-R13`'s sixth term).** **Computed rather than maintained**, deliberately: a maintained index is a
    second source that can disagree with the log, which is the defect [Q43](../questions/q43.md),
    `arrival-count`'s re-sourcing and
    [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s

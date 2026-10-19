@@ -413,6 +413,25 @@ export function regionChainOf(regions: RegionSets[], nodeId: string): string[] {
 }
 
 /**
+ * **The map instance a node is IN — the innermost `map` region containing it as a MEMBER** —
+ * `spec/flow-definition.md` v0.45, P38 (c), [ADR 0118](../../doc/decisions/0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md).
+ * What `"$item"` names: the item of the instance this node is entered in. **The region chain's own walk**
+ * (`regionChainOf`), read innermost-first for the first region a `map` opened — so a node in a `fanout`
+ * nested inside a map instance names the MAP's item, and a `map` NODE names its ENCLOSING instance's item,
+ * because an opener is never a member of the region it opens (its branch cannot reach it, `FD-V10`).
+ * `undefined` for a node no map region contains — `FD-V49`'s refusal, and the one answer the validator,
+ * the driver and the wiring check all read from here, so the three cannot disagree about which item it is.
+ */
+export function innermostMapOf(regions: RegionSets[], nodeId: string): RegionSets | undefined {
+  const chain = regionChainOf(regions, nodeId);
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const r = regions.find((x) => x.fanoutId === chain[i]);
+    if (r?.opensWith === 'map') return r;
+  }
+  return undefined;
+}
+
+/**
  * **How many leading `branchPath` segments the two nodes have anything to compare
  * on** — the length of the COMMON PREFIX of their two region chains, and the whole
  * of what

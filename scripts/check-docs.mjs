@@ -736,7 +736,8 @@ if (written.length) {
 // **Raised 45 -> 46 by [W186](../doc/work-items/w186-attempts-recorded-and-carried-across-a-resume.md)**, section 18's *what a run records of each ATTEMPT* snippet — in its row's `Owns`.
 // **Raised 46 -> 47 by [W187](../doc/work-items/w187-attribution-on-the-fold-and-messages-passed-through.md)**, section 8's *Whose task it is* snippet — in its row's `Owns`.
 // **Raised 47 -> 48 by [W190](../doc/work-items/w190-the-runs-payload-as-a-reference.md)**, section 3's *`"$payload"` — what reached the RUN* snippet — in its row's `Owns`.
-const RUN_FLOOR = 48;
+// **Raised 48 -> 49 by [W191](../doc/work-items/w191-the-map-instances-item-as-a-reference.md)**, section 3's *`"$item"` — what opened the MAP INSTANCE* snippet — in its row's `Owns`.
+const RUN_FLOOR = 49;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
