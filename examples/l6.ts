@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's** and **P36's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's** and **P38's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -88,6 +88,7 @@
  * | **W176 — a run its owner CANCELS, STOPS and PAUSES** | **P34's EXIT ARTIFACT: run control, every call the owner's, on real workers in both runtimes.** (1) A fan-out cancelled through `driver.cancel` while two tasks RUN on one threaded pool — one honouring its signal, one not — and a third waits behind a held group: the fold reads `cancelling` from the request on, nothing is dispatched or routed after it, a second cancel at `graceMs: 0` appends nothing and stops the ignoring task before its own end (never asserting `forced` — S12), `done` settles `cancelled` after the LAST `task.cancelled`, equal to the caller's fold, and a resume of the checkpoint is refused `cancelled` at the request. (2) A run STOPPED through `RunHandle.stop` while two tasks run and a third waits behind a held group, a sibling on the same runtime running on to `completed`: the log ends at `interrupted` with nothing settled, `done` settles after the stop's cancels, the old runtime refuses the resume, and a FRESH one re-dispatches exactly the in-flight ids to `completed`. (3) A PARKED run stopped — `resolve()` refused there, accepted on the runtime that resumes it. (4) A fan-out PAUSED at once — its running tasks finish, their successors are dispatched and held, nothing reaches the scheduler — and UNPAUSED, the held tasks handed on in dispatch order, to `completed`. (5) A cancel PRE-PICKUP on a cold thread and one in a retry BACKOFF, each folding as P34 fact 8 says — through the scheduler's own `cancel(id)` and through `driver.cancel`. (6) Q633's transforming ENTRY: `tryTransform` first gives each payload its verdict, and `start` holds neither (ADR 0101) — the untransformed entry is still held, the control. (7) A built-in `KeyedRateLimitGroup` held resident refused by `createRuntime` naming the pool and the group. Its registries are written in the block, not `registry.json` |
  * | **W182 — a node that waits for a PERSON** | **P35's EXIT ARTIFACT: the `ask` node kind on real workers in both runtimes.** (1) An ask reached after a task on a THREADED pool PARKS with nothing handed to the scheduler — its id in no `addTask`, no `scheduler.tasks`, no event — the fold reading the run `awaiting_action` and the node `suspended`, its kept input exactly the value the task returned. (2) A `done` answer its `answerSchema` refuses is THROWN as `BoundaryRefused` with nothing appended, and the conforming one on the SAME driver routes by a `when` over the answer — to one end in one run and the other in a second. (3) A decline routes `on: ["failed"]`. (4) An ask as a fan-out's branch holds the join — answered after its sibling arrived, the join fires AT the answer; answered while the sibling still runs, at the sibling's settlement. (5) A parked run STOPPED on one runtime and resumed on a FRESH one re-parks at the same id with the same kept input, nothing handed for it, and is answered there to `completed`. (6) A parked run CANCELLED sends the scheduler nothing and settles `cancelled` — beside a cancel while the task before it runs, which IS sent. (7) A PAUSED run's answer has its successor held until the unpause — beside an unpaused answer handing it on at once. Its registry is written in the block, not `registry.json`; and the every-kind clause reads its flows, so `ask` is no longer exempt there |
  * | **W188 — whose task it is, and what survives a resume** | **P36's EXIT ARTIFACT: a task's attribution and its attempts on real workers in both runtimes.** (1) Two runs of one fan-out on ONE runtime — a task on a THREADED pool and one INLINE, each emitting three lines per attempt, one run's tasks failing their first attempt — each run's `onTaskMessage` receiving every message of its own tasks with `runId`, `nodeId`, `branchPath`, `taskId`, `flowAttempt` and the scheduler's `attemptNumber` as FIELDS, frozen, in `seq` order per attempt, the retried attempt's under number 2, and nothing of the other run's; its `onTaskProgress` the same. (2) Each fold's `nodes` entry carrying its run, flow-level attempt `0` and the attempts the scheduler MADE — 2 against 1, read off the scheduler's task, its `task.running` events and the worker's own count. (3) `onHeader` called once inside `start()` before anything is appended or handed on, a frozen header equal to the handle's — and a throwing one starting nothing. (4) A task of `maxRetries: 2` whose worker always fails, the consumer's store frozen in its SECOND attempt and resumed on a FRESH runtime: handed `attemptsSpent: 2`, run once — THREE calls across both processes, where the same checkpoint less its attempt elements makes FIVE. (5) A run STOPPED in an attempt and resumed elsewhere counting that attempt as spent. (6) A task whose budget was spent at the kill handed on, run once and folded from the scheduler's own settlement. Its registry is written in the block, not `registry.json` |
+ * | **W192 — what reached the RUN, and what opened the MAP INSTANCE** | **P38's EXIT ARTIFACT: the `"$payload"` and `"$item"` references on real workers in both runtimes.** (1) An ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice: "$payload", answer: "approve" }` — the run's payload beside the person's answer — and an edge routing on `needs.run.amount` from `needs: { run: "$payload" }`, 120 to `audit` and 50 past it. (2) An ENTRY map of three whose branch is an ask, each `pay` on an INLINE pool receiving its OWN item beside its OWN answer, answered out of order, `audit` reading the item two hops in. (3) The copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on one node and on one edge — the caller's, an inline worker's and a predicate's writes reaching nothing else. (4) That map STOPPED with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the header's five keys at format 1, no new kind. (5) `"$item"` after the map's join refused `FD-V49` naming both fixes. (6) The release horizon: a fanout in a fanout in each instance, inner joins fired at their FIRST arrival by a consumer's policy, the reader entered after its instance arrived — each reading its own item. Its registry is written in the block, not `registry.json`; and the reference censuses read its flows, so `NOT_YET_AT_L6` is gone |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -172,6 +173,10 @@ import {
   // **W188, P36's EXIT ARTIFACT**: what `onTaskMessage` and `onTaskProgress` hand a run's owner — through the package ROOT.
   type TaskMessage,
   type TaskProgress,
+  // **W192, P38's EXIT ARTIFACT**: clause (6)'s consumer policy — the release horizon under a join fired at its FIRST
+  // arrival, `liveToken` for the rest — through the package ROOT, as a consumer would write it.
+  liveToken,
+  type JoinPolicy,
   type UnmintedTask,
   type UnsatisfiableJoin,
 } from '../index.ts';
@@ -5966,6 +5971,34 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W192**: P38's exit-artifact block — twenty-two subjects, by exit clause: (1) two per run over two runs, each the other's
+  // control — the entry ask's successor receiving the run's payload beside the answer, and the edge on the run's amount;
+  // (2) four — the parks, each `pay` its own item and answer, the route two hops in, the arrangement; (3) seven — the caller's
+  // write per payload run, the inline worker's write on the payload, and four over the copy flow's nested items (the caller,
+  // a worker, a predicate, the next read); (4) three — the stop, the resume's values, the kinds; (5) two — FD-V49 and the
+  // refused start beside its control; (6) two — the release horizon's arrangement and its readers.
+  'W192 exit (1, 120): an ENTRY ask keeps { invoice: "$payload" } and hands nothing',
+  'W192 exit (1, 120): pay`s edge routes on needs.run.amount',
+  'W192 exit (1, 50): an ENTRY ask keeps { invoice: "$payload" } and hands nothing',
+  'W192 exit (1, 50): pay`s edge routes on needs.run.amount',
+  'W192 exit (2): three asks in three map instances PARKED',
+  'W192 exit (2): each pay, on an INLINE pool, receives its OWN item beside its OWN answer',
+  'W192 exit (2): pay`s edge on needs.it.amount sends instances 0 and 2 to audit',
+  'W192 exit (2): the ARRANGEMENT',
+  'W192 exit (3, the run`s payload, 120): the CALLER`s nested write after start()',
+  'W192 exit (3, the run`s payload, 50): the CALLER`s nested write after start()',
+  'W192 exit (3, the run`s payload): an INLINE worker writing a nested field of its "$payload" key',
+  'W192 exit (3, nested items): each instance`s two "$item" and two "$payload" keys are the item and the payload AS STARTED',
+  'W192 exit (3, nested items): an INLINE worker writing `it` and `run`',
+  'W192 exit (3, nested items): a PREDICATE writing `it` and `run` on its edge',
+  'W192 exit (3, nested items): the next node`s read, on a THREADED pool',
+  'W192 exit (4): STOPPED with instance 1 answered and arrived',
+  'W192 exit (4): resumed on a FRESH runtime and answered there',
+  'W192 exit (4): no fold-input kind the uninterrupted run lacks',
+  'W192 exit (5): "$item" after the map`s join is FD-V49 alone',
+  'W192 exit (5): start() refuses it InvalidDefinition',
+  'W192 exit (6, the release horizon): the ARRANGEMENT both ways',
+  'W192 exit (6, the release horizon): each reader two levels down',
   // **W188**: P36's exit-artifact block — twenty-four subjects, by exit clause: (1) four per run over two runs on ONE runtime,
   // each the other's control — every message attributed, seq order per attempt, nothing of the other run, and the progress;
   // (2) one per run, the fold's entries against the attempts the scheduler made; (3) four, the header before anything, its
@@ -6470,13 +6503,10 @@ const spellingOf = (ref: unknown): string => {
   }
 };
 
-/**
- * **The rows of section 3's table that NO L6 row runs yet, by NAME — W190.** v0.44 added `"$payload"` and v0.45 (W191)
- * `"$item"`, and this rung runs no flow naming either: P38's W192 is the exit artifact that does, and empties this list.
- * Named rather than subtracted as a count, and held BOTH WAYS below — a form L6 starts running must leave the list, and
- * a row the table has must be in L6's set or here — so the list cannot hide a row the table lost.
- */
-const NOT_YET_AT_L6: readonly string[] = ['item', 'payload'];
+// **`NOT_YET_AT_L6` stood here from W190 to W192** — the rows of section 3's table no L6 run named, `"$payload"` (v0.44)
+// and `"$item"` (v0.45), held both ways by the two reference censuses. P38's W192 runs both, and the censuses read the flows
+// its block STARTED beside EXPECTED's, so the list is removed rather than left empty: an empty exemption is a place to put
+// the next one without a census noticing.
 
 async function referenceSpellingsInSpecAsync(): Promise<string[]> {
   const deno = (globalThis as Record<string, unknown>).Deno as
@@ -12012,6 +12042,486 @@ if (attBlock !== null) {
     ['user_action', 2, 'W188: always fails, call 1 in this thread'], [3, 'suspended', 'W188: always fails, call 1 in this thread'], 'awaiting_action']);
 }
 
+/**
+ * **W192 — what reached the RUN and what opened the MAP INSTANCE, as references, on real workers in both runtimes: P38's
+ * EXIT ARTIFACT** — [W192](../doc/work-items/w192-the-exit-artifact-the-runs-payload-and-the-instances-item-on-real-workers.md),
+ * [P38](../doc/plans/p38-may-a-reference-name-what-reached-the-run-and-its-map-instance.md)'s five clauses, ADR 0117 and
+ * ADR 0118 — fyflow-app's *pass 1 follow-up* cases 1-3.
+ *
+ * **Through the owner's road and nothing else**: `createRuntime` over a registry document written here with ONE `data:`
+ * worker, a THREADED and an INLINE type and one registered predicate; `start`, `resolve` on the run's driver, `RunHandle.stop`,
+ * `runtime.resume`. **Observers**: the scheduler's `addTask`, wrapped before any run, recording each task's handed `input`
+ * CLONED AT THE HAND-OFF (so a worker's later write cannot move it); the run's own log; the worker's own result (what it
+ * received, and what its object read after its own write); the predicate's own record of its `ctx.needs`, before and after
+ * its write.
+ *
+ * **The five clauses, in the header's order, and one beyond it**:
+ * (1) an ENTRY ask whose successor, on a THREADED pool, receives `{ invoice: "$payload", answer: "approve" }` — and an edge
+ *     on `needs.run.amount` from `needs: { run: "$payload" }`, run twice, 120 to `audit` and 50 past it;
+ * (2) an ENTRY map of three whose branch is an ask, `pay` after it on an INLINE pool reaching its OWN item beside its OWN
+ *     answer, answered out of order, each answer after the previous instance ARRIVED;
+ * (3) the copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on ONE node and ONE edge;
+ * (4) (2)'s flow stopped with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the
+ *     header's five keys at format 1, no kind but `interrupted` and `resumed` the uninterrupted run lacks;
+ * (5) `"$item"` after the map's join: `FD-V49` alone, naming both fixes, `start()` refusing it — beside `"."` accepted;
+ * (6) — beyond the header (the item file's R1) — the RELEASE HORIZON: a fanout in a fanout in each of three instances, both
+ *     inner joins fired at their FIRST arrival by a consumer's policy, the reader two levels down entered AFTER its instance
+ *     arrived at the map's join in two instances and BEFORE it in the third.
+ *
+ * **Every expected value is the spec's or this fixture's**, written by hand: what a node receives from `FD-C1` / `FD-C3`
+ * over the payload and items below; each worker's result from `PI_ECHO`'s source; each route from the `when` and the
+ * amounts; the ids from `spec/task-id.md` section 1. **Never an order across tasks the block does not ARRANGE**: (2)'s
+ * arrivals are serialised by its answers' latches and (6)'s by the hold times its items carry — each read back as a claim.
+ * **A scheduler default is part of the arrangement** (the item file's M3, M4): an INLINE pool hands a worker the composed
+ * object ITSELF, a THREADED one a clone — so every write a copy claim provokes is an INLINE worker's, read by a THREADED
+ * node after it; and the inline type's capacity is raised so (6)'s held tasks overlap.
+ */
+const PI_DEADLINE_MS = 15_000;
+// `Echo`: records what it received; writes `"touched-by-<role>"` into `deep.mark` of each input key `settings.touch` names
+// (an INLINE pool's object is the driver's own composition — M3); holds `input.it.hold[role]` ms; returns `{ role, got,
+// after }` — `got` a copy taken BEFORE the write, `after` one taken after it.
+const PI_ECHO = 'export default class { async setup() {} async run(p, ctx) { const i = p.input; const s = p.settings || {}; ' +
+  'const got = structuredClone(i); for (const k of s.touch || []) { if (i && i[k] && i[k].deep) i[k].deep.mark = "touched-by-" + s.role; } ' +
+  'const ms = i && i.it && i.it.hold ? i.it.hold[s.role] || 0 : 0; if (ms) await new Promise((r) => setTimeout(r, ms)); ' +
+  'return { role: s.role, got, after: structuredClone(i) }; } }';
+const piDoc = () => ({
+  predicates: ['w192Touch'],
+  workers: { echo: { url: rcUrl(PI_ECHO) } },
+  nodeTypes: {
+    EchoT: { worker: 'echo', inline: false },
+    EchoI: { worker: 'echo', inline: true, pool: { maxConcurrentTasks: 16 } },
+  },
+});
+/** Every call of clause (3)'s predicate: its task, and `ctx.needs` copied before and after its own write. */
+const piEdge: { taskId: string; before: unknown; after: unknown }[] = [];
+// `w192Touch` (clause (3)'s EDGE): writes `deep.mark` of `needs.it` and `needs.run` — NOT of `it2` or `run2` — and routes on.
+const piTouch: Predicate = (ctx) => {
+  const n = ctx.needs as unknown as Record<string, { deep: { mark: string } }>;
+  const before = structuredClone(n);
+  n.it!.deep.mark = 'touched-by-edge';
+  n.run!.deep.mark = 'touched-by-edge';
+  piEdge.push({ taskId: ctx.outcome.taskId, before, after: structuredClone(n) });
+  return true;
+};
+const piFlowOf = (flowId: string, nodes: Record<string, unknown>[]) =>
+  ({ flowId, version: 1, entry: nodes[0]!.id, nodes }) as unknown as FlowDefinition;
+const PI_APPROVED = { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' }, by: { type: 'string' } } };
+// (1) — the app's case 1: an ENTRY ask; `pay` THREADED; the edge on the run's amount; `audit` INLINE writing its "$payload"
+// key `run` (clause (3)), with a second key `again` beside it; `file` reading the payload after both.
+const PI_PAY_FLOW = piFlowOf('w192-pay', [
+  { id: 'approve', kind: 'ask', needs: { invoice: '$payload' }, answerSchema: PI_APPROVED, edges: [{ on: ['failed'], to: 'declined' }, { to: 'pay' }] },
+  { id: 'pay', kind: 'task', type: 'EchoT', settings: { role: 'pay' }, needs: { invoice: '$payload', answer: 'approve' },
+    edges: [{ when: { path: 'needs.run.amount', op: 'gt', value: 100 }, to: 'audit', needs: { run: '$payload' } }, { to: 'file' }] },
+  { id: 'audit', kind: 'task', type: 'EchoI', settings: { role: 'audit', touch: ['run'] }, needs: { run: '$payload', again: '$payload' }, edges: [{ to: 'file' }] },
+  { id: 'file', kind: 'task', type: 'EchoI', settings: { role: 'file' }, needs: { run: '$payload' }, edges: [{ to: 'done' }] },
+  { id: 'declined', kind: 'end', outcome: 'declined' },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+]);
+// (2), (4) — the app's case 2: an ENTRY map whose branch is an ask; `pay` INLINE; `audit` THREADED, two hops in.
+const PI_REVIEW_FLOW = piFlowOf('w192-review', [
+  { id: 'each', kind: 'map', over: 'invoices', branch: 'review' },
+  { id: 'review', kind: 'ask', needs: { invoice: '$item' }, answerSchema: PI_APPROVED, edges: [{ to: 'pay' }] },
+  { id: 'pay', kind: 'task', type: 'EchoI', settings: { role: 'pay' }, needs: { invoice: '$item', answer: 'review' },
+    edges: [{ when: { path: 'needs.it.amount', op: 'gt', value: 100 }, to: 'audit', needs: { it: '$item' } }, { to: 'collect' }] },
+  { id: 'audit', kind: 'task', type: 'EchoT', settings: { role: 'audit' }, needs: { it: '$item', tenant: '$payload', prev: '.' }, edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+]);
+// (3) — TWO keys of each token on ONE node (`touch`, INLINE, writing `it` and `run`) and on ONE edge (the predicate, writing
+// the same), then `check`, THREADED, reading both tokens after every write.
+const PI_COPY_FLOW = piFlowOf('w192-copy', [
+  { id: 'each', kind: 'map', over: 'invoices', branch: 'touch' },
+  { id: 'touch', kind: 'task', type: 'EchoI', settings: { role: 'touch', touch: ['it', 'run'] }, needs: { it: '$item', it2: '$item', run: '$payload', run2: '$payload' },
+    edges: [{ when: { predicate: 'w192Touch' }, to: 'check', needs: { it: '$item', it2: '$item', run: '$payload', run2: '$payload' } }, { to: 'collect' }] },
+  { id: 'check', kind: 'task', type: 'EchoT', settings: { role: 'check' }, needs: { it: '$item', run: '$payload' }, edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+]);
+// (6) — each instance: `a -> fan [l, rr]`, `rr -> fan2 [p, q]`, `q -> x` reading "$item" two levels down (W191's round-2
+// shape); `l`, `rr`, `p`, `q` read the item too, for its hold times.
+const PI_DEEP_FLOW = piFlowOf('w192-deep', [
+  { id: 'split', kind: 'map', over: 'items', branch: 'a' },
+  { id: 'a', kind: 'task', type: 'EchoI', settings: { role: 'a' }, edges: [{ to: 'fan' }] },
+  { id: 'fan', kind: 'fanout', branches: ['l', 'rr'] },
+  { id: 'l', kind: 'task', type: 'EchoI', settings: { role: 'l' }, needs: { it: '$item' }, edges: [{ to: 'fj' }] },
+  { id: 'rr', kind: 'task', type: 'EchoI', settings: { role: 'rr' }, needs: { it: '$item' }, edges: [{ to: 'fan2' }] },
+  { id: 'fan2', kind: 'fanout', branches: ['p', 'q'] },
+  { id: 'p', kind: 'task', type: 'EchoI', settings: { role: 'p' }, needs: { it: '$item' }, edges: [{ to: 'f2j' }] },
+  { id: 'q', kind: 'task', type: 'EchoI', settings: { role: 'q' }, needs: { it: '$item' }, edges: [{ to: 'x' }] },
+  { id: 'x', kind: 'task', type: 'EchoT', settings: { role: 'x' }, needs: { it: '$item' }, edges: [{ to: 'f2j' }] },
+  { id: 'f2j', kind: 'join', of: 'fan2', edges: [{ to: 'fj' }] },
+  { id: 'fj', kind: 'join', of: 'fan', edges: [{ to: 'c' }] },
+  { id: 'c', kind: 'task', type: 'EchoI', settings: { role: 'c' }, edges: [{ to: 'collect' }] },
+  { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+  { id: 'done', kind: 'end', outcome: 'completed' },
+]);
+/** A NESTED invoice: a shallow copy shares `deep`, so a write into `deep.mark` tells a deep copy from a shallow one. */
+const piInvoice = (id: string, amount: number) => ({ id, amount, deep: { mark: 'original', lines: [{ sku: `${id}-a` }] } });
+/**
+ * **A consumer's policy firing the named regions' joins at their FIRST arrival** — Q583's shape (W191's `firstArrival`),
+ * through `StartOptions.joinPolicy`; `liveToken` for every other region. No shipped policy does this.
+ */
+const piFirstArrival = (early: readonly string[]): JoinPolicy => {
+  const lt = liveToken as unknown as JoinPolicy;
+  type S = { id: string; inner: unknown; arrived: number };
+  return {
+    id: 'w192-first-arrival',
+    open: (r) => ({ id: (r as unknown as { fanoutId: string }).fanoutId, inner: lt.open(r), arrived: 0 }),
+    step: (s, e) => ({ ...(s as S), inner: lt.step((s as S).inner, e), arrived: (s as S).arrived + (e.type === 'branch.arrived' ? 1 : 0) }),
+    status: (s) => (early.includes((s as S).id) && (s as S).arrived >= 1 ? 'satisfied' : lt.status((s as S).inner)),
+    describe: (s) => ({ arrived: (s as S).arrived }),
+  };
+};
+/** A latch that throws a NAMED error at the deadline — a clause whose arrangement never happened is a crash, not a pass. */
+const piAwait = async <T>(p: Promise<T>, what: string): Promise<T> => {
+  const w = await settleWithin(p, PI_DEADLINE_MS);
+  if (w.by !== 'done') throw new Error(`W192: ${what} never happened within ${PI_DEADLINE_MS} ms`);
+  return w.value;
+};
+/** A runtime from `piDoc`, its scheduler's `addTask` wrapped BEFORE any run: every id, and its `input` cloned AT the hand-off. */
+const piRuntime = () => {
+  const rt = createRuntime(piDoc() as never, { predicates: new Map([['w192Touch', piTouch]]) } as never);
+  const sch = rt.scheduler as unknown as { addTask: (t: { id: string; workerType?: unknown; payload?: { input?: unknown } }, o?: unknown) => unknown };
+  // `[id, input cloned AT the hand-off, the pool key the scheduler was handed]` — `workerType` on the task IS the pool key.
+  const handed: [string, unknown, string][] = [];
+  const add = sch.addTask.bind(sch);
+  sch.addTask = (t, o) => { handed.push([String(t.id), structuredClone(t.payload?.input), String(t.workerType)]); return add(t, o); };
+  /** The ids one run handed, in hand-off order. */
+  const mine = (runId: string) => handed.filter(([id]) => id.startsWith(`${runId}:`)).map(([id]) => id);
+  /** What one task was handed, or `NOT HANDED`. */
+  const inputOf = (id: string) => (handed.find(([x]) => x === id) ?? [id, 'NOT HANDED'])[1];
+  const pool = (type: string) => ((p) => p?.inline === false ? 'threaded' : p?.inline === true ? 'inline' : `NEITHER (${String(p?.inline)})`)(
+    (rt.scheduler.workerPools as Record<string, { inline?: unknown }>)[type]);
+  /**
+   * **The pools the scheduler RAN these tasks on** — each task's pool key as HANDED to `addTask`, read back on the scheduler's
+   * `workerPools`; distinct, sorted. Never a type name written here (the first pass's X1) and never the definition's (the
+   * conformity reader's C3: that is what the driver was ASKED, not what the scheduler was HANDED).
+   */
+  const poolsOf = (ids: readonly string[]) =>
+    [...new Set(ids.map((id) => { const t = handed.find(([x]) => x === id); return t === undefined ? `NOT HANDED ${id}` : pool(t[2]); }))].sort();
+  return { rt, handed, mine, inputOf, pool, poolsOf };
+};
+/** `start` with latches on the run's log: the n-th `asked` element, and each `branch.arrived` of the region `regionId`. */
+const piStart = (a: ReturnType<typeof piRuntime>, flow: FlowDefinition, payload: unknown, runId: string, asks: number,
+  extra: Partial<Parameters<ReturnType<typeof piRuntime>['rt']['start']>[2]> = {}) => {
+  let parkedAll!: () => void;
+  const parked = new Promise<void>((res) => { parkedAll = res; });
+  let asked = 0;
+  const arrivedAt = new Map<string, () => void>();
+  const arrivedSeen = new Set<string>();
+  const onInput = (extra as { onFoldInput?: (i: FoldInput, at: number) => void }).onFoldInput;
+  const h = a.rt.start(flow, payload, {
+    ...extra, runId,
+    onFoldInput: (i, at) => {
+      onInput?.(i, at);
+      if (i.kind === 'asked' && ++asked === asks) parkedAll();
+      if (i.kind === 'region' && i.event.type === 'branch.arrived') {
+        const k = `${i.event.regionId} ${i.event.branchPath}`;
+        arrivedSeen.add(k);
+        arrivedAt.get(k)?.();
+      }
+    },
+  });
+  const arrived = (regionId: string, branchPath: string) => new Promise<void>((res) => {
+    const k = `${regionId} ${branchPath}`;
+    if (arrivedSeen.has(k)) res(); else arrivedAt.set(k, res);
+  });
+  return { h, parked, arrived };
+};
+/** What `PI_ECHO` returns, BY HAND from its source: what it received, and that value with its `touch` keys' `deep.mark` written. */
+const piEcho = (role: string, got: Record<string, unknown>, touch: readonly string[] = []) => ({
+  role, got, after: Object.fromEntries(Object.entries(got).map(([k, v]) =>
+    [k, touch.includes(k) ? { ...(v as object), deep: { ...(v as { deep: object }).deep, mark: `touched-by-${role}` } } : v])),
+});
+/** The marks of an object's keys, in the order named — what a copy claim reads. */
+const piMarks = (o: unknown, keys: readonly string[]) => keys.map((k) => (o as Record<string, { deep?: { mark?: unknown } }> | undefined)?.[k]?.deep?.mark ?? 'NO MARK');
+let piBlock: { runs: string[]; flows: FlowDefinition[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const flows: FlowDefinition[] = [];
+  const r: Record<string, unknown> = {};
+  // **A clause that THROWS fails its OWN claims, by name, and the next clause still runs** — W188's `atClause`.
+  const piClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W192 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  // ---- (1) an ENTRY ask; its successor receives the run's payload beside the answer; an edge routes on the run's amount ----
+  await piClause('1', async () => {
+    const a = piRuntime();
+    try {
+      for (const amount of [120, 50] as const) {
+        const runId = `w192p${amount}`;
+        const payload = piInvoice(`INV-${amount}`, amount);
+        const { h, parked } = piStart(a, PI_PAY_FLOW, payload, runId, 1);
+        runs.push(`${PI_PAY_FLOW.flowId} ${runId}`);
+        flows.push(PI_PAY_FLOW);
+        // (3), direction 1: the CALLER writes a nested field of its payload after start() returned.
+        payload.deep.mark = 'caller';
+        payload.deep.lines[0]!.sku = 'caller';
+        await piAwait(parked, `${runId}'s ask parking`);
+        const handedAtPark = a.mine(runId);
+        h.driver.resolve(`${runId}:approve:-:0`, 'done', { result: { approved: true, by: 'ana' }, actor: 'ana' });
+        const s = await piAwait(h.done, `${runId} settling`);
+        const asked = h.driver.foldInputs().flatMap((i) => (i.kind === 'asked' ? [[i.taskId, i.input]] : []));
+        r[`p1${amount}`] = [handedAtPark, asked, a.inputOf(`${runId}:pay:-:0`), a.poolsOf([`${runId}:pay:-:0`])];
+        r[`p2${amount}`] = [s.outcome, a.mine(runId), a.inputOf(`${runId}:audit:-:0`), a.inputOf(`${runId}:file:-:0`)];
+        // Direction 1, everywhere the run kept or handed the payload: its header, the `asked` element, every hand-off.
+        // `[the caller's own object, after its write — the control that the write HAPPENED; the run's copies]`.
+        r[`p3${amount}`] = [[payload.deep.mark, payload.deep.lines[0]!.sku],
+          JSON.stringify([h.header.entryPayload, asked, a.handed.filter(([id]) => id.startsWith(`${runId}:`))]).includes('caller')];
+        if (amount === 120) {
+          // Direction 2: `audit` (INLINE) wrote its `run` key's nested field — its own `after` shows it — and neither its
+          // second key `again` nor `file`'s read after it (handed once `audit` settled) sees the write.
+          const audit = (s.nodes[`${runId}:audit:-:0`]?.result ?? null) as { after?: unknown } | null;
+          r.p4 = [piMarks(audit?.after, ['run', 'again']), piMarks(a.inputOf(`${runId}:file:-:0`), ['run']), a.poolsOf([`${runId}:audit:-:0`])];
+        }
+      }
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  // ---- (2) an ENTRY map whose branch is an ask: each `pay` its OWN item beside its OWN answer, answered out of order ----
+  await piClause('2', async () => {
+    const a = piRuntime();
+    try {
+      const runId = 'w192r';
+      const payload = { invoices: [piInvoice('A', 120), piInvoice('B', 50), piInvoice('C', 300)], tenant: 't1' };
+      const { h, parked, arrived } = piStart(a, PI_REVIEW_FLOW, payload, runId, 3);
+      runs.push(`${PI_REVIEW_FLOW.flowId} ${runId}`);
+      flows.push(PI_REVIEW_FLOW);
+      // (3), direction 1 for an ITEM: the caller writes into an element of `over` after start().
+      payload.invoices[0]!.deep.mark = 'caller';
+      await piAwait(parked, 'three asks parking');
+      const handedAtPark = a.mine(runId);
+      // OUT OF ORDER, each answer only once the previous instance's branch has ARRIVED at the map's join (R6).
+      for (const i of [2, 0, 1]) {
+        h.driver.resolve(`${runId}:review:${i}:0`, 'done', { result: { approved: true, by: `p${i}` }, actor: 'ana' });
+        await piAwait(arrived('each', String(i)), `instance ${i} arriving`);
+      }
+      const s = await piAwait(h.done, 'the review run settling');
+      const inputs = h.driver.foldInputs();
+      r.r1 = [handedAtPark, inputs.flatMap((i) => (i.kind === 'asked' ? [[i.taskId, i.input]] : [])).sort((x, y) => (String(x[0]) < String(y[0]) ? -1 : 1))];
+      r.r2 = [[0, 1, 2].map((i) => a.inputOf(`${runId}:pay:${i}:0`)), a.poolsOf([0, 1, 2].map((i) => `${runId}:pay:${i}:0`)), payload.invoices[0]!.deep.mark];
+      r.r3 = [s.outcome, a.mine(runId).filter((id) => id.includes(':audit:')).sort(), a.inputOf(`${runId}:audit:0:0`), a.inputOf(`${runId}:audit:2:0`), a.poolsOf([`${runId}:audit:0:0`, `${runId}:audit:2:0`])];
+      r.r4 = inputs.flatMap((i) => (i.kind === 'region' && i.event.type === 'branch.arrived' && i.event.regionId === 'each' ? [i.event.branchPath] : []));
+      // For (4): the uninterrupted run's kinds and what each successor received — the CONTROL.
+      r.rKinds = [...new Set(inputs.map((i) => i.kind))].sort();
+      r.rSuccessors = ['pay:0', 'pay:2', 'audit:0', 'audit:2'].map((t) => a.inputOf(`${runId}:${t}:0`));
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  // ---- (3) the copy claim: two keys of each token on ONE node and ONE edge, an INLINE worker's and a predicate's writes ----
+  await piClause('3', async () => {
+    const a = piRuntime();
+    try {
+      const runId = 'w192c';
+      const payload = { invoices: [piInvoice('A', 1), piInvoice('B', 2), piInvoice('C', 3)], deep: { mark: 'original' } };
+      const { h } = piStart(a, PI_COPY_FLOW, payload, runId, 0);
+      runs.push(`${PI_COPY_FLOW.flowId} ${runId}`);
+      flows.push(PI_COPY_FLOW);
+      // Direction 1: the caller writes a nested field of an item and of the payload after start().
+      payload.invoices[1]!.deep.mark = 'caller';
+      payload.deep.mark = 'caller';
+      const s = await piAwait(h.done, 'the copy run settling');
+      // **Not the caller's direction** (the conformity reader, C1): the entry is a map, so every `touch` is handed INSIDE start() —
+      // before the caller writes. That direction is read off `check` (c4), handed after both writes.
+      r.c1 = [0, 1, 2].map((i) => a.inputOf(`${runId}:touch:${i}:0`));
+      r.c2 = [[0, 1, 2].map((i) => piMarks((s.nodes[`${runId}:touch:${i}:0`]?.result as { after?: unknown } | null)?.after, ['it', 'it2', 'run', 'run2'])), a.poolsOf([0, 1, 2].map((i) => `${runId}:touch:${i}:0`))];
+      r.c3 = piEdge.filter((e) => e.taskId.startsWith(`${runId}:`)).sort((x, y) => (x.taskId < y.taskId ? -1 : 1))
+        .map((e) => [e.taskId, e.before, piMarks(e.after, ['it', 'it2', 'run', 'run2'])]);
+      // `check` is handed only after its `touch` settled — long after the caller's two writes, which its own object shows.
+      r.c4 = [s.outcome, [0, 1, 2].map((i) => a.inputOf(`${runId}:check:${i}:0`)), a.poolsOf([0, 1, 2].map((i) => `${runId}:check:${i}:0`)),
+        [payload.invoices[1]!.deep.mark, payload.deep.mark]];
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  // ---- (4) (2)'s flow STOPPED with instance 1 ended and two asks parked, resumed on a FRESH runtime and answered there ----
+  await piClause('4', async () => {
+    const A = piRuntime();
+    const runId = 'w192s';
+    const store: { header?: CheckpointHeader; events: FoldInput[] } = { events: [] };
+    let stopped: unknown = 'NOT STOPPED';
+    try {
+      const { h, parked, arrived } = piStart(A, PI_REVIEW_FLOW, { invoices: [piInvoice('A', 120), piInvoice('B', 50), piInvoice('C', 300)], tenant: 't1' }, runId, 3, {
+        onHeader: (x) => { store.header = structuredClone(x); },
+        onFoldInput: (e, at) => { store.events[at] = structuredClone(e); },
+      });
+      runs.push(`${PI_REVIEW_FLOW.flowId} ${runId} stopped`);
+      flows.push(PI_REVIEW_FLOW);
+      await piAwait(parked, 'three asks parking on A');
+      h.driver.resolve(`${runId}:review:1:0`, 'done', { result: { approved: true, by: 'p1' }, actor: 'ana' });
+      await piAwait(arrived('each', '1'), 'instance 1 arriving on A');
+      // At rest, between two steps: the owner stops the run to resume it elsewhere.
+      await piAwait(h.stop({ actor: 'w192-owner', reason: 'W192 L6: move it' }), 'stop() resolving');
+      stopped = (await piAwait(h.done, 'the stopped run settling')).outcome;
+    } finally {
+      await A.rt.shutdown();
+    }
+    const header = store.header!;
+    // The asks still PARKED at the stop (the conformity reader, C4): asked, and no resolution of them stored.
+    const resolved = new Set(store.events.flatMap((e) => (e.kind === 'resolution' ? [e.record.taskId] : [])));
+    const parkedAtStop = store.events.flatMap((e) => (e.kind === 'asked' && !resolved.has(e.taskId) ? [e.taskId] : [])).sort();
+    r.s1 = [stopped, Object.keys(header).sort(), header.format, header.entryPayload, [...new Set(store.events.map((e) => e.kind))].sort(), A.mine(runId),
+      parkedAtStop];
+    const B = piRuntime();
+    try {
+      const h = B.rt.resume(PI_REVIEW_FLOW, { header: structuredClone(header), events: structuredClone(store.events) } as Checkpoint);
+      runs.push(`${PI_REVIEW_FLOW.flowId} ${runId} resumed on B`);
+      for (const i of [2, 0]) h.driver.resolve(`${runId}:review:${i}:0`, 'done', { result: { approved: true, by: `p${i}` }, actor: 'ana' });
+      const s = await piAwait(h.done, 'the resumed run settling on B');
+      const successors = ['pay:0', 'pay:2', 'audit:0', 'audit:2'].map((t) => B.inputOf(`${runId}:${t}:0`));
+      r.s2 = [s.outcome, B.mine(runId).sort(), successors,
+        JSON.stringify(successors) === JSON.stringify(r.rSuccessors ?? 'NO CONTROL')];
+      const kinds = new Set<string>(h.driver.foldInputs().map((i) => i.kind));
+      const control = new Set((r.rKinds as string[] | undefined) ?? []);
+      r.s3 = [[...kinds].filter((k) => !control.has(k)).sort(), [...control].filter((k) => !kinds.has(k)).sort(), control.size > 0];
+    } finally {
+      await B.rt.shutdown();
+    }
+  });
+  // ---- (5) "$item" where no map instance contains the reader: FD-V49, refused at construction — beside "." accepted ----
+  await piClause('5', async () => {
+    const after = (ref: string) => piFlowOf('w192-outside', [
+      ...(PI_REVIEW_FLOW.nodes as unknown as Record<string, unknown>[]).map((n) => (n.id === 'collect' ? { ...n, edges: [{ to: 'report' }] } : n)),
+      { id: 'report', kind: 'task', type: 'EchoT', settings: { role: 'report' }, needs: { it: ref }, edges: [{ to: 'done' }] },
+    ]);
+    const registry = { ...piDoc() };
+    const f = validateDefinition(after('$item'), registry as never);
+    // `f.length > 0 &&` — an `every` over no finding is true (the adequacy reader, A3); the rule list beside it is the other guard.
+    r.v1 = [f.map((x) => x.rule), f.map((x) => x.at), f.length > 0 && f.every((x) => x.detail.includes('name the item where a map\'s branch receives it (".")')),
+      f.length > 0 && f.every((x) => x.detail.includes('move this node inside the map')), validateDefinition(after('.'), registry as never).map((x) => x.rule)];
+    // **The refused START is a flow whose ENTRY is a task** (the adequacy reader, A1): `after`'s entry is a map whose branch is an
+    // ask, which hands NOTHING until answered — so *nothing handed* could not fail there. Here the CONTROL, `"."` in its place,
+    // starts and its entry IS handed: the same observer, shown able to see a hand-off.
+    const entry = (ref: string) => piFlowOf('w192-outside-entry', [
+      { id: 'intake', kind: 'task', type: 'EchoI', settings: { role: 'intake' }, needs: { it: ref }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ]);
+    const a = piRuntime();
+    try {
+      let thrown: unknown = 'NOT THROWN';
+      try { a.rt.start(entry('$item'), { id: 'V' }, { runId: 'w192v' }); } catch (err) { thrown = err; }
+      const control = a.rt.start(entry('.'), { id: 'V' }, { runId: 'w192w' });
+      runs.push(`w192-outside-entry w192w (the CONTROL)`);
+      const done = await piAwait(control.done, 'the control run settling');
+      r.v2 = [thrown instanceof InvalidDefinition ? 'InvalidDefinition' : refusalOf(thrown), thrown instanceof Error && thrown.message.includes('FD-V49'),
+        a.mine('w192v'), a.mine('w192w'), done.outcome];
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  // ---- (6) the RELEASE HORIZON: nested two deep, inner joins fired at their FIRST arrival, per instance, both orders ----
+  await piClause('6', async () => {
+    const a = piRuntime();
+    try {
+      const runId = 'w192d';
+      // Hold times, by role. Instance 0's `q`: `l` arrives at once, `fan` fires, `c` runs and the instance ARRIVES while `q` holds —
+      // so `x` is entered AFTER. Instance 1's `l` AND `p`: neither inner join can fire before `x`'s own branch arrives, so the
+      // instance arrives only after `x` — held both ways, not a race between `q -> x` and `p -> f2j -> fj -> c` (the readers' C2/A2).
+      // Instance 2's `q`, longest: still live when instances 0 and 1 have ended.
+      const items = [{ id: 'P', hold: { q: 300 } }, { id: 'Q', hold: { l: 600, p: 600 } }, { id: 'R', hold: { q: 900 } }];
+      const { h } = piStart(a, PI_DEEP_FLOW, { items }, runId, 0, { joinPolicy: piFirstArrival(['fan', 'fan2']) });
+      runs.push(`${PI_DEEP_FLOW.flowId} ${runId}`);
+      flows.push(PI_DEEP_FLOW);
+      const s = await piAwait(h.done, 'the deep run settling');
+      const seq = h.driver.foldInputs().map((i) => i.kind === 'region' ? `region ${i.event.type} ${i.event.regionId} ${i.event.branchPath}`
+        : i.kind === 'dispatched' ? `dispatched ${i.taskId}` : i.kind);
+      const at = (line: string) => seq.indexOf(line);
+      r.d1 = [0, 1, 2].map((i) => [at(`region branch.arrived split ${i}`) >= 0, at(`dispatched ${runId}:x:${i}.1.1:0`) >= 0,
+        at(`region branch.arrived split ${i}`) < at(`dispatched ${runId}:x:${i}.1.1:0`)]);
+      r.d2 = [s.outcome, [0, 1, 2].map((i) => a.inputOf(`${runId}:x:${i}.1.1:0`)), a.poolsOf([0, 1, 2].map((i) => `${runId}:x:${i}.1.1:0`))];
+    } finally {
+      await a.rt.shutdown();
+    }
+  });
+  piBlock = { runs, flows, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W192 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (piBlock !== null) {
+  const key = 'cross-row';
+  const r = piBlock.r;
+  const answer = (by: string) => ({ approved: true, by });
+  // (1) — FD-C1 over the payload as started: `pay` receives `{ invoice: <payload>, answer: <the answer> }`; the ask keeps
+  // what reached it (RN-R37) — `{ invoice: <payload> }` — and nothing is handed until it is answered.
+  for (const amount of [120, 50] as const) {
+    const runId = `w192p${amount}`;
+    const P = piInvoice(`INV-${amount}`, amount);
+    check(key, `W192 exit (1, ${amount}): an ENTRY ask keeps { invoice: "$payload" } and hands nothing; answered, its successor on a THREADED ` +
+      'pool receives { invoice: <the run`s payload>, answer: <the answer> } (FD-C1, ADR 0117)', r[`p1${amount}`],
+    [[], [[`${runId}:approve:-:0`, { invoice: P }]], { invoice: P, answer: answer('ana') }, ['threaded']]);
+    // The `when` on `needs.run.amount` (FD-C3): 120 > 100 sends `audit` (its two "$payload" keys) and then `file`; 50 does not.
+    check(key, `W192 exit (1, ${amount}): pay\`s edge routes on needs.run.amount from an edge needs { run: "$payload" } — ` +
+      `${amount > 100 ? 'to audit, then file' : 'past audit, to file'} (FD-C3)`, r[`p2${amount}`],
+    ['completed', amount > 100 ? [`${runId}:pay:-:0`, `${runId}:audit:-:0`, `${runId}:file:-:0`] : [`${runId}:pay:-:0`, `${runId}:file:-:0`],
+      amount > 100 ? { run: P, again: P } : 'NOT HANDED', { run: P }]);
+    check(key, `W192 exit (3, the run\`s payload, ${amount}): the CALLER\`s nested write after start() reaches nothing the run kept or handed — ` +
+      'its header, the `asked` element, every hand-off — while the caller`s own object shows it (RN-R13)', r[`p3${amount}`], [['caller', 'caller'], false]);
+  }
+  check(key, 'W192 exit (3, the run`s payload): an INLINE worker writing a nested field of its "$payload" key reaches neither its SECOND ' +
+    '"$payload" key nor the next node`s read — its own object shows the write (JP-R11, ADR 0040 rule 6)', r.p4,
+  [['touched-by-audit', 'original'], ['original'], ['inline']]);
+  // (2) — FD-C1 over each instance's item: the ask keeps `{ invoice: <its item> }`; `pay` its item and ITS answer; `audit`
+  // (0 and 2, amount > 100) its item, the payload as started, and `pay`'s result (`PI_ECHO`'s, by hand).
+  const items = [piInvoice('A', 120), piInvoice('B', 50), piInvoice('C', 300)];
+  const reviewPayload = { invoices: items, tenant: 't1' };
+  const payIn = (i: number) => ({ invoice: items[i], answer: answer(`p${i}`) });
+  const auditIn = (i: number) => ({ it: items[i], tenant: reviewPayload, prev: piEcho('pay', payIn(i)) });
+  check(key, 'W192 exit (2): three asks in three map instances PARKED, nothing handed, each keeping { invoice: "$item" } — its OWN item',
+    r.r1, [[], [0, 1, 2].map((i) => [`w192r:review:${i}:0`, { invoice: items[i] }])]);
+  check(key, 'W192 exit (2): each pay, on an INLINE pool, receives its OWN item beside its OWN answer — answered out of order, and ' +
+    'the caller`s write into an item after start() in none while its own object shows it (FD-C1, ADR 0118)',
+    r.r2, [[0, 1, 2].map(payIn), ['inline'], 'caller']);
+  check(key, 'W192 exit (2): pay`s edge on needs.it.amount sends instances 0 and 2 to audit, on a THREADED pool, which reads "$item", ' +
+    '"$payload" and "." two hops in', r.r3, ['completed', ['w192r:audit:0:0', 'w192r:audit:2:0'], auditIn(0), auditIn(2), ['threaded']]);
+  check(key, 'W192 exit (2): the ARRANGEMENT — each instance ARRIVED at the map`s join before the next was answered: 2, 0, 1',
+    r.r4, ['2', '0', '1']);
+  // (3) — the copy flow: every key its own copy of the value as started (the caller's writes absent); the INLINE worker's
+  // and the predicate's writes on `it` and `run` reach neither `it2`/`run2` nor `check`.
+  const copyItems = [piInvoice('A', 1), piInvoice('B', 2), piInvoice('C', 3)];
+  const copyPayload = { invoices: copyItems, deep: { mark: 'original' } };
+  const both = (i: number) => ({ it: copyItems[i], it2: copyItems[i], run: copyPayload, run2: copyPayload });
+  check(key, 'W192 exit (3, nested items): each instance`s two "$item" and two "$payload" keys are the item and the payload AS STARTED — ' +
+    'four objects equal to them (FD-C1)', r.c1, [0, 1, 2].map(both));
+  check(key, 'W192 exit (3, nested items): an INLINE worker writing `it` and `run` reaches neither SECOND key on its own node — two keys, two objects',
+    r.c2, [[0, 1, 2].map(() => ['touched-by-touch', 'original', 'touched-by-touch', 'original']), ['inline']]);
+  check(key, 'W192 exit (3, nested items): a PREDICATE writing `it` and `run` on its edge saw the values as started and reaches neither ' +
+    'SECOND key on its own edge (FD-C3)', r.c3,
+  [0, 1, 2].map((i) => [`w192c:touch:${i}:0`, both(i), ['touched-by-edge', 'original', 'touched-by-edge', 'original']]));
+  check(key, 'W192 exit (3, nested items): the next node`s read, on a THREADED pool, is each instance`s OWN item and the payload — no ' +
+    'write of the worker`s, the predicate`s or the caller`s (handed after all three; the caller`s own object showing its two), and no ' +
+    'other instance`s', r.c4,
+  ['completed', [0, 1, 2].map((i) => ({ it: copyItems[i], run: copyPayload })), ['threaded'], ['caller', 'caller']]);
+  // (4) — RN-R32/RN-R33 (the stop), RN-R15 (the header's five facts), RN-R19/RN-R21 (the replay), ADR 0118 (the store rebuilt).
+  check(key, 'W192 exit (4): STOPPED with instance 1 answered and arrived and two asks parked — interrupted, the header the five keys at ' +
+    'format 1 carrying the payload as started, nothing stored but these kinds', r.s1,
+  ['interrupted', ['entryPayload', 'flowId', 'format', 'runId', 'version'], 1, reviewPayload,
+    ['asked', 'attempted', 'dispatched', 'interrupted', 'outcome', 'region', 'regionEntered', 'resolution'],
+    ['w192s:pay:1:0'], ['w192s:review:0:0', 'w192s:review:2:0']]);
+  check(key, 'W192 exit (4): resumed on a FRESH runtime and answered there — each successor receives what the UNINTERRUPTED run`s did, ' +
+    'nothing handed for the instance that ended before the stop', r.s2,
+  ['completed', ['w192s:audit:0:0', 'w192s:audit:2:0', 'w192s:pay:0:0', 'w192s:pay:2:0'], [payIn(0), payIn(2), auditIn(0), auditIn(2)], true]);
+  check(key, 'W192 exit (4): no fold-input kind the uninterrupted run lacks but `interrupted` and `resumed`, and none it has missing — ' +
+    'nothing new in the log for "$item" or "$payload"', r.s3, [['interrupted', 'resumed'], [], true]);
+  // (5) — FD-V49 (section 5): its message names BOTH fixes.
+  check(key, 'W192 exit (5): "$item" after the map`s join is FD-V49 alone, AT the reader, naming both fixes', r.v1,
+    [['FD-V49'], ['report'], true, true, []]);
+  check(key, 'W192 exit (5): start() refuses it InvalidDefinition naming FD-V49 — a flow whose ENTRY task reads "$item" — with nothing ' +
+    'handed; the CONTROL, "." in its place, starts and its entry IS handed', r.v2, ['InvalidDefinition', true, [], ['w192w:intake:-:0'], 'completed']);
+  // (6) — ADR 0118 rule 5 / RN-R13: kept until nothing of the instance may still be entered — told by the branches' events.
+  check(key, 'W192 exit (6, the release horizon): the ARRANGEMENT both ways — instances 0 and 2 ARRIVED at the map`s join BEFORE their ' +
+    'reader two levels down was entered, instance 1 AFTER', r.d1, [[true, true, true], [true, true, false], [true, true, true]]);
+  check(key, 'W192 exit (6, the release horizon): each reader two levels down, its inner joins fired at their FIRST arrival, reads ITS ' +
+    'OWN instance`s item, and the run completes (ADR 0118, RN-R13)', r.d2,
+  ['completed', [{ it: { id: 'P', hold: { q: 300 } } }, { it: { id: 'Q', hold: { l: 600, p: 600 } } }, { it: { id: 'R', hold: { q: 900 } } }], ['threaded']]);
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -12041,7 +12551,10 @@ if (attBlock !== null) {
 // **And `+ attBlock.runs.length` since W188**: its ELEVEN runs — (1) the run that retried and its sibling; (3) the header run;
 // (4) the run killed in attempt 2, its resume on B and the stripped control's on C; (5) the stopped run, its resume and the
 // control's; (6) the run killed with its budget spent and its resume. (3)'s throwing start starts no run and is not one.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0);
+// **And `+ piBlock.runs.length` since W192**: its EIGHT runs — (1) the two payload runs, 120 and 50; (2) the review run;
+// (3) the copy run; (4) the run stopped on A and its resume on B; (5) the CONTROL whose entry task is handed (since the
+// readers, A1); (6) the deep run. (5)'s refused start builds no driver and is not a run.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -12377,7 +12890,13 @@ const PER_PLAIN_ROW = 22;
 // three for the spent budget — all cross-row because the block is outside the row loop. 410 + 24 = 434. *(Written as 434
 // after the block's first complete run, in node, read 24 new assertions — `2731` derived against `2755` — every one of them
 // green, before this line moved.)*
-const CROSS_ROW = 434;
+// **434 at W188, +22 by W192 — P38's EXIT ARTIFACT**: the payload-and-item block's twenty-two clauses — two per run over
+// clause (1)'s two runs, four for the review run, seven copy claims (one per payload run for the caller's write, one for the
+// inline worker's write on the payload, four over the copy flow's nested items), three for the stop and resume, two for
+// FD-V49, two for the release horizon — all cross-row because the block is outside the row loop. 434 + 22 = 456. *(Written
+// as 456 after the block's first complete run, in node, read 22 new assertions — `2755` derived against `2777` — every one
+// of them green, before this line moved; the declaration had forecast twenty-one, counting the caller's write once.)*
+const CROSS_ROW = 456;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -12526,6 +13045,8 @@ if (rowCosts.length !== EXPECTED.length) {
   /**
    * **And the reference FORMS, because a form is what `FD-V28` decides on** — four of
    * them since W45 made `?` a modifier, which is what the bound below compares.**
+   * *(SIX since v0.45: `"$payload"` and `"$item"` name what reached the run and what opened the map instance — W190,
+   * W191 — and run here since W192.)*
    * `"."` is *what I would have received anyway*, a bare node id names ONE output,
    * and `["n"]` names one per item of a map region the reader is outside of. Two of
    * the three were unreachable at L6 before this item and the third has never been
@@ -12533,8 +13054,12 @@ if (rowCosts.length !== EXPECTED.length) {
    * above while leaving `FD-C2`'s whole distinction untested on real workers.
    */
   const forms = new Set<string>();
-  for (const e of EXPECTED) {
-    for (const n of e.definition.nodes) {
+  // **And the flows W192's block STARTED** — P38's exit artifact is a cross-row block, not a row, and the only place a
+  // `"$payload"` or a `"$item"` runs at L6 (W182's every-kind clause reads its block's flows the same way). Read only
+  // because the block RECORDED each as it started it, so a block that crashed first leaves its forms uncounted and the
+  // clauses below name them.
+  for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? [])]) {
+    for (const n of definition.nodes) {
       const sites = [(n as { needs?: Record<string, unknown> }).needs,
         ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
       for (const site of sites) {
@@ -12570,17 +13095,17 @@ if (rowCosts.length !== EXPECTED.length) {
   // COMPUTED half**, and the two clauses above — one per site — are what stand
   // against it. The claim is corrected rather than the bound removed, because the
   // bound is right for the reason that survives.
-  check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table — less the rows named NOT_YET_AT_L6',
-    [...forms].length + NOT_YET_AT_L6.length, referenceFormsInSpec());
-  // And WHICH four, so a fifth bucket appearing is a finding rather than a silently
+  check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
+    [...forms].length, referenceFormsInSpec());
+  // And WHICH six, so a seventh bucket appearing is a finding rather than a silently
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
-  check('cross-row', 'and they are the table`s rows, not four of something else — L6`s with NOT_YET_AT_L6`s, `payload` since v0.44 (W190)',
-    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'item', 'one', 'payload', 'self', 'suffix']);
-  // **W190: the not-yet list is held BOTH WAYS by the two clauses above, with no clause of its own** — a new clause here
-  // moves `X10`, which this item does not own. The COUNT adds the list to L6's forms, and the SET below compares the two
-  // CONCATENATED: a form L6 starts running while still named in the list appears TWICE and fails the equality, and a row
-  // the table has that is in neither fails the count.
+  check('cross-row', 'and they are the table`s rows, not six of something else — `payload` since v0.44 (W190) and `item` since v0.45 (W191), run since W192',
+    [...forms].sort(), ['all', 'item', 'one', 'payload', 'self', 'suffix']);
+  // **`NOT_YET_AT_L6` is GONE — W192.** W190 named `"$payload"`'s row there and W191 `"$item"`'s, each held both ways by the
+  // two clauses above (the count added the list, the set compared the concatenation, so a form L6 started running while still
+  // listed appeared twice), because no L6 run named either until P38's exit artifact. W192's block runs both — on nodes and
+  // on edges — and the clauses read its flows, so nothing is subtracted and nothing is exempt.
 
   /**
    * **`FD-V29`'s REFUSAL, made observable at L6 — W47, and it is this item's
@@ -12666,7 +13191,8 @@ if (rowCosts.length !== EXPECTED.length) {
 
   /**
    * **All FIVE of section 3's spellings reach a real worker** — W47, and this item's
-   * declared Output (3).
+   * declared Output (3). *(SEVEN since v0.45 — `"$payload"` (W190) and `"$item"` (W191) — and all seven reach one since
+   * W192, whose block runs both; the count and the set below are derived from the table, so neither literal moved.)*
    *
    * The `forms` bound above compares four buckets to the table's four ROWS and is
    * satisfied by four spellings, because the table's fourth row carries **two** —
@@ -12689,8 +13215,9 @@ if (rowCosts.length !== EXPECTED.length) {
    */
   {
     const l6Spellings = new Set<string>();
-    for (const e of EXPECTED) {
-      for (const n of e.definition.nodes) {
+    // EXPECTED's flows and the flows W192's block STARTED — the `forms` census's two sources above.
+    for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? [])]) {
+      for (const n of definition.nodes) {
         const sites = [(n as { needs?: Record<string, unknown> }).needs,
           ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
         for (const site of sites) for (const ref of Object.values(site ?? {})) l6Spellings.add(spellingOf(ref));
@@ -12702,13 +13229,13 @@ if (rowCosts.length !== EXPECTED.length) {
     check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows — `?` is a modifier',
       REFERENCE_SPELLINGS_IN_SPEC.length, referenceFormsInSpec() + 1);
     assertThat('cross-row', 'and the conditional ARRAY spelling is one the table actually NAMES, ' +
-      'so the set equality below is over five and not over four',
+      'so the set equality below is over every spelling and not one fewer',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
       `the table names: ${REFERENCE_SPELLINGS_IN_SPEC.join(', ')}`);
-    // **Less the not-yet rows' spellings — W190**: `"$payload"` and, since W191, `"$item"` are the table's and no L6 row's
-    // until W192 (the list above).
-    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — with NOT_YET_AT_L6`s spellings beside them',
-      [...l6Spellings, ...NOT_YET_AT_L6.map((f) => spellingOf(`$${f}`))].sort(), REFERENCE_SPELLINGS_IN_SPEC);
+    // **Nothing beside them since W192**: `"$payload"` (W190) and `"$item"` (W191) were the table's and no L6 run's, named in
+    // `NOT_YET_AT_L6` until P38's exit artifact ran both.
+    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — and the two `$` references, since W192',
+      [...l6Spellings].sort(), REFERENCE_SPELLINGS_IN_SPEC);
     // **And that the fifth one's `?` is LOAD-BEARING where L6 runs it**, which is
     // what stops it being a spelling somebody wrote for the sake of the count:
     // strip the suffix from `nested-map`'s own reference and `FD-V29` refuses the
@@ -13859,8 +14386,9 @@ if (rowCosts.length !== EXPECTED.length) {
     // one integer per task that started, on every run here — and the attempts heard and not yet appended, empty at rest.
     // No result; both WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W186's row.
     'attemptsPending', 'lastAttempt',
-    // `items` since W191 (`RN-R13`'s sixth term, ADR 0118): what a map instance keeps for `"$item"` — empty on every run here,
-    // since no L6 row names `"$item"` until W192 — WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged (W191's M2).
+    // `items` since W191 (`RN-R13`'s sixth term, ADR 0118): what a map instance keeps for `"$item"` — empty on every ROW's run,
+    // which is what this measurement walks (`reports`): the one place `"$item"` runs here is W192's block, which is not a row —
+    // WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged (W191's M2). In W191's row; the clause amended by W192.
     'items',
   ].sort();
   const anyRun = reports[0]!;
@@ -14581,14 +15109,20 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // twenty-four cross-row assertions (`CROSS_ROW` 410 -> 434) over its eleven runs. No row moved (P36 prediction 5). *(The
 // block's first run, in node, read 2768 with the count's own failure line among them — 2767 — and 203 runs before
 // `pairRunCount` counted it.)*
-const DECLARED_TOTAL = 2767;
+// **2789 / 221 since W192 — P38's EXIT ARTIFACT, +22 and seven runs**, DERIVED: the payload-and-item block's twenty-two
+// cross-row assertions (`CROSS_ROW` 434 -> 456) over its seven runs; removing `NOT_YET_AT_L6` added and removed no
+// assertion. No row moved (P38 prediction 4). *(The block's first run, in node, read 2790 with the derived count's failure
+// line among them — 2789 — and 221 runs, `pairRunCount` already counting the block.)* **2789 / 222 after its readers** — (5)'s
+// CONTROL run, whose entry task IS handed (the adequacy reader, A1); no claim added, several widened. *(Written as 2789 / 222
+// before the file was re-run.)*
+const DECLARED_TOTAL = 2789;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 214;
+const DECLARED_RUNS = 222;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
