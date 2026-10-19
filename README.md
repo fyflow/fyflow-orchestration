@@ -260,6 +260,7 @@ if (after.counts.no !== 0) throw new Error('and the flow that ran has no unwired
 | **Pausing** a run and unpausing it — every dispatch held, then handed on in order | section 8 |
 | A node that **waits for a person** by design — an `ask`, which keeps what reached it and holds the answer to a schema | section 7 |
 | A task's **messages and progress**, each with its run, node and attempt as fields — `onTaskMessage`, `onTaskProgress` | section 8 |
+| A **worker's own messages**, outside any task — `worker.message` on its pool, reached through `createScheduler` | section 8 |
 | Reaching what reached the **run** from any node or edge — `needs: { invoice: "$payload" }` | section 3 |
 | Reaching the item that opened a **map instance** from any node in it — `needs: { invoice: "$item" }` | section 3 |
 | **Stopping** a run to resume it on another runtime — `handle.stop` | section 18 |

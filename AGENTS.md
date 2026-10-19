@@ -2037,6 +2037,55 @@ if (entry.runId !== 'run-1' || entry.flowAttempt !== 0 || entry.attemptNumber !=
 if (driver.foldInputs().length !== 3) throw new Error('dispatched and two attempts — nothing for the message or the progress');
 ```
 
+**A worker's OWN messages — `worker.message`, outside any run.** A worker's constructor gets the scheduler's worker
+context as its second argument, and `workerContext.emit(name, data)` sends a `worker.message` on the worker's POOL —
+for what belongs to no task, such as model-loading progress from `setup()`. The library passes these through to
+nothing: they have no run, node or attempt to attribute. Listen on the pool yourself. **The pools are reachable
+through `createRuntime`'s `createScheduler` option**, which is handed the `WorkerManager`s keyed by pool name before
+any task is added — so a listener added there misses nothing. (`runtime.pools` is the DERIVED description of each
+pool, not the `WorkerManager`, and has no events.)
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
+import { FyflowScheduler } from 'fyflow-scheduler';
+
+// A worker that keeps its constructor's second argument and emits from `setup()`, where there is no task.
+const loader = `data:text/javascript,${encodeURIComponent(`export default class Loader {
+  constructor(config, workerContext) { this.ctx = workerContext; }
+  async setup() { this.ctx.emit('loading', { pct: 50 }); this.ctx.emit('loading', { pct: 100 }); }
+  run(envelope) { return envelope.input; } }`)}`;
+
+const registry: RegistryDocument = { workers: { loader: { url: loader } }, nodeTypes: { Model: { worker: 'loader', inline: true } } };
+const flow: FlowDefinition = {
+  flowId: 'loads', version: 1, entry: 'm',
+  nodes: [{ id: 'm', kind: 'task', type: 'Model', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }],
+};
+
+// `createScheduler` is handed every pool by name, and returns the scheduler the runtime will use.
+const seen: { pool: string; name: string; data: unknown; seq: number }[] = [];
+const runtime = createRuntime(registry, {}, {
+  base: import.meta.url,
+  createScheduler: (pools, groups) => {
+    for (const [pool, manager] of Object.entries(pools)) {
+      manager.addEventListener('worker.message', (e) => {
+        const d = (e as CustomEvent<{ name: string; data: unknown; seq: number }>).detail;
+        seen.push({ pool, name: d.name, data: d.data, seq: d.seq });
+      });
+    }
+    return new FyflowScheduler(pools, groups);
+  },
+});
+const state = await runtime.start(flow, { ok: true }).done;
+await runtime.shutdown();
+console.log(seen);   // [ { pool: 'Model', name: 'loading', data: { pct: 50 }, seq: 0 }, { …, data: { pct: 100 }, seq: 1 } ]
+
+// Verified by the docs gate:
+const want = JSON.stringify([{ pool: 'Model', name: 'loading', data: { pct: 50 }, seq: 0 }, { pool: 'Model', name: 'loading', data: { pct: 100 }, seq: 1 }]);
+if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
+if (JSON.stringify(seen) !== want) throw new Error(`the pool delivered ${JSON.stringify(seen)}`);
+```
+
 **BREAKING in 0.8.0** (P36 (j), (p)): `NodeRun` gains three REQUIRED fields — `runId`, `flowAttempt` and `attemptNumber` —
 so code that builds a `NodeRun` literal (a test's expected entry, a hand-made `RunState`) no longer compiles until it
 carries them. Reading an entry is unaffected. `onTaskMessage`, `onTaskProgress` and the types `TaskMessage`,
