@@ -79,8 +79,7 @@ import { createRuntime } from 'fyflow-orchestration/scheduler';
 import { type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
 
 // THE REGISTRY — what exists. One worker module, and one node type that runs on it. This is data:
-// in your program it is a JSON file you import. The worker url is relative, and `base` below says
-// to what; the file itself is `examples/getting-started/worker.ts` — a class with a `run` method.
+// in your program it is a JSON file you import. The worker url is relative to `base` below.
 const registry: RegistryDocument = {
   workers: {
     greeter: {
@@ -92,9 +91,7 @@ const registry: RegistryDocument = {
 };
 
 // THE FLOW — what happens. Two nodes of that type, each with its own `settings`, then an end. A flow
-// names registry KEYS and nothing else — no file, no url, no class — so it is portable across
-// runtimes that agree on the keys. The end node's `outcome` is a LABEL of yours that the driver does
-// not interpret; the run's own outcome is the fold's — `state.outcome` below.
+// names registry keys only (no files, urls or classes), so it is portable between runtimes.
 const flow: FlowDefinition = {
   flowId: 'hello', version: 1, entry: 'greet',
   nodes: [
@@ -104,29 +101,22 @@ const flow: FlowDefinition = {
   ],
 };
 
-// ONE call builds the pool, the scheduler and everything between, and refuses every defect in the
-// REGISTRY at construction, by name. It never sees the flow: a defect THERE is refused where the
-// flow arrives, at `start`, which is what builds the `Driver` — so a `settings` value the worker's
-// schema rejects names its node from the call three lines below, not from this one. `base` is what
-// relative worker urls resolve against — `import.meta.url` when the registry sits beside this file.
+// ONE call builds the pools and the scheduler, and refuses a defective registry here, by name. A
+// defect in the FLOW is refused by `start`, below.
 const runtime = createRuntime(registry, {}, { base: import.meta.url });
 
-// `start` hands back `{ driver, done }` — the driver already running, and `done` a promise that
-// resolves with the run's terminal `RunState` (ADR 0058). **It never rejects**: `failed`, `stuck`
-// and `halted` are terminal OUTCOMES, so a run that goes wrong arrives as `state.outcome` and not
-// as a `catch`. This snippet wants only the end, so it names only `done`. *A run with a person in
-// it does not end by itself — section 7 is where that is taught, and section 8 is what `done` waits
-// for.*
+// `start` runs the flow. `done` resolves with the run's final state and never rejects: a run that
+// goes wrong arrives as `state.outcome` ('failed', 'stuck', 'halted'), not as a `catch`.
 const { done } = runtime.start(flow, { text: 'hello' });
 const state = await done;
 await runtime.shutdown();
 
-// What the run did, read off its state: `greet` turned `hello` into `hello world`, and `shout` was
-// handed THAT as its input — the previous node's result is the next node's `input`.
+// The previous node's result is the next node's input: `greet` made `hello world`, `shout` added `!`.
 const shout = Object.values(state.nodes).find((n) => n.nodeId === 'shout');
 console.log(state.outcome);          // 'completed'
 console.log(shout?.result);          // { text: 'hello world !' }
 
+// Verified by the docs gate:
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 if (JSON.stringify(shout?.result) !== '{"text":"hello world !"}') throw new Error(`shout returned ${JSON.stringify(shout?.result)}`);
 ```
@@ -1155,26 +1145,22 @@ It is also `README.md`'s second snippet, held byte-equal to this one by `check-d
 import { createRuntime } from 'fyflow-orchestration/scheduler';
 import { type FlowDefinition, type Predicate, type RegistryDocument, type RunState } from 'fyflow-orchestration';
 
-// THE REGISTRY — one worker, one type, and the NAME of a predicate the flow may use. A predicate is
-// code (ADR 0002), supplied beside the document under that name; a flow using a name nobody supplied
-// is refused at construction, not at the decision. The worker tags its input with the node's label.
+// THE REGISTRY — one worker, one type, and the NAME of a predicate the flow may use. The predicate
+// itself is code, passed to `createRuntime` under that name. The worker tags its input with a label.
 const registry: RegistryDocument = {
   workers: { tag: { url: '../../examples/getting-started/tag.ts' } },   // in your program: './tag.ts'
   nodeTypes: { Tag: { worker: 'tag', inline: true } },
   predicates: ['isLowConfidence'],
 };
-// A predicate reads the EFFECTIVE outcome, and `result` is `null` for an optional task that
-// failed (`OR-R9`) — so it is guarded, as section 4's is. Unreachable here, because `ingest` is
-// not optional; guarded anyway, because this is the form a consumer copies.
+// `result` is `null` when an optional task failed, so a predicate guards it.
 const isLowConfidence: Predicate = (ctx) => {
   const r = ctx.outcome.result as { confidence?: number } | null;
   return typeof r?.confidence === 'number' && r.confidence < 0.5;
 };
 
-// THE FLOW — a DECISION, a FAN-OUT, a JOIN. `ingest`'s first edge is taken when its predicate says so,
-// otherwise the last, unconditional one. `split` opens two branches that run concurrently; `collect`
-// waits for both and hands `publish` every branch's result keyed by branch path (JP-R12). `review` is
-// the road the run takes when confidence is low — it never reaches the join, and the run completes.
+// THE FLOW — a DECISION, a FAN-OUT, a JOIN. `ingest` goes to `review` when the predicate holds,
+// otherwise to `split`. `split` runs two branches concurrently; `collect` waits for both and hands
+// `publish` every branch's result, keyed by branch path.
 const flow: FlowDefinition = {
   flowId: 'decide', version: 1, entry: 'ingest',
   nodes: [
@@ -1190,30 +1176,24 @@ const flow: FlowDefinition = {
   ],
 };
 
-// ONE runtime, TWO runs. Pools belong to the runtime and are shared across runs; each run is its own
-// `Driver` with its own fold, and the join policy defaults to `live-token` (ADR 0003).
+// ONE runtime, TWO runs. Pools belong to the runtime and are shared; each run has its own state.
 const runtime = createRuntime(registry, { predicates: { isLowConfidence } }, { base: import.meta.url });
-// Each run has its OWN `done`, so two runs are two promises — `start` is called twice and the whole
-// of the wait is `await`. Nothing here folds anything: the runtime keeps the fold (ADR 0058).
 const run = (payload: unknown) => runtime.start(flow, payload).done;
 const high = await run({ confidence: 0.9 });
 const low = await run({ confidence: 0.2 });
 await runtime.shutdown();
 
-// WHICH nodes ran, read off each run's own state — the decision took a different edge each time.
+// Which nodes ran: the decision took a different edge each time.
 const ran = (s: RunState) => Object.values(s.nodes).map((n) => n.nodeId).sort();
 const resultOf = (s: RunState, id: string) => Object.values(s.nodes).find((n) => n.nodeId === id)?.result;
 console.log(ran(high));                    // [ 'classify', 'enrich', 'ingest', 'publish' ]
 console.log(ran(low));                     // [ 'ingest', 'review' ]
 console.log(resultOf(high, 'publish'));    // { '0': { confidence: 0.9, ingest: true, enrich: true }, '1': { …, classify: true }, publish: true }
 
+// Verified by the docs gate:
 if (high.outcome !== 'completed' || low.outcome !== 'completed') throw new Error(`outcomes ${high.outcome} / ${low.outcome}`);
 if (ran(high).join() !== 'classify,enrich,ingest,publish') throw new Error(`high ran ${ran(high).join()}`);
 if (ran(low).join() !== 'ingest,review') throw new Error(`low ran ${ran(low).join()}`);
-// `publish` received BOTH branches' results, keyed by branch path (JP-R12), and each branch's value
-// carries the whole road it came by. What this string pins is the branch-to-KEY MAPPING: the ASCENDING
-// order that rule also fixes is not observable at depth 1, because "0" and "1" are integer-like keys
-// and the language orders those ascending whatever the driver did. A nested region would show it.
 const want = '{"0":{"confidence":0.9,"ingest":true,"enrich":true},"1":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
 if (JSON.stringify(resultOf(high, 'publish')) !== want) throw new Error(`publish received ${JSON.stringify(resultOf(high, 'publish'))}`);
 ```
@@ -3775,8 +3755,7 @@ import { SESSION_BASE, SESSION_REGISTRY, SESSION_WORKERS } from '../../examples/
 // and the languages a transform may be written in. `createRuntime` takes the whole document below.
 const registry = { workers: SESSION_WORKERS, nodeTypes: SESSION_REGISTRY.nodeTypes, languages: { jsonata } };
 
-// THE FLOW, as an author first writes it: read a batch, summarise it. It is a VALID document —
-// `validateDefinition` has nothing to say about it, because nothing here is about the grammar.
+// THE FLOW, as an author first writes it: read a batch, summarise it. Its grammar is valid.
 const flow: FlowDefinition = {
   flowId: 'session', version: 1, entry: 'read',
   nodes: [
@@ -3801,32 +3780,28 @@ console.log(describePaths(pathsOf(SESSION_WORKERS.reader.outputSchema)));
 // ? $.lines[]                    string
 //   $.source                     string
 
-// STEP 3 — a first candidate. It is run on the producer's declared EXAMPLE, and the result is held
-// to the consumer's input schema, so the answer is about a value rather than about two declarations.
+// STEP 3 — a first candidate, run on the producer's declared example and checked against the
+// consumer's input schema.
 const attempt = await tryTransform(registry, flow, 'sum', { lang: 'jsonata', expr: '{ "text": lines }' });
 console.log(`${attempt[0]!.kind}: ${attempt[0]!.why}`);
 // transform-fails: the transform's result on the example fails the consumer's inputSchema — $.text expected string, got array
 if (attempt[0]!.kind !== 'transform-fails') throw new Error('an array is not a string, and the loop says which');
 
-// STEP 4 — ONE expression edit, and the same loop. `transform-passes` is never `fits`: it is a fact
-// about the sample the verdict names, which is why `sample.source` is on it (a declared example
-// here; where a schema declares none, a generated WITNESS, and the verdict says so).
+// STEP 4 — one edit, and the same loop. `transform-passes` is about the sample it names, which is
+// the declared example here, or a generated one where a schema declares none.
 const good = { lang: 'jsonata', expr: '{ "text": $join(lines, " ") }' };
 const passed = await tryTransform(registry, flow, 'sum', good);
 console.log(`${passed[0]!.kind} on the ${passed[0]!.sample!.source}: ${JSON.stringify(passed[0]!.sample!.result)}`);
 if (passed[0]!.kind !== 'transform-passes') throw new Error(`expected the sample to pass, got ${passed[0]!.kind}`);
 
-// STEP 5 — the signature the worker is written against, generated from the same three schemas.
-// `examples/getting-started/session-types.ts` is this text, checked in, and `summarise.ts` imports
-// it. A type holds the SHAPE: `words` is `number` here and its schema says `minimum: 0`.
+// STEP 5 — the signature the worker is written against, generated from the same schemas.
+// `examples/getting-started/session-types.ts` is this text, and `summarise.ts` imports it.
 const signature = signatureOf('Summarise', SESSION_WORKERS.summarise);
 console.log(signature.split('\n').filter((l) => l.startsWith('export')).join('\n'));
 if (!signature.includes('"text": string;')) throw new Error('the required key is required in the type too');
 
-// STEP 6 — and only now the runtime. A runtime IS its registry: every typed pool carries every
-// language the registry names, so a flow whose transform was decided during the session needs
-// nothing passed in advance (ADR 0096). Check it against the runtime that will run it, then start
-// it — `start` refuses from that same check.
+// STEP 6 — only now the runtime. Check the wired flow against it, then start it; `start` refuses
+// from that same check.
 const wired: FlowDefinition = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'sum' ? { ...n, transform: good } : n)) };
 const runtime = createRuntime(SESSION_REGISTRY, { languages: { jsonata } }, { base: SESSION_BASE });
 const refused = runtime.check(wired);
@@ -3837,9 +3812,7 @@ const state = await runtime.start(wired, { source: 'inbox' }).done;
 await runtime.shutdown();
 console.log(state.outcome, Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result);  // completed { words: 3 }
 
-// The expected values are the DOCUMENT's, not literals beside the run: the consumer's own declared
-// output example, and the producer's declared line count. A registry whose examples stop describing
-// its workers is red here and in `test/definition/assist.test.ts`, which runs the same chain.
+// Verified by the docs gate:
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 const got = Object.values(state.nodes).find((n) => n.nodeId === 'sum')?.result;
 if (JSON.stringify(got) !== JSON.stringify(SESSION_WORKERS.summarise.outputSchema.examples[0])) {

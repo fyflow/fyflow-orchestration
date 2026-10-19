@@ -266,6 +266,9 @@ this list if it matters.
   not reject.
 - `maxCompletedTasks` evicts terminal tasks from `scheduler.tasks` with no event to say so.
 - Resource groups are **optimistic** — a limit can be briefly exceeded. Nothing is a hard cap.
+- **An INLINE pool fires `task.running` inside `addTask`, and does not clone**: the worker is handed the object `addTask`
+  was given, where a threaded pool hands a clone — so an alias is visible on real workers only through an inline
+  writer (W186 M3, W192 M3).
 - `addTask` returns `undefined` without `{ createPromise: true }`, and a scheduler that is never
   shut down keeps the process alive.
 - **A group's `onFinish` is marked OPTIONAL and omitting it hangs every task naming that group**, for
