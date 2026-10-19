@@ -3714,8 +3714,10 @@ specifier there but the bare `jsonata`. An npm consumer installs one 834 KiB pac
 dependencies of its own, whether or not they ever import the sub-path; a Deno consumer's
 `deno.json` resolves the mapping; a bundler includes the engine only in a bundle that imports the
 sub-path. **A bundled worker is your asset**: inside a bundle `import.meta.url` is the bundle's own
-URL ([Q261](doc/questions/q261.md)), so `jsonata.worker` — like the envelope worker itself — has to be
-served beside your bundle as a module of its own for a pool's thread to load it.
+URL ([Q261](doc/questions/q261.md)), so `jsonata.worker` has to be served beside your bundle as a module of its own
+for a pool's thread to load it. **The envelope worker does not**, from npm: the npm dist carries it inside itself, a
+`data:` URL on Node and a `Blob` URL in the browser. A bundle you build from the JSR SOURCE has to serve it
+too, compiled, at the `./envelope-worker.ts` URL the source names beside the bundle.
 
 ---
 

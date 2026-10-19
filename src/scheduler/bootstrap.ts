@@ -51,9 +51,11 @@ import { BUILT_IN_NODE_TYPES, languagesOf, nodeTypesOf, poolsOf, workersOf } fro
 import { checkRegistry, ConfigRefused, derivePool, groupsNamedBy, isDerivation, nodeTypeFromDeclaration, poolOptionsOf, TypeDefaultRefused } from '../definition/registry.ts';
 
 /**
- * The script every typed pool loads. Resolved against THIS module, so it is the published
- * package's own file wherever the package is installed; the type's real worker is loaded from
- * inside it (`EnvelopeWorker.setup`).
+ * The script every typed pool loads; the type's real worker is loaded from inside it
+ * (`EnvelopeWorker.setup`). In the source it resolves against THIS module, the package's own file
+ * wherever it is installed — so a bundle built from the JSR source must serve it beside itself. The
+ * npm dist replaces it at build time with the worker itself: a `data:` URL on Node, a `Blob` URL in
+ * the browser (`scripts/build.mjs`, Q580).
  */
 export const ENVELOPE_WORKER_URL: string = new URL('./envelope-worker.ts', import.meta.url).href;
 
