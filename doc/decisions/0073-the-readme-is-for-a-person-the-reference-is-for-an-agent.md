@@ -7,7 +7,7 @@ item: W107
 raised-by: ""
 supersedes: ""
 amends: ""
-resolves: Q438
+resolves: Q438, Q581
 ---
 
 # ADR 0073 — The README is for a person, the reference is for an agent, and CLAUDE.md is for an agent working on the library
@@ -62,6 +62,9 @@ status the tail duplicated.
    named only the first until W107's adequacy reader counted what shipped. The pin sentence is the
    reason `npm run gate:full` came back EXIT 1 on W107's first confirming gate: the item's declaration
    step asked what `check-docs` reads from the README and never asked which checks READ it.)*
+   ***Amended 2026-10-19 by the maintainer's answer to [Q581](../questions/q581.md)***: *nothing is published yet*
+   reads **where it is published** — the two registries and the package name on each — since 0.7.0 shipped. The
+   sentence carries no version of its own; the version is the manifests', which `X9` holds.
 
 3. **The CORRECTION CONVENTION stays, and the root `README.md` is not where it is written down.**
    What this decision removes is twenty-five plans of that convention APPLIED in the front-door
