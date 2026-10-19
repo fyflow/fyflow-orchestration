@@ -1,9 +1,9 @@
 /**
  * The definition validator — `spec/flow-definition.md` section 5.
  *
- * Forty-four refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
- * deliberately absent — the number `check-spec` prints as *C4 covered 44 definition refusals*, derived
- * from the ids in this file. *(42 until W179 added `FD-V47` and `FD-V48`, the ASK's two, v0.42 — and this
+ * Forty-five refusals — `FD-V14`, `FD-V15` and, since v0.19 (W65, ADR 0054), `FD-V5` and `FD-V34`
+ * deliberately absent — the number `check-spec` prints as *C4 covered 45 definition refusals*, derived
+ * from the ids in this file. *(44 until W191 added `FD-V49`, `"$item"` outside any map instance, v0.45 — 42 until W179 added `FD-V47` and `FD-V48`, the ASK's two, v0.42 — and this
  * sentence read **thirty-seven** from W92 until W179, stale by five through v0.27's `FD-V42`-`FD-V45` and
  * v0.28's `FD-V46`, the increment again applied to a number nothing was tracking. 34 until W92 added
  * `FD-V39`-`FD-V41`, the GATE's three, v0.23. This read
@@ -20,7 +20,7 @@
 import type { DerivedGateType, Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, StaticGateType, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, When, WorkerEntry, Workers } from './types.ts';
 import { PREDICATE_OPS, PREDICATE_ROOTS } from './types.ts';
 import { describeFindings, findings, schemaProblem } from './schema.ts';
-import { allRegions, buildGraph, certainlySettled } from './regions.ts';
+import { allRegions, buildGraph, certainlySettled, innermostMapOf } from './regions.ts';
 // **The built-in `if` gate answers by the evaluator a task edge's `when` uses** (P32 decision 4) — the pure
 // declared-comparison evaluator, in `./condition.ts` since W154's exception (p), where `routing.ts`' `evaluateWhen` reaches
 // it too. Nothing in `src/definition` imports `src/driver`.
@@ -1019,7 +1019,7 @@ function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs',
 }
 
 /**
- * **The one place `needs`' reference grammar is parsed** — `FD-V26`'s four forms (`"."`, `"$payload"`, `"n"`, `["n"]` — `"$item"` parsed beside them since v0.44),
+ * **The one place `needs`' reference grammar is parsed** — `FD-V26`'s five forms (`"."`, `"$payload"`, `"$item"`, `"n"`, `["n"]` — the two `$` forms since v0.44, `"$item"` composed since v0.45),
  * and `spec/flow-definition.md` section 3's table. `null` is *not a reference at
  * all*, which is what `FD-V26` reports; every other return is well formed and
  * `FD-V27`/`FD-V28` decide whether it is well AIMED.
@@ -1030,16 +1030,17 @@ function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs',
  * tokens"* until W190.)* Two `$` tokens are references: **`"$payload"`** — the value the RUN
  * entered with, from any node and any edge (v0.44,
  * [ADR 0117](../../doc/decisions/0117-a-reference-may-name-what-reached-the-run.md)) — and
- * **`"$item"`** — the innermost enclosing map instance's item, PARSED here so the union is one
- * type for both (P38 (h)) and refused by `FD-V26` until W191 composes it. Every other `$`
+ * **`"$item"`** — the item of the innermost map instance CONTAINING the reader, from any node or edge
+ * inside one (v0.45, P38 (c), [ADR 0118](../../doc/decisions/0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md));
+ * parsed here since v0.44 so the union is one type for both (P38 (h)), and aimed by `FD-V49`. Every other `$`
  * spelling — `["$payload"]`, `"$payload?"`, `"$other"` — is `null`, and `FD-V26` names the fix.
  * **They are `form`s and not a flag**, and `node` is `null` on all three node-less forms, so a
  * caller that reads `node === null` as *the `"."` form* reads `"$payload"` as `"."` in silence —
  * **switch on `form`** (P38 fact 7, the reason the union is widened rather than `'self'` reused).
  * **On an EDGE the `"."` form is refused** — `FD-V26`s v0.12 clause — but that is the
  * CALLER`s rule: this function parses ONE grammar, and the two sites differ in what
- * they accept of it rather than in how it is read. *`"$payload"` is NOT refused there*: a
- * predicate has no `ctx.payload`, so naming it is not redundant (P38 decision 3).
+ * they accept of it rather than in how it is read. *`"$payload"` and `"$item"` are NOT refused there*: a
+ * predicate has no `ctx.payload` and no `ctx.item`, so naming either is not redundant (P38 decision 3).
  *
  * **The `?` suffix is v0.13's, and it decides what happens when the target produced
  * NOTHING on this path rather than which outputs are named** —
@@ -1078,7 +1079,7 @@ function aimed(s: string, form: 'one' | 'all'): { form: 'one' | 'all'; node: str
 
 /** The run's payload as a reference — v0.44, P38 (b). */
 const PAYLOAD_TOKEN = '$payload';
-/** A map instance's item as a reference — PARSED since v0.44 (P38 (h)), composed by W191. */
+/** A map instance's item as a reference — PARSED since v0.44 (P38 (h)), composed since v0.45 (W191). */
 const ITEM_TOKEN = '$item';
 
 /**
@@ -1101,11 +1102,13 @@ function dollarProblem(ref: unknown): string | null {
 }
 
 /**
- * **`"$item"` is refused until W191 composes it** — W190's reading R1: P38 (h) widens `referenceTarget`'s union
- * for both tokens in one item, and accepting one no reader composes would hand a worker nothing it asked for. The
- * message names the road that exists: the map's branch entry receives its item as `"."`.
+ * **`FD-V49` — `"$item"` where no map instance contains the reader** (v0.45, P38 (g)): its own id rather than an
+ * `FD-V27` clause, on `FD-V28`'s precedent — *a different fix earns a different id*: `FD-V27`'s fix is to re-point
+ * the reference, and this one's is to move the READER. The message names both roads. *(Until W191 `FD-V26` refused
+ * `"$item"` everywhere, naming `"."` on the branch entry — W190's reading R1.)*
  */
-const ITEM_NOT_YET = `is "$item", a map instance's item, which this version does not compose yet: name the item where the map's branch entry receives it, as "."`;
+const itemOutside = (site: string, k: string, nodeId: string): string =>
+  `${site}[${JSON.stringify(k)}] is "$item", and "${nodeId}" is not inside a map instance: name the item where a map's branch receives it ("."), or move this node inside the map`;
 
 export function validateDefinition(doc: FlowDefinition, registry: Registry): Finding[] {
   const f: Finding[] = [];
@@ -1544,9 +1547,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           if (dollar !== null) {
             add('FD-V26', where, `needs[${JSON.stringify(k)}]: ${dollar}`);
           } else if (target === null) {
-            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", a node id with an optional "?" suffix, or a one-element array holding one`);
-          } else if (target.form === 'item') {
-            add('FD-V26', where, `needs[${JSON.stringify(k)}] ${ITEM_NOT_YET}`);
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", "$item", a node id with an optional "?" suffix, or a one-element array holding one`);
           }
         }
       }
@@ -1644,14 +1645,12 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
             if (dollar !== null) {
               add('FD-V26', at, `edge needs[${JSON.stringify(k)}]: ${dollar}`);
             } else if (target === null) {
-              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", a node id with an optional "?" suffix or a one-element array holding one`);
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", "$item", a node id with an optional "?" suffix or a one-element array holding one`);
             } else if (target.form === 'self') {
-              // **On `form`, never on `node === null`** (P38 fact 9): `"$payload"` has no node either, and an edge MAY
-              // name it — a predicate has no `ctx.payload` (decision 3). Read as `node === null` this clause refused it
-              // with a message about `ctx.outcome`.
+              // **On `form`, never on `node === null`** (P38 fact 9): `"$payload"` and `"$item"` have no node either, and
+              // an edge MAY name them — a predicate has no `ctx.payload` and no `ctx.item` (decision 3). Read as
+              // `node === null` this clause refused them with a message about `ctx.outcome`.
               add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ".", which an EDGE may not use: what a predicate would have received anyway is its node's own outcome, and \`ctx.outcome\` already carries it`);
-            } else if (target.form === 'item') {
-              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] ${ITEM_NOT_YET}`);
             }
           }
         }
@@ -1894,10 +1893,16 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         const t = referenceTarget(ref);
         if (t === null) continue; // FD-V26's
         // **The node-less forms, BY NAME** (P38 fact 7): `"."`, `"$payload"` and `"$item"` name no node, so there is
-        // nothing to aim — *always there*, no `?`, nothing like `FD-V29` (the app's ask). Named rather than read off
-        // `node === null`, so a fourth node-less form is a compile error here and not a silent skip; `"$item"` is
-        // `FD-V26`'s until W191, whose aim rule (`FD-V49`, P38 (g)) sits on this arm.
-        if (t.form === 'self' || t.form === 'payload' || t.form === 'item') continue;
+        // nothing for `FD-V27`-`FD-V29` to aim — *always there*, no `?`, nothing like `FD-V29` (the app's ask). Named
+        // rather than read off `node === null`, so a fourth node-less form is a compile error here and not a silent skip.
+        // **`"$item"` has an aim of its own, `FD-V49`** (v0.45, P38 (g)): the READER must be inside a map instance —
+        // the innermost map region containing it as a member, P38 (c) — or there is no item to name. The same
+        // `regions` this block computed once, read by the walk the driver and the wiring check read (`innermostMapOf`).
+        if (t.form === 'item') {
+          if (innermostMapOf(regions, n.id) === undefined) add('FD-V49', at, itemOutside(site, k, n.id));
+          continue;
+        }
+        if (t.form === 'self' || t.form === 'payload') continue;
         const target = t.node;
         if (!g.byId.has(target)) {
           add('FD-V27', at, `${site}[${JSON.stringify(k)}] names "${target}", which is not a node`);

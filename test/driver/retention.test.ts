@@ -322,6 +322,11 @@ const DRIVER_FIELDS = [
   // resume re-hands as `attemptsSpent`. `attemptsPending`: the `attempted` elements heard on a step and not yet appended,
   // empty at rest. No result in either; both WALKED. The ratchet fired by name on W186's first L1 run, naming both.
   'attemptsPending', 'lastAttempt',
+  // W191 — `items`: what a map INSTANCE keeps for `"$item"` (`RN-R13`'s sixth term since v0.28, ADR 0118) — the maps whose
+  // region holds a reader, decided from the document, and each live instance's item BY REFERENCE until its branch goes
+  // terminal. EMPTY on every flow that names no `"$item"`, which is every flow before 0.8.0. WALKED: it is run state.
+  // The ratchet fired by name on W191's declaration step (M2).
+  'items',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

@@ -67,7 +67,8 @@ at `start()` into the checkpoint header and holds it for the life of the run, an
    `$` spelling (naming the two references the prefix has). **`"$item"`** — a map instance's item, the prefix's second
    reference — is PARSED by the same function (`{ form: 'item' }`, (h)) and refused by `FD-V26` until P38's W191
    composes it and gives its aim rule, `FD-V49`; until then every reader's `item` arm is unreachable on an accepted
-   document.
+   document. ***Dated 2026-10-19, [ADR 0118](0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md)* (W191): that interim refusal is RETIRED — `"$item"` is composed
+   inside a map instance and refused outside one by `FD-V49`.**
 8. **The wiring check reads an arc composed through a `"$payload"` key `unchecked`** ((i)): the run's payload is a value
    no schema declares, so no `fits` is claimed. `boundaryTargets` composes it from the walk's own payload, so an entry
    `map` reading `over` off a `"$payload"` key is walked over the payload's elements.

@@ -6471,12 +6471,12 @@ const spellingOf = (ref: unknown): string => {
 };
 
 /**
- * **The rows of section 3's table that NO L6 row runs yet, by NAME — W190.** v0.44 added `"$payload"` and this rung
- * runs no flow naming it: P38's W192 is the exit artifact that does, and empties this list. Named rather than
- * subtracted as a count, and held BOTH WAYS below — a form L6 starts running must leave the list, and a row the table
- * has must be in L6's set or here — so the list cannot hide a row the table lost.
+ * **The rows of section 3's table that NO L6 row runs yet, by NAME — W190.** v0.44 added `"$payload"` and v0.45 (W191)
+ * `"$item"`, and this rung runs no flow naming either: P38's W192 is the exit artifact that does, and empties this list.
+ * Named rather than subtracted as a count, and held BOTH WAYS below — a form L6 starts running must leave the list, and
+ * a row the table has must be in L6's set or here — so the list cannot hide a row the table lost.
  */
-const NOT_YET_AT_L6: readonly string[] = ['payload'];
+const NOT_YET_AT_L6: readonly string[] = ['item', 'payload'];
 
 async function referenceSpellingsInSpecAsync(): Promise<string[]> {
   const deno = (globalThis as Record<string, unknown>).Deno as
@@ -12576,7 +12576,7 @@ if (rowCosts.length !== EXPECTED.length) {
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
   check('cross-row', 'and they are the table`s rows, not four of something else — L6`s with NOT_YET_AT_L6`s, `payload` since v0.44 (W190)',
-    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'one', 'payload', 'self', 'suffix']);
+    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'item', 'one', 'payload', 'self', 'suffix']);
   // **W190: the not-yet list is held BOTH WAYS by the two clauses above, with no clause of its own** — a new clause here
   // moves `X10`, which this item does not own. The COUNT adds the list to L6's forms, and the SET below compares the two
   // CONCATENATED: a form L6 starts running while still named in the list appears TWICE and fails the equality, and a row
@@ -12705,7 +12705,8 @@ if (rowCosts.length !== EXPECTED.length) {
       'so the set equality below is over five and not over four',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
       `the table names: ${REFERENCE_SPELLINGS_IN_SPEC.join(', ')}`);
-    // **Less the not-yet rows' spellings — W190**: `"$payload"` is the table's and no L6 row's until W192 (the list above).
+    // **Less the not-yet rows' spellings — W190**: `"$payload"` and, since W191, `"$item"` are the table's and no L6 row's
+    // until W192 (the list above).
     check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — with NOT_YET_AT_L6`s spellings beside them',
       [...l6Spellings, ...NOT_YET_AT_L6.map((f) => spellingOf(`$${f}`))].sort(), REFERENCE_SPELLINGS_IN_SPEC);
     // **And that the fifth one's `?` is LOAD-BEARING where L6 runs it**, which is
@@ -13858,6 +13859,9 @@ if (rowCosts.length !== EXPECTED.length) {
     // one integer per task that started, on every run here — and the attempts heard and not yet appended, empty at rest.
     // No result; both WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W186's row.
     'attemptsPending', 'lastAttempt',
+    // `items` since W191 (`RN-R13`'s sixth term, ADR 0118): what a map instance keeps for `"$item"` — empty on every run here,
+    // since no L6 row names `"$item"` until W192 — WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged (W191's M2).
+    'items',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

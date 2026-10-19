@@ -5,7 +5,7 @@
  * (h) and (i), [W190](../../doc/work-items/w190-the-runs-payload-as-a-reference.md).
  *
  * **Every expected value is written from those rows, never read off a run**: `"$payload"` parses to its own form with no
- * node (h) and `"$item"` to its own (W191 composes it; W190's reading R1 refuses it until then); the whole `$` prefix is
+ * node (h) and `"$item"` to its own (W191 composes it and gives it `FD-V49`; W190's reading R1 refused it until then); the whole `$` prefix is
  * reserved, so every other `$` spelling is `null` and `FD-V26` names the fix (g) — the bare form for an array, no `?` for
  * a suffix, the two references for anything else; `"$payload"` is legal on every node and every edge, the entry included
  * (d), and `FD-V27`-`FD-V29` never aim it; an arc composed through it is `unchecked` (i); and `boundaryTargets` composes it
@@ -44,7 +44,7 @@ const DECLARED_CASES = [
   'referenceTarget parses "$payload" and "$item" to their own node-less forms, and every other "$" spelling to null',
   'FD-V26 refuses each "$" mistake at a NODE, alone, and its message names the fix',
   'and at an EDGE, by the same clauses, the edge`s "." clause unmoved beside them',
-  '"$item" is refused at both sites until W191 composes it, naming the road that exists — "."',
+  '"$item" is no longer refused by FD-V26 at either site since W191 — inside a map instance it is accepted, outside one it is FD-V49',
   '"$payload" is ACCEPTED at the entry, two hops on, on a map node, on an ask and on an edge — no FD-V26 to FD-V29',
   'no node can be called "$payload" — FD-V16 — so the token cannot collide with a node id',
   'checkWiring: an arc composed through a "$payload" key reads UNCHECKED, naming it, beside a "." control that reads a verdict',
@@ -92,7 +92,7 @@ suite(SUITE, (test) => {
     // The CONTROL the messages are read against: a non-`$` non-reference still gets the GRAMMAR message, which now
     // lists "$payload" among the forms — so the `$` messages above are not the one message every refusal gets.
     const plain = findingsOf(atNode({ k: 'in:gest' }))[0]!;
-    ok(plain.detail.includes('which is not "." , "$payload", a node id') && !plain.detail.includes('reserved'),
+    ok(plain.detail.includes('which is not "." , "$payload", "$item", a node id') && !plain.detail.includes('reserved'),
       `a non-"$" refusal is worded as the grammar, not as a "$" clause — got ${plain.detail}`);
   });
 
@@ -121,14 +121,15 @@ suite(SUITE, (test) => {
     equal(rulesOf(atEdge({ run: '$payload' })), [], '"$payload" on an edge: ACCEPTED — a predicate has no ctx.payload');
   });
 
-  test('"$item" is refused at both sites until W191 composes it, naming the road that exists — "."', () => {
+  test('"$item" is no longer refused by FD-V26 at either site since W191 — inside a map instance it is accepted, outside one it is FD-V49', () => {
+    // W190's reading R1 refused it with FD-V26 at both sites until W191 composed it (v0.45, ADR 0118). These two
+    // positions are in NO map instance, so the refusal is now the AIM rule's, FD-V49 — and FD-V26 is silent.
     const node = findingsOf(atNode({ item: '$item' }));
-    equal(node.map((f) => f.rule), ['FD-V26'], 'at a node: FD-V26 (W190`s reading R1)');
-    ok(node[0]!.detail.includes('does not compose yet') && node[0]!.detail.includes('as "."'), `names "." — got ${node[0]!.detail}`);
+    equal(node.map((f) => f.rule), ['FD-V49'], 'at a node outside any map instance: FD-V49, never FD-V26');
     const edge = findingsOf(atEdge({ item: '$item' }));
-    equal(edge.map((f) => f.rule), ['FD-V26'], 'at an edge: FD-V26');
-    ok(edge[0]!.detail.startsWith('edge needs["item"]') && edge[0]!.detail.includes('does not compose yet'), `the edge's own wording — got ${edge[0]!.detail}`);
-    // Even inside a map instance — where W191 will make it legal — it is refused HERE, because nothing composes it yet.
+    equal(edge.map((f) => f.rule), ['FD-V49'], 'at an edge outside any map instance: FD-V49');
+    ok(edge[0]!.detail.startsWith('edge needs["item"]'), `the edge's own wording — got ${edge[0]!.detail}`);
+    // Inside a map instance it is LEGAL (W191's L1 suite holds every site; this is the one W190 refused).
     const inMap = doc([
       { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'split' }] },
       { id: 'split', kind: 'map', over: 'items', branch: 'score' },
@@ -136,7 +137,7 @@ suite(SUITE, (test) => {
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
       { id: 'done', kind: 'end', outcome: 'completed' },
     ]);
-    equal(rulesOf(inMap), ['FD-V26'], 'inside a map instance too, at this version');
+    equal(rulesOf(inMap), [], 'inside a map instance: accepted');
   });
 
   test('"$payload" is ACCEPTED at the entry, two hops on, on a map node, on an ask and on an edge — no FD-V26 to FD-V29', () => {

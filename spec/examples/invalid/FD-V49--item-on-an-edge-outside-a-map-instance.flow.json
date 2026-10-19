@@ -1,0 +1,13 @@
+{
+  "flowId": "item-on-an-edge-outside-a-map-instance",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [
+      { "when": { "path": "needs.item.amount", "op": "gt", "value": 100 }, "to": "publish", "needs": { "item": "$item" } },
+      { "to": "done" }
+    ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

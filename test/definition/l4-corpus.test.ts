@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W191 — P38 (c)-(e), (g)-(i), ADR 0118: a map instance's item as a reference, and what an instance keeps for it — L1 in
+  // `test/definition/map-item.test.ts`, L2 in `test/driver/map-item.test.ts`; both counted below.
+  'W191 — "$item" in the grammar: the innermost map instance, FD-V26`s refusal retired, FD-V49 at both sites, and the wiring check over the map`s item',
+  'L2 — W191: "$item" composed — the branch entry, after an ask, two hops in, an edge, nested maps, kept where read, released by its branch`s terminal event, rebuilt by a resume',
   // W190 — P38 (b), (d), (f)-(j), ADR 0117: the run's payload as a reference — L1 in `test/definition/run-payload.test.ts`,
   // L2 in `test/driver/run-payload.test.ts`; both counted below.
   'W190 — "$payload" in the grammar: referenceTarget`s new forms, FD-V26`s "$" clauses at both sites, every site it is legal, and the wiring check`s unchecked',
@@ -945,9 +949,17 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   test('W190`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W190 — "$payload" in the grammar: referenceTarget`s new forms, FD-V26`s "$" clauses at both sites, every site it is legal, and the wiring check`s unchecked'), 9,
-      'test/definition/run-payload.test.ts registers its nine: the parse, FD-V26 at a node and at an edge, "$item" refused, five sites accepted, FD-V16, the wiring check, the walk, and its own membership');
+      'test/definition/run-payload.test.ts registers its nine: the parse, FD-V26 at a node and at an edge, "$item" no longer FD-V26`s (W191), five sites accepted, FD-V16, the wiring check, the walk, and its own membership');
     equal(count('L2 — W190: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, each its own copy'), 11,
       'test/driver/run-payload.test.ts registers its eleven: the entry, two hops, a map node, an ask, the app`s entry ask, an edge, FD-R4, a resume, the copy claim, a flow unchanged, and its own membership');
+  });
+  // **W191's two suites, counted the same way and for the same reason.**
+  test('W191`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W191 — "$item" in the grammar: the innermost map instance, FD-V26`s refusal retired, FD-V49 at both sites, and the wiring check over the map`s item'), 7,
+      'test/definition/map-item.test.ts registers its seven: innermostMapOf, FD-V26 retired, five sites accepted, FD-V49 at a node, FD-V49 at an edge, a map node and after a join, the wiring check, and its own membership');
+    equal(count('L2 — W191: "$item" composed — the branch entry, after an ask, two hops in, an edge, nested maps, kept where read, released by its branch`s terminal event, rebuilt by a resume'), 17,
+      'test/driver/map-item.test.ts registers its seventeen: the branch entry, the app`s case 2, two hops at arity 11, an edge, nested maps, a fanout, the copy claim, kept, released, a nested join fired early, a map`s join fired early, nesting two deep in both orders, a nested branch lost or exited and a map under a fanout, a resume, FD-R4, a flow unchanged, and its own membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

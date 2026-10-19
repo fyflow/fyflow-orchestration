@@ -92,7 +92,7 @@
 import { describeFindings, findings, schemaProblem, type JsonSchema } from './schema.ts';
 import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry, TaskNode } from './types.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
-import { allRegions, branchPathOf, buildGraph, type Graph, type RegionSets } from './regions.ts';
+import { allRegions, branchPathOf, buildGraph, innermostMapOf, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
 // ---- the verdict -----------------------------------------------------------------------------
@@ -317,7 +317,8 @@ interface Arrival {
  * branch tasks of an entry region, recursively; for a map, one per element of the array the
  * payload carries under `over`. `FD-R4`'s targets at `start()`; the driver composes each value
  * through the node's `needs` (an entry names no NODE, `FD-V27`: what it can carry is `"."` and, since v0.44,
- * `"$payload"` — the payload this walk was handed, P38 (f)) and holds it to the
+ * `"$payload"` — the payload this walk was handed, P38 (f) — and, since v0.45, `"$item"`: a target inside a map instance
+ * is that map's BRANCH ENTRY, so its value IS the instance's item and a `"$item"` key composes it, P38 (i)) and holds it to the
  * task's worker `inputSchema` — the value the node RECEIVES — unless the task declares a `transform` (ADR 0101, W170). ONE walk, two callers — the driver with the payload, and
  * `checkWiring` with none for `WiringReport.entry` (W73's adequacy reader found a second walk
  * beside this one whose map arm nothing bound; there is one walk now, `entryWalk`).
@@ -374,8 +375,9 @@ function entryWalk(
       // A map's own `needs` composed as `enter` composes it — W73's conformity reader (15). At an entry no NODE
       // can be named (`FD-V27`), so the composition is the value under each `"."` key and — since v0.44 — the
       // WALK's own payload under each `"$payload"` key (P38 fact 8, (i)): on `form`, never on `r === '.'`, which
-      // DROPPED a `"$payload"` key and read `over` off the wrong object. `"$item"` is `FD-V26`'s until W191 and
-      // no map at an entry is inside a map instance, so it composes nothing here.
+      // DROPPED a `"$payload"` key and read `over` off the wrong object. **`"$item"` composes nothing here, and cannot
+      // be asked to** (v0.45): no map this walk reaches is inside a map instance — the walk ENDS at a map's branch entry,
+      // a task or an ask (`FD-V25`) — so `FD-V49` refuses a `"$item"` on it at construction.
       const composed = n.needs === undefined ? value
         : Object.fromEntries(Object.entries(n.needs).flatMap(([k, r]) => {
           const form = referenceTarget(r)?.form;
@@ -652,7 +654,7 @@ class Wiring {
     // **The ENTRY has no arc** (the spec's subsection): an entry task's `needs` composes the run's PAYLOAD,
     // which `FD-R4` holds at `start()` — the first cut minted a synthetic `<entry>` producer with schema `{}`
     // here and gave the entry a `no` (W73's adequacy reader, s1); with nothing inbound there is nothing to say.
-    const out = needs ? raw.map((a) => this.composed(a, needs)) : raw;
+    const out = needs ? raw.map((a) => this.composed(a, needs, nodeId)) : raw;
     this.memo.set(nodeId, out);
     return out;
   }
@@ -761,8 +763,25 @@ class Wiring {
     };
   }
 
+  /**
+   * **What a `"$item"` key composes from: the enclosing map's ITEM arrival** — P38 (i), v0.45. The map is the innermost
+   * one containing `nodeId` (`innermostMapOf`, P38 (c)), and its item is `item()` over the map's OWN arrival — the
+   * `items` sub-schema of what it receives under `over`, with the per-element sample. **One arrival or none at all**: a
+   * map entered from two producers has no single item shape, and an ENTRY map has no arrival (the run's payload, which no
+   * schema declares) — both `unchecked`, never a guessed `fits`.
+   */
+  private itemArrival(nodeId: string): Pick<Arrival, 'schema' | 'sample' | 'perItem' | 'unchecked' | 'refused'> {
+    const m = innermostMapOf(this.regions, nodeId);
+    if (m === undefined) return { unchecked: `"${nodeId}" is inside no map instance (FD-V49)` };
+    const at = this.arrivals(m.fanoutId);
+    if (at.length !== 1) {
+      return { unchecked: `map "${m.fanoutId}" has ${at.length === 0 ? "no arrival — the run's payload, which no schema declares" : `${at.length} arrivals`}, so no single item shape` };
+    }
+    return this.item(at[0]!, this.byId.get(m.fanoutId) as MapNode);
+  }
+
   /** `FD-C1`'s table over one arrival: the object `needs` describes, schema and sample alike. */
-  private composed(a: Arrival, needs: Readonly<Record<string, unknown>>): Arrival {
+  private composed(a: Arrival, needs: Readonly<Record<string, unknown>>, nodeId: string): Arrival {
     const base = { shape: 'needs' as const, producer: a.producer, ...(a.through ? { through: a.through } : {}) };
     // A refused arrival stays REFUSED through composition (W100's conformity reader, F2): the refusal says
     // this arc is never traversed, which no `needs` can change. Before this clause the `"."` road turned it
@@ -772,6 +791,8 @@ class Wiring {
     let source: ArcSampleSource = 'example';
     const arity = a.sample?.arity;
     const dot: string[] = [];                                            // the `"."` keys — `FD-V28` admits no `["."]`
+    const itemKeys: string[] = [];                                       // the `"$item"` keys — one element each, per item
+    let itemElements: unknown[] | undefined;                             // the map's per-element sample, where it has one
     for (const [key, ref] of Object.entries(needs)) {
       const t = referenceTarget(ref);
       if (t === null) return { ...base, unchecked: `needs.${key} is not a reference` };
@@ -779,10 +800,28 @@ class Wiring {
       // **`"$payload"` is UNCHECKED** — P38 (i): the run's payload is a value no schema declares (the entry's worker
       // may transform it, may have `needs`, may be no task at all), so an arc composed through it has no schema to
       // hold and reads `unchecked`, never a false `fits`. On `form`, never on `t.node === null`, which read it as
-      // `"."` and gave the key the EDGE's schema (P38 fact 8). `"$item"` is `FD-V26`'s until W191, unchecked here.
+      // `"."` and gave the key the EDGE's schema (P38 fact 8).
       if (t.form === 'payload') return { ...base, unchecked: `needs.${key} is "$payload" — the run's payload, which no schema declares` };
-      if (t.form === 'item') return { ...base, unchecked: `needs.${key} is "$item", which this version does not compose` };
-      if (t.form === 'self') {
+      // **`"$item"` is the enclosing map's ITEM arrival** (P38 (i), v0.45): its schema, and its sample ONE ELEMENT PER
+      // ITEM under the `"."` keys' per-element rule below — so a node two hops into an instance is composed once per
+      // item, as the run composes it, and not over the whole `over` array. `unchecked` where the map has no single
+      // arrival or its item has no schema, with that reason.
+      if (t.form === 'item') {
+        const it = this.itemArrival(nodeId);
+        if (it.schema === undefined) return { ...base, unchecked: `needs.${key} is "$item", and ${it.unchecked ?? it.refused}` };
+        schema = it.schema; src = it.sample?.source ?? 'witness';
+        if (it.perItem && it.sample !== undefined) {
+          itemElements = it.sample.value as unknown[];
+          itemKeys.push(key);
+        } else {
+          // **An item schema with no per-element sample** — no road reaches it today (`item()` samples whenever its
+          // arrival has a schema, and every arrival with a schema carries a sample), so it is HANDLED rather than argued:
+          // the item schema's own witness under the key, never `undefined`, which a transform would read as a value
+          // (W191's conformity reader, C6).
+          const w = sampleOf(it.schema);
+          value = w?.value; src = w?.source ?? 'witness';
+        }
+      } else if (t.form === 'self') {
         if (a.schema === undefined) return { ...base, unchecked: a.unchecked ?? a.refused ?? `needs.${key} is "." and the edge's value has no schema` };
         schema = a.schema; value = a.sample?.value; src = a.sample?.source ?? 'witness';
         dot.push(key);
@@ -798,10 +837,17 @@ class Wiring {
     }
     const schema: JsonSchema = { type: 'object', required, properties: props, additionalProperties: false };
     // **Over a map's item, one composed object PER ELEMENT** (R7, the `perItem` field): the `"."` keys take
-    // each element in turn, the named keys stay, and the arrival keeps the item shape's evaluation rule.
+    // each element in turn, the named keys stay, and the arrival keeps the item shape's evaluation rule. **And the
+    // `"$item"` keys take the SAME element** (v0.45): at the branch entry the arc IS the item, and further into the
+    // instance the elements are the enclosing map's own — the `"."` keys then keep the arc's one value.
     if (a.perItem && a.sample !== undefined) {
       const elements = a.sample.value as unknown[];
-      const value = elements.map((el) => { const s = { ...sample }; for (const k of dot) s[k] = el; return s; });
+      const value = elements.map((el) => { const s = { ...sample }; for (const k of [...dot, ...itemKeys]) s[k] = el; return s; });
+      return { ...base, perItem: true, schema, sample: { value, source, arity: elements.length } };
+    }
+    if (itemKeys.length > 0 && itemElements !== undefined) {
+      const elements = itemElements;
+      const value = elements.map((el) => { const s = { ...sample }; for (const k of itemKeys) s[k] = el; return s; });
       return { ...base, perItem: true, schema, sample: { value, source, arity: elements.length } };
     }
     return { ...base, schema, sample: { value: sample, source, ...(arity !== undefined ? { arity } : {}) } };

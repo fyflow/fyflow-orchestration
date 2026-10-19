@@ -19,7 +19,7 @@ import { checkRegistry, isDerivation } from '../definition/registry.ts';
 import { describeFindings, findings, type SchemaFinding } from '../definition/schema.ts';
 import { boundaryTargets } from '../definition/wiring.ts';
 import {
-  allRegions, branchPathOf, buildGraph, innermostRegionOf, outputIsVisible, toRegion,
+  allRegions, branchPathOf, buildGraph, innermostMapOf, innermostRegionOf, outputIsVisible, regionChainOf, toRegion,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, routesOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
@@ -29,7 +29,7 @@ import {
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord, type ResolutionRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { gateEdge, selectEdge, type PredicateRegistry } from './routing.ts';
-import type { RegionEvent } from './events.ts';
+import { isTerminalEvent, type RegionEvent } from './events.ts';
 import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
 // Type-only, so it is erased and there is no runtime cycle with `src/fold/`.
 // The driver PRODUCES this sequence (ADR 0014) and the fold consumes it; the type
@@ -811,6 +811,54 @@ function withIndex(
   return next;
 }
 
+/**
+ * **Which maps keep their instances' items, and which of them may receive the CALLER's own object** — the
+ * `kept` half of `Driver.items`, from the document alone (P38 (e): *kept only where the region has a `"$item"`
+ * reader, decided at construction*). A reader is a node declaring `"$item"` in its own `needs` or on any of its
+ * edges; its map is `innermostMapOf` — the one the driver reads it from and `FD-V49` checked exists. The flag is
+ * `true` for a map reached from the entry through GATES alone and declaring no `needs`: there `enter` hands it
+ * `start()`'s own payload (a gate hands on what reached it), so the element it would hold is the caller's.
+ */
+function itemMaps(def: FlowDefinition, regions: RegionSets[]): ReadonlyMap<string, boolean> {
+  const kept = new Map<string, boolean>();
+  for (const n of def.nodes) {
+    const own = Object.values((n as { needs?: Record<string, unknown> }).needs ?? {});
+    const onEdges = ((n as { edges?: readonly Edge[] }).edges ?? []).flatMap((e) => Object.values(e.needs ?? {}));
+    if (![...own, ...onEdges].some((r) => referenceTarget(r)?.form === 'item')) continue;
+    const m = innermostMapOf(regions, n.id);
+    if (m !== undefined) kept.set(m.fanoutId, false);
+  }
+  const byId = new Map(def.nodes.map((n) => [n.id, n] as const));
+  const seen = new Set<string>();
+  const walk = (id: string): void => {
+    const n = byId.get(id);
+    if (n === undefined || seen.has(id)) return;
+    seen.add(id);
+    if (n.kind === 'map' && n.needs === undefined && kept.has(id)) kept.set(id, true);
+    if (n.kind === 'gate') for (const e of n.edges ?? []) walk(e.to);
+  };
+  walk(def.entry);
+  return kept;
+}
+
+/**
+ * **Per region, the kept maps whose INSTANCE encloses it** — the `within` half of `Driver.items` (ADR 0118 rule 5): a region
+ * whose opener is a member of a kept map's region runs inside one of that map's instances, and a branch of it that is still
+ * live may still enter a node of that instance. `depth` is how many leading `branchPath` segments name the instance — one
+ * per region on the map's branch entry's chain, the map's own the innermost.
+ */
+function itemWithin(kept: ReadonlyMap<string, boolean>, regions: RegionSets[]): ReadonlyMap<string, readonly { map: string; depth: number }[]> {
+  const out = new Map<string, { map: string; depth: number }[]>();
+  for (const id of kept.keys()) {
+    const m = regions.find((r) => r.fanoutId === id);
+    const branch = m?.branches[0];
+    if (m === undefined || branch === undefined) continue;
+    const depth = regionChainOf(regions, branch).length;
+    for (const r of regions) if (r !== m && m.members.has(r.fanoutId)) out.set(r.fanoutId, [...(out.get(r.fanoutId) ?? []), { map: id, depth }]);
+  }
+  return out;
+}
+
 /** For `UndeclaredRoute`'s message: what a gate type returned, whatever it is. */
 function describeRoute(v: unknown): string {
   if (typeof v === 'string') return JSON.stringify(v);
@@ -1561,6 +1609,41 @@ export class Driver {
    */
   private readonly arrivals = new Map<string, Map<string, Map<string, unknown>>>();
   /**
+   * **What a map INSTANCE keeps for `"$item"`** — `RN-R13`'s sixth term since v0.28 (`spec/run-state.md`), P38 (e),
+   * [ADR 0118](../../doc/decisions/0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md),
+   * [W191](../../doc/work-items/w191-the-map-instances-item-as-a-reference.md). Two halves, one field:
+   *
+   *   - **`kept`** — decided from the DOCUMENT at construction: the maps whose region holds a `"$item"` reader (a node, or
+   *     an edge of a node, whose innermost containing map is that map — `innermostMapOf`, P38 (c)), and for each whether
+   *     its received value may be the CALLER's own object (`true`: reached from the entry through gates alone, with no
+   *     `needs` — `start()` hands `enter` the value it was called with, as an entry task and an entry ask receive it). A
+   *     map no reader names keeps NOTHING, and a flow declaring no `"$item"` has `kept` empty (P38 decision 2).
+   *   - **`held`** — map id → the instance's branch path → its item. Written by the MAP ARM, where the instance opens —
+   *     by a run and by a resume's replay alike, so a replay REBUILDS it (`RN-R19`; P38's brief: *taken at rest*, never by
+   *     a caller's call) — **BY REFERENCE to the element the map received** (the driver's own: an edge-hop clone, or a
+   *     `needs` composition's per-key copy), and as its OWN copy only where `kept` says that element is the caller's
+   *     (P35 (f)'s reason for `asked.input`). Every READ clones (`JP-R11`), so no node receives the held object.
+   *     **Released when NOTHING of that instance may still be entered** — its own branch terminal (`branch.arrived`,
+   *     `branch.lost` or `branch.exited`, `JP-R5`: one per opened branch) AND no branch of a region NESTED in it still live
+   *     (`within`, `nested`, `ended` — `trackItems`): a nested join a policy fires before its last branch is terminal lets
+   *     the instance's branch arrive while that branch can still read (W191's conformity reader, C1). A suspended node (an
+   *     ask, a parked task) keeps its branch live, and so its item. And at the run-level moments
+   *     `arrivals` is cleared at — a halt, a cancel, a stop, a `cancelled` settlement — because no node is entered after.
+   */
+  private readonly items: {
+    readonly kept: ReadonlyMap<string, boolean>;
+    /**
+     * Per region, the KEPT maps whose instance encloses it, each with the number of `branchPath` segments its instance
+     * path has — from the document, at construction. Empty where nothing is kept, so a flow naming no `"$item"` pays nothing.
+     */
+    readonly within: ReadonlyMap<string, readonly { readonly map: string; readonly depth: number }[]>;
+    readonly held: Map<string, Map<string, unknown>>;
+    /** Per instance (`map` + ` ` + its path): how many branches of regions NESTED in it are open and not yet terminal. */
+    readonly nested: Map<string, number>;
+    /** The instances whose own branch went terminal while a nested branch was still live — released when the last one ends. */
+    readonly ended: Set<string>;
+  };
+  /**
    * **The one run this driver serves** — ADR 0022 rule 1, fixed at construction
    * and never `null`.
    *
@@ -1970,6 +2053,8 @@ export class Driver {
     this.now = opts.now ?? (() => Date.now());
     this.graph = buildGraph(definition);
     this.regions = allRegions(this.graph, definition);
+    const kept = itemMaps(definition, this.regions);
+    this.items = { kept, within: itemWithin(kept, this.regions), held: new Map(), nested: new Map(), ended: new Set() };
 
     if (this.regions.length > 0 && !opts.joinPolicy) {
       throw new MissingJoinPolicy(
@@ -2117,7 +2202,13 @@ export class Driver {
         const worker = type?.worker === undefined ? undefined : this.workers.get(type.worker);
         const schema = worker?.inputSchema;
         if (schema === undefined) continue;
-        const received = this.compose(n, value, new Map(), payload);
+        // **The walk's OWN values, and no item index** (P38 (f), (i); W190's S-1, answered: W191 fixes it). `"$payload"` is
+        // the caller's value; `"$item"` is the walked VALUE, because a target inside a map instance is that map's branch
+        // entry (the walk ends at the first task, and `FD-V25` makes a branch a task or an ask), so its value IS the
+        // instance's item. `compose` derives a branch path only for a NODE reference, which no entry names (`FD-V27`) —
+        // *until W191 it derived one for ANY `needs`, and an entry map's branch task declaring one threw a raw
+        // `UnresolvedBranchPath` out of `start()`: the walk has no item index to give (S-1).*
+        const received = this.compose(n, value, EMPTY_INDICES, payload, () => value);
         const fs = findings(schema, received);
         if (fs.length) {
           throw new BoundaryRefused('start', node, null, fs,
@@ -2724,6 +2815,7 @@ export class Driver {
       stopping,
     };
     this.arrivals.clear();
+    this.releaseAllItems();
     // **A PAUSED run's held tasks are handed on and THEN cancelled** (P34 (c), `RN-R35`, W175): each is `dispatched`
     // and unsettled, so the run reads `cancelling` until the scheduler settles it — and only the scheduler writes a
     // settlement (ADR 0007). Taken out of the hold and marked `unhanded` BEFORE the element (P35 decision 4, `takeStop`'s
@@ -2875,6 +2967,7 @@ export class Driver {
     req.pending = null;
     req.took = null;
     this.arrivals.clear();
+    this.releaseAllItems();
     // 3. DEAF — BEFORE the first cancel (P34 decision 3): a waiting task's `task.cancelled` fires INSIDE its `cancel()`
     // call (P34 fact 8), and it must reach a driver that no longer hears. **And before the element, with the hold**
     // (W174's reading of decision 3's order): a settlement a consumer's callback on the element provokes would otherwise
@@ -3309,6 +3402,7 @@ export class Driver {
         // reads would be the plausible wrong answer P15 decision 2 forbids. This
         // drops only the structure no `FoldInput` carries.
         this.arrivals.clear();
+        this.releaseAllItems();
         report();
       }
       return;
@@ -3464,6 +3558,7 @@ export class Driver {
       // settles, above, and routed nowhere, by the line above this block.
       this.cancelled = true;
       this.arrivals.clear();
+      this.releaseAllItems();
       return;
     }
     if (record.terminalState === 'user_action') {
@@ -3690,7 +3785,7 @@ export class Driver {
     // already do the right thing with a throw — `onEvent` catches and reports
     // (`OR-R10`), `start` catches, reports and rethrows — and catching it here would
     // make `start()` stop rethrowing.
-    const received = this.compose(node, payload, itemIndices, this.runPayload());
+    const received = this.compose(node, payload, itemIndices, this.runPayload(), () => this.itemOf(node.id, itemIndices));
 
     switch (node.kind) {
       case 'task':
@@ -3825,6 +3920,17 @@ export class Driver {
         if (branch === undefined) return; // FD-V25 makes this unreachable; FD-V21 is why
         const idx = items.map((_v, i) => withIndex(itemIndices, nodeId, i));
         const paths = idx.map((m) => this.pathOf(branch, m));
+        // **Each instance KEEPS its item, where the region has a `"$item"` reader** (P38 (e), ADR 0118, `RN-R13`): by
+        // reference to the element this map received — its own copy only where that element may be the CALLER's
+        // (`itemMaps`) — keyed by the instance's branch path, before any instance is entered, so its branch entry's
+        // successors can read it however many hops in. Written HERE in a run and in a resume's replay alike: the replay
+        // re-enters this arm, so the store is rebuilt with nothing new in the checkpoint (P38 decision 5).
+        const kept = this.items.kept.get(nodeId);
+        if (kept !== undefined && items.length > 0) {
+          const byPath = this.items.held.get(nodeId) ?? new Map<string, unknown>();
+          this.items.held.set(nodeId, byPath);
+          items.forEach((v, i) => byPath.set(paths[i]!, kept ? cloneValue(v) : v));
+        }
         // `JP-R5`, and it is the clause a map is most likely to lose: the arity is
         // known only once the previous node settles, but it is known ALL AT ONCE at
         // this line, so the two-pass emission is available here exactly as it is for
@@ -4342,13 +4448,19 @@ export class Driver {
    * the edge carried, so the composed object is the whole payload and what the
    * worker gets is what the document says, character for character.
    *
+   * **`item` is a THUNK, read only for a `"$item"` key** (v0.45, P38 (e)): in a run it reads the instance's held item
+   * (`itemOf`), at `FD-R4` it is the walk's own value — and a node declaring no `"$item"` never asks.
+   *
    * @throws UnresolvedReference — `FD-R3`.
    */
-  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>, runPayload: unknown): unknown {
+  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>, runPayload: unknown, item: () => unknown): unknown {
     const needs = (node as { needs?: Record<string, unknown> }).needs;
     if (!needs) return edgeValue;
-    const here = this.pathOf(node.id, itemIndices);
-    const produced = this.outputs();
+    // **The branch path and the projection are taken only for a NODE reference** — W190's S-1, fixed here (the
+    // maintainer's answer, 2026-10-19). Both were computed for ANY `needs`, and `FD-R4` composes with NO item index (the
+    // walk has none to give), so an ENTRY map's branch task declaring `"."` threw a raw `UnresolvedBranchPath` out of
+    // `start()` — not `BoundaryRefused`. `"."`, `"$payload"` and `"$item"` read no path; only `resolveReference` does.
+    let lookup: { here: string; produced: Map<string, { path: string; result: unknown }[]> } | null = null;
     const out: Record<string, unknown> = {};
     for (const [key, ref] of Object.entries(needs)) {
       // **`!` rather than a guard, and the assertion is the point.** `FD-V26` refuses
@@ -4381,11 +4493,14 @@ export class Driver {
         continue;
       }
       if (t.form === 'item') {
-        // `FD-V26` refuses `"$item"` at construction until W191 composes it (W190's reading R1), so no accepted
-        // definition reaches this arm — the same assertion the `!` above makes for a malformed reference.
-        throw new Error(`node "${node.id}" declares needs[${JSON.stringify(key)}] = "$item", which FD-V26 refuses at this version and no composition reads`);
+        // **The instance's item, its own copy per key per read** — `FD-C1` v0.45, ADR 0118: the item the map handed
+        // this instance, read from what the instance KEEPS (`itemOf`) and cloned here, so two `"$item"` keys on one
+        // node are two objects and no worker reaches the held one.
+        out[key] = cloneValue(item());
+        continue;
       }
-      const v = this.resolveReference(node.id, here, produced, key, t, 'needs');
+      lookup ??= { here: this.pathOf(node.id, itemIndices), produced: this.outputs() };
+      const v = this.resolveReference(node.id, lookup.here, lookup.produced, key, t, 'needs');
       // **`ABSENT` and not `null`, and the reason is measured** — W45. A reference
       // to a task that FAILED already resolves to `null` with the key present
       // (`fanout-failure` with `scoreA` optional: `publish` receives
@@ -4484,6 +4599,27 @@ export class Driver {
   }
 
   /**
+   * **The item of the map instance `nodeId` is entered in** — `"$item"`'s source in a run (v0.45, P38 (c), (e)): the
+   * innermost map containing the node (`innermostMapOf`, the walk `FD-V49` checked), and the instance its `itemIndices`
+   * name — the branch path that map's branch entry has in it. **By reference to the held item, uncloned**: the caller
+   * clones, per key. Read only where a node or an edge declares `"$item"`.
+   *
+   * **A miss THROWS a plain `Error` naming the invariant**: a node is entered only while its instance is live, and an
+   * instance's item is released only once nothing of it may still be entered (`trackItems`), so a reader with nothing held is a driver
+   * defect — reported as a halt (`OR-R10`) rather than handed `undefined`, which an item may legitimately be.
+   */
+  private itemOf(nodeId: string, itemIndices: ReadonlyMap<string, number>): unknown {
+    const m = innermostMapOf(this.regions, nodeId)!;
+    const path = this.pathOf(m.branches[0]!, itemIndices);
+    const byPath = this.items.held.get(m.fanoutId);
+    if (byPath === undefined || !byPath.has(path)) {
+      throw new Error(`node "${nodeId}" reads "$item" of map "${m.fanoutId}" instance "${path}", and that instance holds no item — ` +
+        'an instance keeps its item until nothing of it may still be entered (RN-R13, ADR 0118); this is a defect in the driver');
+    }
+    return byPath.get(path);
+  }
+
+  /**
    * **What a decision sees, beyond its node's outcome** — `FD-C3`, and
    * [ADR 0041](../../doc/decisions/0041-a-decision-sees-its-nodes-outcome-and-whatever-its-own-edge-declares.md).
    *
@@ -4511,10 +4647,10 @@ export class Driver {
     const produced = this.outputs();
     const out: Record<string, unknown> = {};
     for (const [key, ref] of Object.entries(needs)) {
-      // `FD-V26` refuses a malformed reference, the `"."` form and — until W191 — `"$item"` on an edge, all at
-      // construction, so the one node-less form a `Driver` accepts here is `"$payload"`. **Switched on by
-      // `form`**: this read `referenceTarget(ref) as { … node: string … }` until v0.44, a cast that asserted no
-      // node-less form could reach it — true while `"."` was the only one (P38 fact 9).
+      // `FD-V26` refuses a malformed reference and the `"."` form on an edge at construction, so the node-less forms a
+      // `Driver` accepts here are `"$payload"` and — since v0.45 — `"$item"`. **Switched on by `form`**: this read
+      // `referenceTarget(ref) as { … node: string … }` until v0.44, a cast that asserted no node-less form could reach
+      // it — true while `"."` was the only one (P38 fact 9).
       const t = referenceTarget(ref)!;
       if (t.form === 'payload') {
         // **The run's payload, its own copy per key per read** — `FD-C3` v0.44, the same expression `compose`
@@ -4522,7 +4658,14 @@ export class Driver {
         out[key] = cloneValue(this.runPayload());
         continue;
       }
-      if (t.form === 'self' || t.form === 'item') {
+      if (t.form === 'item') {
+        // **The instance's item, its own copy per key per read** — `FD-C3` v0.45, by `compose`'s expression, so
+        // `ctx.needs.it` and a worker's `input.it` mean one thing. The node is still entered in its instance: its branch
+        // goes terminal only after this edge is chosen.
+        out[key] = cloneValue(this.itemOf(node.id, itemIndices));
+        continue;
+      }
+      if (t.form === 'self') {
         throw new Error(`node "${node.id}"'s edge declares needs[${JSON.stringify(key)}] = ${JSON.stringify(ref)}, which FD-V26 refuses on an edge`);
       }
       const v = this.resolveReference(node.id, here, produced, key, t, 'edge needs');
@@ -4838,6 +4981,49 @@ export class Driver {
     if (this.arrivals.get(fanoutId)?.size === 0) this.arrivals.delete(fanoutId);
   }
 
+  /**
+   * **The release horizon of what instances keep** — ADR 0118 rule 5. A `branch.opened` of a region nested in a kept map's
+   * instance counts one live branch there; its terminal event uncounts it. The instance's OWN terminal event releases its
+   * item when that count is zero, and otherwise marks it ENDED, released by the nested branch that ends last. O(nesting
+   * depth) per event, and nothing at all where no map keeps (`kept` empty). Run in a replay as in a run, so a resume
+   * rebuilds the counts with the items.
+   */
+  private trackItems(e: RegionEvent): void {
+    const it = this.items;
+    if (it.kept.size === 0) return;
+    const opened = e.type === 'branch.opened';
+    const terminal = isTerminalEvent(e);
+    if (!opened && !terminal) return;
+    for (const { map, depth } of it.within.get(e.regionId) ?? []) {
+      const path = e.branchPath.split('.').slice(0, depth).join('.');
+      const k = `${map} ${path}`;
+      const n = (it.nested.get(k) ?? 0) + (opened ? 1 : -1);
+      if (n > 0) { it.nested.set(k, n); continue; }
+      it.nested.delete(k);
+      if (it.ended.has(k)) this.releaseItem(map, path);
+    }
+    if (terminal && it.kept.has(e.regionId)) {
+      if (it.nested.has(`${e.regionId} ${e.branchPath}`)) it.ended.add(`${e.regionId} ${e.branchPath}`);
+      else this.releaseItem(e.regionId, e.branchPath);
+    }
+  }
+
+  /** **One instance's item, dropped** — and the map's own key with its last instance, as `releaseArrivals` drops a region's. */
+  private releaseItem(mapId: string, branchPath: string): void {
+    this.items.ended.delete(`${mapId} ${branchPath}`);
+    const byPath = this.items.held.get(mapId);
+    if (byPath === undefined) return;
+    byPath.delete(branchPath);
+    if (byPath.size === 0) this.items.held.delete(mapId);
+  }
+
+  /** **Everything instances keep, dropped** — the run-level moments, where no node of the run is entered again. */
+  private releaseAllItems(): void {
+    this.items.held.clear();
+    this.items.nested.clear();
+    this.items.ended.clear();
+  }
+
   /** The arrival map for one region, created on first arrival. */
   private arrivalsOf(fanoutId: string, rp: string): Map<string, unknown> {
     const byPath = this.arrivals.get(fanoutId) ?? new Map<string, Map<string, unknown>>();
@@ -5057,6 +5243,13 @@ export class Driver {
     // in a way a listener is not, and freezing what the seam sees is a separate
     // question this item does not answer.
     const event = Object.freeze({ ...e }) as RegionEvent;
+    // **A map instance's item is RELEASED when nothing of that instance may still be entered** (P38 (e), ADR 0118 rule 5,
+    // `RN-R13`): its own branch is terminal AND no branch of a region NESTED in it is still live — told by those events
+    // (`trackItems`). Per INSTANCE, never with the region's join: a policy firing before every branch is terminal (Q583's
+    // shape) leaves a late branch still reading — and that holds one level DOWN too: a nested join a policy fires early
+    // lets the instance's branch arrive while a nested branch still runs and may read the item (W191's conformity reader,
+    // C1). Before the append, so a consumer's callback on the element already sees it gone.
+    this.trackItems(e);
     // The policy is stepped first and the sequence records second, so that a
     // `onFoldInput` listener asking `joinStatusOf` sees the status this event
     // produced rather than the one before it.

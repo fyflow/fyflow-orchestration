@@ -1,0 +1,13 @@
+{
+  "flowId": "item-outside-a-map-instance",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker",  "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "map",  "over": "items", "branch": "score" },
+    { "id": "score",   "kind": "task", "type": "ScoreWorker",   "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join", "of": "split", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "needs": { "item": "$item", "all": "." }, "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

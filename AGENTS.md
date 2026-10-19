@@ -353,6 +353,7 @@ that object and nothing else — there is no wrapper and no reserved key.
 |---|---|
 | `"."` | what the node would have received anyway — the previous node's result, and for a `map` instance **its own item** |
 | `"$payload"` | **what the RUN was handed** — the payload `start()` took, from any node and any edge, however many hops in (since 0.8.0, below). Always there: no `?`, no array form |
+| `"$item"` | **what opened your MAP INSTANCE** — its own item, from any node and any edge inside the instance, however many hops in (since 0.8.0, below). Always there inside one; outside every map instance it is `FD-V49` |
 | `"someNode"` | that node's result, **on your own branch** |
 | `["someNode"]` | that node's results as an **array**, in ascending branch-path order. Legal only when you are OUTSIDE a region that node is in — which is what makes it more than one |
 | **a `?` on either of those** — `"someNode?"`, `["someNode?"]` | the same thing, except that **nothing to give leaves the key out** (or gives `[]` for the array form) instead of stopping the run. This is how you say *if it ran* |
@@ -500,7 +501,7 @@ that passed it through.
 | what it is | the copy the run's checkpoint HEADER keeps (`header.entryPayload`, section 18) — so a caller changing its payload object after `start()` changes nothing. Each key is its own deep copy, per read: no node receives an object another holds, and a worker writing into it reaches nothing |
 | where it is legal | every node and every edge — at the entry, on a task, it equals `"."`, and both spellings are accepted. **On an edge it is NOT refused** the way `"."` is: a predicate has no `ctx.payload`, so `needs: { run: '$payload' }` is how a decision routes on `needs.run.amount` with no task before it |
 | always there | no `?` and no array form: `["$payload"]` and `"$payload?"` are `FD-V26`, each naming the bare form. The whole `$` prefix is reserved — `$` is outside the node-id charset (`FD-V16`), so the token can never collide with a node — and any other `$` spelling (`"$input"`, a typo) is `FD-V26` naming the two `$` references |
-| `"$item"` | the prefix's second reference, a map instance's own item — **not composed yet**: `FD-V26` refuses it, naming `"."` on the map's branch entry, which is where an instance receives its item today |
+| `"$item"` | the prefix's second reference, the item of the map instance the reader is in — the next subsection |
 | on a resume | the same value, from the stored header: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` stays 1) |
 | at `start()` | `FD-R4` holds a task's composed `"$payload"` key to its worker's `inputSchema` like any other key (section 9) — composed from the value you passed, before the run exists |
 | in the wiring check | an arc composed through a `"$payload"` key is `unchecked`: the run's payload is a value no schema declares (section 15) |
@@ -508,7 +509,7 @@ that passed it through.
 
 **`givenVerdict` and `tryTransform(…, { input })` compose nothing** (section 15): the value you give them IS what the node
 receives, so a node declaring `needs: { run: "$payload" }` is given `{ run: <the payload> }` — composing it is yours, as
-for every `needs` key.
+for every `needs` key, `"$item"` included.
 
 The app's case — an ENTRY ask whose successor needs the invoice the run started with beside the person's answer, and an
 edge that routes on the invoice's amount:
@@ -580,6 +581,97 @@ for (const [ref, fix] of [[['$payload'], 'write "$payload"'], ['$payload?', 'wit
 not move (every token is a string), and a flow that names neither token is unchanged — every tree before 0.8.0's W190
 refuses both.
 
+### `"$item"` — what opened the MAP INSTANCE, from any node in it
+
+**`"$item"` names the item the reader's map instance was opened with** — the element of `over`'s array — on any node that
+may declare `needs` (a `task`, a `map`, an `ask`) and on any edge INSIDE a map instance, however many hops into it
+(`spec/flow-definition.md` v0.45, [ADR 0118](doc/decisions/0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md),
+since 0.8.0). Until it, an instance's item reached only its branch ENTRY, as `"."` — and an ASK as a map's branch breaks
+that: its result is the person's answer, so the node after it had no road to the item except a task before the ask that
+passed it through.
+
+| | |
+|---|---|
+| which instance | the INNERMOST map region that CONTAINS the reader. A node in a `fanout` inside a map instance names the MAP's item; a `map` node's own `"$item"` is its ENCLOSING instance's (a map never names the region it opens); an OUTER map's item from inside an inner one is not named — a node of the outer instance that declares it passes it down |
+| where it is legal | every node and every edge inside a map instance — on the branch entry it equals `"."`, and both are accepted; on an edge it is NOT refused the way `"."` is. **Outside every map instance it is `FD-V49`** — before every map, after a map's join, or on a top-level `map` node — naming both fixes: *name the item where a map's branch receives it (`"."`), or move this node inside the map* |
+| always there | no `?` and no array form: `["$item"]` and `"$item?"` are `FD-V26`, each naming the bare form |
+| what it is | its OWN deep copy of the item, per key per read — two `"$item"` keys on one node are two objects, and a worker or a predicate writing into one reaches nothing else |
+| what an instance KEEPS | its item, by reference to the element the map received — and only where some node of that map's region reads `"$item"`: a map nobody reads it from keeps nothing. **Released when nothing of that instance may still be entered** — its branch has ended (arrived at the map's join, exited the region, or been lost) AND no branch of a region nested inside it is still live — told by those branches' terminal region events, never by a join: an ask parked in the instance keeps it until the person answers, and a nested fan-out whose join a policy fired early keeps it until its last branch ends. Released whole when the run halts, is cancelled or is stopped (`spec/run-state.md` `RN-R13`) |
+| on a resume | rebuilt by the replay, which re-enters the map: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` stays 1) |
+| at `start()` | `FD-R4` composes it on an ENTRY map's branch task from the element the walk reached — which IS that instance's item — and holds it to the worker's `inputSchema` like any key (section 9). *Until 0.8.0's W191 ANY `needs` on such a task — `"."` included — made `start()` throw an `UnresolvedBranchPath` instead of `BoundaryRefused`* |
+| in the wiring check | an arc composed through a `"$item"` key reads the enclosing map's ITEM schema, one sample per element; `unchecked` for an ENTRY map, whose items come from the run's payload, which no schema declares (section 15) |
+| what it costs | one copy of ONE element per key per read — the cheap end of section 3's cliff — and the retention above, at most the `over` array the log already holds |
+
+The app's case — a map whose branch is an ASK, and the node after it reaching its instance's invoice beside the person's
+answer, and an edge that routes on that invoice's amount:
+
+```ts run
+import { Driver, fold, liveToken, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+// A scheduler double, section 12's shape: it records what it is handed and fires only what we tell it to.
+const added: { id: string; payload: { input: unknown } }[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const scheduler = {
+  addTask(task: unknown) { added.push(task as { id: string; payload: { input: unknown } }); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const inputOf = (id: string) => added.find((t) => t.id === id)?.payload.input;
+
+const flow: FlowDefinition = {
+  flowId: 'review-each', version: 1, entry: 'each',
+  nodes: [
+    // One instance per invoice, and each instance's branch is an ASK: its result is the answer alone.
+    { id: 'each', kind: 'map', over: 'invoices', branch: 'review' },
+    { id: 'review', kind: 'ask',
+      answerSchema: { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } },
+      edges: [{ on: ['failed'], to: 'skipped' }, { to: 'pay' }] },
+    // `pay` reaches BOTH: its own instance's invoice, and the person's answer.
+    { id: 'pay', kind: 'task', type: 'Pay', needs: { invoice: '$item', answer: 'review' },
+      edges: [
+        // An EDGE may name it too, so a predicate routes on the instance's invoice.
+        { when: { path: 'needs.it.amount', op: 'gt', value: 100 }, to: 'audit', needs: { it: '$item' } },
+        { to: 'collect' },
+      ] },
+    { id: 'audit', kind: 'task', type: 'Pay', edges: [{ to: 'collect' }] },
+    { id: 'skipped', kind: 'end', outcome: 'skipped' },
+    { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const types = { workers: { w: { url: 'worker.js' } }, nodeTypes: { Pay: { worker: 'w' } } };
+const registry = { predicates: [], ...types };
+if (validateDefinition(flow, registry).length) throw new Error('"$item" is legal on a node and on an edge inside a map instance');
+
+const driver = new Driver(flow, { runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken, ...types });
+const payload = { invoices: [{ id: 'INV-1', amount: 120 }, { id: 'INV-2', amount: 40 }] };
+driver.start(payload);
+payload.invoices[0]!.amount = 1;   // yours to change: the instance keeps its own item
+
+// Two asks parked, one per invoice. Answered out of order, each `pay` gets ITS instance's invoice.
+driver.resolve('r1:review:1:0', 'done', { result: { approved: true }, actor: 'bo' });
+driver.resolve('r1:review:0:0', 'done', { result: { approved: true }, actor: 'ana' });
+console.log(inputOf('r1:pay:0:0'));   // { invoice: { id: 'INV-1', amount: 120 }, answer: { approved: true } }
+if (JSON.stringify(inputOf('r1:pay:0:0')) !== '{"invoice":{"id":"INV-1","amount":120},"answer":{"approved":true}}') {
+  throw new Error(`pay@0 received ${JSON.stringify(inputOf('r1:pay:0:0'))}`);
+}
+if (JSON.stringify(inputOf('r1:pay:1:0')) !== '{"invoice":{"id":"INV-2","amount":40},"answer":{"approved":true}}') {
+  throw new Error(`pay@1 received ${JSON.stringify(inputOf('r1:pay:1:0'))}`);
+}
+
+// Each `pay` settles; its edge reads `needs.it.amount` — 120 audits, 40 does not.
+for (const id of ['r1:pay:0:0', 'r1:pay:1:0']) {
+  for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id, state: 'done', result: { paid: true } } });
+}
+console.log(added.map((t) => t.id));   // [ 'r1:pay:1:0', 'r1:pay:0:0', 'r1:audit:0:0' ]
+if (added.map((t) => t.id).join() !== 'r1:pay:1:0,r1:pay:0:0,r1:audit:0:0') throw new Error('120 > 100 audits instance 0 alone');
+if (fold(driver.foldInputs()).outcome !== 'running') throw new Error('the audit is in flight');
+
+// Outside every map instance there is no item: a top-level MAP's own "$item" would be an ENCLOSING one — FD-V49.
+const outside = { ...flow, nodes: flow.nodes.map((n) => (n.id === 'each' ? { ...n, needs: { invoices: '$item' } } : n)) } as FlowDefinition;
+const [finding] = validateDefinition(outside, registry);
+if (finding?.rule !== 'FD-V49' || !finding.detail.includes('move this node inside the map')) throw new Error(`expected FD-V49, got ${finding?.rule}`);
+```
+
 ### Validation happens at construction, not at routing time
 
 `new Driver(...)` validates the whole definition before anything is queued. A typo cannot become a
@@ -602,7 +694,7 @@ if (!rules.includes('FD-V2') || !rules.includes('FD-V32')) {
 }
 ```
 
-There are **44 refusals** over the id range `FD-V1` … `FD-V48` *(42 over `FD-V1` … `FD-V46` until W179 added the ASK's two, `FD-V47` — a key only a task declares, on an ask — and `FD-V48` — an `answerSchema` outside the schema subset; 41 over `FD-V1` … `FD-V45` until W109 shipped the first BUILT-IN node type and added `FD-V46`, which refuses a node of a type that only transforms and declares no `transform`; 37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
+There are **45 refusals** over the id range `FD-V1` … `FD-V49` *(44 over `FD-V1` … `FD-V48` until W191 added `FD-V49` — `"$item"` where no map instance contains the reader; 42 over `FD-V1` … `FD-V46` until W179 added the ASK's two, `FD-V47` — a key only a task declares, on an ask — and `FD-V48` — an `answerSchema` outside the schema subset; 41 over `FD-V1` … `FD-V45` until W109 shipped the first BUILT-IN node type and added `FD-V46`, which refuses a node of a type that only transforms and declares no `transform`; 37 over `FD-V1` … `FD-V41` until W108 made a predicate DATA and added the four a `when` needs; 34 over `FD-V1` … `FD-V38` until W92 added the gate's three; 35 over `FD-V1` … `FD-V37` until W65 retired `workerType` and with it `FD-V5` and `FD-V34`, adding `FD-V38`; 32 over `FD-V1` … `FD-V34` until W61 added the three transform rules; 29 over `FD-V1` … `FD-V31` until W59 added the three node-type rules — and this sentence stood at 29 twelve lines below the table W59 rewrote, until its conformity reader read the two together)*, each with a failing example in
 `spec/examples/invalid/`. Four ids in that range are **deliberately absent** and have no rule behind
 them: `FD-V14`, which never existed; **`FD-V15`, retired when nested fan-out became
 expressible**; and **`FD-V5` and `FD-V34`, retired with `workerType`** at v0.19 (section 13). The ids are never renumbered, so it is safe to assert on them. The full
@@ -749,9 +841,10 @@ flagged low confidence* was not expressible until v0.12 —
 answering [Q8](doc/questions/q8.md).
 
 **An edge may carry `needs`, and its predicate sees the result under `ctx.needs`.** Same grammar as
-a node's (section 3) — a node id, or a one-element array holding one, and since 0.8.0 `"$payload"` — **minus `"."`**,
-which an edge has no use for: *what a predicate would have received anyway* is `ctx.outcome`. `"$payload"` is not
-refused there: a predicate has no other road to the run's payload (section 3's `"$payload"` subsection routes on it).
+a node's (section 3) — a node id, or a one-element array holding one, and since 0.8.0 `"$payload"` and `"$item"` —
+**minus `"."`**, which an edge has no use for: *what a predicate would have received anyway* is `ctx.outcome`. `"$payload"`
+and `"$item"` are not refused there: a predicate has no other road to the run's payload or to its map instance's item
+(section 3's two subsections route on them).
 
 ```ts run
 import { validateDefinition, type FlowDefinition, type Predicate } from 'fyflow-orchestration';
@@ -813,7 +906,9 @@ worker; and *what the node received* is not something the driver can reconstruct
 made — the **entry** node's payload is never written to the log at all, and reconstructing any other
 node's would mean re-deriving the whole payload contract a second time. **A reference resolves from
 what the run produced**, which is available either way — **and from what the run was HANDED**, since 0.8.0: the
-checkpoint header keeps the run's payload for the life of the run, and `"$payload"` names it (section 3).
+checkpoint header keeps the run's payload for the life of the run, and `"$payload"` names it — **and, inside a map
+instance, from what the instance KEEPS**: its item, while a node of it may still be entered, which `"$item"` names
+(section 3).
 
 **`ctx.needs` is `{}` when the edge declares nothing**, never `undefined`; it is **frozen**, so a
 predicate that writes to it throws rather than editing what the next predicate reads; and a reference
@@ -1372,7 +1467,8 @@ keeps waiting, and the run is not stuck.
 - **The answer IS the node's result.** It routes as a task's settlement does — `on: ['failed']` for a decline, a `when`
   over `outcome.result` — the successor RECEIVES it, and a later `needs` naming the ask reads it; the value that reached
   the ask stays reachable by naming whatever produced it — and where NOTHING produced it, an ask at the ENTRY, by
-  `"$payload"`, the run's payload (since 0.8.0, section 3: `needs: { invoice: '$payload', answer: 'approve' }`). A
+  `"$payload"`, the run's payload (since 0.8.0, section 3: `needs: { invoice: '$payload', answer: 'approve' }`); and where
+  the ask is a MAP's branch, by `"$item"`, the instance's own item (`needs: { invoice: '$item', answer: 'review' }`). A
   `"$payload"` key in an ask's OWN `needs` puts a copy of the whole payload into the `asked` element, and so into the
   run's log, once per ask — that element keeps what reached the ask, whatever its size. A predicate's `ctx.outcome` for an ask has `attempts: 0` and
   **`schedulerTimestamp`, `startTime`, `endTime` and `executionTime` all `null`** — no scheduler was involved.
@@ -3808,8 +3904,8 @@ whatever arcs reach the node, on the entry node too** (W166, P37 stop-and-ask (d
 
 **The value is `$` as you give it: no `needs` is composed over it**, because a `needs` composes what
 arrives and this is what arrived — and on a `map`'s branch task it is ONE instance's value, evaluated
-once. **That includes a `"$payload"` key** (since 0.8.0): give the node what it RECEIVES, the payload already under
-that key — neither function composes one, so a given input and a run agree only when you compose as the run does. `input: undefined` is no input (the arcs answer, as before); `null` is a value. *What it is not*:
+once. **That includes a `"$payload"` or a `"$item"` key** (since 0.8.0): give the node what it RECEIVES, the payload
+or the instance's item already under that key — neither function composes one, so a given input and a run agree only when you compose as the run does. `input: undefined` is no input (the arcs answer, as before); `null` is a value. *What it is not*:
 a statement about the producer or the flow — it says what this expression does to this value, and a
 value that passes is *the sample passed — the given input*, never *fits*. **`givenVerdict(registry, flow,
 node, input)`**, exported beside `checkWiring`, is the same road on the node as the flow DECLARES it —
@@ -3825,7 +3921,7 @@ start* — but on the value each transforming TASK receives, because a given val
 each element under `over`; through an entry gate, every route's target), and where the task declares `needs` (at an
 entry `"."` and, since 0.8.0, `"$payload"`) compose it first — `needs: { own: "." }` receives `{ own: value }`, and
 `needs: { run: "$payload" }` receives `{ run: payload }`, the PAYLOAD even on a map's branch, where the value is an
-element. Call
+element — and there `needs: { it: "$item" }` receives `{ it: element }`. Call
 `givenVerdict(registry, flow, task, received)` on each that transforms; a fan-out, map or gate ENTRY is no task and
 gives `[]`. Start on `transform-passes`; `unchecked` (no `inputSchema`, or a language, type or worker the registry
 lacks) checked nothing. Until W170 `start()`
@@ -4404,7 +4500,10 @@ if (JSON.stringify(store.header) !== JSON.stringify(driver.checkpoint().header))
 - **A task PARKED for a person is not in flight.** It stays parked, the resumed run is
   `awaiting_action`, and `resolve()` on the RESUMED driver completes it (section 7). **So is an ASK**: the replay
   re-enters it and REGENERATES its `asked` element — the same id and the same kept input, compared with what you stored
-  — handing nothing to the new scheduler; answer it on the resumed driver.
+  — handing nothing to the new scheduler; answer it on the resumed driver. **An ask parked in a MAP instance whose
+  successor reads `"$item"`** (section 3) has its instance's item REBUILT by the same replay — the map is re-entered from
+  the stored header and log, and nothing of the item is in your checkpoint — so the answer on the resumed driver reaches a
+  `pay` holding the same invoice the uninterrupted run's would have.
 - **The check sees only what you STORED.** The stored events must be a prefix of what the replay
   regenerates, and the first position where they are not is refused `diverged` — so a predicate or a
   flow you changed is caught where the stored run's road crosses it, and NOT where that road lies
