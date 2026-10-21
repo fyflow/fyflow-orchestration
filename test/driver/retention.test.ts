@@ -233,7 +233,7 @@ function holdersOf(d: Driver, marker: string): string[] {
 }
 
 /**
- * **The memo's entries, for the ALIAS half of `RN-R13`.** `outputsCache` holds a
+ * **`outputsCache`'s entries, for the ALIAS half of `RN-R13`.** `outputsCache` holds a
  * settled result **by reference** — every entry IS a log record's own `result`
  * object — so it is a holder in the reachability sense and is not a second copy.
  * A holder SET cannot tell those apart; identity can, and this is what it reads.
@@ -249,6 +249,11 @@ const cachedResults = (d: Driver): unknown[] => {
 const loggedResults = (d: Driver): unknown[] =>
   (d as unknown as { log: { result?: unknown }[] }).log
     .filter((r) => r && typeof r === 'object' && 'result' in r).map((r) => r.result);
+
+/** The `result` of every record in the driver's per-task view (`RN-R13` v0.30, W195), by reference. */
+const viewedResults = (d: Driver): unknown[] =>
+  [...(d as unknown as { taskLog: { byTask: Map<string, { result?: unknown }[]> } }).taskLog.byTask.values()]
+    .flat().filter((r) => r && typeof r === 'object' && 'result' in r).map((r) => r.result);
 
 /** A 3-item map over `over: "items"`, so the arity is the RUN's and not the document's. */
 const MAP_FANOUT = 'valid/map-fanout.flow.json';
@@ -327,6 +332,11 @@ const DRIVER_FIELDS = [
   // terminal. EMPTY on every flow that names no `"$item"`, which is every flow before 0.8.0. WALKED: it is run state.
   // The ratchet fired by name on W191's declaration step (M2).
   'items',
+  // W195 — `taskLog`: the driver's per-task view of its log (`RN-R13` v0.30, ADR 0121) — each task's records BY REFERENCE,
+  // the very objects `log` holds, grouped by task id, plus `visits`, one integer. A HOLDER of every settled result in the
+  // reachability sense and not a second copy: the identity check below says which. WALKED. The ratchet fired by name on
+  // W195's first L1 run, beside the four holder sets it moved.
+  'taskLog',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins
@@ -504,17 +514,25 @@ suite(SUITE, (test) => {
     // BEFORE the join becomes terminal: two branches in, one still live.
     h.scheduler.settle('r1:score:0:0', 'done', { result: { s: MARK } });
     h.scheduler.settle('r1:score:1:0', 'done', { result: { s: MARK } });
-    equal(holdersOf(h.driver, MARK), ['arrivals', 'inputs', 'log'],
+    equal(holdersOf(h.driver, MARK), ['arrivals', 'inputs', 'log', 'taskLog'],
       'inside JP-R12`s window the collection is a THIRD holder, and P15 fact 3 measured it ' +
       'as a second COPY rather than an alias — 49.8% of what a region-bearing run holds',
     );
 
     // AFTER: the join fires and the window closes.
     h.scheduler.settle('r1:score:2:0', 'done', { result: { s: MARK } });
-    equal(holdersOf(h.driver, MARK), ['inputs', 'log'],
+    equal(holdersOf(h.driver, MARK), ['inputs', 'log', 'taskLog'],
       'RN-R13 — `inputs` is what holds every result and `log` is its record-kind subsequence ' +
-      'BY REFERENCE, so these two are one copy. A third name here is a second copy',
+      'BY REFERENCE, and since v0.30 `taskLog` the same records grouped by task, BY REFERENCE ' +
+      'too — so these three are one copy. A fourth name here is a second copy',
     );
+    // **The identity half for `taskLog`** (W195): a holder SET cannot tell an alias from a copy, so every result the
+    // view reaches is asserted to BE a log record's own result object — and as many as the log holds.
+    const logged = loggedResults(h.driver);
+    const viewed = viewedResults(h.driver);
+    ok(viewed.length > 0 && viewed.every((r) => logged.includes(r)),
+      'RN-R13 v0.30 — every result `taskLog` reaches IS a log record`s own object, by reference: a copy here fails');
+    equal(viewed.length, logged.length, 'and one per record the log holds, no more and no fewer');
     ok(
       JSON.stringify(h.driver.snapshot()).includes(MARK),
       'and the result itself is UNTOUCHED — rule 2. What was released is the copy nothing ' +
@@ -1058,14 +1076,14 @@ suite(SUITE, (test) => {
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: { files: [{ n: 0 }, { n: 1 }] } });
     h.scheduler.settle('r1:identify:0:0', 'done', { result: { series: { id: KEY }, note: REST } });
     h.scheduler.settle('r1:identify:1:0', 'done', { result: { series: { id: KEY }, note: REST } });
-    equal(holdersOf(h.driver, KEY), ['gateMemory', 'inputs', 'log'],
+    equal(holdersOf(h.driver, KEY), ['gateMemory', 'inputs', 'log', 'taskLog'],
       'the key is held by the gate`s memory beside `inputs` and `log` — a FOURTH holder, the memory`s own copy of the key');
-    equal(holdersOf(h.driver, REST), ['inputs', 'log'],
+    equal(holdersOf(h.driver, REST), ['inputs', 'log', 'taskLog'],
       'and the REST of the value is not — the memory holds the key and nothing the key did not name');
     h.scheduler.settle('r1:setup:0:0', 'done', { result: { set: 1 } });
     h.scheduler.settle('r1:publish:-:0', 'done', { result: { ok: true } });
     equal(fold(h.driver.foldInputs()).outcome, 'completed', 'the run COMPLETED — the join fired and its collection was released');
-    equal(holdersOf(h.driver, KEY), ['gateMemory', 'inputs', 'log'],
+    equal(holdersOf(h.driver, KEY), ['gateMemory', 'inputs', 'log', 'taskLog'],
       'and the memory is STILL held: unlike a region`s collection it has no terminal moment inside the run, so it is retained for the life of the run');
   });
 
@@ -1101,7 +1119,7 @@ suite(SUITE, (test) => {
     h2.driver.start({});
     h2.scheduler.settle('r1:ingest:-:0', 'done', { result: { items: ['a', 'b'] } });
     for (const i of [0, 1]) h2.scheduler.settle(`r1:score:${i}:0`, 'done', { result: { s: MARK } });
-    equal(holdersOf(h2.driver, MARK), ['inputs', 'log', 'outputsCache'],
+    equal(holdersOf(h2.driver, MARK), ['inputs', 'log', 'outputsCache', 'taskLog'],
       'RN-R13 — on a flow that declares a `needs` the memo is a HOLDER, and the set says so. ' +
       'This is the case the rule`s first draft denied: `exactly {inputs, log}` is false wherever ' +
       '`outputs()` has been called, and only the identity check above says it is not a COPY',

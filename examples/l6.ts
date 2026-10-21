@@ -14390,6 +14390,11 @@ if (rowCosts.length !== EXPECTED.length) {
     // which is what this measurement walks (`reports`): the one place `"$item"` runs here is W192's block, which is not a row —
     // WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged (W191's M2). In W191's row; the clause amended by W192.
     'items',
+    // `taskLog` since W195 (`RN-R13` v0.30, ADR 0121): the driver's per-task view of its log — each task's records BY
+    // REFERENCE, the objects `log` holds, and one integer, `visits`. Not a second copy of any result; WALKED, so the byte
+    // measurement counts its grouping (a Map entry and an array per task) and never a record twice — `retainedBytes` is ONE
+    // serialize call over every walked field. examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W195's row.
+    'taskLog',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

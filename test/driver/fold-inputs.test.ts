@@ -225,8 +225,11 @@ suite('ADR 0014 — the driver produces one ordered input sequence', (test) => {
   test('an id NO driver minted appends nothing at all, and the sequence keeps going', async () => {
     // `ID-R5`'s fold-side half, and it is the one ADR 0027's third option would
     // have broken: *"ignore it, but report it"* is a **callback**, deliberately,
-    // and not a `FoldInput` kind. `src/fold/run-state.ts:154` and `:179` call
-    // `parseTaskId` on every id they are handed, so a fold input carrying the
+    // and not a `FoldInput` kind. The fold calls `parseTaskId` on the task id of a
+    // `dispatched`, an `asked` and a record — in
+    // `src/fold/accumulator.ts` since W194 (ADR 0120); this cited
+    // `src/fold/run-state.ts:154` and `:179`, stale before W194 and named by its
+    // conformity reader (C7), corrected by W195 — so a fold input carrying the
     // offending string would make `fold()` — a pure function — throw
     // `InvalidTaskId`. ADR 0027 rules that out in as many words.
     const h = harness(await load('valid/linear.flow.json'));

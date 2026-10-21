@@ -628,6 +628,29 @@ type PendingCall =
   | { readonly kind: 'paused' | 'unpaused'; readonly actor: string }
   | { readonly kind: 'answer'; readonly record: ResolutionRecord; readonly runId: string; readonly nodeId: string; readonly branchPath: string };
 
+/** One produced output — `outputs()`'s entry: a `(node, branchPath)` and the effective result, BY REFERENCE (`RN-R13`). */
+type OutputEntry = { path: string; result: unknown };
+
+/**
+ * One task id `outputs()` has read a record of (W195): its node and branch path, its FIRST record's position among the
+ * task ids read — the order a node's list keeps — and its entry, `null` while it has no effective outcome.
+ */
+interface OutputSlot {
+  readonly nodeId: string;
+  readonly path: string;
+  readonly order: number;
+  entry: OutputEntry | null;
+}
+
+/** `outputs()`'s projection, caught up to `at` records of the log — see `Driver.outputsCache`. */
+interface OutputsCache {
+  at: number;
+  byNode: Map<string, OutputEntry[]>;
+  tasks: Map<string, OutputSlot | null>;
+  /** Per node, each entry's FIRST-RECORD position, parallel to `byNode`'s list — plain data, so a byte walk serializes it. */
+  orders: Map<string, number[]>;
+}
+
 /** What `createTask` is handed — held, during a replay, until the resume knows what is in flight. */
 type TaskConfig = Parameters<TaskFactory>[0];
 
@@ -1495,6 +1518,85 @@ const SUBSCRIBED_EVENTS = [...SETTLEMENT_EVENTS, 'task.running'] as const;
  */
 const PASS_THROUGH = [['task.message', 'onTaskMessage'], ['task.progress', 'onTaskProgress']] as const;
 
+/** A task with no record yet: an empty sub-log, shared and frozen, so a reader of it can neither grow nor keep it. */
+const NO_RECORDS: readonly LogRecord[] = Object.freeze([]);
+
+/**
+ * **The driver's per-task view of its log** — `RN-R13` v0.30, P39 decision 4,
+ * [ADR 0121](../../doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md) (W195), amending ADR 0040 rule 2.
+ *
+ * Each task's SUB-LOG: the records `append` pushed for that task id, **by reference and in append order** — the very
+ * objects `log` holds — and NOTHING derived. The settlement/resolution merge stays in `effectiveOutcome` and the
+ * suspension in `isSuspended`, each handed a sub-log, an input both are already total on because each filters by
+ * `taskId` first (`log.ts`, unchanged). So a per-task read costs the task's records — one or two — where a whole-log scan
+ * cost the run, and a run's settlements cost O(run) where they cost O(run²) (P39 facts 4-5).
+ *
+ * **Not a second source** (ADR 0040 rule 2's refusal, [Q43](../../doc/questions/q43.md)): it holds no conclusion that
+ * could disagree with the log — only the log's own records, grouped — and it is written at the one place every element
+ * passes (`append`, ADR 0014), so it cannot lag the log either.
+ *
+ * **`visits` is the COUNT of records handed to a reader** — the clock-free measure of the driver's per-task reads that
+ * P39 (e)'s gate holds (W197). A field of this private object and never module state (`RN-R1`'s *no module-level
+ * mutation*, held here too, P39 decision 6): no public TYPE names it — the class is unexported and the field private — and it costs one
+ * addition per read.
+ */
+class TaskLog {
+  private readonly byTask = new Map<string, LogRecord[]>();
+  visits = 0;
+
+  /** `append`'s half: the record joins its task's sub-log, by reference. */
+  push(record: LogRecord): void {
+    const sub = this.byTask.get(record.taskId);
+    if (sub) sub.push(record);
+    else this.byTask.set(record.taskId, [record]);
+  }
+
+  /** One task's records, in append order — what `effectiveOutcome` and `isSuspended` are handed. Read, never kept. */
+  of(taskId: string): readonly LogRecord[] {
+    const sub = this.byTask.get(taskId) ?? NO_RECORDS;
+    this.visits += sub.length;
+    return sub;
+  }
+}
+
+/**
+ * **A first-in first-out queue whose `shift` is O(1)** — W195, the declaration step's profile: `Array.prototype.shift` moves
+ * every element behind the head, so a queue drained by it costs O(n²) for n elements. `attemptsPending` holds one `attempted`
+ * element per task an INLINE pool started inside the driver's own `addTask` — for a `map`, one per item, in ONE step — and
+ * at 32,000 items its drain was 14% of the run. A head index instead; a slot is cleared as it is taken, so the queue keeps
+ * no reference to what it handed on, and the backing array is dropped whenever the queue empties.
+ */
+class Fifo<T> {
+  private items: (T | undefined)[] = [];
+  private head = 0;
+
+  get length(): number {
+    return this.items.length - this.head;
+  }
+
+  push(x: T): void {
+    this.items.push(x);
+  }
+
+  /** The oldest element, removed — `undefined` when empty, as `Array.prototype.shift`. */
+  shift(): T | undefined {
+    if (this.head >= this.items.length) return undefined;
+    const x = this.items[this.head];
+    this.items[this.head] = undefined;
+    this.head += 1;
+    if (this.head === this.items.length) {
+      this.items = [];
+      this.head = 0;
+    }
+    return x;
+  }
+
+  /** Every element still queued, oldest first. */
+  *[Symbol.iterator](): IterableIterator<T> {
+    for (let i = this.head; i < this.items.length; i += 1) yield this.items[i] as T;
+  }
+}
+
 export class Driver {
   /**
    * `OR-R7` — nothing outside the inbound API writes to run state. Private, and
@@ -1513,13 +1615,22 @@ export class Driver {
    * channels with no shared order, so `RN-R3`'s *"read in append order"* was about
    * a value no one could hold.
    *
-   * `log` above is the **record-kind subsequence of this array**, kept as its own
-   * array only because `effectiveOutcome` and `isSuspended` scan it on every
-   * settlement and rebuilding it by filter each time is quadratic. It holds the
-   * same record objects, never copies. `test/driver/` asserts the two agree, so
-   * the redundancy is checked rather than trusted.
+   * `log` above is the **record-kind subsequence of this array**, by reference — the
+   * same record objects, never copies; `test/driver/` asserts the two agree, so the
+   * redundancy is checked rather than trusted. *(It was kept "only because
+   * `effectiveOutcome` and `isSuspended` scan it on every settlement" until W195,
+   * whose {@link TaskLog} hands each of them one task's records instead — P39 fact 5.
+   * It stays for what still reads it WHOLE and in order: `snapshot()`, `outputs()`'s
+   * catch-up, and the retention walk's alias check.)*
    */
   private readonly inputs: FoldInput[] = [];
+
+  /**
+   * **Each task's records, by reference and in append order** — {@link TaskLog}, `RN-R13` v0.30, ADR 0121 (W195). Written in
+   * `append` beside `log`; read by every per-task question the driver asks of its log — `advance`, `parked`, `hasParked`,
+   * `inFlight`, `outputs()`, `effectiveOutcomeOf` — so each costs the task, never the run.
+   */
+  private readonly taskLog = new TaskLog();
 
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
@@ -1783,7 +1894,7 @@ export class Driver {
    * brief: *an owner element a resume's replay feeds is TAKEN AT REST*): accepted at the call — every refusal already asked — and its resolution
    * appended when the step ends, in the same call order as the pauses beside it.
    */
-  private readonly pausePending: PendingCall[] = [];
+  private readonly pausePending = new Fifo<PendingCall>();
   /**
    * **The highest attempt number RECORDED for each task, by task id** — `RN-R40`, v0.26, W186, P36 (f) and (g): the
    * number the last `attempted` element for it carried — appended, or fed by a replay. What decides that a `task.running`
@@ -1798,7 +1909,7 @@ export class Driver {
    * every one is appended when the step ends, BEFORE a pause, an unpause, an answer or a stop pending on that step is taken
    * (`leaveStep()`): the attempt started before any of them. Empty at rest.
    */
-  private readonly attemptsPending: { readonly taskId: string; readonly attemptNumber: number }[] = [];
+  private readonly attemptsPending = new Fifo<{ readonly taskId: string; readonly attemptNumber: number }>();
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -2536,9 +2647,9 @@ export class Driver {
    * handing it to a worker again would run what a person was asked to decide.
    */
   private inFlight(): string[] {
-    const settled = new Set<string>();
-    for (const r of this.log) if (r.kind === 'outcome') settled.add(r.taskId);
-    return [...this.dispatched].filter((id) => !settled.has(id));
+    // **Each dispatched task's OWN records** (`RN-R13` v0.30, ADR 0121, W195): O(dispatched), where a set built from the
+    // whole log cost O(log) on top — read at every run-control call and at every `resumed` element a replay feeds.
+    return [...this.dispatched].filter((id) => !this.taskLog.of(id).some((r) => r.kind === 'outcome'));
   }
 
   /**
@@ -2590,7 +2701,7 @@ export class Driver {
     if (!this.parked(taskId)) return false;
     // **An answer already given on this step and pending is the ask's answer** — a second is refused as a second
     // resolution is (`RS-R1`): the ask is not suspended for anyone else to answer (`RN-R37`).
-    if (this.pausePending.some((c) => c.kind === 'answer' && c.record.taskId === taskId)) return false;
+    for (const c of this.pausePending) if (c.kind === 'answer' && c.record.taskId === taskId) return false;
     const { runId, nodeId, branchPath } = parseTaskId(taskId);
     // `OR-R10` — *"the driver has stopped routing it"*, and that has to hold on
     // the INBOUND edge too. `onEventOrThrow` checks this; `resolve` did not, so a
@@ -3031,7 +3142,7 @@ export class Driver {
     this.refuseRunHeld('pause');
     if (this.pauseWanted()) {
       throw new RunControlRefused('pause', 'paused',
-        `RunControlRefused (paused): run "${this.runId}" is already paused${this.pausePending.some((c) => c.kind !== 'answer') ? ' — by a call earlier in this step, taken when it ends' : ''} ` +
+        `RunControlRefused (paused): run "${this.runId}" is already paused${[...this.pausePending].some((c) => c.kind !== 'answer') ? ' — by a call earlier in this step, taken when it ends' : ''} ` +
           '(RN-R35, P34 (e)). Unpause it first. Nothing was recorded.');
     }
     if (this.stepping === 0 && this.inFlight().length === 0 && !this.hasParked()) {
@@ -3054,7 +3165,7 @@ export class Driver {
     this.refuseRunHeld('unpause');
     if (!this.pauseWanted()) {
       throw new RunControlRefused('unpause', 'not-paused',
-        `RunControlRefused (not-paused): run "${this.runId}" is not paused${this.pausePending.some((c) => c.kind !== 'answer') ? ' — an unpause earlier in this step already lifts it' : ''} ` +
+        `RunControlRefused (not-paused): run "${this.runId}" is not paused${[...this.pausePending].some((c) => c.kind !== 'answer') ? ' — an unpause earlier in this step already lifts it' : ''} ` +
           '(RN-R35, P34 (e)). Nothing was recorded and nothing was handed on.');
     }
     this.pausePending.push({ kind: 'unpaused', actor: options.actor });
@@ -3063,7 +3174,7 @@ export class Driver {
 
   /** The pause the owner has ASKED for: the last call still to be taken, else the pause taken (`RN-R35`). */
   private pauseWanted(): boolean {
-    const last = this.pausePending.filter((c) => c.kind !== 'answer').at(-1);
+    const last = [...this.pausePending].filter((c) => c.kind !== 'answer').at(-1);
     return last !== undefined ? last.kind === 'paused' : this.paused;
   }
 
@@ -3662,7 +3773,9 @@ export class Driver {
     // same road it took before — which is what the corpus asserts.
     const itemIndices = this.indicesFrom(nodeId, branchPath);
     const taskId = buildTaskId(runId, nodeId, branchIndices(this.pathOf(nodeId, itemIndices)));
-    const outcome = effectiveOutcome(this.log, taskId);
+    // **This task's records alone** (ADR 0121, W195): the one read every settlement makes, and until W195 a scan of the
+    // WHOLE log — ~48% of a 16,000-item map's driver time (P39 fact 4).
+    const outcome = effectiveOutcome(this.taskLog.of(taskId), taskId);
     if (!outcome) return; // suspended, or not settled
 
     // The predicate sees a COPY. `effectiveOutcome` returns the stored settlement
@@ -4302,7 +4415,7 @@ export class Driver {
    * [ADR 0040](../../doc/decisions/0040-what-a-node-can-reach-is-the-runs-own-outputs-and-a-node-id-names-them-relative-to-a-branch-path.md)
    * rules 2 and 3, and `FD-C2`.
    *
-   * **It is a PROJECTION of the log and adds no retention** — measured at
+   * **It is a PROJECTION of the log and adds no retention of a result** — measured at
    * [P12](../../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s
    * declaration and again before this was written: this driver holds
    * `private readonly log: LogRecord[]` with exactly one `push` and no `splice`,
@@ -4312,14 +4425,11 @@ export class Driver {
    * described **today** before this method existed, and this adds **no retention**.
    * *(Q19 is RESOLVED since W53 —
    * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
-   * — and `RN-R13` names this memo by id: it holds results **by reference only**,
+   * — and `RN-R13` names `outputsCache` by id: it holds results **by reference only**,
    * asserted by IDENTITY at ladder L2 rather than by a byte count, because a
    * reachability SET cannot tell an alias from a copy. W53's readers found that
    * from both ends — the rule's stated test returned a third name on a `needs`
    * flow, and cloning here cost ZERO.)*
-   * *(It adds ONE field — `outputsCache` below — which is a memo the log invalidates
-   * and which holds nothing the log does not. This read *"zero fields"* until W41's
-   * conformity reader read it beside the memo the cost measurement had just added.)*
    *
    * **`effectiveOutcome` and not the raw record**, for `spec/flow-definition.md`
    * section 3 rule 4's own reason: a resumed node has two records in the log and
@@ -4327,114 +4437,107 @@ export class Driver {
    * suspended has no effective outcome and therefore no entry — which is what makes
    * `FD-R3` fire rather than a reference quietly resolving to `undefined`.
    *
-   * **Computed on demand rather than maintained**, and the cost is why: it is
-   * `O(log)` per call, so maintaining it would be a second source that could
-   * disagree with the log — the defect [Q43](../../doc/questions/q43.md) and
-   * `arrival-count`'s re-sourcing are each an instance of. **A node that declares no
-   * `needs` never reaches this method**, which is what keeps ADR 0040 rule 1's *the
-   * default is unchanged* true of the cost as well as of the value.
+   * **CAUGHT UP rather than rebuilt** — `RN-R13` v0.30, P39 decision 4 and fact 7,
+   * [ADR 0121](../../doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md) (W195), amending ADR 0040
+   * rule 2's *computed rather than maintained*. Until W195 this was memoised on the log's LENGTH and rebuilt from the
+   * WHOLE log whenever the log had grown — so a node with a `needs` entered once per settlement, which is every instance
+   * of a `map` whose branch declares one, paid O(log) per entry and the run O(log²): the case its own memo missed by
+   * construction. Now each call reads only the records appended since the last (`at`, an index into the append-only
+   * `log`), and for each one asks `effectiveOutcome` of THAT TASK's records ({@link TaskLog}) — so the merge stays in
+   * ONE place, which is ADR 0040 rule 2's own reason, and an entry is always the merge of its task's whole sub-log at
+   * the moment of the call: nothing here can say what the log does not. **Equal to a rebuild at every read**
+   * (`test/driver/log-view.test.ts`, at every fold input of every valid corpus flow): the same entries, a node's list
+   * in its tasks' first-record order, each `result` the log record's own object.
+   *
+   * **Still LAZY, so ADR 0040 rule 1's *the default is unchanged* holds of the cost**: nothing is caught up until a
+   * node or an edge that declares a `needs` asks, and a run that declares none never builds it.
    */
   private outputs(): Map<string, { path: string; result: unknown }[]> {
-    // **Memoised on the log's own LENGTH, and that is not a second source.** The
-    // projection is a pure function of `this.log`, and `this.log` is append-only —
-    // one `push`, no `splice`, no `shift`, no reassignment, which is
-    // [P12](../../doc/plans/p12-what-a-node-receives-and-what-a-decision-sees.md)'s
-    // fact 1 measured over this file. So the length IS a version counter, and a
-    // cache invalidated by the thing it projects cannot disagree with it the way a
-    // MAINTAINED index could — which is the distinction ADR 0040 rule 2 turns on.
-    //
-    // **It is here because the cost was re-taken on the tree this item ships**
-    // (`doc/workflow.md` section 1 rule 5's WHEN), and the first reading was 0.027 ms
-    // over a 6-record log — true, and not the number that matters.
-    //
-    // **Its case is N dispatches in ONE turn over a long log**, which is Q165's flow
-    // at scale: a second map region fanning out over what the first produced, every
-    // instance composing. Measured on `map -> score -> join -> map -> publish` with a
-    // `needs` on `publish`, timing only the settlement that opens the second region:
-    //
-    // | N | with the memo | without |
-    // |---|---|---|
-    // | 100 | 3.4 ms | 11.1 ms |
-    // | 400 | 20.1 ms | 85.2 ms |
-    // | 800 | **69.5 ms** | **312.1 ms** |
-    //
-    // **And it is measurably worth NOTHING on a single map region** — 10.9 ms against
-    // 10.7 at N = 1000, inside the noise — because there the log is two records long.
-    // Both halves are recorded because the second is what a reader measuring this by
-    // the obvious fixture would find, and would then delete it.
-    //
-    // **No test asserts it, deliberately and stated rather than left as a gap.** The
-    // memo changes no observable: all 606 L1-L5 cases pass with the line replaced by
-    // a comment, which is the measurement rather than an assumption. A timing
-    // assertion would be a check whose verdict is not reproducible
-    // ([Q179](../../doc/questions/q179.md)), so what stands in for one is the pair of
-    // numbers above.
-    if (this.outputsCache && this.outputsCache.at === this.log.length) return this.outputsCache.byNode;
-    const byNode = new Map<string, { path: string; result: unknown }[]>();
-    // **Grouped in ONE pass, and `effectiveOutcome` is still what decides each
-    // group.** The first version called `effectiveOutcome(this.log, id)` once per
-    // distinct id and that function scans the whole log, so this method was
-    // **O(log²)** — measured on a `needs` composed once per settlement, where a
-    // length-keyed memo misses by construction: **4.8 / 29.3 / 132.2 ms** for
-    // 50 / 200 / 400 settlements, a per-settlement cost rising 0.096 → 0.146 →
-    // 0.331 ms as the log grew.
-    //
-    // **Grouping rather than reimplementing the merge is the whole point.**
-    // `effectiveOutcome` filters by `taskId` anyway, so a sub-log holding only that
-    // task's records is an input it is already total on — which means the settlement/
-    // resolution/`user_action` rules stay in ONE place. Rewriting them here would be
-    // a second source that could disagree with the log, which is the defect
-    // [Q43](../../doc/questions/q43.md) and `arrival-count`'s re-sourcing are each
-    // an instance of, and it is what ADR 0040 rule 2 refuses.
-    const groups = new Map<string, LogRecord[]>();
-    for (const r of this.log) {
-      const g = groups.get(r.taskId);
-      if (g) g.push(r);
-      else groups.set(r.taskId, [r]);
-    }
-    for (const [taskId, group] of groups) {
-      const eff = effectiveOutcome(group, taskId);
-      // **`!eff` — a suspended node contributes no entry — has NO reachable case,
-      // and this records that rather than arguing it** (`doc/workflow.md` section 5
-      // rule 8: *construct the case that makes each guard fire, and where the corpus
-      // cannot express one, RECORD that*). W41's adequacy reader measured it: making
-      // a suspended node contribute `{result: undefined}` costs **0**, on the suite
-      // and on a hand-built resumed-map probe. **The reason is a property of every
-      // shipped policy**: a suspended branch still holds a token, so no join fires
-      // while one is parked and no reader downstream of it is ever entered. It is
-      // the same absence `JP-R12`'s row records for its own suspended road, and it
-      // becomes live the moment a policy fires over a parked branch
-      // ([Q97](../../doc/questions/q97.md)).
-      //
-      // **What the L2 case named for it DOES test is the resumed node**, which is
-      // reachable and is asserted; its title over-claimed and is corrected there.
-      if (!eff) continue;
-      let parts;
-      try {
-        parts = parseTaskId(taskId);
-      } catch {
-        // Unreachable: every id in this log was minted by `buildTaskId`, and
-        // `ID-R4` tier 2 has already refused any settlement this driver did not
-        // dispatch. Guarded rather than asserted because a parse throw here would
-        // turn one malformed id into a failed run for a reference that does not
-        // name it.
-        continue;
+    const c = (this.outputsCache ??= { at: 0, byNode: new Map(), tasks: new Map(), orders: new Map() });
+    for (; c.at < this.log.length; c.at += 1) {
+      const r = this.log[c.at]!;
+      let t = c.tasks.get(r.taskId);
+      if (t === undefined) {
+        let parts;
+        try {
+          parts = parseTaskId(r.taskId);
+        } catch {
+          // Unreachable: every id in this log was minted by `buildTaskId`, and `ID-R4` tier 2 has already refused any
+          // settlement this driver did not dispatch. Guarded rather than asserted because a parse throw here would turn
+          // one malformed id into a failed run for a reference that does not name it — and REMEMBERED, so the guard is
+          // asked once per id.
+          c.tasks.set(r.taskId, null);
+          continue;
+        }
+        t = { nodeId: parts.nodeId, path: parts.branchPath, order: c.tasks.size, entry: null };
+        c.tasks.set(r.taskId, t);
       }
-      const list = byNode.get(parts.nodeId);
-      if (list) list.push({ path: parts.branchPath, result: eff.result });
-      else byNode.set(parts.nodeId, [{ path: parts.branchPath, result: eff.result }]);
+      if (t === null) continue;
+      this.place(c, t, effectiveOutcome(this.taskLog.of(r.taskId), r.taskId));
     }
-    this.outputsCache = { at: this.log.length, byNode };
-    return byNode;
+    return c.byNode;
   }
 
   /**
-   * The memo above. **Not run state and not a second copy of it** — it is discarded
-   * and rebuilt the moment the log grows, and nothing ever reads it without checking
-   * the length first, so there is no state here that could be stale in a way anything
-   * could observe. `ADR 0014`'s *the driver computes no run state* is untouched.
+   * **One task's entry, made what its effective outcome now says** — `outputs()`'s catch-up, for a task one of whose records
+   * was just read. An entry is `{ path, result }` with `result` the record's own object (`RN-R13`); a node's list is kept
+   * in its tasks' FIRST-RECORD order, the order the rebuild grouped them in.
+   *
+   * **`!eff` — a suspended node contributes no entry.** The first record of a `user_action` task has none, and its
+   * RESOLUTION, later, gives it one: that is the one entry that is not appended at the END of its node's list but placed
+   * at its first record's position — reachable, and the corpus's *parked, attempted, resolved* drain reaches it. *(Whether
+   * a suspended node's ABSENCE is ever read: no — W41's adequacy reader measured making it contribute
+   * `{result: undefined}` cost **0**, because every shipped policy leaves a parked branch holding a token, so no join
+   * fires while one is parked and no reader downstream of it is entered. [Q97](../../doc/questions/q97.md).)* An entry
+   * that LOSES its effective outcome is removed — **reachable**: `ID-R4` asks only whether a settlement's id was dispatched,
+   * so a settlement event repeated for a settled task is appended, and a `done` then a `user_action` leaves the task with
+   * none (W195's conformity reader, C4; `test/driver/log-view.test.ts` drives it and the resolution that places it again).
    */
-  private outputsCache: { at: number; byNode: Map<string, { path: string; result: unknown }[]> } | null = null;
+  private place(c: OutputsCache, t: OutputSlot, eff: OutcomeRecord | null): void {
+    const list = c.byNode.get(t.nodeId);
+    const orders = c.orders.get(t.nodeId);
+    if (eff === null) {
+      if (t.entry === null || list === undefined || orders === undefined) return;
+      const at = list.indexOf(t.entry);
+      list.splice(at, 1);
+      orders.splice(at, 1);
+      t.entry = null;
+      if (list.length === 0) {
+        c.byNode.delete(t.nodeId);
+        c.orders.delete(t.nodeId);
+      }
+      return;
+    }
+    const entry = { path: t.path, result: eff.result };
+    if (t.entry !== null && list !== undefined) {
+      list[list.indexOf(t.entry)] = entry;
+      t.entry = entry;
+      return;
+    }
+    t.entry = entry;
+    if (list === undefined || orders === undefined) {
+      c.byNode.set(t.nodeId, [entry]);
+      c.orders.set(t.nodeId, [t.order]);
+      return;
+    }
+    // The common case appends: tasks settle after the ones before them were first seen. A resolution after a
+    // `user_action` lands at its task's first-record position, found by ORDER among the entries already there.
+    let i = list.length;
+    while (i > 0 && orders[i - 1]! > t.order) i -= 1;
+    list.splice(i, 0, entry);
+    orders.splice(i, 0, t.order);
+  }
+
+  /**
+   * The projection above, CAUGHT UP to `at` — `RN-R13` v0.30, ADR 0121 (W195). **Not run state and not a second copy of
+   * it**: `byNode`'s entries hold each result BY REFERENCE (the log record's own object) — so it is a holder of results and
+   * never a copy — `tasks` is one slot per task id
+   * read — its node, its path, its first-record position and its current entry — and `orders` the same positions, per
+   * node, parallel to its list. Everything here is the merge `effectiveOutcome` computed from the task's own records at the moment they were
+   * read, and `at` says which records have been; so there is nothing here that could disagree with the log. `ADR 0014`'s
+   * *the driver computes no run state* is untouched. `null` until a `needs` first asks.
+   */
+  private outputsCache: OutputsCache | null = null;
 
   /**
    * **What a node receives** — `FD-C1`, and
@@ -4857,7 +4960,7 @@ export class Driver {
    * predicate read it here: `resolve()`, the replay's fed resolution, and the three `ended` refusals (`hasParked`).
    */
   private parked(taskId: string): boolean {
-    return isSuspended(this.log, taskId, this.asked.has(taskId));
+    return isSuspended(this.taskLog.of(taskId), taskId, this.asked.has(taskId));
   }
 
   /**
@@ -4867,7 +4970,7 @@ export class Driver {
    * never dispatched, it is never in flight, so every road reading `inFlight()` passes it by (`RN-R38`, W181).
    */
   private hasParked(): boolean {
-    for (const id of this.dispatched) if (isSuspended(this.log, id)) return true;
+    for (const id of this.dispatched) if (isSuspended(this.taskLog.of(id), id)) return true;
     for (const id of this.asked) if (this.parked(id)) return true;
     return false;
   }
@@ -5182,7 +5285,9 @@ export class Driver {
    *
    * A record is pushed to `log` as well, by reference: `effectiveOutcome` reads
    * the stored object and `OR-R8` derives rather than appends, so a second copy
-   * here would be a second truth. What leaves through `onFoldInput` **is** a
+   * here would be a second truth. **And to its task's sub-log in {@link TaskLog}**,
+   * by reference too (`RN-R13` v0.30, ADR 0121, W195) — here, the one place every
+   * element passes, so the view can never lag the log. What leaves through `onFoldInput` **is** a
    * copy, frozen, for the same reason `snapshot()` is: a listener holding the
    * driver's own array could forge a settlement and bypass `RS-R1`.
    */
@@ -5191,7 +5296,10 @@ export class Driver {
     // rather than from a length read before or after, so a re-entrant `onFoldInput` that appends
     // again (the `failRun` door on the stack, `OR-R10`) cannot shift the number already chosen.
     const seq = this.inputs.push(input) - 1;
-    if (input.kind === 'outcome' || input.kind === 'resolution') this.log.push(input.record);
+    if (input.kind === 'outcome' || input.kind === 'resolution') {
+      this.log.push(input.record);
+      this.taskLog.push(input.record);
+    }
     // **`RN-R20` — the PREFIX check, at the one place every element passes.** During a replay, an
     // element at a position the stored events cover is the stored one or the resume is refused there:
     // a FED element must be appended at the very position it was fed from, and a REGENERATED one must
@@ -5643,7 +5751,7 @@ export class Driver {
    * the way in.
    */
   effectiveOutcomeOf(taskId: string): OutcomeRecord | null {
-    const o = effectiveOutcome(this.log, taskId);
+    const o = effectiveOutcome(this.taskLog.of(taskId), taskId);
     return o === null ? null : (cloneRecord(o) as OutcomeRecord);
   }
 

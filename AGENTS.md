@@ -1740,6 +1740,12 @@ minute — and **`step(state, input)` is pure and costs O(the state it is handed
 it, so wherever the input moves something it copies what changed into a new state (and hands yours back where nothing
 moves) — and stepping every input of a long run yourself costs O(run²) in total. Fold the sequence when you
 need the state; step only where you hold a short one. Both return exactly what they did in 0.8.0, on every sequence a driver appends (`RN-R43` states its one limit).
+**The driver's own work per settlement does not grow with the run either** — `RN-R13` v0.30, from 0.9.0
+([ADR 0121](doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md)): every question it asks of its log about
+ONE task — a settlement's effective outcome, whether a task is parked, what is in flight, what a `needs` can reach — reads
+that task's records alone, where 0.8.0 scanned the whole log (a 16,000-item `map` driven on a scheduler double: 999 ms in
+0.8.0, 229 ms from 0.9.0, node 24). `snapshot()`, `foldInputs()` and `checkpoint()` still hand you a copy of the whole run,
+O(run) a call: read them when you need the run, not after every event.
 
 ```ts run
 import { fold, isTerminal, type FoldInput } from 'fyflow-orchestration';

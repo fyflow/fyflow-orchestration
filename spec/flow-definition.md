@@ -1546,7 +1546,12 @@ could otherwise be handed one record's `result` twice.
 **What a node reaches is a PROJECTION of the log and is not new retention.** The driver already
 holds an append-only `log` with `result` on every settled task and already exposes the whole of it
 through `snapshot()`; the projection adds **zero** fields, and it is computed on demand rather than
-maintained, so a second source cannot disagree with the log.
+maintained, so a second source cannot disagree with the log. *(2026-10-21,
+[ADR 0121](../doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md), W195, the maintainer's YES to its
+stop-and-ask: *zero fields* stopped being true at W41, which added `outputsCache`; since W195 that projection is CAUGHT UP
+as the log grows, from a per-task view of the log the driver maintains in `append` (`taskLog`). Neither holds a
+conclusion of its own — each entry is the merge `effectiveOutcome` makes of ONE task's records — so neither is a second
+source that can disagree with the log; `RN-R13` names both.)*
 [Q19](../doc/questions/q19.md)'s *"if Q8 or Q11 retains every node output"* described **today**
 before `needs` existed. *(This sentence ended *"and its real question — whether that retention should
 be **bounded** — is untouched"*, which stopped being true at

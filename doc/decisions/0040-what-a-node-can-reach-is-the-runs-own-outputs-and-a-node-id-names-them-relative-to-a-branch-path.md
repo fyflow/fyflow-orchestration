@@ -68,7 +68,9 @@ this driver has always kept: `private readonly log: LogRecord[]` with exactly on
 `splice`, `shift` or reassignment, `OutcomeRecord.result` on every settled task, and `snapshot()`
 already public. **No new RETENTION** — and *no new fields* was true when this ADR was drafted and
 is not true of what shipped: `outputsCache` is one field, discarded and rebuilt the moment the log
-grows, so it holds nothing the log does not. **Corrected here rather than left standing**, because
+grows, so it holds nothing the log does not. *(2026-10-21, [ADR 0121](0121-the-driver-keeps-a-per-task-view-of-its-log.md),
+W195: CAUGHT UP as the log grows rather than rebuilt — each entry still the merge of its task's own records, so still
+nothing the log does not hold.)* **Corrected here rather than left standing**, because
 the sentence and the code stopped agreeing when the cost was re-taken and the memo was added. W41's
 conformity reader. [Q19](../questions/q19.md)'s *"if Q8 or Q11 retains every node
 output"* described **today** before this decision existed — P12's fact 1 corrected that row, and this
@@ -93,7 +95,7 @@ rest on.**
    value the run was handed — `"$payload"`, read from the checkpoint header the driver already keeps, so still no new
    state.** ***Amended 2026-10-19 by [ADR 0118](0118-a-map-instance-keeps-its-item-while-a-node-of-it-may-still-be-entered.md)* (W191): and the item of the reader's own map instance — `"$item"` —
    which IS new state, the one structure this rule's "computed rather than maintained" gives way for: each instance keeps
-   its item while a node of it may still be entered (`RN-R13`'s sixth term).** **Computed rather than maintained**, deliberately: a maintained index is a
+   its item while a node of it may still be entered (`RN-R13`'s sixth term).** ***Amended 2026-10-21 by [ADR 0121](0121-the-driver-keeps-a-per-task-view-of-its-log.md)* (W195): the projection is CAUGHT UP as the log grows rather than rebuilt, each entry the merge `effectiveOutcome` makes of ONE task's records, read from a per-task view of the log the driver maintains in `append` — references to the log's own records and nothing derived, so not the second source this rule refuses; and every other per-task read the driver makes goes through that view.** **Computed rather than maintained**, deliberately: a maintained index is a
    second source that can disagree with the log, which is the defect [Q43](../questions/q43.md),
    `arrival-count`'s re-sourcing and
    [W34](../work-items/w34-what-a-branch-receives-and-what-a-join-carries.md)'s
@@ -233,7 +235,9 @@ never renumbered.
   part of the big thing"* expressible and would move this cost from *visible in the document* to
   *hidden in a selector*. [Q22](../questions/q22.md)'s row now has **three** clone sites.
 
-- **The projection was `O(log²)` per call and is now `O(log)`, memoised on the log's length.** Both
+- **The projection was `O(log²)` per call and is now `O(log)`, memoised on the log's length.** *(2026-10-21,
+  [ADR 0121](0121-the-driver-keeps-a-per-task-view-of-its-log.md), W195: now O(the records appended since the last
+  read), caught up from a per-task view of the log — the memo missed a `needs` read once per settlement by construction.)* Both
   halves were found by re-taking the number on the tree this item ships
   (`doc/workflow.md` section 1 rule 5's WHEN) — the figure in *what was measured* above, 0.027 ms
   over a 6-record log, is true and is not the number that matters. **`effectiveOutcome` scans the
