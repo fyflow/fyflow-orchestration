@@ -1,6 +1,6 @@
 # P39 — What does a step cost on a long run, and where may its owner read the run's live state?
 
-**Status:** declared 2026-10-21 — on `93922cb` (the tree clean), answering fyflow-app's *pass 2* (#1-#4); facts 1-10 measured or read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-21, all as recommended; (f) OPEN, and only W196 waits on it; no item started. *(f) ANSWERED 2026-10-21 as recommended, before W196 started — recorded below by W196.*
+**Status:** complete and retro'd 2026-10-21 — W194-W197 done, `gate:full` EXIT 0 on W197's final tree (the Record); the retro's stop-and-asks (g)-(i) ANSWERED by the maintainer 2026-10-21, all as recommended (section 8). Earlier: declared 2026-10-21 — on `93922cb` (the tree clean), answering fyflow-app's *pass 2* (#1-#4); facts 1-10 measured or read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-21, all as recommended; (f) OPEN, and only W196 waits on it; no item started. *(f) ANSWERED 2026-10-21 as recommended, before W196 started — recorded below by W196.*
 **Question this plan answers:** *can a run's state be kept — by `fold`, by a runtime, and by a consumer reading it live — at a
 cost per fold input that does not grow with the run, without a second definition of the fold and without moving what
 `fold` returns, what `RunState` holds, or the order the driver appends?*
@@ -364,3 +364,205 @@ counter is observable through a public surface (decision 6); facts 1 and 4 on th
 | [Q179](../questions/q179.md) | wall time is not a reproducible cost measure for this gate — why (e) holds counts, and why W197's repro re-take is a measurement and not a gate entry; `icebox` | — |
 | [Q186](../questions/q186.md) | a reference to a large value inside a map — the per-instance clone cost, unchanged by this plan and not to be confused with it; `deferred` | — |
 | [Q43](../questions/q43.md) | the maintained second source ADR 0040 rule 2 was written against — decision 4's condition is its answer for W195's index | W195 (ADR 0121 cites it) |
+
+## Record
+
+*Written 2026-10-21 over W197's final tree, the tree held still before it. Every figure is read from the four items' own
+files; none is re-measured here. Ids are bare text, as in P33's-P38's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W194** `7b47f78` | the fold as ONE internal accumulator — `Map`/`Set`-backed nodes and region lists, running counts the precedence reads, materialised once; `fold` linear, `step` pure and O(the state it is handed), every arm's behaviour kept on ANY `prev`; the pre-change `step`/`fold` frozen under `test/fold/` as the ORACLE (its body pinned by SHA-256); `FoldCounter`, an ARGUMENT of the internal `foldWith`/`stepWith`; ADR 0120 | run-state v0.29 (`RN-R43`; `RN-R1`/`RN-R2`'s test text) | — / — | `deno.json`, one publish-allowlist line, declared before the edit | conformity **C1 BLOCKER** — an assignment where the old sites spread, so a node id `__proto__` (FD-V16 admits it) lost a region and read a `stuck` run `completed` — fixed (`put`) and provoked; C2-C7. Adequacy 101 entries, 11 survivors, every real gap closed and re-cut; the compound C4 (a re-tally outside `precedence()`) LEFT for W197. 56 probes, 56 killed. **Overlap 1** | 85 / 2111; 2789 / 222 | `gate:item` EXIT 0, selftests 1126.7 s |
+| **W195** `e2b62c8` | the driver's per-task view of its log (`TaskLog`, maintained in `append`, references only); `advance`, `parked`, `hasParked`, `inFlight`, `effectiveOutcomeOf` and `outputs()` read through it, `outputs()` CAUGHT UP rather than rebuilt; the INLINE pool's `attemptsPending.shift()` (the app's `takeAttempts` hotspot) replaced by `Fifo`; the counter `taskLog.visits`; `DRIVER_FIELDS` +1; ADR 0121 | run-state v0.30 (`RN-R13`) | — / — | one, by the maintainer's YES: `spec/flow-definition.md` FD-C1's *computed on demand* sentence, a dated note | conformity C1-C10, no BLOCKER (its own 2,415-transcript differential byte-identical); adequacy G1-G6 — **CP4: a counter counting CALLS passed the ratio and the floor with the scan restored**, closed by EXACT counts. 29 probes, 29 killed. **Overlap 2** | 86 / 2122; 2789 / 222 | `gate:item` EXIT 0 twice (before and after the YES), selftests 1014.2 / 978.4 s |
+| **W196** `4659768` | the runtime keeps the accumulator OPEN per run; `RunHandle.state()` (a deep-frozen copy, cached until an input moves it), `outcome()`, `node()` (O(1)); `await done` the SAME object (f); the kept result the runtime's own copy; the stored events applied before the first delivered input or read; ADR 0122; a `run` snippet | run-state v0.31 (`RN-R25`, `RN-R44`) | — / — | none | conformity **C1 BLOCKER** — *a finished run refuses every run control* was false for `unpause` of a run that finished paused — FIXED AS A STATED EXCEPTION (`RN-R44`); C2-C6. Adequacy G1-G7. The author's own D15: **a cache hid a per-input materialisation from a count taken in one synchronous burst**. 31 probes, 29 killed, 2 declared. **Overlap 2** | 87 / 2134; 2789 / 222 | `gate:item` EXIT 0, selftests 1062.5 s |
+| **W197** `ff54737` | `test/fold/map-cost.test.ts` — the fold, the driver and a runtime counted at 2,000 / 8,000 items, EXACT (`13n + 9`; `n + 2`, `3n + 4` and 3; `5n + 6` applied, ONE materialisation, `13n + 16`) and below 6x, every subject run a SECOND time under an iteration observer independent of every counter; nine provocations checked in as cases, one site each; `examples/map-cost.ts` (clause (2)); the `W197 exit` L6 block, 16 claims over 6 runs (clause (3)); `CONSTRUCTION_PRICED` +1; the reply | none | — / **Q735** | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping (the coordinator's brief, P38's `e928212` the precedent). Its wall found the reference search: **Q735 raised** (rule 6 — the fix is not small) | conformity 2 SHOULD — a COMPOUND provocation (sentence E, per call site) and an L6 claim carrying another's verdict — and 3 NIT, all fixed; adequacy 42 mutations, 28 killed, 14 survived: the iteration observer blind to arrays and objects (partly fixed, partly the STATED LIMIT — patching the array iterator broke the suite, measured), NO second observer on the driver or the runtime (both added), no `attempted` input in the fold or runtime arms (added, re-derived), a source regression running minutes (the harness's half fixed). 19 probes, 19 killed. **Overlap 1** | 88 / 2142; **2805 / 228** | **`gate:full` EXIT 0**, 11/11 self-tests, 3,211 s |
+
+**Every confirming gate was green on its FIRST run, one command each** (sentence C) but W195's, re-run once after the
+maintainer's YES; firefox and webkit NOT RUN in any. **W196's first `npm run gate` was EXIT 1 on ONE deno L6 clause,
+`W188 exit (6)`**, a real worker's third attempt racing a 15 s deadline under load, never reproduced in three re-runs nor
+in any later gate ([Q599](../questions/q599.md)'s class). **One question raised, none closed. One exception taken by the
+maintainer's YES (W195), one declared at declaration (W194), one for the plan's bookkeeping (W197). The readers'
+overlap, every Record stating its own: 1, 2, 2, 1.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) one cost suite, green in `gate:full` and in all three L0-L5 runtimes, holding as CLOCK-FREE COUNTS the work at 8,000 items below 6x the work at 2,000 — `fold`, the driver with an `attempted` element per task, and a runtime run read through `handle.outcome()` after every input — each provoked red by restoring the cost it holds (checked in) | `test/fold/map-cost.test.ts`, an `attempted` element per task in every subject: `fold` 26,009 / 104,009 = `13n + 9`; the driver 2,002 / 8,002 = `n + 2` and with a `needs` read per settlement 6,004 / 24,004 = `3n + 4`, a user_action then its resolution 3; a runtime 10,006 / 40,006 applied, ONE materialisation, 26,016 / 104,016 = `13n + 16` — every value DERIVED from the tick sites, every ratio 4.00x; and every subject run a SECOND time under an iteration observer independent of every counter, each below 6x (3.90-3.99x). Nine in-suite provocations, one site each, each asserting it ran and the EXACT clauses it reddens; node, deno and chromium, ~7 s | **met** — and stronger than the clause: EXACT, not only a ratio |
+| (2) the app's repro re-taken on the final tree, node 24 and deno, `fold` and the driver from 1,000 to 16,000 items, beside fact 1's table — a measurement, not a gate entry | `examples/map-cost.ts`, each size a fresh process: `fold` 135 / 3,609 / 33,664 ms → **6 / 11 / 18 ms** at 1,000 / 2,000 / 4,000 items in node (5 / 9 / 16 in deno), **43 ms** at 16,000; the driver 98 / 351 / 988 ms → **58 / 102 / 185 ms** at 4,000 / 8,000 / 16,000 (deno 65 / 114 / 217), with `task.running` 113 / 517 / 2,870 → **62 / 109 / 197** (deno 70 / 124 / 224); a runtime `start` → `done` 34,311 / 157,679 / 683,151 ms → **110 / 195 / 390 ms** (deno 130 / 226 / 418) | **met** |
+| (3) one block in `examples/l6.ts`, node 24 and deno, threaded and inline: `state()` read on a microtask after each delivered input deep-equal to the fold of the delivered prefix, frozen, unchanged by a mutation attempt, at `done` equal to `await done` and `fold(driver.foldInputs())` — and the same on a run RESUMED on a fresh runtime whose `state()` before its first delivered input already folds the stored events | the `W197 exit` block: per pool, a `map` of five read at all 28 quiescent points, each byte-equal to the fold of the delivered prefix, frozen to 22 objects and more, every write throwing and moving nothing, `done` the same object; the same map stopped with two items in flight and resumed on a FRESH runtime, its first read folding the stored events. **The clause's *before its first delivered input* cannot be met through the public API**: `resume()` delivers its `resumed` element before it returns (`RN-R22`, W196 re-take 2), so the block asserts that premise and reads at the first quiescent point after `resume()` — the reading W196 recorded. 2805 / 228, 0 failed, node and deno | **met**, under that reading |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W197, ONE command on the final tree after the readers' fixes: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included, 3,211 s | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **84 / 2098 → 88 / 2142** in node, deno and
+chromium; L6 **2789 / 222 → 2805 / 228** in node and deno; `check:docs` **50 → 51 `run` snippets**; `check:spec` **7
+documents / 86 examples / 154 rules**, C4 45; spec/run-state **v0.28 → v0.31**, flow-definition a dated note,
+outcome-record, join-policy and task-id unmoved; next free rule id `RN-R45`; `DRIVER_FIELDS` +1 (`taskLog`);
+`NOT_RUN_STATE`, `CHECKPOINT_FORMAT`, `FoldInput`, `RunState`, `RUN_FOR`, `isFed` and `snapshot()` unmoved;
+`doc/concept.md` untouched.
+
+**What the plan answered — yes, with one cost found beside it.** A run's state is kept at a cost per fold input that does
+not grow with the run — by `fold` (linear: one accumulator, counts not scans, ADR 0120), by the driver (a per-task view,
+ADR 0121), and by a runtime that keeps the accumulator open and hands its consumer a frozen, cached state with two O(1)
+reads (ADR 0122) — with no second definition of the fold, and with nothing `fold` returns, `RunState` holds or the driver
+appends moved. **The exception, stated**: `step` stays O(the state it is handed) per call (decision 2), and `state()`
+read after EVERY input costs O(run) per read (prediction 4); `outcome()` and `node()` are the per-input reads. **Found
+beside it, not fixed**: a `needs` reference read inside a map instance searches every output of the node it names
+([Q735](../questions/q735.md)) — linear per read, so quadratic over a map whose branch reads its own earlier node by id.
+**fyflow-app's request**: #1-#4 accepted with the shapes (a)-(f) chose, #2's `onFoldInput` road declined; the reply is
+written (`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass2.reply.md`). **What 0.9.0 ships
+as BREAKING from this plan** ((d), (f)): `RunHandle` gains three required members, and the value `await done` resolves
+with is frozen.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W194 moves no assertion's expected value in any lane | **HOLDS** | W194 Record |
+| 2 | `fold` at 4,000 items falls from ~33 s to under 100 ms, the cliff with the spread | **HOLDS** — 17 ms node, 15 deno; doubling ~1.6-2x | W194 Record |
+| 3 | W195 removes fact 4's superlinearity without `attempted` elements; with them is W195's question | **HOLDS, and more** — with them too: fact 4's steeper column did not reproduce once the harness walked its queue by index; the one `attempted`-road cause found was the INLINE pool's queue, fixed | W195 Record |
+| 4 | `state()` read after every input is O(run) per read; `outcome()` and `node()` O(1) | **HOLDS** — 204 materialisations for 205 inputs read through `state()`, ONE through `outcome()`/`node()`; 373 vs 366 ms at 16,000 items | W196 Record; W197's runtime pin |
+| 5 | no item moves `CHECKPOINT_FORMAT`, `FoldInput`, `RunState`'s shape, `RUN_FOR`, `isFed` or `snapshot()` | **HOLDS** | every Record |
+| 6 | W197 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2789 / 222 → 2805 / 228, the block's 16 claims and 6 runs | W197 Record |
+
+**The D′ paragraph's census predictions** (*Work items*), scored the same way: **right at every site it named** —
+`LATE_SUITES` +1 and a count case at each of W194-W197; `spec/README.md`'s three rows (v0.29-v0.31); `DRIVER_FIELDS` +1
+at W195 by its name; `NOT_RUN_STATE` unmoved (W195 measured it); `RUN_FLOOR` 50 → 51 at W196; `X10` at W197 alone; the
+PREMISES at the sites named. **Short at three**, each found before an edit: `deno.json`'s publish allowlist (W194, an
+exception declared before the edit); `spec/flow-definition.md` FD-C1's *computed on demand* (W195's conformity reader —
+a maintainer's YES); and `examples/l6.ts`'s `CONSTRUCTION_PRICED` for the new `examples/map-cost.ts` (W197, inside its
+`Owns` — the whole file, sentence D′).
+
+**Questions**: **raised [Q735](../questions/q735.md)** (W197); **closed none.** [Q186](../questions/q186.md) gains a dated
+note (the large-reference clone measured on a map at 8,000 items, kept apart from Q735). `npm run q -- --where
+status=open` lists **Q580, Q581, Q735**.
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.9.0** — the version bump (a `chore:` commit, as 0.8.0's `581d0e5`), the push, and the publish to npm and JSR | (d); W196 | **the maintainer** — Retro section 8 | this Record |
+| **Q735** — a reference read inside a map instance searches every output of its node | W197 | **no owner** — Retro section 8 | Q735 |
+| the reply to fyflow-app | P39's *The reply* | **done** — W197 | W197's Record |
+| the byte copies `C:/tmp-w194`-`C:/tmp-w197`, `C:/tmp-w107`, and the session scratchpad's probes | every item | **the maintainer** — left in place, outside the repository; nothing reads them | each item's Record |
+| W196's two declared survivors (D07, D27) — unreachable through a driver | W196 | **stands** | W196's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-21 over W197's final tree, by W197's author as the plan's last item. Every figure is read from the
+four items' Records; this retro re-ran no harness. **Its routings are put to the maintainer in section 8; none is acted
+on outside the record step's four files and W197's one declared exception.***
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P39's declaration | — | (a)-(f), all as recommended | — | — |
+| W194 | — (one exception declared before the edit) | — | 1 BLOCKER (C1, a key the corpus never held) and the counter-fidelity gaps | — |
+| W195 | **1, YES** — FD-C1's sentence | — | 6 test gaps (G1-G6), one of them the counter that counted calls | — |
+| W196 | — | (f), answered before it started | 1 BLOCKER (C1, the unpause after `done`), 3 test gaps | — |
+| W197 | — | — | 5 (two SHOULDs and three NITs, the conformity reader's) and ten test gaps (the adequacy reader's) — and Q735, the author's wall | **Q735 raised** |
+| **P39** | **1** | **6 answers, all as recommended** | **2 BLOCKERS, and the rest test gaps and text, every one acted on** | **1 raised, 0 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E held
+
+**D′ was FOLLOWED and held at every site the plan named**; the three it did not name were each found before their edit
+(the Record's *census predictions*). **B′ held**: each item built in a byte copy and ran every lane before writing its
+`Owns`. **C held**: one confirming gate per item, green on its first run (W195's second run follows a YES, not a red).
+**E held**: every probe one clause — and W197's conformity reader caught one that was not (section 4 (c)).
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W194 | C1 BLOCKER, C2-C7 | 101 entries, 11 survivors, closed | **1** — the region key space (C3 / O3) | 115th |
+| W195 | C1-C10, no BLOCKER | G1-G6, N1-N4 | **2** — `outputs()`' removal branch (C4 / X1); *five drains* (C6 / N4) | 116th |
+| W196 | C1 BLOCKER, C2-C6 | G1-G7 | **2** — the freeze walk's reach (C2 / G2); `cancelRequest`'s reason (C4 / K8) | 117th |
+| W197 | 2 SHOULD, 3 NIT, no BLOCKER | 42 mutations, 28 killed, 14 survived — ten real gaps, one family: a cost no observer counts | **1 — the L6 freeze claim (C2 / gap 6)** | 118th |
+
+**Every Record states its overlap**, the fourth plan running. **Four measurements, all inside section 6's 0-4 band. The
+ordinal is a hundred and eighteen, so the next is the HUNDRED-AND-NINETEENTH** — carried into `doc/workflow.md` by W197's
+declared exception.
+
+**Both BLOCKERS of P39 were the conformity reader's, and both were CONSTRUCTED, not mutated**: W194's `__proto__` (a
+key the corpus's alphabet never held) and W196's `unpause` after `done` (a run control the author's list omitted).
+Section 6's *construction finds what the CODE cannot see*, twice in one plan.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a COUNT is an instrument only for the work that ticks** — P39 (e) chose clock-free counts, each item placed a counter, every count held its ratio | **FOLLOWED** in all four items — and in each an UNCOUNTED cost was found by something else: W194's adequacy reader (a re-tally outside `precedence()`, ticks removed, every count green); W195's (a counter counting CALLS, ratio and floor green with the scan restored); W196's own D15 (a cache hid a per-input materialisation from a count taken in ONE synchronous burst); W197's WALL (Q735: the reference search, and Q186's clone, both quadratic with `taskLog.visits` exactly linear) | readers, a provocation, a wall clock — never the count | **The sharpest finding of P39 (rule 3): four occurrences, four items.** The repairs each added a SECOND OBSERVER that does not go through the counter — the precedence's source (W194), EXACT values derived on a small run plus the driver's source (W195), one settlement per macrotask turn (W196), an iteration observer (W197) — and the wall found what none of them could. Proposal B: *a count names what it does NOT count, its item derives its EXACT value, and its subject is TIMED once at the two sizes — a sanity reading in the Record, not a gate entry (Q179)* |
+| **(b) the copy claim's probe set** — an ALIAS and a SHALLOW copy, NESTED, both ways | **FOLLOWED** at W194 and W196; held — W196's G2 extended it by its own dimension (what `Object.freeze` reaches) | the adequacy reader | **Held, extended once.** No change |
+| **(c) sentence E — a compound probe kills nothing** | **FOLLOWED** by W197's author, who still checked in a COMPOUND provocation: wrapping `outcomeNow` restored a materialisation in `done`'s predicate AND in every consumer `outcome()` read | W197's conformity reader | **E held as a rule — the reader applied it.** The cut is per CALL SITE, not per function: one function reached from two clauses is two probes |
+| **(d) a claim of absence shown able to fail by a control on the same observer** (P38 (o)) | **FOLLOWED** at W197 — and one L6 claim still could not fail ALONE: *every read frozen* was carried by the equality claim's `why`, so a freeze regression reddened another claim and left its own green | W197's conformity reader, and the author's L01 (WRONG-SET) | **Kin to P38 (b)**: the observer could see the event, but the CLAIM did not carry its own verdict. Proposal B's sentence widened: *each claim carries its own verdict* |
+| **(e) a premise the plan WROTE** — exit clause (3)'s *`state()` before its first delivered input* on a resume | the plan wrote it before W196 measured `resume()` delivering before it returns (`RN-R22`) | W196's declaration step (re-take 2) | **The fourth plan running** (P35, P36, P38, P39) — and the first where a MEASUREMENT, not a reader, caught it, before any code relied on it. Met under the recorded reading; no rule |
+
+**Pass 3 rule 5 over P39's defects**, by what caught them: **a rung in `gate`** — `check:source` S4 on a type (W194),
+the census sites in each copy; **the authors** — W194's P34 (fixtures built with the code under test), W196's D15, W197's
+M1 (the wall); **the conformity readers** — W194 C1-C7, W195 C1-C10, W196 C1-C6, W197's five; **the adequacy readers** —
+W194's eleven, W195's G1-G6, W196's G1-G7, W197's ten. **No rung would have caught** an uncounted cost: that is
+section 4 (a), and Q179 is why it is not a rung.
+
+**The flaky rows ([Q599](../questions/q599.md)).** One went red in P39: `W188 exit (6)` on deno L6 in W196's first `npm
+run gate`, under load, never again in three re-runs or any later gate. A dated note is added; it stays deferred.
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** The inline pool's two facts — `task.running` inside `addTask`, the
+input handed uncloned — were met again (W195's `Fifo`, the app's `takeAttempts` hotspot), already in `CLAUDE.md` since
+P38 (r).
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′, C, D′ and E held; every Record stated its overlap; every
+defect was caught before its Record.
+
+**B. Recommended, for the NEXT plan's author, not the workflow** — B′, C, D′ (with P38's sixth clause) and E carried
+UNCHANGED, E with the reading section 4 (c) records (*one function reached from two clauses is two probes*). The brief
+sentences carried, two widened:
+- ***a claim of ABSENCE is shown able to fail by a control on the same observer, taken AFTER the event it denies — and
+  each CLAIM carries its own verdict, never another claim's***;
+- ***a COST check names what its counter does NOT count; its item derives the count's EXACT value on the sizes it runs,
+  and TIMES its subject once at those sizes — a reading in the Record, not a gate entry (Q179)***.
+- **Replaces**: P38's brief sentences in the next plan's declaration. **Saves**: W195's CP4, W196's D15, W197's M1 and
+  its conformity reader's two SHOULDs. **Ledger**: kin to the *`Owns` pre-declaration* row, not proposed as a rule.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 38th refusal, P2-P39.** P39's text defects were a
+  sentence about *a finished run* refusing every run control (W196 C1), `step`'s *returns a new state* beside seven arms
+  that return `prev` (W194 C4), a stale `parseTaskId` pointer (W194 C7), an *L0 and nothing else* coverage sentence
+  (W197) — each found by a reading of the code beside it; no script reads that. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; this Record and Retro |
+| `doc/questions/q735.md` | raised by W197 |
+| `doc/questions/q186.md` | a dated note — the large-reference clone measured at 8,000 items, kept apart from Q735 |
+| `doc/questions/q599.md` | a dated note — `W188 exit (6)` red once in P39, never reproduced; still deferred |
+| `doc/workflow.md` | W197's declared exception: the Status line's count (THIRTY-NINE, P1-P39), section 6's ordinal (a hundred and eighteen; the HUNDRED-AND-NINETEENTH next), the ledger's first row (38 times, P2-P39) |
+
+`README.md` and `doc/decisions/**` carry nothing more: the three ADRs and their dated amendment notes are the items'.
+
+**Ids.**
+
+- **Issued**: W194, W195, W196, W197; ADR 0120, ADR 0121, ADR 0122; Q735; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): W198 CLOSED unissued, as expected; Q720-Q724,
+  Q725-Q729, Q730-Q734 SPENT; Q736-Q739 SPENT (W197's); ADR 0123 SKIPPED.
+
+**The next plan starts at W199, Q740 and ADR 0124.** The next S id is S13; the next plan id is P40.
+
+### 8. Stop-and-asks for the maintainer
+
+**Lettered after the declaration's (a)-(f). Each is OUTSIDE this repository's next commit; none changes a file here.**
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(g)** | **Releasing 0.9.0.** The manifests read 0.8.0; P39's two BREAKING surfaces are stated in `AGENTS.md`; the reply tells the app 0.9.0, unreleased. The four P39 commits and this close are unpushed (`origin/main` at `93922cb`) | **Bump to 0.9.0 in a `chore:` commit** (0.8.0's `581d0e5` precedent), `npm run gate:full` on it, push, publish to npm and JSR, tag `v0.9.0` | **Hold** until Q735 is fixed (h) |
+| **(h)** | **Q735 — a reference read inside a map instance searches every output of its node**, quadratic over a map whose branch reads its own earlier node by id (20.5 s at 8,000 items on the driver alone). The app's repro and its stated flow (one task per item) do not reach it | **Release 0.9.0 without it**; Q735 open with no owner, the reply naming it and its workaround (`"."`), and a NEXT plan if the app answers that its flows read their own branch's nodes | **A P40 before 0.9.0** — the fix touches ADR 0044's resolution and would delay the app's P1; or **document it in `AGENTS.md` now** (Q735's second closing road) |
+| **(i)** | **Proposal B** (section 6) for the next plan's brief | **YES — carried in this retro** | carry P38's sentences unchanged; or make either a workflow rule |
+
+**ANSWERED 2026-10-21 by the maintainer — *push and publish* — (g), (h) and (i) as recommended:** 0.9.0 is bumped in a
+`chore:` commit and released from tag `v0.9.0`; Q735 stays open with no owner; proposal B is carried.
