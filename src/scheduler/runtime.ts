@@ -68,8 +68,9 @@ import { Driver, InvalidDefinition, resumeRefusal } from '../driver/driver.ts';
 import type { Checkpoint, CheckpointHeader, DriverOptions, RunStopOptions, SchedulerLike } from '../driver/driver.ts';
 import { InvalidTaskId, parseTaskId } from '../driver/ids.ts';
 import { liveToken } from '../fold/policies.ts';
-import { emptyState, isTerminal, step } from '../fold/run-state.ts';
-import type { FoldInput, RunState } from '../fold/run-state.ts';
+import { Accumulator } from '../fold/accumulator.ts';
+import { emptyState, isTerminal } from '../fold/run-state.ts';
+import type { FoldInput, NodeRun, RunOutcome, RunState } from '../fold/run-state.ts';
 import type {
   Finding, FlowDefinition, GroupType, JsonSchema, Languages, NodeTypeDefinition,
   Registry, RegistryCode, RegistryDocument, ResolvedPool, ResolvedRegistry, RetryPolicy, TaskNode, WorkerEntry,
@@ -326,12 +327,17 @@ export interface RunHandle {
    * element: the stopped driver is deaf, so no settlement could move the fold again, and the runtime waits on the cancels
    * the driver sent through this run's view of the scheduler instead (`RN-R33`, ADR 0105, amending ADR 0058 rule 3).
    *
-   * It is the SAME expression a consumer would have written, moved: the runtime keeps ONE
-   * `RunState` and `step`s it per fold input, which is what `fold` is
-   * (`for (const i of inputs) s = step(s, i)`), and `RN-R2` is the rule that says a stepped prefix
-   * equals a fold of that prefix. `test/scheduler/runtime.test.ts` holds `await done` equal to
-   * `fold(driver.foldInputs())` — the caller's own expression over the driver's own sequence, which
-   * is a second route rather than a second definition.
+   * It is the SAME expression a consumer would have written, moved: the runtime keeps the fold's ONE accumulator OPEN —
+   * W194's, `fold`'s own definition (`RN-R43`) — and applies each fold input to it, which is what `fold` does over a
+   * whole sequence; `RN-R2` is the rule that says a prefix applied equals a fold of that prefix. *(Until W196 it kept ONE
+   * `RunState` and `step`ped it per input — O(run) a step since W194, so O(run²) a run; ADR 0122 amends ADR 0058 rule 5.)*
+   * `test/scheduler/runtime.test.ts` holds `await done` equal to `fold(driver.foldInputs())` — the caller's own
+   * expression over the driver's own sequence, which is a second route rather than a second definition.
+   *
+   * **It resolves with the SAME frozen object {@link RunHandle.state} returns at that moment** — P39 (f), `RN-R44`: one
+   * copy and one definition, so `await done === handle.state()` once it has settled (but for an `unpause` after it — see
+   * `state`). **BREAKING in 0.9.0 for code that
+   * MUTATES `await done`**: it is frozen at every depth, and a write throws in strict code.
    */
   readonly done: Promise<RunState>;
   /**
@@ -364,6 +370,33 @@ export interface RunHandle {
    * store holds whichever is written first (`RN-R18`).
    */
   readonly header: CheckpointHeader;
+  /**
+   * **The run's state NOW — a frozen copy, cached until the next fold input that moves it** — `RN-R44`,
+   * [ADR 0122](../../doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md), P39 (b). Equal to
+   * `fold(driver.foldInputs())` at a quiescent point (`RN-R12`: read it on a `queueMicrotask` after an `onFoldInput`, or
+   * outside the driver's turn — mid-turn it is a prefix, which the fold is total over and which may read terminal while
+   * the run is not). **Frozen at every depth** — a write to it throws in strict code and reaches nothing the runtime keeps
+   * — and **the SAME object on every read until an input moves the state**, so reading it twice costs one copy. It is NOT
+   * a live view (ADR 0007's hazard): a read is the state at that moment, and the next input makes a new one beside it.
+   *
+   * **Its cost is O(run) for the first read after each input that moved the state** — a materialisation of every
+   * `nodes` entry — so reading it after EVERY input costs O(run²) over a run (P39 prediction 4). Read
+   * {@link RunHandle.outcome} and {@link RunHandle.node} per input; read this when you draw the run. On a RESUMED run it
+   * holds the stored events too: they are applied before the first delivered input, which `resume()` always delivers
+   * before it returns (`RN-R22`). After `done` settles it is the object `done` resolved with — until an `unpause` of a run
+   * that finished while paused, the one run control a finished run takes (`RN-R35`): `state()` follows that element and
+   * `done` keeps the state at settlement. What `Object.freeze` does not stop — a typed array's elements, an
+   * `ArrayBuffer`'s bytes, a `Date`'s time, a `Map`'s or a `Set`'s membership — stays writable through a read and reaches
+   * later reads: the stated limit (`RN-R44`). **BREAKING in 0.9.0 for code that BUILDS a `RunHandle`** (P39 (d)) — with `outcome` and `node`.
+   */
+  state(): RunState;
+  /** **The run's outcome now, in O(1)** — `state().outcome` without the copy (`RN-R44`); the read to make after every input. */
+  outcome(): RunOutcome;
+  /**
+   * **One task's entry now, in O(1) in the run, or `null`** — `state().nodes[taskId]`, the same frozen object, without
+   * materialising the rest (`RN-R44`); the first read of an entry freezes it once, O(the entry). `null` for a task the run never dispatched or asked, whatever the id names (`toString` included).
+   */
+  node(taskId: string): NodeRun | null;
 }
 
 export interface Runtime {
@@ -732,56 +765,111 @@ export function createRuntime(
     // terminal `RunState` and never rejects; `halted` is a terminal outcome like any other, so a
     // driver refusal arrives here carrying `haltedBy` rather than as a thrown `Error`.
     //
-    // **What is kept is ONE `RunState`, not the inputs.** `fold` IS this loop —
-    // `for (const i of inputs) s = step(s, i)` — and `RN-R2` is the rule that a stepped prefix
-    // equals a fold of that prefix, so this is `fold`'s own body with the prefix kept instead of
-    // recomputed. Measured over a 24-branch fan-out: keeping the inputs and re-folding retains
-    // 445.5 KiB and takes 23 ms, re-reading `driver.foldInputs()` deep-clones 5944 elements and
-    // takes 35 ms, and this retains 437.3 KiB and takes 6 ms. *(`foldInputs()` is
-    // `Object.freeze(this.inputs.map(freezeInput))`, so every call clones every result.)*
+    // **What is kept is the fold's ONE accumulator, OPEN, not the inputs** — W196,
+    // [ADR 0122](../../doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md), amending ADR 0058
+    // rule 5. `fold` IS this: one accumulator, every input applied in append order (`RN-R43`, W194's `foldWith`), and
+    // `RN-R2` is the rule that a prefix applied equals a fold of that prefix — so this is `fold`'s own body with the
+    // accumulator kept instead of materialised once at the end. *(Until W196 it kept ONE `RunState` and `step`ped it per
+    // input — what `fold` was before W194, and O(run) a step after it: a 4,000-item `map` stepped 16,003 times.)* Measured
+    // when ADR 0058 chose to keep state rather than inputs, over a 24-branch fan-out: keeping the inputs and re-folding
+    // retained 445.5 KiB and took 23 ms, re-reading `driver.foldInputs()` deep-cloned 5944 elements and took 35 ms, and
+    // keeping the state retained 437.3 KiB and took 6 ms. *(`foldInputs()` is `Object.freeze(this.inputs.map(freezeInput))`,
+    // so every call clones every result.)*
     //
-    // **The price, stated rather than hidden** (P20's Scope Out): `step` writes
-    // `result: r.result` by reference into the record `freezeInput` cloned, so this pins ONE copy
-    // of every result for the life of the run — P15's own quantity, (tasks settled) x (bytes each
-    // returned), once more.
+    // **The price, stated rather than hidden** (P20's Scope Out): this pins ONE copy of every result for the life of the
+    // run — P15's own quantity, (tasks settled) x (bytes each returned), once more. **Since W196 that copy is the
+    // runtime's OWN** (`own` below): until then the kept state's `result` WAS the object the consumer's `onFoldInput` was
+    // handed (`freezeInput` freezes a record one level deep), so a consumer writing into it moved `done` — W196's
+    // declaration step, re-take 3. One more `structuredClone` per settlement or resolution whose result is an
+    // object, and the copy `freezeInput` made is garbage once the consumer drops it, so what is RETAINED is unchanged.
     //
-    // **It is ABOUT THE SAME as what the block it replaces retains, not half, and the first
-    // version of this comment said half.** The copied block keeps its `inputs` array AND folds a
-    // state out of it — but `step` writes `result: r.result` BY REFERENCE, so that state's results
-    // ARE the objects inside its own `inputs`, and `v8.serialize` called on two roots cannot see
-    // the sharing. Measured: the block retains **89.1 KiB** of inputs plus **0.6 KiB** of state
-    // scaffolding = ~89.7, against this mechanism's **87.6** — ~2% less, where adding the two
-    // serialisations gave a spurious 176.7 and a spurious factor of two. *The identity measurement
-    // that falsifies the sum was printed three lines above it* (W77's conformity reader, finding 3).
-    //
-    // And it is bounded per RETAINED HANDLE rather than per live run: a promise retains its
-    // resolution, which is the property that makes `done` worth having, so a consumer holding N
-    // settled handles holds N `RunState`s. A consumer who previously kept no completion machinery
-    // at all now pays one copy they did not, and the `structuredClone` `freezeInput` makes is now
-    // paid on every settlement of every run rather than only where a consumer asked for one.
-    // [Q320](../../doc/questions/q320.md).
+    // **It is ABOUT THE SAME as what a consumer's own inputs-and-fold block retains, not half** — W77's conformity reader,
+    // finding 3: that block's state shared its results with its own `inputs` (89.7 KiB against 87.6), and `v8.serialize`
+    // on two roots cannot see the sharing. It is bounded per RETAINED HANDLE rather than per live run: a promise retains
+    // its resolution, so a consumer holding N settled handles holds N `RunState`s. [Q320](../../doc/questions/q320.md).
     let settle!: (s: RunState) => void;
     const done = new Promise<RunState>((resolve) => { settle = resolve; });
-    let state = emptyState();
+    const acc = Accumulator.load(emptyState());
+    /** The last state materialised and frozen — `state()`'s cache, dropped by every input that MOVES the state (P39 (b)). */
+    let cached: RunState | null = null;
+    /** Every object a materialisation has deep-frozen — the accumulator shares them across materialisations, so each is walked ONCE. */
+    const frozen = new WeakSet<object>();
     let settled = false;
-    // **A RESUMED run's state starts from the events the checkpoint STORED** (`RN-R25`), stepped at the first element the
+    // **A RESUMED run's state starts from the events the checkpoint STORED** (`RN-R25`), applied at the first element the
     // driver delivers — the first position PAST them (`RN-R24`). Not before: `Driver.resume` compares every stored element
     // with what its replay regenerates and delivers nothing until the stored ones have all been matched, so by the time this
-    // steps them they are the driver's own first elements, and a checkpoint the replay refuses is never folded here at all.
+    // applies them they are the driver's own first elements, and a checkpoint the replay refuses is never folded here at all.
+    // **A read applies them too, whichever comes first** (`catchUp`) — so every read is total; `RN-R22` makes the
+    // delivery come first on every resume that returns a handle (its `resumed` element is appended always, before the
+    // first re-dispatch, inside `resume()`), and W196's declaration step measured it (re-take 2).
     let seed: readonly FoldInput[] | null = from === null ? null : from.events;
+    /**
+     * **The input as the RUNTIME keeps it** — a settlement's or a resolution's record COPIED where its `result` is an
+     * object, so the state shares nothing with what the consumer's `onFoldInput` is handed, nor with a consumer's stored
+     * events on a resume (ADR 0122 rule 4). The record's `error` is a string or `null` (`LogRecord`), and every other kind
+     * the accumulator already copies (an ask's `input`, a gate's `key`, a resume's list) or holds only primitives of BY TYPE (C4).
+     */
+    const own = (input: FoldInput): FoldInput => {
+      if (input.kind !== 'outcome' && input.kind !== 'resolution') return input;
+      const r = input.record;
+      return typeof r.result === 'object' && r.result !== null ? { kind: input.kind, record: structuredClone(r) } as FoldInput : input;
+    };
+    const take = (input: FoldInput) => {
+      if (acc.apply(own(input))) cached = null;
+    };
+    const catchUp = () => {
+      if (seed === null) return;
+      for (const stored of seed) take(stored);
+      seed = null;
+    };
+    /**
+     * **Deep-freeze what a materialisation hands out** — every object reachable, iteratively (a result may nest deeper
+     * than a stack), each one ONCE: an object already in `frozen` was frozen with everything under it. A typed array's
+     * elements cannot be frozen (`Object.freeze` throws on a non-empty one), so a view is left as it is; a `Map`'s and a
+     * `Set`'s members are walked and the collection frozen as far as `Object.freeze` reaches. What `Object.freeze` does not
+     * stop — a view's elements, an `ArrayBuffer`'s bytes, a `Date`'s time, a collection's membership — is the stated limit,
+     * `RN-R44`.
+     */
+    const freezeDeep = <T>(root: T): T => {
+      const stack: unknown[] = [root];
+      while (stack.length > 0) {
+        const v = stack.pop();
+        if (typeof v !== 'object' || v === null || frozen.has(v)) continue;
+        frozen.add(v);
+        if (ArrayBuffer.isView(v)) continue;
+        if (v instanceof Map) for (const [k, x] of v) stack.push(k, x);
+        else if (v instanceof Set) for (const x of v) stack.push(x);
+        for (const k of Reflect.ownKeys(v)) {
+          const d = Object.getOwnPropertyDescriptor(v, k);
+          if (d !== undefined && 'value' in d) stack.push(d.value);
+        }
+        Object.freeze(v);
+      }
+      return root;
+    };
+    /** `RunHandle.state()` — and what `done` resolves with: the cache, else one materialisation, frozen (P39 (b), (f)). */
+    const current = (): RunState => {
+      catchUp();
+      return cached ??= freezeDeep(acc.materialise());
+    };
     // **The STEP is synchronous and the PREDICATE is not, and the split is load-bearing.** The
     // driver dispatches the next node synchronously inside the same listener turn, so asking
     // `isTerminal` the instant an input arrives can report a terminal state with the run still
     // going — `AGENTS.md`'s own prose calls this "load-bearing rather than decoration" and
-    // `RN-R12` claims its predicate at rest. Stepping, by contrast, is correct at every prefix.
+    // `RN-R12` claims its predicate at rest. Applying, by contrast, is correct at every prefix.
+    // **The predicate reads the OUTCOME alone, never a materialisation** — `isTerminal` reads nothing but `outcome`
+    // (`src/fold/run-state.ts`), and a microtask is queued per input, so materialising here would cost O(run) per input:
+    // P39 prediction 4's cost, paid by every run whether or not anybody reads its state (W197's provocation).
     //
     // **And the same moment RELEASES the run** — [ADR 0091](../../doc/decisions/0091-a-runtime-releases-a-run-when-its-done-settles-and-keeps-only-its-run-id.md)
     // rule 1. Once `done` has the terminal state, nothing the runtime holds may reach this driver: the router drops it, and
     // `inUse` keeps the id (rule 2). Here and not on the input: a mid-turn prefix can read terminal while the run is live
     // (`RN-R12`), and `awaiting_action` never reaches this line (rule 3).
     const settleIfTerminal = () => {
-      if (settled || !isTerminal(state)) return;
+      if (settled || !isTerminal({ outcome: acc.outcomeNow() } as RunState)) return;
       settled = true;
+      // **`done` resolves with the object `state()` returns** — P39 (f): one copy, one definition.
+      const at = current();
       // **A STOPPED run settles once the stop's cancels have RESOLVED** (`RN-R33`, ADR 0105, P34 (d)), not at its
       // `interrupted` element: the driver went deaf before it cancelled, so no settlement will ever move this state again
       // and the fold cannot say when the tasks have stopped — the cancel promises can. Every cancel the driver sent is in
@@ -789,13 +877,12 @@ export function createRuntime(
       // consumer's callback on the element throws), and this runs a microtask after the
       // element. The same promises `driver.stop`'s own promise waits on, so `handle.stop()` and `handle.driver.stop()`
       // settle `done` alike. Released then and not before (ADR 0091 rule 1); `done` still never rejects.
-      if (state.outcome === 'interrupted' && stopping.size > 0) {
-        const at = state;
+      if (at.outcome === 'interrupted' && stopping.size > 0) {
         const fin = () => { settle(at); router.release(runId); };
         void Promise.allSettled([...stopping]).then(fin);
         return;
       }
-      settle(state);
+      settle(at);
       router.release(runId);
     };
     // **The whole of `registry`, spread** — which is what makes decision 14's claim true: a
@@ -842,11 +929,8 @@ export function createRuntime(
       // of a run from its first, and it is the well-formed wrong answer the first time a driver's
       // sequence does not start at this callback's first call.
       onFoldInput: (input: FoldInput, seq: number) => {
-        if (seed !== null) {
-          for (const stored of seed) state = step(state, stored);
-          seed = null;
-        }
-        state = step(state, input);
+        catchUp();
+        take(input);
         queueMicrotask(settleIfTerminal);
         startOptions.onFoldInput?.(input, seq);
       },
@@ -877,7 +961,24 @@ export function createRuntime(
     // **The header is the DRIVER's, read back — not assembled here from `flow`, `payload` and
     // `runId`** (ADR 0064 rule 5, P23 decision 4). Assembling it would agree on every field but
     // one: the entry payload would be the caller's own object, which the caller can still mutate.
-    return { driver, done, header: driver.checkpoint().header, stop: (stopOptions) => driver.stop(stopOptions) };
+    // **The three reads, over the accumulator this run keeps** — `RN-R44`, ADR 0122, P39 (b): `state()` the cached frozen
+    // copy; `outcome()` and `node()` O(1), each catching up a resume's stored events first, as `state()` does.
+    return {
+      driver,
+      done,
+      header: driver.checkpoint().header,
+      stop: (stopOptions) => driver.stop(stopOptions),
+      state: current,
+      outcome: () => {
+        catchUp();
+        return acc.outcomeNow();
+      },
+      node: (taskId) => {
+        catchUp();
+        const entry = acc.entry(taskId);
+        return entry === undefined ? null : freezeDeep(entry);
+      },
+    };
   }
 }
 

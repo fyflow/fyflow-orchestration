@@ -425,6 +425,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W196 — P39 (b), (c), (d), (f), ADR 0122, `RN-R44`: the run's live state on its handle — L1 in
+  // `test/scheduler/live-state.test.ts`, every read held equal to the caller's own fold; counted below.
+  'L1 — RN-R44: the run`s live state on its handle — a frozen copy cached until the next input, the caller`s own fold at every quiescent point, on start and on resume; outcome(), node(), and done the same object',
   // W195 — P39 decision 4, ADR 0121, `RN-R13` v0.30: the driver's per-task view of its log — L2 in
   // `test/driver/log-view.test.ts`, every per-task read held equal to the whole log's; counted below.
   'L2 — RN-R13 v0.30: the driver`s per-task view of its log — every per-task read equal to the whole log`s, outputs() equal to a rebuild, linear in its settlements',
@@ -978,6 +981,12 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L2 — RN-R13 v0.30: the driver`s per-task view of its log — every per-task read equal to the whole log`s, outputs() equal to a rebuild, linear in its settlements'), 10,
       'test/driver/log-view.test.ts registers its ten: every per-task read at every fold input, outputs() over a long tail, a second settlement of a settled task, a resumed run, the view`s own records, the queues first-in first-out, a throw with attempts queued behind it, the count ratio, the count of records, and the source read as its second observer');
+  });
+  // **W196's suite, counted the same way and for the same reason.**
+  test('W196`s suite still REGISTERS the eleven cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1 — RN-R44: the run`s live state on its handle — a frozen copy cached until the next input, the caller`s own fold at every quiescent point, on start and on resume; outcome(), node(), and done the same object'), 11,
+      'test/scheduler/live-state.test.ts registers its eleven: every quiescent point over four shapes, the valid corpus, a resume, the cache, the copy claim, the cheap reads, done the same object, after release, a result freeze cannot reach, one accumulator counted, and the membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

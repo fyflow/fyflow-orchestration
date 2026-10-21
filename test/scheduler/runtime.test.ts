@@ -1358,7 +1358,7 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
       'and all three modules were compared — a module that leaves this list fails here naming itself');
   });
 
-  test('the runtime CALLS `isTerminal` and `step` rather than reimplementing either — P20 decision 2', async () => {
+  test('the runtime CALLS `isTerminal` and keeps the fold`s own accumulator rather than reimplementing either — P20 decision 2, W196', async () => {
     const runtime = await readText(ROOT + 'src/scheduler/runtime.ts');
     const at = runtime.indexOf('const driver = new Driver(flow, {');
     const from = runtime.indexOf('const runId = startOptions.runId');
@@ -1373,8 +1373,14 @@ suite('W76 — StartOptions and start() are two lists, and nothing compared them
       'the terminality predicate is CALLED, not copied — a copy agrees with the original until `RunOutcome` gains a member, and nothing behavioural can see that');
     ok(!/outcome\s*!==\s*['"]running['"]/.test(machinery),
       'and `isTerminal``s BODY does not appear here: inlining it cost ZERO on every rung (W77`s adequacy reader, BLOCKING 4)');
-    ok(/\bstep\(/.test(machinery),
-      'and the mechanism STEPS a kept prefix — `fold` is this loop, and RN-R2 is what licenses keeping it');
+    // **W196, ADR 0122**: the kept prefix is the fold's ONE accumulator held OPEN (`RN-R43`) — W194's class, the very
+    // definition `fold` runs — where until W196 it was one `RunState` `step`ped per input (O(run) a step since W194).
+    ok(/\bAccumulator\.load\(/.test(machinery) && /\bacc\.apply\(/.test(machinery),
+      'and the mechanism keeps the FOLD`S OWN accumulator and applies each input to it — `fold` is this, and RN-R2 is what licenses keeping it');
+    ok(!/\bstep\(/.test(machinery),
+      'and it does not STEP: a step loads and materialises the whole state, O(run) per input (RN-R43) — W196`s whole point');
+    ok(!/\bfoldWith\(|\bfold\(/.test(machinery),
+      'nor re-fold: a fold per input is the same O(run) per input by another road');
     ok(!/foldInputs\(\)/.test(machinery),
       'and it does NOT read `driver.foldInputs()`: if it did, the headline invariant would be one route compared with itself rather than two ' +
       '(W77`s adequacy reader, BLOCKING 3 — measured at ZERO failures)');
