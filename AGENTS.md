@@ -1734,6 +1734,13 @@ A resolved node is **indistinguishable** from one that settled that way: same no
 **Run state is a pure fold of an ordered log.** The driver produces the sequence; `fold` turns it
 into state and touches nothing else.
 
+**What it costs** — `RN-R43`, from 0.9.0 ([ADR 0120](doc/decisions/0120-the-fold-is-one-accumulator-and-step-stays-pure.md)):
+**`fold(inputs)` is linear in its inputs** — a `map` over 4,000 items folds in milliseconds, where 0.8.0 took half a
+minute — and **`step(state, input)` is pure and costs O(the state it is handed)**: it never mutates the state you give
+it, so wherever the input moves something it copies what changed into a new state (and hands yours back where nothing
+moves) — and stepping every input of a long run yourself costs O(run²) in total. Fold the sequence when you
+need the state; step only where you hold a short one. Both return exactly what they did in 0.8.0, on every sequence a driver appends (`RN-R43` states its one limit).
+
 ```ts run
 import { fold, isTerminal, type FoldInput } from 'fyflow-orchestration';
 
@@ -2765,7 +2772,8 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 scheduler cannot show which node a run is at, which branch it took, or what a join is waiting on.
 That is [Q21](doc/questions/q21.md), and it is about the scheduler's stream, not about this
 library — **this library does expose all three.** `onFoldInput` is the push half of `foldInputs()`,
-so you can fold incrementally and see a run finish without polling; `onRegionEvent` reports branches
+so you can fold incrementally and see a run finish without polling — mind section 8's *What it costs*: a `step` per
+input is O(run) each; `onRegionEvent` reports branches
 opening, arriving, exiting, suspending and resuming; `joinStatusOf()` answers what a join is waiting
 on. What is missing is an agreed envelope shape between the two repositories, not the data.
 

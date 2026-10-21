@@ -182,7 +182,7 @@ make the reply depend on Map insertion order, which is dispatch order, which is 
    retention observers declare `Map<fanoutId, Map<branchPath, payload>>` themselves and so compiled
    against their own stale restatement; each surfaced as a wrong COUNT rather than an error.
 4. **`RN-R10` and the nothing-yet guard quantify over region INSTANCES**, so both walks flatten the
-   two levels. Written once, in `allRegionRuns`, so they cannot drift. **Only ONE of the two is
+   two levels. Written once, in `allRegionRuns`, so they cannot drift. *(2026-10-21, [ADR 0120](0120-the-fold-is-one-accumulator-and-step-stays-pure.md), W194: the two walks are now two RUNNING COUNTS over instances, kept by the one function that weighs an instance — `regionWeight` in `src/fold/accumulator.ts` — which serves the same purpose; `allRegionRuns` is gone. The rule is unchanged.)* **Only ONE of the two is
    reachably instance-quantified, and that is stated rather than implied** — W84's adequacy reader,
    finding 10: narrowing the flatten to each opener's first instance is caught by `RN-R10` and is
    invisible to the nothing-yet guard, which runs only when `nodes` and `pathEnds` are both empty.
