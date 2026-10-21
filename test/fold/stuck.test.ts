@@ -200,7 +200,7 @@ suite('RN-R2 — the fold is still total over any prefix, with the new inputs', 
 suite('RN-R10 and RN-R12 — the reachable cases no test reached', (test) => {
   test('a run with TWO INSTANCES of ONE opener is stuck when EITHER join has not fired', () => {
     // **W84, and rule 8's set is what found this missing.** `RN-R10` quantifies over
-    // region INSTANCES since ADR 0062, and `allRegionRuns` flattens the two levels for
+    // region INSTANCES since ADR 0062, and `allRegionRuns` flattened the two levels for
     // it — but narrowing that flatten to the FIRST instance of each opener cost ZERO,
     // because no fold anywhere had one instance joined and another not. Two instances
     // of ONE opener, which is the only shape that separates the flatten from a walk

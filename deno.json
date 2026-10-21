@@ -32,6 +32,7 @@
       "!src/driver/policy.ts",
       "!src/driver/driver.ts",
       "!src/fold/run-state.ts",
+      "!src/fold/accumulator.ts",
       "!src/fold/policies.ts",
       "!src/scheduler/index.ts",
       "!src/scheduler/bootstrap.ts",
