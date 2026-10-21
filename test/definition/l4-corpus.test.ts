@@ -425,6 +425,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W197 — P39 (e) and its exit clause (1): a large map's cost as clock-free counts at 2,000 and 8,000 items — L1-L2 in
+  // `test/fold/map-cost.test.ts`, the fold, the driver and a runtime pinned exactly, each restored cost red; counted below.
+  'L1-L2 — P39 (e): a large map`s cost as CLOCK-FREE COUNTS at 2,000 and 8,000 items — fold, driver and runtime each pinned exactly and below 6x, every restored cost red',
   // W196 — P39 (b), (c), (d), (f), ADR 0122, `RN-R44`: the run's live state on its handle — L1 in
   // `test/scheduler/live-state.test.ts`, every read held equal to the caller's own fold; counted below.
   'L1 — RN-R44: the run`s live state on its handle — a frozen copy cached until the next input, the caller`s own fold at every quiescent point, on start and on resume; outcome(), node(), and done the same object',
@@ -987,6 +990,12 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L1 — RN-R44: the run`s live state on its handle — a frozen copy cached until the next input, the caller`s own fold at every quiescent point, on start and on resume; outcome(), node(), and done the same object'), 11,
       'test/scheduler/live-state.test.ts registers its eleven: every quiescent point over four shapes, the valid corpus, a resume, the cache, the copy claim, the cheap reads, done the same object, after release, a result freeze cannot reach, one accumulator counted, and the membership');
+  });
+  // **W197's suite, counted the same way and for the same reason.**
+  test('W197`s suite still REGISTERS the seven cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1-L2 — P39 (e): a large map`s cost as CLOCK-FREE COUNTS at 2,000 and 8,000 items — fold, driver and runtime each pinned exactly and below 6x, every restored cost red'), 7,
+      'test/fold/map-cost.test.ts registers its seven: the fold, the driver and the runtime, each exact and below 6x; the three subjects provoked; and the membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {

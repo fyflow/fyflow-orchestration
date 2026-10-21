@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's** and **P38's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's** and **P39's**. *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -89,6 +89,7 @@
  * | **W182 — a node that waits for a PERSON** | **P35's EXIT ARTIFACT: the `ask` node kind on real workers in both runtimes.** (1) An ask reached after a task on a THREADED pool PARKS with nothing handed to the scheduler — its id in no `addTask`, no `scheduler.tasks`, no event — the fold reading the run `awaiting_action` and the node `suspended`, its kept input exactly the value the task returned. (2) A `done` answer its `answerSchema` refuses is THROWN as `BoundaryRefused` with nothing appended, and the conforming one on the SAME driver routes by a `when` over the answer — to one end in one run and the other in a second. (3) A decline routes `on: ["failed"]`. (4) An ask as a fan-out's branch holds the join — answered after its sibling arrived, the join fires AT the answer; answered while the sibling still runs, at the sibling's settlement. (5) A parked run STOPPED on one runtime and resumed on a FRESH one re-parks at the same id with the same kept input, nothing handed for it, and is answered there to `completed`. (6) A parked run CANCELLED sends the scheduler nothing and settles `cancelled` — beside a cancel while the task before it runs, which IS sent. (7) A PAUSED run's answer has its successor held until the unpause — beside an unpaused answer handing it on at once. Its registry is written in the block, not `registry.json`; and the every-kind clause reads its flows, so `ask` is no longer exempt there |
  * | **W188 — whose task it is, and what survives a resume** | **P36's EXIT ARTIFACT: a task's attribution and its attempts on real workers in both runtimes.** (1) Two runs of one fan-out on ONE runtime — a task on a THREADED pool and one INLINE, each emitting three lines per attempt, one run's tasks failing their first attempt — each run's `onTaskMessage` receiving every message of its own tasks with `runId`, `nodeId`, `branchPath`, `taskId`, `flowAttempt` and the scheduler's `attemptNumber` as FIELDS, frozen, in `seq` order per attempt, the retried attempt's under number 2, and nothing of the other run's; its `onTaskProgress` the same. (2) Each fold's `nodes` entry carrying its run, flow-level attempt `0` and the attempts the scheduler MADE — 2 against 1, read off the scheduler's task, its `task.running` events and the worker's own count. (3) `onHeader` called once inside `start()` before anything is appended or handed on, a frozen header equal to the handle's — and a throwing one starting nothing. (4) A task of `maxRetries: 2` whose worker always fails, the consumer's store frozen in its SECOND attempt and resumed on a FRESH runtime: handed `attemptsSpent: 2`, run once — THREE calls across both processes, where the same checkpoint less its attempt elements makes FIVE. (5) A run STOPPED in an attempt and resumed elsewhere counting that attempt as spent. (6) A task whose budget was spent at the kill handed on, run once and folded from the scheduler's own settlement. Its registry is written in the block, not `registry.json` |
  * | **W192 — what reached the RUN, and what opened the MAP INSTANCE** | **P38's EXIT ARTIFACT: the `"$payload"` and `"$item"` references on real workers in both runtimes.** (1) An ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice: "$payload", answer: "approve" }` — the run's payload beside the person's answer — and an edge routing on `needs.run.amount` from `needs: { run: "$payload" }`, 120 to `audit` and 50 past it. (2) An ENTRY map of three whose branch is an ask, each `pay` on an INLINE pool receiving its OWN item beside its OWN answer, answered out of order, `audit` reading the item two hops in. (3) The copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on one node and on one edge — the caller's, an inline worker's and a predicate's writes reaching nothing else. (4) That map STOPPED with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the header's five keys at format 1, no new kind. (5) `"$item"` after the map's join refused `FD-V49` naming both fixes. (6) The release horizon: a fanout in a fanout in each instance, inner joins fired at their FIRST arrival by a consumer's policy, the reader entered after its instance arrived — each reading its own item. Its registry is written in the block, not `registry.json`; and the reference censuses read its flows, so `NOT_YET_AT_L6` is gone |
+ * | **W197 — a run's live state on its handle** | **P39's EXIT ARTIFACT clause (3): `RunHandle.state()` on real workers in both runtimes.** Per pool, THREADED and INLINE: (1) a `map` of five items whose `state()`, read on a microtask after EVERY delivered input, is the public `fold` of the delivered prefix key order included, frozen at every depth, and a consumer's write to it — its `outcome`, a NESTED field of a result — throws and moves nothing; at `done`, `await done` IS `state()`, equal to `fold(driver.foldInputs())`, each result the worker's, still that object a macrotask on. (2) The same `map` STOPPED with two items settled and two holding, RESUMED on a FRESH runtime: the first read after `resume()` already folds the STORED events (`RN-R22` makes it the first quiescent point), every later read the fold of the stored and delivered inputs, and `done` the same object, completed. Never paused, so `RN-R44`'s one exception — an unpause after a run finished while paused — is not reached. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5971,6 +5972,25 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W197**: P39's exit-artifact block — sixteen subjects, eight per pool: (1) four over the run to the end — every
+  // quiescent read the fold, frozen, a write refused, `done` the same object; (2) four over the stopped run and its
+  // resume — the stop, the first read after `resume()`, every later read, `done` on the fresh runtime.
+  'W197 exit (1, threaded): state() at EVERY quiescent point',
+  'W197 exit (1, threaded): every read frozen at every depth',
+  'W197 exit (1, threaded): a consumer\'s write to a read',
+  'W197 exit (1, threaded): at done, await done IS state()',
+  'W197 exit (2, threaded): STOPPED with items 0 and 1 settled',
+  'W197 exit (2, threaded): resumed on a FRESH runtime, the first read after resume()',
+  'W197 exit (2, threaded): every later read on the fresh runtime',
+  'W197 exit (2, threaded): at done on the fresh runtime',
+  'W197 exit (1, inline): state() at EVERY quiescent point',
+  'W197 exit (1, inline): every read frozen at every depth',
+  'W197 exit (1, inline): a consumer\'s write to a read',
+  'W197 exit (1, inline): at done, await done IS state()',
+  'W197 exit (2, inline): STOPPED with items 0 and 1 settled',
+  'W197 exit (2, inline): resumed on a FRESH runtime, the first read after resume()',
+  'W197 exit (2, inline): every later read on the fresh runtime',
+  'W197 exit (2, inline): at done on the fresh runtime',
   // **W192**: P38's exit-artifact block — twenty-two subjects, by exit clause: (1) two per run over two runs, each the other's
   // control — the entry ask's successor receiving the run's payload beside the answer, and the edge on the run's amount;
   // (2) four — the parks, each `pay` its own item and answer, the route two hops in, the arrangement; (3) seven — the caller's
@@ -6862,7 +6882,9 @@ const declaresConstruction = (text: string): boolean => text.includes(CONSTRUCTO
  * in one diff. **Here that IS the mechanism** rather than its limit — the two edits are the point,
  * and they are in different files.
  */
-const CONSTRUCTION_PRICED: readonly string[] = ['./settlement-cost.ts'];
+// **And `./map-cost.ts` since W197** — P39's exit clause (2): the app's repro IS a `Driver` over a scheduler double, so the
+// file that re-takes it builds one, and declares it in its own text.
+const CONSTRUCTION_PRICED: readonly string[] = ['./map-cost.ts', './settlement-cost.ts'];
 
 /**
  * **The positive fixture, assembled from parts** — as `REACH_CASES` is, and for the same reason: the
@@ -12522,6 +12544,256 @@ if (piBlock !== null) {
   ['completed', [{ it: { id: 'P', hold: { q: 300 } } }, { it: { id: 'Q', hold: { l: 600, p: 600 } } }, { it: { id: 'R', hold: { q: 900 } } }], ['threaded']]);
 }
 
+/**
+ * **W197 — a run's live state on its handle, on real workers in both runtimes: P39's EXIT ARTIFACT clause (3)** —
+ * [W197](../doc/work-items/w197-the-cost-check-and-the-exit-artifact.md),
+ * [P39](../doc/plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md), `RN-R44`,
+ * [ADR 0122](../doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md) — fyflow-app's *pass 2* #2.
+ *
+ * **Through the owner's road and nothing else**: `createRuntime` over a registry document written here with ONE `data:`
+ * worker and two types, a THREADED pool and an INLINE one; `start`, `RunHandle.stop`, `runtime.resume`, and the handle's
+ * `state()`. **The observer is the consumer's own**: its `onFoldInput` keeps every input it is handed and queues ONE
+ * microtask per input, which reads `state()` once the driver's synchronous turn is over — a quiescent point (`RN-R12`) —
+ * and compares it, key order included, with the PUBLIC `fold` of every input delivered so far.
+ *
+ * **Per pool, threaded and inline:**
+ * (1) a `map` of five items run to the end: at EVERY quiescent point `state()` is the fold of the delivered prefix, frozen
+ *     at every depth, and a consumer's attempt to write it — its `outcome`, and a NESTED field of a node's result — throws
+ *     and moves nothing a later read sees; at `done`, `await done` IS `state()`, equal to `fold(driver.foldInputs())` and to
+ *     the fold of every delivered input, each result the worker's by hand, and still that object a macrotask after;
+ * (2) the same `map` STOPPED with items 0 and 1 settled and 2 and 3 holding until their signal, and RESUMED on a FRESH
+ *     runtime: the first read after `resume()` — at its first quiescent point, since `resume()` delivers its `resumed`
+ *     element before it returns (`RN-R22`; W196's re-take 2: no read can precede it, so the premise is asserted, not the
+ *     read) — already folds the STORED events, items 0 and 1 `done` with their results; every later read the fold of the
+ *     stored events and the delivered ones; and at `done` the same object, completed.
+ *
+ * **Never a pause, so W196's stated exception is not reached here** (`RN-R44`, ADR 0122 rule 3): a run that FINISHED while
+ * paused may still be unpaused, so its `state()` moves past `done` while `done` does not. Every run here settles unpaused.
+ *
+ * **Every expected value is the spec's or this fixture's**: the worker's result from `LS_WORK`'s source, the input count
+ * from `spec/run-state.md` section 2's elements for a `map` (`5n + 3` with an `attempted` element per task), the ids from
+ * `spec/task-id.md` section 1. **No order across tasks is asserted** — only which tasks had settled when the stop was
+ * taken, which the hold times ARRANGE: items 0 and 1 hold nothing, 2 and 3 hold until their signal.
+ */
+const LS_DEADLINE_MS = 15_000;
+const LS_HOLD_MS = 8_000;
+// `LsWork`: returns `{ i, deep: { list: [i], mark: "w" } }` for its item `{ i }` — a NESTED result, so a write into it is a
+// write a shallow freeze would let through. With `hold` (the HOLDING variant, runtime A of clause (2)), it first waits for
+// its signal or `hold` ms, whichever comes first; the variant B runs never holds.
+const lsWork = (holding: boolean) => 'export default class { async setup() {} async run(p, ctx) { const it = p.input; ' +
+  (holding
+    ? 'if (it && it.hold) await new Promise((resolve) => { if (ctx.signal.aborted) { resolve(null); return; } ' +
+      'const t = setTimeout(resolve, it.hold); ctx.signal.addEventListener("abort", () => { clearTimeout(t); resolve(null); }, { once: true }); }); '
+    : '') +
+  'return { i: it.i, deep: { list: [it.i], mark: "w" } }; } }';
+const lsDoc = (holding: boolean) => ({
+  workers: { lsWork: { url: rcUrl(lsWork(holding)) } },
+  nodeTypes: {
+    LsThreaded: { worker: 'lsWork', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    LsInline: { worker: 'lsWork', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+const lsFlow = (pool: 'threaded' | 'inline') => ({
+  flowId: `w197-live-${pool}`, version: 1, entry: 'each',
+  nodes: [
+    { id: 'each', kind: 'map', over: 'items', branch: 'work' },
+    { id: 'work', kind: 'task', type: pool === 'threaded' ? 'LsThreaded' : 'LsInline', edges: [{ to: 'collect' }] },
+    { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+}) as unknown as FlowDefinition;
+/** What `LsWork` returns for item `i`, BY HAND from its source. */
+const lsResult = (i: number) => ({ i, deep: { list: [i], mark: 'w' } });
+/** The first object reachable from `v` that is NOT frozen, by path — or `null` — and how many objects were walked. */
+const lsUnfrozen = (v: unknown): { path: string | null; objects: number } => {
+  const seen = new Set<object>();
+  const stack: [unknown, string][] = [[v, '$']];
+  let objects = 0;
+  while (stack.length > 0) {
+    const [x, p] = stack.pop()!;
+    if (typeof x !== 'object' || x === null || seen.has(x)) continue;
+    seen.add(x);
+    objects += 1;
+    if (!Object.isFrozen(x)) return { path: p, objects };
+    for (const k of Object.keys(x)) stack.push([(x as Record<string, unknown>)[k], `${p}.${k}`]);
+  }
+  return { path: null, objects };
+};
+/**
+ * **The consumer that reads `state()` at every quiescent point** — `prefix` is what the comparison folds: the stored
+ * events (a resume) and every input delivered since. Each read is compared with `fold(prefix)` BYTE FOR BYTE, walked for
+ * an unfrozen object, and then WRITTEN TO twice — its `outcome`, and the nested `deep.list` of a node's result where one
+ * has settled — each write expected to THROW (strict mode, a frozen object); after them `state()` must be the SAME object,
+ * still the fold. A throw inside the read is recorded as the disagreement it is: a throw on a microtask is an uncaught
+ * exception, and a crash is not a detection.
+ */
+const lsReader = (stored: readonly FoldInput[]) => {
+  const out = {
+    delivered: [] as FoldInput[], reads: 0, why: null as string | null,
+    // **Each claim carries its OWN verdict** (W197's conformity reader, finding 2): the first unfrozen path and the most
+    // objects one read walked are the freeze claim's; the writes, those that threw and those that MOVED the state are
+    // the write claim's — none of them folded into `why`, which is the equality's alone.
+    unfrozen: null as string | null, maxObjects: 0, writes: 0, thrown: 0, moved: 0, first: null as RunState | null, deliveredAtFirst: -1,
+  };
+  const ref: { h: RunHandle | null } = { h: null };
+  const read = () => {
+    const h = ref.h;
+    if (h === null || out.why !== null) return;
+    try {
+      const s = h.state();
+      out.reads += 1;
+      if (out.first === null) { out.first = s; out.deliveredAtFirst = out.delivered.length; }
+      const at = `read ${out.reads} (${stored.length} stored + ${out.delivered.length} delivered)`;
+      if (JSON.stringify(s) !== JSON.stringify(fold([...stored, ...out.delivered]))) { out.why = `${at}: state() is not the fold of the prefix`; return; }
+      const f = lsUnfrozen(s);
+      out.maxObjects = Math.max(out.maxObjects, f.objects);
+      if (f.path !== null) out.unfrozen ??= `${at}: ${f.path}`;
+      out.writes += 1;
+      try { (s as { outcome: string }).outcome = 'tampered'; } catch (e) { if (e instanceof TypeError) out.thrown += 1; }
+      const settled = Object.values(s.nodes).find((n) => n.result !== null);
+      if (settled !== undefined) {
+        out.writes += 1;
+        try { (settled.result as { deep: { list: number[] } }).deep.list.push(99); } catch (e) { if (e instanceof TypeError) out.thrown += 1; }
+      }
+      if (h.state() !== s || JSON.stringify(h.state()) !== JSON.stringify(fold([...stored, ...out.delivered]))) out.moved += 1;
+    } catch (e) {
+      out.why = `read ${out.reads + 1}: THREW ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`;
+    }
+  };
+  const onFoldInput = (input: FoldInput) => {
+    out.delivered.push(input);
+    queueMicrotask(read);
+  };
+  return { out, ref, onFoldInput, read };
+};
+let lsBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  // **A clause that THROWS fails its OWN claims, by name, and the next clause still runs** — W188's `atClause`.
+  const lsClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W197 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    const flow = lsFlow(pool);
+    // ---- (1) a map run to the end, read at every quiescent point ----
+    await lsClause(`1, ${pool}`, async () => {
+      const rt = createRuntime(lsDoc(false) as never, {});
+      try {
+        const runId = `w197l${pool[0]}`;
+        const c = lsReader([]);
+        const h = c.ref.h = rt.start(flow, { items: [0, 1, 2, 3, 4].map((i) => ({ i })) }, { runId, onFoldInput: c.onFoldInput });
+        runs.push(`${flow.flowId} ${runId}`);
+        const won = await settleWithin(h.done, LS_DEADLINE_MS);
+        if (won.by !== 'done') throw new Error(`W197: ${runId} never settled within ${LS_DEADLINE_MS} ms`);
+        const end = won.value;
+        const sameAtDone = end === h.state();
+        await rcMacrotask();
+        r[`a${pool}`] = [c.out.why, c.out.reads === c.out.delivered.length, c.out.delivered.length];
+        // The freeze walk reached a NESTED result: the state, `nodes`, and five entries each with its result, `deep` and
+        // `list` — 22 objects at least once all five have settled.
+        r[`b${pool}`] = [c.out.unfrozen, c.out.maxObjects >= 22];
+        r[`c${pool}`] = [c.out.writes >= c.out.reads && c.out.reads > 0, c.out.thrown === c.out.writes, c.out.moved];
+        r[`d${pool}`] = [end.outcome, sameAtDone, JSON.stringify(end) === JSON.stringify(fold(h.driver.foldInputs())),
+          JSON.stringify(end) === JSON.stringify(fold(c.out.delivered)), [0, 1, 2, 3, 4].map((i) => end.nodes[`${runId}:work:${i}:0`]?.result ?? 'NO NODE'),
+          h.state() === end, Object.isFrozen(end)];
+      } finally {
+        await rt.shutdown();
+      }
+    });
+    // ---- (2) the same map STOPPED with two items settled, and RESUMED on a FRESH runtime ----
+    await lsClause(`2, ${pool}`, async () => {
+      const A = createRuntime(lsDoc(true) as never, {});
+      let B: ReturnType<typeof createRuntime> | null = null;
+      try {
+        const runId = `w197s${pool[0]}`;
+        const items = [{ i: 0 }, { i: 1 }, { i: 2, hold: LS_HOLD_MS }, { i: 3, hold: LS_HOLD_MS }];
+        let twoSettled!: () => void;
+        const settledTwo = new Promise<void>((res) => { twoSettled = res; });
+        let outcomes = 0;
+        const a = lsReader([]);
+        const h = a.ref.h = A.start(flow, { items }, {
+          runId,
+          onFoldInput: (input) => {
+            a.onFoldInput(input);
+            if (input.kind === 'outcome' && ++outcomes === 2) twoSettled();
+          },
+        });
+        runs.push(`${flow.flowId} ${runId}`);
+        const twoW = await settleWithin(settledTwo, LS_DEADLINE_MS);
+        if (twoW.by !== 'done') throw new Error('W197: items 0 and 1 never settled');
+        await rcMacrotask();
+        const settledAtStop = h.driver.foldInputs().flatMap((i) => (i.kind === 'outcome' ? [i.record.taskId] : [])).sort();
+        const stopW = await settleWithin(h.stop({ actor: 'w197', reason: 'W197 L6: moved' }), LS_DEADLINE_MS);
+        const doneA = await settleWithin(h.done, LS_DEADLINE_MS);
+        const checkpoint = structuredClone(h.driver.checkpoint()) as Checkpoint;
+        const stored = checkpoint.events;
+        r[`s${pool}`] = [stopW.by, doneA.by === 'done' ? doneA.value.outcome : 'NEVER SETTLED', settledAtStop,
+          fold(stored).nodes[`${runId}:work:2:0`]?.state ?? 'NO NODE', fold(stored).nodes[`${runId}:work:3:0`]?.state ?? 'NO NODE', a.out.why];
+        // B is FRESH, and its worker holds nothing.
+        B = createRuntime(lsDoc(false) as never, {});
+        const b = lsReader(stored);
+        const hb = b.ref.h = B.resume(flow, checkpoint, { onFoldInput: b.onFoldInput });
+        runs.push(`${flow.flowId} ${runId} resumed on B`);
+        const deliveredInsideResume = b.out.delivered.length;
+        // The first quiescent point after resume(): the microtasks the delivered inputs queued come first, so the FIRST read
+        // is the one the first of them makes — the stored events and what resume() delivered, folded.
+        await Promise.resolve();
+        const first = b.out.first;
+        r[`f${pool}`] = [deliveredInsideResume >= 1, first !== null && b.out.deliveredAtFirst === deliveredInsideResume,
+          first === null ? 'NO READ' : JSON.stringify(first) === JSON.stringify(fold([...stored, ...b.out.delivered.slice(0, b.out.deliveredAtFirst)])),
+          [0, 1].map((i) => (first === null ? 'NO READ' : [first.nodes[`${runId}:work:${i}:0`]?.state ?? 'NO NODE', first.nodes[`${runId}:work:${i}:0`]?.result ?? null])),
+          // Frozen at EVERY depth, by the same walk — not the top level alone (W197's adequacy reader, gap 6).
+          first === null ? 'NO READ' : lsUnfrozen(first).path];
+        const won = await settleWithin(hb.done, LS_DEADLINE_MS);
+        if (won.by !== 'done') throw new Error(`W197: ${runId} never settled on B within ${LS_DEADLINE_MS} ms`);
+        const end = won.value;
+        r[`g${pool}`] = [b.out.why, b.out.reads === b.out.delivered.length, b.out.unfrozen, b.out.thrown === b.out.writes && b.out.writes > 0, b.out.moved];
+        r[`h${pool}`] = [end.outcome, end === hb.state(), JSON.stringify(end) === JSON.stringify(fold(hb.driver.foldInputs())),
+          JSON.stringify(end) === JSON.stringify(fold([...stored, ...b.out.delivered])), [0, 1, 2, 3].map((i) => end.nodes[`${runId}:work:${i}:0`]?.result ?? 'NO NODE')];
+      } finally {
+        await A.shutdown();
+        if (B !== null) await B.shutdown();
+      }
+    });
+  }
+  lsBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W197 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (lsBlock !== null) {
+  const key = 'cross-row';
+  const r = lsBlock.r;
+  for (const pool of ['threaded', 'inline'] as const) {
+    // (1) — RN-R44: a frozen copy, equal to the caller's own fold at a quiescent point; RN-R12 (a quiescent point). A map of
+    // five with an `attempted` element per task: the region entered, five opened, five dispatched, five attempted, five
+    // settled, five arrived, the join and the end — 5n + 3 = 28 inputs, each followed by ONE read.
+    check(key, `W197 exit (1, ${pool}): state() at EVERY quiescent point is the fold of the delivered prefix, key order included (RN-R44)`,
+      r[`a${pool}`], [null, true, 28]);
+    check(key, `W197 exit (1, ${pool}): every read frozen at every depth, a node's NESTED result included (RN-R44)`, r[`b${pool}`], [null, true]);
+    check(key, `W197 exit (1, ${pool}): a consumer's write to a read — its outcome, a nested field of a result — THROWS, and the next read is the same object, still the fold (P39 (b))`,
+      r[`c${pool}`], [true, true, 0]);
+    check(key, `W197 exit (1, ${pool}): at done, await done IS state(), equal to fold(driver.foldInputs()) and to the fold of every delivered input, ` +
+      'each result the worker`s, and still that object a macrotask on (P39 (f))', r[`d${pool}`],
+    ['completed', true, true, true, [0, 1, 2, 3, 4].map(lsResult), true, true]);
+    // (2) — RN-R33 (the stop), RN-R25 / RN-R22 (the resume, its `resumed` element delivered inside `resume()`), RN-R44.
+    check(key, `W197 exit (2, ${pool}): STOPPED with items 0 and 1 settled and 2 and 3 in flight — interrupted, the two still running in the stored fold`,
+      r[`s${pool}`], ['done', 'interrupted', [`w197s${pool[0]}:work:0:0`, `w197s${pool[0]}:work:1:0`], 'running', 'running', null]);
+    check(key, `W197 exit (2, ${pool}): resumed on a FRESH runtime, the first read after resume() — at its first quiescent point — folds the STORED events: ` +
+      'items 0 and 1 done with their results, frozen (RN-R25, RN-R22)', r[`f${pool}`],
+    [true, true, true, [['done', lsResult(0)], ['done', lsResult(1)]], null]);
+    check(key, `W197 exit (2, ${pool}): every later read on the fresh runtime is the fold of the stored events and the delivered ones, frozen, and writes to it throw`,
+      r[`g${pool}`], [null, true, null, true, 0]);
+    check(key, `W197 exit (2, ${pool}): at done on the fresh runtime, await done IS state(), equal to fold(driver.foldInputs()), completed, all four results the worker's`,
+      r[`h${pool}`], ['completed', true, true, true, [0, 1, 2, 3].map(lsResult)]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -12554,7 +12826,9 @@ if (piBlock !== null) {
 // **And `+ piBlock.runs.length` since W192**: its EIGHT runs — (1) the two payload runs, 120 and 50; (2) the review run;
 // (3) the copy run; (4) the run stopped on A and its resume on B; (5) the CONTROL whose entry task is handed (since the
 // readers, A1); (6) the deep run. (5)'s refused start builds no driver and is not a run.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0);
+// **And `+ lsBlock.runs.length` since W197**: its SIX runs — per pool, threaded and inline, (1) the run to the end, and (2)
+// the run stopped on A and its resume on a fresh B.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -12896,7 +13170,11 @@ const PER_PLAIN_ROW = 22;
 // FD-V49, two for the release horizon — all cross-row because the block is outside the row loop. 434 + 22 = 456. *(Written
 // as 456 after the block's first complete run, in node, read 22 new assertions — `2755` derived against `2777` — every one
 // of them green, before this line moved; the declaration had forecast twenty-one, counting the caller's write once.)*
-const CROSS_ROW = 456;
+// **456 at W192, +16 by W197 — P39's EXIT ARTIFACT clause (3)**: the live-state block's sixteen clauses — per pool, threaded
+// and inline, four over the run read to its end (every quiescent read the fold, frozen, a write refused, `done` the same
+// object) and four over the stopped run and its resume (the stop, the first read after `resume()`, every later read, `done`
+// on the fresh runtime) — all cross-row because the block is outside the row loop. 456 + 16 = 472.
+const CROSS_ROW = 472;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -15120,14 +15398,16 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // line among them — 2789 — and 221 runs, `pairRunCount` already counting the block.)* **2789 / 222 after its readers** — (5)'s
 // CONTROL run, whose entry task IS handed (the adequacy reader, A1); no claim added, several widened. *(Written as 2789 / 222
 // before the file was re-run.)*
-const DECLARED_TOTAL = 2789;
+// **2805 / 228 since W197 — P39's EXIT ARTIFACT clause (3), +16 and six runs**, DERIVED: the live-state block's sixteen
+// cross-row assertions (`CROSS_ROW` 456 -> 472) over its six runs. No row moved (P39 prediction 6).
+const DECLARED_TOTAL = 2805;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 222;
+const DECLARED_RUNS = 228;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
