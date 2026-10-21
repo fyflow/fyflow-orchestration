@@ -58,6 +58,9 @@ to answer without reopening
    [Q279](../questions/q279.md)'s answer as a procedure and
    [ADR 0048](0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md)/[W67](../work-items/w67-a-flow-from-documents-on-real-workers.md)'s
    precedent for a bump taken for a reason.
+   ***Amended 2026-10-21 by [ADR 0122](0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md) (W196): the handle is
+   `{ driver, done, header, stop, state, outcome, node }` — `header` ADR 0064's, `stop` ADR 0105's, and `state()`,
+   `outcome()` and `node()` the run's live state (`RN-R44`); `done` resolves with the frozen object `state()` returns.***
 2. **The RUNTIME keeps the fold; the driver never learns one exists.** ADR 0014 spends a paragraph
    forbidding the driver subscribing to itself and names `attachFold(driver)` as the ergonomic next
    step it refuses. **The runtime is a CALLER**: `onFoldInput` is the push half ADR 0014 rule 3 built
@@ -87,11 +90,17 @@ to answer without reopening
    recomputed. It is not a second definition of terminality: `test/scheduler/runtime.test.ts` holds
    `await done` equal to `fold(driver.foldInputs())`, the caller's own expression over the driver's
    own sequence.
+   ***Amended 2026-10-21 by [ADR 0122](0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md) (W196): what is kept
+   is the fold's ONE accumulator held OPEN (ADR 0120, `RN-R43`), each input applied to it — not a `RunState` stepped per
+   input, which costs O(run) a step since ADR 0120. The argument stands: state, not inputs, and `RN-R2` licenses it.***
 6. **The STEP is synchronous and the PREDICATE is not.** The driver dispatches the next node
    synchronously inside the same listener turn, so asking `isTerminal` the instant an input arrives
    can report a terminal state with the run still going — `RN-R12` claims its predicate at rest.
    Stepping is correct at every prefix (rule 5); only the predicate needs quiescence, and it gets it
    from a `queueMicrotask`.
+   ***Dated 2026-10-21, [ADR 0122](0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md) (W196): read *applying* for
+   *stepping* — rule 5 as amended. The split stands, and the predicate now reads the accumulator's OUTCOME alone, never a
+   materialisation: one per input would cost O(run) per input for every run.***
 7. **`onFoldInput` is COMPOSED, not replaced.** It is also a `StartOptions` member a consumer may
    pass, so the runtime wraps it: record first, schedule second, hand on third — `done`'s own
    bookkeeping cannot be shortened by a consumer's callback. This is a THIRD road `start` reaches a
@@ -134,6 +143,10 @@ for the resolution — correct, and a trap, and the reference now has somewhere 
    **5 of 5 results are different objects from the driver's**, and the kept state is 87.6 KiB of
    which **99.4% is the results**. That is P15's own quantity again — (tasks settled) × (bytes each
    returned) — bounded at one extra copy per live run and not growing with time.
+   ***Dated 2026-10-21, [ADR 0122](0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md) rule 4 (W196): the kept
+   state's results are the runtime's OWN copy since then — a record whose result is an object is cloned as it
+   is applied — because the record `freezeInput` hands on is the consumer's `onFoldInput` input, and a consumer writing
+   into its nested result moved `done`. What is retained is unchanged; one more clone per such settlement.***
    **The comparison that makes it acceptable is ABOUT THE SAME, not half** — W77's conformity reader,
    finding 3, and the first version of this paragraph said half. The block this replaces keeps its
    `inputs` array AND folds a state out of it, and those look additive (89.1 + 87.6 = 176.7); they

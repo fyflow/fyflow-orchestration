@@ -67,7 +67,7 @@ void shape;
 **Two documents, and one file of your own.** A REGISTRY says what exists — a worker module, and a
 node type that runs on it. A FLOW says what happens — nodes naming those types, and the edges between
 them. `createRuntime` builds every pool, group and scheduler the registry names and hands back
-**`{ driver, done, header }`** per run — the driver already running, and `done` a promise that resolves with
+**a handle** per run — `{ driver, done, header, stop, state, outcome, node }`: the driver already running, and `done` a promise that resolves with
 the run's terminal state ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). **The only code you write is the worker**:
 `examples/getting-started/worker.ts`, a class with a `run` method and nothing else — no base class,
 no import. Everything below is executed by the gate on every `npm run gate`, and the same snippet is
@@ -1852,7 +1852,8 @@ if (isTerminal(state)) console.log('finished as', state.outcome);
 fold is defined over any prefix, and a prefix taken mid-turn is not a resting state: a settlement is
 recorded before the routing it causes, so there are instants where nothing is running and the run is
 not over. If you fold `driver.foldInputs()` after the fact you are always at a quiescent point; if
-you fold incrementally from `onFoldInput`, read on a `queueMicrotask` — and that microtask is
+you read a run as it goes — a runtime's `handle.outcome()` from `onFoldInput` (below), or a fold you keep yourself on a
+bare `Driver` — read on a `queueMicrotask` — and that microtask is
 **load-bearing rather than decoration**, which is why `done` asks its own predicate at one
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)
 rule 6). *(That phrase lived in §2's copied block until [W78](doc/work-items/w78-the-run-a-consumer-holds-in-one-line.md)
@@ -1863,7 +1864,7 @@ the block — W78's conformity reader, finding 3.)*
 `awaiting_action` and `cancelling` and true for everything else — `interrupted` included, though a resume ELSEWHERE continues that run — and `stuck`, which is the point: before
 `stuck` existed, a permanently hung run folded to `completed` and a waiter reported success.
 
-**And `done` is that rule applied for you.** `runtime.start` returns `{ driver, done, header }` —
+**And `done` is that rule applied for you.** `runtime.start` returns `{ driver, done, header, stop, state, outcome, node }` —
 `header` is the run's CHECKPOINT header since
 [ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md),
 and `driver.checkpoint()` hands out the header with every event so far (`spec/run-state.md`
@@ -1871,7 +1872,8 @@ section 8) — and, since 0.8.0, `start`'s `onHeader` option hands you the same 
 ([ADR 0065](doc/decisions/0065-a-resume-replays-the-stored-stimuli-refuses-what-it-cannot-regenerate-and-re-dispatches-what-was-in-flight.md), `spec/run-state.md` section 9 — section 18 teaches it, as an executed snippet) — and `done`
 resolves with the first `RunState` this predicate calls terminal
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md)). It
-is the same two functions — the runtime keeps one `RunState`, steps it per input and asks
+is the same two functions — the runtime keeps the fold's own accumulator open, applies each input to it (`RN-R44`, from
+0.9.0; it stepped one `RunState` per input until then) and asks
 `isTerminal` at a quiescent point — so there is one definition of *over* with one more caller, and
 nothing above about reading at rest stops being true. **Three things follow, and two of them catch
 people:**
@@ -1890,6 +1892,77 @@ people:**
 - **There is no deadline and there is no option for one**, because once `done` is a promise
   `Promise.race([done, timeout])` is your one line — and a library default would be wrong for the
   bullet above.
+
+### Reading a run WHILE it runs — `handle.state()`, `outcome()` and `node()`
+
+**From 0.9.0 the handle `start` and `resume` return reads the run's state live** (`RN-R44`,
+[ADR 0122](doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md)) — so a consumer showing a run as it
+goes no longer folds it a second time in its own `onFoldInput`:
+
+| read | what it is | costs |
+|---|---|---|
+| `handle.outcome()` | the run's outcome now | O(1) — **the read to make after every input** |
+| `handle.node(taskId)` | that task's `nodes` entry now — the same frozen object `state()` holds — or `null` for a task the run never dispatched | O(1) in the run — its first read of an entry freezes that entry once |
+| `handle.state()` | the whole `RunState` now: a COPY, **frozen at every depth**, and the SAME object on every read until an input moves the run | O(run) for the first read after each input that moved it, nothing after — **so reading it after EVERY input costs O(run²) over a run**: read it when you draw the run |
+
+**At a quiescent point `handle.state()` IS `fold(handle.driver.foldInputs())`** — the same rule as above: read on a
+`queueMicrotask` from `onFoldInput`, or outside the driver's turn. **It is not a live view** — a read is the state at that
+moment, and the next input makes a new one beside it; writing to it throws in strict code and reaches nothing the runtime
+keeps. **`done` resolves with the object `state()` returns then**, so `await done === handle.state()` once it has settled —
+until you `unpause` a run that finished while paused, the one run control a finished run still takes: `state()` follows
+that element, and `done` keeps the state at settlement. On a RESUMED run the reads hold the stored events too. **What
+`Object.freeze` does not stop stays writable** — a typed array's elements, an `ArrayBuffer`'s bytes, a `Date`'s time, a
+`Map`'s or `Set`'s membership — and a write there reaches later reads and `done`: return plain data, read plain data. **Nothing is added to `onFoldInput`**:
+what it hands you is unchanged, and the runtime keeps its own copy of every result rather than sharing yours.
+
+**BREAKING in 0.9.0** (P39 (d) and (f)): `RunHandle` gains `state`, `outcome` and `node`, which breaks only code that BUILDS
+a handle; and `await done` is FROZEN — code that wrote into the state `done` resolved with now throws.
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { fold, type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
+
+const registry: RegistryDocument = {
+  workers: { scorer: { url: '../../examples/getting-started/scorer.ts' } },
+  nodeTypes: { Scorer: { worker: 'scorer', inline: true } },
+};
+const flow: FlowDefinition = {
+  flowId: 'live', version: 1, entry: 'a',
+  nodes: [
+    { id: 'a', kind: 'task', type: 'Scorer', settings: { score: 0.1 }, edges: [{ to: 'split' }] },
+    { id: 'split', kind: 'fanout', branches: ['b', 'c'] },
+    { id: 'b', kind: 'task', type: 'Scorer', settings: { score: 0.2 }, edges: [{ to: 'j' }] },
+    { id: 'c', kind: 'task', type: 'Scorer', settings: { score: 0.3 }, edges: [{ to: 'j' }] },
+    { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'e' }] },
+    { id: 'e', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+const runtime = createRuntime(registry, {}, { base: import.meta.url });
+// The CHEAP read after every input, on a microtask: the driver's turn is over by then (RN-R12). The microtasks of the
+// inputs `start` delivers before it returns run after it has, so `handle` is there for every one.
+const outcomes: string[] = [];
+const handle = runtime.start(flow, {}, {
+  onFoldInput: () => queueMicrotask(() => { outcomes.push(handle.outcome()); }),
+});
+const end = await handle.done;
+await runtime.shutdown();
+console.log(outcomes.length, outcomes.at(-1), end.outcome);   // one outcome per input, the last 'completed'
+
+const a = `${handle.driver.runId}:a:-:0`;
+if (outcomes.length < 10 || outcomes.at(-1) !== 'completed') throw new Error(`one outcome() per input, the last completed: ${outcomes.join()}`);
+if (outcomes.some((o) => o !== 'running' && o !== 'completed')) throw new Error(`a run with nobody in it reads running, then completed: ${outcomes.join()}`);
+// `done` and `state()` are ONE object, and it is the caller's own fold — key order included.
+if (end !== handle.state()) throw new Error('await done is the object state() returns — one copy, not two');
+if (JSON.stringify(end) !== JSON.stringify(fold(handle.driver.foldInputs()))) throw new Error('state() is the fold of what the driver appended');
+// `node()` is the state's own entry — no copy — and null for a task the run never dispatched.
+if (handle.node(a) !== end.nodes[a] || handle.node(`${handle.driver.runId}:nope:-:0`) !== null) throw new Error('node() reads the state`s own entry, or null');
+// Frozen at every depth: the run, its nodes, an entry and the result inside it.
+if (!Object.isFrozen(end) || !Object.isFrozen(end.nodes) || !Object.isFrozen(end.nodes[a]) || !Object.isFrozen(end.nodes[a]!.result)) throw new Error('state() is frozen at every depth');
+let wrote = true;
+try { (end.nodes[a]!.result as { score: number }).score = 1; } catch { wrote = false; }
+if (wrote) throw new Error('a write into the run`s state must throw — it is a copy to read, not a document to edit');
+```
 
 ### Pausing a run — `driver.pause` / `driver.unpause`, and a FLAG that is not an outcome
 
@@ -2770,6 +2843,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | **nested fan-out** — a branch that fans out again | **built, and the join over it is settled.** `FD-V15` is retired; a task inside a nested region is dispatched at its whole dotted `branchPath` (`r1:scoreC:1.0:0`); and every policy in section 5 is **transitive** — each region answers exactly as it would if it were not nested ([ADR 0030](doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)). One thing to know: if an inner join is reported through `onUnsatisfiableJoin`, the outer branch containing it **ends** rather than waiting, so the outer join may still fire and its successor may run — and once that work settles the run folds to `stuck`, because a region that never fired is what `stuck` reads. **Fold too early and you will see `running`.** The four matrix rows and the join seam are tested at **depth 2**; the dead-join cascade is asserted at depth 3, and nothing else about depth 3 is a tested claim |
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
 | ~~**RUNNING an `ask`**~~ — a node that waits for a person, its answer at `resolve()` | **BUILT** since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md): a run parks at an ask with nothing handed to the scheduler, and its answer is its result — section 7. Under a cancel, a stop, a pause and a resume an ask is a parked task — never in flight, so nothing is ever sent or handed on for it — since [W181](doc/work-items/w181-an-ask-under-run-control.md) (section 7) |
+| a **live, mutable view** of a run's state, or the state handed to `onFoldInput` beside each input | **no** — [P39](doc/plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) (b), [ADR 0122](doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md): `handle.state()` is a frozen COPY, cached until the run moves, and `handle.outcome()` / `handle.node()` are the O(1) reads — section 8 |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |
@@ -2778,8 +2852,9 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 scheduler cannot show which node a run is at, which branch it took, or what a join is waiting on.
 That is [Q21](doc/questions/q21.md), and it is about the scheduler's stream, not about this
 library — **this library does expose all three.** `onFoldInput` is the push half of `foldInputs()`,
-so you can fold incrementally and see a run finish without polling — mind section 8's *What it costs*: a `step` per
-input is O(run) each; `onRegionEvent` reports branches
+so you can see a run finish without polling — on a runtime, read `handle.outcome()` after each input and
+`handle.state()` when you draw the run (section 8, *Reading a run WHILE it runs*); on a bare `Driver`, mind section 8's
+*What it costs*: a `step` per input is O(run) each; `onRegionEvent` reports branches
 opening, arriving, exiting, suspending and resuming; `joinStatusOf()` answers what a join is waiting
 on. What is missing is an agreed envelope shape between the two repositories, not the data.
 
@@ -2799,7 +2874,7 @@ is recorded rather than added to the gate.
 `fyflow-orchestration/scheduler`, [W66](doc/work-items/w66-the-runtime-entry.md). It resolves every
 name the document uses against the code you supply, refuses every defect at construction by a named
 error, builds one pool per type instance and one object per group, holds a `FyflowScheduler` over
-them, and hands you **`{ driver, done, header }` per run** — the driver already running, `done` a
+them, and hands you **a handle per run** — `{ driver, done, header, stop, state, outcome, node }`: the driver already running, `done` a
 promise that resolves with the run's terminal `RunState`, and `header` the run's checkpoint header — handed to
 `start`'s `onHeader` option too, before the run's first event, for a store that writes it first (section 18)
 ([ADR 0058](doc/decisions/0058-runtime-start-returns-a-completion-handle-the-runtime-keeps.md);
@@ -4318,7 +4393,7 @@ checkpoint is an append to it**. You never have to call `driver.checkpoint()` to
 |---|---|---|
 | the header | **`onHeader(header)`** on `start`'s options — handed to you inside `start`, BEFORE the first event and before anything reaches the scheduler; and `runtime.start(…)` returns the same one as `header`, beside `driver` and `done` | write it once, FIRST |
 | every event | `onFoldInput(event, position)` | write it AT `position` — the driver's index, never a count you start again in each process |
-| a resumed run | `runtime.resume(flow, { header, events }, options)` returns the same `{ driver, done, header }` — and calls no `onHeader`: you hold the header already | keep writing: it hands you positions from the STORED LENGTH on |
+| a resumed run | `runtime.resume(flow, { header, events }, options)` returns the same handle — `{ driver, done, header, stop, state, outcome, node }` — and calls no `onHeader`: you hold the header already | keep writing: it hands you positions from the STORED LENGTH on |
 
 **Write the header FIRST, through `onHeader`** (`RN-R39`, [ADR 0112](doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md),
 since 0.8.0). The first events are delivered WHILE `start` runs, so the handle's `header` arrives after them, and a process

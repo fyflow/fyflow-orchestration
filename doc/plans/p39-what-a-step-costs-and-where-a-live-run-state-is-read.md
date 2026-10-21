@@ -1,6 +1,6 @@
 # P39 — What does a step cost on a long run, and where may its owner read the run's live state?
 
-**Status:** declared 2026-10-21 — on `93922cb` (the tree clean), answering fyflow-app's *pass 2* (#1-#4); facts 1-10 measured or read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-21, all as recommended; (f) OPEN, and only W196 waits on it; no item started
+**Status:** declared 2026-10-21 — on `93922cb` (the tree clean), answering fyflow-app's *pass 2* (#1-#4); facts 1-10 measured or read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-21, all as recommended; (f) OPEN, and only W196 waits on it; no item started. *(f) ANSWERED 2026-10-21 as recommended, before W196 started — recorded below by W196.*
 **Question this plan answers:** *can a run's state be kept — by `fold`, by a runtime, and by a consumer reading it live — at a
 cost per fold input that does not grow with the run, without a second definition of the fold and without moving what
 `fold` returns, what `RunState` holds, or the order the driver appends?*
@@ -198,12 +198,16 @@ when #2 ships, its own words); any change to `effectiveOutcome`'s or `isSuspende
    *the driver keeps a per-task view of its log*, amending ADR 0040 rule 2; ADR 0122 (W196) — *a runtime's live state is a
    frozen copy on its handle*, amending ADR 0058 rules 1 and 5. ADR 0123 reserved, expected unused.
 8. **Each changed public surface is stated where it changes** (P33 decision 7 … P38 decision 8): `RunHandle` gains three
-   members, BREAKING for code that BUILDS one ((d)); `step`'s documented cost; nothing else.
+   members, BREAKING for code that BUILDS one ((d)); `step`'s documented cost; nothing else. *(Dated 2026-10-21, W196:
+   and (f)'s answer is a SECOND breaking surface — `await done` is frozen, so code that mutates it throws in 0.9.0.)*
 
-### Stop-and-asks — (a)-(e) ANSWERED by the maintainer, 2026-10-21; (f) OPEN
+### Stop-and-asks — (a)-(f) ANSWERED by the maintainer, 2026-10-21 — (f) the last, before W196 started
 
 **(a)-(e) are the maintainer's, each answered as recommended.** The work-item rows below are written for those answers.
-**(f) is asked at this declaration and is NOT answered**: W194 and W195 do not wait on it; W196 does not start until it is.
+**(f) was asked at this declaration and was NOT answered then**: W194 and W195 did not wait on it; W196 did not start until
+it was. ***Answered 2026-10-21, as recommended*** — **`await done` resolves with the SAME frozen object `state()` returns:
+one copy, one definition; BREAKING in 0.9.0 for code that mutates the value from `await done`.** Recorded by
+[W196](../work-items/w196-the-runs-live-state-on-its-handle.md), which built it ([ADR 0122](../decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md) rule 3).
 
 | | the question | recommended | the alternatives, and what each changes |
 |---|---|---|---|
@@ -212,7 +216,7 @@ when #2 ships, its own words); any change to `effectiveOutcome`'s or `isSuspende
 | **(c)** | **Is the accumulator public?** | **NO — internal; the handle is the surface** | **Exported** (an incremental fold a consumer steps): a second public way to keep a run's state, a contract on its mutation rules, and the app's *"we would rather not own a second fold"* turned into owning ours |
 | **(d)** | **Which release** | **0.9.0** — a new `RunHandle` member is BREAKING for code that BUILDS a `RunHandle`, `stop`'s precedent (P34 decision 10) | **0.8.1**: a breaking type under a patch number |
 | **(e)** | **How the gate holds the cost** | **CLOCK-FREE COUNTS**: the fold counts its own property writes and element visits, the driver the log records it visits, at **2,000 and 8,000** map items; the test asserts the ratio stays **below ~6x** (linear 4x, quadratic 16x). Precedent: `test/driver/result-schema-cost.test.ts`. The counting hook costs nothing and is not observable in the shipped path — decision 6 says how for the fold; W195 says how for the driver | **A wall-clock budget** — a ratchet on hardware ([Q179](../questions/q179.md)), and fact 4 measured the same size at 988 ms in a fresh process and 3,818 ms in one that had just folded 4,000 items. **A clock RATIO** — the app's suggestion, steadier than a budget and still a property of a machine's GC |
-| **(f)** | **What `done` resolves with, now that `state()` exists** — OPEN | **The value `state()` returns at that moment — the same frozen object**, so `await done === handle.state()` after it settles, and a consumer cannot mutate the run's final state where it can mutate nothing else the handle gives. Stated BREAKING in 0.9.0 beside (d)'s: code that MUTATES `await done` throws in strict mode | **A separate, unfrozen materialisation, as today** — no behaviour change for `done`, one extra materialisation per run at its end, and two objects for one state whose difference is only whether they freeze |
+| **(f)** | **What `done` resolves with, now that `state()` exists** — ANSWERED 2026-10-21 as recommended | **The value `state()` returns at that moment — the same frozen object**, so `await done === handle.state()` after it settles, and a consumer cannot mutate the run's final state where it can mutate nothing else the handle gives. Stated BREAKING in 0.9.0 beside (d)'s: code that MUTATES `await done` throws in strict mode | **A separate, unfrozen materialisation, as today** — no behaviour change for `done`, one extra materialisation per run at its end, and two objects for one state whose difference is only whether they freeze |
 
 ## Work items
 

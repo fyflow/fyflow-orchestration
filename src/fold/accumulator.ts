@@ -30,8 +30,11 @@
  * consequence 3); an ask's `input` and a gate's `key` are deep copies taken once, when applied, as before. With the
  * ACCUMULATOR: its node entries, gate decisions, path ends, resume lists and the request records — objects the
  * accumulator REPLACES and never mutates, so a later `apply` never changes a state already materialised. A caller that
- * mutates a materialised state reaches those shared objects; nothing in this library keeps an accumulator open past a
- * call yet (W196 freezes what it hands out).
+ * mutates a materialised state reaches those shared objects. **One caller keeps an accumulator OPEN past a call**: a
+ * runtime, one per run ([W196](../../doc/work-items/w196-the-runs-live-state-on-its-handle.md),
+ * [ADR 0122](../../doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md)), which DEEP-FREEZES
+ * every state it materialises — harmless here, because nothing this class shares is ever written again — and reads
+ * {@link Accumulator.outcomeNow} and {@link Accumulator.entry} between materialisations.
  *
  * **`RN-R1`: nothing survives a call and nothing is module state.** The {@link FoldCounter} is an ARGUMENT the caller
  * owns (P39 decision 6, fact 9); `fold` and `step` pass none. **Internal**: not re-exported by `index.ts` or any
@@ -172,6 +175,26 @@ export class Accumulator {
 
   private tick(n = 1): void {
     if (this.counter !== undefined) this.counter.visits += n;
+  }
+
+  // --- the reads a runtime keeps an accumulator OPEN for — W196, ADR 0122, `RN-R44` -----------------------------
+
+  /**
+   * **The outcome as the last applied input left it** — what {@link materialise} would write into `outcome`, read in
+   * O(1). The runtime's `RunHandle.outcome()` and `done`'s predicate read this, never a materialisation (P39 prediction 4).
+   */
+  outcomeNow(): RunOutcome {
+    return this.outcome;
+  }
+
+  /**
+   * **One task's entry, or `undefined`** — the object {@link materialise} would place at `nodes[taskId]`, read in O(1).
+   * An OWN entry only: a task id naming an `Object.prototype` member (`toString`, `__proto__`) is a task the run never
+   * dispatched, where `prev.nodes[taskId]` on a plain record would read the inherited member.
+   */
+  entry(taskId: string): NodeRun | undefined {
+    if (this.nodes.has(taskId)) return this.nodes.get(taskId);
+    return hasOwn(this.base.nodes, taskId) ? this.base.nodes[taskId] : undefined;
   }
 
   // --- reads, through to the base ---------------------------------------------------------------------------

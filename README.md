@@ -258,6 +258,7 @@ if (after.counts.no !== 0) throw new Error('and the flow that ran has no unwired
 | A task **cancelled** by its id — the run ends `cancelled` and refuses a resume | [AGENTS.md](AGENTS.md) section 6 |
 | **Cancelling a run** — `driver.cancel`, the run `cancelling` until its last task has stopped | section 6 |
 | **Pausing** a run and unpausing it — every dispatch held, then handed on in order | section 8 |
+| Reading a run's state **while it runs** — `handle.outcome()` after every input, `handle.state()`, a frozen copy, when you draw it | section 8 |
 | A node that **waits for a person** by design — an `ask`, which keeps what reached it and holds the answer to a schema | section 7 |
 | A task's **messages and progress**, each with its run, node and attempt as fields — `onTaskMessage`, `onTaskProgress` | section 8 |
 | A **worker's own messages**, outside any task — `worker.message` on its pool, reached through `createScheduler` | section 8 |
