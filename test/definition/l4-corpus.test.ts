@@ -425,6 +425,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W195 — P39 decision 4, ADR 0121, `RN-R13` v0.30: the driver's per-task view of its log — L2 in
+  // `test/driver/log-view.test.ts`, every per-task read held equal to the whole log's; counted below.
+  'L2 — RN-R13 v0.30: the driver`s per-task view of its log — every per-task read equal to the whole log`s, outputs() equal to a rebuild, linear in its settlements',
   // W194 — P39 decisions 1-3, 6, ADR 0120, `RN-R43`: the fold is ONE accumulator — L1 in `test/fold/accumulator.test.ts`,
   // held equal to the pre-W194 fold kept as `test/fold/oracle-run-state.ts`; counted below.
   'L1 — RN-R43: the fold is ONE accumulator — fold and step equal to the pre-W194 fold at every prefix, step`s identities kept, linear in its inputs',
@@ -969,6 +972,12 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L1 — RN-R43: the fold is ONE accumulator — fold and step equal to the pre-W194 fold at every prefix, step`s identities kept, linear in its inputs'), 12,
       'test/fold/accumulator.test.ts registers its twelve: the oracle over the hand-written, the generated and the driven corpus, ANY prev, the seven early returns, a hand-built outcome kept, the precedence on every reachable state, the copy claim, the materialised state, RN-R1 and RN-R2, the count ratio, and its own membership');
+  });
+  // **W195's suite, counted the same way and for the same reason.**
+  test('W195`s suite still REGISTERS the ten cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — RN-R13 v0.30: the driver`s per-task view of its log — every per-task read equal to the whole log`s, outputs() equal to a rebuild, linear in its settlements'), 10,
+      'test/driver/log-view.test.ts registers its ten: every per-task read at every fold input, outputs() over a long tail, a second settlement of a settled task, a resumed run, the view`s own records, the queues first-in first-out, a throw with attempts queued behind it, the count ratio, the count of records, and the source read as its second observer');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
