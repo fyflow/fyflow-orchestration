@@ -87,8 +87,9 @@ a write through a view. `OR-R11` lets every one of those cross a result's clone,
    1,000 / 2,000 / 4,000 items, node 24.20.0, each size a fresh process: 529 / 1,993 / 15,475 ms → **33 / 53 / 91 ms**,
    178 / 468 / 1,448 MB → **5 / 11 / 15 MB** — the same as the flow whose reference names a SMALL node (28 / 45 / 80 ms;
    W202's Record carries deno's and the re-taken section 3 table). The count is in the gate:
-   `test/fold/reference-copy-cost.test.ts` pins `outputsCache.copies` EXACT at 2,000 and 8,000 items on six shapes, each
-   restored per-read clone red.
+   `test/fold/reference-copy-cost.test.ts` pins `outputsCache.copies` EXACT at 2,000 and 8,000 items on SEVEN shapes, each
+   restored per-read clone red. *(This read *six* until P41's retro, 2026-10-22: W202's adequacy reader added the
+   seventh, `["score?"]`, after this sentence was written; the suite's own subject says seven.)*
 2. **What a run RETAINS gains one term** (`RN-R13` v0.33): the shared copy of each output a reference has read, for as
    long as its entry — `outputsCache` lives for the run, so for the run's life, dropped where an entry is replaced or
    removed — and of the entry payload where a `"$payload"` reader has read it. It is a SECOND copy of what it copies,
