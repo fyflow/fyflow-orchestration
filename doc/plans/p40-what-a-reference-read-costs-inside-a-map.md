@@ -1,6 +1,6 @@
 # P40 — What does a reference read cost inside a map, and can it cost its answer rather than the map?
 
-**Status:** declared 2026-10-22 — on `4f21bba` (the tree clean, `origin/main` and tag `v0.9.0` at it), answering [Q735](../questions/q735.md) and fyflow-app's *pass 2 follow-up*; facts 1-10 read at this declaration; stop-and-asks (a)-(d) ANSWERED by the maintainer 2026-10-22, all as recommended; **(e) ANSWERED the same day, (e1) — as recommended** (recorded by W199, below); W199 started 2026-10-22.
+**Status:** complete and retro'd 2026-10-22 — W199-W200 done, `gate:full` EXIT 0 on W200's final tree (the Record); the retro raises no stop-and-ask (section 8). Earlier: declared 2026-10-22 — on `4f21bba` (the tree clean, `origin/main` and tag `v0.9.0` at it), answering [Q735](../questions/q735.md) and fyflow-app's *pass 2 follow-up*; facts 1-10 read at this declaration; stop-and-asks (a)-(d) ANSWERED by the maintainer 2026-10-22, all as recommended; **(e) ANSWERED the same day, (e1) — as recommended** (recorded by W199, below); W199 started 2026-10-22.
 **Question this plan answers:** *can a `needs` reference read inside a `map` instance cost the size of its answer — one
 entry for a `one` reference, the visible entries for an `all` one — rather than every output the named node has produced,
 for every case ADR 0044's visibility rule decides, without a second definition of visibility and without moving what any
@@ -349,3 +349,167 @@ counts and walls in node, deno and chromium on W199's tree; facts 5 and 8 on the
 | [Q179](../questions/q179.md) | wall time is not a reproducible cost measure for this gate — why the count is the gate and the timings are readings; `icebox` | — |
 | [Q206](../questions/q206.md) | the sibling-region visibility ADR 0044 answered — the shape decision 2's sibling-map case re-asserts; `resolved` | — |
 | [Q43](../questions/q43.md) | the maintained second source ADR 0040 rule 2 was written against — decision 3's condition is its answer for the index | W199 (ADR 0124 cites it) |
+
+## Record
+
+*Written 2026-10-22 over W200's final tree, the tree held still before it. Every figure is read from the two items' own
+files; none is re-measured here. Ids are bare text, as in P33's-P39's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W199** `a2c7ec1` | `visibilityKey` and `outputIsVisible` restated through it; the index inside `outputsCache` — per node and shared depth, the node's own entries grouped by key in branch-path order, built on the first read, grown in `place` at its five cases, the depth memoised per (reader, target); `resolveReference` reading it at both call sites; the private counter `outputsCache.examined`; the equality suite with the pre-change filter-and-sort as its ORACLE; the cost subject EXACT at 2,000 / 8,000 (`2n`, `2n`, `7n`, `4n`) with its provocations; ADR 0124 | flow-definition v0.46 (section 3's search cost, `FD-C1`'s test text); run-state v0.32 (`RN-R13`) | **Q735** / — | one stop-and-ask, ANSWERED (a): `visibilityKey` an ADDITIVE public export (W191's `innermostMapOf` precedent), 0.9.1 still a patch, Q221 iceboxed. (e) answered (e1) mid-item | conformity 2 SHOULD, 5 NIT, no BLOCKER (its own 312-run differential: 0 differences); adequacy 65 mutations, five real survivors (`place`'s replacement and in-order insertion unreached, the edge site's reader id), each re-cut and KILLED. **Overlap 1** | 89 / 2155; 2805 / 228 | `gate:item` EXIT 0, selftests 1,055.0 s |
+| **W200** `8c646c2` | the `W200 exit` L6 block — a map of twelve, threaded and inline, node and deno: every reader's payload equal to ADR 0044's predicate over the run's own outputs AND the worker's value by hand, four shapes each its own claim with a control, the whole payload's keys, `work` read at two depths; `examples/map-cost.ts`' four reference subjects beside W199's BEFORE; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 1 SHOULD (the predicate route moves with the shared key — the HAND route is the independent one), 4 NIT; adequacy 38 mutations, no SHOULD, 3 NIT. 5 probes, 5 KILLED. **Overlap 1** | 89 / 2155; **2815 / 230** | **`gate:full` EXIT 0**, 11/11 self-tests, 3,710 s |
+
+**Both confirming gates were green on their FIRST run, one command each** (sentence C); firefox and webkit NOT RUN in
+either. **W199's first `npm run gate` was EXIT 1 on chromium**: its new cost subject pushed the one-page L1-L5 bundle past
+the runner's 60 s limit (W199's *What broke*), fixed by running each observer only under the provocations it exists to
+see. **One question closed (Q735), none raised. One stop-and-ask answered (W199's), one exception for the plan's
+bookkeeping (W200). The readers' overlap, every Record stating its own: 1, 1.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) `test/fold/map-cost.test.ts`, green in `gate:full` and in all three L0-L5 runtimes, holding as a clock-free COUNT the entries a reference read examines, EXACT at 2,000 and 8,000 items for four shapes and below 6x; each provoked red by restoring the search (checked in, bounded) | `outputsCache.examined` **4,000 / 16,000** (`2n`) one step back, **4,000 / 16,000** (`2n`) two steps back, **14,000 / 56,000** (`7n`) nested, **8,000 / 32,000** (`4n`) sibling of three slots — every value DERIVED, every ratio 4.00x; the iteration observer below 4x on each; the filter restored (counted and uncounted), the per-read sort restored and the depth per output, each red on the clauses it names, an uncounted sort the stated limit asserted as a control; node, deno and chromium | **met** |
+| (2) Q735's driver measurement re-taken on the final tree in node 24 and in deno at 2,000 / 8,000 / 16,000 items, beside Q735's | `examples/map-cost.ts`, each size a fresh process: one step back **701 / 22,033 / 99,029 → 65 / 211 / 402 ms** (node), **474 / 12,006 / 64,208 → 78 / 267 / 505** (deno) — Q735's own 673 / 20,492 / 96,919 reproduced by W199 before the edit; two steps back 1,310 / 41,622 / 176,628 → **81 / 274 / 515**; nested 18,251 / 290,697 → **176 / 635** (1,259 at 16,000); sibling 52 / 178 → **48 / 150** (288) | **met** |
+| (3) one block in `examples/l6.ts`, node 24 and deno, threaded and inline, a map of at least twelve: every `needs` payload equals ADR 0044's predicate over the run's own outputs, for the four shapes | the `W200 exit` block, ten claims over two runs, 2815 / 230, 0 failed in both runtimes. **Under one reading**: since W199 the predicate is restated through the index's own key function, so it is not independent of the code under test — the block holds every payload ALSO to the worker's value by hand, which is what turned red on the shared-key provocation (W200's conformity reader, finding 1; its P3) | **met**, with the hand route stated as the independent one |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W200, one command on the final tree after the readers' fixes: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included, 3,710 s | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **88 / 2142 → 89 / 2155** in node, deno and
+chromium; L6 **2805 / 228 → 2815 / 230** in node and deno; `check:docs` 51 `run` snippets, unmoved; `check:spec` C4 45;
+spec/flow-definition **v0.45 → v0.46**, run-state **v0.31 → v0.32**, the others unmoved; next free rule id `RN-R45`,
+unmoved; `DRIVER_FIELDS`, `NOT_RUN_STATE`, the holder sets, `CHECKPOINT_FORMAT`, `FoldInput`, `RunState` and
+`snapshot()` unmoved; the package surface +1, `visibilityKey`, additive; `doc/concept.md` untouched.
+
+**What the plan answered — yes, for every case of the visibility rule.** A `needs` read inside a map costs its answer —
+one entry for `"n"`, the visible entries for `["n"]` — through an index over the driver's own projection, keyed by the one
+function ADR 0044's predicate is now stated through (ADR 0124), with no second definition of visibility and no value any
+reference resolves to moved. **The stated limit**: a read never costs less than its answer, and `FD-V28` makes a SIBLING
+map's reader's answer the whole list, so two maps of `n` and `m` instances compose `n·m` entries — the answer's price,
+written in `spec/flow-definition.md` section 3 beside Q186's clone. **fyflow-app's request** accepted for every case
+((b)); the reply is written (`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass2-followup.reply.md`).
+**What 0.9.1 ships**: no API change; one function added to the package surface.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W199 moves no assertion's expected VALUE in any lane | **HOLDS** — counts and cases moved, no value | W199 Record |
+| 2 | the driver at 8,000 items within 2x of a one-output read (215 ms); at 16,000 under 1 s | **HOLDS** — 223 ms at W199, 211 at W200, against 216; 442 / 402 ms at 16,000 | W199, W200 Records |
+| 3 | `DRIVER_FIELDS` and the holder sets do not move; `RN-R13`'s figure rises under 2x | **HOLDS** — 87.5 / 87.6 / 90.7 → 95.8 / 93.9 / 97.1 B an entry, ~13 B per indexed entry | W199 Record |
+| 4 | the sibling `all` read stays O(its answer); the restored sort visible to the EXACT pin, not the ratio | **HOLDS** — `7n` against `4n`, still 4x | W199 Record |
+| 5 | no item moves `CHECKPOINT_FORMAT`, `FoldInput`, `RunState`, `snapshot()` or a public signature | **HOLDS for every signature — one function ADDED**, the stop-and-ask W199 put and the maintainer answered (a) | W199 Record |
+| 6 | W200 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2805 / 228 → 2815 / 230 | W200 Record |
+
+**The D′ paragraph's census predictions**, scored the same way: **right at every site it named** — `resolveReference`'s
+two callers, `outputs()` and `place`, `OutputsCache`, `RN-R13` and its retention alias, `spec/README.md`'s rows, `X6`
+unmoved, `LATE_SUITES` and the counted suites, `X10` at W200 alone, the PREMISES (the cost suite's *ONE output*
+sentence, Q735, Q186's note). **Short at one**, found before its edit: `index.ts` re-exports `regions.ts` WHOLE, so the
+one key function decision 2 placed there is public — W199's stop-and-ask. `CONSTRUCTION_PRICED` did not move:
+`examples/map-cost.ts` already declared its construction.
+
+**Questions**: **closed [Q735](../questions/q735.md)** (W199, by ADR 0124 and the count in the gate); **raised none.**
+[Q186](../questions/q186.md) and [Q221](../questions/q221.md) gained dated notes at W199; Q186 stays deferred, Q221
+iceboxed. `npm run q -- --where status=open` lists **none** (the register holds no open question; Q580 and Q581, open at P39's close, are resolved).
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.9.1** — the version bump (a `chore:` commit, as 0.9.0's `4f21bba`), the push, and the publish to npm and JSR | (d) | **the maintainer** — decided at (d), *only when the maintainer says so* | this Record |
+| the reply to fyflow-app | P40's *The reply* | **done** — W200 | W200's Record |
+| [Q186](../questions/q186.md) — a large value cloned per read inside a map | (c) | **deferred**, no owner | Q186 |
+| the byte copies `C:/tmp-w199`, `C:/tmp-w200`, and the session scratchpad's probes | both items | **the maintainer** — left in place, outside the repository; nothing reads them | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-22 over W200's final tree, by W200's author as the plan's last item. Every figure is read from the
+two items' Records; this retro re-ran no harness. **No routing here needs the maintainer** (section 8); none is acted on
+outside the record step's four files and W200's one declared exception.*
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P40's declaration | — | (a)-(e), all as recommended ((e) as (e1), relayed mid-W199) | — | — |
+| W199 | — | **1** — `visibilityKey` public, answered (a) | 7 (2 SHOULD, 5 NIT, the conformity reader's) and five real test gaps (the adequacy reader's) | **Q735 closed** |
+| W200 | — (one exception declared before the edit) | — | 5 (1 SHOULD, 4 NIT) and 3 NIT | — |
+| **P40** | **0** | **6 answers, all as recommended** | **no BLOCKER; every one acted on or declared** | **0 raised, 1 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E held
+
+**D′ was FOLLOWED and held at every site the plan named**; the one it did not name — `index.ts` re-exporting a module
+whole, so a function decision 2 placed there is public — was found by W199's conformity reader before the release and
+put as a stop-and-ask. **B′ held. C held**: one confirming gate per item, each green on its first run. **E held**: W199's
+provocations cut per call site; W200's one clause each.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W199 | 2 SHOULD, 5 NIT, no BLOCKER | 65 mutations, five real survivors, each re-cut and killed | **1** — a restoration that ticks nothing (an uncounted sort, finding 1 / note 2) | 119th |
+| W200 | 1 SHOULD, 4 NIT, no BLOCKER | 38 mutations, no SHOULD, 3 NIT | **1** — the payload compared key by key (NIT 2 / NIT 1) | 120th |
+
+**Every Record states its overlap**, the fifth plan running. **Two measurements, both inside section 6's 0-4 band. The
+ordinal is a hundred and twenty, so the next is the HUNDRED-AND-TWENTY-FIRST** — carried into `doc/workflow.md` by W200's
+declared exception. *W200's brief to its adequacy reader ASKED which shared-key mutations the hand route catches; its
+answer overlaps the conformity reader's finding 1 and is NOT counted — a shared priming, section 6's caveat.*
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) an oracle that moved with the code under test** — P40 decision 2 made visibility ONE function (ADR 0044 rule 2) and W199's equality suite kept the PRE-change expression as its oracle (section 5 rule 4, followed); W200's L6 block, written after, read the PUBLIC predicate — which W199 had restated through the index's own key | **FOLLOWED** — rule 4 says a fixture must not come from the code under test, and the block's oracle is a function, not a fixture | W200's conformity reader (its provocation C: every predicate list `[]`); the block's second, HAND route went red | **One occurrence.** Kin to section 5 rule 4, one level out: *an oracle reached through the package names which `src/` functions it shares with its subject*. Below pass 3 rule 2's bar; recorded, not proposed. The hand route, written beside it from the brief's *each claim … a control*, is what held |
+| **(b) a suite's wall is a share of a budget no rung names** — the chromium lane runs the WHOLE L1-L5 bundle in one page under 60 s | **FOLLOWED** — W199 ran its suite in node and deno first (B′) | W199's `npm run gate` before its readers, chromium RED | **One occurrence** (W197's suite fit; W199's did not). The coordinator's brief to W200 named the 60 s as binding, and W200 added nothing under `test/`. Recorded, not proposed |
+| **(c) a count's observers under every provocation** — P39's (a) answer, a second observer per subject | **FOLLOWED** at W199, and it COST: every observer under every provocation on every shape was ~65 s of suite | W199's chromium lane | **The answer is W199's**: a counted provocation is judged on the counter, an uncounted one on the observer it exists for — every verdict kept, the suite halved. A refinement of P39 (a), not a rule |
+| **(d) a claim of absence shown able to fail by a control on the same observer** | **FOLLOWED** at W200 — each shape's control a COUNTED field | the adequacy reader (T4-T7 red) | **Held** |
+
+**Pass 3 rule 5 over P40's defects**, by what caught them: **a rung in `gate`** — chromium's 60 s (W199); **the
+authors** — W199's declaration step (the nine re-takes, before any edit); **the conformity readers** — W199's seven,
+W200's five; **the adequacy readers** — W199's five survivors, W200's three NITs. **No rung would have caught** the
+oracle sharing the subject's function: no command asks where an oracle's code comes from — that is section 6's reader.
+
+**The flaky rows ([Q599](../questions/q599.md))**: none went red in P40. No note.
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** The block's threaded and inline pools ran the same flow to the same
+values.
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′, C, D′ and E held; every Record stated its overlap; no
+BLOCKER reached a Record; section 4's three candidates are one occurrence each.
+
+**B. Carried UNCHANGED for the next plan's author** — P39's proposal B as P40 adopted it (B′, C, D′, E and the brief
+sentences). Section 4 (a) and (b) are recorded beside it as one-occurrence observations, not added to it.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 39th refusal, P2-P40.** P40's text defects were an
+  oracle called independent when it was not (W200's finding 1), *a resume from every rest point* over two drains (W199's
+  NIT 3), two figures for one measurement (W199's NIT 5), and a sentence about sizes two shapes were not run at (W200's
+  NIT 5) — each found by a reading of the code beside it; no script reads that. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; this Record and Retro |
+| `doc/workflow.md` | W200's declared exception: the Status line's count (FORTY, P1-P40), section 6's ordinal (a hundred and twenty; the HUNDRED-AND-TWENTY-FIRST next), the ledger's first row (39 times, P2-P40) |
+
+`README.md`, `doc/questions/**` and `doc/decisions/**` carry nothing more: ADR 0124, ADR 0040's dated note, Q735's
+closing and the notes on Q186 and Q221 are W199's.
+
+**Ids.**
+
+- **Issued**: W199, W200; ADR 0124; no Q; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): W201 CLOSED unissued, as expected; Q740-Q744 SPENT
+  (W199's), Q745-Q749 SPENT (W200's); ADR 0125 SKIPPED.
+
+**The next plan starts at W202, Q750 and ADR 0126.** The next S id is S13; the next plan id is P41.
+
+### 8. Stop-and-asks for the maintainer
+
+**None.** The release is decided — (d): 0.9.1, a patch, bumped, pushed and published by the maintainer *only when the
+maintainer says so* — and is a hand-off in the Record, not a question. Proposal B is carried unchanged, as P40 adopted it.
