@@ -19,7 +19,8 @@ import { checkRegistry, isDerivation } from '../definition/registry.ts';
 import { describeFindings, findings, type SchemaFinding } from '../definition/schema.ts';
 import { boundaryTargets } from '../definition/wiring.ts';
 import {
-  allRegions, branchPathOf, buildGraph, innermostMapOf, innermostRegionOf, outputIsVisible, regionChainOf, toRegion,
+  allRegions, branchPathOf, buildGraph, innermostMapOf, innermostRegionOf, regionChainOf, sharedRegionDepth, toRegion,
+  visibilityKey,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, routesOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
@@ -649,6 +650,44 @@ interface OutputsCache {
   tasks: Map<string, OutputSlot | null>;
   /** Per node, each entry's FIRST-RECORD position, parallel to `byNode`'s list — plain data, so a byte walk serializes it. */
   orders: Map<string, number[]>;
+  /**
+   * **The reference index** — W199, [ADR 0124](../../doc/decisions/0124-a-reference-read-costs-its-answer.md): per named
+   * node, per SHARED DEPTH a reader has asked at, the node's entries grouped by `visibilityKey` — `byNode`'s own entry
+   * objects, BY REFERENCE — each group in `compareBranchPaths` order and never empty. Built for a `(node, depth)` on its
+   * first read and from then on grown in `place`, so it is caught up exactly when `byNode` is. Depth 0 is ONE group per
+   * node, the whole node, sorted once and kept sorted.
+   */
+  index: Map<string, Map<number, Map<string, OutputEntry[]>>>;
+  /** The depth a reader and a target share, per `(reader, target)` — a GRAPH fact (`sharedRegionDepth`), asked once. */
+  depths: Map<string, Map<string, number>>;
+  /**
+   * **ADR 0124's count, never public** (ADR 0121 rule 7's two constraints): the ENTRIES the index touches — each entry a
+   * build reads, one per index a `place` change lands in, and each entry a read takes (one for a `one` reference, the
+   * group for an `all` one). NOT counted: the comparisons that find a sorted position, a splice's moves, the depth's graph
+   * walk, and the clone of each answer.
+   */
+  examined: number;
+}
+
+/** What a read takes where no output is visible — one frozen shared instance, never handed out (the caller maps it). */
+const NO_OUTPUTS: readonly OutputEntry[] = Object.freeze([]);
+
+/**
+ * **Where `path` goes in a group kept in `compareBranchPaths` order** — the first position whose path does not sort
+ * before it. Paths within one node never tie (a task id is `(node, branchPath)` and attempt `0`, P40 fact 3), so for an
+ * entry already there this is its own position. The common case — a map's instances settling in order — appends, and
+ * is answered by one comparison.
+ */
+function groupPosition(group: readonly OutputEntry[], path: string): number {
+  let lo = 0;
+  let hi = group.length;
+  if (hi === 0 || compareBranchPaths(group[hi - 1]!.path, path) < 0) return hi;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (compareBranchPaths(group[mid]!.path, path) < 0) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
 
 /** What `createTask` is handed — held, during a replay, until the resume knows what is in flight. */
@@ -4453,7 +4492,7 @@ export class Driver {
    * node or an edge that declares a `needs` asks, and a run that declares none never builds it.
    */
   private outputs(): Map<string, { path: string; result: unknown }[]> {
-    const c = (this.outputsCache ??= { at: 0, byNode: new Map(), tasks: new Map(), orders: new Map() });
+    const c = (this.outputsCache ??= { at: 0, byNode: new Map(), tasks: new Map(), orders: new Map(), index: new Map(), depths: new Map(), examined: 0 });
     for (; c.at < this.log.length; c.at += 1) {
       const r = this.log[c.at]!;
       let t = c.tasks.get(r.taskId);
@@ -4501,6 +4540,7 @@ export class Driver {
       const at = list.indexOf(t.entry);
       list.splice(at, 1);
       orders.splice(at, 1);
+      this.reindex(c, t.nodeId, t.entry, null);
       t.entry = null;
       if (list.length === 0) {
         c.byNode.delete(t.nodeId);
@@ -4511,10 +4551,12 @@ export class Driver {
     const entry = { path: t.path, result: eff.result };
     if (t.entry !== null && list !== undefined) {
       list[list.indexOf(t.entry)] = entry;
+      this.reindex(c, t.nodeId, t.entry, entry);
       t.entry = entry;
       return;
     }
     t.entry = entry;
+    this.reindex(c, t.nodeId, null, entry);
     if (list === undefined || orders === undefined) {
       c.byNode.set(t.nodeId, [entry]);
       c.orders.set(t.nodeId, [t.order]);
@@ -4526,6 +4568,85 @@ export class Driver {
     while (i > 0 && orders[i - 1]! > t.order) i -= 1;
     list.splice(i, 0, entry);
     orders.splice(i, 0, t.order);
+  }
+
+  /**
+   * **One entry's change carried into every index built for its node** — W199, ADR 0124: called by `place` at each of
+   * its cases (a first entry, an append, an insertion at a first-record position, a replacement in place, a removal), so
+   * the index is caught up exactly when `byNode` is and can say nothing `byNode` does not. `was` is the entry leaving
+   * (`null` for an insertion), `now` the one arriving (`null` for a removal); a replacement keeps its path, so its
+   * position. A group is ordered by PATH, not by first record, so where `byNode` inserted mid-list the group finds its own
+   * place by a binary search. An entry with fewer than `depth` segments is visible to no reader at that depth and is filed
+   * nowhere.
+   */
+  private reindex(c: OutputsCache, nodeId: string, was: OutputEntry | null, now: OutputEntry | null): void {
+    const byDepth = c.index.get(nodeId);
+    if (byDepth === undefined) return;
+    const path = (now ?? was)!.path;
+    for (const [depth, groups] of byDepth) {
+      const key = visibilityKey(path, depth);
+      if (key === null) continue;
+      c.examined += 1;
+      const group = groups.get(key);
+      if (was !== null) {
+        const at = groupPosition(group!, path);
+        if (now !== null) group![at] = now;
+        else if (group!.length === 1) groups.delete(key);
+        else group!.splice(at, 1);
+      } else if (group === undefined) {
+        groups.set(key, [now!]);
+      } else {
+        group.splice(groupPosition(group, path), 0, now!);
+      }
+    }
+  }
+
+  /**
+   * **A node's outputs grouped for readers at `depth`** — built on the first read at that depth from the node's current
+   * entries (each one examined), each group sorted ONCE, and from then on kept by `reindex`.
+   */
+  private groupsOf(c: OutputsCache, nodeId: string, depth: number): Map<string, OutputEntry[]> {
+    let byDepth = c.index.get(nodeId);
+    if (byDepth === undefined) c.index.set(nodeId, (byDepth = new Map()));
+    let groups = byDepth.get(depth);
+    if (groups !== undefined) return groups;
+    groups = new Map();
+    for (const e of c.byNode.get(nodeId) ?? NO_OUTPUTS) {
+      c.examined += 1;
+      const key = visibilityKey(e.path, depth);
+      if (key === null) continue;
+      const group = groups.get(key);
+      if (group === undefined) groups.set(key, [e]);
+      else group.push(e);
+    }
+    for (const group of groups.values()) if (group.length > 1) group.sort((x, y) => compareBranchPaths(x.path, y.path));
+    byDepth.set(depth, groups);
+    return groups;
+  }
+
+  /** The depth `reader` and `target` share — `sharedRegionDepth`, a graph fact, asked once per pair. */
+  private depthOf(c: OutputsCache, reader: string, target: string): number {
+    let byTarget = c.depths.get(reader);
+    if (byTarget === undefined) c.depths.set(reader, (byTarget = new Map()));
+    let depth = byTarget.get(target);
+    if (depth === undefined) byTarget.set(target, (depth = sharedRegionDepth(this.regions, reader, target)));
+    return depth;
+  }
+
+  /**
+   * **The outputs of `nodeId` visible to `atNodeId` at `here`, in `compareBranchPaths` order** — W199, ADR 0124: ADR
+   * 0044's predicate answered by a LOOKUP. The predicate is `visibilityKey(here, d) === visibilityKey(path, d)` at the depth
+   * `d` the two share (`outputIsVisible`), so the visible outputs are exactly the group filed under the reader's key: what
+   * the filter over every output and the sort of its survivors returned until W199, found in the cost of its answer.
+   * **The index's own list, never handed out** — the caller maps it to copies.
+   */
+  private visibleOutputs(atNodeId: string, here: string, nodeId: string): readonly OutputEntry[] {
+    this.outputs();
+    const c = this.outputsCache!;
+    const depth = this.depthOf(c, atNodeId, nodeId);
+    const key = visibilityKey(here, depth);
+    if (key === null) return NO_OUTPUTS;
+    return this.groupsOf(c, nodeId, depth).get(key) ?? NO_OUTPUTS;
   }
 
   /**
@@ -4563,7 +4684,7 @@ export class Driver {
     // maintainer's answer, 2026-10-19). Both were computed for ANY `needs`, and `FD-R4` composes with NO item index (the
     // walk has none to give), so an ENTRY map's branch task declaring `"."` threw a raw `UnresolvedBranchPath` out of
     // `start()` — not `BoundaryRefused`. `"."`, `"$payload"` and `"$item"` read no path; only `resolveReference` does.
-    let lookup: { here: string; produced: Map<string, { path: string; result: unknown }[]> } | null = null;
+    let here: string | null = null;
     const out: Record<string, unknown> = {};
     for (const [key, ref] of Object.entries(needs)) {
       // **`!` rather than a guard, and the assertion is the point.** `FD-V26` refuses
@@ -4602,8 +4723,8 @@ export class Driver {
         out[key] = cloneValue(item());
         continue;
       }
-      lookup ??= { here: this.pathOf(node.id, itemIndices), produced: this.outputs() };
-      const v = this.resolveReference(node.id, lookup.here, lookup.produced, key, t, 'needs');
+      here ??= this.pathOf(node.id, itemIndices);
+      const v = this.resolveReference(node.id, here, key, t, 'needs');
       // **`ABSENT` and not `null`, and the reason is measured** — W45. A reference
       // to a task that FAILED already resolves to `null` with the key present
       // (`fanout-failure` with `scoreA` optional: `publish` receives
@@ -4634,7 +4755,6 @@ export class Driver {
   private resolveReference(
     atNodeId: string,
     here: string,
-    produced: Map<string, { path: string; result: unknown }[]>,
     key: string,
     t: { form: 'one' | 'all'; node: string; conditional: boolean },
     site: 'needs' | 'edge needs',
@@ -4658,9 +4778,12 @@ export class Driver {
     //
     // **Two predicates would be two sources that can disagree**, which is ADR 0040
     // rule 2's own refusal, so the old one is gone rather than kept beside it.
-    const visible = (produced.get(t.node) ?? [])
-      .filter((e) => outputIsVisible(this.regions, atNodeId, here, t.node, e.path))
-      .sort((x, y) => compareBranchPaths(x.path, y.path));
+    //
+    // **Answered by a LOOKUP since W199** (ADR 0124, P40): the outputs visible here are the group the driver's index files
+    // under this reader's key — the same entries, in the same order, that the filter over EVERY output of the node and the
+    // sort of its survivors returned until then, at O(the node's outputs) a read and O(items²) over a map whose branch
+    // reads its own instance ([Q735](../../doc/questions/q735.md)). A read now costs its answer.
+    const visible = this.visibleOutputs(atNodeId, here, t.node);
     if (visible.length === 0 && t.conditional) {
       // **`FD-C4` — the conditional form's whole effect, and it is asymmetric by
       // shape rather than by choice.** The `one` form has no value that could mean
@@ -4685,6 +4808,7 @@ export class Driver {
     // that is not a fan-out edge: no two nodes ever receive the same object, and
     // a reference is the one way two nodes could otherwise be handed one record's
     // `result` twice.
+    this.outputsCache!.examined += t.form === 'all' ? visible.length : 1;
     return t.form === 'all'
       ? visible.map((e) => cloneValue(e.result))
       : cloneValue(visible[0]!.result);
@@ -4747,7 +4871,8 @@ export class Driver {
     const needs = (edge as { needs?: Record<string, unknown> }).needs;
     if (!needs) return EMPTY_NEEDS;
     const here = this.pathOf(node.id, itemIndices);
-    const produced = this.outputs();
+    // Caught up here, eagerly, as before W199 — an edge declaring `needs` builds the projection whatever its keys name.
+    this.outputs();
     const out: Record<string, unknown> = {};
     for (const [key, ref] of Object.entries(needs)) {
       // `FD-V26` refuses a malformed reference and the `"."` form on an edge at construction, so the node-less forms a
@@ -4771,7 +4896,7 @@ export class Driver {
       if (t.form === 'self') {
         throw new Error(`node "${node.id}"'s edge declares needs[${JSON.stringify(key)}] = ${JSON.stringify(ref)}, which FD-V26 refuses on an edge`);
       }
-      const v = this.resolveReference(node.id, here, produced, key, t, 'edge needs');
+      const v = this.resolveReference(node.id, here, key, t, 'edge needs');
       // The same omission as `compose`'s, at the second site and by the same
       // expression, so `ctx.needs.f` and `payload.f` mean one thing — ADR 0041
       // rule 4's *one resolver* carried to what happens when it resolves to

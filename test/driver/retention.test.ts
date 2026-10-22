@@ -1108,6 +1108,15 @@ suite(SUITE, (test) => {
       'and it holds one per settled task rather than a subset, so the identity check above is ' +
       'not vacuous on an almost-empty cache',
     );
+    // **W199 — the reference index inside `outputsCache` (ADR 0124) holds `byNode`'s own ENTRY objects**, so it adds a
+    // holder of nothing: every entry it reaches IS a `byNode` entry, and so its `result` a log record's own object.
+    const c = (h.driver as unknown as {
+      outputsCache: { byNode: Map<string, object[]>; index: Map<string, Map<number, Map<string, object[]>>> };
+    }).outputsCache;
+    const own = new Set([...c.byNode.values()].flat());
+    const indexed = [...c.index.values()].flatMap((byDepth) => [...byDepth.values()].flatMap((g) => [...g.values()].flat()));
+    ok(indexed.length > 0, `the index is POPULATED — rank read ["score"] (${indexed.length} entries)`);
+    equal(indexed.filter((e) => !own.has(e)), [], 'RN-R13 v0.32 — every entry the index reaches IS a byNode entry, by reference');
 
     // **And the holder SET on this same run reaches a FOURTH name**, which is what
     // makes the walk's universe load-bearing rather than decorative. Every other case

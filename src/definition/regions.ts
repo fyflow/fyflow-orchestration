@@ -516,23 +516,35 @@ export function outputIsVisible(
   targetPath: string,
 ): boolean {
   const depth = sharedRegionDepth(regions, readerId, targetId);
-  // **Nothing shared means nothing to disagree about**, which is the half that
-  // changes: a reader outside every region the target is in sees ALL of its
-  // outputs, whether it sits at `-` after the region (unchanged from v0.11) or
-  // inside a sibling region (Q206, and new here).
-  if (depth === 0) return true;
-  const xs = readerPath === '-' ? [] : readerPath.split('.');
-  const ys = targetPath === '-' ? [] : targetPath.split('.');
-  for (let i = 0; i < depth; i++) {
-    // A shared region always contributes a segment to both paths, so a missing one
-    // is a path that was not derived from these regions. Guarded rather than
-    // asserted: `undefined !== undefined` is false, so an unguarded compare would
-    // report two pathless nodes as AGREEING, which is the one direction that
-    // silently widens what a reference reaches.
-    if (xs[i] === undefined || ys[i] === undefined) return false;
-    if (xs[i] !== ys[i]) return false;
-  }
-  return true;
+  // **Restated through `visibilityKey` by W199 with no change of behaviour** (ADR 0124, P40 decision 2): the two paths
+  // agree on the regions their chains share exactly when their first `depth` segments are the same — so the predicate
+  // and the driver's index (`outputsCache`) read ONE function and cannot disagree (ADR 0044 rule 2).
+  //
+  // **Nothing shared means nothing to disagree about**: at depth 0 every path has the one key `''`, so a reader outside
+  // every region the target is in sees ALL of its outputs, whether it sits at `-` after the region (unchanged from
+  // v0.11) or inside a sibling region (Q206). **A missing segment is a path not derived from these regions** — no key,
+  // so visible to nothing: an unguarded compare would report two pathless nodes as AGREEING, which is the one direction
+  // that silently widens what a reference reaches.
+  const key = visibilityKey(readerPath, depth);
+  return key !== null && key === visibilityKey(targetPath, depth);
+}
+
+/**
+ * **The key an output is filed under for a reader that shares `depth` regions with it** — the first `depth` SEGMENTS of
+ * its branch path, joined, or `null` for a path with fewer (`-` has none) — W199,
+ * [ADR 0124](../../doc/decisions/0124-a-reference-read-costs-its-answer.md). An output is visible to a reader exactly
+ * when the two have the SAME key at their shared depth ({@link outputIsVisible}), so the driver files a node's outputs
+ * under it once and a read takes its group, where it searched every output (Q735).
+ *
+ * **Segment-wise and never by string** (ADR 0044 rule 3): a segment holds no `.`, so two keys of `depth` segments are
+ * equal exactly when their segments are — `1` and `10` stay distinct, and `1.0` at depth 1 is `1`. At depth 0 every path
+ * has the one key `''`.
+ */
+export function visibilityKey(path: string, depth: number): string | null {
+  if (depth === 0) return '';
+  const segs = path === '-' ? [] : path.split('.');
+  if (segs.length < depth) return null;
+  return segs.length === depth ? path : segs.slice(0, depth).join('.');
 }
 
 /**
