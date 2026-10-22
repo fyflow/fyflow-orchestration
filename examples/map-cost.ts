@@ -7,6 +7,15 @@
  * `ingest`'s dispatch, which `start()` delivers before it returns); each size in a FRESH process, printed beside the
  * figures P39 and W196 measured on the tree BEFORE the plan.
  *
+ * **And four REFERENCE subjects since [W200](../doc/work-items/w200-the-exit-artifact-on-real-workers-and-the-reply.md)**,
+ * [P40](../doc/plans/p40-what-a-reference-read-costs-inside-a-map.md)'s exit artifact clause (2): the driver alone over a
+ * `map` whose branch READS another node by `needs` — one step back (`post` reading its own instance's `work`, Q735's own
+ * shape), two steps back (`work` → `mid` → `post`), a NESTED map (`tail` reading the outer instance's `prep` and its own
+ * inner instance's `leaf`) and a SIBLING map of three slots (`publish` reading `["score"]`, every output) — at 2,000 /
+ * 8,000 / 16,000 items, printed beside what W199's declaration step measured on `6006caa`, the tree before
+ * [ADR 0124](../doc/decisions/0124-a-reference-read-costs-its-answer.md)'s index, in node 24.20.0 or deno 2.9.6 by the
+ * runtime running this file. Their work is COUNTED in `test/fold/map-cost.test.ts` too (`outputsCache.examined`).
+ *
  * ```bash
  * node examples/map-cost.ts
  * deno run --import-map=examples/deno-import-map.json --allow-read --allow-run --allow-env examples/map-cost.ts
@@ -49,8 +58,13 @@ const runtimeName = g.Deno ? `deno ${g.Deno.version.deno}` : `node ${g.process!.
 const args = g.Deno ? g.Deno.args : g.process!.argv.slice(2);
 
 const SIZES = [1_000, 2_000, 4_000, 8_000, 16_000];
-type Subject = 'fold' | 'driver' | 'running' | 'runtime';
-const SUBJECTS: readonly Subject[] = ['fold', 'driver', 'running', 'runtime'];
+/** The reference subjects' sizes — the three W199 measured before the index. */
+const REF_SIZES = [2_000, 8_000, 16_000];
+type RefShape = 'one step back' | 'two steps back' | 'nested map' | 'sibling map';
+type Subject = 'fold' | 'driver' | 'running' | 'runtime' | RefShape;
+const REF_SHAPES: readonly RefShape[] = ['one step back', 'two steps back', 'nested map', 'sibling map'];
+const SUBJECTS: readonly Subject[] = ['fold', 'driver', 'running', 'runtime', ...REF_SHAPES];
+const isRef = (s: Subject): s is RefShape => (REF_SHAPES as readonly string[]).includes(s);
 
 /**
  * **What was measured BEFORE the plan, by size** — node 24.20.0, each from the document named. `fold`: P39 fact 1 (one
@@ -63,6 +77,19 @@ const BEFORE: Record<Subject, Record<number, number>> = {
   driver: { 1_000: 28, 2_000: 33, 4_000: 98, 8_000: 351, 16_000: 988 },
   running: { 4_000: 113, 8_000: 517, 16_000: 2_870 },
   runtime: { 1_000: 987, 2_000: 8_284, 4_000: 34_311, 8_000: 157_679, 16_000: 683_151 },
+  // **W199's declaration step, on `6006caa`** (its re-take 1): the driver alone, `task.running` before each settlement, each
+  // size a fresh process, node 24.20.0. The nested map and the sibling were not run at 16,000 before the index.
+  'one step back': { 2_000: 701, 8_000: 22_033, 16_000: 99_029 },
+  'two steps back': { 2_000: 1_310, 8_000: 41_622, 16_000: 176_628 },
+  'nested map': { 2_000: 18_251, 8_000: 290_697 },
+  'sibling map': { 2_000: 52, 8_000: 178 },
+};
+/** The same re-take in deno 2.9.6 — printed for the reference subjects when this file runs under deno. */
+const BEFORE_DENO: Partial<Record<Subject, Record<number, number>>> = {
+  'one step back': { 2_000: 474, 8_000: 12_006, 16_000: 64_208 },
+  'two steps back': { 2_000: 815, 8_000: 26_770, 16_000: 124_493 },
+  'nested map': { 2_000: 16_881, 8_000: 323_427 },
+  'sibling map': { 2_000: 59, 8_000: 206 },
 };
 
 /** The app's repro flow: an ENTRY `map` over the payload's items, one task per item, a join, an end. */
@@ -150,8 +177,91 @@ async function runtimeRun(items: number): Promise<{ ms: number; inputs: number }
   return { ms, inputs };
 }
 
+/**
+ * **A REFERENCE read inside a map, the driver alone** — W199's re-take harness, the shapes `test/fold/map-cost.test.ts`
+ * counts: an `ingest` task hands the map its items; `task.running` (attemptNumber 1) before every settlement; the queue
+ * walked by index. `ms` from `start` to the last settlement.
+ */
+function refRun(shape: RefShape, items: number): { ms: number; inputs: number } {
+  const task = (id: string, to: string, extra: Record<string, unknown> = {}) => ({ id, kind: 'task', type: 'Work', ...extra, edges: [{ to }] });
+  const end = [{ id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }];
+  const nodes = shape === 'sibling map'
+    ? [
+      task('ingest', 'each'),
+      { id: 'each', kind: 'map', over: 'items', branch: 'score' },
+      task('score', 'collect'),
+      { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'regroup' }] },
+      task('regroup', 'rank'),
+      { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
+      task('publish', 'gather', { needs: { scored: ['score'] } }),
+      { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ]
+    : shape === 'nested map'
+    ? [
+      task('ingest', 'each'),
+      { id: 'each', kind: 'map', over: 'items', branch: 'prep' },
+      task('prep', 'inner'),
+      { id: 'inner', kind: 'map', over: 'sub', branch: 'leaf' },
+      task('leaf', 'tail'),
+      task('tail', 'innerJoin', { needs: { p: 'prep', l: 'leaf' } }),
+      { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'collect' }] },
+      ...end,
+    ]
+    : shape === 'two steps back'
+    ? [
+      task('ingest', 'each'),
+      { id: 'each', kind: 'map', over: 'items', branch: 'work' },
+      task('work', 'mid'),
+      task('mid', 'post'),
+      task('post', 'collect', { needs: { w: 'work' } }),
+      ...end,
+    ]
+    : [
+      task('ingest', 'each'),
+      { id: 'each', kind: 'map', over: 'items', branch: 'work' },
+      task('work', 'post'),
+      task('post', 'collect', { needs: { w: 'work', it: '.' } }),
+      ...end,
+    ];
+  const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+  const queue: string[] = [];
+  const fire = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+  const failures: string[] = [];
+  const driver = new Driver({ flowId: 'big-map', version: 1, entry: 'ingest', nodes } as unknown as FlowDefinition, {
+    runId: 'r1',
+    scheduler: {
+      addTask(task: unknown) { queue.push((task as { id: string }).id); },
+      addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+    },
+    createTask: (config) => config,
+    predicates: new Map(),
+    workers: { w: { url: 'worker.js' } },
+    nodeTypes: { Work: { worker: 'w' } },
+    joinPolicy: liveToken as JoinPolicy,
+    onRunFailure: (f) => { failures.push(f.kind); },
+  });
+  const t0 = performance.now();
+  driver.start({});
+  // By INDEX — never `shift()` (P39 fact 4).
+  for (let q = 0; q < queue.length; q += 1) {
+    const id = queue[q]!;
+    fire('task.running', { id, state: 'running', attemptNumber: 1 });
+    const result = id.includes(':ingest:') ? { items: Array.from({ length: items }, (_, i) => i) }
+      : id.includes(':prep:') ? { sub: [0, 1] } : id.includes(':regroup:') ? { slots: [0, 1, 2] } : { i: q };
+    fire('task.completed', { id, state: 'done', result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 });
+  }
+  const ms = performance.now() - t0;
+  if (failures.length > 0) throw new Error(`${shape} at ${items} items: ${failures.join(', ')}`);
+  const inputs = driver.foldInputs() as FoldInput[];
+  // Outside the timed span: the run COMPLETED, so every read the shape makes was made.
+  if (fold(inputs).outcome !== 'completed') throw new Error(`${shape} at ${items} items: the run did not complete`);
+  return { ms, inputs: inputs.length };
+}
+
 /** ONE subject at ONE size, in THIS process — what a child prints, as one JSON line. */
 async function one(subject: Subject, items: number): Promise<{ subject: Subject; items: number; inputs: number; ms: number }> {
+  if (isRef(subject)) return { subject, items, ...refRun(subject, items) };
   if (subject === 'runtime') return { subject, items, ...(await runtimeRun(items)) };
   const d = driverRun(items, subject === 'running');
   if (subject !== 'fold') return { subject, items, inputs: d.inputs.length, ms: d.ms };
@@ -189,13 +299,15 @@ if (args[0] === '--one') {
 } else {
   const only = args[0] === undefined ? SUBJECTS : SUBJECTS.filter((s) => s === args[0]);
   const fmt = (ms: number | undefined) => (ms === undefined ? '—' : `${Math.round(ms).toLocaleString('en-US')} ms`);
-  console.log(`\n  what a long map costs — ${runtimeName}, each size in a fresh process; BEFORE is node 24.20.0 on the tree before P39\n`);
+  console.log(`\n  what a long map costs — ${runtimeName}, each size in a fresh process; BEFORE is node 24.20.0 on the tree before P39,` +
+    ` and for a needs read inside a map ${g.Deno ? 'deno 2.9.6' : 'node 24.20.0'} on the tree before ADR 0124's index (6006caa)\n`);
   for (const subject of only) {
-    console.log(`  ${subject === 'fold' ? 'fold' : subject === 'driver' ? 'driver, no task.running' : subject === 'running' ? 'driver, task.running (attemptNumber 1) before each settlement' : 'runtime, start to done, outcome() after every input'}`);
+    console.log(`  ${subject === 'fold' ? 'fold' : subject === 'driver' ? 'driver, no task.running' : subject === 'running' ? 'driver, task.running (attemptNumber 1) before each settlement' : subject === 'runtime' ? 'runtime, start to done, outcome() after every input' : `driver, a needs read inside a map: ${subject}, task.running before each settlement`}`);
     console.log(`    ${'items'.padStart(7)}  ${'inputs'.padStart(7)}  ${'BEFORE'.padStart(11)}  ${'now'.padStart(9)}`);
-    for (const items of SIZES) {
+    const before = isRef(subject) && g.Deno ? BEFORE_DENO[subject]! : BEFORE[subject];
+    for (const items of isRef(subject) ? REF_SIZES : SIZES) {
       const r = await child(subject, items);
-      console.log(`    ${items.toLocaleString('en-US').padStart(7)}  ${String(r.inputs).padStart(7)}  ${fmt(BEFORE[subject][items]).padStart(11)}  ${fmt(r.ms).padStart(9)}`);
+      console.log(`    ${items.toLocaleString('en-US').padStart(7)}  ${String(r.inputs).padStart(7)}  ${fmt(before[items]).padStart(11)}  ${fmt(r.ms).padStart(9)}`);
     }
     console.log('');
   }
