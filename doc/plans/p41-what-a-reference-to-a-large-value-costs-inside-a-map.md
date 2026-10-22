@@ -1,6 +1,6 @@
 # P41 — What does a reference to a large value cost inside a map, and can every instance read one shared copy?
 
-**Status:** complete and retro'd 2026-10-22 — W202-W203 done, `gate:full` EXIT 0 on W203's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)). Earlier: declared 2026-10-22 — on `6957919` (the tree clean, `main` at 0.9.1), answering [Q186](../questions/q186.md) and fyflow-app's *pass 2 follow-up 2*; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; **(f) and (g) found writing this declaration and ANSWERED by the maintainer the same day — (f) as (f2), (g) as (g1), the recommendation**; W203 waits on W202.
+**Status:** complete and retro'd 2026-10-22 — W202-W203 done, `gate:full` EXIT 0 on W203's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)), ANSWERED by the maintainer 2026-10-22 as (a3). Earlier: declared 2026-10-22 — on `6957919` (the tree clean, `main` at 0.9.1), answering [Q186](../questions/q186.md) and fyflow-app's *pass 2 follow-up 2*; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; **(f) and (g) found writing this declaration and ANSWERED by the maintainer the same day — (f) as (f2), (g) as (g1), the recommendation**; W203 waits on W202.
 **Question this plan answers:** *can a `needs` reference read inside a `map` instance — a node's output, in either form, or
 `"$payload"` — cost ONE copy of what it names however many instances read it, rather than one copy per instance per key,
 with no node able to write to what another node reads wherever JavaScript can enforce it — and the gap where it cannot
@@ -589,6 +589,9 @@ W202's.
 | | the question | recommended | the alternatives |
 |---|---|---|---|
 | **(a)** | **`FD-C1`'s v0.47 test text says the cost suite pins *six shapes*; it pins SEVEN** (W202's adequacy reader added `["score?"]` after the sentence was written). A spec edit is outside every P41 item's `Owns` and a spec change is its own change, so workflow section 1 rule 6 ASKS rather than raises | **(a1)** YES — one word, *six* → *seven*, in its own `spec:` commit stating the reason, no version bump (no rule moves) | **(a2)** NO — raise it as a question in the register; **(a3)** delete the count from the sentence instead (P27 decision 4: a count the suite declares is not written down) |
+
+**ANSWERED 2026-10-22 by the maintainer — (a3)**, not the recommendation: `FD-C1`'s test text no longer carries a count
+of shapes and reads *on every shape the suite declares*, in its own `spec:` commit with no version bump (no rule moves).
 
 The release is decided — (d): 0.10.0, bumped, pushed and published by the maintainer *only when the maintainer says so* —
 and is a hand-off in the Record, not a question. The RegExp is a point taken as recommended (the Record), not a question.
