@@ -1,6 +1,6 @@
 # P41 — What does a reference to a large value cost inside a map, and can every instance read one shared copy?
 
-**Status:** declared 2026-10-22 — on `6957919` (the tree clean, `main` at 0.9.1), answering [Q186](../questions/q186.md) and fyflow-app's *pass 2 follow-up 2*; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; **(f) and (g) found writing this declaration and ANSWERED by the maintainer the same day — (f) as (f2), (g) as (g1), the recommendation**; W203 waits on W202.
+**Status:** complete and retro'd 2026-10-22 — W202-W203 done, `gate:full` EXIT 0 on W203's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)). Earlier: declared 2026-10-22 — on `6957919` (the tree clean, `main` at 0.9.1), answering [Q186](../questions/q186.md) and fyflow-app's *pass 2 follow-up 2*; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; **(f) and (g) found writing this declaration and ANSWERED by the maintainer the same day — (f) as (f2), (g) as (g1), the recommendation**; W203 waits on W202.
 **Question this plan answers:** *can a `needs` reference read inside a `map` instance — a node's output, in either form, or
 `"$payload"` — cost ONE copy of what it names however many instances read it, rather than one copy per instance per key,
 with no node able to write to what another node reads wherever JavaScript can enforce it — and the gap where it cannot
@@ -406,3 +406,190 @@ the release state, measured.
 | [Q154](../questions/q154.md) | a branch mutating what it was given mutated its siblings' input — `JP-R11`'s origin, the hazard (c)'s freeze answers for references | — |
 | [Q22](../questions/q22.md) | whether a result must be structured-cloneable and where that constraint sits — (f2)'s neighbour: what crosses a clone is what the gap is made of; unmoved | — |
 | [Q9](../questions/q9.md) | nothing enforces a predicate's purity — (g)'s ground | — |
+
+## Record
+
+*Written 2026-10-22 over W203's final tree, the tree held still before it. Every figure is read from the two items' own
+files; none is re-measured here. Ids are bare text, as in P33's-P40's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W202** `f46abfc` | `deepFreeze` and `sharedCopy`; the shared copy per output entry (`OutputEntry.shared`, made at its first read, released where `place` replaces or removes the entry); `resolveReference` handing it at both sites, an `all` answer a fresh array of shared copies; the `"$payload"` copy, one per run; the private counter `outputsCache.copies`; `test/driver/shared-reference.test.ts` (eleven cases, the gap pinned per type); `test/fold/reference-copy-cost.test.ts` (seven shapes EXACT at 2,000 / 8,000, every restored per-read clone red at each call site); fact 8's L2 and fact 7's L6 claims re-stated; ADR 0126 | flow-definition v0.47 (section 3, `FD-C1`, `FD-C3`); run-state v0.33 (`RN-R13`); join-policy v0.24 (`JP-R11`'s headline) | **Q186** / — | the row's declared exceptions (`X6`'s anchors and probes, W192's L6 claims, one README sentence); the readers' RegExp finding taken as recommended — below | conformity 3 SHOULD, 7 NIT, no BLOCKER; adequacy 78 mutations, real survivors re-cut and KILLED but S4 and L2 (declared). **Overlap 2** | 91 / 2174; 2815 / 230 | `gate:item` EXIT 0, selftests 1,080.9 s |
+| **W203** `8877b06` | the `W203 exit` L6 block — the fetch-then-map shape on a threaded and an inline pool, node and deno: the value by hand at every instance, frozen on the inline pool and a clone on the threaded one, an inline worker's write failing its attempts with `TypeError`, a predicate's write stopping the run, an edge's `ctx.needs` one frozen object and the worker's own (one resolver), and the named gap seen by the next inline reader — sixteen claims, four runs; `examples/map-cost.ts`' two large-read subjects, BEFORE and AFTER; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 5 NIT; adequacy 59 mutant runs, no SHOULD, 2 NIT and one construction. 7 probes, 7 KILLED. **Overlap 2** | 91 / 2174; **2831 / 234** | **`gate:full` EXIT 0**, 11/11 self-tests, 2,898 s |
+
+**Both confirming gates were green on their FIRST run, one command each** (sentence C); firefox and webkit NOT RUN in
+either. **One question closed (Q186), none raised. No stop-and-ask inside an item; one exception for the plan's
+bookkeeping (W203). The readers' overlap, every Record stating its own: 2, 2.**
+
+**A point taken as RECOMMENDED, revisable by the maintainer**: **a `RegExp` in a referenced value is shared UNFROZEN and
+named in the gap** (W202's two readers, independently: a frozen `RegExp`'s `lastIndex` is read-only, so a global or
+sticky one's own `test`, `exec`, `replace` and `match` THROW — a third behaviour change P41 decision 8 does not have).
+W202 took the recommendation, and the maintainer kept it on 2026-10-22, relayed to W203. **The alternative is one line**
+(drop `v instanceof RegExp` from `deepFreeze`'s skip, and name the throw as a third behaviour change instead of a gap
+member); it would move ADR 0126 rule 2, spec section 3 and `AGENTS.md` with it.
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) a cost case green in `gate:full` and all three L0-L5 runtimes, a clock-free COUNT of reference copies, EXACT at 2,000 and 8,000 for the fetch-then-map shape, `["fetch"]`-style `all` and `"fetch?"` where `FD-V28` allows, and `"$payload"` — one copy per distinct output read, EQUAL at both sizes; each provoked red by restoring the per-read clone, bounded | `test/fold/reference-copy-cost.test.ts`, `outputsCache.copies`: `one`, `conditional`, `payload`, `edge, node`, `edge, payload` **1 / 1**; `all` and `all, conditional` (a sibling map reading `["score"]`, `["score?"]` — `FD-V28` makes the list the form there) **2,000 / 8,000**, one per output; a second observer equal at every pin; the per-read clone restored at `compose` and at `resolveNeeds`, each for a node reference and for `"$payload"`, each red on its own clause set, bounded; node, deno, chromium (the suite ~1.7-2.0 s of node wall) | **met** |
+| (2) fact 4 re-taken on the final tree in node 24 and deno, the driver alone at 1,000 / 2,000 / 4,000, time and peak heap over baseline, beside 579 / 2,123 / 22,903 ms and 178 / 468 / 1,445 MB | the maintainer's harness (`perf/q186.ts`), W202: **529 / 1,993 / 15,475 ms, 178 / 468 / 1,448 MB → 29 / 47 / 78 ms, 5 / 11 / 15 MB** (node); deno 1,442 / 2,068 / 16,598 → 30 / 50 / 91 ms, 6 / 11 / 16 MB. `examples/map-cost.ts`' large-read subject, W203, BEFORE on `88059b7` and AFTER on the final tree: **543 / 1,949 / 7,936 ms, 179 / 470 / 1,440 MB → 29 / 44 / 75 ms, 6 / 12 / 15 MB** (node); **836 / 2,116 / 8,383, 174 / 467 / 1,433 → 33 / 53 / 92, 6 / 12 / 15** (deno) — against 27 / 50 / 77 ms for the same flow reading a SMALL node | **met** — a measurement, not a gate entry (Q179) |
+| (3) one block in `examples/l6.ts`, node 24 and deno, threaded and inline: every instance of a map of at least twelve handed the fetched value equal to `fetch`'s result by hand; an INLINE worker's write fails that attempt with `TypeError`; a THREADED one's does not and reaches no sibling; a predicate's write stops the run with that `TypeError`; each claim with its control | the `W203 exit` block, sixteen claims over four runs, 2831 / 234, 0 failed in both runtimes; the twelve held off the run; plus what the readers added — the edge's object the worker's (one resolver, rule 5), the gap's two halves apart with the canonicaliser's self-control, a closed gap a verdict on a settled run | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W203, one command on the final tree after the readers' fixes: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included (2,632.3 s wall, 10 lanes), 2,898 s in all | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **89 / 2155 → 91 / 2174** in node, deno and
+chromium; L6 **2815 / 230 → 2831 / 234** in node and deno; `check:docs` 51 `run` snippets, unmoved; `check:spec` C4 45;
+spec/flow-definition **v0.46 → v0.47**, run-state **v0.32 → v0.33**, join-policy **v0.23 → v0.24**, outcome-record
+unmoved; `DRIVER_FIELDS`, `NOT_RUN_STATE`, the holder sets, `CHECKPOINT_FORMAT`, `FoldInput`, `RunState` and `snapshot()`
+unmoved; the package surface unmoved — no export added or removed; `doc/concept.md` untouched.
+
+**What the plan answered — yes.** A `needs` reference read inside a map — a node's output, in either form, either with
+`?`, at a node's `needs` or an edge's, or `"$payload"` — costs ONE copy of what it names however many instances read it
+(ADR 0126), with no value any reference resolves to moved. **No node can write to what another node reads wherever
+JavaScript can enforce it**; **the gap where it cannot is named and pinned** — a `Map`, `Set`, `Date` or `ArrayBuffer`
+frozen shallowly, a typed array, a `DataView` and a `RegExp` shared unfrozen — held at L2 per type and on a real inline
+pool at L6. **The price**: two behaviour changes a consumer can see (an inline worker's write into a referenced value
+fails its attempt; a strict predicate's write stops the run), and one retained term (`RN-R13`: the second copy of each
+output a reference read). **fyflow-app's request** accepted for every node reference and `"$payload"`; its premise
+*`OR-R2` already freezes results* corrected; the reply is written
+(`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass2-followup-2.reply.md`). **What 0.10.0
+ships**: no signature change; the two behaviours.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W202 moves no composed VALUE in any lane; identity and writability move | **HOLDS** — 182 payload lines byte-identical; fact 8's and fact 7's claims moved | W202 Record |
+| 2 | the driver at 4,000 within 2x of the same flow reading a SMALL node, its peak heap under 10% | **HOLDS** — 78 against 70 ms, 15 against 1,448 MB (W202's harness); 75 against 77 ms, 15 against 1,440 MB (W203's) | W202, W203 Records |
+| 3 | `RN-R13` gains ONE term; the holder sets and every surface do not move | **HOLDS** — 90.7 → 93.7 B an entry (one output read by 1,000 instances), 97.1 → 105.6 (an own-instance read) | W202 Record |
+| 4 | the count is 1 per output read at both sizes; the restored clone reads `n` | **HOLDS** | W202 Record |
+| 5 | the L6 claims that move are W192's (3) alone | **HOLDS** — three claims | W202 Record |
+| 6 | W203 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2815 / 230 → 2831 / 234 | W203 Record |
+| 7 | every gap type behaves as (f2) names it, in all three L0-L5 runtimes | **HOLDS** — node, deno, chromium identical; a `DataView` freezes WITHOUT throwing and still writes its bytes (the plan's *throws on them* is a typed array's alone) | W202 Record |
+
+**The D′ paragraph's census predictions**, scored the same way: **right at every site it named** — `resolveReference`'s
+two callers, the `"$payload"` arms and `runPayload()`, `outputs()` and `place`, `OutputsCache`, the per-read clone census
+(only the reference reads and `"$payload"` changed), the writers' census (one worker writes its OWN input; no writer into
+a referenced value beyond W192's), fact 8's identity claims, `DRIVER_FIELDS` and `NOT_RUN_STATE` unmoved, `X6` moved with
+the table, `X10` at W203 alone, the PREMISES. **Short at one CLASS, found by both of W202's readers**: the plan listed
+the types freezing cannot PROTECT and not the types freezing BREAKS — a `RegExp`'s reads (above). `CONSTRUCTION_PRICED`
+did not move. **And one count went stale behind a reader**: W202's adequacy reader added a seventh cost shape after the
+sentence *six shapes* was written in ADR 0126 consequence 1 and in `FD-C1`'s v0.47 test text — the ADR corrected at this
+record step (dated), the spec's word a stop-and-ask (section 8 below).
+
+**Questions**: **closed [Q186](../questions/q186.md)** (W202, by ADR 0126 and the count in the gate — the cost removed, not
+warned about); **raised none.** `npm run q -- --where status=open` lists **none**.
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.10.0** — the version bump (a `chore:` commit, as 0.9.1's `6957919`), the push, and the publish to npm and JSR | (d) | **the maintainer** — decided at (d), *only when the maintainer says so* | this Record |
+| the RegExp's treatment — shared unfrozen, in the gap | W202's readers | **the maintainer** — taken as recommended, revisable | this Record; W202's Record |
+| `FD-C1`'s *six shapes* | P41's retro | **the maintainer** — stop-and-ask (a), section 8 | below |
+| the reply to fyflow-app | P41's *The reply* | **done** — W203 | W203's Record |
+| fyflow-app's *pass 3* request (`fyflow-orchestration.pass3.md`, a task's input composed on demand), found beside the reply | — | **the maintainer** — not P41's question; read, not answered | this Record |
+| the byte copies `C:/tmp-w202`, `C:/tmp-w203`, and the session scratchpad's probes | both items | **the maintainer** — left in place, outside the repository; nothing reads them | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-22 over W203's final tree, by W203's author as the plan's last item. Every figure is read from the
+two items' Records; this retro re-ran no harness. **One routing here needs the maintainer** (section 8); nothing is acted
+on outside the record step's four files and W203's one declared exception.*
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P41's declaration | — | (a)-(g): (a)-(e) as recommended, (f) as (f2) — not the recommendation — and (g) as (g1) | — | — |
+| W202 | — (its row's exceptions, declared before the edit) | the RegExp — taken as recommended, kept by the maintainer | 10 (3 SHOULD, 7 NIT) and the adequacy reader's real survivors | **Q186 closed** |
+| W203 | — (one exception declared before the edit) | — | 7 (2 SHOULD, 5 NIT) and 2 NIT and a construction | — |
+| **P41** | **0** | **7 answers, 6 as recommended; one point taken as recommended** | **no BLOCKER; every one acted on or declared** | **0 raised, 1 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E held
+
+**D′ was FOLLOWED and held at every site the plan named**; what it did not name was a CLASS, not a site — the types a
+freeze BREAKS — found by both of W202's readers by construction. **B′ held**: W202 ran `check:docs:selftest` for `X6`'s
+moved probes. **C held**: one confirming gate per item, each green on its first run. **E held**: W202's provocations cut
+per call site and per clause (`compose` / `resolveNeeds` × node / `"$payload"`); W203's one clause each.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W202 | 3 SHOULD, 7 NIT, no BLOCKER | 78 mutations; real survivors re-cut and killed, S4 and L2 declared | **2** — the RegExp whose reads throw; the gap list narrower than the rule | 121st |
+| W203 | 2 SHOULD, 5 NIT, no BLOCKER | 59 mutant runs, 2 NIT, one construction | **2** — the canonicaliser's blindness; no real-worker witness of one resolver | 122nd |
+
+**Every Record states its overlap**, the sixth plan running. **Two measurements, both inside section 6's 0-4 band. The
+ordinal is a hundred and twenty-two, so the next is the HUNDRED-AND-TWENTY-THIRD** — carried into `doc/workflow.md` by
+W203's declared exception. *W202's two readers found the RegExp independently, by construction, from briefs that did not
+name it.*
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a freeze breaks READS** — the plan measured which types freezing cannot PROTECT (fact 5) and not which it BREAKS | **FOLLOWED** — fact 5 was a measurement, before any decision, in three runtimes | both of W202's readers, by construction | **One occurrence.** Kin to section 5 rule 8 (a)'s *every value the rule ENUMERATES*: the plan enumerated writes and not reads. Recorded, not proposed |
+| **(b) a probe's declared set short by a downstream observer** — W203's P1 and P7 each went WRONG-SET by one claim the probe's effect reached (an edge that now runs; a result now absent) | **FOLLOWED** — rule 8's harness *a probe declares the full SET … matching exactly* is exactly what caught it | W203's own harness | **Held, not failed**: the exact-set grading did its work. Two occurrences in ONE item — below pass 3 rule 2's bar (different items). Recorded |
+| **(c) a count written into prose went stale behind a reader's added case** — *six shapes* in ADR 0126 and `FD-C1` | the record step wrote both from code-complete; the readers' seventh shape came after | W203's retro, by grep | **The class [Q171](../questions/q171.md) names**, and P27 decision 4's: *a count a check can derive is not written down*. One occurrence here; the ledger's first row below |
+| **(e) a reader's isolation claim** — W203's adequacy reader reported *nothing outside `C:/tmp-w203/ra-scratch/` was written*; a 54-byte `summary.txt` (*t2 harness exit 1* …) was in the AUTHOR's tree at 16:41:23, from the launch it describes as *backgrounded … without `cd`* | **FOLLOWED** — section 6's *in an isolated copy*: every mutation was in its copies, and `ra` byte-identical after; the stray write was its harness's LOG, not a mutation | the author, by `git status` before the plan's commit — untracked, in no commit, read by no check (`gate:full` green over it), removed | **One occurrence.** The copy rule bounds what a reader MUTATES, not where its harness WRITES; a relative path from the wrong working directory lands in the shared tree. Recorded, not proposed — `git status` before a commit is what caught it, and is already every commit's step |
+| **(d) a claim of absence shown able to fail by a control on the same observer** | **FOLLOWED** at W203 — and the adequacy reader found the READ control the SOLE sensor of a vacuous canonicaliser (B2B3) | the conformity reader (S2) and the adequacy reader (B2B3) — the overlap | **Held, narrowly**: the gap claim now carries its own self-control |
+
+**Pass 3 rule 5 over P41's defects**, by what caught them: **a rung in `gate`** — none; **the authors** — W202's
+declaration step (fact 4 and fact 5 re-taken, prediction 7 measured), W203's first L6 run (two harness bugs); **the
+conformity readers** — W202's ten, W203's seven; **the adequacy readers** — W202's survivors, W203's two NITs and
+construction. **No rung would have caught** a freeze that breaks a read: no command asks whether a frozen value still
+WORKS — that is section 6's reader, by construction.
+
+**The flaky rows ([Q599](../questions/q599.md))**: none went red in P41. No note.
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** An attempt's error crosses as its MESSAGE only (the scheduler's
+`AGENTS.md` §5's `error` row), which is why W203's writer re-throws the same `TypeError` with its name prefixed — read off
+the outcome record, as documented.
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′, C, D′ and E held; every Record stated its overlap; no
+BLOCKER reached a Record; section 4's candidates are one occurrence each, or two in one item.
+
+**B. Carried UNCHANGED for the next plan's author** — P39's proposal B as P40 adopted it and P40's and this retro carried
+it (B′, C, D′, E and the brief sentences). Section 4 (a) and (b) are recorded beside it as observations, not added to it.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 40th refusal, P2-P41.** P41's text defects were a count
+  gone stale behind a reader (*six shapes*, twice), a depth miscounted (*0-2*), a declaration that said `maxRetries: 0`
+  for code that says `1`, and a Q4 sentence describing a routing the flow never had — each found by a reading of the code
+  beside it, and the first is the class P27 decision 4 answers by not writing the count. **No other ledger row is
+  re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; this Record and Retro |
+| `doc/workflow.md` | W203's declared exception: the Status line's count (FORTY-ONE, P1-P41), section 6's ordinal (a hundred and twenty-two; the HUNDRED-AND-TWENTY-THIRD next), the ledger's first row (40 times, P2-P41) |
+| `doc/decisions/0126-*` | consequence 1's *six shapes* corrected to seven, dated — pass 3 rule 6's correction, in a record-step file |
+
+`README.md` and `doc/questions/**` carry nothing more: Q186's closing and the dated notes on ADR 0040 and ADR 0117 are
+W202's.
+
+**Ids.**
+
+- **Issued**: W202, W203; ADR 0126; no Q; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): W204 CLOSED unissued, as expected; Q750-Q754 SPENT
+  (W202's), Q755-Q759 SPENT (W203's); ADR 0127 SKIPPED.
+
+**The next plan starts at W205, Q760 and ADR 0128.** The next S id is S13; the next plan id is P42.
+
+### 8. Stop-and-asks for the maintainer
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(a)** | **`FD-C1`'s v0.47 test text says the cost suite pins *six shapes*; it pins SEVEN** (W202's adequacy reader added `["score?"]` after the sentence was written). A spec edit is outside every P41 item's `Owns` and a spec change is its own change, so workflow section 1 rule 6 ASKS rather than raises | **(a1)** YES — one word, *six* → *seven*, in its own `spec:` commit stating the reason, no version bump (no rule moves) | **(a2)** NO — raise it as a question in the register; **(a3)** delete the count from the sentence instead (P27 decision 4: a count the suite declares is not written down) |
+
+The release is decided — (d): 0.10.0, bumped, pushed and published by the maintainer *only when the maintainer says so* —
+and is a hand-off in the Record, not a question. The RegExp is a point taken as recommended (the Record), not a question.
+Proposal B is carried unchanged.
