@@ -91,6 +91,7 @@
  * | **W192 — what reached the RUN, and what opened the MAP INSTANCE** | **P38's EXIT ARTIFACT: the `"$payload"` and `"$item"` references on real workers in both runtimes.** (1) An ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice: "$payload", answer: "approve" }` — the run's payload beside the person's answer — and an edge routing on `needs.run.amount` from `needs: { run: "$payload" }`, 120 to `audit` and 50 past it. (2) An ENTRY map of three whose branch is an ask, each `pay` on an INLINE pool receiving its OWN item beside its OWN answer, answered out of order, `audit` reading the item two hops in. (3) The copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on one node and on one edge — the caller's, an inline worker's and a predicate's writes reaching nothing else; **since W202 ([ADR 0126](../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)) a write into a `"$payload"` key THROWS `TypeError` — the run's ONE shared copy is frozen — and is caught and recorded by the writer, while a write into an `"$item"` key lands on the writer's own copy**. (4) That map STOPPED with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the header's five keys at format 1, no new kind. (5) `"$item"` after the map's join refused `FD-V49` naming both fixes. (6) The release horizon: a fanout in a fanout in each instance, inner joins fired at their FIRST arrival by a consumer's policy, the reader entered after its instance arrived — each reading its own item. Its registry is written in the block, not `registry.json`; and the reference censuses read its flows, so `NOT_YET_AT_L6` is gone |
  * | **W197 — a run's live state on its handle** | **P39's EXIT ARTIFACT clause (3): `RunHandle.state()` on real workers in both runtimes.** Per pool, THREADED and INLINE: (1) a `map` of five items whose `state()`, read on a microtask after EVERY delivered input, is the public `fold` of the delivered prefix key order included, frozen at every depth, and a consumer's write to it — its `outcome`, a NESTED field of a result — throws and moves nothing; at `done`, `await done` IS `state()`, equal to `fold(driver.foldInputs())`, each result the worker's, still that object a macrotask on. (2) The same `map` STOPPED with two items settled and two holding, RESUMED on a FRESH runtime: the first read after `resume()` already folds the STORED events (`RN-R22` makes it the first quiescent point), every later read the fold of the stored and delivered inputs, and `done` the same object, completed. Never paused, so `RN-R44`'s one exception — an unpause after a run finished while paused — is not reached. Its registry is written in the block, not `registry.json` |
  * | **W200 — a reference read inside a map** | **P40's EXIT ARTIFACT clause (3): ADR 0124's index on real workers in both runtimes.** Per pool, THREADED and INLINE, one run of a `map` of TWELVE items (`10` and `11` beside `1`) whose branch is `work` → `mid` → `post`, `post` opening an inner map of two, and after the join a SIBLING map of three slots. Every reader's composed payload — what its worker was handed — is ADR 0044's predicate (`outputIsVisible`) applied to the run's OWN outputs in branch-path order, and the value derived by hand from the worker's source, for four shapes, each its own claim: `post` reading `work` (two steps back) and `mid` (one step back), the inner `tail` reading `work` (depth 1) and `leaf` (depth 2), and the sibling's `publish` reading `["post"]` and `["work"]` (every output; `work` thereby read at two depths). Each claim's CONTROL on the same observer: another instance's selection, or the string order, differs from every payload; and each payload has exactly the keys its `needs` declares. The predicate route moves with the shared key function since W199; the hand route is the independent one. Its registry is written in the block, not `registry.json` |
+ * | **W203 — one shared copy of a large value** | **P41's EXIT ARTIFACT clause (3): ADR 0126's shared copy on real workers in both runtimes.** Per pool, THREADED and INLINE, the app's fetch-then-map shape: `fetch` returns the item list (TWELVE items) beside a 2,000-row catalogue, a `Uint8Array` and a `Map`, and the map's `work` declares `needs: { item: "$item", all: "fetch", run: "$payload" }`. (1) Every non-writing instance's value is fetch's result and the payload BY HAND, with a one-row-changed control. (2) What the worker holds: on the INLINE pool `all` frozen at depths 0, 1 and 3 and `run` frozen, on the THREADED one neither (`postMessage`'s clone); the reader's own `"$item"` unfrozen on both. (3) An instance writing a nested field of its `all`: INLINE, each attempt THROWS `TypeError` and the optional task ends `failed` after its one retry; THREADED, the write lands on its own clone. (4) That write reaches no sibling, no later reader and not the stored record. (5) The edge predicate's `ctx.needs.all` is ONE frozen object across every call, the value by hand. (6) A predicate writing into it STOPS the run, `TypeError` reported once, `halted` by it. (7) The GAP (P41 (f2)): a write into the shared `Uint8Array` and `Map` throws on neither pool; on the INLINE pool the next reader and its edge predicate see it (one resolver), on the THREADED one neither does, and the stored record never does. FOUR runs. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5976,6 +5977,24 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W203**: P41's exit-artifact block — sixteen subjects, eight per pool: the run completed, the read, what the worker
+  // holds, the inline worker's write, reaching nothing else, the edge, a predicate's write stopping the run, the gap.
+  'W203 exit (threaded): the run completes',
+  'W203 exit (threaded): the READ',
+  'W203 exit (threaded): what the worker HOLDS',
+  'W203 exit (threaded): the WRITER',
+  'W203 exit (threaded): the write REACHES nothing else',
+  'W203 exit (threaded): the EDGE',
+  'W203 exit (threaded): a PREDICATE writing into its referenced value STOPS the run',
+  'W203 exit (threaded): the GAP',
+  'W203 exit (inline): the run completes',
+  'W203 exit (inline): the READ',
+  'W203 exit (inline): what the worker HOLDS',
+  'W203 exit (inline): the WRITER',
+  'W203 exit (inline): the write REACHES nothing else',
+  'W203 exit (inline): the EDGE',
+  'W203 exit (inline): a PREDICATE writing into its referenced value STOPS the run',
+  'W203 exit (inline): the GAP',
   // **W200**: P40's exit-artifact block — ten subjects, five per pool: the run completed, and one per shape — two steps
   // back, one step back, a nested map's inner reader, a sibling map's `all` reader.
   'W200 exit (threaded): the run completes',
@@ -13041,6 +13060,250 @@ if (rxBlock !== null) {
   }
 }
 
+/**
+ * **W203 — one shared copy of a large value, on real workers in both runtimes: P41's EXIT ARTIFACT clause (3)** —
+ * [W203](../doc/work-items/w203-the-exit-artifact-on-real-workers-the-reply-and-p41s-close.md),
+ * [P41](../doc/plans/p41-what-a-reference-to-a-large-value-costs-inside-a-map.md),
+ * [ADR 0126](../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md) — fyflow-app's
+ * *pass 2 follow-up 2*.
+ *
+ * ADR 0126 made a reference's value ONE deep-frozen copy shared by every reader, made at its first read, where it was one
+ * clone per instance per key. **This block holds what that means on real workers**, on a THREADED pool and an INLINE one:
+ * a THREADED worker is handed `postMessage`'s clone of the shared copy, so nothing it does reaches another reader; an
+ * INLINE worker is handed the shared copy ITSELF (W186 M3, W192 M3), so what freezing enforces it meets, and what freezing
+ * cannot enforce — ADR 0126 rule 2's named gap — is its own responsibility.
+ *
+ * **The app's shape, fetch-then-map**: `fetch` returns a LARGE result — the item list (TWELVE items, `10` and `11` beside
+ * `1`), a catalogue of `SH_ROWS` rows, a `Uint8Array` and a `Map` — and a map over its `items` whose branch `work` declares
+ * `needs: { item: "$item", all: "fetch", run: "$payload" }`. Its edge to the join is guarded by a predicate whose
+ * `needs` reads `fetch` again. After the join, `scribe` and then `later` each read `fetch`. **Per pool, two runs**: the
+ * flow whose predicate writes only its own `"$item"` (the run that completes), and the same flow whose predicate writes
+ * into its referenced `fetch` value (the run that stops). **Seven claims per pool, each its own verdict:**
+ * - **the read** — every non-writing instance's `all` is fetch's result BY HAND, its `run` the payload by hand, its `item`
+ *   its own; CONTROL: the hand value with its LAST catalogue row changed differs from every one compared;
+ * - **what the worker holds** — on the INLINE pool `all` frozen at depths 0, 1 and 3 (`all`, `catalogue`, `rows[0]`) and `run` frozen, on the THREADED
+ *   pool none of them (the clone); CONTROL in the same tuple: `item`, the reader's own copy (ADR 0126 rule 4: `"$item"`
+ *   keeps its clone), unfrozen on both;
+ * - **an inline worker's write** — instance `SH_WRITER` writes a nested plain field of its `all`: INLINE, each attempt
+ *   THROWS `TypeError` (the worker re-throws the same error with its name prefixed to its message, since the scheduler
+ *   carries only an attempt's MESSAGE) and the task — optional, `maxRetries: 1` — ends `failed` after two attempts, the
+ *   retry policy's end (P41 fact 6); THREADED, the same write lands on the worker's own clone, which its own result shows;
+ * - **reaching nothing else** — every sibling's `all`, `scribe`'s, `later`'s and the stored record's mark `original` on
+ *   both pools; the threaded writer's own `touched-by-3` is this claim's CONTROL on the same observer;
+ * - **the edge** — every predicate call's `ctx.needs.all` is ONE object, frozen at depths 0 and 3, fetch's result by hand,
+ *   and its write into its own `"$item"` lands; the run completes;
+ * - **a predicate's write stops the run** — the second run: its predicate writes into `ctx.needs.all`, which throws
+ *   `TypeError`, reported ONCE through `onRunFailure`, and the run ends `halted` by it (P41 (g1)); the first run, whose
+ *   predicate wrote only its own `"$item"`, is the CONTROL — no failure, `completed`;
+ * - **the GAP's real-worker witness** (P41 (f2)) — `scribe` writes `bytes[0]` and `tags.set`, which freezing cannot stop:
+ *   it does not throw on either pool; on the INLINE pool `later`, the next reader of `fetch`, sees both writes, and on
+ *   the THREADED pool it does not; `later`'s edge predicate, reading `fetch` too, sees exactly what `later` sees — ONE
+ *   resolver (ADR 0126 rule 5). The stored record — `OR-R2`'s own clone, never shared — sees neither, on both. `scribe`
+ *   is optional with no retry and its failure routed on, so a gap CLOSED (a write that throws) is a GAP verdict on a
+ *   settled run (W203's adequacy reader, NIT 2).
+ *
+ * **No order across tasks is asserted**: the writer's instance is named by its item, the gap's writer and reader are
+ * sequenced by the join and by an edge, and the stopped run's claims read only what a halt reports.
+ */
+const SH_DEADLINE_MS = 30_000;
+const SH_ITEMS = 12;
+/** fetch's catalogue: 2,000 rows, ~60 KB as JSON — large beside the `{ i }` each instance's own item is. */
+const SH_ROWS = 2_000;
+/** The instance whose worker writes into its referenced `all`. */
+const SH_WRITER = 3;
+const SH_PAYLOAD = { tenant: 't-203', deep: { region: 'eu', limits: [1, 2] } };
+// `ShWork`: with `settings.fetch`, returns fetch's result (below); otherwise returns `{ role, fz, got }` — `fz` whether
+// what it was handed is frozen (`all`, `all.catalogue`, `all.catalogue.rows[0]`, `run`, `item`; `null` for a key not
+// handed) and `got` the input itself. `settings.write` names the instance that writes `all.catalogue.meta.mark`, an error
+// re-thrown with its name in its message; `settings.gap` writes `all.bytes[0]` and `all.tags.set("w", 2)`.
+const SH_WORK = 'export default class { async setup() {} async run(p) { const s = p.settings || {}; const i = p.input || {}; ' +
+  'if (s.fetch) { return { items: Array.from({ length: s.items }, (_, j) => ({ i: j })), ' +
+  'catalogue: { meta: { mark: "original" }, rows: Array.from({ length: s.fetch }, (_, k) => ({ k, name: "row-" + k })) }, ' +
+  'bytes: new Uint8Array([1, 2, 3]), tags: new Map([["a", 1]]) }; } ' +
+  'const f = (v) => (v === undefined ? null : Object.isFrozen(v)); ' +
+  'const fz = [f(i.all), f(i.all && i.all.catalogue), f(i.all && i.all.catalogue.rows[0]), f(i.run), f(i.item)]; ' +
+  'if (s.write !== undefined && i.item && i.item.i === s.write) { try { i.all.catalogue.meta.mark = "touched-by-" + i.item.i; } ' +
+  'catch (e) { e.message = e.name + ": " + e.message; throw e; } } ' +
+  'if (s.gap) { i.all.bytes[0] = 99; i.all.tags.set("w", 2); } ' +
+  'return { role: s.role, fz, got: i }; } }';
+const shDoc = () => ({
+  predicates: ['w203Own', 'w203Scribble', 'w203Later'],
+  workers: { shWork: { url: rcUrl(SH_WORK) } },
+  nodeTypes: {
+    ShThreaded: { worker: 'shWork', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    ShInline: { worker: 'shWork', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+const shFlow = (pool: 'threaded' | 'inline', predicate: 'w203Own' | 'w203Scribble') => {
+  const type = pool === 'threaded' ? 'ShThreaded' : 'ShInline';
+  return {
+    flowId: `w203-shared-${pool}-${predicate === 'w203Own' ? 'own' : 'scribble'}`, version: 1, entry: 'fetch',
+    nodes: [
+      { id: 'fetch', kind: 'task', type, settings: { role: 'fetch', fetch: SH_ROWS, items: SH_ITEMS }, edges: [{ to: 'each' }] },
+      { id: 'each', kind: 'map', over: 'items', branch: 'work' },
+      { id: 'work', kind: 'task', type, optional: true, retryPolicy: { maxRetries: 1, backoffMs: 0 },
+        settings: { role: 'work', write: SH_WRITER }, needs: { item: '$item', all: 'fetch', run: '$payload' },
+        edges: [{ on: ['failed'], to: 'collect' }, { when: { predicate }, to: 'collect', needs: { it: '$item', all: 'fetch' } }, { to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'scribe' }] },
+      { id: 'scribe', kind: 'task', type, optional: true, retryPolicy: { maxRetries: 0, backoffMs: 0 }, settings: { role: 'scribe', gap: true },
+        needs: { all: 'fetch' }, edges: [{ on: ['failed'], to: 'later' }, { to: 'later' }] },
+      // `later`'s edge: `w203Later` reads `fetch` too — ADR 0126 rule 5's ONE resolver, witnessed after the gap's write.
+      { id: 'later', kind: 'task', type, settings: { role: 'later' }, needs: { all: 'fetch' },
+        edges: [{ when: { predicate: 'w203Later' }, to: 'done', needs: { all: 'fetch' } }, { to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+/** fetch's result, BY HAND from `SH_WORK`'s source. `last` replaces the last catalogue row's name — the CONTROL's value. */
+const shFetched = (last?: string) => ({
+  items: Array.from({ length: SH_ITEMS }, (_, j) => ({ i: j })),
+  catalogue: { meta: { mark: 'original' }, rows: Array.from({ length: SH_ROWS }, (_, k) => ({ k, name: k === SH_ROWS - 1 && last !== undefined ? last : `row-${k}` })) },
+  bytes: new Uint8Array([1, 2, 3]),
+  tags: new Map([['a', 1]]),
+});
+/** A value as text, a `Map` as its entries and a typed array as its elements — so the two the gap is made of compare. */
+const shCanon = (v: unknown) => JSON.stringify(v, (_k, x: unknown) =>
+  (x instanceof Map ? { Map: [...x] } : ArrayBuffer.isView(x) ? { U8: Array.from(x as Uint8Array) } : x));
+/** Every call of the run's edge predicate: its task, the `ctx.needs.all` it was handed (the OBJECT, for identity) and its value as text AT THE CALL (an inline `scribe` writes the gap into that object later), whether it is frozen at depths 0 and 2, and whether its `"$item"` write landed. */
+const shEdge: { taskId: string; all: unknown; seen: string; frozen: boolean[]; itLanded: boolean }[] = [];
+// `w203Own`: writes only into its own `"$item"` (`it.by`) — which lands — and records what it was handed; routes on.
+const shOwn: Predicate = (ctx) => {
+  const n = ctx.needs as unknown as { it: { by?: string }; all: { catalogue: { rows: unknown[] } } };
+  n.it.by = 'edge';
+  shEdge.push({ taskId: ctx.outcome.taskId, all: n.all, seen: shCanon(n.all), frozen: [Object.isFrozen(n.all), Object.isFrozen(n.all.catalogue.rows[0])], itLanded: n.it.by === 'edge' });
+  return true;
+};
+// `w203Scribble`: writes into its REFERENCED value — fetch's shared copy — which THROWS `TypeError` and stops the run (P41 (g1)).
+const shScribble: Predicate = (ctx) => {
+  (ctx.needs as unknown as { all: { catalogue: { meta: { mark: string } } } }).all.catalogue.meta.mark = 'by-edge';
+  return true;
+};
+/**
+ * `w203Later` (the adequacy reader's construction): `later`'s edge reads `fetch` AFTER `scribe` wrote the gap. By ADR
+ * 0126 rule 5 an edge's reference is the SAME object a node's is, so on the INLINE pool — where `scribe` wrote into that
+ * object itself — the predicate sees both writes; on the THREADED pool `scribe` wrote its own clone and it sees neither.
+ * An edge handed its own copy (a second resolver) would see neither on both pools. Recorded as text at the call.
+ */
+const shLater: string[][] = [];
+const shLaterEdge: Predicate = (ctx) => {
+  const a = (ctx.needs as unknown as { all: { bytes: unknown; tags: unknown } }).all;
+  shLater.push([shCanon(a.bytes), shCanon(a.tags)]);
+  return true;
+};
+let shBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  const shClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W203 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    for (const predicate of ['w203Own', 'w203Scribble'] as const) {
+      await shClause(`${pool}, ${predicate}`, async () => {
+        const rt = createRuntime(shDoc() as never, { predicates: new Map([['w203Own', shOwn], ['w203Scribble', shScribble], ['w203Later', shLaterEdge]]) } as never);
+        try {
+          const runId = `w203${predicate === 'w203Own' ? 'o' : 's'}${pool[0]}`;
+          const flow = shFlow(pool, predicate);
+          const reported: string[] = [];
+          shEdge.length = 0;
+          shLater.length = 0;
+          const h = rt.start(flow, structuredClone(SH_PAYLOAD), { runId, onRunFailure: (f) => { reported.push(f.kind); } });
+          runs.push(`${flow.flowId} ${runId}`);
+          const won = await settleWithin(h.done, SH_DEADLINE_MS);
+          if (won.by !== 'done') throw new Error(`W203: ${runId} never settled within ${SH_DEADLINE_MS} ms`);
+          const end = won.value;
+          const records = h.driver.foldInputs().flatMap((i) => (i.kind === 'outcome' && i.record.kind === 'outcome' ? [i.record] : []));
+          const rec = (id: string) => records.find((x) => x.taskId === `${runId}:${id}:0`);
+          const resultOf = (id: string) => rec(id)?.result as { fz?: unknown; got?: { all?: unknown; run?: unknown; item?: unknown } } | undefined;
+          const markOf = (v: unknown) => (v as { catalogue?: { meta?: { mark?: unknown } } } | undefined)?.catalogue?.meta?.mark ?? 'NO MARK';
+          if (predicate === 'w203Scribble') {
+            // The stopped run: what a halt reports, and nothing else — which instances settled first is not fixed.
+            r[`halt${pool}`] = [end.outcome, reported, (end.haltedBy ?? 'NONE').split(':')[0], (end.haltedBy ?? '').includes("read only property 'mark'")];
+            return;
+          }
+          r[`run${pool}`] = [end.outcome, reported,
+            records.filter((x) => x.terminalState === 'done').length, records.filter((x) => x.terminalState === 'failed').map((x) => x.taskId)];
+          const siblings = Array.from({ length: SH_ITEMS }, (_, j) => j).filter((j) => j !== SH_WRITER);
+          // The read: each non-writing instance's composed value against the hand value, and the CONTROL's.
+          const fetched = shCanon(shFetched());
+          const control = shCanon(shFetched('row-CHANGED'));
+          const read = { unequal: [] as number[], compared: 0, controlled: 0 };
+          for (const j of siblings) {
+            const got = resultOf(`work:${j}`)?.got;
+            read.compared += 1;
+            if (shCanon(got) !== shCanon({ item: { i: j }, all: shFetched(), run: SH_PAYLOAD })) read.unequal.push(j);
+            if (shCanon(got?.all) !== control) read.controlled += 1;
+          }
+          // Exit (3) says AT LEAST TWELVE items (the adequacy reader, NIT 1): every expected count derives from SH_ITEMS, so
+          // the floor is read here off the run — the map's instances that settled, writer included.
+          const instances = records.filter((x) => x.taskId.startsWith(`${runId}:work:`)).length;
+          r[`read${pool}`] = [read.unequal, read.compared, read.controlled, instances >= 12];
+          r[`frozen${pool}`] = [...new Set(siblings.map((j) => JSON.stringify(resultOf(`work:${j}`)?.fz ?? 'NO RECORD')))];
+          // The writer: its end, its retries, and what it saw or threw.
+          const w = rec(`work:${SH_WRITER}`);
+          r[`writer${pool}`] = [w?.terminalState ?? 'NO RECORD', w?.attempts ?? 'NO RECORD',
+            typeof w?.error === 'string' ? w.error.split(':')[0] : null, typeof w?.error === 'string' && w.error.includes("read only property 'mark'"),
+            markOf(resultOf(`work:${SH_WRITER}`)?.got?.all)];
+          // Reaching nothing else — every sibling's mark, `scribe`'s and `later`'s, and the STORED record's.
+          r[`reach${pool}`] = [[...new Set(siblings.map((j) => markOf(resultOf(`work:${j}`)?.got?.all)))],
+            markOf(resultOf('scribe:-')?.got?.all), markOf(resultOf('later:-')?.got?.all), markOf(rec('fetch:-')?.result)];
+          // The edge: one object across every call, frozen, the value by hand, the own "$item" write landed.
+          r[`edge${pool}`] = [shEdge.length, shEdge.every((e) => e.all === shEdge[0]?.all),
+            [...new Set(shEdge.map((e) => JSON.stringify(e.frozen)))], shEdge.filter((e) => e.seen !== fetched).length,
+            shEdge.every((e) => e.itLanded)];
+          // The gap: `scribe` did not throw; what `later` and the stored record read of `bytes` and `tags`.
+          // Each half on its own (the conformity reader, S2): a canonicaliser that lost its `Map` branch would let the bytes
+          // half alone keep a joined string apart — so the halves are compared apart, and `shCanon` is shown in the same
+          // tuple to tell a one-entry `Map` difference and a one-byte `Uint8Array` difference (its SELF-CONTROL).
+          const gapOf = (v: unknown) => [shCanon((v as { bytes?: unknown } | undefined)?.bytes), shCanon((v as { tags?: unknown } | undefined)?.tags)];
+          r[`gap${pool}`] = [rec('scribe:-')?.terminalState ?? 'NO RECORD', gapOf(resultOf('scribe:-')?.got?.all),
+            gapOf(resultOf('later:-')?.got?.all), gapOf(rec('fetch:-')?.result), [...shLater],
+            [shCanon(new Map([['a', 1]])) !== shCanon(new Map([['a', 1], ['w', 2]])), shCanon(new Uint8Array([1, 2, 3])) !== shCanon(new Uint8Array([99, 2, 3]))]];
+          shEdge.length = 0;
+        } finally {
+          await rt.shutdown();
+        }
+      });
+    }
+  }
+  shBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W203 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (shBlock !== null) {
+  const key = 'cross-row';
+  const r = shBlock.r;
+  const asFetched = [shCanon(new Uint8Array([1, 2, 3])), shCanon(new Map([['a', 1]]))];
+  const written = [shCanon(new Uint8Array([99, 2, 3])), shCanon(new Map<string, number>([['a', 1], ['w', 2]]))];
+  const siblings = SH_ITEMS - 1;
+  for (const pool of ['threaded', 'inline'] as const) {
+    const inline = pool === 'inline';
+    check(key, `W203 exit (${pool}): the run completes — no failure reported; every task done but the ${inline ? 'INLINE writer, failed' : 'writer, done on its clone'}`,
+      r[`run${pool}`], ['completed', [], 1 + SH_ITEMS + 2 - (inline ? 1 : 0), inline ? [`w203o${pool[0]}:work:${SH_WRITER}:0`] : []]);
+    check(key, `W203 exit (${pool}): the READ — every one of ${siblings} instances' "fetch" is fetch's ${SH_ROWS}-row result by hand, its "$payload" ` +
+      'the payload and its "$item" its own; the hand value with its last row changed differs from every one; the map has at least twelve instances (ADR 0126)', r[`read${pool}`], [[], siblings, siblings, true]);
+    check(key, `W203 exit (${pool}): what the worker HOLDS — "fetch" at depths 0, 1 and 3 and "$payload" ${inline ? 'FROZEN (the shared copy itself)' : 'NOT frozen (postMessage`s clone)'}; ` +
+      'the CONTROL, its own "$item", unfrozen on both pools (ADR 0126 rules 1 and 4)', r[`frozen${pool}`],
+    [JSON.stringify(inline ? [true, true, true, true, false] : [false, false, false, false, false])]);
+    check(key, `W203 exit (${pool}): the WRITER — instance ${SH_WRITER} writing a nested field of its "fetch" ` +
+      (inline ? 'THROWS TypeError on each attempt and the optional task ends failed after its one retry' : 'lands on the THREADED worker`s own clone, which its result shows'),
+    r[`writer${pool}`], inline ? ['failed', 1, 'TypeError', true, 'NO MARK'] : ['done', 0, null, false, `touched-by-${SH_WRITER}`]);
+    check(key, `W203 exit (${pool}): the write REACHES nothing else — every sibling, scribe, later and the stored record read "original" ` +
+      '(the threaded writer`s own mark the CONTROL on this observer)', r[`reach${pool}`], [['original'], 'original', 'original', 'original']);
+    check(key, `W203 exit (${pool}): the EDGE — every predicate call's ctx.needs.all (fetch's copy) is ONE object, frozen, fetch's result by hand; its "$item" write lands`,
+      r[`edge${pool}`], [siblings + (inline ? 0 : 1), true, [JSON.stringify([true, true])], 0, true]);
+    check(key, `W203 exit (${pool}): a PREDICATE writing into its referenced value STOPS the run — TypeError reported once, halted by it ` +
+      '(P41 (g1)); the run above, whose predicate wrote its own "$item", the CONTROL', r[`halt${pool}`], ['halted', ['TypeError'], 'TypeError', true]);
+    check(key, `W203 exit (${pool}): the GAP (P41 (f2)) — scribe's write into fetch's Uint8Array and Map does not throw; later ` +
+      (inline ? 'SEES both writes, and so does its edge predicate (one resolver, ADR 0126 rule 5)' : 'sees NEITHER, nor does its edge predicate') + '; the stored record neither; the canonicaliser tells each half apart', r[`gap${pool}`], ['done', written, inline ? written : asFetched, asFetched, [inline ? written : asFetched], [true, true]]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -13076,7 +13339,9 @@ if (rxBlock !== null) {
 // **And `+ lsBlock.runs.length` since W197**: its SIX runs — per pool, threaded and inline, (1) the run to the end, and (2)
 // the run stopped on A and its resume on a fresh B.
 // **And `+ rxBlock.runs.length` since W200**: its TWO runs — the reference-read flow on a threaded pool and on an inline one.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0);
+// **And `+ shBlock.runs.length` since W203**: its FOUR runs — per pool, threaded and inline, the shared-copy flow whose
+// predicate writes its own "$item" (it completes) and the same flow whose predicate writes into its referenced value (it stops).
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -13425,7 +13690,11 @@ const PER_PLAIN_ROW = 22;
 // **472 at W197, +10 by W200 — P40's EXIT ARTIFACT clause (3)**: the reference-read block's ten clauses — per pool, threaded
 // and inline, the run completed and one per shape (two steps back, one step back, a nested map's inner reader, a sibling
 // map's `all` reader) — all cross-row because the block is outside the row loop. 472 + 10 = 482.
-const CROSS_ROW = 482;
+// **482 at W200, +16 by W203 — P41's EXIT ARTIFACT clause (3)**: the shared-copy block's sixteen clauses — per pool,
+// threaded and inline, the run completed, the read, what the worker holds, the inline worker's write, reaching nothing
+// else, the edge, a predicate's write stopping the run, and the gap — all cross-row because the block is outside the row
+// loop. 482 + 16 = 498.
+const CROSS_ROW = 498;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -15654,14 +15923,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2815 / 230 since W200 — P40's EXIT ARTIFACT clause (3), +10 and two runs**, DERIVED at the declaration: the
 // reference-read block's ten cross-row assertions (`CROSS_ROW` 472 -> 482) over its two runs. No row moved (P40
 // prediction 6).
-const DECLARED_TOTAL = 2815;
+// **2831 / 234 since W203 — P41's EXIT ARTIFACT clause (3), +16 and four runs**, DERIVED at the declaration: the
+// shared-copy block's sixteen cross-row assertions (`CROSS_ROW` 482 -> 498) over its four runs. No row moved (P41
+// prediction 6).
+const DECLARED_TOTAL = 2831;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 230;
+const DECLARED_RUNS = 234;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
