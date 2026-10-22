@@ -477,6 +477,16 @@ once per item* is a fact about your document rather than about your run. **Measu
 obstacle** — a size measurement is about 0.03% of what it would warn about at arity 1000.
 `spec/flow-definition.md` section 3 carries the whole verdict and the measurements.
 
+**Finding what a reference names costs its ANSWER** — from 0.9.1
+([ADR 0124](doc/decisions/0124-a-reference-read-costs-its-answer.md), `spec/flow-definition.md` v0.46). A branch task
+may read any earlier task of its own `map` instance by id — one step back or several, where `"."` reaches only its
+predecessor — and the read takes that one output, however many instances the map has: the driver files a node's outputs
+by the branch-path prefix its readers share. In 0.9.0 every read searched every output of the node it names, so such a
+map cost O(items²) (the driver alone at 8,000 items: 22 s in 0.9.0, 0.22 s from 0.9.1, node 24). **A read never costs
+less than its answer**: `["n"]` from a reader outside every region `n` is in — a SIBLING map's reader — is handed every
+output of `n`, so two maps of `n` and `m` instances compose `n·m` entries. That is the answer's price, the cliff above by
+another road, and the remedy is the same.
+
 ### `"$payload"` — what reached the RUN, from any node
 
 **`"$payload"` names the value the run was STARTED with** — `start(flow, payload)`'s `payload` — on any node that may
@@ -1743,7 +1753,8 @@ need the state; step only where you hold a short one. Both return exactly what t
 **The driver's own work per settlement does not grow with the run either** — `RN-R13` v0.30, from 0.9.0
 ([ADR 0121](doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md)): every question it asks of its log about
 ONE task — a settlement's effective outcome, whether a task is parked, what is in flight, what a `needs` can reach — reads
-that task's records alone, where 0.8.0 scanned the whole log (a 16,000-item `map` driven on a scheduler double: 999 ms in
+that task's records alone (and from 0.9.1 a `needs` read takes the outputs it is handed rather than searching its node's —
+`RN-R13` v0.32, [ADR 0124](doc/decisions/0124-a-reference-read-costs-its-answer.md)), where 0.8.0 scanned the whole log (a 16,000-item `map` driven on a scheduler double: 999 ms in
 0.8.0, 229 ms from 0.9.0, node 24). `snapshot()`, `foldInputs()` and `checkpoint()` still hand you a copy of the whole run,
 O(run) a call: read them when you need the run, not after every event.
 

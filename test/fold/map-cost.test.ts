@@ -3,13 +3,15 @@
  * clause (1), [W197](../../doc/work-items/w197-the-cost-check-and-the-exit-artifact.md) under
  * [P39](../../doc/plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md): the work of a `map` run at
  * **8,000 items is below 6x its work at 2,000** — linear is 4x, a per-input cost that grows with the run 16x — for the
- * three subjects P39 made linear, each read through the counter its own item placed:
+ * three subjects P39 made linear — and, since W199 under [P40](../../doc/plans/p40-what-a-reference-read-costs-inside-a-map.md),
+ * a fourth, the reference read — each read through the counter its own item placed:
  *
  * | subject | the count | placed by |
  * |---|---|---|
  * | `fold` | `FoldCounter.visits` through the internal `foldWith(inputs, counter)` — one per input applied, one per entry, element or cell read or written | W194, [ADR 0120](../../doc/decisions/0120-the-fold-is-one-accumulator-and-step-stays-pure.md) rule 7, `RN-R43` |
  * | the driver, an `attempted` element per task | `taskLog.visits`, a field of the driver's PRIVATE per-task view, read by a cast — the records handed to `effectiveOutcome` and `isSuspended` | W195, [ADR 0121](../../doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md) rule 7, `RN-R13` |
  * | a runtime's run, an `attempted` element per task, its consumer reading `handle.outcome()` and `handle.node()` after every input it is handed once the handle exists | NO counter in `src/` (ADR 0122 consequence 5): `Accumulator.load` wrapped HERE to hand the runtime's accumulator a counter, and `apply` / `materialise` wrapped to count calls | W196, [ADR 0122](../../doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md), `RN-R44` |
+ * | a `needs` reference read inside a map, four shapes, an `attempted` element per task | `outputsCache.examined`, a field of the driver's PRIVATE projection, read by a cast — the entries the reference index touches | W199, [ADR 0124](../../doc/decisions/0124-a-reference-read-costs-its-answer.md), `RN-R13` v0.32 |
  *
  * **A ratio and a floor are not an instrument; an EXACT value is** — W195's adequacy reader: a counter that counted CALLS
  * instead of records passed both, with the whole-log scan restored. So every subject's count is PINNED at both sizes to a
@@ -19,8 +21,11 @@
  * **What a count cannot see is what its subject does not tick** — four times in P39: W194's re-tally outside
  * `precedence()`, W195's counter of calls, W196's cache hiding a per-input materialisation from a one-burst count, and
  * this file's own WALL while it was sized, which found a `needs` reference read inside a `map` instance searching EVERY
- * output of the node it names — O(items) per read, [Q735](../../doc/questions/q735.md), raised by W197, not fixed by P39
- * (the driver arm's `post` therefore reads a node with ONE output). So **every subject is run TWICE**: once with its
+ * output of the node it names — O(items) per read, [Q735](../../doc/questions/q735.md), raised by W197, not fixed by P39.
+ * *(The driver arm's `post` reads a node with ONE output, so its count isolates the log reads, and it said so "therefore"
+ * until **W199** under P40 fixed the search — [ADR 0124](../../doc/decisions/0124-a-reference-read-costs-its-answer.md):
+ * a read now costs its answer, and the REFERENCE READ is this file's fourth subject, counted by `outputsCache.examined`
+ * on four shapes — one step back, two steps back, a nested map and a sibling map.)* So **every subject is run TWICE**: once with its
  * counter, and once — with no counter — under an ITERATION observer that does not go through any counter: `Map` and `Set`
  * iterator steps and `forEach`, `Object.keys` / `values` / `entries`, and the `Array.prototype` methods that walk an array
  * (`forEach`, `map`, `filter`, `some`, `every`, `find`, `findIndex`, `findLast`, `findLastIndex`, `indexOf`,
@@ -61,6 +66,18 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 import { createRuntime } from '../../src/scheduler/runtime.ts';
 import type { RunHandle } from '../../src/scheduler/runtime.ts';
 import type { FlowDefinition, RegistryDocument } from '../../src/definition/types.ts';
+import { outputIsVisible, sharedRegionDepth, type RegionSets } from '../../src/definition/regions.ts';
+
+/** `src/driver/driver.ts`'s `compareBranchPaths`, verbatim (unexported there) — the restored sort's order. */
+function comparePaths(a: string, b: string): number {
+  const xs = a.split('.');
+  const ys = b.split('.');
+  for (let i = 0; i < Math.max(xs.length, ys.length); i++) {
+    const d = (xs[i] === undefined ? -1 : Number(xs[i])) - (ys[i] === undefined ? -1 : Number(ys[i]));
+    if (d !== 0) return d;
+  }
+  return 0;
+}
 
 /** P39 (e)'s two sizes. 4x the items: linear is 4x the work, a per-input cost that grows with the run 16x. */
 const SMALL = 2000;
@@ -389,6 +406,207 @@ function driverFailing(provoke?: (d: Driver) => void): { plain: string[]; needs:
   return out;
 }
 
+// --- the reference read -----------------------------------------------------------------------------------------------
+
+/**
+ * **The reference read's shapes** — P40 decision 4, W199, [ADR 0124](../../doc/decisions/0124-a-reference-read-costs-its-answer.md):
+ * a `needs` reference read inside a `map` instance, each driven on a double with `task.running` (attemptNumber 1) before
+ * every settlement and its queue walked by index, exactly as the driver arm above. `items` reaches the map from `ingest`.
+ *
+ * | shape | the branch | what the reader reads |
+ * |---|---|---|
+ * | `one step back` | `work` -> `post` | `post` reads `work`, its own instance's — Q735's flow, the app's |
+ * | `two steps back` | `work` -> `mid` -> `post` | `post` reads `work`, which `"."` cannot reach (P40 fact 6) |
+ * | `nested map` | `prep` -> an inner map over `prep`'s two-element `sub`, its branch `leaf` -> `tail` | `tail` reads `prep` (the OUTER instance's, shared depth 1) and `leaf` (its own inner instance's, depth 2) |
+ * | `sibling map` | `score`, joined; then `regroup` and a SECOND map over `regroup`'s THREE slots, its branch `publish` | `publish` reads `["score"]` — every output, depth 0 (`FD-V28` forces the array form) |
+ *
+ * **The sibling shape's arities are P40 (e)'s answer, (e1)** (the maintainer, 2026-10-22): the READING map at a FIXED
+ * arity — three — and the TARGET map at 2,000 / 8,000 items, so the work scales through the list the index holds and the
+ * ratio is ~4x. A sibling reader's ANSWER is the whole target list (`FD-V28`), so with BOTH maps growing the run composes
+ * n·m entries whatever the resolver does: the price of the answer, stated in `spec/flow-definition.md` section 3, and not a
+ * shape a ratio can hold. Here the EXACT pin is what turns red when the per-read filter or sort is restored COUNTED — the ratio
+ * alone would not.
+ *
+ * **Two stated limits** (W199's adequacy reader, notes 1 and 2). Every shape reads through a NODE's `needs` (`compose`);
+ * an edge's (`resolveNeeds`) reaches the same lookup, `visibleOutputs`, which is what the count and the provocations sit
+ * on — a search restored at the edge call site ALONE is seen by `test/driver/reference-index.test.ts` (its read hook and
+ * read counts), not by a pin here. And a search restored in `src/` with NO tick is stopped by nothing in the counter's
+ * pass: the iteration pass stops at its own ceiling, the counter's runs it to the end — minutes at 8,000 items.
+ */
+type RefShape = 'one step back' | 'two steps back' | 'nested map' | 'sibling map';
+const REF_SHAPES: RefShape[] = ['one step back', 'two steps back', 'nested map', 'sibling map'];
+/** The sibling shape's READING map's fixed arity, (e1). */
+const SLOTS = 3;
+
+function refDefinition(shape: RefShape): FlowDefinition {
+  const task = (id: string, to: string, extra: Record<string, unknown> = {}) => ({ id, kind: 'task', type: 'Work', ...extra, edges: [{ to }] });
+  if (shape === 'sibling map') {
+    return {
+      flowId: 'ref-sibling', version: 1, entry: 'ingest',
+      nodes: [
+        task('ingest', 'each'),
+        { id: 'each', kind: 'map', over: 'items', branch: 'score' },
+        task('score', 'collect'),
+        { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'regroup' }] },
+        task('regroup', 'rank'),
+        { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
+        task('publish', 'gather', { needs: { scored: ['score'] } }),
+        { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+  }
+  const branch = shape === 'one step back'
+    ? [task('work', 'post'), task('post', 'collect', { needs: { w: 'work', it: '.' } })]
+    : shape === 'two steps back'
+      ? [task('work', 'mid'), task('mid', 'post'), task('post', 'collect', { needs: { w: 'work' } })]
+      : [
+        task('prep', 'inner'),
+        { id: 'inner', kind: 'map', over: 'sub', branch: 'leaf' },
+        task('leaf', 'tail'),
+        task('tail', 'innerJoin', { needs: { p: 'prep', l: 'leaf' } }),
+        { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'collect' }] },
+      ];
+  return {
+    flowId: 'ref-map', version: 1, entry: 'ingest',
+    nodes: [
+      task('ingest', 'each'),
+      { id: 'each', kind: 'map', over: 'items', branch: shape === 'nested map' ? 'prep' : 'work' },
+      ...branch,
+      { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+}
+
+/** Settlements a completed run makes: `ingest` and, per item, 2 / 3 / 5 tasks (`prep`, two `leaf`s, two `tail`s); the sibling's `n` scores, `regroup` and three `publish`es. */
+const refSettled = (shape: RefShape, n: number) =>
+  shape === 'sibling map' ? 1 + n + 1 + SLOTS : 1 + n * (shape === 'one step back' ? 2 : shape === 'two steps back' ? 3 : 5);
+
+/**
+ * **The entries examined, DERIVED** — `outputsCache.examined` ticks once for every entry the index touches: each entry a
+ * build reads, one per index a `place` change lands in, and each entry a read takes (one for a `one` reference). With
+ * the queue walked by index, every first-level task is dispatched in one step and settles before any task it routes to.
+ *
+ * - **one step back, `2n`**: `post@i` is composed when `work@i` settles. The first read builds `(work, depth 1)` from the
+ *   ONE entry there is (1) and takes it (1); each later read's catch-up places one `work` entry into that index (1) and
+ *   takes it (1) — `1 + 1 + 2(n - 1)`.
+ * - **two steps back, `2n`**: `post@i` is composed when `mid@i` settles, after EVERY `work` settled — the first read
+ *   builds `(work, depth 1)` from all `n` entries (n), and each of the `n` reads takes one (n). No `work` is placed after.
+ * - **nested map, `7n`**: `tail@i.j` is composed when `leaf@i.j` settles, after every `prep`. The first read builds
+ *   `(prep, depth 1)` from `n` (n) and takes one (1), and builds `(leaf, depth 2)` from the one `leaf` there is (1) and
+ *   takes it (1); each of the `2n - 1` later reads places one `leaf` (1) and takes a `prep` and a `leaf` (2) —
+ *   `n + 3 + 3(2n - 1)`.
+ * - **sibling map, `4n`**: the three `publish` instances are composed in ONE step, when `regroup` settles, after every
+ *   `score`. The first read builds `(score, depth 0)` — one group, the whole node — from all `n` (n), and each of the
+ *   THREE reads takes the group (n each) — `n + 3n`. Its answer is the WHOLE list: that is `FD-V28`'s, not the index's.
+ *
+ * **What it does NOT count**: the comparisons that find a sorted position (a binary search, `compareBranchPaths`), a
+ * splice's element moves, the shared depth's graph walk (`sharedRegionDepth`, once per `(reader, target)`), and the CLONE
+ * of each answer ([Q186](../../doc/questions/q186.md)'s cost, `cloneValue` per key per read).
+ */
+const refWork = (shape: RefShape) => (n: number) => (shape === 'nested map' ? 7 * n : shape === 'sibling map' ? (1 + SLOTS) * n : 2 * n);
+/** The iteration ceiling, per shape: `CEILING_TIMES` x 40 per settlement, plus 10,000 — the driver arm's, per task. */
+const refIterationCeiling = (shape: RefShape) => (n: number) => CEILING_TIMES * 40 * refSettled(shape, n) + 10_000;
+
+interface RefPrivate {
+  outputs(): unknown;
+  outputsCache: { examined: number; byNode: Map<string, { path: string }[]> } | null;
+  visibleOutputs(atNodeId: string, here: string, node: string): readonly { path: string; result: unknown }[];
+  depthOf(c: unknown, reader: string, target: string): number;
+  regions: unknown;
+}
+const refPriv = (d: Driver): RefPrivate => d as unknown as RefPrivate;
+
+function refReading(shape: RefShape, n: number, ceiling: number, provoke?: (d: Driver) => void, observer?: Reading): Reading & { settled: number } {
+  const s = new Double();
+  let failure: string | null = null;
+  const d = new Driver(refDefinition(shape), {
+    runId: 'r1', scheduler: s, createTask: (c) => c, predicates: new Map(),
+    workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } }, joinPolicy: liveToken as JoinPolicy,
+    onRunFailure: (f) => { failure = f.kind; },
+  });
+  // The counter lives in the LAZY cache: its field becomes an accessor recording the ceiling's crossing the first time
+  // `outputs()` has built the cache — before any entry is examined, because the cache is built empty.
+  let examined = 0;
+  let hit = false;
+  const p = refPriv(d);
+  const outputs = p.outputs;
+  let installed = false;
+  p.outputs = function (this: RefPrivate) {
+    const out = outputs.call(this);
+    if (!installed && this.outputsCache !== null) {
+      installed = true;
+      examined = this.outputsCache.examined;
+      Object.defineProperty(this.outputsCache, 'examined', {
+        configurable: true, enumerable: true,
+        get: () => examined,
+        set: (v: number) => { examined = v; if (v > ceiling) hit = true; },
+      });
+    }
+    return out;
+  };
+  provoke?.(d);
+  const stopped = () => hit || observer?.hit === true;
+  d.start({});
+  let settled = 0;
+  for (let q = 0; q < s.added.length && !stopped(); q += 1) {
+    const id = s.added[q]!;
+    s.fire('task.running', { id, state: 'running', attemptNumber: 1 });
+    const result = id.includes(':ingest:') ? { items: Array.from({ length: n }, (_, i) => i) } : id.includes(':prep:') ? { sub: [0, 1] }
+      : id.includes(':regroup:') ? { slots: Array.from({ length: SLOTS }, (_, i) => i) } : { i: q };
+    s.fire('task.completed', detail(id, { result }));
+    settled += 1;
+  }
+  if (!stopped()) {
+    const inputs = d.foldInputs();
+    const last = inputs[inputs.length - 1];
+    if (failure !== null || settled !== refSettled(shape, n) || last?.kind !== 'pathEnded' || last.reason !== 'end') {
+      throw new Error(`the ${n}-item ${shape} run did not complete: ${failure}, ${settled} of ${refSettled(shape, n)} settled`);
+    }
+  }
+  return { count: examined, hit, settled };
+}
+
+/**
+ * **The reference read's clauses, per shape** — the counter's (`failing`) and, where `iterations` is asked, the iteration
+ * observer's. **A provocation the COUNTER is meant to see is judged on the counter's clauses alone, over the shapes that
+ * discriminate it**, and the iteration pass is run for the subject itself and for the provocation it exists to see — the
+ * search UNCOUNTED: the whole L1-L5 bundle runs in ONE browser page under a 60 s limit (`scripts/run-browser-tests.mjs`),
+ * and an iteration pass under every provocation on every shape is what crossed it (W199's first gate).
+ */
+function refFailing(provoke?: (d: Driver) => void, opts: { shapes?: RefShape[]; iterations?: boolean } = {}): { failed: Partial<Record<RefShape, string[]>>; counts: number[][]; iterations: number[][] } {
+  const out = { failed: {} as Partial<Record<RefShape, string[]>>, counts: [] as number[][], iterations: [] as number[][] };
+  for (const shape of opts.shapes ?? REF_SHAPES) {
+    const work = refWork(shape);
+    const small = refReading(shape, SMALL, CEILING_TIMES * work(SMALL), provoke);
+    const large = refReading(shape, LARGE, CEILING_TIMES * work(LARGE), provoke);
+    const failed = failing(small, large, work);
+    out.counts.push([small.count, large.count]);
+    if (opts.iterations === false) {
+      out.failed[shape] = failed;
+      continue;
+    }
+    // As the driver arm's: the counter's ceiling kept as a STOP in the iteration pass, which then judges nothing.
+    let byCounter = false;
+    const iter = (n: number) => {
+      const o = observe(refIterationCeiling(shape)(n), false);
+      try {
+        byCounter = refReading(shape, n, CEILING_TIMES * work(n), provoke, o.reading).hit || byCounter;
+      } finally {
+        o.remove();
+      }
+      return o.reading;
+    };
+    const iSmall = iter(SMALL);
+    const iLarge = iter(LARGE);
+    if (!byCounter && iterationsFail(iSmall, iLarge)) failed.push('iterations');
+    out.failed[shape] = failed;
+    out.iterations.push([iSmall.count, iLarge.count]);
+  }
+  return out;
+}
+
 // --- the runtime ----------------------------------------------------------------------------------------------------
 
 /** A `map` over `items`, one task per item — `live-state.test.ts`'s `MAP`, the shape P39 is about. */
@@ -595,7 +813,7 @@ const over = (key: string, make: (orig: (...a: unknown[]) => unknown) => (...a: 
   return () => { accProto[key] = orig; };
 };
 
-const SUITE = 'L1-L2 — P39 (e): a large map`s cost as CLOCK-FREE COUNTS at 2,000 and 8,000 items — fold, driver and runtime each pinned exactly and below 6x, every restored cost red';
+const SUITE = 'L1-L2 — P39 (e), P40: a large map`s cost as CLOCK-FREE COUNTS at 2,000 and 8,000 items — fold, driver, runtime and a reference read each pinned exactly and below 6x, every restored cost red';
 const DECLARED_CASES = [
   'the FOLD, an `attempted` element per task: foldWith`s counted work over a 2,000- and an 8,000-item map is EXACTLY 13n + 9 and below 6x — and the iteration observer, independent of every counter, below 6x too',
   'the DRIVER, an `attempted` element per task: taskLog.visits EXACTLY n + 2, and 3n + 4 with a `needs` read per settlement, below 6x — a user_action then its resolution visits 3, the records not the calls — and its iterations below 6x',
@@ -603,6 +821,8 @@ const DECLARED_CASES = [
   'PROVOKED, the fold: the spread-per-step restored is red at the ceiling on both observers; a re-tally OUTSIDE precedence() with its ticks removed is red on the iteration observer ALONE',
   'PROVOKED, the driver: the whole-log scan restored in TaskLog.of, counted, is red at the ceiling; the same scan UNCOUNTED is red on the iteration observer ALONE; outputs() rebuilt on every call is red with needs ALONE',
   'PROVOKED, the runtime: a materialisation per input in take, in done`s predicate ALONE, and in the consumer`s outcome() read ALONE is each red at the ceiling; an uncounted search of every input kept so far is red on the iteration observer ALONE',
+  'the REFERENCE READ inside a map, an `attempted` element per task: outputsCache.examined EXACTLY 2n one step back, 2n two steps back, 7n in a nested map and 4n from a sibling map of three slots, below 6x — and its iterations below 6x',
+  'PROVOKED, the reference read: the filter over every output restored, counted, is red at the ceiling inside an instance and on the EXACT pin alone from a sibling map; the same filter UNCOUNTED is red on the iteration observer ALONE; the per-read sort restored and counted is red on the EXACT pin alone, and uncounted is seen by neither (the stated limit); the depth re-derived per output, counted, is red at the ceiling inside an instance and on the exact pin from a sibling',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 const ran: string[] = [];
@@ -783,6 +1003,93 @@ suite(SUITE, (test) => {
   });
 
   test(DECLARED_CASES[6]!, () => {
+    ran.push(DECLARED_CASES[6]!);
+    const r = refFailing();
+    equal(r.counts, REF_SHAPES.map((sh) => [refWork(sh)(SMALL), refWork(sh)(LARGE)]),
+      'the entries examined, derived: 2n one step back, 2n two steps back, 7n nested, 4n sibling — [4000, 16000], [4000, 16000], [14000, 56000], [8000, 32000]');
+    equal(r.failed, { 'one step back': [], 'two steps back': [], 'nested map': [], 'sibling map': [] }, `no clause fails — iterations ${JSON.stringify(r.iterations)}`);
+    ok(r.iterations.every(([s, l]) => s! >= SMALL && l! >= LARGE), `the iteration observer saw the driver walk: ${JSON.stringify(r.iterations)}`);
+  });
+
+  test(DECLARED_CASES[7]!, () => {
+    ran.push(DECLARED_CASES[7]!);
+    // The pre-W199 resolution restored at ONE site — `visibleOutputs`, the read's lookup: every output of the named node
+    // filtered by ADR 0044's predicate and the survivors sorted, its examined entries COUNTED (the whole list per read).
+    const restoredFilter = (countIt: boolean) => (d: Driver) => {
+      const p = refPriv(d);
+      let reads = 0;
+      const lookup = p.visibleOutputs;
+      p.visibleOutputs = counted(function (this: RefPrivate, at: string, here: string, node: string) {
+        // UNCOUNTED, at every 64th read only: still O(the node's outputs) a read, so quadratic over the run, but its own
+        // work in the counter's pass — which nothing there stops — stays near a second at 8,000 items.
+        if (!countIt && ++reads % 64 !== 0) return lookup.call(this, at, here, node);
+        this.outputs();
+        const all = this.outputsCache!.byNode.get(node) ?? [];
+        if (countIt) this.outputsCache!.examined += all.length;
+        return (all as { path: string; result: unknown }[])
+          .filter((e) => outputIsVisible(this.regions as RegionSets[], at, here, node, e.path))
+          .sort((x, y) => comparePaths(x.path, y.path));
+      });
+    };
+    calls.n = 0;
+    // Judged on the COUNTER's clauses alone (`refFailing`'s doc): it ticks what it walks, so the counter is its observer.
+    const filtered = refFailing(restoredFilter(true), { iterations: false });
+    ok(calls.n > 0, `the counted filter provocation RAN (${calls.n} reads)`);
+    // The sibling: three reads, each filtering the n outputs (n) and taking them (n) — 6n against the derived 4n, so EXACT
+    // red and the ratio still 4x: the pin, not the ratio, is what sees it there (P40 (e1)).
+    equal(filtered.failed, { 'one step back': ['ceiling'], 'two steps back': ['ceiling'], 'nested map': ['ceiling'], 'sibling map': ['exact'] },
+      'the filter over every output restored and counted: red at the ceiling inside an instance, on the exact pin alone from a sibling map');
+    // UNCOUNTED, on TWO STEPS BACK — every read finds all n `work` outputs settled, the shape `"."` has no answer for — and
+    // under BOTH observers: the counter exact, the iteration observer (which counts `filter`) red.
+    calls.n = 0;
+    const blind = refFailing(restoredFilter(false), { shapes: ['two steps back'] });
+    ok(calls.n > 0, `the uncounted filter provocation RAN (${calls.n} reads)`);
+    equal(blind.failed, { 'two steps back': ['iterations'] },
+      `the same filter UNCOUNTED: the counter exact, the iteration observer red — ${JSON.stringify(blind.iterations)}`);
+    // The per-read SORT restored — the survivors sorted again at every read, as the pre-W199 expression did. COUNTED (a
+    // sort examines every entry it orders, one each): one step back adds one a read (3n against 2n), a sibling map n a read
+    // (7n against 4n) — each still 4x, so only the EXACT PIN sees it.
+    const sortAt = (countIt: boolean) => (d: Driver) => {
+      const p = refPriv(d);
+      const lookup = p.visibleOutputs;
+      p.visibleOutputs = counted(function (this: RefPrivate, at: string, here: string, node: string) {
+        const got = lookup.call(this, at, here, node);
+        if (countIt) this.outputsCache!.examined += got.length;
+        return [...got].sort((x, y) => comparePaths(x.path, y.path));
+      });
+    };
+    calls.n = 0;
+    const sorted = refFailing(sortAt(true), { shapes: ['one step back', 'sibling map'], iterations: false });
+    ok(calls.n > 0, `the per-read sort provocation RAN (${calls.n} reads)`);
+    equal(sorted.failed, { 'one step back': ['exact'], 'sibling map': ['exact'] },
+      `the per-read sort restored and counted: red on the EXACT pin alone — ${JSON.stringify(sorted.counts)}`);
+    // **The STATED LIMIT, as a control** (W199's conformity reader, finding 1): the same sort UNCOUNTED is seen by NEITHER
+    // observer — nothing ticks, and the iteration observer counts no `sort` and no array spread (the header's limit). On the
+    // sibling shape, where it is O(n log n) a read; asserted GREEN so the limit is a measured fact, not an omission.
+    calls.n = 0;
+    const blindSort = refFailing(sortAt(false), { shapes: ['sibling map'] });
+    ok(calls.n > 0, `the uncounted sort control RAN (${calls.n} reads)`);
+    equal(blindSort.failed, { 'sibling map': [] }, 'the per-read sort UNCOUNTED: no observer sees it — the stated limit');
+    // The depth re-derived per OUTPUT — the region-chain walks inside every predicate call, Q735's profile — restored at
+    // the depth's one site, `depthOf`, each output it walks for counted.
+    calls.n = 0;
+    const perOutput = refFailing((d) => {
+      const p = refPriv(d);
+      const depthOf = p.depthOf;
+      p.depthOf = counted(function (this: RefPrivate, c: unknown, reader: string, target: string) {
+        for (const _e of this.outputsCache!.byNode.get(target) ?? []) {
+          this.outputsCache!.examined += 1;
+          sharedRegionDepth(this.regions as RegionSets[], reader, target);
+        }
+        return depthOf.call(this, c, reader, target);
+      });
+    }, { iterations: false });
+    ok(calls.n > 0, `the per-output depth provocation RAN (${calls.n} reads)`);
+    equal(perOutput.failed, { 'one step back': ['ceiling'], 'two steps back': ['ceiling'], 'nested map': ['ceiling'], 'sibling map': ['exact'] },
+      'the depth re-derived per output, counted: red at the counter`s ceiling inside an instance, on the exact pin from a sibling map (3n more)');
+  });
+
+  test(DECLARED_CASES[8]!, () => {
     equal(ran, DECLARED_CASES.slice(0, -1), 'every declared case ran, in order — a case that leaves the suite fails here naming itself');
     equal(collected().filter((s) => s.suite === SUITE).reduce((n, s) => n + s.cases.length, 0), DECLARED_CASES.length,
       'and the suite registers exactly the cases it declares');

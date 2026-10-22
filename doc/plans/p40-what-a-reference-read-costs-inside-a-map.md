@@ -1,6 +1,6 @@
 # P40 — What does a reference read cost inside a map, and can it cost its answer rather than the map?
 
-**Status:** declared 2026-10-22 — on `4f21bba` (the tree clean, `origin/main` and tag `v0.9.0` at it), answering [Q735](../questions/q735.md) and fyflow-app's *pass 2 follow-up*; facts 1-10 read at this declaration; stop-and-asks (a)-(d) ANSWERED by the maintainer 2026-10-22, all as recommended; **(e) OPEN, and only W199's sibling-map COST case waits on it**; no item started.
+**Status:** declared 2026-10-22 — on `4f21bba` (the tree clean, `origin/main` and tag `v0.9.0` at it), answering [Q735](../questions/q735.md) and fyflow-app's *pass 2 follow-up*; facts 1-10 read at this declaration; stop-and-asks (a)-(d) ANSWERED by the maintainer 2026-10-22, all as recommended; **(e) ANSWERED the same day, (e1) — as recommended** (recorded by W199, below); W199 started 2026-10-22.
 **Question this plan answers:** *can a `needs` reference read inside a `map` instance cost the size of its answer — one
 entry for a `one` reference, the visible entries for an `all` one — rather than every output the named node has produced,
 for every case ADR 0044's visibility rule decides, without a second definition of visibility and without moving what any
@@ -206,10 +206,15 @@ version bump, the push and the publish ((d), the maintainer's).
 7. **Each changed public surface is stated where it changes** (P33 decision 7 … P39 decision 8): **none**. The cost of a
    read and the retained term move; the API does not. Hence 0.9.1 ((d)).
 
-### Stop-and-asks — (a)-(d) ANSWERED by the maintainer, 2026-10-22, all as recommended; (e) OPEN
+### Stop-and-asks — (a)-(e) ANSWERED by the maintainer, 2026-10-22, all as recommended ((e) as (e1))
 
 **(a)-(d) are the maintainer's, each answered as recommended.** The work-item rows below are written for those answers.
-**(e) was found writing this declaration and is NOT answered**: W199 may start — its declaration step, the index, the
+**(e) ANSWERED 2026-10-22, (e1) — as recommended** (relayed to W199 mid-item, recorded here at its record step): the
+sibling-map cost case gives the READING map a FIXED arity and runs the TARGET map at 2,000 / 8,000 items, so ~4x, bound 6x,
+holds; the EXACT count is pinned too, and it is what turns red when the per-read filter or sort is restored (W199: a
+restoration that ticks the count — one that ticks nothing is seen by neither observer, asserted as a control); the spec text
+states the n·m case, both maps growing, as the price of the answer itself. W199 fixed the reading arity at THREE.
+**(e) was found writing this declaration and was NOT answered at it**: W199 may start — its declaration step, the index, the
 equality test, three of the four cost shapes — and **its sibling-map COST case waits on (e)**; W200 waits on W199.
 
 | | the question | recommended | the alternatives, and what each changes |
@@ -218,7 +223,7 @@ equality test, three of the four cost shapes — and **its sibling-map COST case
 | **(b)** | **Which cases the index covers** | **EVERY case of the visibility rule** — every shared depth, depth 0 included (a reader sharing no region, a SIBLING map's reader among them, which is a per-read search and sort today) | **The same-instance case only** (the app's example): depth 0 and the deeper cases keep the search, so the definition is answered two ways by depth — two roads where one is enough |
 | **(c)** | **[Q186](../questions/q186.md)** — a LARGE value cloned per read inside a map | **OUT of scope, stays deferred**; the reply names it beside its workaround (name a small producer, or project in the map's `needs`) | **In scope**: a second cost with a different mechanism (the clone, `JP-R11`'s per-key copy) and a decided *nothing warns*; it would reopen ADR 0040 rule 6 |
 | **(d)** | **Which release** | **0.9.1 — a patch, no API change.** The bump, push and publish are the maintainer's, after the plan, only when the maintainer says so; **no item bumps or publishes** | **0.10.0**: a minor for a change with no surface |
-| **(e)** | **The SIBLING-map cost shape — OPEN.** (a) names *sibling map* among the four shapes held at ~4x, bound 6x. By fact 7 a sibling reader's answer is the WHOLE target list (`FD-V28` forces `["n"]`), so a sibling pair with BOTH maps at `n` items composes `n²` entries whatever the resolver does — 16x between 2,000 and 8,000 by its answer, which no index can bring under 6x | **The READING map at a FIXED arity (W199 states it, e.g. 3) and the TARGET map at 2,000 / 8,000**: the work then scales through the list the index holds, ~4x, and the EXACT pin — entries examined equal to the answer, plus the depth-0 list's upkeep — is what turns red when the per-read filter or sort is restored (the ratio alone would not: today's per-read cost is `n log n`, ~4.7x). The spec text states the n·m case as the answer's price, `FD-V28`'s, beside Q186's | **Both maps at `n`, the count pinned EXACT with NO ratio claim** for that shape (the answer is quadratic by definition, and the pin still discriminates the search); or **hold the ratio on entries examined BEYOND the answer** — a derived quantity, a second number to keep true |
+| **(e)** | **The SIBLING-map cost shape — ANSWERED (e1), 2026-10-22.** (a) names *sibling map* among the four shapes held at ~4x, bound 6x. By fact 7 a sibling reader's answer is the WHOLE target list (`FD-V28` forces `["n"]`), so a sibling pair with BOTH maps at `n` items composes `n²` entries whatever the resolver does — 16x between 2,000 and 8,000 by its answer, which no index can bring under 6x | **The READING map at a FIXED arity (W199 states it, e.g. 3) and the TARGET map at 2,000 / 8,000**: the work then scales through the list the index holds, ~4x, and the EXACT pin — entries examined equal to the answer, plus the depth-0 list's upkeep — is what turns red when the per-read filter or sort is restored (the ratio alone would not: today's per-read cost is `n log n`, ~4.7x). The spec text states the n·m case as the answer's price, `FD-V28`'s, beside Q186's | **Both maps at `n`, the count pinned EXACT with NO ratio claim** for that shape (the answer is quadratic by definition, and the pin still discriminates the search); or **hold the ratio on entries examined BEYOND the answer** — a derived quantity, a second number to keep true |
 
 ## Work items
 
