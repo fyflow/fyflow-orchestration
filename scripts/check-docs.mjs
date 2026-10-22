@@ -739,7 +739,7 @@ if (written.length) {
 // **Raised 48 -> 49 by [W191](../doc/work-items/w191-the-map-instances-item-as-a-reference.md)**, section 3's *`"$item"` — what opened the MAP INSTANCE* snippet — in its row's `Owns`.
 // **Raised 49 -> 50 by the release chores before 0.8.0 (2026-10-19)**, section 8's *A worker's OWN messages* snippet — at the maintainer's request.
 // **Raised 50 -> 51 by [W196](../doc/work-items/w196-the-runs-live-state-on-its-handle.md)**, section 8's *Reading a run WHILE it runs* snippet — in its row's `Owns`.
-const RUN_FLOOR = 51;
+const RUN_FLOOR = 52;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

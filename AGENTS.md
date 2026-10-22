@@ -543,7 +543,7 @@ const scheduler = {
   addTask(task: unknown) { added.push(task as { id: string; payload: { input: unknown } }); },
   addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
 };
-const inputOf = (id: string) => added.find((t) => t.id === id)?.payload.input;
+const handedInput = (id: string) => added.find((t) => t.id === id)?.payload.input;
 
 const flow: FlowDefinition = {
   flowId: 'pay-invoice', version: 1, entry: 'approve',
@@ -574,9 +574,9 @@ driver.start(invoice);
 invoice.amount = 1;   // yours to change: the run holds its own copy
 
 driver.resolve('r1:approve:-:0', 'done', { result: { approved: true }, actor: 'ana' });
-console.log(inputOf('r1:pay:-:0'));   // { invoice: { id: 'INV-1', amount: 120 }, answer: { approved: true } }
-if (JSON.stringify(inputOf('r1:pay:-:0')) !== '{"invoice":{"id":"INV-1","amount":120},"answer":{"approved":true}}') {
-  throw new Error(`pay received ${JSON.stringify(inputOf('r1:pay:-:0'))}`);
+console.log(handedInput('r1:pay:-:0'));   // { invoice: { id: 'INV-1', amount: 120 }, answer: { approved: true } }
+if (JSON.stringify(handedInput('r1:pay:-:0')) !== '{"invoice":{"id":"INV-1","amount":120},"answer":{"approved":true}}') {
+  throw new Error(`pay received ${JSON.stringify(handedInput('r1:pay:-:0'))}`);
 }
 
 // `pay` settles; its edge reads `needs.run.amount` — 120, the run's — and routes to the audit.
@@ -634,7 +634,7 @@ const scheduler = {
   addTask(task: unknown) { added.push(task as { id: string; payload: { input: unknown } }); },
   addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
 };
-const inputOf = (id: string) => added.find((t) => t.id === id)?.payload.input;
+const handedInput = (id: string) => added.find((t) => t.id === id)?.payload.input;
 
 const flow: FlowDefinition = {
   flowId: 'review-each', version: 1, entry: 'each',
@@ -669,12 +669,12 @@ payload.invoices[0]!.amount = 1;   // yours to change: the instance keeps its ow
 // Two asks parked, one per invoice. Answered out of order, each `pay` gets ITS instance's invoice.
 driver.resolve('r1:review:1:0', 'done', { result: { approved: true }, actor: 'bo' });
 driver.resolve('r1:review:0:0', 'done', { result: { approved: true }, actor: 'ana' });
-console.log(inputOf('r1:pay:0:0'));   // { invoice: { id: 'INV-1', amount: 120 }, answer: { approved: true } }
-if (JSON.stringify(inputOf('r1:pay:0:0')) !== '{"invoice":{"id":"INV-1","amount":120},"answer":{"approved":true}}') {
-  throw new Error(`pay@0 received ${JSON.stringify(inputOf('r1:pay:0:0'))}`);
+console.log(handedInput('r1:pay:0:0'));   // { invoice: { id: 'INV-1', amount: 120 }, answer: { approved: true } }
+if (JSON.stringify(handedInput('r1:pay:0:0')) !== '{"invoice":{"id":"INV-1","amount":120},"answer":{"approved":true}}') {
+  throw new Error(`pay@0 received ${JSON.stringify(handedInput('r1:pay:0:0'))}`);
 }
-if (JSON.stringify(inputOf('r1:pay:1:0')) !== '{"invoice":{"id":"INV-2","amount":40},"answer":{"approved":true}}') {
-  throw new Error(`pay@1 received ${JSON.stringify(inputOf('r1:pay:1:0'))}`);
+if (JSON.stringify(handedInput('r1:pay:1:0')) !== '{"invoice":{"id":"INV-2","amount":40},"answer":{"approved":true}}') {
+  throw new Error(`pay@1 received ${JSON.stringify(handedInput('r1:pay:1:0'))}`);
 }
 
 // Each `pay` settles; its edge reads `needs.it.amount` — 120 audits, 40 does not.
@@ -1936,6 +1936,7 @@ goes no longer folds it a second time in its own `onFoldInput`:
 | `handle.outcome()` | the run's outcome now | O(1) — **the read to make after every input** |
 | `handle.node(taskId)` | that task's `nodes` entry now — the same frozen object `state()` holds — or `null` for a task the run never dispatched | O(1) in the run — its first read of an entry freezes that entry once |
 | `handle.state()` | the whole `RunState` now: a COPY, **frozen at every depth**, and the SAME object on every read until an input moves the run | O(run) for the first read after each input that moved it, nothing after — **so reading it after EVERY input costs O(run²) over a run**: read it when you draw the run |
+| `handle.inputOf(target)` | what a node of the run was HANDED — a task's envelope, any other node's input (since 0.10.0, *What a node was HANDED* below) | O(the run so far) per call — a replay, never cached: read it when a person asks |
 
 **At a quiescent point `handle.state()` IS `fold(handle.driver.foldInputs())`** — the same rule as above: read on a
 `queueMicrotask` from `onFoldInput`, or outside the driver's turn. **It is not a live view** — a read is the state at that
@@ -1994,6 +1995,108 @@ if (!Object.isFrozen(end) || !Object.isFrozen(end.nodes) || !Object.isFrozen(end
 let wrote = true;
 try { (end.nodes[a]!.result as { score: number }).score = 1; } catch { wrote = false; }
 if (wrote) throw new Error('a write into the run`s state must throw — it is a copy to read, not a document to edit');
+```
+
+### What a node was HANDED — `inputOf` and `handle.inputOf`, after the fact
+
+**A run keeps what its tasks RETURNED, never what they were handed** — `RunState` holds an ask's input (`NodeRun.input`)
+and no task's ([ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)),
+and no function over `RunState` can rebuild it exactly: the entry's payload, the edge each node took, what was visible at
+the moment of dispatch and a gate's memory are not in it. **From 0.10.0 you READ it instead** (`RN-R45`,
+[ADR 0128](doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md)):
+
+```
+inputOf(flow, options, { header, events }, target)   // the root export — a stored run, its runtime gone or not
+handle.inputOf(target)                               // a live run: the same function over its own checkpoint()
+```
+
+It builds a driver for the stored run — DEAF: no callback, nothing handed to any scheduler — and REPLAYS the stored
+events, exactly as `resume()` does, until the target's composition. **So the answer is the driver's own composition,
+not a second one**, and costs the run's prefix up to the target. `options` is what the run's driver was built from:
+`runtime.registry`, plus its `joinPolicy` where you did not use `liveToken`.
+
+| target | the node is | `inputs` |
+|---|---|---|
+| `{ taskId }` or `{ nodeId, branchPath }` | a **task** | one `envelope`: `{ settings, input, transform? }` — what the driver handed `createTask`, BEFORE any transform; a retry and a resolution share it |
+| the same | an **ask** | one `received` — equal to its `asked` element's `input` |
+| `{ nodeId, branchPath }` | a **gate**, **fanout**, **map** or **end** | one `received` — what reached it on that path; an end's path is the branch that reached it |
+| `{ nodeId, branchPath }` | a **join**, at an ARRIVING branch's path | one `arrival` — what that branch carried in, a late arrival after an early firing included |
+| `{ nodeId, branchPath }` | a **join**, at its OPENER's path | one `collection` — what it handed on when it fired |
+| `{ nodeId }` | anything | EVERY one of the above the run reached, in the order it reached them — the paths an END was reached on included, which nothing else names |
+
+A path target answers the FIRST composition on its path: an end shared by two sibling regions can be reached twice on one
+path, and only `{ nodeId }` lists both.
+
+**It never throws for the run or the target** — only for a flow or a registry no driver can be built from, as `new Driver` throws — `{ ok: false, reason, index, message }`: `unknown` (a target this run's
+ids cannot name), `not-reached`, `diverged` (the replay produced something other than a stored element BEFORE the
+target — a changed predicate or definition), and `format` / `flow` (the header, refused as a resume refuses it). **A
+halted, cancelled or stopped run IS read**, up to its halt. **What it cannot see**: a change to the flow or the registry
+AFTER the target — or one that moves only an envelope, even at the target: the events carry no payloads, so a reading
+answers with the definition you hand it. **It re-runs your predicates and gate types**, as a resume does. The value is
+the reading's own — a value a `needs` reference composed is frozen, as every reader's is (section 3), the rest yours —
+and nothing of a live run is reachable through it. **The input a task's worker sees AFTER its transform is not answered**
+([Q760](doc/questions/q760.md)): hand the envelope's `input` to `tryTransform` (section 15). **BREAKING in 0.10.0**:
+`RunHandle` gains `inputOf`, which breaks only code that BUILDS a handle.
+
+```ts run
+import { Driver, inputOf, liveToken, type FlowDefinition, type InputOfOptions } from 'fyflow-orchestration';
+
+// A scheduler double, section 12's shape: it records what it is handed and fires only what we tell it to.
+const added: { id: string; payload: unknown }[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const scheduler = {
+  addTask(task: unknown) { added.push(task as { id: string; payload: unknown }); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const settle = (id: string, result: unknown) => {
+  const detail = { id, state: 'done', result, attempts: 0, timestamp: 1, startTime: 1, endTime: 2, executionTime: 1 };
+  for (const fn of listeners.get('task.completed') ?? []) fn({ detail });
+};
+
+// A map over invoices; each check reads its invoice and the run's payload; a rejected one ENDS in the map.
+const flow: FlowDefinition = {
+  flowId: 'invoices', version: 1, entry: 'fetch',
+  nodes: [
+    { id: 'fetch', kind: 'task', type: 'Fetch', edges: [{ to: 'each' }] },
+    { id: 'each', kind: 'map', over: 'invoices', branch: 'check' },
+    { id: 'check', kind: 'task', type: 'Check', needs: { invoice: '.', run: '$payload' }, edges: [
+      { when: { path: 'outcome.result.ok', op: 'eq', value: false }, to: 'rejected' },
+      { to: 'joined' },
+    ] },
+    { id: 'rejected', kind: 'end', outcome: 'rejected' },
+    { id: 'joined', kind: 'join', of: 'each', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+// What the run's driver was built from — and so what a reading builds its own from (joinPolicy: liveToken by default).
+const options: InputOfOptions = { predicates: new Map(), workers: { w: { url: 'worker.js' } }, nodeTypes: { Fetch: { worker: 'w' }, Check: { worker: 'w' } } };
+const driver = new Driver(flow, { runId: 'r1', scheduler, ...options, joinPolicy: liveToken });
+driver.start({ tenant: 't1' });
+settle('r1:fetch:-:0', { invoices: [{ id: 'INV-1' }, { id: 'INV-2' }, { id: 'INV-3' }] });
+settle('r1:check:2:0', { ok: false });
+settle('r1:check:0:0', { ok: true });
+settle('r1:check:1:0', { ok: false });
+
+// What a store keeps: the header and the events (section 18). Read them back — the run's process may be long gone.
+const stored = driver.checkpoint();
+const task = inputOf(flow, options, stored, { taskId: 'r1:check:1:0' });
+console.log(task.ok && task.inputs[0]!.value);   // { settings: {}, input: { invoice: { id: 'INV-2' }, run: { tenant: 't1' } } }
+const ends = inputOf(flow, options, stored, { nodeId: 'rejected' });
+console.log(ends.ok && ends.inputs.map((i) => [i.branchPath, i.value]));   // [['2', { ok: false }], ['1', { ok: false }]]
+const nope = inputOf(flow, options, stored, { nodeId: 'audit' });
+console.log(nope.ok ? 'answered' : nope.reason);   // 'unknown'
+
+// The answer IS what the driver handed the scheduler — the same envelope, built by the same code.
+const handed = added.find((t) => t.id === 'r1:check:1:0')!.payload;
+if (!task.ok || JSON.stringify(task.inputs[0]!.value) !== JSON.stringify(handed)) throw new Error('a task`s answer is the envelope it was handed');
+if (JSON.stringify(handed) !== '{"settings":{},"input":{"invoice":{"id":"INV-2"},"run":{"tenant":"t1"}}}') throw new Error(`check@1 was handed ${JSON.stringify(handed)}`);
+// A node id alone: every path the END was reached on, in the order the run reached them — 2 before 1.
+if (!ends.ok || JSON.stringify(ends.inputs.map((i) => i.branchPath)) !== '["2","1"]') throw new Error('rejected was reached at 2, then 1');
+if (ends.inputs.some((i) => i.handed !== 'received' || JSON.stringify(i.value) !== '{"ok":false}')) throw new Error('an end is handed what reached it');
+if (nope.ok || nope.reason !== 'unknown') throw new Error('a node the flow does not have is unknown');
+// A prefix of the events — a store that has not caught up — reads what it holds and no more.
+const early = inputOf(flow, options, { header: stored.header, events: stored.events.slice(0, 4) }, { taskId: 'r1:check:1:0' });
+if (early.ok || early.reason !== 'not-reached') throw new Error('a task the prefix did not dispatch is not-reached');
 ```
 
 ### Pausing a run — `driver.pause` / `driver.unpause`, and a FLAG that is not an outcome
@@ -2876,6 +2979,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
 | ~~**RUNNING an `ask`**~~ — a node that waits for a person, its answer at `resolve()` | **BUILT** since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md): a run parks at an ask with nothing handed to the scheduler, and its answer is its result — section 7. Under a cancel, a stop, a pause and a resume an ask is a parked task — never in flight, so nothing is ever sent or handed on for it — since [W181](doc/work-items/w181-an-ask-under-run-control.md) (section 7) |
 | a **live, mutable view** of a run's state, or the state handed to `onFoldInput` beside each input | **no** — [P39](doc/plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) (b), [ADR 0122](doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md): `handle.state()` is a frozen COPY, cached until the run moves, and `handle.outcome()` / `handle.node()` are the O(1) reads — section 8 |
+| a task's INPUT kept in the run state — `NodeRun.input` for a task, or `pathEnded` carrying the value that reached an end | **no** — [ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md): a run keeps what its tasks returned. **READ it instead**, since [W205](doc/work-items/w205-what-a-node-was-handed-read-by-replaying-the-run.md): `inputOf(flow, options, { header, events }, target)` or `handle.inputOf(target)` replays the run to that node — section 8. The input a worker sees AFTER its transform: **no** ([Q760](doc/questions/q760.md)) |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |
@@ -4419,7 +4523,7 @@ no serializer. A CHECKPOINT is `{ header, events }`
 ([ADR 0064](doc/decisions/0064-a-checkpoint-is-the-whole-event-sequence-and-a-header-and-it-is-a-copy.md)) —
 the header is five facts the events cannot regenerate (`format`, `runId`, `flowId`, `version` and a
 copy of the entry payload), and `events` is every fold input so far, so **every event after a
-checkpoint is an append to it**. You never have to call `driver.checkpoint()` to keep one:
+checkpoint is an append to it**. **The same header and events answer what any node was HANDED, long after the run** — `inputOf`, section 8 (since 0.10.0). You never have to call `driver.checkpoint()` to keep one:
 
 | | where you get it | what you do with it |
 |---|---|---|
