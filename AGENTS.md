@@ -348,6 +348,22 @@ that object and nothing else — there is no wrapper and no reserved key.
 | `["someNode"]` | that node's results as an **array**, in ascending branch-path order. Legal only when you are OUTSIDE a region that node is in — which is what makes it more than one |
 | **a `?` on either of those** — `"someNode?"`, `["someNode?"]` | the same thing, except that **nothing to give leaves the key out** (or gives `[]` for the array form) instead of stopping the run. This is how you say *if it ran* |
 
+**What a reference hands you is ONE shared, frozen copy — read it, never write it** — from 0.10.0 ([ADR 0126](doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md),
+`spec/flow-definition.md` v0.47). The value under a `"someNode"` or `["someNode"]` key (either with `?`) is ONE deep copy
+of that output, made the first time anything reads it and handed to EVERY reader of it — every instance of a `map`, every
+node after it, and every edge predicate (`ctx.needs`, section 4) — and a `"$payload"` key is one such copy of the run's
+payload for the whole run. The object `needs` composes is still yours, a `["someNode"]` array is a fresh one per read, and
+`"."` and `"$item"` are still your own copies. **The copy is FROZEN where JavaScript can freeze**: plain objects and arrays
+at every depth, so writing into one throws `TypeError` in strict code — an **inline** worker that does so fails that
+attempt (your `retryPolicy` decides what follows), and a **predicate** in strict code that does so stops the run (in
+sloppy code the write is silently dropped). A threaded worker
+writes into its own clone, as before. **What freezing cannot protect is yours to leave alone**: a `Map`, `Set`, `Date`
+or `ArrayBuffer` in a result is frozen only shallowly (`set`, `add`, `setTime` and a write through a view still work, and
+a `Map`'s keys and values, a `Set`'s members and an `Error`'s `cause` are not frozen), and a typed array, `DataView` or
+`RegExp` is not frozen at all (a frozen `RegExp` could not run its own `test` or `exec`) — an inline worker writing into one changes what every other reader of
+that output sees. Copy before you change anything a reference handed you. *(Until 0.10.0 every read was its own deep
+copy, so such a write landed on yours alone — and a reference to a large result inside a `map` cost one copy per item.)*
+
 **Which of the two aimed forms is legal is decided by the graph and refused at construction**
 (`FD-V28`), so you are told which to write rather than discovering the shape at run time. The message
 names the form to use instead.
@@ -458,14 +474,15 @@ in W50* for exactly as long as that was true.)*
 And a reference names a **node**, never a path inside its value: `needs: { run: 'ingest' }` gives you
 the whole of `ingest`'s result and your worker reads `.config` off it.
 
-**And inside a `map`, what it costs is what you point it at.** Each instance gets its OWN COPY of
-each key, so a reference to a large result is copied once per item. Measured at a map arity of 1000
-over a ~126 KiB payload, **one case per process**: no `needs` **5.5 ms**, `{item: '.'}` **7.7 ms**,
-one more key naming a genuinely small node **8.7 ms**, and the same key naming the large one
-**613.6 ms** — **71x**, and the `?` suffix costs nothing (**617.4 ms**). The mechanism makes one copy
-per instance and the cost is linear in the size of each, so the product is what you pay. That is also
-why a reference names a whole node and never a path inside it — a path language would hide this
-choice. *(These five figures are compared to `spec/flow-definition.md` section 3's own table by
+**And inside a `map`, what it costs is what you point it at.** From 0.10.0 that is ONE copy of it, whatever the
+arity (above). Until 0.10.0 each instance got its OWN COPY of each key, so a reference to a large result was copied
+once per item, every copy live at once: fyflow-app's *fetch a list, then map over it* at 4,000 items cost the driver
+alone 15.5 s and 1.4 GB in 0.9.1, and 0.09 s and 15 MB from 0.10.0 (node 24). Measured at a map arity of 1000 over a
+~126 KiB result, the driver alone, **one case per process**: no `needs` **24.4 ms**, `{item: '.'}` **25.3 ms**, one
+more key naming a genuinely small node **28.0 ms**, and the same key naming the large one **30.5 ms** — **1.1x**, where
+it was 17x in 0.9.1 on the same machine — and the `?` suffix costs nothing (**28.3 ms**). The mechanism makes one copy
+per output read, whoever reads it. A reference still names a whole node and never a path inside it — a path
+language would make *the small part of the big thing* a selector's business rather than the document's. *(These five figures are compared to `spec/flow-definition.md` section 3's own table by
 `check-docs`' `X6`, both ways — three documents carried them and nothing compared any two, which is
 `doc/workflow.md` section 5 rule 8 obligation (e)'s third shape.)*
 
@@ -475,7 +492,9 @@ including the flow it exists for, so it restates the definition rather than diag
 a report channel exists (`onUnmintedTask`'s shape) and is declined because *this reference is resolved
 once per item* is a fact about your document rather than about your run. **Measuring is not the
 obstacle** — a size measurement is about 0.03% of what it would warn about at arity 1000.
-`spec/flow-definition.md` section 3 carries the whole verdict and the measurements.
+`spec/flow-definition.md` section 3 carries the whole verdict and the measurements. **From 0.10.0 there is nothing
+left to warn about**: the per-item copy that decision was about is gone ([Q186](doc/questions/q186.md), resolved by
+[ADR 0126](doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)), and the decision stands as written.
 
 **Finding what a reference names costs its ANSWER** — from 0.9.1
 ([ADR 0124](doc/decisions/0124-a-reference-read-costs-its-answer.md), `spec/flow-definition.md` v0.46). A branch task
@@ -484,8 +503,8 @@ predecessor — and the read takes that one output, however many instances the m
 by the branch-path prefix its readers share. In 0.9.0 every read searched every output of the node it names, so such a
 map cost O(items²) (the driver alone at 8,000 items: 22 s in 0.9.0, 0.22 s from 0.9.1, node 24). **A read never costs
 less than its answer**: `["n"]` from a reader outside every region `n` is in — a SIBLING map's reader — is handed every
-output of `n`, so two maps of `n` and `m` instances compose `n·m` entries. That is the answer's price, the cliff above by
-another road, and the remedy is the same.
+output of `n`, so two maps of `n` and `m` instances compose `n·m` entries — from 0.10.0 `m` fresh arrays of the same `n`
+shared copies, so the price is the arrays, not `n·m` clones. That is the answer's price, and the remedy is the cliff's.
 
 ### `"$payload"` — what reached the RUN, from any node
 
@@ -498,14 +517,14 @@ that passed it through.
 
 | | |
 |---|---|
-| what it is | the copy the run's checkpoint HEADER keeps (`header.entryPayload`, section 18) — so a caller changing its payload object after `start()` changes nothing. Each key is its own deep copy, per read: no node receives an object another holds, and a worker writing into it reaches nothing |
+| what it is | the copy the run's checkpoint HEADER keeps (`header.entryPayload`, section 18) — so a caller changing its payload object after `start()` changes nothing. From 0.10.0 every `"$payload"` key of the run, at every node and edge, is ONE deep-frozen copy of it, made at the first read — a worker or a predicate writing into it throws `TypeError` and reaches nothing (above). *(Until 0.10.0 each key was its own deep copy, per read.)* |
 | where it is legal | every node and every edge — at the entry, on a task, it equals `"."`, and both spellings are accepted. **On an edge it is NOT refused** the way `"."` is: a predicate has no `ctx.payload`, so `needs: { run: '$payload' }` is how a decision routes on `needs.run.amount` with no task before it |
 | always there | no `?` and no array form: `["$payload"]` and `"$payload?"` are `FD-V26`, each naming the bare form. The whole `$` prefix is reserved — `$` is outside the node-id charset (`FD-V16`), so the token can never collide with a node — and any other `$` spelling (`"$input"`, a typo) is `FD-V26` naming the two `$` references |
 | `"$item"` | the prefix's second reference, the item of the map instance the reader is in — the next subsection |
 | on a resume | the same value, from the stored header: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` stays 1) |
 | at `start()` | `FD-R4` holds a task's composed `"$payload"` key to its worker's `inputSchema` like any other key (section 9) — composed from the value you passed, before the run exists |
 | in the wiring check | an arc composed through a `"$payload"` key is `unchecked`: the run's payload is a value no schema declares (section 15) |
-| what it costs | one copy of the whole payload **per key per read** — inside a `map`, once per instance (the cliff above, at its largest: name the small part's producer instead, or give the `map` a `needs` that projects what each instance needs). Nothing warns, as above. On an ASK the copy is also written into the run's LOG: the `asked` element keeps what reached the ask (section 7) |
+| what it costs | ONE copy of the whole payload per RUN, from 0.10.0 — however many instances of a `map` read it. *(Until 0.10.0 one copy per key per read: inside a `map`, once per instance — the cliff above at its largest.)* On an ASK the copy is also written into the run's LOG: the `asked` element keeps what reached the ask (section 7) |
 
 **`givenVerdict` and `tryTransform(…, { input })` compose nothing** (section 15): the value you give them IS what the node
 receives, so a node declaring `needs: { run: "$payload" }` is given `{ run: <the payload> }` — composing it is yours, as
@@ -911,7 +930,9 @@ instance, from what the instance KEEPS**: its item, while a node of it may still
 (section 3).
 
 **`ctx.needs` is `{}` when the edge declares nothing**, never `undefined`; it is **frozen**, so a
-predicate that writes to it throws rather than editing what the next predicate reads; and a reference
+predicate that writes to it throws rather than editing what the next predicate reads — and from 0.10.0 so does a
+write INTO a value under a reference or `"$payload"` key, the run's one shared frozen copy (section 3), and a predicate
+that throws stops the run; and a reference
 the run did not produce stops the run with an `UnresolvedReference` (`FD-R3`, section 9) exactly as a
 node's does. **An edge with no `when` may carry a `needs` and nothing will ever read it** — accepted
 and inert, which `spec/flow-definition.md` section 3 records rather than refuses.
@@ -1754,7 +1775,7 @@ need the state; step only where you hold a short one. Both return exactly what t
 ([ADR 0121](doc/decisions/0121-the-driver-keeps-a-per-task-view-of-its-log.md)): every question it asks of its log about
 ONE task — a settlement's effective outcome, whether a task is parked, what is in flight, what a `needs` can reach — reads
 that task's records alone (and from 0.9.1 a `needs` read takes the outputs it is handed rather than searching its node's —
-`RN-R13` v0.32, [ADR 0124](doc/decisions/0124-a-reference-read-costs-its-answer.md)), where 0.8.0 scanned the whole log (a 16,000-item `map` driven on a scheduler double: 999 ms in
+`RN-R13` v0.32, [ADR 0124](doc/decisions/0124-a-reference-read-costs-its-answer.md); and from 0.10.0 it is handed ONE shared copy of each output, made at the first read and kept for the run, rather than a clone per read — `RN-R13` v0.33, [ADR 0126](doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)), where 0.8.0 scanned the whole log (a 16,000-item `map` driven on a scheduler double: 999 ms in
 0.8.0, 229 ms from 0.9.0, node 24). `snapshot()`, `foldInputs()` and `checkpoint()` still hand you a copy of the whole run,
 O(run) a call: read them when you need the run, not after every event.
 

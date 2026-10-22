@@ -324,10 +324,12 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
       'while ctx.needs still resolves against the run, at the moment the decision is made');
   });
 
-  test('each predicate gets its OWN copy, and neither field aliases the log', () => {
-    // `JP-R11`'s invariant, and `OR-R7`'s: a predicate is ordinary user code
-    // (ADR 0002 rule 4 asks it to be pure and nothing enforces that — Q9), so a
-    // context it can write through is a context that can edit a record in the log.
+  test('two predicates reading one output share ONE frozen copy — ADR 0126 — and neither field aliases the log', () => {
+    // `OR-R7`'s invariant: a predicate is ordinary user code (ADR 0002 rule 4 asks it to be pure, and until W202 nothing
+    // enforced it — Q9), so a context it can write through is a context that can edit a record in the log. **Until v0.47 this case
+    // also read `a.earlier !== b.earlier`, one copy per key per edge**; P41 (g1) and
+    // [ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md) hand every
+    // reader of one output — a predicate as a worker, ADR 0041 rule 4's one resolver — ONE deep-frozen copy.
     const def = {
       flowId: 'two-guarded-edges', version: 1, entry: 'ingest',
       nodes: [
@@ -354,10 +356,12 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const a = h.seen[0]!.ctx.needs as { earlier: { deep: unknown } };
     const b = h.seen[1]!.ctx.needs as { earlier: { deep: unknown } };
     equal(a, b, 'the two edges declared the same reference and got the same VALUE');
-    ok(a.earlier !== b.earlier, 'and not the same OBJECT — one copy per key, per edge');
-    ok(a.earlier !== ingestResult, 'and neither aliases the record in the log');
-    ok(a.earlier.deep !== b.earlier.deep, 'nested too');
-    ok(h.seen[0]!.ctx.outcome !== h.seen[1]!.ctx.outcome, 'and `outcome` is a copy per edge as well');
+    ok(a.earlier === b.earlier, 'and the SAME object — one shared copy of the output, handed to both edges (ADR 0126 rule 1)');
+    ok(Object.isFrozen(a.earlier) && Object.isFrozen(a.earlier.deep), 'frozen, nested too — a predicate`s write into it throws (ADR 0126 rule 3)');
+    ok(a.earlier !== ingestResult, 'and it is not the settled object');
+    const logged = h.driver.snapshot().find((r) => r.taskId === 'r1:ingest:-:0')!;
+    ok(a.earlier !== logged.result, 'nor the record in the log');
+    ok(h.seen[0]!.ctx.outcome !== h.seen[1]!.ctx.outcome, 'and `outcome` is still a copy per edge — it is no reference (ADR 0126 leaves it)');
   });
 
   test('a decision INSIDE a map region resolves relative to its own branch path', () => {
@@ -417,7 +421,10 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     //       (`FD-V28`) at the edge site and never RESOLVED there;
     //   19. dropping the array form's per-entry `cloneValue` cost **0**, so two edges
     //       naming the same node received the SAME objects and a predicate could edit
-    //       a record in the driver's log.
+    //       a record in the driver's log. *(Since v0.47, ADR 0126, the two edges DO receive
+    //       the same element objects — the outputs' shared, frozen copies — in two fresh
+    //       arrays; what 19 guarded, a predicate editing the LOG's record, is now refused
+    //       by the freeze and by the copy not being the record: both asserted below.)*
     const def = {
       flowId: 'many-keys-and-the-array-form', version: 1, entry: 'ingest',
       nodes: [
@@ -458,9 +465,13 @@ suite('L2 — FD-C3: what a decision sees', (test) => {
     const a = h.seen[0]!.ctx.needs.all as { s: number }[];
     const b = h.seen[1]!.ctx.needs.all as { s: number }[];
     equal(a, b, 'the two edges named the same node and got the same VALUE');
-    ok(a[0] !== b[0], 'and not the same OBJECTS — the ARRAY form copies per entry, per edge');
+    ok(a !== b, 'the ARRAY is each read`s own — a fresh array per read (ADR 0126 rule 1)');
+    ok(a[0] === b[0] && a[2] === b[2], 'and its ELEMENTS are the outputs` shared copies — the same objects at both edges');
+    ok(Object.isFrozen(a[0]), 'each frozen');
     const logged = h.driver.snapshot().find((r) => r.taskId === 'r1:score:0:0')!;
-    ok(a[0] !== logged.result, 'and neither entry aliases the record in the log — JP-R11 and OR-R7');
+    ok(a[0] !== logged.result, 'and no entry aliases the record in the log — OR-R7');
+    const stored = (h.driver as unknown as { log: { taskId: string; result: unknown }[] }).log.find((r) => r.taskId === 'r1:score:0:0')!;
+    ok(a[0] !== stored.result && !Object.isFrozen(stored.result), 'nor the driver`s own stored record, which stays unfrozen (P41 decision 4)');
   });
 
   test('a DEFAULT edge`s `needs` is never resolved, however unresolvable it is', () => {

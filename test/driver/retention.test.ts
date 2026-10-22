@@ -1117,6 +1117,18 @@ suite(SUITE, (test) => {
     const indexed = [...c.index.values()].flatMap((byDepth) => [...byDepth.values()].flatMap((g) => [...g.values()].flat()));
     ok(indexed.length > 0, `the index is POPULATED — rank read ["score"] (${indexed.length} entries)`);
     equal(indexed.filter((e) => !own.has(e)), [], 'RN-R13 v0.32 — every entry the index reaches IS a byNode entry, by reference');
+    // **W202 — the SHARED COPY (ADR 0126, RN-R13 v0.33) is the one thing `outputsCache` holds that is NOT a log record's
+    // object**: a second, deep-frozen copy of each output a reference has READ, kept on its entry. So the alias claim
+    // above is about `result` alone, and this is its other half: every shared copy is a COPY, never a record's object,
+    // and no copy is held twice (one per entry, each a distinct object).
+    const entries = [...c.byNode.values()].flat() as { result: unknown; shared?: unknown }[];
+    const shared = entries.filter((e) => 'shared' in e).map((e) => e.shared);
+    equal(shared.length, 2, 'the copies are POPULATED — rank read ["score"], whose two outputs it read, and nothing else was read');
+    equal(shared.filter((s) => logged.some((l) => l === s)), [], 'RN-R13 v0.33 — no shared copy IS a log record`s object: each is the second copy the rule names');
+    equal(entries.filter((e) => 'shared' in e).map((e) => [e.shared, e.result]), [[{ s: 0 }, { s: 0 }], [{ s: 1 }, { s: 1 }]], 'each equal to its entry`s result — a copy of it');
+    equal(new Set(shared).size, shared.length, 'and no copy is held twice');
+    equal([...new Set(entries.flatMap((e) => Object.keys(e)))].sort(), ['path', 'result', 'shared'],
+      'and an entry holds NOTHING else — a per-read clone kept on it would be a third key (W202`s adequacy reader, L1)');
 
     // **And the holder SET on this same run reaches a FOURTH name**, which is what
     // makes the walk's universe load-bearing rather than decorative. Every other case

@@ -629,8 +629,55 @@ type PendingCall =
   | { readonly kind: 'paused' | 'unpaused'; readonly actor: string }
   | { readonly kind: 'answer'; readonly record: ResolutionRecord; readonly runId: string; readonly nodeId: string; readonly branchPath: string };
 
-/** One produced output — `outputs()`'s entry: a `(node, branchPath)` and the effective result, BY REFERENCE (`RN-R13`). */
-type OutputEntry = { path: string; result: unknown };
+/**
+ * One produced output — `outputs()`'s entry: a `(node, branchPath)` and the effective result, BY REFERENCE (`RN-R13`).
+ * **`shared`, once a reference has READ it** — W202, [ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md):
+ * the ONE deep-frozen copy of `result` every reader of this output is handed (`sharedCopy`). Absent until the first read,
+ * and it lives exactly as long as this entry object: `place` REPLACES the object when the task's effective outcome moves
+ * and drops it when the outcome goes, so a replaced or removed output's copy goes with it (`RN-R13`, ADR 0046).
+ */
+type OutputEntry = { path: string; result: unknown; shared?: unknown };
+
+/**
+ * **Freeze what JavaScript can freeze, and never throw** — W202, ADR 0126 rule 2, P41 decision 1 and (f2). The walk
+ * recurses through plain `Object`s and `Array`s and freezes each; every OTHER object is frozen SHALLOWLY and not entered —
+ * a `Map`, `Set`, `Date` or `ArrayBuffer` frozen this way still takes `set`, `add`, `setTime` or a write through a view
+ * (P41 fact 5, measured in node, deno and chromium). **An `ArrayBuffer` view — a typed array or a `DataView` — is never
+ * handed to `Object.freeze`**: it THROWS on a typed array with elements, and a frozen `DataView` still writes its bytes, so
+ * both are shared UNFROZEN; a `RegExp` is shared UNFROZEN too, because a frozen one's `lastIndex` makes a global or sticky
+ * one's own READS throw. Whatever a non-plain object holds is not entered — an `Error`'s `cause`, a `Map`'s keys and
+ * values, a `Set`'s members stay as they are. Those are the named GAP: a referenced value is read-only, and in the gap that is the
+ * reader's responsibility (`spec/flow-definition.md` section 3). **Iterative**, so a deeply nested value cannot overflow the
+ * stack; `Object.isFrozen` is the visited mark, so a cycle `structuredClone` preserved ends the walk.
+ */
+function deepFreeze(root: unknown): void {
+  const stack: unknown[] = [root];
+  while (stack.length > 0) {
+    const v = stack.pop();
+    // A `RegExp` is not frozen either (W202's readers, both): freezing makes `lastIndex` read-only, so a global or sticky
+    // one's own READS — `test`, `exec`, `replace`, `match` — throw, a third behaviour change P41 decision 8 does not have.
+    if (v === null || typeof v !== 'object' || ArrayBuffer.isView(v) || v instanceof RegExp || Object.isFrozen(v)) continue;
+    Object.freeze(v);
+    const proto = Object.getPrototypeOf(v);
+    if (!Array.isArray(v) && proto !== Object.prototype && proto !== null) continue;
+    for (const k of Object.keys(v)) {
+      const x = (v as Record<string, unknown>)[k];
+      if (x !== null && typeof x === 'object') stack.push(x);
+    }
+  }
+}
+
+/**
+ * **A referenced value's ONE shared copy** — W202, ADR 0126: a deep copy of the stored value (`cloneValue`, so a value
+ * `structuredClone` refuses throws as the per-read clone did), deep-frozen by `deepFreeze`. Made once per output a
+ * reference reads, and once per run for `"$payload"`, never per reader. A primitive, `null` and `undefined` come back as
+ * they are.
+ */
+function sharedCopy(v: unknown): unknown {
+  const copy = cloneValue(v);
+  deepFreeze(copy);
+  return copy;
+}
 
 /**
  * One task id `outputs()` has read a record of (W195): its node and branch path, its FIRST record's position among the
@@ -664,9 +711,23 @@ interface OutputsCache {
    * **ADR 0124's count, never public** (ADR 0121 rule 7's two constraints): the ENTRIES the index touches — each entry a
    * build reads, one per index a `place` change lands in, and each entry a read takes (one for a `one` reference, the
    * group for an `all` one). NOT counted: the comparisons that find a sorted position, a splice's moves, the depth's graph
-   * walk, and the clone of each answer.
+   * walk, and the shared copy a read is handed (`copies`, below).
    */
   examined: number;
+  /**
+   * **`"$payload"`'s ONE shared copy for the run** — W202, ADR 0126: `sharedCopy` of the header's `entryPayload`, made at
+   * the first `"$payload"` read of the run, or of a resume (a resumed driver is a new one), and held as long as the header
+   * is — for the run. `null` until then. Inside this projection, so the driver gains no field (P41 prediction 3).
+   */
+  payload: { value: unknown } | null;
+  /**
+   * **ADR 0126's count, never public** (ADR 0121 rule 7's two constraints): the SHARED COPIES made for reference reads —
+   * one per output entry a `"n"` or `["n"]` reference (either with `?`) first reads, at a node's `needs` or an edge's, and
+   * one per run for `"$payload"`. NOT counted: `"$item"`'s per-key clone (one element, `JP-R11`'s cheap end), `"."`'s,
+   * `FD-R4`'s clone of the caller's payload, the freeze walk, an `all` answer's fresh array, and `OR-R2`'s settlement
+   * clone.
+   */
+  copies: number;
 }
 
 /** What a read takes where no output is visible — one frozen shared instance, never handed out (the caller maps it). */
@@ -1771,7 +1832,8 @@ export class Driver {
    *   - **`held`** — map id → the instance's branch path → its item. Written by the MAP ARM, where the instance opens —
    *     by a run and by a resume's replay alike, so a replay REBUILDS it (`RN-R19`; P38's brief: *taken at rest*, never by
    *     a caller's call) — **BY REFERENCE to the element the map received** (the driver's own: an edge-hop clone, or a
-   *     `needs` composition's per-key copy), and as its OWN copy only where `kept` says that element is the caller's
+   *     `needs` composition's value — since W202 an element of a reference's SHARED copy, which this keeps alive while held),
+   *     and as its OWN copy only where `kept` says that element is the caller's
    *     (P35 (f)'s reason for `asked.input`). Every READ clones (`JP-R11`), so no node receives the held object.
    *     **Released when NOTHING of that instance may still be entered** — its own branch terminal (`branch.arrived`,
    *     `branch.lost` or `branch.exited`, `JP-R5`: one per opened branch) AND no branch of a region NESTED in it still live
@@ -2358,7 +2420,7 @@ export class Driver {
         // instance's item. `compose` derives a branch path only for a NODE reference, which no entry names (`FD-V27`) —
         // *until W191 it derived one for ANY `needs`, and an entry map's branch task declaring one threw a raw
         // `UnresolvedBranchPath` out of `start()`: the walk has no item index to give (S-1).*
-        const received = this.compose(n, value, EMPTY_INDICES, payload, () => value);
+        const received = this.compose(n, value, EMPTY_INDICES, () => cloneValue(payload), () => value);
         const fs = findings(schema, received);
         if (fs.length) {
           throw new BoundaryRefused('start', node, null, fs,
@@ -3937,7 +3999,7 @@ export class Driver {
     // already do the right thing with a throw — `onEvent` catches and reports
     // (`OR-R10`), `start` catches, reports and rethrows — and catching it here would
     // make `start()` stop rethrowing.
-    const received = this.compose(node, payload, itemIndices, this.runPayload(), () => this.itemOf(node.id, itemIndices));
+    const received = this.compose(node, payload, itemIndices, () => this.sharedPayload(), () => this.itemOf(node.id, itemIndices));
 
     switch (node.kind) {
       case 'task':
@@ -4464,7 +4526,8 @@ export class Driver {
    * described **today** before this method existed, and this adds **no retention**.
    * *(Q19 is RESOLVED since W53 —
    * [ADR 0046](../../doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md)
-   * — and `RN-R13` names `outputsCache` by id: it holds results **by reference only**,
+   * — and `RN-R13` names `outputsCache` by id: it holds results **by reference** — and since W202 (ADR 0126) one shared
+   * COPY per output a reference has read, the one thing in it that is not the log's object,
    * asserted by IDENTITY at ladder L2 rather than by a byte count, because a
    * reachability SET cannot tell an alias from a copy. W53's readers found that
    * from both ends — the rule's stated test returned a third name on a `needs`
@@ -4492,7 +4555,7 @@ export class Driver {
    * node or an edge that declares a `needs` asks, and a run that declares none never builds it.
    */
   private outputs(): Map<string, { path: string; result: unknown }[]> {
-    const c = (this.outputsCache ??= { at: 0, byNode: new Map(), tasks: new Map(), orders: new Map(), index: new Map(), depths: new Map(), examined: 0 });
+    const c = this.cache();
     for (; c.at < this.log.length; c.at += 1) {
       const r = this.log[c.at]!;
       let t = c.tasks.get(r.taskId);
@@ -4518,6 +4581,17 @@ export class Driver {
   }
 
   /**
+   * The projection, made empty on first need and NOT caught up — `outputs()` catches it up; a `"$payload"` read, which
+   * reads no output, only needs somewhere to keep its shared copy (W202).
+   */
+  private cache(): OutputsCache {
+    return (this.outputsCache ??= {
+      at: 0, byNode: new Map(), tasks: new Map(), orders: new Map(), index: new Map(), depths: new Map(), examined: 0,
+      payload: null, copies: 0,
+    });
+  }
+
+  /**
    * **One task's entry, made what its effective outcome now says** — `outputs()`'s catch-up, for a task one of whose records
    * was just read. An entry is `{ path, result }` with `result` the record's own object (`RN-R13`); a node's list is kept
    * in its tasks' FIRST-RECORD order, the order the rebuild grouped them in.
@@ -4531,6 +4605,10 @@ export class Driver {
    * that LOSES its effective outcome is removed — **reachable**: `ID-R4` asks only whether a settlement's id was dispatched,
    * so a settlement event repeated for a settled task is appended, and a `done` then a `user_action` leaves the task with
    * none (W195's conformity reader, C4; `test/driver/log-view.test.ts` drives it and the resolution that places it again).
+   *
+   * **Both a replacement and a removal let go of the entry OBJECT, and with it the entry's shared copy** (W202, ADR 0126,
+   * `OutputEntry.shared`): a replaced output's next read makes a new copy of the new result, and a removed one's copy is
+   * held nowhere — `RN-R13`'s v0.33 term, released with what it belongs to (ADR 0046).
    */
   private place(c: OutputsCache, t: OutputSlot, eff: OutcomeRecord | null): void {
     const list = c.byNode.get(t.nodeId);
@@ -4652,7 +4730,8 @@ export class Driver {
   /**
    * The projection above, CAUGHT UP to `at` — `RN-R13` v0.30, ADR 0121 (W195). **Not run state and not a second copy of
    * it**: `byNode`'s entries hold each result BY REFERENCE (the log record's own object) — so it is a holder of results and
-   * never a copy — `tasks` is one slot per task id
+   * not a copy of them; since W202 an entry a reference has read also holds its ONE shared copy (`OutputEntry.shared`,
+   * `RN-R13` v0.33), and `payload` the run's payload's — `tasks` is one slot per task id
    * read — its node, its path, its first-record position and its current entry — and `orders` the same positions, per
    * node, parallel to its list. Everything here is the merge `effectiveOutcome` computed from the task's own records at the moment they were
    * read, and `at` says which records have been; so there is nothing here that could disagree with the log. `ADR 0014`'s
@@ -4677,7 +4756,7 @@ export class Driver {
    *
    * @throws UnresolvedReference — `FD-R3`.
    */
-  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>, runPayload: unknown, item: () => unknown): unknown {
+  private compose(node: FlowNode, edgeValue: unknown, itemIndices: ReadonlyMap<string, number>, runPayload: () => unknown, item: () => unknown): unknown {
     const needs = (node as { needs?: Record<string, unknown> }).needs;
     if (!needs) return edgeValue;
     // **The branch path and the projection are taken only for a NODE reference** — W190's S-1, fixed here (the
@@ -4704,16 +4783,17 @@ export class Driver {
       // edge's value in silence.
       //
       // `"."` composes what the node would have received anyway, whichever of this document's four arcs it
-      // sits on. `"$payload"` composes the value the RUN entered with — `FD-C1` v0.44, ADR 0117 — handed in by
-      // the caller (P38 (f)): the header's copy in a run and on a resume, the caller's own value at `FD-R4`.
-      // **Each its own copy, per key, per read** (`JP-R11`, ADR 0040 rule 6): no node ever receives an object
-      // another holds, and no worker can reach the header through what it was handed.
+      // sits on — **its own copy, per key, per read** (`JP-R11`, ADR 0040 rule 6, which v0.47 keeps for `"."` and
+      // `"$item"`). `"$payload"` composes the value the RUN entered with — `FD-C1` v0.44, ADR 0117 — through the THUNK
+      // the caller hands in (P38 (f)): in a run and on a resume the run's ONE deep-frozen shared copy of the header's
+      // payload (`sharedPayload`, v0.47, ADR 0126 — every reader handed the same object, and none can write to it or
+      // reach the header through it); at `FD-R4` a clone of the caller's own value, which reaches no worker.
       if (t.form === 'self') {
         out[key] = cloneValue(edgeValue);
         continue;
       }
       if (t.form === 'payload') {
-        out[key] = cloneValue(runPayload);
+        out[key] = runPayload();
         continue;
       }
       if (t.form === 'item') {
@@ -4742,7 +4822,7 @@ export class Driver {
    *
    * **Extracted by [W42](../../doc/work-items/w42-what-a-decision-sees.md) rather
    * than copied.** An EDGE's `needs` resolves by exactly these rules — same grammar,
-   * same visibility predicate, same order, same per-key copy — and the ONE difference
+   * same visibility predicate, same order, same shared copy (since W202, ADR 0126) — and the ONE difference
    * is that an edge has no `"."` form, which is a property of the caller rather than
    * of this expression. *Two callers, one resolution, so a change to what a reference
    * means cannot mean two different things to a worker and to a predicate*, which is
@@ -4804,22 +4884,51 @@ export class Driver {
           'FD-R3.',
       );
     }
-    // **Its own copy, per key** — `JP-R11`'s invariant applied to the one edge
-    // that is not a fan-out edge: no two nodes ever receive the same object, and
-    // a reference is the one way two nodes could otherwise be handed one record's
-    // `result` twice.
-    this.outputsCache!.examined += t.form === 'all' ? visible.length : 1;
+    // **ONE shared copy per output, handed to every reader** — v0.47, W202,
+    // [ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md), superseding
+    // the per-key copy this line made until then (ADR 0040 rule 6, ADR 0117 rule 4, in part). The first read of an output
+    // entry makes one deep-frozen copy of its `result` and keeps it on the entry; every later read, by any reader, at
+    // either site, in either form, is handed that object. So *no two nodes ever receive the same object* became *no node
+    // can write to what another node reads* — where freezing can enforce it, and in the named gap (`deepFreeze`) the
+    // reader's responsibility. The stored record is untouched: the copy is a SECOND one, never the log's `result`
+    // (`RN-R13`). An `all` answer is a FRESH array per read, the reader's own, of the entries' shared copies.
+    const c = this.outputsCache!;
+    c.examined += t.form === 'all' ? visible.length : 1;
     return t.form === 'all'
-      ? visible.map((e) => cloneValue(e.result))
-      : cloneValue(visible[0]!.result);
+      ? visible.map((e) => this.sharedOf(c, e))
+      : this.sharedOf(c, visible[0]!);
+  }
+
+  /** **An output entry's shared copy**, made at its first read and kept on the entry (`OutputEntry.shared`) — counted. */
+  private sharedOf(c: OutputsCache, e: OutputEntry): unknown {
+    if (!('shared' in e)) {
+      e.shared = sharedCopy(e.result);
+      c.copies += 1;
+    }
+    return e.shared;
+  }
+
+  /**
+   * **`"$payload"`'s value in a run: the run's ONE shared copy** — W202, ADR 0126, P41 decision 2: `sharedCopy` of the
+   * header's `entryPayload` (`runPayload()`), made at the first `"$payload"` read of the run — or of a resume, whose driver
+   * is a new one — and handed to every reader at both sites. Counted once. `FD-R4` does not come here: it composes from
+   * the caller's own value, before a header exists, and keeps its clone.
+   */
+  private sharedPayload(): unknown {
+    const c = this.cache();
+    if (c.payload === null) {
+      c.payload = { value: sharedCopy(this.runPayload()) };
+      c.copies += 1;
+    }
+    return c.payload.value;
   }
 
   /**
    * **The value the run ENTERED with — the header's copy** (`RN-R15`, P38 fact 4 and (f)): taken at `start()` from the
    * caller's payload, or on a resume from the stored header, and held for the life of the run. What a `"$payload"`
    * reference composes from, in both doors; `FD-R4` hands the caller's own value instead, because it runs before the
-   * header exists. Read only where a node or an edge composes the token — a run declaring none never clones it
-   * (P38 decision 2). The header is set before the first `enter` in both doors, so `null` here is not a run.
+   * header exists. Read only where a node or an edge composes the token — a run declaring none never copies it
+   * (P38 decision 2); since v0.47 read ONCE, by `sharedPayload`, whose one shared copy every reader is handed. The header is set before the first `enter` in both doors, so `null` here is not a run.
    */
   private runPayload(): unknown {
     return this.header?.entryPayload;
@@ -4858,8 +4967,8 @@ export class Driver {
    * received anyway* is `ctx.outcome`, which it already has. So there is no
    * `edgeValue` parameter here and none is derivable — see the call site. **A
    * `"$payload"` key needs none either** (v0.44, ADR 0117): it is not derived from what
-   * the NODE received but read from the run's header, `runPayload()` above, its own
-   * copy per key per read.
+   * the NODE received but read from the run's header — since v0.47 the run's ONE shared
+   * copy of it, `sharedPayload()` above, the object a worker's `"$payload"` key is handed (ADR 0126).
    *
    * @throws UnresolvedReference — `FD-R3`, from the same expression a node's does.
    */
@@ -4881,9 +4990,10 @@ export class Driver {
       // it — true while `"."` was the only one (P38 fact 9).
       const t = referenceTarget(ref)!;
       if (t.form === 'payload') {
-        // **The run's payload, its own copy per key per read** — `FD-C3` v0.44, the same expression `compose`
-        // uses, so `ctx.needs.run` and a worker's `input.run` mean one thing (ADR 0041 rule 4's *one resolver*).
-        out[key] = cloneValue(this.runPayload());
+        // **The run's payload, its ONE shared copy** — `FD-C3` v0.47 (ADR 0126, P41 (g1)): the same object `compose`
+        // hands a worker, so `ctx.needs.run` and a worker's `input.run` mean one thing (ADR 0041 rule 4's *one resolver*)
+        // — and a predicate's write into it THROWS, which stops the run (`FD-C3`, ADR 0002 rule 4 now partly enforced).
+        out[key] = this.sharedPayload();
         continue;
       }
       if (t.form === 'item') {
@@ -4908,8 +5018,9 @@ export class Driver {
     // THREW when its edge declared nothing and succeeded silently when it declared
     // something — and with the freeze gone, a write to the shared instance would be
     // read by the NEXT predicate. `ADR 0002` rule 4 asks a predicate to be pure and
-    // nothing enforces it ([Q9](../../doc/questions/q9.md)); this does not enforce
-    // purity either, it makes the ONE observable consequence uniform. `OR-R7`'s idiom.
+    // nothing enforced it ([Q9](../../doc/questions/q9.md)); this does not enforce
+    // purity either, it makes the ONE observable consequence uniform. `OR-R7`'s idiom. *(Since W202 a strict predicate's
+    // write INTO a value under a reference key throws too — the shared copy is frozen, ADR 0126 rule 3.)*
     return Object.freeze(out);
   }
 

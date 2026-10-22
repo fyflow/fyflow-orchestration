@@ -53,7 +53,10 @@ at `start()` into the checkpoint header and holds it for the life of the run, an
    the header's value, so no node — and no predicate — receives an object another holds, and a caller changing its
    payload object after `start()` changes nothing. Inside a `map` that is one copy per instance, and **nothing warns**
    ((l), Q186's recorded decision applied to a new spelling); one frozen copy shared by every instance is refused, for
-   `JP-R11`.
+   `JP-R11`. ***Superseded IN PART 2026-10-22 by [ADR 0126](0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)* (W202, P41 (b), (c), (g1)): every `"$payload"` key of a run, at
+   both sites, is handed ONE deep-frozen copy of the header's payload, made at its first read — the refusal above is
+   reversed by name, and a node's or a predicate's write into it throws. A caller changing its payload object after
+   `start()` still changes nothing; `FD-R4` keeps its clone of the caller's value.**
 5. **The value the run ENTERS with, handed to the composition explicitly at each door** ((f)): the header's copy in a
    run, the stored header's on a resume, and at `FD-R4` — which runs before the header exists — the caller's own value,
    from which the header's copy is taken once the check has passed, before `onHeader` and the first event. One value at every door, equal by construction.
