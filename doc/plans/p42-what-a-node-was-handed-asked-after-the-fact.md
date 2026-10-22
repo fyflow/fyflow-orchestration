@@ -1,6 +1,6 @@
 # P42 — What was a node handed, asked after the fact?
 
-**Status:** declared 2026-10-22 — on `40560bd` (the tree clean, `main` at 0.9.1 with P41's unpublished 0.10.0 work on it), answering fyflow-app's *pass 3* #1 and #2; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; W206 waits on W205.
+**Status:** complete and retro'd 2026-10-22 — W205-W206 done, `gate:full` EXIT 0 on W206's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)). Earlier: declared 2026-10-22 — on `40560bd` (the tree clean, `main` at 0.9.1 with P41's unpublished 0.10.0 work on it), answering fyflow-app's *pass 3* #1 and #2; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; W206 waits on W205.
 **Question this plan answers:** *what was a node handed — a task's envelope, or the value any other node kind received, on
 a named branch path — asked after the fact of a run that is finished, live, or whose runtime is gone, answered by the
 driver's OWN composition rather than a second one, exactly, or with the reason it cannot be?*
@@ -390,5 +390,167 @@ release state, measured.
 | [Q179](../questions/q179.md) | wall time is not a reproducible cost measure — why the count is the gate and the timing a reading; `icebox` | — |
 | [Q280](../questions/q280.md) | the envelope off a flow — (b1)'s answer IS the envelope; unmoved; `deferred` | — |
 | *(Q760-Q764)* | the post-transform input, (b1) | W205 raises it |
-</content>
-</invoke>
+
+## Record
+
+*Written 2026-10-22 over W206's final tree, the tree held still before it. Every figure is read from the two items' own
+files; none is re-measured here. Ids are bare text, as in P33's-P41's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W205** `1288209` | the cut (`Reading`, `offer`, `take`, three sites and the confirmation in `append`), `Driver.read` / `readStep`, `DEAF_SCHEDULER`, `headerRefusal` split out of `resumeRefusal`; the root `inputOf` and its types; `RunHandle.inputOf`; the private count `replay.reading.fed` / `.elements`; `test/driver/input-of.test.ts` (the corpus-and-every-prefix oracle), `test/fold/input-of-cost.test.ts` (EXACT at 2,000 / 8,000), `test/scheduler/input-of.test.ts`; `AGENTS.md` section 8; ADR 0128 | run-state v0.34 (`RN-R45`, `RN-R25`); `FD-C1`'s dated pointer | — / **Q760** | ONE asked exception, `RUN_FLOOR` 51 → 52 in `scripts/check-docs.mjs`, answered YES; the row's `examples/l6.ts` exception UNUSED | conformity 2 SHOULD, 2 NIT; adequacy 88 mutations, 1 BLOCKER, 4 SHOULD, 3 NIT — every one acted on or declared. **Overlap 1** | 94 / 2197; 2831 / 234 | `gate:item` EXIT 0 on its second run (the first EXIT 1 at `check:docs:selftest`, the exception's cause) |
+| **W206** `bb17100` | the `W206 exit` L6 block — a flow whose every task's worker ECHOES its envelope, on a threaded and an inline pool, node and deno: every task answered equal to its echo live (a parked ask, one task in flight) and from what a store kept once the runtime is gone; an end inside a map by its node id alone, a gate, a join's arrivals (a late one included) and collection, an ask, each by hand; a halted run read up to its halt, at the halt's index; a changed registry refused `diverged` — sixteen claims, four runs; `examples/map-cost.ts`' two READING subjects; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 4 NIT, no BLOCKER; adequacy 71 mutants, 3 SHOULD, 3 NIT, no BLOCKER — every one acted on or declared; 10 probes. **Overlap 1** | 94 / 2197; **2847 / 238** | **`gate:full`** EXIT 0, 11/11 self-tests, 2,398 s |
+
+**One question raised (Q760), none closed. One asked exception (W205's `RUN_FLOOR`), answered YES. The readers' overlap,
+every Record stating its own: 1, 1.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) a new L2 suite: every dispatched task of every valid corpus flow answered EQUAL to its captured `createTask` envelope, on the run and on a resume from every prefix; every ask equal to its `asked` input; every other kind by hand; each refusal reached; a clock-free count PINNED exact at 2,000 and 8,000 for the first and last instance of a map, provoked red by removing the cut | W205: `test/driver/input-of.test.ts` (13 cases), `test/fold/input-of-cost.test.ts` (5) — the first instance fed **2** stimuli and compared **2n + 5** elements, the last **n + 1** and **5n + 2**, of the stored 5n + 5; the cut's removal red at the first instance's pin; `test/scheduler/input-of.test.ts` (4); node, deno and chromium | **met** |
+| (2) the export TIMED once in node 24 and deno at 2,000 / 8,000 / 16,000 items, the last instance of a map, beside ADR 0124's 68 / 223 / 442 ms for the whole run | W205's harness: **35 / 138 / 263 ms** node, **52 / 166 / 352** deno. W206's `examples/map-cost.ts` (checked in, the stored events JSON-round-tripped, a JIT-warm process): last instance **47 / 168 / 302** node, **53 / 187 / 365** deno; first instance 15 / 51 / 91 and 17 / 57 / 95; the whole run live re-taken 66 / 205 / 381 and 79 / 273 / 513 | **met** — a reading, not a gate entry (Q179) |
+| (3) one L6 block, node and deno, threaded and inline: every task's answer — live through `handle.inputOf` and from the stored header and events once the runtime is gone — equal to the envelope its worker ECHOED; an end's answer by hand; a join's two answers and a gate's held; a halted run answered up to its halt; a changed registry refused `diverged`; each claim with its control | the `W206 exit` block, sixteen claims over four runs, **2847 / 238, 0 failed** in both runtimes | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W206, one command on the final tree after the readers' fixes: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included (2,097.2 s wall, 10 lanes), 2,398 s in all | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **91 / 2174 → 94 / 2197** in node, deno and
+chromium; L6 **2831 / 234 → 2847 / 238** in node and deno; `check:docs` 51 → **52** `run` snippets; `check:spec` C4 45;
+spec/run-state **v0.33 → v0.34**, flow-definition v0.47 (a dated pointer, no version); `CHECKPOINT_FORMAT` 1, `FoldInput`,
+`RunState` and `snapshot()` unmoved; the package surface gains `inputOf` and six types, and `RunHandle` gains `inputOf`
+(BREAKING for code that builds a handle); `doc/concept.md` untouched.
+
+**What the plan answered.** *What was a node handed, asked after the fact?* — **the driver's own composition, replayed
+from the stored header and events to that node** (ADR 0128): a task its envelope `{ settings, input, transform? }`
+before any transform, an ask, gate, fanout, map and end what reached it on its path, a join an arrival on an arriving
+path (a late one included) or its collection on the opener's path; a node id alone every path in replay order; refused
+with a reason, never thrown, and a halted, cancelled or stopped run read up to its halt. **Not over `RunState`**, which
+lacks the entry payload, the edge each node took, what was visible at dispatch and a gate's memory. **The price**: the
+run's prefix up to the target per reading, O(run) at worst, nothing retained. **fyflow-app's pass 3**: #1 accepted in
+the replay shape, #2 (b) accepted with the node-id-alone form, #2 (a) declined; the reply is written
+(`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass3.reply.md`).
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W205 moves no existing behaviour in any lane | **HOLDS** — 685 corpus runs' payloads and checkpoints byte-identical | W205 Record |
+| 2 | the cut is two sites | **MOVED** — three sites plus the confirmation in `append`: a task's envelope is offered where `dispatch` builds it, and an offer is taken only when its node's own element is compared | W205 Record, ADR 0128 rule 2 |
+| 3 | the first instance from a CONSTANT count, the last linear; the last at 16,000 within 2x of 442 ms | **HOLDS for `fed` and the timing** (263 / 302 ms), **NOT for `elements`** — a map opens every instance in one step and a step is replayed whole up to the cut | W205, W206 Records |
+| 4 | no corpus flow's answer differs from its captured envelope | **HOLDS** | W205 Record |
+| 5 | `AGENTS.md`'s snippet-local `inputOf` meets the root export in `check:docs` | **FALSE in its first half** — each snippet is its own module; renamed `handedInput` anyway | W205 Record |
+| 6 | W206 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2831 / 234 → 2847 / 238 | W206 Record |
+
+**The D′ paragraph's census predictions**: right at every site it named; `RunHandle` is built in ONE place
+(`openRun`), so the handle-member census it forecast in `examples/l6.ts` did not exist (W205's exception unused). **Short
+at one sentence**, found by W206's conformity reader by construction: RN-R45, ADR 0128 rule 5 and `readStep`'s message
+say a replay *cannot regenerate* a `halted` element — and a halt raised by a PREDICATE's throw IS regenerated, since a
+reading re-runs predicates (ADR 0128 consequence 3). The prefix end still holds the reading correct (what follows is not
+read); the sentence's reason is what is wrong — a stop-and-ask, section 8.
+
+**Questions**: **raised [Q760](../questions/q760.md)** (W205, `deferred` — the input a worker sees after its transform);
+**closed none.** `npm run q -- --where status=open` lists **none**.
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.10.0** — P41 and P42 together: the version bump, the push, the publish to npm and JSR | (e1) | **the maintainer** — *only when the maintainer says so* | this Record |
+| RN-R45 / ADR 0128 rule 5's *cannot regenerate* | W206's conformity reader | **the maintainer** — stop-and-ask (a), section 8 | below |
+| the reply to fyflow-app | P42's *The reply* | **done** — W206 | W206's Record |
+| a NESTED join's collection read at its opener's path — a cut site offering it at `-` survives L6 AND L2, every join in both suites opening at the root (W206's adequacy reader, A19) | W206's readers | **the next item touching the reading** — a test gap, not a defect; no question raised | W206's Record |
+| the byte copies `C:/tmp-w205`, `C:/tmp-w206` and the session scratchpad's probes | both items | **the maintainer** — left in place, outside the repository | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-22 over W206's final tree, by W206's author as the plan's last item. Every figure is read from the
+two items' Records; this retro re-ran no harness. **One routing here needs the maintainer** (section 8); nothing is acted
+on outside the record step's four files and W206's one declared exception.*
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P42's declaration | — | (a)-(e), all as recommended | — | — |
+| W205 | **1** — `RUN_FLOOR` 51 → 52, YES | — | 1 BLOCKER, 6 SHOULD, 5 NIT | **Q760 raised** |
+| W206 | — (one exception declared before the edit) | — | 5 SHOULD (one shared), 7 NIT | — |
+| **P42** | **1, answered YES** | **5 answers, all as recommended** | **every one acted on or declared** | **1 raised, 0 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E
+
+**B′ was FOLLOWED and fell short once**: W205 built its change in a byte copy and ran every lane, but did not run
+`check:docs:selftest` before writing its `Owns` — the self-test half of B′ — and `gate:item` went red at that lane on a
+literal outside the `Owns` (`RUN_FLOOR`), which rule 6 then asked. The rule names that self-test by name; it was skipped,
+not insufficient. **C held** (one confirming gate per item, run once on the final tree; W205's first run red, re-run
+after the asked edit). **D′ held** at every site but the one sentence above. **E held**: both items' provocations cut one
+clause per call site.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W205 | 2 SHOULD, 2 NIT | 88 mutations; 1 BLOCKER, 4 SHOULD, 3 NIT | **1** — the reading's run id | 123rd |
+| W206 | 2 SHOULD, 4 NIT, no BLOCKER | 71 mutants (15 in deno too); 3 SHOULD, 3 NIT, no BLOCKER | **1** | 124th |
+
+**Every Record states its overlap**, the seventh plan running. **Two measurements, both inside section 6's 0-4 band. The
+ordinal is a hundred and twenty-four, so the next is the HUNDRED-AND-TWENTY-FIFTH** — carried into `doc/workflow.md` by
+W206's declared exception.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a claim pinned through a form that cannot observe it** — W205's `diverged` case asked the node id alone, which replays to the end and diverges whether or not the cut confirms; W206's halt claim asserted `not-reached`, which a REGENERATED halt yields whether or not the prefix ends there | **FOLLOWED** — each claim had a control and each control could fail; the claim was right and its OBSERVER blind to the clause | W205's adequacy reader (BLOCKER); W206's conformity reader (SHOULD 1), each by construction | **TWO occurrences, in DIFFERENT items** — pass 3 rule 2's bar. It is section 5 rule 8 (a)'s *the SHAPES the clause quantifies over* applied to the OBSERVER: the target's form, the refusal's index. Recorded as an observation for the next plan's brief, not proposed as a rule: rule 8 (a) already covers it, and both were caught by the pass that exists for it |
+| **(b) a spec sentence's REASON false while its rule holds** — *a replay cannot regenerate `halted`* | the spec was written from fact 4 and W205's re-take 2, which measured a halt and saw nothing AFTER it — not whether the halt itself is regenerated | W206's conformity reader | One occurrence. Section 8 (a) |
+| **(c) a stray tool-call tail committed into a plan** — P42's declaration (`27d73b6`) ended with two lines of markup (`</content>`, `</invoke>`) after its last table row | — | W206, writing this Record; no check reads a plan's tail | corrected here (pass 3 rule 6, this plan's own file). W206's item file had the same tail at birth and it was removed before any commit. One occurrence committed; recorded |
+
+**Pass 3 rule 5 over P42's defects**, by what caught them: **a rung in `gate`** — `check:docs:selftest` (W205's
+`RUN_FLOOR`), the only one; **the authors** — W205's sweep (three survivors), W206's first L6 runs; **the conformity
+readers** — W205's four, W206's six; **the adequacy readers** — W205's eight, W206's six. **No rung would have caught**
+a claim whose observer cannot see its clause: that is rule 8's provocation and section 6's reader.
+
+**The flaky rows ([Q599](../questions/q599.md))**: **YES, in P42** — W206's `npm run gate` before its readers went red
+at `test:l6:deno` on W94 (2h) at K=2, and the lane re-run alone red on `uncloneable / OR-R6, threaded`, both Q599's rows,
+on a machine loaded by other sessions; the third run green. `gate:full` on the final tree: no Q599 row red. No row of W206's block went red.
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** An inline pool's worker is handed the wrapper's new `{ settings, input }`
+over the driver's own objects, a threaded one a clone: the echo saw the same envelope on both, as `AGENTS.md` §6 says.
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′'s one short fall was a named self-test skipped; C, D′ and E
+held; every Record stated its overlap; the BLOCKER reached no Record unacted.
+
+**B. Carried UNCHANGED for the next plan's author** — P39's proposal B as P40 adopted it and P40's, P41's and this retro
+carried it (B′, C, D′, E and the brief sentences). Section 4 (a) is recorded beside it as an observation: *a claim's
+OBSERVER is a shape too — its target form, its index.*
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 41st refusal, P2-P42.** P42's text defects were a
+  spec sentence's reason (section 8), a stray tail in a plan (4 (c)), and an overstated README clause (W206's NIT 5) —
+  each found by a reader or an author reading the text beside the code. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; this Record and Retro; the stray tail at its end removed (section 4 (c)) |
+| `doc/workflow.md` | W206's declared exception: the Status line's count (FORTY-TWO, P1-P42), section 6's ordinal (a hundred and twenty-four; the HUNDRED-AND-TWENTY-FIFTH next), the ledger's first row (41 times, P2-P42) |
+
+`README.md`, `doc/questions/**` and `doc/decisions/**` carry nothing more: Q760 and ADR 0128 are W205's.
+
+**Ids.**
+
+- **Issued**: W205, W206; ADR 0128; Q760; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): W207 CLOSED unissued, as expected; Q761-Q764 SPENT
+  (W205's), Q765-Q769 SPENT (W206's); ADR 0129 SKIPPED.
+
+**The next plan starts at W208, Q770 and ADR 0130.** The next S id is S13; the next plan id is P43.
+
+### 8. Stop-and-asks for the maintainer
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(a)** | **RN-R45, ADR 0128 rule 5 and `readStep`'s `not-reached` message say a replay CANNOT REGENERATE a `halted` element** (*only a consumer's callback, a refused result or an owner's call appends those*). **A halt raised by a PREDICATE's throw IS regenerated** — a reading re-runs predicates (ADR 0128 consequence 3) — W206's conformity reader measured it: the prefix end deleted, a predicate-halted run still answers `not-reached`, at the events' length instead of the halt's position; a halt raised by a consumer's callback answers `diverged`. **The rule holds** (the prefix ends at the first `halted` either way, and W206's halt claim now pins the index); its stated REASON is wrong for one halt class. A spec and ADR edit is outside every P42 item's `Owns`, so workflow section 1 rule 6 ASKS | **(a1)** YES — one dated sentence in RN-R45 and in ADR 0128 rule 5 (and the message's clause in `src/driver/driver.ts`): the prefix ends at the first `halted` because what FOLLOWS it may not be regenerable (a callback's halt, a refused result, an owner's call), a predicate's halt being regenerated and compared like any element; its own `spec:`/`adr:` commit, no version bump (no rule moves) | **(a2)** NO — raise it as a register question; **(a3)** leave the sentence as written |
