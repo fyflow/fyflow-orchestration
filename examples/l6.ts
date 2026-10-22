@@ -92,6 +92,7 @@
  * | **W197 — a run's live state on its handle** | **P39's EXIT ARTIFACT clause (3): `RunHandle.state()` on real workers in both runtimes.** Per pool, THREADED and INLINE: (1) a `map` of five items whose `state()`, read on a microtask after EVERY delivered input, is the public `fold` of the delivered prefix key order included, frozen at every depth, and a consumer's write to it — its `outcome`, a NESTED field of a result — throws and moves nothing; at `done`, `await done` IS `state()`, equal to `fold(driver.foldInputs())`, each result the worker's, still that object a macrotask on. (2) The same `map` STOPPED with two items settled and two holding, RESUMED on a FRESH runtime: the first read after `resume()` already folds the STORED events (`RN-R22` makes it the first quiescent point), every later read the fold of the stored and delivered inputs, and `done` the same object, completed. Never paused, so `RN-R44`'s one exception — an unpause after a run finished while paused — is not reached. Its registry is written in the block, not `registry.json` |
  * | **W200 — a reference read inside a map** | **P40's EXIT ARTIFACT clause (3): ADR 0124's index on real workers in both runtimes.** Per pool, THREADED and INLINE, one run of a `map` of TWELVE items (`10` and `11` beside `1`) whose branch is `work` → `mid` → `post`, `post` opening an inner map of two, and after the join a SIBLING map of three slots. Every reader's composed payload — what its worker was handed — is ADR 0044's predicate (`outputIsVisible`) applied to the run's OWN outputs in branch-path order, and the value derived by hand from the worker's source, for four shapes, each its own claim: `post` reading `work` (two steps back) and `mid` (one step back), the inner `tail` reading `work` (depth 1) and `leaf` (depth 2), and the sibling's `publish` reading `["post"]` and `["work"]` (every output; `work` thereby read at two depths). Each claim's CONTROL on the same observer: another instance's selection, or the string order, differs from every payload; and each payload has exactly the keys its `needs` declares. The predicate route moves with the shared key function since W199; the hand route is the independent one. Its registry is written in the block, not `registry.json` |
  * | **W203 — one shared copy of a large value** | **P41's EXIT ARTIFACT clause (3): ADR 0126's shared copy on real workers in both runtimes.** Per pool, THREADED and INLINE, the app's fetch-then-map shape: `fetch` returns the item list (TWELVE items) beside a 2,000-row catalogue, a `Uint8Array` and a `Map`, and the map's `work` declares `needs: { item: "$item", all: "fetch", run: "$payload" }`. (1) Every non-writing instance's value is fetch's result and the payload BY HAND, with a one-row-changed control. (2) What the worker holds: on the INLINE pool `all` frozen at depths 0, 1 and 3 and `run` frozen, on the THREADED one neither (`postMessage`'s clone); the reader's own `"$item"` unfrozen on both. (3) An instance writing a nested field of its `all`: INLINE, each attempt THROWS `TypeError` and the optional task ends `failed` after its one retry; THREADED, the write lands on its own clone. (4) That write reaches no sibling, no later reader and not the stored record. (5) The edge predicate's `ctx.needs.all` is ONE frozen object across every call, the value by hand. (6) A predicate writing into it STOPS the run, `TypeError` reported once, `halted` by it. (7) The GAP (P41 (f2)): a write into the shared `Uint8Array` and `Map` throws on neither pool; on the INLINE pool the next reader and its edge predicate see it (one resolver), on the THREADED one neither does, and the stored record never does. FOUR runs. Its registry is written in the block, not `registry.json` |
+ * | **W206 — what a node was handed, read after the fact** | **P42's EXIT ARTIFACT clause (3): `RN-R45`'s reading on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of TWELVE items whose `work` reads `{ item: "$item", run: "$payload" }` and routes through a registered predicate into the built-in `if` gate `route` — items 0-5 to the END `low` inside the map, 6-11 to the join — then a fanout of `fast` and a HELD `slow` whose join a consumer's policy fires at its FIRST arrival, the ask `review`, `file` and the END `done`. Every task's worker ECHOES its envelope. (1) LIVE, at the parked ask, `handle.inputOf` answers every task dispatched so far — `slow` still in flight — with ONE `envelope` equal to its own echo and to no other's, and `file` and `done` `not-reached`. (2) STORED, once the runtime is shut down, the root `inputOf` over the header and events a store kept answers all sixteen tasks the same way. (3) `low` by its node id alone at exactly paths 0-5 and `done`, each by hand. (4) The gate at every path, by hand. (5) The join's ARRIVALS — the late one included — and its COLLECTION, by hand, the early firing arranged and asserted; the map's join's collection too. (6) The ask, by hand and equal to its `asked` input. (7) A HALTED run read once its runtime is gone: every envelope dispatched before the halt by hand, the nodes after it `not-reached`, never `diverged`. (8) A CHANGED REGISTRY refused `diverged` at the first stored `gated` element. Each claim with its control. FOUR runs. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -185,6 +186,12 @@ import {
   type JoinPolicy,
   type UnmintedTask,
   type UnsatisfiableJoin,
+  // **W206, P42's EXIT ARTIFACT**: the reading of what a node was handed (`RN-R45`, ADR 0128) — the root export a Host calls
+  // on the header and events it stored, once the run's runtime is gone — and its types, through the package ROOT.
+  inputOf,
+  type InputOfOptions,
+  type InputReading,
+  type InputTarget,
 } from '../index.ts';
 import {
   runFlow, runPair, violations, registryDocumentFor, THREADABLE_TYPES, codeFor,
@@ -5977,6 +5984,24 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W206**: P42's exit-artifact block — sixteen subjects, eight per pool: the live reading, the stored reading, the ends,
+  // the gate, the join's two answers, the ask, a halted run read up to its halt, a changed registry refused `diverged`.
+  'W206 exit (threaded): LIVE',
+  'W206 exit (threaded): STORED',
+  'W206 exit (threaded): the ENDS',
+  'W206 exit (threaded): the GATE',
+  'W206 exit (threaded): the JOIN',
+  'W206 exit (threaded): the ASK',
+  'W206 exit (threaded): a HALTED run',
+  'W206 exit (threaded): a CHANGED REGISTRY',
+  'W206 exit (inline): LIVE',
+  'W206 exit (inline): STORED',
+  'W206 exit (inline): the ENDS',
+  'W206 exit (inline): the GATE',
+  'W206 exit (inline): the JOIN',
+  'W206 exit (inline): the ASK',
+  'W206 exit (inline): a HALTED run',
+  'W206 exit (inline): a CHANGED REGISTRY',
   // **W203**: P41's exit-artifact block — sixteen subjects, eight per pool: the run completed, the read, what the worker
   // holds, the inline worker's write, reaching nothing else, the edge, a predicate's write stopping the run, the gap.
   'W203 exit (threaded): the run completes',
@@ -13304,6 +13329,329 @@ if (shBlock !== null) {
   }
 }
 
+/**
+ * **W206 — what a node was handed, read after the fact, on real workers in both runtimes: P42's EXIT ARTIFACT clause
+ * (3)** — [W206](../doc/work-items/w206-the-exit-artifact-on-real-workers-the-reply-and-p42s-close.md),
+ * [P42](../doc/plans/p42-what-a-node-was-handed-asked-after-the-fact.md), `RN-R45`,
+ * [ADR 0128](../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md) —
+ * fyflow-app's *pass 3* #1 and #2.
+ *
+ * ADR 0128 answers *what was this node handed?* by REPLAYING the run's stored header and events on a deaf driver to the
+ * node's composition — the driver's own `compose` and `dispatch`, not a second implementation. **This block holds the
+ * answer against what a REAL worker was handed**, on a THREADED pool and an INLINE one: every task's worker ECHOES the
+ * envelope it received (`structuredClone` of its `run()` argument — what the type's wrapper handed the inner worker,
+ * `{ settings, input }`, no transform being declared), so the echo is the observer and the reading the subject, and the
+ * two meet only through the scheduler.
+ *
+ * **One flow per pool**: `fetch` returns the item list (TWELVE items, `10` and `11` beside `1`); a `map` whose `work`
+ * reads `{ item: "$item", run: "$payload" }` and routes, through a registered predicate (`w206Keep`, always `true`), into
+ * the built-in `if` gate `route`, which sends items 0-5 to the END `low` INSIDE the map and 6-11 to the map's join
+ * `collect`; then a fanout `fan` of `fast` and `slow` (`slow` HELD `IN_HOLD_MS`), whose join `fj` a consumer's policy
+ * FIRES AT ITS FIRST ARRIVAL (`piFirstArrival`, W192's), so `slow` arrives LATE; then the ask `review` (`needs: { got: "." }`),
+ * answered once `slow` has arrived; then `file` and the END `done`. **Per pool, two runs**: that flow (it completes), and
+ * the same flow whose predicate (`w206Stop`) THROWS for item 5 (it halts). **Eight claims per pool, each its own verdict:**
+ * - **live** — while `review` is PARKED, `handle.inputOf` answers every task dispatched so far — `fetch`, twelve `work`,
+ *   `fast`, and `slow`, still in flight — with ONE `envelope` each, equal to its OWN echo and to NO other task's; `file`
+ *   and `done` are `not-reached`. CONTROL: the same handle answers both once the run is over;
+ * - **stored** — once the runtime is SHUT DOWN, the root `inputOf` over the header and events as a store keeps them
+ *   (JSON-round-tripped), with `runtime.registry` and the run's `joinPolicy`, answers every one of the run's sixteen tasks
+ *   equal to its own echo and to no other's;
+ * - **the ends** — `low` asked by its node id ALONE answers `received` at exactly the paths 0-5 (a set: the order is the
+ *   replay's), each `work`'s result BY HAND; `done` answers `file`'s result by hand. CONTROL: the next path's hand value
+ *   differs from each, and `file`'s result for the other answer from `done`'s;
+ * - **the gate** — `route` at each path 0-11 answers `received`, that instance's `work` result by hand; CONTROL as above;
+ * - **the join** — `fj`'s ARRIVAL at `0` (`fast`'s result) and its LATE ARRIVAL at `1` (`slow`'s), each by hand, and its
+ *   COLLECTION at `-`, `{ "0": fast's result }`; the ARRANGEMENT asserted (`fj` fired before `slow` settled, in the stored
+ *   order); CONTROL the collection with the late arrival in it differing. And `collect`'s collection, `{ "6" … "11" }` by
+ *   hand, with an instance that ENDED at `low` (`3`) `not-reached` as its arrival;
+ * - **the ask** — `review` answers `received`, `{ got: fj's collection }` by hand and equal to its stored `asked`
+ *   element's `input`; CONTROL the value with the late arrival in it differing;
+ * - **a halted run** — read through the export once its runtime is gone: `fetch`'s and every `work`'s envelope by hand
+ *   (the map dispatches every instance in one step, before any settles), and `route` at `5`, `review` and `done`
+ *   `not-reached` AT the stored `halted` element's position — never `diverged` (ADR 0128 rule 5: the `halted` element ends
+ *   the prefix; this halt is a predicate's throw, which a reading REGENERATES, so the index is what shows the prefix end).
+ *   CONTROL: the completed run answers `route` at `5`;
+ * - **a changed registry** — the completed run read with `w206Keep` answering `false` is refused `diverged`, at the
+ *   position of the run's first stored `gated` element (where the replay routes past the gate instead); CONTROL: the
+ *   same reading with the run's own registry answers.
+ *
+ * **No order across tasks is asserted**: `low`'s paths are compared as a set, and the one order a claim needs — `fast`
+ * before `slow` — is ARRANGED by the hold and asserted as the join claim's premise.
+ */
+const IN_DEADLINE_MS = 30_000;
+const IN_ITEMS = 12;
+/** Items below this go to the end `low` inside the map; the rest to the join. */
+const IN_LOW = 6;
+/** How long `slow` holds, so `fj` — fired at its first arrival — has fired before it settles. */
+const IN_HOLD_MS = 1_500;
+/** The item whose settlement `w206Stop` throws on. */
+const IN_STOP = 5;
+const IN_PAYLOAD = { tenant: 't-206', deep: { region: 'eu', limits: [1, 2] } };
+// `InEcho`: copies the envelope it was handed (`env`), holds `settings.hold` ms where declared, and returns `{ role, env }`
+// — with `settings.items`, `items` too: `fetch`'s item list.
+const IN_ECHO = 'export default class { async setup() {} async run(p) { const s = p.settings || {}; const env = structuredClone(p); ' +
+  'if (s.hold) await new Promise((r) => setTimeout(r, s.hold)); ' +
+  'return s.items ? { role: s.role, env, items: Array.from({ length: s.items }, (_, i) => ({ i })) } : { role: s.role, env }; } }';
+const inDoc = () => ({
+  predicates: ['w206Keep', 'w206Stop'],
+  workers: { inEcho: { url: rcUrl(IN_ECHO) } },
+  nodeTypes: {
+    InThreaded: { worker: 'inEcho', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    InInline: { worker: 'inEcho', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+const inKeep: Predicate = () => true;
+const inStop: Predicate = (ctx) => {
+  if (ctx.outcome.taskId.endsWith(`:work:${IN_STOP}:0`)) throw new Error(`W206: the predicate stops the run at item ${IN_STOP}`);
+  return true;
+};
+const IN_ANSWER = { approved: true };
+const inFlow = (pool: 'threaded' | 'inline', predicate: 'w206Keep' | 'w206Stop') => {
+  const type = pool === 'threaded' ? 'InThreaded' : 'InInline';
+  return {
+    flowId: `w206-handed-${pool}-${predicate === 'w206Keep' ? 'keep' : 'stop'}`, version: 1, entry: 'fetch',
+    nodes: [
+      { id: 'fetch', kind: 'task', type, settings: { role: 'fetch', items: IN_ITEMS }, edges: [{ to: 'each' }] },
+      { id: 'each', kind: 'map', over: 'items', branch: 'work' },
+      { id: 'work', kind: 'task', type, settings: { role: 'work' }, needs: { item: '$item', run: '$payload' },
+        edges: [{ when: { predicate }, to: 'route' }, { to: 'collect' }] },
+      { id: 'route', kind: 'gate', type: 'if', settings: { when: { path: 'input.env.input.item.i', op: 'lt', value: IN_LOW } },
+        edges: [{ route: 'then', to: 'low' }, { to: 'collect' }] },
+      { id: 'low', kind: 'end', outcome: 'low' },
+      { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'fan' }] },
+      { id: 'fan', kind: 'fanout', branches: ['fast', 'slow'] },
+      { id: 'fast', kind: 'task', type, settings: { role: 'fast' }, needs: { run: '$payload' }, edges: [{ to: 'fj' }] },
+      { id: 'slow', kind: 'task', type, settings: { role: 'slow', hold: IN_HOLD_MS }, needs: { run: '$payload' }, edges: [{ to: 'fj' }] },
+      { id: 'fj', kind: 'join', of: 'fan', edges: [{ to: 'review' }] },
+      { id: 'review', kind: 'ask', needs: { got: '.' },
+        answerSchema: { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } }, edges: [{ to: 'file' }] },
+      { id: 'file', kind: 'task', type, settings: { role: 'file' }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+// **The values BY HAND**, from `IN_ECHO`'s source and the flow above: a task's envelope is `{ settings, input }` — its
+// node's settings, and its `needs` composed (`FD-C5`) or, with none, the value its edge carried — and its result is
+// `{ role, env }`, `env` that envelope.
+const inEnvFetch = () => ({ settings: { role: 'fetch', items: IN_ITEMS }, input: IN_PAYLOAD });
+const inEnvWork = (j: number) => ({ settings: { role: 'work' }, input: { item: { i: j }, run: IN_PAYLOAD } });
+/** `work`'s result at instance `j` — what its gate, its end or its join arrival received. */
+const inWork = (j: number) => ({ role: 'work', env: inEnvWork(j) });
+const inFast = () => ({ role: 'fast', env: { settings: { role: 'fast' }, input: { run: IN_PAYLOAD } } });
+const inSlow = () => ({ role: 'slow', env: { settings: { role: 'slow', hold: IN_HOLD_MS }, input: { run: IN_PAYLOAD } } });
+const inFile = () => ({ role: 'file', env: { settings: { role: 'file' }, input: IN_ANSWER } });
+/** A value as text with its keys SORTED — so two values compare as data, whatever order a structured clone kept. */
+const inCanon = (v: unknown): string => JSON.stringify(v, (_k, x: unknown) =>
+  (x !== null && typeof x === 'object' && !Array.isArray(x)
+    ? Object.fromEntries(Object.keys(x as object).sort().map((k) => [k, (x as Record<string, unknown>)[k]])) : x));
+/** A reading's ONE answer as `[handed, value as text]`, or its refusal's reason — an answer of any other length is named. */
+const inOne = (a: InputReading): [string, string] | string =>
+  (!a.ok ? a.reason : a.inputs.length !== 1 ? `${a.inputs.length} ANSWERS` : [a.inputs[0]!.handed, inCanon(a.inputs[0]!.value)]);
+let inBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  const inClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W206 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  const inAwait = async <T>(p: Promise<T>, what: string): Promise<T> => {
+    const w = await settleWithin(p, IN_DEADLINE_MS);
+    if (w.by !== 'done') throw new Error(`W206: ${what} never happened within ${IN_DEADLINE_MS} ms`);
+    return w.value;
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    // The completed run's stored form and options, kept for the halted run's CONTROL.
+    let kept: { flow: FlowDefinition; options: InputOfOptions; stored: Checkpoint } | null = null;
+    await inClause(`${pool}, the completed run`, async () => {
+      const policy = piFirstArrival(['fan']);
+      const rt = createRuntime(inDoc() as never, { predicates: new Map([['w206Keep', inKeep], ['w206Stop', inStop]]) } as never);
+      const runId = `w206k${pool[0]}`;
+      const flow = inFlow(pool, 'w206Keep');
+      const id = (x: string) => `${runId}:${x}:0`;
+      const taskIds = [id('fetch:-'), ...Array.from({ length: IN_ITEMS }, (_, j) => id(`work:${j}`)), id('fast:0'), id('slow:1')];
+      let options!: InputOfOptions;
+      let stored!: Checkpoint;
+      let live!: { answers: [string, InputReading][]; not: InputReading[]; ask: InputReading; slowSettled: boolean; after: InputReading[] };
+      let echoes!: Map<string, unknown>;
+      try {
+        let parked!: () => void;
+        const parkedP = new Promise<void>((res) => { parked = res; });
+        let slowIn!: () => void;
+        const slowP = new Promise<void>((res) => { slowIn = res; });
+        const h = rt.start(flow, structuredClone(IN_PAYLOAD), {
+          runId, joinPolicy: policy,
+          onFoldInput: (i) => {
+            if (i.kind === 'asked') parked();
+            if (i.kind === 'outcome' && i.record.taskId === id('slow:1')) slowIn();
+          },
+        });
+        runs.push(`${flow.flowId} ${runId}`);
+        await inAwait(parkedP, `${runId}'s review parking`);
+        // LIVE, at the park — `slow` still holding.
+        live = {
+          answers: taskIds.map((t) => [t, h.inputOf({ taskId: t })]),
+          not: [h.inputOf({ taskId: id('file:-') }), h.inputOf({ nodeId: 'done', branchPath: '-' })],
+          // The parked ask itself — the last thing the run composed before the read (the adequacy reader, NIT: a handle
+          // reading a truncated checkpoint answered every target above).
+          ask: h.inputOf({ taskId: id('review:-') }),
+          slowSettled: h.driver.foldInputs().some((i) => i.kind === 'outcome' && i.record.taskId === id('slow:1')),
+          after: [],
+        };
+        await inAwait(slowP, `${runId}'s slow settling`);
+        await rcMacrotask();
+        if (!h.driver.resolve(id('review:-'), 'done', { result: IN_ANSWER, actor: 'w206-person' })) throw new Error('W206: the answer was refused');
+        const won = await settleWithin(h.done, IN_DEADLINE_MS);
+        if (won.by !== 'done') throw new Error(`W206: ${runId} never settled within ${IN_DEADLINE_MS} ms`);
+        r[`outcome${pool}`] = won.value.outcome;
+        // The live claim's CONTROL, on the SAME observer (W206's conformity reader, finding 2): the handle, asked again once
+        // the run is over — released, it answers from what the run delivered (RN-R45) — answers both targets it refused.
+        live.after = [h.inputOf({ taskId: id('file:-') }), h.inputOf({ nodeId: 'done', branchPath: '-' })];
+        // What a store keeps — the header and the events, through JSON — and what the run's driver was built from.
+        stored = JSON.parse(JSON.stringify(h.driver.checkpoint())) as Checkpoint;
+        options = { ...rt.registry, joinPolicy: policy };
+        echoes = new Map(h.driver.foldInputs().flatMap((i) => (i.kind === 'outcome' && i.record.kind === 'outcome'
+          ? [[i.record.taskId, (i.record.result as { env?: unknown } | null)?.env ?? 'NO ECHO'] as [string, unknown]] : [])));
+      } finally {
+        await rt.shutdown();
+      }
+      // ---- from here the runtime is GONE: every read is the export over what a store kept ----
+      kept = { flow, options, stored };
+      const read = (target: InputTarget) => inputOf(flow, options, stored, target);
+      const echo = (t: string) => inCanon(echoes.get(t) ?? 'NO ECHO');
+      /** Each task's answer against its own echo, and against every OTHER task's — the second the claim's control. */
+      const against = (answers: [string, InputReading][]) => {
+        const unequal: string[] = [];
+        let cross = 0;
+        const handed = new Set<string>();
+        for (const [t, a] of answers) {
+          const one = inOne(a);
+          if (typeof one === 'string') { unequal.push(`${t}: ${one}`); continue; }
+          handed.add(one[0]);
+          if (one[1] !== echo(t)) unequal.push(t);
+          for (const [u] of answers) if (u !== t && one[1] === echo(u)) cross += 1;
+        }
+        return [unequal, cross, answers.length, [...handed]];
+      };
+      const allTasks = [...taskIds, id('file:-')];
+      r[`live${pool}`] = [...against(live.answers), live.slowSettled, inOne(live.ask), live.not.map((a) => (a.ok ? 'ANSWERED' : a.reason)),
+        // CONTROL: once the run is over, the HANDLE answers both — `file` with its echo, `done` with `file`'s result.
+        live.after.length === 2 && inOne(live.after[0]!)[1] === echo(id('file:-')), live.after.length === 2 && inOne(live.after[1]!)[1] === inCanon(inFile())];
+      r[`stored${pool}`] = [r[`outcome${pool}`], ...against(allTasks.map((t) => [t, read({ taskId: t })]))];
+      // The ends: `low` by its node id ALONE — every path, as a set — and `done`.
+      const low = read({ nodeId: 'low' });
+      const lowList = low.ok ? [...low.inputs].sort((a, b) => Number(a.branchPath) - Number(b.branchPath)) : [];
+      r[`ends${pool}`] = [low.ok ? 'ok' : low.reason, lowList.map((i) => [i.branchPath, i.handed]),
+        lowList.filter((i) => inCanon(i.value) !== inCanon(inWork(Number(i.branchPath)))).map((i) => i.branchPath),
+        lowList.filter((i) => inCanon(i.value) !== inCanon(inWork(Number(i.branchPath) + 1))).length,
+        inOne(read({ nodeId: 'done', branchPath: '-' })),
+        // CONTROL for `done` (the conformity reader, NIT 4): `file`'s result had the person answered the other way differs.
+        inOne(read({ nodeId: 'done', branchPath: '-' }))[1] !== inCanon({ role: 'file', env: { settings: { role: 'file' }, input: { approved: false } } })];
+      // The gate, at every path.
+      const gate = Array.from({ length: IN_ITEMS }, (_, j) => inOne(read({ nodeId: 'route', branchPath: String(j) })));
+      r[`gate${pool}`] = [[...new Set(gate.map((g) => (typeof g === 'string' ? g : g[0])))],
+        gate.flatMap((g, j) => (typeof g !== 'string' && g[1] === inCanon(inWork(j)) ? [] : [j])),
+        gate.filter((g, j) => typeof g !== 'string' && g[1] !== inCanon(inWork(j + 1))).length];
+      // The join: fj's two arrivals and its collection, the ARRANGEMENT, and collect's.
+      const at = (pred: (i: FoldInput) => boolean) => stored.events.findIndex(pred);
+      const firedAt = at((i) => i.kind === 'joinSettled' && i.joinId === 'fj');
+      const slowAt = at((i) => i.kind === 'outcome' && i.record.taskId === id('slow:1'));
+      const collection = inOne(read({ nodeId: 'fj', branchPath: '-' }));
+      r[`join${pool}`] = [firedAt >= 0 && slowAt > firedAt,
+        inOne(read({ nodeId: 'fj', branchPath: '0' })), inOne(read({ nodeId: 'fj', branchPath: '1' })), collection,
+        collection[1] !== inCanon({ 0: inFast(), 1: inSlow() }),
+        inOne(read({ nodeId: 'collect', branchPath: '-' })), inOne(read({ nodeId: 'collect', branchPath: '3' }))];
+      // The ask: by hand, and equal to its stored `asked` element's input.
+      const asked = stored.events.find((i) => i.kind === 'asked' && i.taskId === id('review:-'));
+      const ask = inOne(read({ taskId: id('review:-') }));
+      r[`ask${pool}`] = [ask, asked === undefined ? 'NO ASKED' : ask[1] === inCanon((asked as { input: unknown }).input),
+        ask[1] !== inCanon({ got: { 0: inFast(), 1: inSlow() } })];
+      // A changed registry: `w206Keep` answering `false` — refused at the first stored `gated` element.
+      const changed: InputOfOptions = { ...options, predicates: new Map([...(options.predicates ?? new Map()), ['w206Keep', () => false]]) };
+      const refused = inputOf(flow, changed, stored, { taskId: id('review:-') });
+      const firstGated = at((i) => i.kind === 'gated');
+      // And INTO a target (the adequacy reader, SHOULD 2 — ADR 0128 rule 2's own case): with `w206Keep` false, instance 0's
+      // `work` routes straight to `collect` — an arrival at `0` the stored run never made — refused there, never answered.
+      const into = inputOf(flow, changed, stored, { nodeId: 'collect', branchPath: '0' });
+      r[`diverged${pool}`] = [refused.ok ? 'ANSWERED' : refused.reason, refused.ok ? 'NO INDEX' : refused.index === firstGated,
+        into.ok ? `ANSWERED ${into.inputs.map((i) => i.handed).join(',')}` : [into.reason, into.index === firstGated], firstGated > 0,
+        read({ taskId: id('review:-') }).ok];
+    });
+    await inClause(`${pool}, the halted run`, async () => {
+      const policy = piFirstArrival(['fan']);
+      const rt = createRuntime(inDoc() as never, { predicates: new Map([['w206Keep', inKeep], ['w206Stop', inStop]]) } as never);
+      const runId = `w206s${pool[0]}`;
+      const flow = inFlow(pool, 'w206Stop');
+      const id = (x: string) => `${runId}:${x}:0`;
+      let options!: InputOfOptions;
+      let stored!: Checkpoint;
+      let outcome!: string;
+      try {
+        const h = rt.start(flow, structuredClone(IN_PAYLOAD), { runId, joinPolicy: policy });
+        runs.push(`${flow.flowId} ${runId}`);
+        const won = await settleWithin(h.done, IN_DEADLINE_MS);
+        if (won.by !== 'done') throw new Error(`W206: ${runId} never settled within ${IN_DEADLINE_MS} ms`);
+        outcome = won.value.outcome;
+        stored = JSON.parse(JSON.stringify(h.driver.checkpoint())) as Checkpoint;
+        options = { ...rt.registry, joinPolicy: policy };
+      } finally {
+        await rt.shutdown();
+      }
+      const read = (target: InputTarget) => inputOf(flow, options, stored, target);
+      const works = Array.from({ length: IN_ITEMS }, (_, j) => inOne(read({ taskId: id(`work:${j}`) })));
+      // **Where the prefix ENDS** (W206's conformity reader, finding 1): this halt is a PREDICATE's throw, which a reading
+      // re-runs and so REGENERATES — so `not-reached` alone holds with ADR 0128 rule 5's prefix end deleted; its INDEX, the
+      // stored `halted` element's position rather than the events' length, is what only the prefix end produces.
+      const haltedAt = stored.events.findIndex((i) => i.kind === 'halted');
+      r[`halt${pool}`] = [outcome, stored.events.filter((i) => i.kind === 'halted').length,
+        inOne(read({ taskId: id('fetch:-') })),
+        works.flatMap((w, j) => (typeof w !== 'string' && w[0] === 'envelope' && w[1] === inCanon(inEnvWork(j)) ? [] : [j])),
+        // The loop's BOUND, counted (the adequacy reader, SHOULD 3): twelve envelopes matched, not merely none missed.
+        works.filter((w, j) => typeof w !== 'string' && w[1] === inCanon(inEnvWork(j))).length,
+        [read({ nodeId: 'route', branchPath: String(IN_STOP) }), read({ taskId: id('review:-') }), read({ nodeId: 'done', branchPath: '-' })]
+          .map((a) => (a.ok ? 'ANSWERED' : [a.reason, a.index === haltedAt && haltedAt > 0])),
+        // CONTROL: the completed run answers `route` at the same path.
+        kept === null ? 'NO COMPLETED RUN' : inOne(inputOf(kept.flow, kept.options, kept.stored, { nodeId: 'route', branchPath: String(IN_STOP) }))];
+    });
+  }
+  inBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W206 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (inBlock !== null) {
+  const key = 'cross-row';
+  const r = inBlock.r;
+  const tasks = 1 + IN_ITEMS + 2;
+  for (const pool of ['threaded', 'inline'] as const) {
+    check(key, `W206 exit (${pool}): LIVE — handle.inputOf at the parked ask answers every one of the ${tasks} tasks dispatched so far (slow still ` +
+      'in flight) with ONE envelope equal to its OWN echo and to no other task`s, and the parked ask its value by hand; file and done not-reached, the same handle answering both once the run is over (the CONTROL)',
+    r[`live${pool}`], [[], 0, tasks, ['envelope'], false, ['received', inCanon({ got: { 0: inFast() } })], ['not-reached', 'not-reached'], true, true]);
+    check(key, `W206 exit (${pool}): STORED — once the runtime is shut down, the root inputOf over the header and events a store kept answers every ` +
+      `one of the run's ${tasks + 1} tasks with its OWN echo and no other's`, r[`stored${pool}`], ['completed', [], 0, tasks + 1, ['envelope']]);
+    check(key, `W206 exit (${pool}): the ENDS — low by its node id alone answers received at exactly paths 0-${IN_LOW - 1}, each work's result by hand ` +
+      '(the next path`s value differing, the CONTROL); done answers file`s result by hand (the other answer`s differing)', r[`ends${pool}`],
+    ['ok', Array.from({ length: IN_LOW }, (_, j) => [String(j), 'received']), [], IN_LOW, ['received', inCanon(inFile())], true]);
+    check(key, `W206 exit (${pool}): the GATE — route at every one of ${IN_ITEMS} paths answers received, its instance's work result by hand ` +
+      '(the next path`s value differing, the CONTROL)', r[`gate${pool}`], [['received'], [], IN_ITEMS]);
+    check(key, `W206 exit (${pool}): the JOIN — fj fired before slow settled (the ARRANGEMENT); its arrival at 0 is fast's result, its LATE arrival at 1 ` +
+      'slow`s, its collection at - only fast`s (the late arrival in it differing, the CONTROL); collect`s collection is items 6-11`s results, ' +
+      'an instance that ended at low not-reached as an arrival', r[`join${pool}`],
+    [true, ['arrival', inCanon(inFast())], ['arrival', inCanon(inSlow())], ['collection', inCanon({ 0: inFast() })], true,
+      ['collection', inCanon(Object.fromEntries(Array.from({ length: IN_ITEMS - IN_LOW }, (_, k) => [String(IN_LOW + k), inWork(IN_LOW + k)])))], 'not-reached']);
+    check(key, `W206 exit (${pool}): the ASK — review answers received, { got: fj's collection } by hand and its stored asked element's input ` +
+      '(the late arrival in it differing, the CONTROL)', r[`ask${pool}`], [['received', inCanon({ got: { 0: inFast() } })], true, true]);
+    check(key, `W206 exit (${pool}): a HALTED run, read once its runtime is gone — fetch's and every work's envelope by hand; route at ${IN_STOP}, ` +
+      'review and done not-reached AT the stored halted element (the prefix`s end), never diverged; the completed run answering route there (the CONTROL)', r[`halt${pool}`],
+    ['halted', 1, ['envelope', inCanon(inEnvFetch())], [], IN_ITEMS, [['not-reached', true], ['not-reached', true], ['not-reached', true]], ['received', inCanon(inWork(IN_STOP))]]);
+    check(key, `W206 exit (${pool}): a CHANGED REGISTRY — the predicate answering false — is refused diverged reading review, at the run's first stored ` +
+      'gated element, and so is collect at 0, which the changed predicate routes INTO; the run`s own registry answering (the CONTROL)', r[`diverged${pool}`], ['diverged', true, ['diverged', true], true, true]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -13341,7 +13689,10 @@ if (shBlock !== null) {
 // **And `+ rxBlock.runs.length` since W200**: its TWO runs — the reference-read flow on a threaded pool and on an inline one.
 // **And `+ shBlock.runs.length` since W203**: its FOUR runs — per pool, threaded and inline, the shared-copy flow whose
 // predicate writes its own "$item" (it completes) and the same flow whose predicate writes into its referenced value (it stops).
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0);
+// **And `+ inBlock.runs.length` since W206**: its FOUR runs — per pool, threaded and inline, the handed-input flow run to the
+// end (its ask answered) and the same flow whose predicate throws for item 5 (it halts). Every reading replays on a driver of
+// its own, deaf, and hands nothing to a scheduler: a reading is not a run.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -13694,7 +14045,10 @@ const PER_PLAIN_ROW = 22;
 // threaded and inline, the run completed, the read, what the worker holds, the inline worker's write, reaching nothing
 // else, the edge, a predicate's write stopping the run, and the gap — all cross-row because the block is outside the row
 // loop. 482 + 16 = 498.
-const CROSS_ROW = 498;
+// **498 at W203, +16 by W206 — P42's EXIT ARTIFACT clause (3)**: the handed-input block's sixteen clauses — per pool,
+// threaded and inline, the live reading, the stored reading, the ends, the gate, the join, the ask, the halted run and the
+// changed registry — all cross-row because the block is outside the row loop. 498 + 16 = 514.
+const CROSS_ROW = 514;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -15926,14 +16280,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2831 / 234 since W203 — P41's EXIT ARTIFACT clause (3), +16 and four runs**, DERIVED at the declaration: the
 // shared-copy block's sixteen cross-row assertions (`CROSS_ROW` 482 -> 498) over its four runs. No row moved (P41
 // prediction 6).
-const DECLARED_TOTAL = 2831;
+// **2847 / 238 since W206 — P42's EXIT ARTIFACT clause (3), +16 and four runs**, DERIVED at the declaration: the
+// handed-input block's sixteen cross-row assertions (`CROSS_ROW` 498 -> 514) over its four runs. No row moved (P42
+// prediction 6).
+const DECLARED_TOTAL = 2847;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 234;
+const DECLARED_RUNS = 238;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
