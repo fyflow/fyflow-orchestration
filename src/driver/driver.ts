@@ -32,6 +32,8 @@ import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { gateEdge, selectEdge, type PredicateRegistry } from './routing.ts';
 import { isTerminalEvent, type RegionEvent } from './events.ts';
 import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
+// W205 — a reading's default join policy, `runtime.resume`'s own (`RN-R25`, `RN-R45`).
+import { liveToken } from '../fold/policies.ts';
 // Type-only, so it is erased and there is no runtime cycle with `src/fold/`.
 // The driver PRODUCES this sequence (ADR 0014) and the fold consumes it; the type
 // stays where `spec/run-state.md` defines it rather than being copied here.
@@ -460,6 +462,20 @@ export class ResumeRefused extends Error {
  * function, two callers, so the two cannot refuse different checkpoints.
  */
 export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, runId?: string): ResumeRefused | null {
+  const header = headerRefusal(definition, checkpoint, runId);
+  if (header !== null) return header;
+  const cp = checkpoint as { events: unknown[] };
+  return haltRefusal(cp.events);
+}
+
+/**
+ * **`resumeRefusal`'s HEADER half — `format`, `run` and `flow`, in that order** — split out by W205 so a READING of a stored
+ * run ([ADR 0128](../../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md),
+ * `RN-R45`) refuses a header exactly as a resume does, from the one function, and does NOT take the other half: a halted,
+ * stopped or cancelled run is a refusal of CONTINUING a run, never of reading one (P42 decision 5). The order and every
+ * message are `resumeRefusal`'s own, unmoved.
+ */
+function headerRefusal(definition: FlowDefinition, checkpoint: unknown, runId?: string): ResumeRefused | null {
   const cp = checkpoint as { header?: unknown; events?: unknown } | null;
   const h = (typeof cp === 'object' && cp !== null ? cp.header : undefined) as Partial<CheckpointHeader> | undefined;
   if (typeof h !== 'object' || h === null || !Array.isArray(cp!.events)) {
@@ -493,15 +509,20 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
         `"${definition.flowId}" version ${definition.version}. There is no migration (P23 decision 7): a checkpoint resumes against the ` +
         'definition that produced it, and a changed flow is a new version.');
   }
+  return null;
+}
+
+/** **`resumeRefusal`'s other half** — a stored halt, then a stored cancel, each by its first position (W205's split, order unmoved). */
+function haltRefusal(events: unknown[]): ResumeRefused | null {
   // **The DUAL READ — ADR 0102 rule 3 (W171).** A 0.7.0 store wrote the halt as `{ kind: 'stopped', reason }`, and
   // `CHECKPOINT_FORMAT` did not move, so the old kind is READ here as the halt it is: refused `halted`, at its position.
   // Without it a 0.7.0 checkpoint of a halted run passed this scan and was refused `diverged` by the replay (P34 fact 7).
-  const at = (cp!.events as unknown[]).findIndex((e) => {
+  const at = events.findIndex((e) => {
     const k = (e as { kind?: unknown } | null)?.kind;
     return k === 'halted' || k === 'stopped';
   });
   if (at >= 0) {
-    const e = (cp!.events as { kind?: unknown; reason?: unknown }[])[at]!;
+    const e = (events as { kind?: unknown; reason?: unknown }[])[at]!;
     return new ResumeRefused('halted', at,
       `ResumeRefused (halted): the stored run was HALTED by a refusal — its element at position ${at} is \`${String(e.kind)}\`` +
         `${e.kind === 'stopped' ? ' (the name 0.7.0 wrote for `halted`, ADR 0102)' : ''} (${JSON.stringify(e.reason)}). A halted run is not resumable ` +
@@ -517,12 +538,12 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
   // **And a stored `cancelRequested` — v0.18, `RN-R31`, ADR 0104 (W173)**: the FIRST element of either kind. A run its
   // owner cancelled holds its request BEFORE every settlement the request caused, so it is refused at the request; and
   // a run cancelled while parked, with nothing in flight, holds no cancelled settlement at all and was refused nowhere.
-  const c = (cp!.events as unknown[]).findIndex((e) => {
+  const c = events.findIndex((e) => {
     const x = e as { kind?: unknown; record?: { terminalState?: unknown } | null } | null;
     return x?.kind === 'cancelRequested' || (x?.kind === 'outcome' && x.record?.terminalState === 'cancelled');
   });
   if (c >= 0) {
-    const e = (cp!.events as { kind?: unknown; actor?: unknown; record?: { taskId?: unknown } }[])[c];
+    const e = (events as { kind?: unknown; actor?: unknown; record?: { taskId?: unknown } }[])[c];
     const what = e?.kind === 'cancelRequested'
       ? `the request of ${JSON.stringify(e.actor)} to cancel it (\`cancelRequested\`)`
       : `the settlement of ${JSON.stringify(e?.record?.taskId)} as \`cancelled\``;
@@ -533,6 +554,67 @@ export function resumeRefusal(definition: FlowDefinition, checkpoint: unknown, r
   }
   return null;
 }
+
+/**
+ * **What a reading asks about** — `RN-R45`, P42 decision 2 and stop-and-ask (c1). A node id and a branch path, for ANY node
+ * kind the definition has; a node id ALONE, which asks for every path the run reached it on (decision 4); or a task id —
+ * a task's or an ask's — which names both, as `spec/task-id.md` mints it (attempt `0`).
+ */
+export type InputTarget =
+  | { readonly taskId: string }
+  | { readonly nodeId: string; readonly branchPath?: string };
+
+/**
+ * **Which value a node was handed** — `RN-R45`, P42 decision 3: a task's `envelope` (`{ settings, input, transform? }`,
+ * `FD-C5`, `FD-C6` — what `dispatch` built for `createTask`, before any transform); the value `enter` composed for an ask,
+ * a gate, a fanout, a map or an end (`received`); and for a JOIN, an `arrival` at an arriving branch's path — what that
+ * branch carried in, a LATE arrival after an early firing included — or the `collection` it handed on when it fired, at
+ * its opener's path.
+ */
+export type HandedAs = 'envelope' | 'received' | 'arrival' | 'collection';
+
+/** **One thing a node was handed, on one branch path** — `RN-R45`. */
+export interface NodeInput {
+  readonly nodeId: string;
+  readonly kind: FlowNode['kind'];
+  /** The branch path it was handed on — a task's and an ask's the one their id carries; a join's arrival the arriving branch's. */
+  readonly branchPath: string;
+  readonly handed: HandedAs;
+  /**
+   * The value, AS THE READING'S DRIVER BUILT IT: not copied again and not frozen beyond what the composition already
+   * froze — a value a `needs` reference composed is that driver's shared frozen copy (ADR 0126), the rest is the caller's
+   * own. It reaches nothing a live run holds: the reading's driver is its own and is dropped when the reading returns.
+   */
+  readonly value: unknown;
+}
+
+/**
+ * **Why a reading has no answer** — `RN-R45`, P42 decision 5. Returned, never thrown.
+ *
+ * | reason | when | `index` |
+ * |---|---|---|
+ * | `format` | the run is not `{ header, events[] }`, its `header.format` is not {@link CHECKPOINT_FORMAT}, its header's three fields are not format 1's types, its `runId` is not a run id (`ID-R2`), or its entry payload does not clone — `resumeRefusal`'s header half, the one function | `null` |
+ * | `flow` | `header.flowId` or `header.version` is not the definition's — no migration | `null` |
+ * | `unknown` | the target cannot name anything in this run: a node id the definition lacks, a branch path that is not `spec/task-id.md`'s grammar, or a task id that does not parse, names another run, an attempt other than `0`, or a node that is neither a task nor an ask | `null` |
+ * | `not-reached` | the replay did not hand the target anything within the stored prefix a reading verifies — which ends at the first `halted`, `stopped` or `cancelRequested` element, or at the stored events' end | the prefix's length |
+ * | `diverged` | the replay produced something other than a stored element BEFORE it reached the target — `RN-R20`'s refusal, by its position | that position |
+ */
+export type InputRefusalReason = 'format' | 'flow' | 'unknown' | 'not-reached' | 'diverged';
+
+/** **What a reading returns** — every answer for its target, in the order the replay reached them, or why there is none. */
+export type InputReading =
+  | { readonly ok: true; readonly inputs: readonly NodeInput[] }
+  | { readonly ok: false; readonly reason: InputRefusalReason; readonly index: number | null; readonly message: string };
+
+/**
+ * **What a reading builds its driver from** — the `DriverOptions` a run's routing reads, and nothing else (`RN-R45`, P42
+ * decision 1): the registry's members — `runtime.registry` IS this minus `joinPolicy` — and the three options a runtime
+ * adds. **No callback, no scheduler, no `createTask`, no run id**: a member not named here is not read, so a reading cannot
+ * call a consumer. `joinPolicy` omitted is `liveToken`, as `runtime.start` and `runtime.resume` default it.
+ */
+export type InputOfOptions = Pick<DriverOptions,
+  | 'predicates' | 'workers' | 'nodeTypes' | 'pools' | 'groups' | 'languages' | 'gateTypes'
+  | 'joinPolicy' | 'defaultRetryPolicy' | 'validateBoundaries'>;
 
 /**
  * **Is a regenerated element the stored one?** — the prefix check's comparison for every kind the
@@ -754,7 +836,12 @@ function groupPosition(group: readonly OutputEntry[], path: string): number {
 /** What `createTask` is handed — held, during a replay, until the resume knows what is in flight. */
 type TaskConfig = Parameters<TaskFactory>[0];
 
-/** The replay's own state, present only while `resume()` runs — `RN-R19`. */
+/**
+ * The replay's own state, present only while `resume()` runs — `RN-R19`. **Or while a READING runs** (`RN-R45`, W205,
+ * [ADR 0128](../../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md)): the
+ * same replay over the stored PREFIX a reading can verify, with `reading` set — and then `held` stays EMPTY, because a
+ * reading hands nothing on and keeps no envelope but the ones it answers with (P42 decision 6).
+ */
 interface Replay {
   /** The stored events: what every regenerated element at a covered position is compared with. */
   readonly stored: readonly FoldInput[];
@@ -762,7 +849,47 @@ interface Replay {
   feeding: number;
   /** Every dispatch the replay made, by task id — HELD, never handed to the scheduler during the replay. */
   readonly held: Map<string, TaskConfig>;
+  /** A reading's CUT — `null` for a resume, which reads nothing of it. */
+  readonly reading: Reading | null;
 }
+
+/**
+ * **A reading's cut: what it asks about, what it has found, and what it consumed** — `RN-R45`, W205. Consulted at three
+ * places and no others: `enter`, right after `compose`, for every kind but a task (a join's ARRIVAL included); a task's
+ * DISPATCH, where its envelope is built (the replay's held branch); and a join's FIRING, where its collection is built.
+ * Each offers what the node was handed; an offer is TAKEN only once the node's OWN element — the first it appends — has
+ * been compared with the stored one at a stored position (`RN-R20`), so a composition the stored run never made (a
+ * changed predicate routing into the target) is refused `diverged` at that element, never answered.
+ */
+interface Reading {
+  /** The node asked about. */
+  readonly nodeId: string;
+  /** Its branch path — `null` asks for EVERY path the replay reaches it on (P42 decision 4). */
+  readonly branchPath: string | null;
+  /** An offer whose node's own element is the NEXT append, at `at`: taken by `append` once that element is compared. */
+  pending: { readonly at: number; readonly input: NodeInput } | null;
+  /** Every answer taken so far, in the order the replay reached them. */
+  readonly found: NodeInput[];
+  /**
+   * **The count, never public** (ADR 0121 rule 7's constraints, P42 decision 6): the stored STIMULI the reading was FED
+   * (`isFed` — a settlement, a resolution, `resumed`, `interrupted`, `paused`, `unpaused`, `attempted`), one per
+   * `replayStored` feed. NOT counted: the entry's own step, which the header starts.
+   */
+  fed: number;
+  /** The stored ELEMENTS the reading compared — fed and regenerated alike, one per `append` at a stored position. */
+  elements: number;
+}
+
+/** **The cut, thrown** — a reading's answer is found and nothing after it is replayed. Never leaves `Driver.read`. */
+class InputCut extends Error {}
+
+/** **A reading's scheduler: it is handed nothing** — every dispatch a reading makes is held at the cut's site. */
+const DEAF_SCHEDULER: SchedulerLike = {
+  addTask() {
+    throw new Error('a reading hands nothing to a scheduler (RN-R45, ADR 0128) — this is a defect in the driver');
+  },
+  addEventListener() {},
+};
 
 /**
  * A settlement carrying THIS driver's run id for a task it never dispatched —
@@ -2541,7 +2668,7 @@ export class Driver {
     const entryPayload = structuredClone(checkpoint.header.entryPayload);
     this.header = { format: CHECKPOINT_FORMAT, runId: this.runId, flowId: this.def.flowId, version: this.def.version, entryPayload };
     this.started = true;
-    const replay: Replay = { stored, feeding: -1, held: new Map() };
+    const replay: Replay = { stored, feeding: -1, held: new Map(), reading: null };
     this.replay = replay;
     try {
       this.replayStored(stored);
@@ -2645,6 +2772,7 @@ export class Driver {
       // element at the replay's length is one the replay did not produce.
       if (this.inputs.length !== i) throw this.diverged(this.inputs.length, 'the replay produced nothing there');
       replay.feeding = i;
+      if (replay.reading !== null) replay.reading.fed += 1;
       this.feed(() => this.feedOne(e, i));
     }
     if (this.inputs.length < stored.length) throw this.diverged(this.inputs.length, 'the replay ended before it');
@@ -2722,12 +2850,15 @@ export class Driver {
     this.advance(runId, nodeId, branchPath);
   }
 
-  /** The listener's boundary, for the replay: a refusal routing raises stops the run (`OR-R10`); a refused resume passes through. */
+  /**
+   * The listener's boundary, for the replay: a refusal routing raises stops the run (`OR-R10`); a refused resume passes
+   * through — and so does a reading's cut (`InputCut`, W205), which is no refusal and halts nothing.
+   */
   private feed(step: () => void): void {
     try {
       step();
     } catch (e) {
-      if (e instanceof ResumeRefused) throw e;
+      if (e instanceof ResumeRefused || e instanceof InputCut) throw e;
       this.failRun(e);
     }
   }
@@ -2740,6 +2871,127 @@ export class Driver {
         `stored ${describeElement(stored[at])}, replayed ${describeElement(this.inputs[at])} (${why}). P23 decision 9: a stored run the ` +
         'replay cannot regenerate — a predicate, a definition or an entry payload that is not what produced it — is refused rather than ' +
         'resumed on a different road. Nothing was handed to the scheduler.');
+  }
+
+  /**
+   * **A cut site offers what a node was handed** (`RN-R45`, W205). An offer for another path is dropped. `own` is the
+   * position of the node's OWN element where it is already appended — a task's `dispatched`, a join's firing — and `null`
+   * where it is the NEXT append, which `append` confirms (`Reading.pending`). Either way it is TAKEN only at a STORED
+   * position, so a composition whose element lies past the prefix the reading verifies is never answered.
+   */
+  private offer(r: Reading, input: NodeInput, own: number | null): void {
+    if (r.branchPath !== null && input.branchPath !== r.branchPath) return;
+    const stored = this.replay!.stored.length;
+    if (own === null) {
+      if (this.inputs.length < stored) r.pending = { at: this.inputs.length, input };
+      return;
+    }
+    if (own < stored) this.take(r, input);
+  }
+
+  /** **An offer taken** — kept, and for a target with a path the replay ends HERE: nothing after it is replayed (`InputCut`). */
+  private take(r: Reading, input: NodeInput): void {
+    r.found.push(input);
+    if (r.branchPath !== null) throw new InputCut();
+  }
+
+  /**
+   * **A READING — what a node was handed, by replaying the run to that node's composition** — `RN-R45`, W205,
+   * [ADR 0128](../../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md), P42
+   * decisions 1-7. The export {@link inputOf} and `RunHandle.inputOf` are this and nothing else. In order:
+   *
+   *   1. **The header**, refused by `resumeRefusal`'s own header half (`format`, `flow`) — never its halt half.
+   *   2. **The target**, refused `unknown` where it cannot name anything in this run.
+   *   3. **A driver built exactly as `runtime.resume` builds one** (`RN-R25`) — the definition, the registry's members, a
+   *      `joinPolicy` defaulting to `liveToken` — with NO callback and a scheduler that is handed nothing (`DEAF_SCHEDULER`).
+   *   4. **The replay** (`readStep`) over the stored PREFIX it can verify, the cut armed: it stops at the target's
+   *      composition and returns what it found.
+   *
+   * Private and STATIC, so the export and the handle reach one road, and a test reaches the reading's own driver — its
+   * count — by a cast (ADR 0121 rule 7): `driver` is `null` where a refusal came before one was built.
+   */
+  private static read(flow: FlowDefinition, options: InputOfOptions, run: Checkpoint, target: InputTarget): { answer: InputReading; driver: Driver | null } {
+    const refused = headerRefusal(flow, run);
+    if (refused !== null) {
+      return { answer: { ok: false, reason: refused.reason as 'format' | 'flow', index: null, message: `a reading refuses this header as a resume does — ${refused.message}` }, driver: null };
+    }
+    const header = run.header;
+    // **A stored `runId` that is no run id is `format`**, before a driver exists to throw `InvalidRunId` (`ID-R2`) — W205's
+    // conformity reader, finding 2: `headerRefusal` holds the field to its TYPE only, and a reading never throws for the run.
+    try {
+      assertRunId(header.runId);
+    } catch (e) {
+      return { answer: { ok: false, reason: 'format', index: null, message: `the stored header's runId is not a run id (ID-R2): ${e instanceof Error ? e.message : String(e)}` }, driver: null };
+    }
+    const t = readTarget(flow, header.runId, target);
+    if ('ok' in t) return { answer: t, driver: null };
+    // **Each member by name, so nothing else reaches the driver** — a caller handing `{ ...runtime.registry, onFoldInput }`
+    // gets a reading that calls nothing (`InputOfOptions`).
+    const { predicates, workers, nodeTypes, pools, groups, languages, gateTypes, joinPolicy, defaultRetryPolicy, validateBoundaries } = options;
+    const driver = new Driver(flow, {
+      runId: header.runId,
+      scheduler: DEAF_SCHEDULER,
+      predicates,
+      ...(workers !== undefined ? { workers } : {}),
+      ...(nodeTypes !== undefined ? { nodeTypes } : {}),
+      ...(pools !== undefined ? { pools } : {}),
+      ...(groups !== undefined ? { groups } : {}),
+      ...(languages !== undefined ? { languages } : {}),
+      ...(gateTypes !== undefined ? { gateTypes } : {}),
+      joinPolicy: joinPolicy ?? (liveToken as JoinPolicy),
+      ...(defaultRetryPolicy !== undefined ? { defaultRetryPolicy } : {}),
+      ...(validateBoundaries !== undefined ? { validateBoundaries } : {}),
+    });
+    return { answer: driver.readStep(run, t), driver };
+  }
+
+  /**
+   * **The reading's replay** — `resume()`'s first half (`resumeStep` to `replayStored`) with the cut armed, and nothing of
+   * its second: no in-flight set, no `resumed`, nothing handed on. **The prefix it verifies ENDS at the first `halted`,
+   * `stopped` or `cancelRequested` element** (P42 decision 5): only a consumer's callback, a refused result or an owner's
+   * call appends those, so a replay cannot regenerate one — what follows is `not-reached`, never `diverged`. Everything
+   * before is compared as `RN-R20` compares it.
+   */
+  private readStep(run: Checkpoint, t: { readonly nodeId: string; readonly branchPath: string | null }): InputReading {
+    const events = run.events;
+    let end = events.length;
+    for (let i = 0; i < events.length; i += 1) {
+      const e = events[i] as unknown;
+      // A store's element that is not an object is not an element this library wrote (`RN-R17`) — refused before the replay
+      // reads it, which `resume()` does not do (it reaches `isFed` and throws): a reading returns, never throws.
+      if (typeof e !== 'object' || e === null) {
+        return { ok: false, reason: 'format', index: null, message: `the stored element at position ${i} is ${JSON.stringify(e) ?? String(e)}, which is not a fold input (RN-R14, RN-R17)` };
+      }
+      const k = (e as { kind?: unknown }).kind;
+      if (k === 'halted' || k === 'stopped' || k === 'cancelRequested') {
+        end = i;
+        break;
+      }
+    }
+    let entryPayload: unknown;
+    try {
+      entryPayload = structuredClone(run.header.entryPayload);
+    } catch (e) {
+      return { ok: false, reason: 'format', index: null, message: `the stored header's entry payload does not clone (RN-R15, RN-R17): ${e instanceof Error ? e.message : String(e)}` };
+    }
+    this.header = { format: CHECKPOINT_FORMAT, runId: this.runId, flowId: this.def.flowId, version: this.def.version, entryPayload };
+    this.started = true;
+    const reading: Reading = { nodeId: t.nodeId, branchPath: t.branchPath, pending: null, found: [], fed: 0, elements: 0 };
+    this.replay = { stored: end === events.length ? events : events.slice(0, end), feeding: -1, held: new Map(), reading };
+    try {
+      this.replayStored(this.replay.stored);
+    } catch (e) {
+      if (e instanceof InputCut) return { ok: true, inputs: [...reading.found] };
+      if (e instanceof ResumeRefused) return { ok: false, reason: 'diverged', index: e.index, message: e.message };
+      throw e;
+    }
+    if (reading.found.length > 0) return { ok: true, inputs: [...reading.found] };
+    const where = t.branchPath === null ? `node "${t.nodeId}" on any branch path` : `node "${t.nodeId}" at branch path "${t.branchPath}"`;
+    return {
+      ok: false, reason: 'not-reached', index: end,
+      message: `the replay handed ${where} nothing within the ${end} stored element(s) a reading verifies` +
+        (end < events.length ? ` — the prefix ends at position ${end}, \`${String((events[end] as { kind?: unknown }).kind)}\`, which only a consumer's callback, a refused result or an owner's call appends (RN-R45)` : '') + '.',
+    };
   }
 
   /**
@@ -3902,7 +4154,11 @@ export class Driver {
     // copy, retained for the life of the run (`RN-R15`, `RN-R13`) and not a log record — and
     // since v0.44 an edge may name it, `"$payload"`, read by `resolveNeeds` from that copy
     // (ADR 0117, P38 fact 10: this paragraph's *no derivation at all* was the end of the
-    // sentence until then).)*
+    // sentence until then).)* *(And AFTER the fact it is READABLE — `RN-R45`, W205, ADR 0128: a
+    // reading replays the stored run from the header's payload to a node's composition, through
+    // `compose` itself, so what any node received is recovered with no second derivation and
+    // nothing retained. Nothing here, at routing time, can use it: a predicate still sees what this
+    // comment says.)*
     //
     // *(This comment cited a DIAMOND — a node reachable from two predecessors that both
     // settle — and said choosing between them needs append order. W42's conformity
@@ -4000,6 +4256,15 @@ export class Driver {
     // (`OR-R10`), `start` catches, reports and rethrows — and catching it here would
     // make `start()` stop rethrowing.
     const received = this.compose(node, payload, itemIndices, () => this.sharedPayload(), () => this.itemOf(node.id, itemIndices));
+    // **A READING's cut — what this node was handed** (`RN-R45`, W205, ADR 0128): `received`, the value just composed, for
+    // every kind but a task — whose envelope is offered where `dispatch` builds it. A join's is an ARRIVAL, on the branch
+    // that arrived (`fromBranch`), whether or not the join has already fired; an end's is on the branch that reached it,
+    // the path its `branch.exited` names. `null` outside a reading, and then this is one comparison.
+    const reading = this.replay?.reading ?? null;
+    if (reading !== null && node.kind !== 'task' && node.id === reading.nodeId) {
+      const path = node.kind === 'join' || node.kind === 'end' ? fromBranch : this.pathOf(node.id, itemIndices);
+      this.offer(reading, { nodeId: node.id, kind: node.kind, branchPath: path, handed: node.kind === 'join' ? 'arrival' : 'received', value: received }, null);
+    }
 
     switch (node.kind) {
       case 'task':
@@ -5068,7 +5333,7 @@ export class Driver {
     // Appended BEFORE `addTask`. `RN-R4` says a node absent from `nodes` was never
     // dispatched; a scheduler that settled a task inside `addTask` would otherwise
     // deliver the outcome before the dispatch that caused it.
-    this.append({ kind: 'dispatched', taskId });
+    const dispatchedAt = this.append({ kind: 'dispatched', taskId });
 
     // **W58 — the two fields a node says about its own task, passed through exactly as
     // `optional` is.** `retryPolicy` is the node's, whole, or the driver's default when the node
@@ -5123,8 +5388,14 @@ export class Driver {
     // **HELD during a replay** (`RN-R19`): the stored run dispatched this already, and whether it runs
     // again is decided once the replay knows what is in flight (`RN-R21`). `createTask` is called at
     // release, so a factory sees exactly the tasks handed to a scheduler.
+    // **A READING holds nothing** (`RN-R45`, W205, P42 decision 6): its replay hands no task on, so it keeps no config — and
+    // the target's ENVELOPE is offered here, where it is built, its `dispatched` element already compared at `dispatchedAt`.
     if (this.replay !== null) {
-      this.replay.held.set(taskId, config);
+      const reading = this.replay.reading;
+      if (reading === null) this.replay.held.set(taskId, config);
+      else if (node.id === reading.nodeId) {
+        this.offer(reading, { nodeId: node.id, kind: 'task', branchPath: this.pathOf(node.id, itemIndices), handed: 'envelope', value: config.payload }, dispatchedAt);
+      }
       return;
     }
     // **HELD by a PAUSE** (`RN-R35`, ADR 0106, W175) — the hold's DEFERRED form at this door (ADR 0103 rules 2 and 6):
@@ -5544,6 +5815,17 @@ export class Driver {
     if (replay !== null && seq < replay.stored.length) {
       const same = isFed(input) ? replay.feeding === seq && input.kind === replay.stored[seq]?.kind : sameData(input, replay.stored[seq]);
       if (!same) throw this.diverged(seq, 'a different element there');
+      // **A reading's cut, CONFIRMED** (`RN-R45`, W205): the element just compared is the offered node's own — the next
+      // append after its composition — so the stored run made that composition too, and the offer is taken.
+      const r = replay.reading;
+      if (r !== null) {
+        r.elements += 1;
+        if (r.pending !== null && r.pending.at === seq) {
+          const taken = r.pending.input;
+          r.pending = null;
+          this.take(r, taken);
+        }
+      }
     }
     if (this.opts.onFoldInput && this.delivers(seq)) this.opts.onFoldInput(freezeInput(input), seq);
     return seq;
@@ -5743,7 +6025,7 @@ export class Driver {
     // It records what the DRIVER did, not what a policy concluded, which is why it
     // does not violate `RN-R6`: `fired` is "routing left the join", an action, and
     // the same two policies over the same events still produce identical `regions`.
-    this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
+    const firedAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
       joinId: region.joinId, fired: true });
     // **`OR-R10` on the one door into this function that is already OPEN — W53's
     // conformity reader.** The three doors into `settleJoin` are all shut behind
@@ -5790,6 +6072,13 @@ export class Driver {
     // or refill what is dropped here.
     const collected = collectArrivals(this.arrivals.get(region.fanoutId)?.get(rp));
     this.releaseArrivals(region.fanoutId, rp);
+    // **A READING's cut — the COLLECTION this join hands on** (`RN-R45`, W205, P42 decision 3): at its OPENER's path, the
+    // value a policy selected at firing time, its `joinSettled` element already compared at `firedAt`. Not its successor's
+    // answer: a successor declaring `needs` without `"."` composes it away.
+    const reading = this.replay?.reading ?? null;
+    if (reading !== null && region.joinId === reading.nodeId) {
+      this.offer(reading, { nodeId: region.joinId, kind: 'join', branchPath: rp, handed: 'collection', value: collected }, firedAt);
+    }
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
@@ -5995,3 +6284,82 @@ export class Driver {
     return this.effectiveOutcomeOf(taskId)?.terminalState ?? null;
   }
 }
+
+/**
+ * **A reading's target, held to what this run's ids can name** — `RN-R45`, P42 decision 2: a task id by `ID-R4`'s parse
+ * (`parseTaskId`), of THIS run, at attempt `0`, naming a task or an ask; a node id the definition has, with a branch path in
+ * `spec/task-id.md`'s grammar (checked by the same parse) or none. Anything else is `unknown`.
+ */
+function readTarget(flow: FlowDefinition, runId: string, target: InputTarget): { readonly nodeId: string; readonly branchPath: string | null } | InputReading {
+  const unknown = (why: string): InputReading => ({ ok: false, reason: 'unknown', index: null, message: `the target names nothing this run can have: ${why} (RN-R45)` });
+  const t = target as { taskId?: unknown; nodeId?: unknown; branchPath?: unknown } | null | undefined;
+  const nodes = flow.nodes as readonly FlowNode[];
+  if (typeof t?.taskId === 'string') {
+    let parts: TaskIdParts;
+    try {
+      parts = parseTaskId(t.taskId);
+    } catch (e) {
+      return unknown(`task id ${JSON.stringify(t.taskId)} does not parse — ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (parts.runId !== runId) return unknown(`task id ${JSON.stringify(t.taskId)} is of run "${parts.runId}", and this run is "${runId}"`);
+    if (parts.attempt !== 0) return unknown(`task id ${JSON.stringify(t.taskId)} carries attempt ${parts.attempt}, and a run mints attempt 0`);
+    const node = nodes.find((n) => n.id === parts.nodeId);
+    if (node === undefined || (node.kind !== 'task' && node.kind !== 'ask')) {
+      return unknown(`task id ${JSON.stringify(t.taskId)} names ${node === undefined ? 'no node of the definition' : `a ${node.kind}, which has no task id`}`);
+    }
+    return { nodeId: parts.nodeId, branchPath: parts.branchPath };
+  }
+  if (typeof t?.nodeId === 'string') {
+    const nodeId = t.nodeId;
+    if (!nodes.some((n) => n.id === nodeId)) return unknown(`the definition has no node "${nodeId}"`);
+    if (t.branchPath === undefined) return { nodeId, branchPath: null };
+    const path = t.branchPath;
+    let ok = typeof path === 'string';
+    if (ok) {
+      try {
+        parseTaskId(`${runId}:${nodeId}:${path as string}:0`);
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) return unknown(`branch path ${JSON.stringify(path) ?? String(path)} is not spec/task-id.md's grammar ("-", or dot-separated non-negative integers)`);
+    return { nodeId, branchPath: path as string };
+  }
+  return unknown('a target is { taskId } or { nodeId, branchPath? }');
+}
+
+/**
+ * **What a node was HANDED, read after the fact by replaying the run to that node's composition** — `RN-R45`, W205,
+ * [ADR 0128](../../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md), P42
+ * (a1)-(d1) and decisions 1-6. `run` is a run's stored header and events — `driver.checkpoint()`, or what a store appended
+ * (`RN-R14`, `RN-R18`); `options` the registry and options the run's driver was built with (`runtime.registry`, plus its
+ * `joinPolicy` where it was not `liveToken`).
+ *
+ * **It IS the driver's composition, not a second one**: a driver built for the stored run, deaf — no callback, nothing
+ * handed to a scheduler — replays the stored events through `enter`, `compose` and `dispatch` exactly as a resume does and
+ * stops at the target's composition. So an answer is EXACT, and it costs the run's prefix up to the target — O(run) at
+ * worst, never O(the answer) — and a reading re-runs the run's predicates and gate types, as a resume does (ADR 0002 rule
+ * 4, Q9: an impure one diverges, or answers what its re-run computes).
+ *
+ * | target | kind | `inputs` |
+ * |---|---|---|
+ * | `{ taskId }`, or `{ nodeId, branchPath }` | a task | ONE `envelope`: `{ settings, input, transform? }` — its one dispatch's, retries and a resolution included; BEFORE its transform (ADR 0051) |
+ * | the same | an ask | ONE `received` — equal to its `asked` element's `input` |
+ * | `{ nodeId, branchPath }` | a gate, fanout, map or end | ONE `received` — what `enter` composed for it on that path |
+ * | `{ nodeId, branchPath }` | a join, at an ARRIVING branch's path | ONE `arrival` — what that branch carried in, a late arrival included |
+ * | `{ nodeId, branchPath }` | a join, at its OPENER's path | ONE `collection` — what it handed on when it fired |
+ * | `{ nodeId }` | any | EVERY one of the above the replay reached, in the order it reached them — one replay to the stored end |
+ *
+ * A path target answers the FIRST composition on its path: an end shared by two sibling regions can be reached twice on one
+ * path (`end` is exempt from `FD-V19`), and only the node id alone lists both.
+ *
+ * **Never throws for the run or the target** — `InputReading`'s refusals; it throws what `new Driver` throws for a
+ * definition or a registry that cannot run (`InvalidDefinition`, `MissingJoinPolicy`, a `RegistryError`), as a resume does.
+ * **What it does not detect**: a definition or a registry changed AFTER the target — the cut verifies the prefix it replays.
+ */
+export function inputOf(flow: FlowDefinition, options: InputOfOptions, run: Checkpoint, target: InputTarget): InputReading {
+  return (Driver as unknown as { read: ReadFn }).read(flow, options, run, target).answer;
+}
+
+/** `Driver.read`'s signature, for the one cast that reaches it — the static is private so nothing else does. */
+type ReadFn = (flow: FlowDefinition, options: InputOfOptions, run: Checkpoint, target: InputTarget) => { answer: InputReading; driver: Driver | null };

@@ -64,8 +64,8 @@
 import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGroup } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { checkGateTypes, groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
-import { Driver, InvalidDefinition, resumeRefusal } from '../driver/driver.ts';
-import type { Checkpoint, CheckpointHeader, DriverOptions, RunStopOptions, SchedulerLike } from '../driver/driver.ts';
+import { Driver, inputOf, InvalidDefinition, resumeRefusal } from '../driver/driver.ts';
+import type { Checkpoint, CheckpointHeader, DriverOptions, InputOfOptions, InputReading, InputTarget, RunStopOptions, SchedulerLike } from '../driver/driver.ts';
 import { InvalidTaskId, parseTaskId } from '../driver/ids.ts';
 import { liveToken } from '../fold/policies.ts';
 import { Accumulator } from '../fold/accumulator.ts';
@@ -397,6 +397,22 @@ export interface RunHandle {
    * materialising the rest (`RN-R44`); the first read of an entry freezes it once, O(the entry). `null` for a task the run never dispatched or asked, whatever the id names (`toString` included).
    */
   node(taskId: string): NodeRun | null;
+  /**
+   * **What a node of this run was HANDED, read by replaying the run so far to that node's composition** — `RN-R45`, W205,
+   * [ADR 0128](../../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md), P42
+   * decision 7: the root export {@link inputOf} over THIS run's own `driver.checkpoint()`, with the registry, `joinPolicy`
+   * and options this runtime built the run's driver with — one function, so a live answer and a stored one cannot differ.
+   * A task's answer is its dispatch's envelope `{ settings, input, transform? }`; an ask's, a gate's, a fanout's, a map's
+   * and an end's what reached it; a join's an arrival at an arriving branch's path or its collection at its opener's; a
+   * node id ALONE every path the run reached it on. A target not yet reached is `not-reached`.
+   *
+   * **Synchronous, O(the run's prefix), never cached**: each call copies the run's events (`checkpoint()`) and replays them
+   * on a driver of its own, deaf — nothing is appended to this run, nothing handed to a scheduler, no callback called, and
+   * no object of this run's reachable through an answer. Read it at a quiescent point (`RN-R12`); mid-step it reads the
+   * prefix appended so far. On a released run (`done` settled) it answers from what the run delivered. **BREAKING in
+   * 0.10.0 for code that BUILDS a `RunHandle`** (P42 decision 9) — a new member, as `state` was in 0.9.0.
+   */
+  inputOf(target: InputTarget): InputReading;
 }
 
 export interface Runtime {
@@ -910,6 +926,14 @@ export function createRuntime(
         },
       }
       : view;
+    // **What a reading of this run builds its driver from** (`RN-R45`): the registry and the three options below, each by
+    // the road this literal takes, and no callback.
+    const reading: InputOfOptions = {
+      ...registry,
+      joinPolicy: startOptions.joinPolicy ?? liveToken,
+      ...(options.defaultRetryPolicy !== undefined ? { defaultRetryPolicy: options.defaultRetryPolicy } : {}),
+      ...(options.validateBoundaries !== undefined ? { validateBoundaries: options.validateBoundaries } : {}),
+    };
     const driver = new Driver(flow, {
       runId,
       scheduler,
@@ -978,6 +1002,10 @@ export function createRuntime(
         const entry = acc.entry(taskId);
         return entry === undefined ? null : freezeDeep(entry);
       },
+      // **`RN-R45` — the reading, over this run's own events** (W205, P42 decision 7): the export, handed the options this
+      // function built the run's driver with — `registry`, its `joinPolicy`, and the two runtime-wide ones — so a reading
+      // builds the driver `start` built. The live driver is only READ (`checkpoint()`, a copy).
+      inputOf: (target) => inputOf(flow, reading, driver.checkpoint(), target),
     };
   }
 }

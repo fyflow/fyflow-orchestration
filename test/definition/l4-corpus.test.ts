@@ -425,6 +425,13 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W205 — P42 decisions 1-7, ADR 0128, `RN-R45`: what a node was handed, read by replaying the run to its composition —
+  // L2 in `test/driver/input-of.test.ts` (the corpus oracle and every kind by hand), its COST in
+  // `test/fold/input-of-cost.test.ts` (a sibling of map-cost), and the handle's reading in `test/scheduler/input-of.test.ts`;
+  // all three counted below.
+  'L2 — W205, RN-R45: what a node was HANDED, read by replaying the run to its composition — the corpus oracle on every rest and every resume, every kind by hand, every refusal, every halt read up to the halt, deaf',
+  'L1-L2 — W205, RN-R45: what a reading costs — the stored elements its replay consumes, EXACT at 2,000 and 8,000 items for the first and last instance of a map, a second observer, nothing held, the cut`s removal red',
+  'L1 — RN-R45, RN-R25: handle.inputOf — the export over the run`s own checkpoint at every quiescent point, on start, on resume and once released; the live run read and never reached',
   // W202 — P41 decisions 1-6, (f2), (g1), ADR 0126: a reference's value is one deep-frozen copy shared by every reader —
   // L2 in `test/driver/shared-reference.test.ts`, and its COST in `test/fold/reference-copy-cost.test.ts` (a sibling of
   // map-cost, P41's W202 row); both counted below. W202 also RENAMED W190's L2 suite: its *each its own copy* became
@@ -1013,6 +1020,17 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     equal(count('L1-L2 — W199: a reference read costs its answer — the index`s answer equal to the pre-W199 filter-and-sort at every read, corpus and constructed, one definition of visibility'), 10,
       'test/driver/reference-index.test.ts registers its ten: the key and the restated predicate, the corpus, a resume, a nested map, a sibling map, twelve items reversed and parked, a repeated settlement, a fanout in an instance, the alias and the copy, and the membership');
   });
+  // **W205's three suites, counted the same way and for the same reason.**
+  test('W205`s three suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — W205, RN-R45: what a node was HANDED, read by replaying the run to its composition — the corpus oracle on every rest and every resume, every kind by hand, every refusal, every halt read up to the halt, deaf'), 13,
+      'test/driver/input-of.test.ts registers its thirteen: the corpus oracle at every prefix, on every resume, a map and a gate, a join`s two answers, an ask and a resolution, unknown, not-reached, diverged, format and flow, every halt class, a cancelled and a stopped run, deafness, and the membership');
+    equal(count('L1-L2 — W205, RN-R45: what a reading costs — the stored elements its replay consumes, EXACT at 2,000 and 8,000 items for the first and last instance of a map, a second observer, nothing held, the cut`s removal red'), 5,
+      'test/fold/input-of-cost.test.ts registers its five: the subject, the second observer and the node id alone, nothing held, the cut removed, and the membership');
+    equal(count('L1 — RN-R45, RN-R25: handle.inputOf — the export over the run`s own checkpoint at every quiescent point, on start, on resume and once released; the live run read and never reached'), 4,
+      'test/scheduler/input-of.test.ts registers its four: every quiescent point, a resume and a release, the live run never reached, and the membership');
+  });
+
   // **W202's two suites, counted the same way and for the same reason.**
   test('W202`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
