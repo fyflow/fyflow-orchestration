@@ -30,6 +30,18 @@
  * the maintainer's own harness — `queue.shift()`, no `task.running` — at 529 / 1,993 / 15,475 ms and 178 / 468 /
  * 1,448 MB in node; the BEFORE below is this file's harness on the same tree, so its two columns compare.)*
  *
+ * **And two READING subjects since [W206](../doc/work-items/w206-the-exit-artifact-on-real-workers-the-reply-and-p42s-close.md)**,
+ * [P42](../doc/plans/p42-what-a-node-was-handed-asked-after-the-fact.md)'s exit artifact clause (2): the root `inputOf`
+ * (`RN-R45`, [ADR 0128](../doc/decisions/0128-what-a-node-was-handed-is-read-by-replaying-the-run-to-its-composition.md))
+ * asked what the FIRST and the LAST instance's `post` was handed, on the stored header and events of `one step back`'s
+ * completed run — ADR 0124 consequence 1's shape, built UNTIMED on the same double — at 2,000 / 8,000 / 16,000 items,
+ * each size a fresh process. Only the reading is timed — but in the process that ran the untimed build first, so its JIT is
+ * WARM: W206's conformity reader measured a reading alone in a cold process about 1.5x slower at 2,000 items and
+ * indistinguishable at 16,000. Its column headed WHOLE RUN is NOT a before: it is what ADR 0124
+ * consequence 1 measured for that WHOLE run live (68 / 223 / 442 ms node, 79 / 258 / 560 deno), the figure P42's exit
+ * clause (2) holds a reading beside — a replay stops at its target, so the last instance costs about the run's prefix.
+ * Their work is COUNTED in `test/fold/input-of-cost.test.ts` (`replay.reading.fed` and `.elements`).
+ *
  * ```bash
  * node examples/map-cost.ts
  * deno run --import-map=examples/deno-import-map.json --allow-read --allow-run --allow-env examples/map-cost.ts
@@ -62,7 +74,7 @@
  *   nothing either: the driver reads `attemptNumber`, an integer from 1 (P39 fact 6). The `running` column fires
  *   `{ id, state: 'running', attemptNumber: 1 }` before each settlement, so an `attempted` element is appended per task.
  */
-import { Driver, fold, liveToken, type FlowDefinition, type FoldInput, type JoinPolicy } from '../index.ts';
+import { Driver, fold, inputOf, liveToken, type FlowDefinition, type FoldInput, type JoinPolicy } from '../index.ts';
 import { createRuntime } from '../src/scheduler/index.ts';
 
 const g = globalThis as unknown as {
@@ -80,12 +92,15 @@ const REF_SIZES = [2_000, 8_000, 16_000];
 const LARGE_SIZES = [1_000, 2_000, 4_000];
 type RefShape = 'one step back' | 'two steps back' | 'nested map' | 'sibling map';
 type LargeShape = 'large read' | 'large read, small node';
-type Subject = 'fold' | 'driver' | 'running' | 'runtime' | RefShape | LargeShape;
+type ReadShape = 'reading, first instance' | 'reading, last instance';
+type Subject = 'fold' | 'driver' | 'running' | 'runtime' | RefShape | LargeShape | ReadShape;
 const REF_SHAPES: readonly RefShape[] = ['one step back', 'two steps back', 'nested map', 'sibling map'];
 const LARGE_SHAPES: readonly LargeShape[] = ['large read', 'large read, small node'];
-const SUBJECTS: readonly Subject[] = ['fold', 'driver', 'running', 'runtime', ...REF_SHAPES, ...LARGE_SHAPES];
+const READ_SHAPES: readonly ReadShape[] = ['reading, first instance', 'reading, last instance'];
+const SUBJECTS: readonly Subject[] = ['fold', 'driver', 'running', 'runtime', ...REF_SHAPES, ...LARGE_SHAPES, ...READ_SHAPES];
 const isRef = (s: Subject): s is RefShape => (REF_SHAPES as readonly string[]).includes(s);
 const isLarge = (s: Subject): s is LargeShape => (LARGE_SHAPES as readonly string[]).includes(s);
+const isRead = (s: Subject): s is ReadShape => (READ_SHAPES as readonly string[]).includes(s);
 
 /**
  * **What was measured BEFORE the plan, by size** — node 24.20.0, each from the document named (the large-read rows from
@@ -109,6 +124,10 @@ const BEFORE: Record<Subject, Record<number, number>> = {
   // node 24.20.0: ms here, and the peak heap over baseline in `BEFORE_MB`.
   'large read': { 1_000: 543, 2_000: 1_949, 4_000: 7_936 },
   'large read, small node': { 1_000: 62, 2_000: 73, 4_000: 118 },
+  // **NOT a before — ADR 0124 consequence 1's WHOLE run of `one step back`, live** (P42 exit clause (2)'s comparison): a
+  // reading replays the run's prefix up to its target, so the whole run is what the last instance is held beside.
+  'reading, first instance': { 2_000: 68, 8_000: 223, 16_000: 442 },
+  'reading, last instance': { 2_000: 68, 8_000: 223, 16_000: 442 },
 };
 /** The same re-takes in deno 2.9.6 — printed for the reference and the large-read subjects when this file runs under deno. */
 const BEFORE_DENO: Partial<Record<Subject, Record<number, number>>> = {
@@ -118,6 +137,8 @@ const BEFORE_DENO: Partial<Record<Subject, Record<number, number>>> = {
   'sibling map': { 2_000: 59, 8_000: 206 },
   'large read': { 1_000: 836, 2_000: 2_116, 4_000: 8_383 },
   'large read, small node': { 1_000: 33, 2_000: 55, 4_000: 98 },
+  'reading, first instance': { 2_000: 79, 8_000: 258, 16_000: 560 },
+  'reading, last instance': { 2_000: 79, 8_000: 258, 16_000: 560 },
 };
 /** The large-read subjects' peak heap over baseline BEFORE, in MB — node 24.20.0 and deno 2.9.6, on `88059b7`. */
 const BEFORE_MB: Record<'node' | 'deno', Record<LargeShape, Record<number, number>>> = {
@@ -221,7 +242,7 @@ async function runtimeRun(items: number): Promise<{ ms: number; inputs: number }
  * counts: an `ingest` task hands the map its items; `task.running` (attemptNumber 1) before every settlement; the queue
  * walked by index. `ms` from `start` to the last settlement.
  */
-function refRun(shape: RefShape, items: number): { ms: number; inputs: number } {
+function refRun(shape: RefShape, items: number): { ms: number; inputs: number; flow: FlowDefinition; driver: Driver } {
   const task = (id: string, to: string, extra: Record<string, unknown> = {}) => ({ id, kind: 'task', type: 'Work', ...extra, edges: [{ to }] });
   const end = [{ id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }];
   const nodes = shape === 'sibling map'
@@ -267,7 +288,8 @@ function refRun(shape: RefShape, items: number): { ms: number; inputs: number } 
   const queue: string[] = [];
   const fire = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
   const failures: string[] = [];
-  const driver = new Driver({ flowId: 'big-map', version: 1, entry: 'ingest', nodes } as unknown as FlowDefinition, {
+  const flow = { flowId: 'big-map', version: 1, entry: 'ingest', nodes } as unknown as FlowDefinition;
+  const driver = new Driver(flow, {
     runId: 'r1',
     scheduler: {
       addTask(task: unknown) { queue.push((task as { id: string }).id); },
@@ -295,7 +317,32 @@ function refRun(shape: RefShape, items: number): { ms: number; inputs: number } 
   const inputs = driver.foldInputs() as FoldInput[];
   // Outside the timed span: the run COMPLETED, so every read the shape makes was made.
   if (fold(inputs).outcome !== 'completed') throw new Error(`${shape} at ${items} items: the run did not complete`);
-  return { ms, inputs: inputs.length };
+  return { ms, inputs: inputs.length, flow, driver };
+}
+
+/**
+ * **What a READING costs** — W206, P42 exit clause (2): `one step back`'s run built to completion on the double, UNTIMED,
+ * and its header and events copied as a store keeps them (through JSON); then `inputOf` over them, asked what the FIRST
+ * or the LAST instance's `post` was handed, which is the ONLY thing timed. Its options are the ones the run's driver was
+ * built from. The answer is checked against the stored `work` result it must hold, outside the span, so a refusal is a
+ * crash and never a fast number.
+ */
+function readingRun(last: boolean, items: number): { ms: number; inputs: number } {
+  const built = refRun('one step back', items);
+  const stored = JSON.parse(JSON.stringify(built.driver.checkpoint())) as ReturnType<Driver['checkpoint']>;
+  const routing = { predicates: new Map(), workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } }, joinPolicy: liveToken as JoinPolicy };
+  const i = last ? items - 1 : 0;
+  const t0 = performance.now();
+  const answer = inputOf(built.flow, routing, stored, { taskId: `r1:post:${i}:0` });
+  const ms = performance.now() - t0;
+  // Outside the timed span: ONE envelope, its `w` the stored result of `work` at the same instance.
+  const stamped = stored.events.find((e) => e.kind === 'outcome' && e.record.taskId === `r1:work:${i}:0`);
+  const w = answer.ok ? (answer.inputs[0]?.value as { input?: { w?: unknown } } | undefined)?.input?.w : undefined;
+  if (!answer.ok || answer.inputs.length !== 1 || stamped === undefined || stamped.kind !== 'outcome' ||
+    JSON.stringify(w) !== JSON.stringify(stamped.record.result)) {
+    throw new Error(`reading at ${items} items: post@${i} was not answered with work@${i}'s result — ${JSON.stringify(answer).slice(0, 200)}`);
+  }
+  return { ms, inputs: stored.events.length };
 }
 
 /** The heap in use now — node's `process.memoryUsage()` or deno's `Deno.memoryUsage()`. */
@@ -369,7 +416,11 @@ function largeRun(small: boolean, items: number): { ms: number; inputs: number; 
 /** ONE subject at ONE size, in THIS process — what a child prints, as one JSON line. */
 async function one(subject: Subject, items: number): Promise<{ subject: Subject; items: number; inputs: number; ms: number; mb?: number }> {
   if (isLarge(subject)) return { subject, items, ...largeRun(subject === 'large read, small node', items) };
-  if (isRef(subject)) return { subject, items, ...refRun(subject, items) };
+  if (isRead(subject)) return { subject, items, ...readingRun(subject === 'reading, last instance', items) };
+  if (isRef(subject)) {
+    const { ms, inputs } = refRun(subject, items);
+    return { subject, items, ms, inputs };
+  }
   if (subject === 'runtime') return { subject, items, ...(await runtimeRun(items)) };
   const d = driverRun(items, subject === 'running');
   if (subject !== 'fold') return { subject, items, inputs: d.inputs.length, ms: d.ms };
@@ -411,12 +462,12 @@ if (args[0] === '--one') {
     ` for a needs read inside a map ${g.Deno ? 'deno 2.9.6' : 'node 24.20.0'} on the tree before ADR 0124's index (6006caa),` +
     ` and for a large read the same runtime on the tree before ADR 0126's shared copy (88059b7)\n`);
   for (const subject of only) {
-    console.log(`  ${subject === 'fold' ? 'fold' : subject === 'driver' ? 'driver, no task.running' : subject === 'running' ? 'driver, task.running (attemptNumber 1) before each settlement' : subject === 'runtime' ? 'runtime, start to done, outcome() after every input' : subject === 'large read' ? 'driver, fetch-then-map: each instance reads the ~100 KB fetch result, task.running before each settlement — time and peak heap' : subject === 'large read, small node' ? 'driver, the same flow reading a SMALL node, task.running before each settlement — time and peak heap' : `driver, a needs read inside a map: ${subject}, task.running before each settlement`}`);
+    console.log(`  ${subject === 'fold' ? 'fold' : subject === 'driver' ? 'driver, no task.running' : subject === 'running' ? 'driver, task.running (attemptNumber 1) before each settlement' : subject === 'runtime' ? 'runtime, start to done, outcome() after every input' : subject === 'large read' ? 'driver, fetch-then-map: each instance reads the ~100 KB fetch result, task.running before each settlement — time and peak heap' : subject === 'large read, small node' ? 'driver, the same flow reading a SMALL node, task.running before each settlement — time and peak heap' : isRead(subject) ? `inputOf over one step back's stored run, the ${subject === 'reading, last instance' ? 'LAST' : 'FIRST'} instance's post — the reading alone, in a JIT-warm process; WHOLE RUN is ADR 0124's whole run live, not a before` : `driver, a needs read inside a map: ${subject}, task.running before each settlement`}`);
     const large = isLarge(subject);
-    console.log(`    ${'items'.padStart(7)}  ${'inputs'.padStart(7)}  ${'BEFORE'.padStart(11)}  ${'now'.padStart(9)}${large ? `  ${'BEFORE MB'.padStart(9)}  ${'now MB'.padStart(7)}` : ''}`);
-    const before = (isRef(subject) || large) && g.Deno ? BEFORE_DENO[subject]! : BEFORE[subject];
+    console.log(`    ${'items'.padStart(7)}  ${'inputs'.padStart(7)}  ${(isRead(subject) ? 'WHOLE RUN' : 'BEFORE').padStart(11)}  ${'now'.padStart(9)}${large ? `  ${'BEFORE MB'.padStart(9)}  ${'now MB'.padStart(7)}` : ''}`);
+    const before = (isRef(subject) || large || isRead(subject)) && g.Deno ? BEFORE_DENO[subject]! : BEFORE[subject];
     const mb = (v: number | undefined) => (v === undefined ? '—' : `${Math.round(v)} MB`);
-    for (const items of large ? LARGE_SIZES : isRef(subject) ? REF_SIZES : SIZES) {
+    for (const items of large ? LARGE_SIZES : isRef(subject) || isRead(subject) ? REF_SIZES : SIZES) {
       const r = await child(subject, items);
       const mbText = isLarge(subject) ? `  ${mb(BEFORE_MB[g.Deno ? 'deno' : 'node'][subject][items]).padStart(9)}  ${mb(r.mb).padStart(7)}` : '';
       console.log(`    ${items.toLocaleString('en-US').padStart(7)}  ${String(r.inputs).padStart(7)}  ${fmt(before[items]).padStart(11)}  ${fmt(r.ms).padStart(9)}${mbText}`);
