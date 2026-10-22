@@ -90,6 +90,7 @@
  * | **W188 — whose task it is, and what survives a resume** | **P36's EXIT ARTIFACT: a task's attribution and its attempts on real workers in both runtimes.** (1) Two runs of one fan-out on ONE runtime — a task on a THREADED pool and one INLINE, each emitting three lines per attempt, one run's tasks failing their first attempt — each run's `onTaskMessage` receiving every message of its own tasks with `runId`, `nodeId`, `branchPath`, `taskId`, `flowAttempt` and the scheduler's `attemptNumber` as FIELDS, frozen, in `seq` order per attempt, the retried attempt's under number 2, and nothing of the other run's; its `onTaskProgress` the same. (2) Each fold's `nodes` entry carrying its run, flow-level attempt `0` and the attempts the scheduler MADE — 2 against 1, read off the scheduler's task, its `task.running` events and the worker's own count. (3) `onHeader` called once inside `start()` before anything is appended or handed on, a frozen header equal to the handle's — and a throwing one starting nothing. (4) A task of `maxRetries: 2` whose worker always fails, the consumer's store frozen in its SECOND attempt and resumed on a FRESH runtime: handed `attemptsSpent: 2`, run once — THREE calls across both processes, where the same checkpoint less its attempt elements makes FIVE. (5) A run STOPPED in an attempt and resumed elsewhere counting that attempt as spent. (6) A task whose budget was spent at the kill handed on, run once and folded from the scheduler's own settlement. Its registry is written in the block, not `registry.json` |
  * | **W192 — what reached the RUN, and what opened the MAP INSTANCE** | **P38's EXIT ARTIFACT: the `"$payload"` and `"$item"` references on real workers in both runtimes.** (1) An ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice: "$payload", answer: "approve" }` — the run's payload beside the person's answer — and an edge routing on `needs.run.amount` from `needs: { run: "$payload" }`, 120 to `audit` and 50 past it. (2) An ENTRY map of three whose branch is an ask, each `pay` on an INLINE pool receiving its OWN item beside its OWN answer, answered out of order, `audit` reading the item two hops in. (3) The copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on one node and on one edge — the caller's, an inline worker's and a predicate's writes reaching nothing else. (4) That map STOPPED with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the header's five keys at format 1, no new kind. (5) `"$item"` after the map's join refused `FD-V49` naming both fixes. (6) The release horizon: a fanout in a fanout in each instance, inner joins fired at their FIRST arrival by a consumer's policy, the reader entered after its instance arrived — each reading its own item. Its registry is written in the block, not `registry.json`; and the reference censuses read its flows, so `NOT_YET_AT_L6` is gone |
  * | **W197 — a run's live state on its handle** | **P39's EXIT ARTIFACT clause (3): `RunHandle.state()` on real workers in both runtimes.** Per pool, THREADED and INLINE: (1) a `map` of five items whose `state()`, read on a microtask after EVERY delivered input, is the public `fold` of the delivered prefix key order included, frozen at every depth, and a consumer's write to it — its `outcome`, a NESTED field of a result — throws and moves nothing; at `done`, `await done` IS `state()`, equal to `fold(driver.foldInputs())`, each result the worker's, still that object a macrotask on. (2) The same `map` STOPPED with two items settled and two holding, RESUMED on a FRESH runtime: the first read after `resume()` already folds the STORED events (`RN-R22` makes it the first quiescent point), every later read the fold of the stored and delivered inputs, and `done` the same object, completed. Never paused, so `RN-R44`'s one exception — an unpause after a run finished while paused — is not reached. Its registry is written in the block, not `registry.json` |
+ * | **W200 — a reference read inside a map** | **P40's EXIT ARTIFACT clause (3): ADR 0124's index on real workers in both runtimes.** Per pool, THREADED and INLINE, one run of a `map` of TWELVE items (`10` and `11` beside `1`) whose branch is `work` → `mid` → `post`, `post` opening an inner map of two, and after the join a SIBLING map of three slots. Every reader's composed payload — what its worker was handed — is ADR 0044's predicate (`outputIsVisible`) applied to the run's OWN outputs in branch-path order, and the value derived by hand from the worker's source, for four shapes, each its own claim: `post` reading `work` (two steps back) and `mid` (one step back), the inner `tail` reading `work` (depth 1) and `leaf` (depth 2), and the sibling's `publish` reading `["post"]` and `["work"]` (every output; `work` thereby read at two depths). Each claim's CONTROL on the same observer: another instance's selection, or the string order, differs from every payload; and each payload has exactly the keys its `needs` declares. The predicate route moves with the shared key function since W199; the hand route is the independent one. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -112,6 +113,9 @@ import {
   buildTaskId,
   parseTaskId,
   sharedRegionDepth,
+  // **W200, P40's EXIT ARTIFACT**: ADR 0044's predicate itself — the definition the driver's index must agree with — so the
+  // block reads what every reader may see of the run's own outputs the way a consumer would, through the package ROOT.
+  outputIsVisible,
   // **W86**: `UnresolvedBranchPath` is `ID-R6`'s own class, and the clause that reads it names the
   // class rather than catching everything — see its comment.
   UnresolvedBranchPath,
@@ -5972,6 +5976,18 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W200**: P40's exit-artifact block — ten subjects, five per pool: the run completed, and one per shape — two steps
+  // back, one step back, a nested map's inner reader, a sibling map's `all` reader.
+  'W200 exit (threaded): the run completes',
+  'W200 exit (threaded): TWO steps back',
+  'W200 exit (threaded): ONE step back',
+  'W200 exit (threaded): a NESTED map\'s inner reader',
+  'W200 exit (threaded): a SIBLING map\'s all reader',
+  'W200 exit (inline): the run completes',
+  'W200 exit (inline): TWO steps back',
+  'W200 exit (inline): ONE step back',
+  'W200 exit (inline): a NESTED map\'s inner reader',
+  'W200 exit (inline): a SIBLING map\'s all reader',
   // **W197**: P39's exit-artifact block — sixteen subjects, eight per pool: (1) four over the run to the end — every
   // quiescent read the fold, frozen, a write refused, `done` the same object; (2) four over the stopped run and its
   // resume — the stop, the first read after `resume()`, every later read, `done` on the fresh runtime.
@@ -12794,6 +12810,219 @@ if (lsBlock !== null) {
   }
 }
 
+/**
+ * **W200 — a reference read inside a map, on real workers in both runtimes: P40's EXIT ARTIFACT clause (3)** —
+ * [W200](../doc/work-items/w200-the-exit-artifact-on-real-workers-and-the-reply.md),
+ * [P40](../doc/plans/p40-what-a-reference-read-costs-inside-a-map.md),
+ * [ADR 0124](../doc/decisions/0124-a-reference-read-costs-its-answer.md) — fyflow-app's *pass 2 follow-up*.
+ *
+ * ADR 0124 made a `needs` read inside a map take its answer from an index — a node's outputs grouped by the prefix its
+ * readers share — instead of filtering every output the named node had produced. **This block holds, on real workers,
+ * that what every reader is HANDED is still what ADR 0044's predicate selects**: the predicate (`outputIsVisible`, through
+ * the package ROOT, as a consumer would call it) applied to the run's OWN outputs — its outcome records, read off
+ * `driver.foldInputs()` — and sorted segment-wise (`compareBranchPaths`' order, ADR 0037). The predicate is the
+ * DEFINITION (ADR 0044 rule 2); the index is not read here at all. **But the predicate route is NOT independent of the
+ * code under test** (W200's conformity reader, finding 1): since W199 `outputIsVisible` is RESTATED through
+ * `visibilityKey` and `sharedRegionDepth`, the functions the index keys on, so a defect in either moves this oracle and
+ * the payload TOGETHER — measured: a key cut by characters instead of segments left every predicate list `[]`. **What
+ * holds the two-digit segment, and every shared-key defect, is the HAND route below**, which reads no `src/` function;
+ * the predicate route holds the index against the definition (a predicate always true is red there alone).
+ *
+ * **One flow per pool, THREADED and INLINE**, its registry written here with ONE `data:` worker that returns
+ * `{ role, got }` — `got` the input it was handed, so a reader's result IS its composed payload. A `map` of TWELVE items
+ * (ADR 0044 rule 3's two-digit segment: `10` and `11` beside `1`) whose branch is `work` → `mid` → `post`; `post` opens an
+ * INNER map of two (`leaf` → `tail`); after the outer join a SIBLING map of THREE slots runs `publish`. **Four shapes,
+ * each its own claim:**
+ * - **two steps back** — `post` reads `work` by id (`"work"`, depth 1): `"."` cannot reach it (P40 fact 6);
+ * - **one step back** — `post` reads `mid` by id (`"mid"`, depth 1), the app's own case;
+ * - **a NESTED map's inner reader** — `tail` reads `work` (the OUTER instance's, depth 1) and `leaf` (its own INNER
+ *   instance's, depth 2);
+ * - **a SIBLING map's `all` reader** — `publish` reads `["post"]` and `["work"]` (depth 0, `FD-V28` forces the list form): every output,
+ *   in branch-path order.
+ *
+ * **Each claim carries its own CONTROL on the same observer** (P40's brief: *a claim of ABSENCE is shown able to fail*):
+ * the predicate's selection for a WRONG reader path — the next outer instance, the other inner instance — must differ
+ * from EVERY payload compared, and for the sibling the same visible set in STRING order (`10` before `2`) must differ
+ * too; so a reader handed another instance's answer, or the right answer in the wrong order, could not pass as equal.
+ * **And each payload is compared a second time to the value derived BY HAND from `RX_WORK`'s source** — a second route
+ * that reads no `src/` function.
+ *
+ * **No order across tasks is asserted**: the selection is computed from the run's outputs whatever order they settled in.
+ */
+const RX_DEADLINE_MS = 30_000;
+const RX_ITEMS = 12;
+// `RxWork`: returns `{ role, got }` — its node's `settings.role` and the input it was handed — and, where its settings ask,
+// the list the next map runs over: `items` (`ingest`), `sub` (`post`, two inner items carrying the outer item) and `slots`
+// (`regroup`, three).
+const RX_WORK = 'export default class { async setup() {} run(p) { const s = p.settings || {}; const out = { role: s.role, got: p.input }; ' +
+  'if (s.items) out.items = Array.from({ length: s.items }, (_, i) => ({ i })); ' +
+  'if (s.sub) out.sub = [0, 1].map((j) => ({ j, of: p.input.w.got.i })); ' +
+  'if (s.slots) out.slots = [0, 1, 2].map((k) => ({ k })); ' +
+  'return out; } }';
+const rxDoc = () => ({
+  workers: { rxWork: { url: rcUrl(RX_WORK) } },
+  nodeTypes: {
+    RxThreaded: { worker: 'rxWork', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    RxInline: { worker: 'rxWork', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+const rxFlow = (pool: 'threaded' | 'inline') => {
+  const type = pool === 'threaded' ? 'RxThreaded' : 'RxInline';
+  const task = (id: string, to: string, extra: Record<string, unknown> = {}) =>
+    ({ id, kind: 'task', type, settings: { role: id }, ...extra, edges: [{ to }] });
+  return {
+    flowId: `w200-reference-${pool}`, version: 1, entry: 'ingest',
+    nodes: [
+      task('ingest', 'each', { settings: { role: 'ingest', items: RX_ITEMS } }),
+      { id: 'each', kind: 'map', over: 'items', branch: 'work' },
+      task('work', 'mid'),
+      task('mid', 'post'),
+      task('post', 'inner', { settings: { role: 'post', sub: true }, needs: { w: 'work', m: 'mid' } }),
+      { id: 'inner', kind: 'map', over: 'sub', branch: 'leaf' },
+      task('leaf', 'tail'),
+      task('tail', 'innerJoin', { needs: { o: 'work', l: 'leaf' } }),
+      { id: 'innerJoin', kind: 'join', of: 'inner', edges: [{ to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'regroup' }] },
+      task('regroup', 'rank', { settings: { role: 'regroup', slots: true } }),
+      { id: 'rank', kind: 'map', over: 'slots', branch: 'publish' },
+      // `every`: a SECOND read of `work`, at depth 0 where `post` and `tail` read it at depth 1 — so one target is asked at
+      // two depths, and a shared depth remembered per TARGET rather than per (reader, target) is wrong here (W200's adequacy
+      // reader, NIT 2).
+      task('publish', 'gather', { needs: { scored: ['post'], every: ['work'] } }),
+      { id: 'gather', kind: 'join', of: 'rank', edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+/** The run's tasks, by hand: `ingest`, twelve each of `work`, `mid` and `post`, 24 `leaf` and 24 `tail`, `regroup`, three `publish`. */
+const RX_TASKS = 1 + 3 * RX_ITEMS + 4 * RX_ITEMS + 1 + 3;
+/** What `RxWork` returns, BY HAND from its source, for `work`, `mid`, `post` and `leaf` at outer item `i` (inner `j`). */
+const rxW = (i: number) => ({ role: 'work', got: { i } });
+const rxM = (i: number) => ({ role: 'mid', got: rxW(i) });
+const rxP = (i: number) => ({ role: 'post', got: { w: rxW(i), m: rxM(i) }, sub: [0, 1].map((j) => ({ j, of: i })) });
+const rxL = (i: number, j: number) => ({ role: 'leaf', got: { j, of: i } });
+/** Segment-wise NUMERIC, a missing segment first — `compareBranchPaths`' order (ADR 0044 rule 3, ADR 0037), written here. */
+const rxBySegments = (a: string, b: string): number => {
+  const x = a.split('.').map(Number);
+  const y = b.split('.').map(Number);
+  for (let k = 0; k < Math.max(x.length, y.length); k += 1) {
+    if (x[k] === undefined) return -1;
+    if (y[k] === undefined) return 1;
+    if (x[k] !== y[k]) return x[k]! - y[k]!;
+  }
+  return 0;
+};
+let rxBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  const rxClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W200 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    const flow = rxFlow(pool);
+    await rxClause(pool, async () => {
+      const rt = createRuntime(rxDoc() as never, {});
+      try {
+        const runId = `w200r${pool[0]}`;
+        const h = rt.start(flow, {}, { runId });
+        runs.push(`${flow.flowId} ${runId}`);
+        const won = await settleWithin(h.done, RX_DEADLINE_MS);
+        if (won.by !== 'done') throw new Error(`W200: ${runId} never settled within ${RX_DEADLINE_MS} ms`);
+        // **The run's OWN outputs** — every `done` outcome record, by node, as `{ path, result }`.
+        const outcomes = h.driver.foldInputs().flatMap((i) => (i.kind === 'outcome' && i.record.kind === 'outcome' ? [i.record] : []));
+        const outputs = new Map<string, { path: string; result: unknown }[]>();
+        for (const rec of outcomes) {
+          if (rec.terminalState !== 'done') continue;
+          const { nodeId, branchPath } = parseTaskId(rec.taskId);
+          outputs.set(nodeId, [...(outputs.get(nodeId) ?? []), { path: branchPath, result: rec.result }]);
+        }
+        const regions = allRegions(buildGraph(flow), flow);
+        /** ADR 0044's predicate over the run's own outputs, in branch-path order: what `reader` at `path` may see of `target`. */
+        const select = (reader: string, path: string, target: string, order = rxBySegments) =>
+          (outputs.get(target) ?? []).filter((e) => outputIsVisible(regions, reader, path, target, e.path))
+            .sort((x, y) => order(x.path, y.path)).map((e) => e.result);
+        const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+        /** One claim's tally: payloads unequal to the predicate's selection, unequal to the hand value, compared, and those the CONTROL told apart. */
+        const tally = () => ({ predicate: [] as string[], hand: [] as string[], compared: 0, controlled: 0, keys: [] as string[] });
+        const record = (t: ReturnType<typeof tally>, at: string, got: unknown, selected: unknown, hand: unknown, control: unknown) => {
+          t.compared += 1;
+          if (!same(got, selected)) t.predicate.push(at);
+          if (!same(got, hand)) t.hand.push(at);
+          if (!same(got, control)) t.controlled += 1;
+        };
+        // **The WHOLE payload, not its keys one by one** (both readers: W200's conformity NIT 2, adequacy NIT 1): a reader's
+        // composed object has EXACTLY the keys its `needs` declares, in declaration order — a stray key fails its shape.
+        const exactKeys = (t: ReturnType<typeof tally>, at: string, got: unknown, declared: string[]) => {
+          if (!same(Object.keys(got as object), declared)) t.keys.push(at);
+        };
+        const two = tally();
+        const one = tally();
+        const nested = tally();
+        const sibling = tally();
+        for (const e of outputs.get('post') ?? []) {
+          const i = Number(e.path);
+          const got = (e.result as { got: { w: unknown; m: unknown } }).got;
+          const next = String((i + 1) % RX_ITEMS);
+          record(two, `post@${e.path}`, got.w, select('post', e.path, 'work')[0], rxW(i), select('post', next, 'work')[0]);
+          record(one, `post@${e.path}`, got.m, select('post', e.path, 'mid')[0], rxM(i), select('post', next, 'mid')[0]);
+          exactKeys(two, `post@${e.path}`, got, ['w', 'm']);
+          exactKeys(one, `post@${e.path}`, got, ['w', 'm']);
+        }
+        for (const e of outputs.get('tail') ?? []) {
+          const [i, j] = e.path.split('.').map(Number) as [number, number];
+          const got = (e.result as { got: { o: unknown; l: unknown } }).got;
+          record(nested, `tail@${e.path}.o`, got.o, select('tail', e.path, 'work')[0], rxW(i), select('tail', `${(i + 1) % RX_ITEMS}.${j}`, 'work')[0]);
+          record(nested, `tail@${e.path}.l`, got.l, select('tail', e.path, 'leaf')[0], rxL(i, j), select('tail', `${i}.${1 - j}`, 'leaf')[0]);
+          exactKeys(nested, `tail@${e.path}`, got, ['o', 'l']);
+        }
+        const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+        for (const e of outputs.get('publish') ?? []) {
+          const got = (e.result as { got: { scored: unknown; every: unknown } }).got;
+          // The CONTROL: the same visible set in STRING order — `10` and `11` before `2` (ADR 0044 rule 3).
+          record(sibling, `publish@${e.path}.scored`, got.scored, select('publish', e.path, 'post'),
+            Array.from({ length: RX_ITEMS }, (_, i) => rxP(i)), select('publish', e.path, 'post', byString));
+          record(sibling, `publish@${e.path}.every`, got.every, select('publish', e.path, 'work'),
+            Array.from({ length: RX_ITEMS }, (_, i) => rxW(i)), select('publish', e.path, 'work', byString));
+          exactKeys(sibling, `publish@${e.path}`, got, ['scored', 'every']);
+        }
+        const end = won.value;
+        r[`run${pool}`] = [end.outcome, outcomes.filter((o) => o.terminalState === 'done').length, outcomes.length];
+        for (const [k, t] of [['two', two], ['one', one], ['nested', nested], ['sibling', sibling]] as const) {
+          r[`${k}${pool}`] = [t.predicate, t.hand, t.compared, t.controlled, t.keys];
+        }
+      } finally {
+        await rt.shutdown();
+      }
+    });
+  }
+  rxBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W200 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (rxBlock !== null) {
+  const key = 'cross-row';
+  const r = rxBlock.r;
+  for (const pool of ['threaded', 'inline'] as const) {
+    // Each tuple: [payloads unequal to ADR 0044's selection, unequal to the hand value, compared, told apart by the control, payloads whose keys are not exactly the declared needs].
+    check(key, `W200 exit (${pool}): the run completes, every one of its ${RX_TASKS} tasks done`, r[`run${pool}`], ['completed', RX_TASKS, RX_TASKS]);
+    check(key, `W200 exit (${pool}): TWO steps back — post's "work" at every one of ${RX_ITEMS} instances is ADR 0044's selection over the run's own ` +
+      'outputs and the worker`s by hand; the next instance`s selection differs from every one (ADR 0124)', r[`two${pool}`], [[], [], RX_ITEMS, RX_ITEMS, []]);
+    check(key, `W200 exit (${pool}): ONE step back — post's "mid" at every one of ${RX_ITEMS} instances is ADR 0044's selection over the run's own ` +
+      'outputs and the worker`s by hand; the next instance`s selection differs from every one (ADR 0124)', r[`one${pool}`], [[], [], RX_ITEMS, RX_ITEMS, []]);
+    check(key, `W200 exit (${pool}): a NESTED map's inner reader — tail's "work" (depth 1) and "leaf" (depth 2) at all ${2 * RX_ITEMS} inner instances ` +
+      'are ADR 0044`s selection and the worker`s by hand; the other outer and the other inner instance differ (ADR 0124)', r[`nested${pool}`],
+    [[], [], 4 * RX_ITEMS, 4 * RX_ITEMS, []]);
+    check(key, `W200 exit (${pool}): a SIBLING map's all reader — publish's ["post"] and ["work"] at each of 3 slots are EVERY output in branch-path order, ` +
+      'ADR 0044`s selection and the worker`s by hand; the string order differs (FD-V28, ADR 0044 rule 3)', r[`sibling${pool}`], [[], [], 6, 6, []]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -12828,7 +13057,8 @@ if (lsBlock !== null) {
 // readers, A1); (6) the deep run. (5)'s refused start builds no driver and is not a run.
 // **And `+ lsBlock.runs.length` since W197**: its SIX runs — per pool, threaded and inline, (1) the run to the end, and (2)
 // the run stopped on A and its resume on a fresh B.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0);
+// **And `+ rxBlock.runs.length` since W200**: its TWO runs — the reference-read flow on a threaded pool and on an inline one.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -13174,7 +13404,10 @@ const PER_PLAIN_ROW = 22;
 // and inline, four over the run read to its end (every quiescent read the fold, frozen, a write refused, `done` the same
 // object) and four over the stopped run and its resume (the stop, the first read after `resume()`, every later read, `done`
 // on the fresh runtime) — all cross-row because the block is outside the row loop. 456 + 16 = 472.
-const CROSS_ROW = 472;
+// **472 at W197, +10 by W200 — P40's EXIT ARTIFACT clause (3)**: the reference-read block's ten clauses — per pool, threaded
+// and inline, the run completed and one per shape (two steps back, one step back, a nested map's inner reader, a sibling
+// map's `all` reader) — all cross-row because the block is outside the row loop. 472 + 10 = 482.
+const CROSS_ROW = 482;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -15400,14 +15633,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // before the file was re-run.)*
 // **2805 / 228 since W197 — P39's EXIT ARTIFACT clause (3), +16 and six runs**, DERIVED: the live-state block's sixteen
 // cross-row assertions (`CROSS_ROW` 456 -> 472) over its six runs. No row moved (P39 prediction 6).
-const DECLARED_TOTAL = 2805;
+// **2815 / 230 since W200 — P40's EXIT ARTIFACT clause (3), +10 and two runs**, DERIVED at the declaration: the
+// reference-read block's ten cross-row assertions (`CROSS_ROW` 472 -> 482) over its two runs. No row moved (P40
+// prediction 6).
+const DECLARED_TOTAL = 2815;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 228;
+const DECLARED_RUNS = 230;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
