@@ -88,7 +88,7 @@
  * | **W176 — a run its owner CANCELS, STOPS and PAUSES** | **P34's EXIT ARTIFACT: run control, every call the owner's, on real workers in both runtimes.** (1) A fan-out cancelled through `driver.cancel` while two tasks RUN on one threaded pool — one honouring its signal, one not — and a third waits behind a held group: the fold reads `cancelling` from the request on, nothing is dispatched or routed after it, a second cancel at `graceMs: 0` appends nothing and stops the ignoring task before its own end (never asserting `forced` — S12), `done` settles `cancelled` after the LAST `task.cancelled`, equal to the caller's fold, and a resume of the checkpoint is refused `cancelled` at the request. (2) A run STOPPED through `RunHandle.stop` while two tasks run and a third waits behind a held group, a sibling on the same runtime running on to `completed`: the log ends at `interrupted` with nothing settled, `done` settles after the stop's cancels, the old runtime refuses the resume, and a FRESH one re-dispatches exactly the in-flight ids to `completed`. (3) A PARKED run stopped — `resolve()` refused there, accepted on the runtime that resumes it. (4) A fan-out PAUSED at once — its running tasks finish, their successors are dispatched and held, nothing reaches the scheduler — and UNPAUSED, the held tasks handed on in dispatch order, to `completed`. (5) A cancel PRE-PICKUP on a cold thread and one in a retry BACKOFF, each folding as P34 fact 8 says — through the scheduler's own `cancel(id)` and through `driver.cancel`. (6) Q633's transforming ENTRY: `tryTransform` first gives each payload its verdict, and `start` holds neither (ADR 0101) — the untransformed entry is still held, the control. (7) A built-in `KeyedRateLimitGroup` held resident refused by `createRuntime` naming the pool and the group. Its registries are written in the block, not `registry.json` |
  * | **W182 — a node that waits for a PERSON** | **P35's EXIT ARTIFACT: the `ask` node kind on real workers in both runtimes.** (1) An ask reached after a task on a THREADED pool PARKS with nothing handed to the scheduler — its id in no `addTask`, no `scheduler.tasks`, no event — the fold reading the run `awaiting_action` and the node `suspended`, its kept input exactly the value the task returned. (2) A `done` answer its `answerSchema` refuses is THROWN as `BoundaryRefused` with nothing appended, and the conforming one on the SAME driver routes by a `when` over the answer — to one end in one run and the other in a second. (3) A decline routes `on: ["failed"]`. (4) An ask as a fan-out's branch holds the join — answered after its sibling arrived, the join fires AT the answer; answered while the sibling still runs, at the sibling's settlement. (5) A parked run STOPPED on one runtime and resumed on a FRESH one re-parks at the same id with the same kept input, nothing handed for it, and is answered there to `completed`. (6) A parked run CANCELLED sends the scheduler nothing and settles `cancelled` — beside a cancel while the task before it runs, which IS sent. (7) A PAUSED run's answer has its successor held until the unpause — beside an unpaused answer handing it on at once. Its registry is written in the block, not `registry.json`; and the every-kind clause reads its flows, so `ask` is no longer exempt there |
  * | **W188 — whose task it is, and what survives a resume** | **P36's EXIT ARTIFACT: a task's attribution and its attempts on real workers in both runtimes.** (1) Two runs of one fan-out on ONE runtime — a task on a THREADED pool and one INLINE, each emitting three lines per attempt, one run's tasks failing their first attempt — each run's `onTaskMessage` receiving every message of its own tasks with `runId`, `nodeId`, `branchPath`, `taskId`, `flowAttempt` and the scheduler's `attemptNumber` as FIELDS, frozen, in `seq` order per attempt, the retried attempt's under number 2, and nothing of the other run's; its `onTaskProgress` the same. (2) Each fold's `nodes` entry carrying its run, flow-level attempt `0` and the attempts the scheduler MADE — 2 against 1, read off the scheduler's task, its `task.running` events and the worker's own count. (3) `onHeader` called once inside `start()` before anything is appended or handed on, a frozen header equal to the handle's — and a throwing one starting nothing. (4) A task of `maxRetries: 2` whose worker always fails, the consumer's store frozen in its SECOND attempt and resumed on a FRESH runtime: handed `attemptsSpent: 2`, run once — THREE calls across both processes, where the same checkpoint less its attempt elements makes FIVE. (5) A run STOPPED in an attempt and resumed elsewhere counting that attempt as spent. (6) A task whose budget was spent at the kill handed on, run once and folded from the scheduler's own settlement. Its registry is written in the block, not `registry.json` |
- * | **W192 — what reached the RUN, and what opened the MAP INSTANCE** | **P38's EXIT ARTIFACT: the `"$payload"` and `"$item"` references on real workers in both runtimes.** (1) An ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice: "$payload", answer: "approve" }` — the run's payload beside the person's answer — and an edge routing on `needs.run.amount` from `needs: { run: "$payload" }`, 120 to `audit` and 50 past it. (2) An ENTRY map of three whose branch is an ask, each `pay` on an INLINE pool receiving its OWN item beside its OWN answer, answered out of order, `audit` reading the item two hops in. (3) The copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on one node and on one edge — the caller's, an inline worker's and a predicate's writes reaching nothing else. (4) That map STOPPED with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the header's five keys at format 1, no new kind. (5) `"$item"` after the map's join refused `FD-V49` naming both fixes. (6) The release horizon: a fanout in a fanout in each instance, inner joins fired at their FIRST arrival by a consumer's policy, the reader entered after its instance arrived — each reading its own item. Its registry is written in the block, not `registry.json`; and the reference censuses read its flows, so `NOT_YET_AT_L6` is gone |
+ * | **W192 — what reached the RUN, and what opened the MAP INSTANCE** | **P38's EXIT ARTIFACT: the `"$payload"` and `"$item"` references on real workers in both runtimes.** (1) An ENTRY ask answered, its successor on a THREADED pool receiving `{ invoice: "$payload", answer: "approve" }` — the run's payload beside the person's answer — and an edge routing on `needs.run.amount` from `needs: { run: "$payload" }`, 120 to `audit` and 50 past it. (2) An ENTRY map of three whose branch is an ask, each `pay` on an INLINE pool receiving its OWN item beside its OWN answer, answered out of order, `audit` reading the item two hops in. (3) The copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on one node and on one edge — the caller's, an inline worker's and a predicate's writes reaching nothing else; **since W202 ([ADR 0126](../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)) a write into a `"$payload"` key THROWS `TypeError` — the run's ONE shared copy is frozen — and is caught and recorded by the writer, while a write into an `"$item"` key lands on the writer's own copy**. (4) That map STOPPED with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the header's five keys at format 1, no new kind. (5) `"$item"` after the map's join refused `FD-V49` naming both fixes. (6) The release horizon: a fanout in a fanout in each instance, inner joins fired at their FIRST arrival by a consumer's policy, the reader entered after its instance arrived — each reading its own item. Its registry is written in the block, not `registry.json`; and the reference censuses read its flows, so `NOT_YET_AT_L6` is gone |
  * | **W197 — a run's live state on its handle** | **P39's EXIT ARTIFACT clause (3): `RunHandle.state()` on real workers in both runtimes.** Per pool, THREADED and INLINE: (1) a `map` of five items whose `state()`, read on a microtask after EVERY delivered input, is the public `fold` of the delivered prefix key order included, frozen at every depth, and a consumer's write to it — its `outcome`, a NESTED field of a result — throws and moves nothing; at `done`, `await done` IS `state()`, equal to `fold(driver.foldInputs())`, each result the worker's, still that object a macrotask on. (2) The same `map` STOPPED with two items settled and two holding, RESUMED on a FRESH runtime: the first read after `resume()` already folds the STORED events (`RN-R22` makes it the first quiescent point), every later read the fold of the stored and delivered inputs, and `done` the same object, completed. Never paused, so `RN-R44`'s one exception — an unpause after a run finished while paused — is not reached. Its registry is written in the block, not `registry.json` |
  * | **W200 — a reference read inside a map** | **P40's EXIT ARTIFACT clause (3): ADR 0124's index on real workers in both runtimes.** Per pool, THREADED and INLINE, one run of a `map` of TWELVE items (`10` and `11` beside `1`) whose branch is `work` → `mid` → `post`, `post` opening an inner map of two, and after the join a SIBLING map of three slots. Every reader's composed payload — what its worker was handed — is ADR 0044's predicate (`outputIsVisible`) applied to the run's OWN outputs in branch-path order, and the value derived by hand from the worker's source, for four shapes, each its own claim: `post` reading `work` (two steps back) and `mid` (one step back), the inner `tail` reading `work` (depth 1) and `leaf` (depth 2), and the sibling's `publish` reading `["post"]` and `["work"]` (every output; `work` thereby read at two depths). Each claim's CONTROL on the same observer: another instance's selection, or the string order, differs from every payload; and each payload has exactly the keys its `needs` declares. The predicate route moves with the shared key function since W199; the hand route is the independent one. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
@@ -12098,7 +12098,11 @@ if (attBlock !== null) {
  *     on `needs.run.amount` from `needs: { run: "$payload" }`, run twice, 120 to `audit` and 50 past it;
  * (2) an ENTRY map of three whose branch is an ask, `pay` after it on an INLINE pool reaching its OWN item beside its OWN
  *     answer, answered out of order, each answer after the previous instance ARRIVED;
- * (3) the copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on ONE node and ONE edge;
+ * (3) the copy claim over a NESTED payload and NESTED items, both ways, two keys of each token on ONE node and ONE edge —
+ *     **moved by W202** ([ADR 0126](../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md),
+ *     P41 (b), (c), (g1)): every `"$payload"` key of a run is ONE deep-frozen shared copy, so an inline worker's and a
+ *     predicate's write into one THROWS `TypeError` — each writer here catches it and records it — while a write into an
+ *     `"$item"` key, still the reader's own copy, lands and reaches no second key;
  * (4) (2)'s flow stopped with one instance ended and two asks parked, resumed on a FRESH runtime: the same values, the
  *     header's five keys at format 1, no kind but `interrupted` and `resumed` the uninterrupted run lacks;
  * (5) `"$item"` after the map's join: `FD-V49` alone, naming both fixes, `start()` refusing it — beside `"."` accepted;
@@ -12117,11 +12121,12 @@ if (attBlock !== null) {
 const PI_DEADLINE_MS = 15_000;
 // `Echo`: records what it received; writes `"touched-by-<role>"` into `deep.mark` of each input key `settings.touch` names
 // (an INLINE pool's object is the driver's own composition — M3); holds `input.it.hold[role]` ms; returns `{ role, got,
-// after }` — `got` a copy taken BEFORE the write, `after` one taken after it.
+// after, threw }` — `got` a copy taken BEFORE the write, `after` one taken after it, `threw` each key whose write THREW and
+// the error's name (W202: a `"$payload"` key is the run's shared frozen copy, ADR 0126 — caught, so the task goes on).
 const PI_ECHO = 'export default class { async setup() {} async run(p, ctx) { const i = p.input; const s = p.settings || {}; ' +
-  'const got = structuredClone(i); for (const k of s.touch || []) { if (i && i[k] && i[k].deep) i[k].deep.mark = "touched-by-" + s.role; } ' +
+  'const got = structuredClone(i); const threw = []; for (const k of s.touch || []) { if (i && i[k] && i[k].deep) { try { i[k].deep.mark = "touched-by-" + s.role; } catch (e) { threw.push(k + ": " + e.name); } } } ' +
   'const ms = i && i.it && i.it.hold ? i.it.hold[s.role] || 0 : 0; if (ms) await new Promise((r) => setTimeout(r, ms)); ' +
-  'return { role: s.role, got, after: structuredClone(i) }; } }';
+  'return { role: s.role, got, after: structuredClone(i), threw }; } }';
 const piDoc = () => ({
   predicates: ['w192Touch'],
   workers: { echo: { url: rcUrl(PI_ECHO) } },
@@ -12131,14 +12136,18 @@ const piDoc = () => ({
   },
 });
 /** Every call of clause (3)'s predicate: its task, and `ctx.needs` copied before and after its own write. */
-const piEdge: { taskId: string; before: unknown; after: unknown }[] = [];
+const piEdge: { taskId: string; before: unknown; after: unknown; threw: string[] }[] = [];
 // `w192Touch` (clause (3)'s EDGE): writes `deep.mark` of `needs.it` and `needs.run` — NOT of `it2` or `run2` — and routes on.
+// Since W202 its `needs.run` write THROWS `TypeError` (the run's shared frozen copy, ADR 0126, P41 (g1)): caught HERE and
+// recorded — an uncaught one stops the run, which `test/driver/shared-reference.test.ts` holds and W203's block shows.
 const piTouch: Predicate = (ctx) => {
   const n = ctx.needs as unknown as Record<string, { deep: { mark: string } }>;
   const before = structuredClone(n);
-  n.it!.deep.mark = 'touched-by-edge';
-  n.run!.deep.mark = 'touched-by-edge';
-  piEdge.push({ taskId: ctx.outcome.taskId, before, after: structuredClone(n) });
+  const threw: string[] = [];
+  for (const k of ['it', 'run'] as const) {
+    try { n[k]!.deep.mark = 'touched-by-edge'; } catch (e) { threw.push(`${k}: ${(e as Error).name}`); }
+  }
+  piEdge.push({ taskId: ctx.outcome.taskId, before, after: structuredClone(n), threw });
   return true;
 };
 const piFlowOf = (flowId: string, nodes: Record<string, unknown>[]) =>
@@ -12266,10 +12275,14 @@ const piStart = (a: ReturnType<typeof piRuntime>, flow: FlowDefinition, payload:
   });
   return { h, parked, arrived };
 };
-/** What `PI_ECHO` returns, BY HAND from its source: what it received, and that value with its `touch` keys' `deep.mark` written. */
-const piEcho = (role: string, got: Record<string, unknown>, touch: readonly string[] = []) => ({
+/**
+ * What `PI_ECHO` returns, BY HAND from its source: what it received, that value with its `touch` keys' `deep.mark` written —
+ * except each key in `threw` (a frozen shared copy, ADR 0126), whose write threw and which keeps its value — and `threw`.
+ */
+const piEcho = (role: string, got: Record<string, unknown>, touch: readonly string[] = [], threw: readonly string[] = []) => ({
   role, got, after: Object.fromEntries(Object.entries(got).map(([k, v]) =>
-    [k, touch.includes(k) ? { ...(v as object), deep: { ...(v as { deep: object }).deep, mark: `touched-by-${role}` } } : v])),
+    [k, touch.includes(k) && !threw.includes(k) ? { ...(v as object), deep: { ...(v as { deep: object }).deep, mark: `touched-by-${role}` } } : v])),
+  threw: threw.map((k) => `${k}: TypeError`),
 });
 /** The marks of an object's keys, in the order named — what a copy claim reads. */
 const piMarks = (o: unknown, keys: readonly string[]) => keys.map((k) => (o as Record<string, { deep?: { mark?: unknown } }> | undefined)?.[k]?.deep?.mark ?? 'NO MARK');
@@ -12310,10 +12323,11 @@ try {
         r[`p3${amount}`] = [[payload.deep.mark, payload.deep.lines[0]!.sku],
           JSON.stringify([h.header.entryPayload, asked, a.handed.filter(([id]) => id.startsWith(`${runId}:`))]).includes('caller')];
         if (amount === 120) {
-          // Direction 2: `audit` (INLINE) wrote its `run` key's nested field — its own `after` shows it — and neither its
-          // second key `again` nor `file`'s read after it (handed once `audit` settled) sees the write.
-          const audit = (s.nodes[`${runId}:audit:-:0`]?.result ?? null) as { after?: unknown } | null;
-          r.p4 = [piMarks(audit?.after, ['run', 'again']), piMarks(a.inputOf(`${runId}:file:-:0`), ['run']), a.poolsOf([`${runId}:audit:-:0`])];
+          // Direction 2: `audit` (INLINE) wrote its `run` key's nested field — since W202 the write THROWS (the run's shared
+          // frozen copy, ADR 0126) and its own `threw` records it — and neither its second key `again` nor `file`'s read after
+          // it (handed once `audit` settled) sees a write.
+          const audit = (s.nodes[`${runId}:audit:-:0`]?.result ?? null) as { after?: unknown; threw?: unknown } | null;
+          r.p4 = [piMarks(audit?.after, ['run', 'again']), audit?.threw ?? 'NO RECORD', piMarks(a.inputOf(`${runId}:file:-:0`), ['run']), a.poolsOf([`${runId}:audit:-:0`])];
         }
       }
     } finally {
@@ -12367,9 +12381,10 @@ try {
       // **Not the caller's direction** (the conformity reader, C1): the entry is a map, so every `touch` is handed INSIDE start() —
       // before the caller writes. That direction is read off `check` (c4), handed after both writes.
       r.c1 = [0, 1, 2].map((i) => a.inputOf(`${runId}:touch:${i}:0`));
-      r.c2 = [[0, 1, 2].map((i) => piMarks((s.nodes[`${runId}:touch:${i}:0`]?.result as { after?: unknown } | null)?.after, ['it', 'it2', 'run', 'run2'])), a.poolsOf([0, 1, 2].map((i) => `${runId}:touch:${i}:0`))];
+      r.c2 = [[0, 1, 2].map((i) => piMarks((s.nodes[`${runId}:touch:${i}:0`]?.result as { after?: unknown } | null)?.after, ['it', 'it2', 'run', 'run2'])),
+        [0, 1, 2].map((i) => (s.nodes[`${runId}:touch:${i}:0`]?.result as { threw?: unknown } | null)?.threw ?? 'NO RECORD'), a.poolsOf([0, 1, 2].map((i) => `${runId}:touch:${i}:0`))];
       r.c3 = piEdge.filter((e) => e.taskId.startsWith(`${runId}:`)).sort((x, y) => (x.taskId < y.taskId ? -1 : 1))
-        .map((e) => [e.taskId, e.before, piMarks(e.after, ['it', 'it2', 'run', 'run2'])]);
+        .map((e) => [e.taskId, e.before, piMarks(e.after, ['it', 'it2', 'run', 'run2']), e.threw]);
       // `check` is handed only after its `touch` settled — long after the caller's two writes, which its own object shows.
       r.c4 = [s.outcome, [0, 1, 2].map((i) => a.inputOf(`${runId}:check:${i}:0`)), a.poolsOf([0, 1, 2].map((i) => `${runId}:check:${i}:0`)),
         [payload.invoices[1]!.deep.mark, payload.deep.mark]];
@@ -12502,9 +12517,10 @@ if (piBlock !== null) {
     check(key, `W192 exit (3, the run\`s payload, ${amount}): the CALLER\`s nested write after start() reaches nothing the run kept or handed — ` +
       'its header, the `asked` element, every hand-off — while the caller`s own object shows it (RN-R13)', r[`p3${amount}`], [['caller', 'caller'], false]);
   }
-  check(key, 'W192 exit (3, the run`s payload): an INLINE worker writing a nested field of its "$payload" key reaches neither its SECOND ' +
-    '"$payload" key nor the next node`s read — its own object shows the write (JP-R11, ADR 0040 rule 6)', r.p4,
-  [['touched-by-audit', 'original'], ['original'], ['inline']]);
+  check(key, 'W192 exit (3, the run`s payload): an INLINE worker writing a nested field of its "$payload" key THROWS TypeError — the run`s ONE ' +
+    'shared copy is frozen (ADR 0126, W202; until then the write landed on its own copy, ADR 0040 rule 6) — and nothing shows a write: ' +
+    'not that key, not its SECOND "$payload" key, not the next node`s read', r.p4,
+  [['original', 'original'], ['run: TypeError'], ['original'], ['inline']]);
   // (2) — FD-C1 over each instance's item: the ask keeps `{ invoice: <its item> }`; `pay` its item and ITS answer; `audit`
   // (0 and 2, amount > 100) its item, the payload as started, and `pay`'s result (`PI_ECHO`'s, by hand).
   const items = [piInvoice('A', 120), piInvoice('B', 50), piInvoice('C', 300)];
@@ -12520,18 +12536,20 @@ if (piBlock !== null) {
     '"$payload" and "." two hops in', r.r3, ['completed', ['w192r:audit:0:0', 'w192r:audit:2:0'], auditIn(0), auditIn(2), ['threaded']]);
   check(key, 'W192 exit (2): the ARRANGEMENT — each instance ARRIVED at the map`s join before the next was answered: 2, 0, 1',
     r.r4, ['2', '0', '1']);
-  // (3) — the copy flow: every key its own copy of the value as started (the caller's writes absent); the INLINE worker's
-  // and the predicate's writes on `it` and `run` reach neither `it2`/`run2` nor `check`.
+  // (3) — the copy flow: every key the value as started (the caller's writes absent); the INLINE worker's and the
+  // predicate's writes on `it` land on their own `"$item"` copy and reach neither `it2` nor `check`; on `run`, the run's
+  // ONE shared frozen copy since W202 (ADR 0126), they THROW TypeError and reach nothing.
   const copyItems = [piInvoice('A', 1), piInvoice('B', 2), piInvoice('C', 3)];
   const copyPayload = { invoices: copyItems, deep: { mark: 'original' } };
   const both = (i: number) => ({ it: copyItems[i], it2: copyItems[i], run: copyPayload, run2: copyPayload });
   check(key, 'W192 exit (3, nested items): each instance`s two "$item" and two "$payload" keys are the item and the payload AS STARTED — ' +
     'four objects equal to them (FD-C1)', r.c1, [0, 1, 2].map(both));
-  check(key, 'W192 exit (3, nested items): an INLINE worker writing `it` and `run` reaches neither SECOND key on its own node — two keys, two objects',
-    r.c2, [[0, 1, 2].map(() => ['touched-by-touch', 'original', 'touched-by-touch', 'original']), ['inline']]);
-  check(key, 'W192 exit (3, nested items): a PREDICATE writing `it` and `run` on its edge saw the values as started and reaches neither ' +
-    'SECOND key on its own edge (FD-C3)', r.c3,
-  [0, 1, 2].map((i) => [`w192c:touch:${i}:0`, both(i), ['touched-by-edge', 'original', 'touched-by-edge', 'original']]));
+  check(key, 'W192 exit (3, nested items): an INLINE worker writing `it` and `run` — its "$item" key takes the write and its SECOND "$item" key ' +
+    'does not see it (two keys, two objects); its "$payload" write THROWS TypeError, the run`s shared frozen copy (ADR 0126, W202)',
+    r.c2, [[0, 1, 2].map(() => ['touched-by-touch', 'original', 'original', 'original']), [0, 1, 2].map(() => ['run: TypeError']), ['inline']]);
+  check(key, 'W192 exit (3, nested items): a PREDICATE writing `it` and `run` on its edge saw the values as started; its "$item" write ' +
+    'reaches no SECOND key on its own edge, and its "$payload" write THROWS TypeError — one resolver, one shared frozen copy (FD-C3, ADR 0126)', r.c3,
+  [0, 1, 2].map((i) => [`w192c:touch:${i}:0`, both(i), ['touched-by-edge', 'original', 'original', 'original'], ['run: TypeError']]));
   check(key, 'W192 exit (3, nested items): the next node`s read, on a THREADED pool, is each instance`s OWN item and the payload — no ' +
     'write of the worker`s, the predicate`s or the caller`s (handed after all three; the caller`s own object showing its two), and no ' +
     'other instance`s', r.c4,

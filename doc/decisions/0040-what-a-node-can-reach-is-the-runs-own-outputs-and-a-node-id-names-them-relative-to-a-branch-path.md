@@ -143,7 +143,10 @@ rest on.**
    worker gets is what the document says, character for character. The per-key copy is
    **`JP-R11`'s invariant at the one edge that is not a fan-out edge**: no two nodes ever receive the
    same object, and a reference is the one way two nodes could otherwise be handed one record's
-   `result` twice.
+   `result` twice. ***Superseded IN PART 2026-10-22 by [ADR 0126](0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)* (W202, P41 (c)): for a NODE reference the
+   per-key copy is gone — every reader of one output is handed ONE deep-frozen copy, and the invariant is *no node can
+   write to what another node reads*, enforced where JavaScript can freeze and the reader's responsibility in the named
+   gap. `"."` keeps its own copy per key as written here (`"$item"`, ADR 0118, too).**
 
 ## What this does to Q11, Q164, Q165 and Q166
 

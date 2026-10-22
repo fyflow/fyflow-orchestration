@@ -7,7 +7,7 @@
  * **Every expected value is written from those rows, never read off a run**: a `"$payload"` key is the value `start()`
  * was handed — at the entry, two hops on, on a map node (whose `over` is then read off it), on an ask (whose `asked`
  * element keeps the copy, (m)) and on an edge (whose predicate routes on it) — each its OWN deep copy per key per read
- * (decision 4); `FD-R4` composes it from the CALLER's value, before the header exists (f); a resume composes it from the
+ * (decision 4) until W202, and since then the run's ONE shared, deep-frozen copy (ADR 0126); `FD-R4` composes it from the CALLER's value, before the header exists (f); a resume composes it from the
  * stored header and writes nothing new (decision 5); and a flow that names it nowhere is unchanged (decision 2). The
  * COPY claim is provoked by an ALIAS and by a SHALLOW copy over a NESTED payload, read both ways (P38's brief sentence).
  */
@@ -20,7 +20,7 @@ import type { FlowDefinition, JsonSchema } from '../../src/definition/types.ts';
 import { fold, type FoldInput } from '../../src/fold/run-state.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 
-const SUITE = 'L2 — W190: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, each its own copy';
+const SUITE = 'L2 — W190, W202: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, one shared frozen copy per run';
 
 /** A scheduler double: it RECORDS every `addTask` and fires nothing on its own. */
 class Fake {
@@ -62,7 +62,7 @@ const task = (id: string, to: string, extra: Record<string, unknown> = {}) => ({
 const nested = () => ({ invoice: { id: 'INV-1', amount: 120, lines: [{ sku: 'a', qty: 1 }] } });
 
 const DECLARED_CASES = [
-  'the ENTRY: a "$payload" key is the value start() was handed, its own copy — distinct from the "." key`s beside it',
+  'the ENTRY: a "$payload" key is the value start() was handed, the run`s shared copy — distinct from the "." key`s beside it',
   'TWO HOPS ON: a "$payload" key is the run`s payload, never the predecessor`s result — and a node declaring none receives what it did',
   'a MAP node: its `over` is read off the composed object, so the ARITY is the payload`s and not the predecessor`s',
   'an ASK: what reached it carries the copy — its `asked` element`s input and the node`s kept input (P38 (m))',
@@ -76,13 +76,13 @@ const DECLARED_CASES = [
 ];
 
 suite(SUITE, (test) => {
-  test('the ENTRY: a "$payload" key is the value start() was handed, its own copy — distinct from the "." key`s beside it', () => {
+  test('the ENTRY: a "$payload" key is the value start() was handed, the run`s shared copy — distinct from the "." key`s beside it', () => {
     const m = make(flow('entry', 'x', [task('x', 'done', { needs: { run: '$payload', own: '.' } }), END]));
     const payload = nested();
     m.driver.start(payload);
     const got = m.sch.inputOf('r1:x:-:0') as { run: unknown; own: unknown };
     equal(got, { run: nested(), own: nested() }, 'both keys are the payload — at the entry "." and "$payload" are one value (P38 (d))');
-    ok(got.run !== got.own && got.run !== payload && got.own !== payload, 'and three different objects: each key its own copy, neither the caller`s');
+    ok(got.run !== got.own && got.run !== payload && got.own !== payload, 'and three different objects: the "." key its own copy, the "$payload" key the run`s shared copy (ADR 0126), neither the caller`s');
   });
 
   test('TWO HOPS ON: a "$payload" key is the run`s payload, never the predecessor`s result — and a node declaring none receives what it did', () => {
@@ -248,13 +248,24 @@ suite(SUITE, (test) => {
   });
 
   test('the COPY claim over a NESTED payload, read both ways: the caller`s object after start(), and a worker`s and a predicate`s nested write to what they received', () => {
-    // a's EDGE carries a "$payload" key to a registered predicate that WRITES into what it was handed; a's task does too.
-    // It writes `run` and then READS `also`, a second "$payload" key on the same edge: one copy per KEY, not per edge
-    // (W190's adequacy reader, A1).
+    // a's EDGE carries a "$payload" key to a registered predicate that tries to WRITE into what it was handed; a's task
+    // does too. **Until v0.47 both writes SUCCEEDED, each on its own copy** — one copy per KEY (W190's adequacy reader,
+    // A1). Since v0.47 ([ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md),
+    // P41 (b), (c), (g1)) every "$payload" key of the run, at every node and edge, is handed ONE deep-frozen copy, so each
+    // write THROWS `TypeError` (an ES module is strict) and reaches nothing. The predicate catches its own here, so the run
+    // goes on to `b`; an uncaught one stops the run — `test/driver/shared-reference.test.ts`.
     const sawAlso: unknown[] = [];
+    const predicateThrew: string[] = [];
+    let edgeRun: unknown = null;
     const writes = new Map<string, (c: DecisionContext) => boolean>([['scribble', (ctx) => {
-      (ctx.needs.run as ReturnType<typeof nested>).invoice.lines[0]!.sku = 'from-the-predicate';
-      sawAlso.push(structuredClone(ctx.needs.also));
+      try {
+        (ctx.needs.run as ReturnType<typeof nested>).invoice.lines[0]!.sku = 'from-the-predicate';
+        predicateThrew.push('NOT THROWN');
+      } catch (e) {
+        predicateThrew.push((e as Error).constructor.name);
+      }
+      edgeRun = ctx.needs.run;
+      sawAlso.push(ctx.needs.also === ctx.needs.run ? 'the same object' : 'two objects');
       return false;
     }]]);
     const m = make(flow('copies', 'a', [
@@ -270,17 +281,26 @@ suite(SUITE, (test) => {
     // DIRECTION 2 — the COPY written: a's worker writes into what it RECEIVED, nested (an inline worker holds the object).
     const aRun = (m.sch.inputOf('r1:a:-:0') as { run: ReturnType<typeof nested> }).run;
     equal(aRun, nested(), 'a received the payload as it was at start() — the caller`s later write is not in it');
-    aRun.invoice.lines[0]!.sku = 'from-a-worker';
+    let workerThrew = 'NOT THROWN';
+    try { aRun.invoice.lines[0]!.sku = 'from-a-worker'; } catch (e) { workerThrew = (e as Error).constructor.name; }
+    equal(workerThrew, 'TypeError', 'an INLINE-shaped write into it — a nested field, in strict code — THROWS TypeError (ADR 0126 rule 3)');
+    // The CONTROL beside it: the same write into the caller's own object, which nothing froze, succeeds.
+    const control = nested();
+    control.invoice.lines[0]!.sku = 'from-a-worker';
+    equal(control.invoice.lines[0]!.sku, 'from-a-worker', 'the CONTROL: the same write into an unfrozen object lands — the throw above is the freeze');
     m.sch.done('r1:a:-:0', null);
-    equal(sawAlso, [nested()], 'the predicate`s write into `run` is not in `also` beside it on the same edge — one copy per KEY');
+    equal(predicateThrew, ['TypeError'], 'the predicate`s write into its `run` THROWS too — one resolver, one shared copy (P41 (g1))');
+    equal(sawAlso, ['the same object'], 'and `also` beside it on the same edge is the SAME object as `run` — one copy per RUN, not per key');
     const bIn = m.sch.inputOf('r1:b:-:0') as { run: ReturnType<typeof nested>; also: ReturnType<typeof nested> };
     const bRun = bIn.run;
-    ok(bIn.also !== bIn.run && bIn.also.invoice !== bIn.run.invoice && bIn.also.invoice.lines !== bIn.run.invoice.lines,
-      'and two "$payload" keys on ONE node share no object at any depth — one copy per KEY (A1)');
+    ok(bIn.also === bIn.run, 'two "$payload" keys on ONE node are one object — the run`s shared copy (ADR 0126 rule 1)');
     equal(bRun, nested(), 'b receives the ORIGINAL — neither the caller`s write, nor a`s worker`s, nor the predicate`s reached it');
-    equal(m.driver.checkpoint().header.entryPayload, nested(), 'and the header — the one retained copy — is untouched by all three');
-    ok(bRun !== aRun && bRun.invoice !== aRun.invoice && bRun.invoice.lines !== aRun.invoice.lines,
-      'and b`s copy shares no object with a`s at any depth — an ALIAS or a SHALLOW copy fails here');
+    equal(m.driver.checkpoint().header.entryPayload, nested(), 'and the header — the retained copy — is untouched by all three');
+    ok(bRun === aRun && edgeRun === aRun, 'and b`s, a`s and the edge`s are ONE object — every "$payload" reader of the run, at both sites');
+    ok(Object.isFrozen(bRun) && Object.isFrozen(bRun.invoice) && Object.isFrozen(bRun.invoice.lines) && Object.isFrozen(bRun.invoice.lines[0]),
+      'frozen at every depth — the object, its nested object, its array and the array`s element');
+    const header = (m.driver as unknown as { header: { entryPayload: unknown } }).header;
+    ok(header.entryPayload !== bRun && !Object.isFrozen(header.entryPayload), 'and it is not the header`s own copy, which stays unfrozen');
     equal(m.failures, [], 'nothing reported');
   });
 

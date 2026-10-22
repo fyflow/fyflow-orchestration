@@ -224,12 +224,12 @@ const PROBES = [
   {
     name: 'a cost figure in AGENTS.md that spec/flow-definition.md does not state',
     check: 'X6',
-    mutate: (t) => t.replace('**613.6 ms** — **71x**', '**61.3 ms** — **7x**'),
+    mutate: (t) => t.replace('**30.5 ms** — **1.1x**', '**3.1 ms** — **0.1x**'),
   },
   {
     name: 'a cost figure spec/flow-definition.md states that AGENTS.md drops — the OTHER direction',
     check: 'X6',
-    mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)', 'the `?` suffix costs nothing'),
+    mutate: (t) => t.replace('the `?` suffix costs nothing (**28.3 ms**)', 'the `?` suffix costs nothing'),
   },
   {
     // **This one trips only the `missing` direction, and that is why it exists.**
@@ -238,8 +238,8 @@ const PROBES = [
     // the spec does not have separates them.
     name: 'AGENTS.md quotes an EXTRA figure the spec does not have — the `missing` direction alone',
     check: 'X6',
-    mutate: (t) => t.replace('the `?` suffix costs nothing (**617.4 ms**)',
-      'the `?` suffix costs nothing (**617.4 ms**, and once **99.9 ms**)'),
+    mutate: (t) => t.replace('the `?` suffix costs nothing (**28.3 ms**)',
+      'the `?` suffix costs nothing (**28.3 ms**, and once **99.9 ms**)'),
   },
   // --- X6's W109 clause: the TIER-THREE cost figures, same two documents, same both-ways rule ---
   //

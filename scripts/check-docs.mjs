@@ -818,7 +818,7 @@ const RUN_FLOOR = 51;
     // The spec's ARITY-1000 column, which is the one AGENTS.md quotes: the table rows
     // between the header and the sentence that follows them.
     const specTable = lastPerRow(readFileSync(SPEC, 'utf8'),
-      '| what the branch entry declares | arity 100 | arity 1000 |', '> **71x,');
+      '| what the branch entry declares | v0.46, arity 100 | v0.46, arity 1000 | v0.47, arity 100 | v0.47, arity 1000 |', '> **1.1x,');
     const agents = msIn(readFileSync(AG, 'utf8'),
       '**And inside a `map`, what it costs is what you point it at.**', 'The mechanism makes one copy');
     if (specTable === null) {

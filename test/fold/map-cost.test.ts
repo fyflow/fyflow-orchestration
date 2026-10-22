@@ -309,7 +309,10 @@ const detail = (id: string, over: Record<string, unknown> = {}) =>
  * flow, with ONE difference: the map reads its items from `list`, a task of its own, so `ingest`'s result — what `post`
  * reads and clones per key — is ONE small value. With the items in it, every read cloned an `n`-element list — `n` per
  * settlement, 10.8 s at 8,000 items, 89% of it `structuredClone`: a reference to a LARGE value, [Q186](../../doc/questions/q186.md)'s
- * cost and not one this plan moved. `provoke` runs on the driver before `start`. With `observer`, the drive also stops
+ * cost and not one this plan moved. *(Since W202, [ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md),
+ * a reference read is handed ONE shared copy per output rather than a clone per read — Q186 resolved, its count in
+ * `reference-copy-cost.test.ts` — so the items could sit in `ingest` again; they stay in `list` so this subject's pins
+ * are W197's.)* `provoke` runs on the driver before `start`. With `observer`, the drive also stops
  * once THAT has crossed its ceiling.
  *
  * **The arrangement is checked WITHOUT a fold** — every task settled, no failure, and the run's last element its path
@@ -502,8 +505,9 @@ const refSettled = (shape: RefShape, n: number) =>
  *   THREE reads takes the group (n each) — `n + 3n`. Its answer is the WHOLE list: that is `FD-V28`'s, not the index's.
  *
  * **What it does NOT count**: the comparisons that find a sorted position (a binary search, `compareBranchPaths`), a
- * splice's element moves, the shared depth's graph walk (`sharedRegionDepth`, once per `(reader, target)`), and the CLONE
- * of each answer ([Q186](../../doc/questions/q186.md)'s cost, `cloneValue` per key per read).
+ * splice's element moves, the shared depth's graph walk (`sharedRegionDepth`, once per `(reader, target)`), and the COPY
+ * a read is handed — until W202 [Q186](../../doc/questions/q186.md)'s clone per key per read; since W202 (ADR 0126) one
+ * shared copy per output, counted by `outputsCache.copies` in `reference-copy-cost.test.ts`.
  */
 const refWork = (shape: RefShape) => (n: number) => (shape === 'nested map' ? 7 * n : shape === 'sibling map' ? (1 + SLOTS) * n : 2 * n);
 /** The iteration ceiling, per shape: `CEILING_TIMES` x 40 per settlement, plus 10,000 — the driver arm's, per task. */

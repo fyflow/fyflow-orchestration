@@ -156,16 +156,23 @@ suite('L2 — FD-C1: what a node receives', (test) => {
     equal(p0.run.runLabel, 'nightly', 'and so is `runLabel`');
   });
 
-  test('no two instances receive the same object — JP-R11`s invariant, per key', async () => {
+  test('two instances reading one output are handed ONE shared, deep-frozen copy — ADR 0126 — never the record in the log', async () => {
+    // **Until v0.47 this read `a.run !== b.run`** — *no two nodes ever receive the same object*, ADR 0040 rule 6. P41 (c)
+    // and [ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md) reverse it
+    // for a node reference: every reader of one output is handed ONE deep-frozen copy, so the invariant is *no node can
+    // write to what another node reads*. What each instance receives as a whole, and its `"."` key, stay its own.
     const h = harness(await load('valid/map-with-context.flow.json'));
     h.driver.start(CONTEXT);
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: CONTEXT });
     const a = h.payloadOf('r1:score:0:0') as Record<string, unknown>;
     const b = h.payloadOf('r1:score:1:0') as Record<string, unknown>;
-    ok(a !== b, 'the composed objects are distinct');
-    ok(a.run !== b.run, 'and so is the value under a REFERENCE key — a reference is the one way ' +
-      'two nodes could otherwise be handed one record`s `result` twice');
-    ok(a.run !== CONTEXT, 'and neither aliases the record in the log');
+    ok(a !== b, 'the composed objects are distinct — each instance`s payload is its own');
+    ok(a.run === b.run, 'and the value under the REFERENCE key is ONE object, handed to both — ADR 0126 rule 1');
+    ok(Object.isFrozen(a.run) && Object.isFrozen((a.run as typeof CONTEXT).config) && Object.isFrozen((a.run as typeof CONTEXT).items),
+      'frozen at every depth the walk reaches — the object, its nested object and its array (ADR 0126 rule 2)');
+    const logged = (h.driver as unknown as { log: { taskId: string; result: unknown }[] }).log.find((r) => r.taskId === 'r1:ingest:-:0')!;
+    ok(a.run !== logged.result && a.run !== CONTEXT, 'and it is neither the record in the log nor the settled object — a SECOND copy (RN-R13)');
+    ok(!Object.isFrozen(logged.result), 'and the stored record stays unfrozen — OR-R2`s clone is untouched (P41 decision 4)');
   });
 
   test('the `"."` form gets its OWN COPY too, and two `"."` keys do not alias', () => {
@@ -1488,6 +1495,13 @@ suite('L2 — FD-C4: a conditional reference, when the target produced nothing',
  * as a deterministic proxy its own adequacy reader proposed, and **the decision**,
  * which is [Q190](../../doc/questions/q190.md)'s bar for a verdict recorded in
  * `spec/` with no ADR.
+ *
+ * **Since v0.47 the product is no longer what the DRIVER copies** —
+ * [ADR 0126](../../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md), W202: every
+ * instance is handed ONE shared copy of `ingest`'s result, so the driver makes one copy, not N (counted in
+ * `test/fold/reference-copy-cost.test.ts`). The serialised length below is still the product of what N payloads
+ * CARRY — which is what a THREADED pool's `postMessage` clones per task — and it is unmoved, so the first clause still
+ * holds as written; [Q186](../../doc/questions/q186.md) is resolved by the removal, and the decision clause stands.
  */
 suite('L2 — Q186: what a reference costs, as a product and as a decision', (test) => {
   const MWC = 'valid/map-with-context.flow.json';

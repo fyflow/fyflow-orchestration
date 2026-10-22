@@ -425,6 +425,12 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W202 — P41 decisions 1-6, (f2), (g1), ADR 0126: a reference's value is one deep-frozen copy shared by every reader —
+  // L2 in `test/driver/shared-reference.test.ts`, and its COST in `test/fold/reference-copy-cost.test.ts` (a sibling of
+  // map-cost, P41's W202 row); both counted below. W202 also RENAMED W190's L2 suite: its *each its own copy* became
+  // *one shared frozen copy per run* for "$payload".
+  'L2 — W202, ADR 0126: a reference`s value is ONE deep-frozen copy shared by every reader — both sites, every form, "$payload", the stored record untouched, the named gap pinned',
+  'L1-L2 — W202, ADR 0126: a reference read inside a map costs ONE copy per output — outputsCache.copies EXACT at 2,000 and 8,000 items on seven shapes, a second observer, every restored per-read clone red',
   // W199 — P40 decisions 1-5, ADR 0124: a reference read costs its answer — L1-L2 in `test/driver/reference-index.test.ts`,
   // the driver's index held equal to the pre-W199 filter-and-sort (the oracle, kept in the test); counted below. W199 also
   // RENAMED W197's cost suite: it gained the reference read as a fourth subject.
@@ -448,7 +454,7 @@ const LATE_SUITES = [
   // W190 — P38 (b), (d), (f)-(j), ADR 0117: the run's payload as a reference — L1 in `test/definition/run-payload.test.ts`,
   // L2 in `test/driver/run-payload.test.ts`; both counted below.
   'W190 — "$payload" in the grammar: referenceTarget`s new forms, FD-V26`s "$" clauses at both sites, every site it is legal, and the wiring check`s unchecked',
-  'L2 — W190: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, each its own copy',
+  'L2 — W190, W202: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, one shared frozen copy per run',
   // W187 — P36 (j)-(l), `RN-R41`, `RN-R42`: a task's attribution on the fold, and its messages and progress passed through —
   // L1/L3 in `test/fold/attribution.test.ts`, L2 in `test/driver/pass-through.test.ts`, and through `createRuntime` in
   // `test/scheduler/runtime.test.ts`; all three counted below. (W187 also RENAMED W186's fold suite: its claim *moves NOTHING*
@@ -966,7 +972,7 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W190 — "$payload" in the grammar: referenceTarget`s new forms, FD-V26`s "$" clauses at both sites, every site it is legal, and the wiring check`s unchecked'), 9,
       'test/definition/run-payload.test.ts registers its nine: the parse, FD-V26 at a node and at an edge, "$item" no longer FD-V26`s (W191), five sites accepted, FD-V16, the wiring check, the walk, and its own membership');
-    equal(count('L2 — W190: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, each its own copy'), 11,
+    equal(count('L2 — W190, W202: "$payload" composed at every site — the entry, two hops on, a map node, an ask, an edge, FD-R4 and a resume, one shared frozen copy per run'), 11,
       'test/driver/run-payload.test.ts registers its eleven: the entry, two hops, a map node, an ask, the app`s entry ask, an edge, FD-R4, a resume, the copy claim, a flow unchanged, and its own membership');
   });
   // **W191's two suites, counted the same way and for the same reason.**
@@ -1006,6 +1012,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L1-L2 — W199: a reference read costs its answer — the index`s answer equal to the pre-W199 filter-and-sort at every read, corpus and constructed, one definition of visibility'), 10,
       'test/driver/reference-index.test.ts registers its ten: the key and the restated predicate, the corpus, a resume, a nested map, a sibling map, twelve items reversed and parked, a repeated settlement, a fanout in an instance, the alias and the copy, and the membership');
+  });
+  // **W202's two suites, counted the same way and for the same reason.**
+  test('W202`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L2 — W202, ADR 0126: a reference`s value is ONE deep-frozen copy shared by every reader — both sites, every form, "$payload", the stored record untouched, the named gap pinned'), 11,
+      'test/driver/shared-reference.test.ts registers its eleven: every reader one copy, "$payload" one per run, an inline-shaped write, a predicate`s write, the all form, the conditional form, a replacement and a removal, a resume, the gap per type, every depth and form, and the membership');
+    equal(count('L1-L2 — W202, ADR 0126: a reference read inside a map costs ONE copy per output — outputsCache.copies EXACT at 2,000 and 8,000 items on seven shapes, a second observer, every restored per-read clone red'), 7,
+      'test/fold/reference-copy-cost.test.ts registers its seven: the subject on seven shapes, four counted restorations one per site and clause, the uncounted one, and the membership');
   });
   // **W93's two suites, counted the same way and for the same reason** — a suite emptied of its cases is still a suite.
   test('W93`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
