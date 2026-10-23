@@ -1,6 +1,6 @@
 # P42 — What was a node handed, asked after the fact?
 
-**Status:** complete and retro'd 2026-10-22 — W205-W206 done, `gate:full` EXIT 0 on W206's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)). Earlier: declared 2026-10-22 — on `40560bd` (the tree clean, `main` at 0.9.1 with P41's unpublished 0.10.0 work on it), answering fyflow-app's *pass 3* #1 and #2; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; W206 waits on W205.
+**Status:** complete and retro'd 2026-10-22 — W205-W206 done, `gate:full` EXIT 0 on W206's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)), ANSWERED by the maintainer 2026-10-23 as (a1). Earlier: declared 2026-10-22 — on `40560bd` (the tree clean, `main` at 0.9.1 with P41's unpublished 0.10.0 work on it), answering fyflow-app's *pass 3* #1 and #2; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; W206 waits on W205.
 **Question this plan answers:** *what was a node handed — a task's envelope, or the value any other node kind received, on
 a named branch path — asked after the fact of a run that is finished, live, or whose runtime is gone, answered by the
 driver's OWN composition rather than a second one, exactly, or with the reason it cannot be?*
@@ -554,3 +554,8 @@ OBSERVER is a shape too — its target form, its index.*
 | | the question | recommended | the alternatives |
 |---|---|---|---|
 | **(a)** | **RN-R45, ADR 0128 rule 5 and `readStep`'s `not-reached` message say a replay CANNOT REGENERATE a `halted` element** (*only a consumer's callback, a refused result or an owner's call appends those*). **A halt raised by a PREDICATE's throw IS regenerated** — a reading re-runs predicates (ADR 0128 consequence 3) — W206's conformity reader measured it: the prefix end deleted, a predicate-halted run still answers `not-reached`, at the events' length instead of the halt's position; a halt raised by a consumer's callback answers `diverged`. **The rule holds** (the prefix ends at the first `halted` either way, and W206's halt claim now pins the index); its stated REASON is wrong for one halt class. A spec and ADR edit is outside every P42 item's `Owns`, so workflow section 1 rule 6 ASKS | **(a1)** YES — one dated sentence in RN-R45 and in ADR 0128 rule 5 (and the message's clause in `src/driver/driver.ts`): the prefix ends at the first `halted` because what FOLLOWS it may not be regenerable (a callback's halt, a refused result, an owner's call), a predicate's halt being regenerated and compared like any element; its own `spec:`/`adr:` commit, no version bump (no rule moves) | **(a2)** NO — raise it as a register question; **(a3)** leave the sentence as written |
+
+**ANSWERED 2026-10-23 by the maintainer — (a1)**: the reason is corrected in place, dated, in `RN-R45`, ADR 0128
+rule 5, `readStep`'s comment and its `not-reached` message — the prefix ends at a halt because a halted driver composes
+nothing more, whether the replay regenerates the element (a predicate's throw) or cannot. No rule moves; one `spec:`
+commit, no version bump.
