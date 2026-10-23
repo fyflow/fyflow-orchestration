@@ -145,7 +145,17 @@ export interface WiringVerdict {
   /** The relation's own reason, in the words `fact-3-controls.log` prints. */
   why: string;
   sample?: WiringSample;
+  /**
+   * **Why a `transform-fails` verdict failed — present on that kind and ABSENT on every other** (v0.48,
+   * [W208](../../doc/work-items/w208-a-transforms-cause-and-when-an-ask-was-asked.md), P43 (d1), decision 6): `'threw'` where the transform did not produce a result — the language's worker half failing to import, having
+   * no default export, its `compile` throwing or its `evaluate` throwing, alike — and `'schema'` where it produced one
+   * and the consumer's `inputSchema` refused it. `why` says the same in words and is unmoved; this says it as data.
+   * Additive in 0.11.0: `VerdictKind`, `VERDICT_KINDS` and every count are unmoved.
+   */
+  cause?: TransformFailureCause;
 }
+/** What a `transform-fails` verdict's {@link WiringVerdict.cause} names: the transform threw, or its result failed the consumer's schema. */
+export type TransformFailureCause = 'threw' | 'schema';
 export interface WiringReport {
   flowId: string;
   verdicts: WiringVerdict[];
@@ -983,6 +993,7 @@ async function judgeTransform(
     for (const input of inputs) results.push(await c.evaluate(input, settings));
   } catch (e) {
     v.kind = 'transform-fails';
+    v.cause = 'threw';
     v.why = `the transform threw on the ${sourceWord(sample.source)}: ${e instanceof Error ? e.message : String(e)}`;
     v.sample = { ...sample, result: e instanceof Error ? e.message : String(e) };
     return;
@@ -993,6 +1004,7 @@ async function judgeTransform(
   const bad = results.map((r, i) => [i, findings(consumer, r)] as const).find(([, f]) => f.length > 0);
   if (bad) {
     v.kind = 'transform-fails';
+    v.cause = 'schema';
     v.why = `the transform's result on the ${sourceWord(sample.source)}${perItem ? ` (item ${bad[0]})` : ''} fails the consumer's inputSchema — ${describeFindings(bad[1])}`;
   } else {
     v.kind = 'transform-passes';

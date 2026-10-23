@@ -1468,10 +1468,17 @@ keeps waiting, and the run is not stuck.
 ([W180](doc/work-items/w180-asking-and-answering-in-a-run.md), [ADR 0109](doc/decisions/0109-an-ask-parks-with-nothing-dispatched-and-its-answer-is-its-result.md), `spec/run-state.md` `RN-R36`/`RN-R37`):
 
 - **Nothing is handed to the scheduler** — the scheduler never sees the ask's id. The driver appends ONE fold input,
-  `{ kind: 'asked', taskId, input }`; the fold reads the node `suspended` and the run `awaiting_action`, exactly the
+  `{ kind: 'asked', taskId, input, observedAt? }`; the fold reads the node `suspended` and the run `awaiting_action`, exactly the
   words a parked task gives (so `done` waits, below), and the node's entry in `nodes` carries **`input`** — what reached
   the ask, its `needs` composed — kept after the answer. Tell an ask from a parked failure by the node's KIND, or by the
   `asked` element, never by an error string. In a fan-out the ask's branch is LIVE, so **its join waits for the person**.
+- **WHEN it was asked** (since 0.11.0, [ADR 0130](doc/decisions/0130-a-regenerated-asked-element-keeps-the-stored-runs-time.md)):
+  the element's `observedAt` is the driver's `now` — the clock an outcome record's `observedAt` reads — and the node's
+  entry carries it as **`askedAt`**, kept after the answer as `input` is. **A resume KEEPS the stored time**: the replay
+  regenerates the element and takes its stored `observedAt`, so a wait measured across a resume does not restart; past
+  the stored tail it is the resumed driver's `now`. An `asked` element written before 0.11.0 has none, and its run
+  resumes with none. **A driver older than 0.11.0 refuses a newer checkpoint `diverged` at its first ask** — resume a
+  run on a driver at least as new as the one that wrote it.
 - **The answer is `driver.resolve(taskId, …)`** — the same call as below. `'done'` with `result` the answer, held to the
   ask's `answerSchema` (refused as `BoundaryRefused` with NOTHING appended and the ask still parked — answer again;
   `validateBoundaries: false` turns it off); `'failed'` with an `error` is the person DECLINING, held to nothing.
@@ -1484,7 +1491,7 @@ keeps waiting, and the run is not stuck.
   run's log, once per ask — that element keeps what reached the ask, whatever its size. A predicate's `ctx.outcome` for an ask has `attempts: 0` and
   **`schedulerTimestamp`, `startTime`, `endTime` and `executionTime` all `null`** — no scheduler was involved.
 - **BREAKING in 0.8.0** (P35 decision 8): `FoldInput` gains the kind `'asked'`, and `OutcomeRecord.schedulerTimestamp`
-  is `number | null` — `null` only on an ask's effective outcome. `NodeRun.input` is optional and additive.
+  is `number | null` — `null` only on an ask's effective outcome. `NodeRun.input` is optional and additive — as, since 0.11.0, are the element's `observedAt` and `NodeRun.askedAt`.
 - **An answer given from a callback on the driver's own step** — `onFoldInput` on the `asked` element included — is
   checked at once (a refusal is thrown or `false` returned right there) and, accepted, `resolve()` returns `true` and the
   resolution is appended when the step ends: so the run's checkpoint resumes. A second answer while it is pending is
@@ -1543,6 +1550,9 @@ console.log(added, parked.outcome, parked.nodes['r1:approve:-:0'].input);
 // [ 'r1:draft:-:0' ] awaiting_action { text: 'a draft' }
 if (added.join() !== 'r1:draft:-:0' || parked.outcome !== 'awaiting_action') throw new Error('the ask should park with nothing dispatched');
 if (JSON.stringify(parked.nodes['r1:approve:-:0'].input) !== '{"text":"a draft"}') throw new Error('the ask keeps what reached it');
+// And WHEN it was asked: the element's `observedAt` (the driver's clock, `Date.now()` by default) is the entry's `askedAt`.
+const askedEl = driver.foldInputs().find((e) => e.kind === 'asked');
+if (askedEl?.kind !== 'asked' || typeof askedEl.observedAt !== 'number' || parked.nodes['r1:approve:-:0'].askedAt !== askedEl.observedAt) throw new Error('the ask keeps when it was asked');
 
 // An answer its schema refuses is thrown at you BY NAME — nothing appended, the ask still parked.
 let refused: unknown = null;
@@ -2035,7 +2045,7 @@ AFTER the target — or one that moves only an envelope, even at the target: the
 answers with the definition you hand it. **It re-runs your predicates and gate types**, as a resume does. The value is
 the reading's own — a value a `needs` reference composed is frozen, as every reader's is (section 3), the rest yours —
 and nothing of a live run is reachable through it. **The input a task's worker sees AFTER its transform is not answered**
-([Q760](doc/questions/q760.md)): hand the envelope's `input` to `tryTransform` (section 15). **BREAKING in 0.10.0**:
+([Q760](doc/questions/q760.md), resolved by P43: the road serves): hand the envelope's `input` to `tryTransform` (section 15). **BREAKING in 0.10.0**:
 `RunHandle` gains `inputOf`, which breaks only code that BUILDS a handle.
 
 ```ts run
@@ -2979,7 +2989,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 | ~~**map-style fan-out**~~ — **BUILT** since [W33](doc/work-items/w33-a-map-at-run-time-arity.md); see section 3 |
 | ~~**RUNNING an `ask`**~~ — a node that waits for a person, its answer at `resolve()` | **BUILT** since [W180](doc/work-items/w180-asking-and-answering-in-a-run.md): a run parks at an ask with nothing handed to the scheduler, and its answer is its result — section 7. Under a cancel, a stop, a pause and a resume an ask is a parked task — never in flight, so nothing is ever sent or handed on for it — since [W181](doc/work-items/w181-an-ask-under-run-control.md) (section 7) |
 | a **live, mutable view** of a run's state, or the state handed to `onFoldInput` beside each input | **no** — [P39](doc/plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) (b), [ADR 0122](doc/decisions/0122-a-runtimes-live-state-is-a-frozen-copy-on-its-handle.md): `handle.state()` is a frozen COPY, cached until the run moves, and `handle.outcome()` / `handle.node()` are the O(1) reads — section 8 |
-| a task's INPUT kept in the run state — `NodeRun.input` for a task, or `pathEnded` carrying the value that reached an end | **no** — [ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md): a run keeps what its tasks returned. **READ it instead**, since [W205](doc/work-items/w205-what-a-node-was-handed-read-by-replaying-the-run.md): `inputOf(flow, options, { header, events }, target)` or `handle.inputOf(target)` replays the run to that node — section 8. The input a worker sees AFTER its transform: **no** ([Q760](doc/questions/q760.md)) |
+| a task's INPUT kept in the run state — `NodeRun.input` for a task, or `pathEnded` carrying the value that reached an end | **no** — [ADR 0046](doc/decisions/0046-a-run-retains-what-its-tasks-returned-and-a-region-releases-its-collection-when-its-join-becomes-terminal.md): a run keeps what its tasks returned. **READ it instead**, since [W205](doc/work-items/w205-what-a-node-was-handed-read-by-replaying-the-run.md): `inputOf(flow, options, { header, events }, target)` or `handle.inputOf(target)` replays the run to that node — section 8. The input a worker sees AFTER its transform: **no** ([Q760](doc/questions/q760.md), resolved — the envelope's `input` through `tryTransform` serves) |
 | a **join timeout** | nothing. A stuck join is detected by the `stuck` outcome, with no clock |
 | **per-join policy choice** | one policy per driver |
 | a **declared event family** for `fyflow-react-components` | `onRegionEvent`, `onFoldInput` and `joinStatusOf()` — see below |
@@ -4149,6 +4159,7 @@ whatever arcs reach the node, on the entry node too** (W166, P37 stop-and-ask (d
 | `shape` | `'given'` — not an arc; `checkWiring` never produces it |
 | `producer` | **absent** — the value came from no node (and `through` too) |
 | `sample` | `{ source: 'given', value, result }` — the value you gave, and what the transform made of it; no `arity`. **Never `'example'` or `'witness'`** |
+| `cause` | **on `transform-fails` only** (since 0.11.0, every road — `checkWiring`'s arcs too): `'threw'` — the worker half did not import, had no default export, or its `compile` or `evaluate` threw — or `'schema'`, a result the node's `inputSchema` refused — the type `TransformFailureCause`, a root export. Absent on every other kind. Read it rather than `why`'s prefix |
 | `kind` | `transform-passes`, or `transform-fails` with the finding against the node's worker `inputSchema` — or naming the error, where the expression does not compile or throws on this value; `unchecked` for a language, type, worker or worker schema the registry lacks, as on an arc, naming which — and for a `null` candidate, which takes away any transform the node declares too: there is nothing to run the value through, and holding that value to the `inputSchema` is `findings(schema, value)` |
 
 **The value is `$` as you give it: no `needs` is composed over it**, because a `needs` composes what
@@ -4205,6 +4216,7 @@ if (entry!.kind !== 'transform-passes') throw new Error(`expected the given valu
 const [wrong] = await tryTransform(registry, flow, 'read', rename, { input: { folder: 3 } });
 console.log(`${wrong!.kind}: ${wrong!.why}`);  // transform-fails: the transform's result on the given input fails the consumer's inputSchema — $.source expected string, ...
 if (wrong!.kind !== 'transform-fails' || !wrong!.why.includes('$.source expected string')) throw new Error(`expected the finding, got ${wrong!.why}`);
+if (wrong!.cause !== 'schema') throw new Error(`a result the schema refused is cause 'schema', got ${wrong!.cause}`);
 
 // THE INNER NODE. Without an input its one arc runs on `reader`'s declared EXAMPLE; given a value, it runs on that.
 const join = { lang: 'jsonata', expr: '{ "text": $join(lines, " ") }' };
@@ -4217,6 +4229,8 @@ if (JSON.stringify(mine!.sample!.result) !== JSON.stringify({ text: 'typed by ha
 // An expression the engine refuses: `transform-fails`, naming the throw — the compile error, on the given input.
 const [broken] = await tryTransform(registry, flow, 'sum', { lang: 'jsonata', expr: '{{{' }, { input: { lines: [] } });
 if (broken!.kind !== 'transform-fails' || !broken!.why.startsWith('the transform threw on the given input')) throw new Error(`expected the compile error, got ${broken!.why}`);
+// The same, as DATA (since 0.11.0): `cause` is 'threw' — no result was produced — where the finding above is 'schema'.
+if (broken!.cause !== 'threw' || entry!.cause !== undefined) throw new Error(`a throw is cause 'threw', and a passing verdict has none — got ${broken!.cause}, ${entry!.cause}`);
 ```
 
 **BREAKING in 0.8.0** (P37 decision 10): **`SampleSource` gains `'given'`**, **`WiringShape` gains

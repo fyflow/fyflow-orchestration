@@ -425,6 +425,12 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W208 — P43 (d1), (e1), decisions 6 and 7, ADR 0130: a transform's `cause` on transform-fails, L1 in
+  // `test/definition/transform-cause.test.ts`; WHEN an ask was asked, kept across a replay — L2 in
+  // `test/driver/asked-at.test.ts` and its fold field at L1 in `test/fold/asked-at.test.ts`; all three counted below.
+  'L1 — W208, P43 (d1): `cause` on a transform-fails verdict — threw on each of the catch`s four roads, schema on a finding, absent on every other kind, why unmoved',
+  'L2 — W208, RN-R37 v0.35: an `asked` element`s observedAt — the injected clock, KEPT by a replay from every stored prefix, a later clock past the tail, none from a pre-0.11.0 store, never diverged',
+  'L1 — RN-R36 v0.35: an ask`s entry carries askedAt from its `asked` element`s observedAt, only where the element says, kept through the answer',
   // W205 — P42 decisions 1-7, ADR 0128, `RN-R45`: what a node was handed, read by replaying the run to its composition —
   // L2 in `test/driver/input-of.test.ts` (the corpus oracle and every kind by hand), its COST in
   // `test/fold/input-of-cost.test.ts` (a sibling of map-cost), and the handle's reading in `test/scheduler/input-of.test.ts`;
@@ -1021,6 +1027,17 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/reference-index.test.ts registers its ten: the key and the restated predicate, the corpus, a resume, a nested map, a sibling map, twelve items reversed and parked, a repeated settlement, a fanout in an instance, the alias and the copy, and the membership');
   });
   // **W205's three suites, counted the same way and for the same reason.**
+  // **W208's three suites, counted the same way and for the same reason.**
+  test('W208`s three suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1 — W208, P43 (d1): `cause` on a transform-fails verdict — threw on each of the catch`s four roads, schema on a finding, absent on every other kind, why unmoved'), 5,
+      'test/definition/transform-cause.test.ts registers its five: threw on every road, schema on a finding, absent across the wiring corpus, unchecked and the kinds, and the membership');
+    equal(count('L2 — W208, RN-R37 v0.35: an `asked` element`s observedAt — the injected clock, KEPT by a replay from every stored prefix, a later clock past the tail, none from a pre-0.11.0 store, never diverged'), 8,
+      'test/driver/asked-at.test.ts registers its eight: the fresh clock, what is handed, every prefix kept, each its own, a pre-0.11.0 store, a malformed time, inputOf never diverged, and the membership');
+    equal(count('L1 — RN-R36 v0.35: an ask`s entry carries askedAt from its `asked` element`s observedAt, only where the element says, kept through the answer'), 5,
+      'test/fold/asked-at.test.ts registers its five: askedAt from the element, kept through the answer, never on a task, every prefix and L3, and the membership');
+  });
+
   test('W205`s three suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L2 — W205, RN-R45: what a node was HANDED, read by replaying the run to its composition — the corpus oracle on every rest and every resume, every kind by hand, every refusal, every halt read up to the halt, deaf'), 13,
