@@ -2948,8 +2948,9 @@ export class Driver {
   /**
    * **The reading's replay** — `resume()`'s first half (`resumeStep` to `replayStored`) with the cut armed, and nothing of
    * its second: no in-flight set, no `resumed`, nothing handed on. **The prefix it verifies ENDS at the first `halted`,
-   * `stopped` or `cancelRequested` element** (P42 decision 5): only a consumer's callback, a refused result or an owner's
-   * call appends those, so a replay cannot regenerate one — what follows is `not-reached`, never `diverged`. Everything
+   * `stopped` or `cancelRequested` element** (P42 decision 5): after one a halted driver composes nothing more, whether the
+   * replay regenerates it (a predicate's throw) or cannot (a consumer's callback, a refused result, an owner's call) —
+   * what follows is `not-reached`, never `diverged` (P42 retro (a1) corrected the reason). Everything
    * before is compared as `RN-R20` compares it.
    */
   private readStep(run: Checkpoint, t: { readonly nodeId: string; readonly branchPath: string | null }): InputReading {
@@ -2990,7 +2991,7 @@ export class Driver {
     return {
       ok: false, reason: 'not-reached', index: end,
       message: `the replay handed ${where} nothing within the ${end} stored element(s) a reading verifies` +
-        (end < events.length ? ` — the prefix ends at position ${end}, \`${String((events[end] as { kind?: unknown }).kind)}\`, which only a consumer's callback, a refused result or an owner's call appends (RN-R45)` : '') + '.',
+        (end < events.length ? ` — the prefix ends at position ${end}, \`${String((events[end] as { kind?: unknown }).kind)}\`, after which a halted driver composes nothing more (RN-R45)` : '') + '.',
     };
   }
 
