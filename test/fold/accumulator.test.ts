@@ -272,16 +272,33 @@ function same(a: unknown, b: unknown): boolean {
  */
 /** How many loaded-accumulator comparisons `firstDivergence` made — a floor on it is what keeps that loop from going empty (W4). */
 let loadedComparisons = 0;
+/**
+ * **The oracle PLUS `RN-R36` v0.35's one field** (W208, ADR 0130) — the oracle is never edited (ADR 0120 rule 8), and
+ * since v0.35 an `asked` element carrying `observedAt` folds its ask's entry with `askedAt` beside `input`, kept through
+ * the answer as `input` is. This is that sentence, hand-written over the oracle's own step, and NOTHING else: on an
+ * `asked` the oracle ADDED an entry for, `askedAt` is the element's `observedAt` (where it carries one); on a
+ * `resolution` that REBUILT an entry whose previous version had `askedAt`, it is kept. Every other step is the oracle's,
+ * object for object — so on a sequence with no `observedAt` (every hand-written and generated one) this IS the oracle.
+ */
+function oracleStep(prev: RunState, input: FoldInput): RunState {
+  const next = oracle.step(prev, input);
+  if (input.kind !== 'asked' && input.kind !== 'resolution') return next;
+  const id = input.kind === 'asked' ? input.taskId : input.record.taskId;
+  const was = prev.nodes[id], now = next.nodes[id];
+  const at = input.kind === 'asked' ? (was === undefined ? input.observedAt : undefined) : (now !== was ? was?.askedAt : undefined);
+  return at === undefined || now === undefined ? next : { ...next, nodes: { ...next.nodes, [id]: { ...now, askedAt: at } } };
+}
+const oracleFold = (seq: readonly FoldInput[]): RunState => seq.reduce(oracleStep, oracle.emptyState());
 function firstDivergence(seq: readonly FoldInput[]): number {
   let stepped = emptyState();
   let o = oracle.emptyState();
   const states = [o];
   for (let n = 1; n <= seq.length; n += 1) {
     stepped = step(stepped, seq[n - 1]!);
-    o = oracle.step(o, seq[n - 1]!);
+    o = oracleStep(o, seq[n - 1]!);
     states.push(o);
     const folded = fold(seq.slice(0, n));
-    if (!same(folded, o) || !same(stepped, o) || !same(oracle.fold(seq.slice(0, n)), o)) return n;
+    if (!same(folded, o) || !same(stepped, o) || !same(oracleFold(seq.slice(0, n)), o)) return n;
   }
   // And an accumulator LOADED from each prefix's state and fed the rest — several applies over a handed state, which
   // neither `fold` (an empty base) nor `step` (one apply) reaches: the counts kept while the base is read through.
@@ -425,6 +442,9 @@ suite(SUITE, (test) => {
     for (const k of ['dispatched', 'outcome', 'resolution', 'attempted', 'region', 'regionEntered', 'joinSettled', 'pathEnded', 'gated', 'asked']) {
       ok(kinds.has(k), `the driven corpus holds a \`${k}\` element`);
     }
+    // W208 (the adequacy reader): `oracleStep`'s added arm is reached only by a DRIVEN `asked` element carrying a time —
+    // so that such an element exists is an arrangement, asserted rather than assumed.
+    ok(Object.values(DRIVEN).flat().some((e) => e.kind === 'asked' && typeof e.observedAt === 'number'), 'the driven corpus holds an `asked` element carrying observedAt');
     const outcomes = new Set(Object.values(DRIVEN).map((s) => oracle.fold(s).outcome));
     for (const o of ['completed', 'failed', 'awaiting_action', 'halted']) ok(outcomes.has(o as RunOutcome), `and a run that ends \`${o}\` — reached: ${[...outcomes].join(', ')}`);
     for (const [name, seq] of Object.entries(DRIVEN)) {

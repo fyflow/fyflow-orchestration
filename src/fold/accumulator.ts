@@ -415,6 +415,8 @@ export class Accumulator {
       this.setNode(input.taskId, {
         runId, nodeId, branchPath, flowAttempt: attempt, attemptNumber: null,
         state: 'suspended', result: null, error: null, input: structuredClone(input.input),
+        // `RN-R36` v0.35 (W208, ADR 0130): WHEN it was asked, where the element says — and only there.
+        ...(input.observedAt !== undefined ? { askedAt: input.observedAt } : {}),
       });
       return this.withOutcome();
     }
@@ -501,6 +503,7 @@ export class Accumulator {
         result: r.result,
         error: r.error,
         ...(existing !== undefined && 'input' in existing ? { input: existing.input } : {}),
+        ...(existing?.askedAt !== undefined ? { askedAt: existing.askedAt } : {}),
       });
     }
     this.runId = this.runId ?? runId;

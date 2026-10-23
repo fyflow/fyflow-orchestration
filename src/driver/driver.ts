@@ -660,6 +660,20 @@ function sameData(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * **The time a regenerated `asked` element takes from the stored element at its position** — `RN-R19` v0.35, ADR 0130,
+ * W208: the stored element's `observedAt` where it is an `asked` element carrying a number there, and `undefined`
+ * otherwise. `undefined` covers a checkpoint written before 0.11.0 (no `observedAt`, so the regenerated element carries
+ * none and compares equal) and every element that is not what the replay regenerates there — which `append`'s prefix
+ * check then refuses `diverged`, as it did before this field: a stored `observedAt` that is not a number is not one a
+ * driver wrote, and the regenerated element, carrying none, differs from it. Module-private: not surface.
+ */
+function storedAskedAt(e: FoldInput | undefined): number | undefined {
+  if (e === undefined || e === null || typeof e !== 'object' || e.kind !== 'asked') return undefined;
+  const t = (e as { observedAt?: unknown }).observedAt;
+  return typeof t === 'number' ? t : undefined;
+}
+
+/**
  * The kinds a replay is FED rather than regenerates — `RN-R19`: three, and since v0.19 a fourth, `interrupted` (`RN-R32`,
  * ADR 0105), which only its owner's call can produce and which the replay therefore cannot regenerate — and since v0.20
  * a fifth and a sixth, `paused` and `unpaused` (`RN-R34`, ADR 0106), for the same reason — and since v0.26 a SEVENTH,
@@ -5451,7 +5465,16 @@ export class Driver {
       throw new DuplicateTaskId(`"${taskId}" was already asked in run "${runId}" — an ask's id is minted once per path (ID-R1)`);
     }
     this.asked.add(taskId);
-    this.append({ kind: 'asked', taskId, input: cloneValue(received) });
+    // **WHEN it was asked** (`RN-R37` v0.35, `RN-R19`, ADR 0130, W208): within a replay's stored prefix the element is
+    // REGENERATED and takes the stored element's time — or carries none where the stored one carries none, a checkpoint
+    // written before 0.11.0 — so it compares equal (`RN-R20`) and the run keeps when the person was ASKED, not when the
+    // replay ran. Past the stored tail (`RN-R24`) and on a live run it is the injected clock, an outcome record's.
+    const replay = this.replay;
+    const at = this.inputs.length;
+    const observedAt = replay !== null && at < replay.stored.length ? storedAskedAt(replay.stored[at]) : this.now();
+    this.append(observedAt === undefined
+      ? { kind: 'asked', taskId, input: cloneValue(received) }
+      : { kind: 'asked', taskId, input: cloneValue(received), observedAt });
     // An answer given on this step — even on the `asked` element's own callback — is PENDING until the step ends
     // (`resolve()`, `takeAnswer`), so the park always completes here and the resolution follows it at rest.
     if (this.shut()) return;

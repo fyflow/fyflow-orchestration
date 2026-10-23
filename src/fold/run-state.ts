@@ -132,6 +132,14 @@ export interface NodeRun {
    * additive: a consumer building a `NodeRun` literal is unaffected.
    */
   input?: unknown;
+  /**
+   * **WHEN an ask was asked** — `RN-R36`, v0.35,
+   * [ADR 0130](../../doc/decisions/0130-a-regenerated-asked-element-keeps-the-stored-runs-time.md), W208, P43 (e1): its
+   * `asked` element's `observedAt`, KEPT after the answer as {@link NodeRun.input} is. **Present only on an ask's node, and
+   * only where its element carried one** — an element written before 0.11.0 carries none, so its entry has none. OPTIONAL
+   * and additive.
+   */
+  askedAt?: number;
 }
 
 export interface RegionRun {
@@ -351,8 +359,16 @@ export type FoldInput =
    * (`RN-R19`): the replay re-enters the ask and compares the input it composes with the stored one (`RN-R20`). **The
    * first kind whose payload is a value of ANY shape**, so it is deep-copied on the way out (`freezeInput`, `RN-R17`).
    * **A new kind, BREAKING in 0.8.0 for a consumer switching on `kind` exhaustively** (P35 decision 8).
+   *
+   * **`observedAt` — WHEN the ask was asked** (v0.35, `RN-R37`,
+   * [ADR 0130](../../doc/decisions/0130-a-regenerated-asked-element-keeps-the-stored-runs-time.md), W208, P43 (e1)): the
+   * driver's injected `now` where the branch entered the ask — the clock an outcome record's `observedAt` is read from.
+   * **A replay KEEPS the stored run's** (`RN-R19`): within the stored prefix the regenerated element takes the stored
+   * element's `observedAt`, or carries none where the stored one carries none, so it compares equal (`RN-R20`); past the
+   * stored tail it is `now()`. **OPTIONAL**: an element written before 0.11.0 has none, and a consumer building one
+   * literally is unaffected. `CHECKPOINT_FORMAT` does not move.
    */
-  | { kind: 'asked'; taskId: string; input: unknown }
+  | { kind: 'asked'; taskId: string; input: unknown; observedAt?: number }
   | { kind: 'pathEnded'; reason: 'end' | 'no-eligible-edge'; at: string }
   | { kind: 'joinSettled'; regionId: string; regionPath: string; joinId: string; fired: boolean }
   /**

@@ -310,7 +310,7 @@ suite(SUITE, (test) => {
     b.driver.resume(cp);
     equal([b.sch.added, b.built], [[], []], 'the resume hands NOTHING on and builds nothing: summarise settled, the ask never in flight');
     equal(b.driver.foldInputs().slice(0, cp.events.length), cp.events, 'every stored element regenerated or fed, element for element');
-    equal(b.driver.foldInputs()[at], { kind: 'asked', taskId: APPROVE, input: { text: 's' } }, 'the `asked` element REGENERATED at its position — same id, same kept input');
+    equal(b.driver.foldInputs()[at], { kind: 'asked', taskId: APPROVE, input: { text: 's' }, observedAt: 42 }, 'the `asked` element REGENERATED at its position — same id, same kept input');
     equal(b.driver.foldInputs().at(-1), { kind: 'resumed', taskIds: [] }, '`resumed` names nothing in flight');
     equal([state(b.driver).outcome, state(b.driver).interruption], ['awaiting_action', null], 'the resumed run waits on the person again, the stop ended');
     ok(b.driver.resolve(APPROVE, 'done', { result: { approved: true }, actor: 'ana' }), 'and the answer is accepted THERE');
@@ -360,7 +360,7 @@ suite(SUITE, (test) => {
     equal(c.driver.foldInputs()[at], cp.events[at], 'the stored answer FED at its position (RN-R19)');
     equal(c.driver.foldInputs().filter((e) => e.kind === 'asked').length, 1, 'and the ask asked ONCE — re-parked by the replay, then answered by the fed element');
     equal(c.sch.added, [PUBLISH], 'only publish, in flight, handed on — nothing for the answered ask');
-    equal(state(c.driver).nodes[APPROVE], { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { approved: true }, error: null, input: { text: 's' } },
+    equal(state(c.driver).nodes[APPROVE], { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { approved: true }, error: null, input: { text: 's' }, askedAt: 42 },
       'the ask reads answered, its input kept');
     equal(c.driver.resolve(APPROVE, 'done', { result: { approved: false }, actor: 'bob' }), false, 'and a second answer is refused');
     c.sch.settle(PUBLISH, 'done', 'p');

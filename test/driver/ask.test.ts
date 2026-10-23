@@ -135,10 +135,10 @@ suite(SUITE, (test) => {
     equal(made, [], '`createTask` is never called for an ask');
     equal(m.driver.dispatchedIds(), [], 'and no dispatch is recorded');
     equal(m.seen, ['asked'], 'ONE element, `asked` — no `dispatched`, no outcome record');
-    equal(m.driver.foldInputs()[0], { kind: 'asked', taskId: A, input: { request: { doc: { title: 'x' } } } },
+    equal(m.driver.foldInputs()[0], { kind: 'asked', taskId: A, input: { request: { doc: { title: 'x' } } }, observedAt: 42 },
       'its task id by task-id`s scheme, attempt 0, and its input what `needs: { request: "." }` composed');
     equal(m.driver.snapshot(), [], 'the LOG is empty: a park is not a record (P35 decision 5)');
-    equal(nodeOf(m.driver, A), { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'suspended', result: null, error: null, input: { request: { doc: { title: 'x' } } } },
+    equal(nodeOf(m.driver, A), { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'suspended', result: null, error: null, input: { request: { doc: { title: 'x' } } }, askedAt: 42 },
       'the node `suspended`, its input KEPT');
     equal(outcome(m.driver), 'awaiting_action', 'the run `awaiting_action` (RN-R7)');
     payload.doc.title = 'MOVED';
@@ -175,7 +175,7 @@ suite(SUITE, (test) => {
     m.sch.settle('r1:summarise:-:0', 'done', { text: 'a summary' });
     equal(m.sch.ids(), ['r1:summarise:-:0'], 'nothing is handed on past the ask');
     equal(m.seen, ['dispatched', 'outcome', 'asked'], 'the settlement, then the park');
-    equal(askedOf(m.driver), [{ kind: 'asked', taskId: A, input: { text: 'a summary' } }],
+    equal(askedOf(m.driver), [{ kind: 'asked', taskId: A, input: { text: 'a summary' }, observedAt: 42 }],
       'the kept input is the predecessor`s RESULT — the ordinary edge`s value, the ask declaring no `needs`');
     equal(outcome(m.driver), 'awaiting_action', 'awaiting the person');
     equal(m.failures, [], 'nothing reported');
@@ -193,7 +193,7 @@ suite(SUITE, (test) => {
       { kind: 'resolution', taskId: A, resolvedAs: 'done', result: { approved: true }, error: null, actor: 'ana', observedAt: 42 },
     ], 'the answer is the EXISTING resolution record (P35 (b)) — the log gains no new kind');
     const n = nodeOf(yes.driver, A);
-    equal(n, { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { approved: true }, error: null, input: { text: 's' } },
+    equal(n, { runId: 'r1', nodeId: 'approve', branchPath: '-', flowAttempt: 0, attemptNumber: null, state: 'done', result: { approved: true }, error: null, input: { text: 's' }, askedAt: 42 },
       'the node `done`, its result the answer, its input KEPT after the answer (P35 (f))');
     // The other road: not approved — the DEFAULT edge, to `revise`, whose `needs` reaches BOTH the input's producer and the answer.
     const no = make(await load('valid/ask-after-a-task.flow.json'));
@@ -385,7 +385,7 @@ suite(SUITE, (test) => {
     m.driver.start({});
     m.sch.settle('r1:b:1:0', 'done', 'B');
     m.sch.settle('r1:a:0:0', 'done', 'A');
-    equal(askedOf(m.driver), [{ kind: 'asked', taskId: 'r1:check:0:0', input: 'A' }], 'the ask inside branch 0 parks with its task`s result, at branch path 0');
+    equal(askedOf(m.driver), [{ kind: 'asked', taskId: 'r1:check:0:0', input: 'A', observedAt: 42 }], 'the ask inside branch 0 parks with its task`s result, at branch path 0');
     equal(m.seen.slice(-2), ['asked', 'suspended(0)'], 'and its branch suspends');
     equal(m.sch.ids(), ['r1:a:0:0', 'r1:b:1:0'], 'branch 1 arrived and the join does NOT fire');
     equal(outcome(m.driver), 'awaiting_action', 'waiting on the person');

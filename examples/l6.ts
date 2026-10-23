@@ -11182,6 +11182,14 @@ const askCanon = (v: unknown): unknown => Array.isArray(v) ? v.map(askCanon)
     ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, askCanon((v as Record<string, unknown>)[k])]))
     : v;
 /**
+ * `askCanon` with an `asked` element's `observedAt` and an ask entry's `askedAt` SET ASIDE, at the top level and nowhere
+ * else — W208 (ADR 0130, P43 (e1)) added both, a live clock's value on real workers; the W182 claims below are about the
+ * element's id and kept input and the entry's state, and WHEN the ask was asked is W212's claim, not theirs.
+ */
+const askUntimed = (v: unknown): unknown => (v !== null && typeof v === 'object' && !Array.isArray(v)
+  ? askCanon(Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'observedAt' && k !== 'askedAt')))
+  : askCanon(v));
+/**
  * A runtime from `askDoc`, its scheduler's `addTask` and `cancel` wrapped BEFORE any run starts — every id handed, every
  * id a cancel was sent for — and every id any `task.*` event carried. `messageFrom(id, name)` is a latch on a worker's
  * `context.emit`: a signal, not a sleep.
@@ -11264,8 +11272,8 @@ try {
       r.a2 = [[...a.handed], held, [...a.seen].sort(),
         ((p) => p?.inline === false ? 'threaded' : `NOT threaded (${String(p?.inline)})`)(
           (a.rt.scheduler.workerPools as Record<string, { inline?: unknown }>).Draft)];
-      r.a3 = [askSeqOf(inputs), askCanon(inputs.find((i) => i.kind === 'asked') ?? 'NO asked ELEMENT')];
-      r.a4 = [s.outcome, isTerminal(s), doneSettled, askCanon(s.nodes[ids.approve] ?? 'NO ENTRY'), askCanon(s.nodes[ids.draft]?.result ?? 'NO RESULT')];
+      r.a3 = [askSeqOf(inputs), askUntimed(inputs.find((i) => i.kind === 'asked') ?? 'NO asked ELEMENT')];
+      r.a4 = [s.outcome, isTerminal(s), doneSettled, askUntimed(s.nodes[ids.approve] ?? 'NO ENTRY'), askCanon(s.nodes[ids.draft]?.result ?? 'NO RESULT')];
     } finally {
       await a.rt.shutdown();
     }
@@ -11295,7 +11303,7 @@ try {
         const won = await settleWithin(h.done, ASK_DEADLINE_MS);
         const inputs = h.driver.foldInputs();
         const s = fold(inputs);
-        r[`b2${runId}`] = [accepted, askSeqOf(inputs).slice(n0), s.pathEnds, askCanon(s.nodes[ids.approve] ?? 'NO ENTRY')];
+        r[`b2${runId}`] = [accepted, askSeqOf(inputs).slice(n0), s.pathEnds, askUntimed(s.nodes[ids.approve] ?? 'NO ENTRY')];
         r[`b3${runId}`] = [won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value),
           won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(s), a.mine(a.handed, runId), a.seen.has(ids.approve)];
       }
@@ -11318,7 +11326,7 @@ try {
       const inputs = h.driver.foldInputs();
       const s = fold(inputs);
       r.c1 = [accepted, askSeqOf(inputs).slice(n0), s.pathEnds];
-      r.c2 = [askCanon(s.nodes[ids.approve] ?? 'NO ENTRY'), won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value),
+      r.c2 = [askUntimed(s.nodes[ids.approve] ?? 'NO ENTRY'), won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', won.by === 'done' && isTerminal(won.value),
         won.by === 'done' && JSON.stringify(won.value) === JSON.stringify(s), a.mine(a.handed, runId)];
     } finally {
       await a.rt.shutdown();
@@ -11412,8 +11420,8 @@ try {
       const bInputs = res.driver.foldInputs();
       const bFolded = fold(bInputs);
       const bAt = bInputs.findIndex((i) => i.kind === 'asked');
-      r.e3 = [bAt, askCanon(bInputs[bAt] ?? 'NO asked ELEMENT'), aAsked !== undefined && JSON.stringify(askCanon(bInputs[bAt])) === JSON.stringify(askCanon(aAsked)),
-        askCanon(bFolded.nodes[ids.approve] ?? 'NO ENTRY'), bFolded.outcome];
+      r.e3 = [bAt, askUntimed(bInputs[bAt] ?? 'NO asked ELEMENT'), aAsked !== undefined && JSON.stringify(askCanon(bInputs[bAt])) === JSON.stringify(askCanon(aAsked)),
+        askUntimed(bFolded.nodes[ids.approve] ?? 'NO ENTRY'), bFolded.outcome];
       r.e4 = [handedAtResume, heldAtResume, bFolded.resumes, askSeqOf(bInputs).slice(length)];
       const accepted = res.driver.resolve(ids.approve, 'done', { result: { approved: true }, actor: ASK_PERSON });
       const bWon = await settleWithin(res.done, ASK_DEADLINE_MS);
