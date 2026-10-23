@@ -15,6 +15,7 @@
     ],
     "packageJson": {
       "dependencies": [
+        "npm:@cfworker/json-schema@4.1.1",
         "npm:@types/node@^24.13.3",
         "npm:esbuild@~0.25.12",
         "npm:fyflow-scheduler@0.6.0",

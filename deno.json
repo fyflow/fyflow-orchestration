@@ -21,6 +21,7 @@
       "!src/definition/condition.ts",
       "!src/definition/schema.ts",
       "!src/definition/registry.ts",
+      "!src/definition/definition-schema.ts",
       "!src/definition/witness.ts",
       "!src/definition/wiring.ts",
       "!src/definition/assist.ts",

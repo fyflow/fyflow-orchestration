@@ -740,7 +740,8 @@ if (written.length) {
 // **Raised 49 -> 50 by the release chores before 0.8.0 (2026-10-19)**, section 8's *A worker's OWN messages* snippet — at the maintainer's request.
 // **Raised 50 -> 51 by [W196](../doc/work-items/w196-the-runs-live-state-on-its-handle.md)**, section 8's *Reading a run WHILE it runs* snippet — in its row's `Owns`.
 // **Raised 52 -> 53 by [W209](../doc/work-items/w209-a-reference-to-a-nodes-error.md)**, section 3's *`"someNode!error"` — what FAILED* snippet — in its row's `Owns`.
-const RUN_FLOOR = 53;
+// **Raised 53 -> 54 by [W210](../doc/work-items/w210-the-static-shape-schema.md)**, section 3's *The definition's SHAPE, as data* snippet — in its row's `Owns`.
+const RUN_FLOOR = 54;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —

@@ -425,6 +425,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W210 — P43 (a1), (b1), decisions 1-4, ADR 0132: `definitionSchema()`, a definition's static shape as a JSON Schema
+  // draft 2020-12, held by a TEST-ONLY 2020-12 validator to the corpus — L1 in `test/definition/definition-schema.test.ts`.
+  'L1 — W210, ADR 0132: definitionSchema() — a valid 2020-12 document, the corpus accepted, every shape-only refusal beside its repair, never refusing what validateDefinition accepts',
   // W209 — P43 (c1), decision 5, ADR 0131: a `needs` reference naming a node's ERROR — L1 in
   // `test/definition/error-reference.test.ts`, L2 in `test/driver/error-reference.test.ts`; both counted below.
   'L1 — W209, ADR 0131: "n!error" in the grammar — referenceTarget`s part, FD-V26`s "!" clauses at both sites, FD-V27 to FD-V29 as the plain form, and the wiring check`s string',

@@ -5,6 +5,9 @@ export * from "./src/definition/validate.ts";
 // functions over data, no engine, no scheduler value; the runtime sub-path (W66) builds FROM them.
 export * from "./src/definition/schema.ts";
 export * from "./src/definition/registry.ts";
+// W210 (P43 (a1), ADR 0132): a definition's static shape as a JSON Schema draft 2020-12, BUILT from the
+// validator's own key sets - pure over data, no engine, no validator of its own.
+export * from "./src/definition/definition-schema.ts";
 // W73 (P19 decisions 4, 5 and 8): the wiring check and the witness generator it samples with -
 // pure over data, one dynamic import of an adapter's worker half by URL, no engine, no scheduler value.
 export * from "./src/definition/witness.ts";
