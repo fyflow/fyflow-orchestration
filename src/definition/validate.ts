@@ -33,7 +33,19 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 // Measured at W92's declaration step, which is why the two tables below and this list move together.
 // `ask` since v0.42 (W179, ADR 0108) — and the three move together again, for the same measured reason.
 const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'] as const;
+/**
+ * **`FD-V16`'s charset — a flow's and a node's id** ([spec/task-id.md](../../spec/task-id.md)'s) — v0.50 (W210,
+ * [ADR 0132](../../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md)), so
+ * `definitionSchema()` builds its `pattern` from the validator's expression. **A COPY** — `compile()` on it, or a
+ * consumer's edit, moves no verdict (W210's conformity reader, S2: the live object did).
+ */
+const ID_RE_COPY = new RegExp(ID_RE.source, ID_RE.flags);
+/** **The seven node kinds `FD-V24` admits** — v0.50 (W210, ADR 0132), for `definitionSchema()`'s `kind` enum; a FROZEN copy. */
+const KINDS_COPY: readonly (typeof KINDS)[number][] = Object.freeze([...KINDS]);
+export { ID_RE_COPY as ID_RE, KINDS_COPY as KINDS };
 const ROUTABLE = ['done', 'failed'] as const;
+/** **The terminal states an edge's `on` may name** (`FD-V18`) — a copy of the validator's own list, v0.50 (W210, ADR 0132). */
+export const ROUTABLE_STATES: readonly string[] = [...ROUTABLE];
 
 const DOC_KEYS = ['flowId', 'version', 'entry', 'nodes'];
 const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
@@ -97,6 +109,19 @@ export const TASK_KEYS_DECLARED: readonly string[] = [...NODE_KEYS.task!.req, ..
 export const NODE_KEYS_DECLARED: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
   Object.entries(NODE_KEYS).map(([kind, k]) => [kind, [...k.req, ...k.opt]]),
 );
+/**
+ * **The REQUIRED half of each kind's keys, the edge's and the document's** — `FD-V23`'s three lists, copied, v0.50
+ * (W210, [ADR 0132](../../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md)):
+ * `definitionSchema()` reads its `required` from these, so a key the validator starts requiring is one the schema
+ * requires, and a key it stops requiring one the schema stops requiring. Every document key is required.
+ */
+export const NODE_KEYS_REQUIRED: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
+  Object.entries(NODE_KEYS).map(([kind, k]) => [kind, [...k.req]]),
+);
+/** The edge's required keys — `FD-V23`'s *an edge without `to`*, copied (v0.50, W210). */
+export const EDGE_KEYS_REQUIRED: readonly string[] = [...EDGE_KEYS.req];
+/** The document's keys, every one required (`FD-V23`) and none other declared (`FD-V17`) — copied, v0.50 (W210). */
+export const DOC_KEYS_DECLARED: readonly string[] = [...DOC_KEYS];
 /**
  * **The two keys a `retryPolicy` carries, and no others** — `FD-V30`. The scheduler's own
  * constructor at 0.5.2 destructures exactly these; a key beside them is a typo the scheduler

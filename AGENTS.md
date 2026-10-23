@@ -802,6 +802,50 @@ It would have said *every path from a branch entry reaches the join* — which w
 that routes a branch away from its join invalid input, and that case is the one this library exists
 to get right (`ADR 0003`). Do not add it.
 
+### The definition's SHAPE, as data — `definitionSchema()`
+
+**`definitionSchema()` returns everything above as a JSON Schema, draft 2020-12** (`spec/flow-definition.md` v0.50,
+[ADR 0132](doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md), since 0.11.0): every node kind
+and its keys, which are required, the edges of each kind, the three `when` shapes, the `needs` grammar (`"lookup!error"`
+included), a `retryPolicy`, a `transform` and an `answerSchema` — each key with a `description`. Hand it to any 2020-12
+validator, or to an agent writing a flow, BEFORE the findings. It is BUILT from the validator's own key sets, so its
+keys cannot drift from them (the reference tokens and the operator partition are written beside them and held to the
+validator by its tests); it is a new plain object on every call, yours to change. A join's `of` and a fanout's branch
+entries are held to the id charset only where they are strings — the validator does no more today
+([Q774](doc/questions/q774.md)).
+
+| | |
+|---|---|
+| it refuses | what a node, an edge or a value gets wrong in its OWN shape: an undeclared or missing key, a wrong type, an id outside `[A-Za-z0-9_-]{1,64}`, an unknown kind, a malformed reference, `when`, `retryPolicy` or `transform`, a task's key on an ask, an `answerSchema` outside the subset |
+| it does not | anything that needs ANOTHER node or the REGISTRY — whether `to` names a node, reachability, regions and joins, where a reference points, every registered name (types, pools, groups, languages, predicates, gate types and their routes) |
+| the authority | **`validateDefinition(flow, registry)`**, or `runtime.check(flow)` on a runtime — for all of that and for the whole. What the schema refuses, `validateDefinition` refuses under every registry; a document it accepts may still be refused there. The root `description` says so |
+| not | a check the library runs (nothing evaluates it), nor in [ADR 0053](doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)'s subset — it uses `$defs`, `$ref`, `oneOf`, `if`/`then`, `pattern` |
+
+```ts run
+import { definitionSchema, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+const schema = definitionSchema();
+console.log(schema.$schema);   // https://json-schema.org/draft/2020-12/schema
+if (schema.$schema !== 'https://json-schema.org/draft/2020-12/schema') throw new Error('a 2020-12 document');
+if (!String(schema.description).includes('validateDefinition')) throw new Error('it names the authority for the rest');
+
+type Def = { properties: Record<string, { description?: string }>; required: string[]; additionalProperties: boolean };
+const defs = schema.$defs as Record<string, Def> & { reference: { anyOf: { pattern?: string }[] } };
+console.log(defs.askNode.required);   // [ 'id', 'kind', 'edges' ]
+if (defs.askNode.additionalProperties !== false || 'type' in defs.askNode.properties) throw new Error('an ask declares no type');
+if (!defs.taskNode.properties.retryPolicy?.description) throw new Error('every key is described');
+
+// The reference grammar, as a pattern any validator can apply — the error form accepted, a misplaced "?" not.
+const reference = new RegExp(defs.reference.anyOf[0]!.pattern!);
+if (!reference.test('lookup!error?') || reference.test('lookup?!error')) throw new Error('the "!error" grammar');
+
+// A shape the schema accepts can still be refused: an edge to a node that does not exist is the VALIDATOR's.
+const dangling = { flowId: 'f', version: 1, entry: 'a', nodes: [{ id: 'a', kind: 'task', type: 'Work', edges: [{ to: 'ghost' }] }] } as FlowDefinition;
+const rules = validateDefinition(dangling, { predicates: [], workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } } }).map((f) => f.rule);
+if (rules.join() !== 'FD-V2') throw new Error(`the graph is validateDefinition's: ${rules.join()}`);
+if (definitionSchema() === schema) throw new Error('a new object per call');
+```
+
 ---
 
 ## 4. Decisions and predicates

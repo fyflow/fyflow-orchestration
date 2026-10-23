@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.49 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.50 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -584,6 +584,18 @@ clauses, each naming its fix. **New public surface**, additive in 0.11.0: the re
 `part: 'error'` (present only on that form, so every existing spelling parses as it did) and the root type
 `AimedReference`. The default-input form (P43 (c2)) is declined. No refusal id is added or retired: still **45 refusals**.
 
+**v0.50 is [W210](../doc/work-items/w210-the-static-shape-schema.md) under
+[P43](../doc/plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md) — a definition's SHAPE, as data**
+([ADR 0132](../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md), P43 (a1), (b1), decisions
+1-4, facts 1-3). `definitionSchema()` returns this document's static shape as a JSON Schema draft 2020-12 object, BUILT
+from the validator's own key sets and carrying a description per key; section 1's *The definition's shape as a schema*
+says what it carries, what it does not, and that `validateDefinition` is the authority for the rest. **No rule moves**:
+the schema refuses nothing `validateDefinition` accepts, and decides nothing at instantiation — it is a reading for an
+author, an agent or a host, never a check the library runs. **New public surface**, additive in 0.11.0: the root export
+`definitionSchema` and its type `DefinitionSchema`, and six of the validator's constants now exported for it to read —
+`ID_RE`, `KINDS`, `ROUTABLE_STATES`, `DOC_KEYS_DECLARED`, `NODE_KEYS_REQUIRED` and `EDGE_KEYS_REQUIRED`, each a COPY, so
+editing one moves no verdict. Still **45 refusals**.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -612,6 +624,22 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 | `version` | integer >= 1 | author-managed. The driver does not interpret it |
 | `entry` | string | a node id (`FD-V3`) |
 | `nodes` | array | one object per node, order irrelevant |
+
+### The definition's shape as a schema — v0.50
+
+[ADR 0132](../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md), P43 (a1), (b1).
+**`definitionSchema()` returns this document's STATIC SHAPE as a JSON Schema, draft 2020-12** — a plain,
+JSON-serialisable object, a new one on every call, `$schema` `https://json-schema.org/draft/2020-12/schema`, one
+`description` per key. It is for an author, an agent or a host that writes a definition and wants the shape before the
+findings; **the library never evaluates it**.
+
+| | |
+|---|---|
+| **built from** | the validator's own key sets — every kind's declared and required keys, the edge's, the document's, `retryPolicy`'s, `transform`'s, a `when`'s three shapes, the schema subset's keywords — and its `FD-V16` id charset, its kinds, `on`'s states, the predicate operators and roots and the key-path grammar. A key the validator gains is a key the schema gains; a key with no description written makes `definitionSchema()` throw, naming it. **Three things are written in the schema's module, the validator keeping them private** — the reference grammar's tokens (`"."`, `"$payload"`, `"$item"`, `"!error"`), the operator partition `FD-V44` reads, and which edge keys each kind's edges admit — each held to the validator by W210's suite, spelling by spelling and operator by operator |
+| **carries** | every rule a node, an edge or a value decides by its OWN shape: `FD-V16`, `FD-V17`, `FD-V18`, `FD-V21`, `FD-V23`, `FD-V24`, `FD-V26` (section 3's reference grammar, `"n!error"` included), `FD-V30`, `FD-V37`, `FD-V42`-`FD-V45`, `FD-V47`, `FD-V48` but for ADR 0056's `examples` check; the shape clauses of `FD-V7` (a task's and an ask's edges non-empty, a join's ONE edge without `on` or `when`), `FD-V8`, `FD-V9` (two distinct branches, no `edges`), `FD-V25` (`over`, no `edges`), `FD-V40`'s key path and `FD-V41`'s per-edge half (a `route` only on a gate's edge, which carries nothing else). **A join's `of` and a fanout's branch entries are held to the id charset only where they are STRINGS**: the validator holds both through the graph alone, so it ACCEPTS `of: null` on a join of no region and `["b", "c", 5]` today, and the schema must not refuse what it accepts ([Q774](../doc/questions/q774.md)) |
+| **does not carry** | anything that needs ANOTHER node or the REGISTRY: whether a named node exists and what kind it is, reachability, cycles, regions and joins (`FD-V1`-`FD-V3`, `FD-V6`, `FD-V10`-`FD-V13`, `FD-V19`, `FD-V20`, `FD-V22`), where a reference points (`FD-V27`-`FD-V29`, `FD-V49`), and every registered name and what it declares — node types, pools, groups, languages, predicates, gate types, their settings and routes. The registry-specialised form is `definitionSchema(registry)`'s, P43's next item |
+| **the authority** | **`validateDefinition(flow, registry)`** — and `runtime.check(flow)` on a runtime — for every rule above it does not carry, and for the definition as a whole. The schema's root `description` says so. **What the schema refuses, `validateDefinition` refuses under every registry; the converse does not hold** |
+| **not ADR 0053's subset** | that subset governs the schemas the library EVALUATES; this one it EMITS for a consumer's validator, so it uses `$defs`, `$ref`, `oneOf`, `if`/`then` and `pattern`. An `answerSchema` it describes is in the subset, and the schema says so |
 
 ## 2. Node kinds
 
