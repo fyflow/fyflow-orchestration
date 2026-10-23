@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.50 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.51 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -596,6 +596,21 @@ author, an agent or a host, never a check the library runs. **New public surface
 `ID_RE`, `KINDS`, `ROUTABLE_STATES`, `DOC_KEYS_DECLARED`, `NODE_KEYS_REQUIRED` and `EDGE_KEYS_REQUIRED`, each a COPY, so
 editing one moves no verdict. Still **45 refusals**.
 
+**v0.51 is [W211](../doc/work-items/w211-the-registry-specialised-schema.md) under
+[P43](../doc/plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md) — the shape SPECIALISED TO A REGISTRY**
+(P43 (a1), (b1), decisions 1-4, fact 2's registry-specialisable and not-cleanly rows). `definitionSchema(registry)` returns
+the static shape plus what the registry decides of ONE node — a task's `type`, and per type its `pool`, its `settings` held
+to its worker's `settingsSchema` and a transform-only type's `transform`; `workerGroups`, `transform.lang` and a predicate
+name from the registry's sets; a gate's `type`, and per type its `settings` and a STATIC type's `route`s — and names what it
+cannot cleanly carry; section 1's *The definition's shape as a schema* says which. A registry `checkRegistry` refuses is
+never specialised: the call throws that refusal. **No rule moves**: what it refuses, `validateDefinition(flow, registry)`
+refuses against that registry. **New public surface**, additive in 0.11.0: `definitionSchema`'s optional `registry`
+argument; `definitionSchema()` with none is unchanged. **No ADR**: no rule moves, and the registry form's choices — the
+refused registry thrown, `required` weakened by the defaults, `minLength` halved, the `inputSchema` an annotation — are this
+section's, recorded here (ADR 0132 decided the static form and left this one to P43's next item, its consequence 5). The
+`minLength` row corrects P43 fact 3's *a node type's `settingsSchema` embeds in a 2020-12 document as it stands*: it does
+but for that one keyword. Still **45 refusals**.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -625,7 +640,7 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 | `entry` | string | a node id (`FD-V3`) |
 | `nodes` | array | one object per node, order irrelevant |
 
-### The definition's shape as a schema — v0.50
+### The definition's shape as a schema — v0.50, v0.51
 
 [ADR 0132](../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md), P43 (a1), (b1).
 **`definitionSchema()` returns this document's STATIC SHAPE as a JSON Schema, draft 2020-12** — a plain,
@@ -637,9 +652,24 @@ findings; **the library never evaluates it**.
 |---|---|
 | **built from** | the validator's own key sets — every kind's declared and required keys, the edge's, the document's, `retryPolicy`'s, `transform`'s, a `when`'s three shapes, the schema subset's keywords — and its `FD-V16` id charset, its kinds, `on`'s states, the predicate operators and roots and the key-path grammar. A key the validator gains is a key the schema gains; a key with no description written makes `definitionSchema()` throw, naming it. **Three things are written in the schema's module, the validator keeping them private** — the reference grammar's tokens (`"."`, `"$payload"`, `"$item"`, `"!error"`), the operator partition `FD-V44` reads, and which edge keys each kind's edges admit — each held to the validator by W210's suite, spelling by spelling and operator by operator |
 | **carries** | every rule a node, an edge or a value decides by its OWN shape: `FD-V16`, `FD-V17`, `FD-V18`, `FD-V21`, `FD-V23`, `FD-V24`, `FD-V26` (section 3's reference grammar, `"n!error"` included), `FD-V30`, `FD-V37`, `FD-V42`-`FD-V45`, `FD-V47`, `FD-V48` but for ADR 0056's `examples` check; the shape clauses of `FD-V7` (a task's and an ask's edges non-empty, a join's ONE edge without `on` or `when`), `FD-V8`, `FD-V9` (two distinct branches, no `edges`), `FD-V25` (`over`, no `edges`), `FD-V40`'s key path and `FD-V41`'s per-edge half (a `route` only on a gate's edge, which carries nothing else). **A join's `of` and a fanout's branch entries are held to the id charset only where they are STRINGS**: the validator holds both through the graph alone, so it ACCEPTS `of: null` on a join of no region and `["b", "c", 5]` today, and the schema must not refuse what it accepts ([Q774](../doc/questions/q774.md)) |
-| **does not carry** | anything that needs ANOTHER node or the REGISTRY: whether a named node exists and what kind it is, reachability, cycles, regions and joins (`FD-V1`-`FD-V3`, `FD-V6`, `FD-V10`-`FD-V13`, `FD-V19`, `FD-V20`, `FD-V22`), where a reference points (`FD-V27`-`FD-V29`, `FD-V49`), and every registered name and what it declares — node types, pools, groups, languages, predicates, gate types, their settings and routes. The registry-specialised form is `definitionSchema(registry)`'s, P43's next item |
+| **does not carry** | anything that needs ANOTHER node or the REGISTRY: whether a named node exists and what kind it is, reachability, cycles, regions and joins (`FD-V1`-`FD-V3`, `FD-V6`, `FD-V10`-`FD-V13`, `FD-V19`, `FD-V20`, `FD-V22`), where a reference points (`FD-V27`-`FD-V29`, `FD-V49`), and every registered name and what it declares — node types, pools, groups, languages, predicates, gate types, their settings and routes. The registry-specialised form, `definitionSchema(registry)`, carries what of that a registry decides of one node (below, v0.51) |
 | **the authority** | **`validateDefinition(flow, registry)`** — and `runtime.check(flow)` on a runtime — for every rule above it does not carry, and for the definition as a whole. The schema's root `description` says so. **What the schema refuses, `validateDefinition` refuses under every registry; the converse does not hold** |
 | **not ADR 0053's subset** | that subset governs the schemas the library EVALUATES; this one it EMITS for a consumer's validator, so it uses `$defs`, `$ref`, `oneOf`, `if`/`then` and `pattern`. An `answerSchema` it describes is in the subset, and the schema says so |
+
+**`definitionSchema(registry)` — the shape SPECIALISED TO ONE REGISTRY, v0.51** ([W211](../doc/work-items/w211-the-registry-specialised-schema.md),
+P43 fact 2). The registry is the `Registry` `validateDefinition` takes. It is first held to `checkRegistry` — the check
+`new Driver` runs over the registry it is handed — and **a registry that check refuses is never specialised: the call
+throws that refusal**. Every keyed registry set is read through the function the validator reads it with (`nodeTypesOf`,
+`workersOf`, `poolsOf`, `languagesOf`, `gateTypesOf`, `routesOf`, `onlyTransforms`), so the two cannot read a registry
+differently; the groups and the predicates, which the validator reads with a private helper, are read as a `Set` or a list
+alike, and a type's defaults by their own keys. The result is the static shape plus:
+
+| | |
+|---|---|
+| **carries** | a task's `type`, one of the registry's node types, the built-in `Transform` included (`FD-V32`); per node type an `if`/`then`: its `pool`, the type's own name or a named instance OF IT (`FD-V38`), its `settings` held to its worker's `settingsSchema` (`FD-V33`, below), and on a type that only transforms a REQUIRED `transform` (`FD-V46`); `workerGroups`' entries from the registry's groups (`FD-V31`); `transform.lang` from its languages (`FD-V35`); a `when`'s predicate NAME from its predicates (`FD-V4`); a gate's `type`, one of the built-ins and the registry's `gateTypes` (`FD-V39`); per gate type an `if`/`then`: its `settings` held to the type's `settingsSchema`, REQUIRED where `{}` fails it (`FD-V40`), and for a STATIC type each edge's `route` one of its routes (`FD-V41`'s *names a route its type does not declare*) |
+| **`FD-V33`, carried as far as it cleanly goes** | the worker's `settingsSchema` is asked of a node's EFFECTIVE settings — the type's `settings` defaults merged under the node's — so the schema carries its `properties` and `additionalProperties: false` over the node's `settings`, and its `required` LESS the keys the defaults supply; where any required key is left, a node with no `settings` is refused too |
+| **does not cleanly carry** | `FD-V33` beyond that — a DEFAULT's own value, and a top-level keyword other than `properties`, `required` and `additionalProperties`; **a `minLength` above 1 inside an embedded registry schema, emitted as half of it rounded up**, because the built-in subset counts a string's UTF-16 code units and JSON Schema counts code points, so `minLength: 2` as written would refuse a lone astral character the validator accepts (`maxLength` is emitted as written: the code-point count is never the larger); a DERIVED gate type's routes (`routesFor(settings)`, ADR 0092), so its edges' `route` stays a string, and `FD-V39`'s clauses that only a gate's settings reveal (a `routesFor` or a `settingsProblem` that throws or returns a malformed answer); `FD-V41`'s *every route wired EXACTLY ONCE*; a gate type's `settingsProblem` and a language's `compile` (`FD-V36`), which are code; a node type's worker `inputSchema`, which is RUNTIME input — carried as an ANNOTATION only, at `$defs.inputSchema` inside its type's branch, constraining nothing; and every cross-node rule, as the static form |
+| **the authority** | `validateDefinition(flow, registry)` against THAT registry — and `runtime.check(flow)` on a runtime. The root `description` names what is carried, what is not, and the authority. **What the registry form refuses, `validateDefinition` refuses against the same registry; the converse does not hold** — read with JSON Schema 2020-12's semantics, under which `properties` applies to the members an instance HAS. A validator that tests a member with `in`, as `@cfworker/json-schema` 4.1.1 does, misreads a registry schema property NAMED as an `Object.prototype` member (`constructor`, `toString`, `__proto__`) — refusing, or throwing on, settings the validator accepts. The static form names no such property; a registry's schema may (W211's conformity reader) |
 
 ## 2. Node kinds
 

@@ -31,9 +31,11 @@ import {
   ASK_REFUSED_KEYS, BUILT_IN_GATE_TYPES, DOC_KEYS_DECLARED, EDGE_KEYS_DECLARED, EDGE_KEYS_REQUIRED, ID_RE, KEY_PATH_RE, KINDS,
   NODE_KEYS_DECLARED, NODE_KEYS_REQUIRED, PREDICATE_GROUP_KEYS, PREDICATE_LEAF_KEYS, PREDICATE_LEAF_REQUIRED,
   PREDICATE_NAME_KEYS, RETRY_POLICY_KEYS, ROUTABLE_STATES, TRANSFORM_KEYS,
+  gateTypesOf, languagesOf, nodeTypesOf, onlyTransforms, poolsOf, routesOf, workersOf,
 } from './validate.ts';
-import { PREDICATE_OPS, PREDICATE_ROOTS, type PredicateOp } from './types.ts';
-import { SCHEMA_KEYWORDS, SCHEMA_TYPES } from './schema.ts';
+import { PREDICATE_OPS, PREDICATE_ROOTS, type GateType, type NodeTypeEntry, type PredicateOp, type Registry } from './types.ts';
+import { findings, SCHEMA_KEYWORDS, SCHEMA_TYPES, type JsonSchema } from './schema.ts';
+import { checkRegistry } from './registry.ts';
 
 /** The dialect every schema `definitionSchema()` returns declares in `$schema`. */
 const DRAFT_2020_12 = 'https://json-schema.org/draft/2020-12/schema';
@@ -372,12 +374,28 @@ function leafSchema(id: string): Schema {
 }
 
 /**
- * **A flow definition's static shape as a JSON Schema, draft 2020-12** — P43 (a1), ADR 0132. A plain object, a NEW
- * one on every call, JSON-serialisable. It carries every rule a node, an edge or a value decides by its own shape
- * and names `validateDefinition` as the authority for the rest; what it refuses, `validateDefinition` refuses under
- * every registry.
+ * **A flow definition's shape as a JSON Schema, draft 2020-12** — P43 (a1), ADR 0132; the registry form W211's. A
+ * plain object, a NEW one on every call, JSON-serialisable.
+ *
+ * - **No argument: the STATIC shape.** It carries every rule a node, an edge or a value decides by its own shape and
+ *   names `validateDefinition` as the authority for the rest; what it refuses, `validateDefinition` refuses under
+ *   EVERY registry.
+ * - **A registry: the shape SPECIALISED to it** (`spec/flow-definition.md` section 1, v0.51). The registry is first held
+ *   to `checkRegistry` — the check `new Driver` runs over the registry it is handed — and one that check refuses THROWS
+ *   that refusal, never specialised. Then the static shape gains what the registry decides of ONE node: a task's
+ *   `type`, `pool`, `settings`, a transform-only type's `transform`, `workerGroups`, `transform.lang`, a predicate
+ *   name, a gate's `type`, `settings` and — for a STATIC gate type — `route` (`specialise`, below). What it refuses,
+ *   `validateDefinition(flow, registry)` refuses against THAT registry.
  */
-export function definitionSchema(): DefinitionSchema {
+export function definitionSchema(registry?: Registry): DefinitionSchema {
+  if (registry !== undefined) checkRegistry(registry);
+  const s = staticSchema();
+  if (registry !== undefined) specialise(s, registry);
+  return s;
+}
+
+/** W210's static shape — `definitionSchema()` with no argument, unchanged by W211. */
+function staticSchema(): DefinitionSchema {
   const id = body(ID_RE, 'ID_RE');
   // `KEY_PATH_RE` is used whole (a gate's `settings.key`); asserted anchored and flagless here too.
   body(KEY_PATH_RE, 'KEY_PATH_RE');
@@ -464,4 +482,198 @@ export function definitionSchema(): DefinitionSchema {
     additionalProperties: false,
     $defs: defs,
   };
+}
+
+// ---- the REGISTRY form — W211, spec/flow-definition.md v0.51, P43 fact 2's registry-specialisable row ----
+
+/**
+ * **The registry form's root description** — what the registry adds, what it CANNOT cleanly carry (P43 fact 2's
+ * not-cleanly row, and the one row W211 found beside it: `minLength`), and the authority for both.
+ */
+const REGISTRY_DESCRIPTION = 'The SHAPE of a fyflow-orchestration flow definition SPECIALISED TO ONE REGISTRY (spec/flow-definition.md ' +
+  'section 1). Beyond the static shape it carries what the registry decides of a node by itself: a task\'s `type`, one of the ' +
+  'registry\'s node types (FD-V32), and per type its `pool` (the type\'s own name or one of its named instances, FD-V38), its ' +
+  '`settings` held to the type\'s worker settingsSchema (FD-V33) and, for a type that only transforms, a required `transform` ' +
+  '(FD-V46); `workerGroups` from the registry\'s groups (FD-V31); `transform.lang` from its languages (FD-V35); a predicate NAME ' +
+  'from its predicates (FD-V4); a gate\'s `type`, one of its gate types (FD-V39), and per type its `settings` held to the type\'s ' +
+  'settingsSchema (FD-V40) and, for a STATIC gate type, each edge\'s `route` one of its routes (FD-V41). It does NOT cleanly carry, ' +
+  'and leaves to the authority: FD-V33 over the EFFECTIVE settings — a node\'s settings merged over its type\'s defaults — so a ' +
+  'settingsSchema\'s `required` is WEAKENED by the keys the defaults supply, and a default\'s own value and any top-level keyword ' +
+  'but properties, required and additionalProperties are unchecked; a `minLength` above 1 inside an embedded registry schema, ' +
+  'relaxed to half rounded up, because the registry\'s schema subset counts a string\'s UTF-16 units and JSON Schema its code ' +
+  'points; a DERIVED gate type\'s routes, which its routesFor computes from each gate\'s settings; FD-V41\'s every route wired ' +
+  'EXACTLY ONCE; a gate type\'s settingsProblem and a language\'s compile (FD-V36), which are code; a node type\'s worker ' +
+  'inputSchema, which is RUNTIME input and is carried as an ANNOTATION only, at `$defs.inputSchema` in its type\'s branch; and every ' +
+  'rule that needs another node — existence, kinds, reachability, cycles, regions, joins, where a `needs` reference points. For ' +
+  'all of those, and for the definition as a whole, the AUTHORITY is `validateDefinition(flow, registry)` against THIS registry — ' +
+  'and `runtime.check(flow)` on a runtime. A document this schema refuses, validateDefinition refuses against this registry; one ' +
+  'it accepts may still be refused there.';
+
+/**
+ * **An embedded registry schema, COPIED, with every `minLength` above 1 relaxed to half, rounded up.** The registry's
+ * schemas are in ADR 0053's subset, which is valid 2020-12 and means the same in it but for ONE keyword: the subset's
+ * `findings` counts a string's length in UTF-16 code units (`s.length`) and 2020-12 counts code points, so `minLength: 2`
+ * read by a 2020-12 validator would REFUSE a lone astral character (one code point, two units), which the validator
+ * ACCEPTS. Halved and rounded up it refuses only what the subset refuses too: a string of fewer than ⌈n/2⌉ code points
+ * has at most 2·(⌈n/2⌉-1) ≤ n-1 units. `maxLength` needs nothing — a code-point count is never above the unit count, so
+ * 2020-12 is the looser of the two there. Walked through `properties` and `items`, the subset's only nested schemas.
+ */
+function relaxed(schema: JsonSchema): Schema {
+  const walk = (s: Schema): Schema => {
+    if (typeof s.minLength === 'number' && s.minLength > 1) s.minLength = Math.ceil(s.minLength / 2);
+    if (isObject(s.properties)) for (const p of Object.values(s.properties)) if (isObject(p)) walk(p);
+    if (isObject(s.items)) walk(s.items);
+    return s;
+  };
+  return walk(structuredClone(schema) as Schema);
+}
+
+const isObject = (v: unknown): v is Schema => typeof v === 'object' && v !== null && !Array.isArray(v);
+const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+const quoted = (names: Iterable<string>): string => [...names].map((n) => JSON.stringify(n)).join(', ');
+
+/**
+ * **One node type's branch** — what a task naming it must also satisfy. Read exactly as `validateDefinition` reads the
+ * type: its worker through `workersOf` (a type that `onlyTransforms` names none — `FD-V32`'s exemption), its named
+ * instances through `poolsOf` (`FD-V38`), and its worker's `settingsSchema` over the node's `settings` with the type's
+ * `settings` defaults merged under them (`FD-V33`, `effectiveSettings`' shallow merge — whose KEYS the defaults supply
+ * are read here as the defaults' own keys, which is what that spread copies from a JSON object).
+ */
+function nodeTypeBranch(
+  name: string,
+  t: NodeTypeEntry,
+  workers: ReturnType<typeof workersOf>,
+  pools: ReturnType<typeof poolsOf>,
+): Schema {
+  const instances = [...pools].filter(([, p]) => p.type === name).map(([k]) => k);
+  const workerName = (t as { worker?: unknown }).worker;
+  const worker = typeof workerName === 'string' ? workers.get(workerName) : undefined;
+  const properties: Record<string, Schema> = {
+    pool: {
+      description: `A pool of "${name}": its own name (the default instance)${instances.length ? ` or a named instance of it — ${quoted(instances)}` : ''} (FD-V38).`,
+      enum: [name, ...instances],
+    },
+  };
+  const required: string[] = [];
+  const settingsSchema = worker?.settingsSchema;
+  if (settingsSchema !== undefined) {
+    const defaults = (t as { settings?: Readonly<Record<string, unknown>> }).settings ?? {};
+    // **`required` WEAKENED by the defaults** — a key the type's `settings` supplies need not be the node's, because
+    // the schema is asked of the EFFECTIVE settings. The rest of `required` is the node's to supply: and where any is
+    // left, a node with NO `settings` is refused too, since its effective settings are the defaults alone.
+    const left = ((settingsSchema.required ?? []) as string[]).filter((k) => !own(defaults, k));
+    const settings: Schema = {
+      description: `Settings held to worker "${String(workerName)}"'s settingsSchema, merged OVER the type's defaults` +
+        (Object.keys(defaults).length ? ` (${quoted(Object.keys(defaults))} supplied by them)` : '') + ' (FD-V33).',
+      type: 'object',
+    };
+    if (isObject(settingsSchema.properties)) {
+      settings.properties = Object.fromEntries(Object.entries(settingsSchema.properties).map(([k, p]) => [k, relaxed(p as JsonSchema)]));
+    }
+    if (settingsSchema.additionalProperties === false) settings.additionalProperties = false;
+    if (left.length) { settings.required = left; required.push('settings'); }
+    properties.settings = settings;
+  }
+  // **`FD-V46`** — a type with no worker has nothing to run but the node's own `transform`.
+  if (onlyTransforms(t)) required.push('transform');
+  const branch: Schema = {
+    description: onlyTransforms(t)
+      ? `A task of the built-in type "${name}": it names no worker and runs only its own \`transform\`, which it must declare (FD-V46).`
+      : `A task of node type "${name}", run by worker "${String(workerName)}".` +
+        (worker?.inputSchema !== undefined ? ' What that worker receives as input is described at $defs.inputSchema here — an ANNOTATION: it is runtime input, and nothing in a definition is held to it.' : ''),
+    properties,
+  };
+  if (required.length) branch.required = required;
+  if (worker?.inputSchema !== undefined) branch.$defs = { inputSchema: structuredClone(worker.inputSchema) as Schema };
+  return branch;
+}
+
+/**
+ * **One gate type's branch** — `FD-V40`'s `settingsSchema` over `settings ?? {}` (so where `{}` fails it, `settings` is
+ * required), and a STATIC type's routes (`routesOf`, ADR 0092) as each edge's `route` enum. A DERIVED type's routes are
+ * its gate's (`routesFor(settings)`), which no schema of the edges can read, so its `route` stays a string.
+ */
+function gateTypeBranch(name: string, t: GateType): Schema {
+  const properties: Record<string, Schema> = {};
+  const branch: Schema = { description: '', properties };
+  if (t.settingsSchema !== undefined) {
+    properties.settings = relaxed(t.settingsSchema);
+    if (findings(t.settingsSchema, {}).length > 0) branch.required = ['settings'];
+  }
+  if (typeof t.routesFor !== 'function') {
+    const set = routesOf(t, {});
+    if ('problem' in set) throw new Error(`definitionSchema: gate type "${name}" resolves no route set: ${set.problem}`);
+    properties.edges = {
+      items: {
+        properties: {
+          route: {
+            description: `One of "${name}"'s routes — ${quoted(set.routes)}; an edge with no \`route\` carries its default, "${set.defaultRoute}" (FD-V41).`,
+            enum: [...set.routes],
+          },
+        },
+      },
+    };
+    branch.description = `A gate of the STATIC gate type "${name}": routes ${quoted(set.routes)}, the default "${set.defaultRoute}". That each is wired exactly once is validateDefinition's (FD-V41).`;
+  } else {
+    branch.description = `A gate of the DERIVED gate type "${name}": its routes are computed from each gate's settings, so which \`route\` names exist is validateDefinition's (FD-V41).`;
+  }
+  return branch;
+}
+
+/** `{ if: <key> is <name>, then: <branch> }`. */
+const branchOn = (key: string, name: string, then: Schema): Schema => ({ if: { required: [key], properties: { [key]: { const: name } } }, then });
+
+/**
+ * **The static shape SPECIALISED to `registry`, in place** — the keyed sets read through the validator's own exported
+ * functions: `nodeTypesOf`, `workersOf`, `poolsOf`, `languagesOf`, `gateTypesOf`, `routesOf`, `onlyTransforms`. The
+ * predicates and the groups are NOT: the validator's `asSet` is private, so they are read here by `new Set(...)`, which
+ * reads a `Set` or a list as `asSet` does, and W211's suite holds both forms to the same schema.
+ */
+function specialise(s: DefinitionSchema, registry: Registry): void {
+  type Def = Schema & { properties: Record<string, Schema> };
+  const defs = s.$defs as Record<string, Def>;
+  const nodeTypes = nodeTypesOf(registry.nodeTypes);
+  const workers = workersOf(registry.workers);
+  const pools = poolsOf(registry.pools);
+  const gateTypes = gateTypesOf(registry.gateTypes);
+  const groups = [...new Set<string>(registry.groups ?? [])];
+  const predicates = [...new Set<string>(registry.predicates)];
+  const languages = [...languagesOf(registry.languages).keys()];
+
+  const task = defs.taskNode!;
+  task.properties.type = {
+    ...task.properties.type,
+    description: `The node type that runs this task: one of the registry's — ${quoted(nodeTypes.keys())} (FD-V32). What each type adds is its branch in this node's allOf.`,
+    enum: [...nodeTypes.keys()],
+  };
+  task.properties.workerGroups = {
+    ...task.properties.workerGroups,
+    description: `The resource groups the scheduler holds this task to: a non-empty list of distinct ids of the registry's groups — ${groups.length ? quoted(groups) : 'it declares none'} (FD-V31).`,
+    items: { type: 'string', enum: groups },
+  };
+  task.allOf = [...nodeTypes].map(([n, t]) => branchOn('type', n, nodeTypeBranch(n, t, workers, pools)));
+
+  const transform = defs.transform!;
+  transform.properties.lang = {
+    ...transform.properties.lang,
+    description: `A language the registry declares — ${languages.length ? quoted(languages) : 'it declares none'} (FD-V35). That it compiles \`expr\` is validateDefinition's (FD-V36).`,
+    enum: languages,
+  };
+
+  const predicateName = defs.predicateName!;
+  predicateName.properties.predicate = {
+    ...predicateName.properties.predicate,
+    description: `A predicate the registry declares — ${predicates.length ? quoted(predicates) : 'it declares none'} (FD-V4).`,
+    enum: predicates,
+  };
+
+  const gate = defs.gateNode!;
+  gate.properties.type = {
+    ...gate.properties.type,
+    description: `The gate type that decides: one of ${quoted(gateTypes.keys())} — the built-ins and the registry's \`gateTypes\` (FD-V39). What each adds is its branch in this node's allOf.`,
+    enum: [...gateTypes.keys()],
+  };
+  gate.allOf = [...gateTypes].map(([g, t]) => branchOn('type', g, gateTypeBranch(g, t)));
+
+  s.description = REGISTRY_DESCRIPTION;
 }
