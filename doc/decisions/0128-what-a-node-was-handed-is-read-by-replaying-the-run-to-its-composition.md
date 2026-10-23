@@ -86,8 +86,9 @@ target's composition** — the export `inputOf(flow, options, { header, events }
    run id (`ID-R2`), checked before a driver exists (W205's conformity reader: it threw); `unknown` — a target this run's ids cannot name; `not-reached`;
    `diverged`, by its position. **A halted, cancelled or stopped run IS READ**: `resumeRefusal`'s other half refuses
    CONTINUING such a run, never reading it. The prefix a reading verifies **ends at the first `halted`, `stopped` (0.7.0's
-   name for it) or `cancelRequested` element**, because only a consumer's callback, a refused result or an owner's call
-   appends those and a replay cannot regenerate them; what follows is `not-reached`, never `diverged`. A stored
+   name for it) or `cancelRequested` element**, because after one a halted driver composes nothing more — whether the replay regenerates it
+   (a predicate's throw) or cannot (a consumer's callback, a refused result, an owner's call); what follows is
+   `not-reached`, never `diverged`. *(2026-10-23, P42 retro (a1): this sentence said only a consumer's callback, a refused result or an owner's call appends such an element, so a replay cannot regenerate one. A predicate's throw also appends `halted`, and the replay DOES regenerate that one; the prefix still ends there, because a halted driver composes nothing more.)* A stored
    `interrupted`, `paused`, `unpaused`, `resumed` or `cancelled` settlement is FED and read through. It throws only what
    `new Driver` throws for a definition or a registry that cannot run, as a resume does.
 6. **It holds no dispatch's config**: a reading's replay keeps `held` EMPTY — only the answers it returns are kept.
