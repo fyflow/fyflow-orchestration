@@ -78,6 +78,9 @@ function referenceTableRows(): number {
  */
 function rowOf(v: unknown): string {
   const t = referenceTarget(v)!;
+  // **v0.49's row, `!error`** (W209, ADR 0131), read FIRST: like `?` it is orthogonal to the form, and its row is the
+  // part, whatever the form and suffix beside it.
+  if ('part' in t && t.part === 'error') return 'error';
   return t.conditional ? 'suffix' : t.form;
 }
 // **v0.44 added a row, `"$payload"`** (W190, ADR 0117): a fifth row and a sixth accepted spelling, and the bound below
@@ -105,7 +108,7 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     // a `?` are the ways the suffix can be written wrong: it goes on the END of a
     // node id, and what is left after stripping it must still be an id, so `"?"`,
     // `".?"` and `"ingest??"` need no clause of their own.
-    const accepted: unknown[] = ['.', '$payload', '$item', 'ingest', ['ingest'], 'ingest?', ['ingest?']];
+    const accepted: unknown[] = ['.', '$payload', '$item', 'ingest', ['ingest'], 'ingest?', ['ingest?'], 'ingest!error'];
     const refusedBy = new Map<string, unknown>([
       ['an object', { node: 'ingest' }],
       ['a number', 7],
@@ -146,15 +149,16 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     equal(rowsHit.length, referenceTableRows(),
       'every ROW of section 3`s `needs` reference table is exercised by a spelling in this list — ' +
       'the count is read from the normative document, so satisfying it needs an edit there');
-    equal(rowsHit.sort(), ['all', 'item', 'one', 'payload', 'self', 'suffix'],
-      'and the six rows are the ones this file names, so a seventh appearing is a finding rather ' +
-      'than a silently absorbed bucket — `payload` since v0.44 (W190), `item` since v0.45 (W191)');
+    equal(rowsHit.sort(), ['all', 'error', 'item', 'one', 'payload', 'self', 'suffix'],
+      'and the seven rows are the ones this file names, so an eighth appearing is a finding rather ' +
+      'than a silently absorbed bucket — `payload` since v0.44 (W190), `item` since v0.45 (W191), `error` since v0.49 (W209)');
     // **And every AIMED form appears with AND without the suffix** - rule 8 found
     // that the row bound above cannot see a missing spelling *within* a row:
     // dropping `['ingest?']` still hits all four rows, for **0**. The suffix is a
     // modifier, so the spellings are a 2x2 cross-product plus `"."`, and that is
     // derived here rather than counted.
-    const aimedSpellings = accepted.map((v) => referenceTarget(v)!).filter((t) => t.node !== null);
+    // The error part's own spellings (its 2x2 with form and suffix) are `test/definition/error-reference.test.ts`'s.
+    const aimedSpellings = accepted.map((v) => referenceTarget(v)!).filter((t) => t.node !== null && !('part' in t));
     equal(aimedSpellings.map((t) => `${t.form}${t.conditional ? '?' : ''}`).sort(),
       ['all', 'all?', 'one', 'one?'],
       'both aimed forms, each with and without the modifier - a spelling missing from a row the ' +

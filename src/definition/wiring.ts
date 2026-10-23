@@ -198,6 +198,8 @@ const widen = (ts: string[]): string[] => ts.flatMap((t) => (t === 'integer' ? [
 const canon = (v: unknown): string => JSON.stringify(v);
 /** A key `JP-R12` can mint: a branch path — `0`, `1.0`, `12.3.1`. */
 const BRANCH_KEY = /^\d+(\.\d+)*$/;
+/** **What a `"n!error"` key holds** — v0.49, ADR 0131: the outcome record's `error`, a string or `null`. Frozen: shared. */
+const ERROR_SCHEMA: JsonSchema = Object.freeze({ type: ['string', 'null'] });
 
 /**
  * **Every value `P` admits is accepted by `C`** — P19 fact 3's relation, verbatim in shape, over
@@ -835,6 +837,15 @@ class Wiring {
         if (a.schema === undefined) return { ...base, unchecked: a.unchecked ?? a.refused ?? `needs.${key} is "." and the edge's value has no schema` };
         schema = a.schema; value = a.sample?.value; src = a.sample?.source ?? 'witness';
         dot.push(key);
+      } else if (t.part === 'error') {
+        // **A node's ERROR is a string or `null`, whatever its worker declares** — v0.49,
+        // [ADR 0131](../../doc/decisions/0131-a-reference-may-name-a-nodes-error.md): the outcome record's `error`, the
+        // string the scheduler reduced the failure to, `null` where the output succeeded. So the key's schema is that, and
+        // never the producer's output schema — a producer declaring none still composes a CHECKED error key. Its sample is
+        // the schema's witness, a string (`''`): a value the key can hold, not a claim about any run's error.
+        schema = ERROR_SCHEMA;
+        const w = sampleOf(ERROR_SCHEMA)!;
+        value = w.value; src = w.source;
       } else {
         const p = this.produced(t.node);
         if (p.schema === undefined) return { ...base, unchecked: `needs.${key} names "${t.node}", which ${p.unchecked}` };

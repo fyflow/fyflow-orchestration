@@ -454,7 +454,10 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     // **74 since W180 added `ask-after-a-task.flow.json` and `ask-in-a-fanout.flow.json`** (W179's S-2): approve -> publish
     // and the `needs` arc into revise (an ask PRODUCES; the arc INTO it gets no verdict), ingest -> score through the
     // fan-out and the join's record into publish — four, each unchecked.
-    equal(total, 74, 'the L4 corpus`s 74 arcs — 70 until W180 added the two ask flows, four arcs; 68 until W109 added transform-only-node.flow.json, whose two arcs are both unchecked — the one INTO it, because the CONSUMING side (the transform-only node) declares no inputSchema, and the one LEAVING it, because the PRODUCING side (the same node) declares no outputSchema (Q446). This comment gave the producer`s reason for the arc into it; W109`s conformity reader, 15');
+    // **76 since W209 added `ask-after-a-failure.flow.json`** (v0.49): lookup -> publish and resolve -> publish, both
+    // composed through `publish`'s `needs` and unchecked at its `"found": "lookup"` key (the corpus workers declare no
+    // schema); the arc INTO the ask `resolve` gets no verdict, as W180's did not.
+    equal(total, 76, 'the L4 corpus`s 76 arcs — 74 until W209 added ask-after-a-failure.flow.json, two arcs; 70 until W180 added the two ask flows, four arcs; 68 until W109 added transform-only-node.flow.json, whose two arcs are both unchecked — the one INTO it, because the CONSUMING side (the transform-only node) declares no inputSchema, and the one LEAVING it, because the PRODUCING side (the same node) declares no outputSchema (Q446). This comment gave the producer`s reason for the arc into it; W109`s conformity reader, 15');
   });
 
   test('a map`s record is BUILT with the branch-path marker: a successor naming "0" as a number is `no`, naming it as an object fits, naming `confidence` is never met (rule 8 probe s4 survived until this existed)', async () => {

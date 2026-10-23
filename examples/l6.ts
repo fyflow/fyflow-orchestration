@@ -6578,12 +6578,26 @@ const spellingOf = (ref: unknown): string => {
     case 'self': return '.';
     case 'payload': return '"$payload"';
     case 'item': return '"$item"';
-    case 'one': return `"n"${t.conditional ? '?' : ''}`;
-    case 'all': return `["n"]${t.conditional ? '?' : ''}`;
+    // **The `!error` part, v0.49 (W209)**: spelled apart, so section 3's `!error` row is its own spellings and not
+    // `"n"`'s again — by `part`, the parse's own field.
+    case 'one': return `"n${t.part === 'error' ? '!error' : ''}"${t.conditional ? '?' : ''}`;
+    case 'all': return `["n${t.part === 'error' ? '!error' : ''}"]${t.conditional ? '?' : ''}`;
   }
 };
 
-// **`NOT_YET_AT_L6` stood here from W190 to W192** — the rows of section 3's table no L6 run named, `"$payload"` (v0.44)
+/**
+ * **`NOT_YET_AT_L6` is BACK — W209, by the maintainer's YES to its stop-and-ask 2**, as W190 and W191 held it: the rows
+ * of section 3's table no L6 run names yet, by the census BUCKET. `'error'` is v0.49's `"n!error"` row
+ * ([ADR 0131](../doc/decisions/0131-a-reference-may-name-a-nodes-error.md)), whose L6 run is P43's exit artifact.
+ * **W212's L6 block must RUN the form and REMOVE this list again**, as W192 did — the two reference censuses below
+ * subtract it from the table's side, and the set clause names it, so a form L6 starts running while still listed appears
+ * twice and is red.
+ */
+const NOT_YET_AT_L6: readonly string[] = ['error'];
+/** A spelling of a row `NOT_YET_AT_L6` exempts — the `!error` row's four. */
+const exemptSpelling = (s: string): boolean => NOT_YET_AT_L6.includes('error') && s.includes('!error');
+
+// **`NOT_YET_AT_L6` stood here from W190 to W192**, and is back above since W209 — the rows of section 3's table no L6 run named, `"$payload"` (v0.44)
 // and `"$item"` (v0.45), held both ways by the two reference censuses. P38's W192 runs both, and the censuses read the flows
 // its block STARTED beside EXPECTED's, so the list is removed rather than left empty: an empty exemption is a place to put
 // the next one without a census noticing.
@@ -14236,7 +14250,9 @@ if (rowCosts.length !== EXPECTED.length) {
           // **By the library's PARSE since W190** (P38 fact 9): this bucketed by spelling, so a `"$payload"` would have
           // read as `one` — a node id — and the clause below compared the wrong buckets.
           const t = referenceTarget(ref);
-          forms.add(t === null ? `unparsed ${JSON.stringify(ref)}` : t.conditional ? 'suffix' : t.form);
+          // `'error'` since W209 (v0.49): the `!error` part is its own row, read off the parse's `part` FIRST, as the
+          // `?` is read before the form.
+          forms.add(t === null ? `unparsed ${JSON.stringify(ref)}` : 'part' in t && t.part === 'error' ? 'error' : t.conditional ? 'suffix' : t.form);
         }
       }
     }
@@ -14256,12 +14272,12 @@ if (rowCosts.length !== EXPECTED.length) {
   // against it. The claim is corrected rather than the bound removed, because the
   // bound is right for the reason that survives.
   check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
-    [...forms].length, referenceFormsInSpec());
+    [...forms].length + NOT_YET_AT_L6.length, referenceFormsInSpec());
   // And WHICH six, so a seventh bucket appearing is a finding rather than a silently
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
   check('cross-row', 'and they are the table`s rows, not six of something else — `payload` since v0.44 (W190) and `item` since v0.45 (W191), run since W192',
-    [...forms].sort(), ['all', 'item', 'one', 'payload', 'self', 'suffix']);
+    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'error', 'item', 'one', 'payload', 'self', 'suffix']);
   // **`NOT_YET_AT_L6` is GONE — W192.** W190 named `"$payload"`'s row there and W191 `"$item"`'s, each held both ways by the
   // two clauses above (the count added the list, the set compared the concatenation, so a form L6 started running while still
   // listed appeared twice), because no L6 run named either until P38's exit artifact. W192's block runs both — on nodes and
@@ -14386,8 +14402,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // **Derived from the ROW count rather than from a literal `5`**, and it says the
     // structural thing: exactly one of the table's rows carries two spellings, which
     // is what *`?` is a modifier* means in the table rather than in the prose.
+    // Over the rows L6 runs: `NOT_YET_AT_L6`'s row and its spellings (W209's `!error`, four) are set aside on both sides.
+    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC.filter((s) => !exemptSpelling(s));
     check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows — `?` is a modifier',
-      REFERENCE_SPELLINGS_IN_SPEC.length, referenceFormsInSpec() + 1);
+      runSpellings.length, referenceFormsInSpec() - NOT_YET_AT_L6.length + 1);
     assertThat('cross-row', 'and the conditional ARRAY spelling is one the table actually NAMES, ' +
       'so the set equality below is over every spelling and not one fewer',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
@@ -14395,7 +14413,7 @@ if (rowCosts.length !== EXPECTED.length) {
     // **Nothing beside them since W192**: `"$payload"` (W190) and `"$item"` (W191) were the table's and no L6 run's, named in
     // `NOT_YET_AT_L6` until P38's exit artifact ran both.
     check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — and the two `$` references, since W192',
-      [...l6Spellings].sort(), REFERENCE_SPELLINGS_IN_SPEC);
+      [...l6Spellings].sort(), runSpellings);
     // **And that the fifth one's `?` is LOAD-BEARING where L6 runs it**, which is
     // what stops it being a spelling somebody wrote for the sake of the count:
     // strip the suffix from `nested-map`'s own reference and `FD-V29` refuses the

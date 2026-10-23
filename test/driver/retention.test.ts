@@ -1127,8 +1127,11 @@ suite(SUITE, (test) => {
     equal(shared.filter((s) => logged.some((l) => l === s)), [], 'RN-R13 v0.33 — no shared copy IS a log record`s object: each is the second copy the rule names');
     equal(entries.filter((e) => 'shared' in e).map((e) => [e.shared, e.result]), [[{ s: 0 }, { s: 0 }], [{ s: 1 }, { s: 1 }]], 'each equal to its entry`s result — a copy of it');
     equal(new Set(shared).size, shared.length, 'and no copy is held twice');
-    equal([...new Set(entries.flatMap((e) => Object.keys(e)))].sort(), ['path', 'result', 'shared'],
-      'and an entry holds NOTHING else — a per-read clone kept on it would be a third key (W202`s adequacy reader, L1)');
+    equal([...new Set(entries.flatMap((e) => Object.keys(e)))].sort(), ['error', 'path', 'result', 'shared'],
+      'and an entry holds NOTHING else — a per-read clone kept on it would be a fourth key (W202`s adequacy reader, L1; `error` since W209)');
+    // **W209 — `error`, the effective outcome's own (v0.49, ADR 0131)**: a string or `null`, a PRIMITIVE, so it holds no
+    // object and adds no retention — what a `"n!error"` reference reads. Every output here succeeded, so every one is null.
+    equal(entries.map((e) => (e as { error?: unknown }).error), entries.map(() => null), 'each entry`s `error` is its succeeded outcome`s, null');
 
     // **And the holder SET on this same run reaches a FOURTH name**, which is what
     // makes the walk's universe load-bearing rather than decorative. Every other case

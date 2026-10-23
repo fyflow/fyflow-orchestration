@@ -1050,6 +1050,12 @@ function aimedReferences(n: FlowNode): [string, unknown, 'needs' | 'edge needs',
  * reads `conditional`. A `"."` may not carry one — it resolves to the edge's own
  * value, which is always there — and the remainder after the suffix is stripped must
  * still be an id, so `"?"`, `"n??"` and `".?"` are all `null` with no extra clause.
+ *
+ * **And since v0.49 the `!error` PART** — [ADR 0131](../../doc/decisions/0131-a-reference-may-name-a-nodes-error.md),
+ * P43 (c1): `"n!error"` names node `n`'s ERROR rather than its result, in both forms and with `?` (`"n!error?"`,
+ * `["n!error"]`, `["n!error?"]`). It is a fourth field, `part`, beside `form` and `conditional` and orthogonal to both —
+ * **present only on that form** — because it changes WHAT is read of the outputs and never which outputs are named:
+ * `FD-V27`-`FD-V29` aim it as the plain reference and the driver resolves it through the same index (P43 decision 5).
  */
 export function referenceTarget(
   ref: unknown,
@@ -1058,7 +1064,7 @@ export function referenceTarget(
   // with a two-literal discriminant is not split by a `===`, and every caller below would need a cast.
   | { form: 'payload'; node: null; conditional: false }
   | { form: 'item'; node: null; conditional: false }
-  | { form: 'one' | 'all'; node: string; conditional: boolean }
+  | AimedReference
   | null {
   if (ref === '.') return { form: 'self', node: null, conditional: false };
   if (ref === PAYLOAD_TOKEN) return { form: 'payload', node: null, conditional: false };
@@ -1070,11 +1076,62 @@ export function referenceTarget(
   return null;
 }
 
-/** One aimed reference's node id and its optional `?` suffix. `referenceTarget`'s only helper. */
-function aimed(s: string, form: 'one' | 'all'): { form: 'one' | 'all'; node: string; conditional: boolean } | null {
+/**
+ * **A reference that AIMS at a node** — `"n"` or `["n"]`, either with `?`, and since v0.49 either naming the node's ERROR
+ * (`"n!error"`, `["n!error?"]`, …) — [ADR 0131](../../doc/decisions/0131-a-reference-may-name-a-nodes-error.md), P43 (c1).
+ * **`part` is PRESENT only on the error form**, so every spelling before v0.49 parses to the object it parsed to (P43
+ * prediction 3), and a reader that does not ask for `part` reads the error form as the node it aims at — which is what
+ * `FD-V27`-`FD-V29` are meant to do (P43 decision 5) and what a RESOLVER must not (`resolveReference`, the wiring check).
+ */
+export type AimedReference = { form: 'one' | 'all'; node: string; conditional: boolean; part?: 'error' };
+
+/**
+ * **The error form's one invented token, `!error`** — v0.49, ADR 0131: written after the node id and before the `?`
+ * suffix. `!` is outside `FD-V16`'s charset, so no node id can ever be read as the form, and no node is ever called
+ * `lookup!error` (P43 fact 5). **The error is a FIELD OF THE OUTCOME, never a path inside its `result`**, so the
+ * whole-node rule stands: there is ONE part after `!`, and any other is `FD-V26` (`bangProblem`).
+ */
+const ERROR_PART = '!error';
+
+/** One aimed reference's node id, its optional `!error` part and its optional `?` suffix. `referenceTarget`'s only helper. */
+function aimed(s: string, form: 'one' | 'all'): AimedReference | null {
   const conditional = s.endsWith('?');
-  const node = conditional ? s.slice(0, -1) : s;
-  return ID_RE.test(node) ? { form, node, conditional } : null;
+  const body = conditional ? s.slice(0, -1) : s;
+  const error = body.endsWith(ERROR_PART);
+  const node = error ? body.slice(0, -ERROR_PART.length) : body;
+  if (!ID_RE.test(node)) return null;
+  return error ? { form, node, conditional, part: 'error' } : { form, node, conditional };
+}
+
+/** **How a reference reads back, as written** — the spelling `FD-V28` and `FD-V29` name in their fixes (v0.49). */
+const spelled = (t: AimedReference, conditional: boolean): string =>
+  `${t.node}${t.part === 'error' ? ERROR_PART : ''}${conditional ? '?' : ''}`;
+
+/**
+ * **What `FD-V26` says about a `!` spelling that is not a reference** — v0.49, ADR 0131, on `dollarProblem`'s precedent: the
+ * message names the FIX. `null` for anything that has no `!`, or starts with `$` (`dollarProblem`'s), which the caller
+ * words as before. Three clauses: the `?` written BEFORE the `!` (the suffix goes last); no node before the `!`; and a part
+ * other than `error` after it — the error is the one field of an outcome a reference may name.
+ */
+function bangProblem(ref: unknown): string | null {
+  const array = Array.isArray(ref) && ref.length === 1;
+  const one = array ? (ref as unknown[])[0] : ref;
+  if (typeof one !== 'string' || one.startsWith('$') || !one.includes('!')) return null;
+  const wrap = (s: string) => JSON.stringify(array ? [s] : s);
+  const at = one.indexOf('!');
+  const before = one.slice(0, at);
+  const after = one.slice(at + 1);
+  const afterBare = after.endsWith('?') ? after.slice(0, -1) : after;
+  if (afterBare === 'error' && before.endsWith('?') && ID_RE.test(before.slice(0, -1))) {
+    return `${JSON.stringify(ref)} carries "?" before "!error", and the suffix goes last: write ${wrap(`${before.slice(0, -1)}!error?`)}`;
+  }
+  if (before === '') {
+    return `${JSON.stringify(ref)} names no node before "!": write the node whose error you mean first, as ${wrap(`<node>!error${one.endsWith('?') ? '?' : ''}`)}`;
+  }
+  if (afterBare !== 'error' && ID_RE.test(before)) {
+    return `${JSON.stringify(ref)} names "${after}" after "!", and the one part of a node's outcome a reference may name is its error: write ${wrap(`${before}!error${after.endsWith('?') ? '?' : ''}`)}, or ${wrap(`${before}${after.endsWith('?') ? '?' : ''}`)} for its result`;
+  }
+  return null;
 }
 
 /** The run's payload as a reference — v0.44, P38 (b). */
@@ -1544,10 +1601,14 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           // **The `$` clauses first, v0.44** (P38 (g)): a `$` spelling that is not a reference is told its fix —
           // `["$payload"]` the bare form, `"$payload?"` without the suffix, anything else the two references there are.
           const dollar = target === null ? dollarProblem(ref) : null;
+          // **The `!` clauses, v0.49** (ADR 0131): a `!` spelling that is not the error form is told its fix.
+          const bang = target === null && dollar === null ? bangProblem(ref) : null;
           if (dollar !== null) {
             add('FD-V26', where, `needs[${JSON.stringify(k)}]: ${dollar}`);
+          } else if (bang !== null) {
+            add('FD-V26', where, `needs[${JSON.stringify(k)}]: ${bang}`);
           } else if (target === null) {
-            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", "$item", a node id with an optional "?" suffix, or a one-element array holding one`);
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", "$item", a node id with an optional "!error" and an optional "?" suffix, or a one-element array holding one`);
           }
         }
       }
@@ -1642,10 +1703,13 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
             if (!ID_RE.test(k)) add('FD-V26', at, `edge needs key ${JSON.stringify(k)} is not [A-Za-z0-9_-]{1,64}`);
             const target = referenceTarget(ref);
             const dollar = target === null ? dollarProblem(ref) : null;
+            const bang = target === null && dollar === null ? bangProblem(ref) : null;
             if (dollar !== null) {
               add('FD-V26', at, `edge needs[${JSON.stringify(k)}]: ${dollar}`);
+            } else if (bang !== null) {
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}]: ${bang}`);
             } else if (target === null) {
-              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", "$item", a node id with an optional "?" suffix or a one-element array holding one`);
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", "$item", a node id with an optional "!error" and an optional "?" suffix or a one-element array holding one`);
             } else if (target.form === 'self') {
               // **On `form`, never on `node === null`** (P38 fact 9): `"$payload"` and `"$item"` have no node either, and
               // an edge MAY name them — a predicate has no `ctx.payload` and no `ctx.item` (decision 3). Read as
@@ -1960,10 +2024,10 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           add(
             'FD-V29',
             at,
-            `${site}[${JSON.stringify(k)}] names "${target}" unconditionally, and a run can reach ` +
+            `${site}[${JSON.stringify(k)}] names "${spelled(t, false)}" unconditionally, and a run can reach ` +
               `this node without "${target}" having run — a decision routes around it, or it is ` +
               'inside a region whose branch may be lost before it is entered. `FD-V27` checked that ' +
-              `this node is reachable FROM it, which is weaker. Write "${target}?"` +
+              `this node is reachable FROM it, which is weaker. Write "${spelled(t, true)}"` +
               `${t.form === 'all' ? ' inside the array' : ''} if you mean *if it ran*, and read the ` +
               `key as ${t.form === 'all' ? 'a possibly-empty array' : 'possibly absent'}; otherwise ` +
               'move the reference to a node every path reaches',
@@ -1994,10 +2058,12 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         // region and in none with only `fanout`s. Same document, nine lines
         // apart, and the code followed the wrong half.
         const many = regions.some((r) => r.opensWith === 'map' && r.members.has(target) && !r.members.has(n.id));
+        // **The fix spelled as the author wrote the reference** (v0.49): `!error` kept; the `?` left out, as before v0.49 —
+        // `FD-V28` reads the form with the suffix stripped, so the form to write is the same reference in the other form.
         if (many && t.form === 'one') {
-          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names "${target}" as one value, but it is inside a map region this node is outside of, so it produces one output per ITEM; write ["${target}"]`);
+          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names "${spelled(t, false)}" as one value, but it is inside a map region this node is outside of, so it produces one output per ITEM; write ["${spelled(t, false)}"]`);
         } else if (!many && t.form === 'all') {
-          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names ["${target}"] as a list, but it produces exactly one output on this node's branch path; write "${target}"`);
+          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names ["${spelled(t, false)}"] as a list, but it produces exactly one output on this node's branch path; write "${spelled(t, false)}"`);
         }
       }
     }

@@ -1,0 +1,10 @@
+{
+  "flowId": "suffix-before-the-error-part",
+  "version": 1,
+  "entry": "lookup",
+  "nodes": [
+    { "id": "lookup",  "kind": "task", "type": "ExtractWorker", "optional": true, "edges": [ { "on": [ "done", "failed" ], "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "needs": { "why": "lookup?!error" }, "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}
