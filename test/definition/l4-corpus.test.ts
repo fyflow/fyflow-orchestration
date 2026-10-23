@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W209 — P43 (c1), decision 5, ADR 0131: a `needs` reference naming a node's ERROR — L1 in
+  // `test/definition/error-reference.test.ts`, L2 in `test/driver/error-reference.test.ts`; both counted below.
+  'L1 — W209, ADR 0131: "n!error" in the grammar — referenceTarget`s part, FD-V26`s "!" clauses at both sites, FD-V27 to FD-V29 as the plain form, and the wiring check`s string',
+  'L2 — W209, ADR 0131: "n!error" composed — the failure edge`s successor handed the outcome`s error, null on success, absent unrun, one per instance, a resolution`s, at both sites, no copy',
   // W208 — P43 (d1), (e1), decisions 6 and 7, ADR 0130: a transform's `cause` on transform-fails, L1 in
   // `test/definition/transform-cause.test.ts`; WHEN an ask was asked, kept across a replay — L2 in
   // `test/driver/asked-at.test.ts` and its fold field at L1 in `test/fold/asked-at.test.ts`; all three counted below.
@@ -1027,6 +1031,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
       'test/driver/reference-index.test.ts registers its ten: the key and the restated predicate, the corpus, a resume, a nested map, a sibling map, twelve items reversed and parked, a repeated settlement, a fanout in an instance, the alias and the copy, and the membership');
   });
   // **W205's three suites, counted the same way and for the same reason.**
+  // **W209's two suites, counted the same way and for the same reason.**
+  test('W209`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1 — W209, ADR 0131: "n!error" in the grammar — referenceTarget`s part, FD-V26`s "!" clauses at both sites, FD-V27 to FD-V29 as the plain form, and the wiring check`s string'), 11,
+      'test/definition/error-reference.test.ts registers its eleven: the parse, the corpus walk, FD-V26 at a node and at an edge, FD-V16, FD-V27, FD-V28, FD-V29, every site accepted, the wiring string, and the membership');
+    equal(count('L2 — W209, ADR 0131: "n!error" composed — the failure edge`s successor handed the outcome`s error, null on success, absent unrun, one per instance, a resolution`s, at both sites, no copy'), 10,
+      'test/driver/error-reference.test.ts registers its ten: the corpus failure and success roads, a resume, a declined ask, a resolved user_action, the "?" form, the array form in a map, an edge, no copy, and the membership');
+  });
   // **W208's three suites, counted the same way and for the same reason.**
   test('W208`s three suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);

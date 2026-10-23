@@ -1,0 +1,10 @@
+{
+  "flowId": "error-part-with-no-node",
+  "version": 1,
+  "entry": "lookup",
+  "nodes": [
+    { "id": "lookup",  "kind": "task", "type": "ExtractWorker", "optional": true, "edges": [ { "on": [ "done", "failed" ], "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "when": { "path": "needs.why", "op": "eq", "value": null }, "to": "done", "needs": { "why": "!error" } }, { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

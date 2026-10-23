@@ -23,7 +23,7 @@ import {
   visibilityKey,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
-import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, routesOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
+import { type AimedReference, effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, poolsOf, readKeyPath, referenceTarget, retryPolicyProblem, routesOf, validateDefinition, violatedRules, workersOf } from '../definition/validate.ts';
 import {
   assertRunId, branchIndices, buildTaskId, InvalidTaskId, parseTaskId, type TaskIdParts,
 } from './ids.ts';
@@ -732,7 +732,7 @@ type PendingCall =
  * and it lives exactly as long as this entry object: `place` REPLACES the object when the task's effective outcome moves
  * and drops it when the outcome goes, so a replaced or removed output's copy goes with it (`RN-R13`, ADR 0046).
  */
-type OutputEntry = { path: string; result: unknown; shared?: unknown };
+type OutputEntry = { path: string; result: unknown; error: string | null; shared?: unknown };
 
 /**
  * **Freeze what JavaScript can freeze, and never throw** — W202, ADR 0126 rule 2, P41 decision 1 and (f2). The walk
@@ -4873,7 +4873,7 @@ export class Driver {
 
   /**
    * **One task's entry, made what its effective outcome now says** — `outputs()`'s catch-up, for a task one of whose records
-   * was just read. An entry is `{ path, result }` with `result` the record's own object (`RN-R13`); a node's list is kept
+   * was just read. An entry is `{ path, result, error }` with `result` the record's own object (`RN-R13`) and `error` its string or `null` (v0.49, ADR 0131); a node's list is kept
    * in its tasks' FIRST-RECORD order, the order the rebuild grouped them in.
    *
    * **`!eff` — a suspended node contributes no entry.** The first record of a `user_action` task has none, and its
@@ -4906,7 +4906,7 @@ export class Driver {
       }
       return;
     }
-    const entry = { path: t.path, result: eff.result };
+    const entry = { path: t.path, result: eff.result, error: eff.error };
     if (t.entry !== null && list !== undefined) {
       list[list.indexOf(t.entry)] = entry;
       this.reindex(c, t.nodeId, t.entry, entry);
@@ -5116,7 +5116,7 @@ export class Driver {
     atNodeId: string,
     here: string,
     key: string,
-    t: { form: 'one' | 'all'; node: string; conditional: boolean },
+    t: AimedReference,
     site: 'needs' | 'edge needs',
   ): unknown {
     // **Compatible, not equal.** An entry is visible to this node when their two
@@ -5174,6 +5174,15 @@ export class Driver {
     // (`RN-R13`). An `all` answer is a FRESH array per read, the reader's own, of the entries' shared copies.
     const c = this.outputsCache!;
     c.examined += t.form === 'all' ? visible.length : 1;
+    // **The ERROR form reads the entry's `error`, never its `result`** — v0.49,
+    // [ADR 0131](../../doc/decisions/0131-a-reference-may-name-a-nodes-error.md), P43 (c1): the effective outcome's
+    // own `error` (`spec/outcome-record.md`'s row, a resolution's for a resolved node), so the string where the output
+    // failed and `null` where it succeeded. The SAME visible entries, order, `FD-R3` and `FD-C4` as the plain form — only
+    // what is read of each entry differs. **A string or `null`, so nothing to copy, freeze or count** (P43 decision 5):
+    // `copies` does not move, and the entry's shared copy of `result` is neither made nor read.
+    if (t.part === 'error') {
+      return t.form === 'all' ? visible.map((e) => e.error) : visible[0]!.error;
+    }
     return t.form === 'all'
       ? visible.map((e) => this.sharedOf(c, e))
       : this.sharedOf(c, visible[0]!);

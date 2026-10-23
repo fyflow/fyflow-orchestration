@@ -1,0 +1,28 @@
+{
+  "flowId": "ask-after-a-failure",
+  "version": 1,
+  "entry": "lookup",
+  "nodes": [
+    { "id": "lookup", "kind": "task", "type": "ExtractWorker", "optional": true, "edges": [
+        { "on": [ "failed" ], "to": "resolve" },
+        { "to": "publish" }
+    ] },
+    { "id": "resolve", "kind": "ask",
+      "settings": { "question": "The lookup failed. Give the value, or decline to skip it?" },
+      "needs": { "why": "lookup!error" },
+      "answerSchema": {
+        "type": "object", "required": ["value"], "additionalProperties": false,
+        "properties": { "value": { "type": "string" } },
+        "examples": [ { "value": "INV-1" } ]
+      },
+      "edges": [
+        { "on": [ "failed" ], "to": "skipped" },
+        { "to": "publish" }
+      ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker",
+      "needs": { "found": "lookup", "why": "lookup!error", "given": "resolve?" },
+      "edges": [ { "to": "done" } ] },
+    { "id": "skipped", "kind": "end", "outcome": "skipped" },
+    { "id": "done",    "kind": "end", "outcome": "completed" }
+  ]
+}

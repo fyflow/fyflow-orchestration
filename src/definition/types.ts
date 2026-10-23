@@ -44,10 +44,11 @@ export type TerminalState = 'done' | 'failed' | 'user_action' | 'cancelled';
  * | `"$payload"` | **the value the RUN entered with** — what `start()` was handed, from any node and any edge (v0.44, [ADR 0117](../../doc/decisions/0117-a-reference-may-name-what-reached-the-run.md)). Always there, so no `?` and no array form. `$` is outside `FD-V16`'s charset, and the whole `$` prefix is reserved: `"$item"` — a map instance's item — is W191's, and any other `$` spelling is `FD-V26` |
  * | `"score"` | that node's output **on this node's own branch path**. Exactly one, or the run stops (`FD-R3`) |
  * | `["score"]` | that node's outputs as an **array**, in ascending segment-wise-numeric `branchPath` order. Legal only where the reader is outside a region containing the named node (`FD-V28`) |
+ * | `"score!error"` | **that node's ERROR** rather than its result, on either form and with `?` last (`["score!error?"]`): the effective outcome's `error` string, `null` where it succeeded — v0.49, [ADR 0131](../../doc/decisions/0131-a-reference-may-name-a-nodes-error.md). Aimed as `"score"` is; `!` is outside `FD-V16`'s charset |
  *
  * **The array form uses JSON's own array syntax rather than a sigil**, so the
  * grammar invents tokens only for what has no node id: `"."`, the `?` modifier
- * (v0.13), and — v0.44 — the `$` prefix. *(This read *"exactly one invented token"*
+ * (v0.13), — v0.44 — the `$` prefix, and — v0.49 — the `!error` part. *(This read *"exactly one invented token"*
  * until v0.13 and stayed so until W190.)* A `string` covers every token, so the
  * TYPE does not move; `referenceTarget`'s parse does.
  */

@@ -347,6 +347,7 @@ that object and nothing else — there is no wrapper and no reserved key.
 | `"someNode"` | that node's result, **on your own branch** |
 | `["someNode"]` | that node's results as an **array**, in ascending branch-path order. Legal only when you are OUTSIDE a region that node is in — which is what makes it more than one |
 | **a `?` on either of those** — `"someNode?"`, `["someNode?"]` | the same thing, except that **nothing to give leaves the key out** (or gives `[]` for the array form) instead of stopping the run. This is how you say *if it ran* |
+| **`!error` after the node id, on any of those** — `"someNode!error"`, `["someNode!error?"]`, … | that node's **ERROR** instead of its result: the string its failure was reduced to, `null` where it succeeded (since 0.11.0, below) |
 
 **What a reference hands you is ONE shared, frozen copy — read it, never write it** — from 0.10.0 ([ADR 0126](doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md),
 `spec/flow-definition.md` v0.47). The value under a `"someNode"` or `["someNode"]` key (either with `?`) is ONE deep copy
@@ -691,6 +692,83 @@ const [finding] = validateDefinition(outside, registry);
 if (finding?.rule !== 'FD-V49' || !finding.detail.includes('move this node inside the map')) throw new Error(`expected FD-V49, got ${finding?.rule}`);
 ```
 
+### `"someNode!error"` — what FAILED, from the nodes after it
+
+**`"lookup!error"` names node `lookup`'s ERROR** — the outcome's `error`, the string the scheduler reduced the failure to
+(section 6) — where `"lookup"` names its result (`spec/flow-definition.md` v0.49,
+[ADR 0131](doc/decisions/0131-a-reference-may-name-a-nodes-error.md), since 0.11.0). A failed task's result is `null`, so
+until it a node after a failure edge — an ask asking a person *what now?* above all — could not say what failed.
+
+| | |
+|---|---|
+| what it is | the effective outcome's `error`: the record's, or a RESOLUTION's where a person resolved the node (`resolve(id, 'failed', { error })` on a parked task, a declined ask; `'resolved as failed'` where they gave none). **`null` where the output SUCCEEDED** — the key is present, holding `null` |
+| its forms | the plain reference's four: `"lookup!error"`, `"lookup!error?"`, `["lookup!error"]`, `["lookup!error?"]` — the `?` goes LAST. It names the same node's same outputs as `"lookup"`, so `FD-V27`-`FD-V29` and the `?` and array rules are the plain form's, and the fixes `FD-V28` and `FD-V29` name keep the `!error` (`FD-V27` names the node, as for `"lookup"`) |
+| where it is legal | wherever `"lookup"` is: a `task`'s, a `map`'s or an `ask`'s `needs`, and an edge's (`ctx.needs`, section 4) |
+| what it is NOT | a path: the error is a field of the OUTCOME beside `result`, and `error` is the one part a reference may name. `"lookup?!error"`, `"!error"` and `"lookup!err"` are `FD-V26`, each naming its fix |
+| what it costs | nothing to copy — a string or `null`, never the shared frozen copy of the result (above) |
+| in the wiring check | the key composes as `{ type: ['string', 'null'] }` with the sample `''`, whatever the producer declares (section 15) |
+| `referenceTarget` | the error form parses to the plain form's object plus `part: 'error'`, present ONLY there (`AimedReference`), so every other spelling parses as before. A resolver of your own must read `part`; an aiming rule may ignore it |
+
+**The default — a failure edge handing `{ error }` to its successor — was declined** (P43 (c2)): it would change what every
+existing failure edge's successor receives. You name the error where you want it.
+
+The app's case — `lookup` fails, an ask after its failure edge shows the person why, and the node both roads reach reads
+the error beside the result:
+
+```ts run
+import { Driver, fold, liveToken, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+
+const added: { id: string; payload: { input: unknown } }[] = [];
+const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+const scheduler = {
+  addTask(task: unknown) { added.push(task as { id: string; payload: { input: unknown } }); },
+  addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+};
+const handedInput = (id: string) => added.find((t) => t.id === id)?.payload.input;
+const fire = (type: string, detail: unknown) => { for (const fn of listeners.get(type) ?? []) fn({ detail }); };
+
+const flow: FlowDefinition = {
+  flowId: 'lookup-or-ask', version: 1, entry: 'lookup',
+  nodes: [
+    // `optional`, so a failure SETTLES failed and routes the failure edge (a non-optional task would park, section 7).
+    { id: 'lookup', kind: 'task', type: 'Work', optional: true, edges: [{ on: ['failed'], to: 'resolve' }, { to: 'publish' }] },
+    { id: 'resolve', kind: 'ask', needs: { why: 'lookup!error' },
+      answerSchema: { type: 'object', required: ['value'], properties: { value: { type: 'string' } } },
+      edges: [{ on: ['failed'], to: 'skipped' }, { to: 'publish' }] },
+    { id: 'publish', kind: 'task', type: 'Work', needs: { found: 'lookup', why: 'lookup!error', given: 'resolve?' }, edges: [{ to: 'done' }] },
+    { id: 'skipped', kind: 'end', outcome: 'skipped' },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+const types = { workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } } };
+const registry = { predicates: [], ...types };
+if (validateDefinition(flow, registry).length) throw new Error('"lookup!error" is legal on an ask and on a task');
+
+const driver = new Driver(flow, { runId: 'r1', scheduler, createTask: (c) => c, predicates: new Map(), joinPolicy: liveToken, ...types });
+driver.start({ invoice: 'INV-?' });
+fire('task.failed', { id: 'r1:lookup:-:0', state: 'failed', result: null, error: 'lookup timed out after 30 s' });
+
+// The ask parks with the error: what it shows the person.
+const asked = driver.foldInputs().find((e) => e.kind === 'asked');
+console.log(asked?.kind === 'asked' && asked.input);   // { why: 'lookup timed out after 30 s' }
+if (JSON.stringify(asked?.kind === 'asked' && asked.input) !== '{"why":"lookup timed out after 30 s"}') throw new Error('the ask is handed the error');
+
+driver.resolve('r1:resolve:-:0', 'done', { result: { value: 'INV-9' }, actor: 'ana' });
+console.log(handedInput('r1:publish:-:0'));   // { found: null, why: 'lookup timed out after 30 s', given: { value: 'INV-9' } }
+if (JSON.stringify(handedInput('r1:publish:-:0')) !== '{"found":null,"why":"lookup timed out after 30 s","given":{"value":"INV-9"}}') {
+  throw new Error(`publish received ${JSON.stringify(handedInput('r1:publish:-:0'))}`);
+}
+if (fold(driver.foldInputs()).outcome !== 'running') throw new Error('publish is in flight');
+
+// A part other than `error`, or the `?` in the wrong place, is refused naming the fix.
+const refuse = (ref: unknown) => validateDefinition({ ...flow, nodes: flow.nodes.map((n) =>
+  (n.id === 'publish' ? { ...n, needs: { why: ref } } : n)) } as FlowDefinition, registry).map((f) => `${f.rule}: ${f.detail}`);
+for (const [ref, fix] of [['lookup!err', 'write "lookup!error"'], ['lookup?!error', 'write "lookup!error?"']] as const) {
+  const [finding] = refuse(ref);
+  if (!finding?.startsWith('FD-V26') || !finding.includes(fix)) throw new Error(`${ref}: ${finding}`);
+}
+```
+
 ### Validation happens at construction, not at routing time
 
 `new Driver(...)` validates the whole definition before anything is queued. A typo cannot become a
@@ -860,7 +938,7 @@ flagged low confidence* was not expressible until v0.12 —
 answering [Q8](doc/questions/q8.md).
 
 **An edge may carry `needs`, and its predicate sees the result under `ctx.needs`.** Same grammar as
-a node's (section 3) — a node id, or a one-element array holding one, and since 0.8.0 `"$payload"` and `"$item"` —
+a node's (section 3) — a node id, or a one-element array holding one, since 0.8.0 `"$payload"` and `"$item"`, and since 0.11.0 a node's error, `"n!error"` —
 **minus `"."`**, which an edge has no use for: *what a predicate would have received anyway* is `ctx.outcome`. `"$payload"`
 and `"$item"` are not refused there: a predicate has no other road to the run's payload or to its map instance's item
 (section 3's two subsections route on them).

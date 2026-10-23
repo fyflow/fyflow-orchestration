@@ -586,7 +586,9 @@ suite('OR-R11 — the corpus half of what bounding a result would cost', (test) 
         const collect = (nd: unknown) => {
           for (const v of Object.values((nd ?? {}) as Record<string, unknown>)) {
             const one = Array.isArray(v) ? v[0] : v;
-            if (typeof one === 'string' && one !== '.') targets.add(one.replace(/\?$/, ''));
+            // **`"n!error"` names n's ERROR, never its result** (v0.49, ADR 0131) — so it is not a reading of the result
+            // this derivation counts, and is skipped BY NAME rather than left to match no node id by accident.
+            if (typeof one === 'string' && one !== '.' && !/!error\??$/.test(one)) targets.add(one.replace(/\?$/, ''));
           }
         };
         for (const node of d.nodes) {
