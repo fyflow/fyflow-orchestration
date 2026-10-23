@@ -802,7 +802,7 @@ It would have said *every path from a branch entry reaches the join* — which w
 that routes a branch away from its join invalid input, and that case is the one this library exists
 to get right (`ADR 0003`). Do not add it.
 
-### The definition's SHAPE, as data — `definitionSchema()`
+### The definition's SHAPE, as data — `definitionSchema()` and `definitionSchema(registry)`
 
 **`definitionSchema()` returns everything above as a JSON Schema, draft 2020-12** (`spec/flow-definition.md` v0.50,
 [ADR 0132](doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md), since 0.11.0): every node kind
@@ -817,9 +817,23 @@ entries are held to the id charset only where they are strings — the validator
 | | |
 |---|---|
 | it refuses | what a node, an edge or a value gets wrong in its OWN shape: an undeclared or missing key, a wrong type, an id outside `[A-Za-z0-9_-]{1,64}`, an unknown kind, a malformed reference, `when`, `retryPolicy` or `transform`, a task's key on an ask, an `answerSchema` outside the subset |
-| it does not | anything that needs ANOTHER node or the REGISTRY — whether `to` names a node, reachability, regions and joins, where a reference points, every registered name (types, pools, groups, languages, predicates, gate types and their routes) |
+| it does not | anything that needs ANOTHER node or the REGISTRY — whether `to` names a node, reachability, regions and joins, where a reference points, every registered name (types, pools, groups, languages, predicates, gate types and their routes) — the last is what `definitionSchema(registry)` adds, below |
 | the authority | **`validateDefinition(flow, registry)`**, or `runtime.check(flow)` on a runtime — for all of that and for the whole. What the schema refuses, `validateDefinition` refuses under every registry; a document it accepts may still be refused there. The root `description` says so |
 | not | a check the library runs (nothing evaluates it), nor in [ADR 0053](doc/decisions/0053-the-schema-validator-is-a-built-in-subset-and-a-keyword-outside-it-is-refused.md)'s subset — it uses `$defs`, `$ref`, `oneOf`, `if`/`then`, `pattern` |
+
+**`definitionSchema(registry)` is the same shape SPECIALISED to the `Registry` you validate against** (`spec/flow-definition.md`
+v0.51, since 0.11.0) — what an agent most often gets wrong, as data: a task's `type` is one of your node types, and per
+type (an `if`/`then`) its `pool`, its `settings` against its worker's `settingsSchema`, and a `transform` where the type only
+transforms; `workerGroups`, `transform.lang` and a predicate name from your sets; a gate's `type`, and per gate type its
+`settings` and — for a static type — its edges' `route` names. A registry `checkRegistry` refuses (what `new Driver` would
+refuse) is never specialised: the call throws that refusal. What it refuses, `validateDefinition(flow, registry)` refuses.
+
+| | |
+|---|---|
+| it cannot cleanly carry | the `settings` check over the EFFECTIVE settings (your type's defaults merged under the node's): a key the defaults supply is not required of the node, and a default's own value — and a top-level keyword of your settingsSchema other than `properties`, `required` and `additionalProperties` — is not checked; a `minLength` above 1 inside one of your schemas, emitted as half of it rounded up (your schemas count UTF-16 units, JSON Schema counts code points); a DERIVED gate type's routes (`switch`'s are its cases); every route wired EXACTLY ONCE; a gate type's `settingsProblem` and a language's `compile` |
+| annotation only | each node type's worker `inputSchema` — at `$defs.inputSchema` in its type's branch, constraining nothing (it is runtime input) |
+| the authority | as above, against that registry. The root `description` names every row of this table |
+| mind | a validator that tests a property with `in` (`@cfworker/json-schema` 4.1.1 does) misreads a schema property of yours NAMED as an `Object.prototype` member — `constructor`, `toString`, `__proto__` — and refuses or throws where 2020-12 accepts; name your settings otherwise |
 
 ```ts run
 import { definitionSchema, validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
@@ -844,6 +858,24 @@ const dangling = { flowId: 'f', version: 1, entry: 'a', nodes: [{ id: 'a', kind:
 const rules = validateDefinition(dangling, { predicates: [], workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } } }).map((f) => f.rule);
 if (rules.join() !== 'FD-V2') throw new Error(`the graph is validateDefinition's: ${rules.join()}`);
 if (definitionSchema() === schema) throw new Error('a new object per call');
+
+// Specialised to a registry: its node types (the built-in Transform beside yours), each type's pools and settings.
+const registry = {
+  predicates: ['isUrgent'],
+  workers: { w: { url: 'worker.js', settingsSchema: { type: 'object', properties: { depth: { type: 'integer', minimum: 1 } }, additionalProperties: false } } },
+  nodeTypes: { Work: { worker: 'w' } },
+};
+const specialised = definitionSchema(registry);
+type Task = { properties: { type: { enum: string[] } }; allOf: { then: { properties: { pool: { enum: string[] }; settings?: unknown } } }[] };
+const task = (specialised.$defs as { taskNode: Task }).taskNode;
+console.log(task.properties.type.enum);              // [ 'Work', 'Transform' ]
+console.log(task.allOf[0]!.then.properties.pool.enum); // [ 'Work' ]
+if (task.allOf[0]!.then.properties.settings === undefined) throw new Error('Work\'s settings are held to its worker\'s schema');
+if (!String(specialised.description).includes('EXACTLY ONCE')) throw new Error('it names what it cannot carry');
+// A registry new Driver would refuse is never specialised.
+let refused = '';
+try { definitionSchema({ ...registry, nodeTypes: { Lost: { worker: 'missing' } } }); } catch (e) { refused = (e as Error).name; }
+if (refused !== 'WorkerMissing') throw new Error(`a refused registry throws its refusal: ${refused}`);
 ```
 
 ---

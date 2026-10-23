@@ -16,13 +16,24 @@
  * is seen — and the repair is read by `validateDefinition` too, which no longer reports that rule. Where this suite does
  * read the validator (`referenceTarget`, `validateDefinition`), it is as the SECOND observer of a claim whose first is
  * the schema run through cfworker, and it says so.
+ *
+ * **And the REGISTRY form, `definitionSchema(registry)`** — [W211](../../doc/work-items/w211-the-registry-specialised-schema.md),
+ * `spec/flow-definition.md` v0.51, P43 fact 2's registry-specialisable row — held the same way against
+ * `spec/examples/registry.json`: every valid flow accepted, every registry-specialisable invalid file refused beside its
+ * repair and NOT refused by the static form, each of fact 2's not-cleanly rows pinned NOT refused beside the validator's
+ * refusal of the same document, and a sweep in which no refusal of the registry form is an acceptance of
+ * `validateDefinition` against the same registry. The registry-derived names every expected value below uses are
+ * written from `registry.json` by hand, never read from the module's own functions. The suite keeps W210's name, so its
+ * census line (`test/definition/l4-corpus.test.ts`) does not move.
  */
 import { Validator } from '@cfworker/json-schema';
-import { collected, deepEqual, equal, listDir, ok, readText, ROOT, suite } from '../harness.ts';
+import { collected, deepEqual, equal, listDir, ok, readText, ROOT, suite, throws } from '../harness.ts';
+import { checkRegistry } from '../../src/definition/registry.ts';
+import type { GateType, Registry } from '../../src/definition/types.ts';
 import { definitionSchema, type DefinitionSchema } from '../../src/definition/definition-schema.ts';
 import {
   DOC_KEYS_DECLARED, EDGE_KEYS_DECLARED, NODE_KEYS_DECLARED, NODE_KEYS_REQUIRED, PREDICATE_GROUP_KEYS, PREDICATE_LEAF_KEYS,
-  PREDICATE_NAME_KEYS, RETRY_POLICY_KEYS, TRANSFORM_KEYS, KINDS, referenceTarget, validateDefinition,
+  PREDICATE_NAME_KEYS, RETRY_POLICY_KEYS, TRANSFORM_KEYS, KINDS, BUILT_IN_GATE_TYPES, referenceTarget, validateDefinition,
 } from '../../src/definition/validate.ts';
 import { SCHEMA_KEYWORDS, SCHEMA_TYPES } from '../../src/definition/schema.ts';
 import { PREDICATE_OPS } from '../../src/definition/types.ts';
@@ -32,7 +43,8 @@ import { corpusRegistry, type CorpusRegistryDocument } from './corpus-types.ts';
 const SUITE = 'L1 — W210, ADR 0132: definitionSchema() — a valid 2020-12 document, the corpus accepted, every shape-only refusal beside its repair, never refusing what validateDefinition accepts';
 
 const EX = `${ROOT}spec/examples`;
-const registry = corpusRegistry(JSON.parse(await readText(`${EX}/registry.json`)) as CorpusRegistryDocument);
+const registryDoc = JSON.parse(await readText(`${EX}/registry.json`)) as CorpusRegistryDocument;
+const registry = corpusRegistry(registryDoc);
 const schema = definitionSchema();
 // SHORT-CIRCUITING: a verdict is all a case reads, and collecting every error of every refused document cost the chromium
 // lane seconds in GC (W210's declaration step, re-take 7). The full errors are read only to word a failure, by `explain`.
@@ -350,6 +362,169 @@ async function sweep(names: string[], s: DefinitionSchema) {
   return r;
 }
 
+// ---- the REGISTRY form — W211 ----
+
+/** A variant of the corpus registry: `registry.json` copied, `edit` applied to the copy, read as the corpus reads it. */
+const variant = (edit: (doc: CorpusRegistryDocument) => void): Registry => {
+  const doc = clone(registryDoc);
+  edit(doc);
+  return corpusRegistry(doc);
+};
+const regSchema = definitionSchema(registry);
+const regValidator = new Validator(regSchema as never, '2020-12', true);
+const regAccepts = (d: unknown, v: Validator = regValidator): boolean => v.validate(d).valid;
+const regExplain = (d: unknown, s: DefinitionSchema = regSchema): string => new Validator(s as never, '2020-12', false).validate(d).errors.slice(-2).map((e) => `${e.instanceLocation} ${e.error}`).join(' | ');
+const rulesAgainst = (d: unknown, reg: Registry): string[] => [...new Set(validateDefinition(d as FlowDefinition, reg).map((f) => f.rule))].sort();
+
+/**
+ * **The invalid files whose rule the REGISTRY decides of a node by itself** — P43 fact 2's registry-specialisable row,
+ * written from section 5's rule table and the files' names before any run: `FD-V4` (a predicate name), `FD-V31` (a
+ * group), `FD-V32` (a node type), `FD-V33` (`factor: "ten"` against `scorer`'s settingsSchema, which says a number —
+ * fact 2's row names a type's `settings` schema; only the DEFAULTS' weakening is its not-cleanly row), `FD-V35` (a
+ * language), `FD-V38` (a pool of another type), `FD-V39` (a gate type) and `FD-V46` (a transform-only type's node with
+ * no `transform`). Each REFUSED by the registry form and ACCEPTED by the static one — the specialisation is what refuses.
+ */
+const REGISTRY_REPAIRS: Record<string, (d: Doc) => void> = {
+  'FD-V4--unknown-predicate-name.flow.json': (d) => { (edgesOf(d, 'score')[0]!.when as Record<string, unknown>).predicate = 'isLowConfidence'; },
+  'FD-V31--worker-group-not-in-registry.flow.json': (d) => { nodeOf(d, 'score').workerGroups = ['gpu']; },
+  'FD-V32--type-not-in-registry.flow.json': (d) => { nodeOf(d, 'score').type = 'Scorer'; },
+  'FD-V33--settings-the-type-refuses.flow.json': (d) => { (nodeOf(d, 'score').settings as Record<string, unknown>).factor = 10; },
+  'FD-V35--transform-language-not-in-registry.flow.json': (d) => { (nodeOf(d, 'score').transform as Record<string, unknown>).lang = 'path'; },
+  'FD-V38--pool-not-an-instance-of-the-type.flow.json': (d) => { nodeOf(d, 'score').pool = 'ScoreWorker'; },
+  'FD-V39--gate-type-not-registered.flow.json': (d) => { nodeOf(d, 'dedupe').type = 'distinct'; },
+  'FD-V46--a-transform-only-node-with-no-transform.flow.json': (d) => { nodeOf(d, 'reshape').transform = { lang: 'path', expr: 'confidence' }; },
+};
+
+/**
+ * **Every clause the registry form CARRIES, one edit each on `base()`** — refused by the registry form, ACCEPTED by the
+ * static one, reported by `validateDefinition` against the registry as the rule named. Names from `registry.json`:
+ * `ScoreWorker` (worker `score`, no settingsSchema), `Scorer` (worker `scorer`: `factor`, a number >= 0, nothing else;
+ * defaults `{ factor: 1 }`), the instance `scorer-fast` of `Scorer`, groups `gpu` and `api`, predicates
+ * `isLowConfidence` and `isHighConfidence`, the language `path`; and the built-in gate types `distinct` (static: `first`,
+ * `duplicate`, `nokey`; settings exactly `{ key }`), `if` (static: `then`, `else`; settings exactly `{ when }`) and
+ * `switch` (derived).
+ */
+const REGISTRY_CLAUSES: [string, string, (d: Doc) => void][] = [
+  ['FD-V32', 'a type the registry does not declare', (d) => { nodeOf(d, 'a').type = 'Nope'; }],
+  ['FD-V38', 'a pool the registry does not declare', (d) => { nodeOf(d, 'a').pool = 'nope'; }],
+  ['FD-V38', 'a pool that is an instance of another type', (d) => { nodeOf(d, 'a').pool = 'scorer-fast'; }],
+  ['FD-V33', 'a setting of the wrong type', (d) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').settings = { factor: 'x' }; }],
+  ['FD-V33', 'a setting below its minimum', (d) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').settings = { factor: -1 }; }],
+  ['FD-V33', 'a setting the schema does not declare', (d) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').settings = { zz: 1 }; }],
+  ['FD-V31', 'a group the registry does not declare', (d) => { nodeOf(d, 'a').workerGroups = ['gpu', 'nope']; }],
+  ['FD-V35', 'a language the registry does not declare', (d) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').transform = { lang: 'jsonata', expr: 'x' }; }],
+  ['FD-V46', 'a Transform node with no transform', (d) => { nodeOf(d, 'a').type = 'Transform'; }],
+  ['FD-V4', 'a predicate the registry does not declare', when({ predicate: 'isLowConfidenc' })],
+  ['FD-V39', 'a gate type the registry does not declare', (d) => { nodeOf(d, 'g').type = 'unique'; }],
+  ['FD-V40', 'distinct settings with an undeclared key', (d) => { nodeOf(d, 'g').settings = { key: 'series', zz: 1 }; }],
+  ['FD-V40', 'a distinct gate with no settings (its key is required)', (d) => { delete nodeOf(d, 'g').settings; }],
+  ['FD-V41', 'a distinct edge naming a route distinct does not declare', (d) => { edgesOf(d, 'g')[1]!.route = 'dup'; }],
+  ['FD-V40', 'an if gate with no settings (its when is required)', (d) => {
+    const g = nodeOf(d, 'g'); g.type = 'if'; delete g.settings; g.edges = [{ to: 'done' }, { route: 'then', to: 'done' }];
+  }],
+  ['FD-V41', 'an if edge naming a route if does not declare', (d) => {
+    const g = nodeOf(d, 'g'); g.type = 'if'; g.settings = { when: { path: 'input.a', op: 'eq', value: 1 } };
+    g.edges = [{ to: 'done' }, { route: 'first', to: 'done' }];
+  }],
+];
+
+/**
+ * **What the registry form must ACCEPT because `validateDefinition` does** — the soundness claim's constructed half,
+ * each row naming the clause that could over-refuse: a pool by the type's own name and by its instance, `Scorer` with no
+ * settings (its defaults), every built-in gate type configured, a switch's routes (derived: any string), both groups,
+ * both predicates, a `Transform` with its `transform`.
+ */
+const REGISTRY_ACCEPTS: [string, (d: Doc) => void][] = [
+  ['a pool by the type\'s own name', (d) => { nodeOf(d, 'a').pool = 'ScoreWorker'; }],
+  ['a Scorer on its named instance, with no settings (its defaults)', (d) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').pool = 'scorer-fast'; }],
+  ['a Scorer with settings and a transform', (d) => { const a = nodeOf(d, 'a'); a.type = 'Scorer'; a.settings = { factor: 0 }; a.transform = { lang: 'path', expr: 'confidence' }; }],
+  ['a Transform with its transform', (d) => { const a = nodeOf(d, 'a'); a.type = 'Transform'; a.transform = { lang: 'path', expr: 'confidence' }; }],
+  ['both groups', (d) => { nodeOf(d, 'a').workerGroups = ['api', 'gpu']; }],
+  ['the other predicate', when({ predicate: 'isHighConfidence' })],
+  ['an if gate with its two routes', (d) => {
+    const g = nodeOf(d, 'g'); g.type = 'if'; g.settings = { when: { path: 'input.a', op: 'eq', value: 1 } };
+    g.edges = [{ to: 'done' }, { route: 'then', to: 'done' }];
+  }],
+  ['a switch gate with its cases routed', (d) => {
+    const g = nodeOf(d, 'g'); g.type = 'switch'; g.settings = { key: 'kind', cases: { pdf: 'pdf' } };
+    g.edges = [{ to: 'done' }, { route: 'pdf', to: 'done' }];
+  }],
+];
+
+/**
+ * **What a schema CANNOT cleanly carry — P43 fact 2's not-cleanly row, and `minLength` (found by this item)** — each a
+ * claim of ABSENCE: the registry form ACCEPTS the document, and the CONTROL is `validateDefinition` refusing the same
+ * document, against the same registry, under the rule named. Files where the corpus has one; constructed otherwise.
+ */
+const NOT_CLEANLY: [string, string, Registry, () => Doc | Promise<Doc>][] = [
+  ['FD-V41', 'every route wired EXACTLY ONCE — distinct\'s duplicate unwired', registry, () => load(`${EX}/invalid/FD-V41--a-declared-route-with-no-edge.flow.json`)],
+  ['FD-V41', 'a DERIVED gate type\'s routes — a switch case unwired', registry, () => load(`${EX}/invalid/FD-V41--a-switch-case-with-no-edge.flow.json`)],
+  ['FD-V41', 'a DERIVED gate type\'s routes — a switch edge naming no case', registry, () => {
+    const d = base(); const g = nodeOf(d, 'g'); g.type = 'switch'; g.settings = { key: 'kind', cases: { pdf: 'pdf' } };
+    g.edges = [{ to: 'done' }, { route: 'pdf', to: 'done' }, { route: 'nope', to: 'done' }];
+    return d;
+  }],
+  ['FD-V40', 'a gate type\'s settingsProblem — an if condition outside input', registry, () => load(`${EX}/invalid/FD-V40--an-if-condition-outside-input.flow.json`)],
+  ['FD-V36', 'a language\'s compile', registry, () => load(`${EX}/invalid/FD-V36--transform-the-language-refuses.flow.json`)],
+  ['FD-V33', 'the EFFECTIVE settings — a type default the settingsSchema refuses', variant((r) => { r.nodeTypes.Scorer!.settings = { factor: -1 }; }), () => {
+    const d = base(); nodeOf(d, 'a').type = 'Scorer'; return d;
+  }],
+  ['FD-V33', 'a minLength above 1, relaxed to half — "a" against minLength 2', variant((r) => {
+    (r.workers.scorer!.settingsSchema as { properties: Record<string, unknown> }).properties.name = { type: 'string', minLength: 2 };
+  }), () => {
+    const d = base(); nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').settings = { name: 'a' }; return d;
+  }],
+];
+
+/** A consumer gate type beside the built-ins — static, routes `ok` (the default) and `hold`. */
+const TRIAGE: GateType = { routes: ['ok', 'hold'], defaultRoute: 'ok', settingsSchema: { type: 'object', additionalProperties: false }, fn: () => 'ok' };
+
+/**
+ * **The registry form's sweep** — every task node of each valid corpus flow given each node type, pool, settings,
+ * group list and transform below; every gate each gate type and settings; every gate edge each route; every named
+ * predicate each name. The values are written from `registry.json`, not read from the module. The registry form is asked
+ * of the mutated NODE alone (`$defs/node`), and `validateDefinition` against the same registry wherever it refused.
+ */
+async function registrySweep(names: string[], s: DefinitionSchema, reg: Registry) {
+  const nodeValidator = new Validator({ $schema: s.$schema, $ref: '#/$defs/node', $defs: s.$defs } as never, '2020-12', true);
+  const r = { refused: 0, accepted: 0, unsound: [] as string[] };
+  const TASK: [string, unknown][] = [
+    ...['IngestWorker', 'ScoreWorker', 'ReviewWorker', 'PublishWorker', 'ExtractWorker', 'MergeWorker', 'Scorer', 'Transform', 'Nope'].map((t): [string, unknown] => ['type', t]),
+    ...['scorer-fast', 'Scorer', 'ScoreWorker', 'nope'].map((p): [string, unknown] => ['pool', p]),
+    ['settings', {}], ['settings', { factor: 2 }], ['settings', { factor: -1 }], ['settings', { zz: 1 }],
+    ['workerGroups', ['gpu']], ['workerGroups', ['api', 'gpu']], ['workerGroups', ['nope']],
+    ['transform', { lang: 'path', expr: 'confidence' }], ['transform', { lang: 'nope', expr: 'confidence' }],
+  ];
+  const GATE: [string, unknown][] = [
+    ...['distinct', 'if', 'switch', 'nope'].map((t): [string, unknown] => ['type', t]),
+    ['settings', { key: 'k' }], ['settings', { when: { path: 'input.a', op: 'eq', value: 1 } }], ['settings', { key: 'k', cases: { a: 1 } }], ['settings', {}],
+  ];
+  const ROUTES = ['first', 'duplicate', 'nokey', 'then', 'else', 'default', 'nope'];
+  const PREDICATES = ['isLowConfidence', 'isHighConfidence', 'nope'];
+  const check = (d: Doc, i: number, what: string) => {
+    if (nodeValidator.validate(d.nodes[i]).valid) { r.accepted++; return; }
+    r.refused++;
+    if (validateDefinition(d as unknown as FlowDefinition, reg).length === 0) r.unsound.push(what);
+  };
+  for (const n of names) {
+    const d0 = await load(`${EX}/valid/${n}`);
+    d0.nodes.forEach((node, i) => {
+      const keyed = node.kind === 'task' ? TASK : node.kind === 'gate' ? GATE : [];
+      for (const [k, v] of keyed) { const d = clone(d0); d.nodes[i]![k] = clone(v); check(d, i, `${n} nodes[${i}].${k} = ${JSON.stringify(v)}`); }
+      ((node.edges as Record<string, unknown>[] | undefined) ?? []).forEach((e, j) => {
+        const edge = (d: Doc) => (d.nodes[i]!.edges as Record<string, unknown>[])[j]!;
+        if (node.kind === 'gate') {
+          for (const route of ROUTES) { const d = clone(d0); edge(d).route = route; check(d, i, `${n} nodes[${i}].edges[${j}].route = ${route}`); }
+        }
+        if (typeof (e.when as { predicate?: unknown } | undefined)?.predicate === 'string') {
+          for (const p of PREDICATES) { const d = clone(d0); (edge(d).when as Record<string, unknown>).predicate = p; check(d, i, `${n} nodes[${i}].edges[${j}].when.predicate = ${p}`); }
+        }
+      });
+    });
+  }
+  return r;
+}
+
 suite(SUITE, (test) => {
   test('it is a VALID JSON Schema draft 2020-12 document — the 2020-12 meta-schema accepts it, and refuses a nested defect in a copy (the control)', () => {
     const meta = metaValidator();
@@ -574,8 +749,278 @@ suite(SUITE, (test) => {
     ok(control.unsound.some((w) => w.includes('.outcome = "x"')), `the over-strict copy is caught (unsound: ${JSON.stringify(control.unsound)})`);
   });
 
+  // ---- W211: the REGISTRY form ----
+
+  test('W211 — definitionSchema(registry) is a VALID 2020-12 document too, and definitionSchema() is unmoved by the argument it may now take', () => {
+    const r = metaValidator().validate(regSchema);
+    ok(r.valid, `the meta-schema refuses it: ${r.errors.slice(-3).map((e) => `${e.instanceLocation} ${e.error}`).join(' | ')}`);
+    equal(regSchema.$schema, 'https://json-schema.org/draft/2020-12/schema', 'the dialect it declares');
+    ok(deepEqual(definitionSchema(undefined), schema), 'an undefined registry is no registry');
+    // The STATIC form carries none of the registry form's additions — read from W210's shape, not from a second call
+    // (W211's adequacy reader, SHOULD 3: comparing definitionSchema() with itself could not fail).
+    type Bare = { properties: Record<string, { enum?: unknown; items?: { enum?: unknown } }>; allOf?: unknown };
+    const st = schema.$defs as Record<string, Bare>;
+    ok(st.taskNode!.allOf === undefined && st.gateNode!.allOf === undefined, 'no per-type branch on a task or a gate');
+    ok(st.taskNode!.properties.type!.enum === undefined && st.gateNode!.properties.type!.enum === undefined, 'no type enum');
+    ok(st.taskNode!.properties.workerGroups!.items!.enum === undefined && st.transform!.properties.lang!.enum === undefined &&
+      st.predicateName!.properties.predicate!.enum === undefined, 'no group, language or predicate enum');
+    ok(String(schema.description).includes('none that needs another node or a registry'), 'and its own root description, W210\'s');
+    ok(!deepEqual(regSchema, schema), 'and a registry specialises it (the control: the two differ)');
+  });
+
+  test('W211 — against spec/examples/registry.json: every valid corpus flow ACCEPTED; the registry-specialisable files REFUSED, the static form accepting each; every other invalid file as the static form has it', async () => {
+    const refused: string[] = [];
+    for (const n of validNames) if (!regAccepts(await load(`${EX}/valid/${n}`))) refused.push(n);
+    equal(refused, [], 'no valid flow is refused');
+    const registryFiles = Object.keys(REGISTRY_REPAIRS);
+    for (const n of registryFiles) ok(invalidNames.includes(n), `${n} is in the corpus`);
+    const staticRefused = invalidNames.filter((n) => SHAPE_ONLY.includes(ruleOfFile(n)) || SHAPE_FILES_OF_OTHER_RULES.includes(n));
+    const got: string[] = [];
+    for (const n of invalidNames) if (!regAccepts(await load(`${EX}/invalid/${n}`))) got.push(n);
+    equal(got, invalidNames.filter((n) => staticRefused.includes(n) || registryFiles.includes(n)), 'refused: the static form\'s files and the eight registry-specialisable files, no other');
+    equal(registryFiles.filter((n) => staticRefused.includes(n)), [], 'no registry-specialisable file is one the static form refuses — so the SPECIALISATION is what refuses it');
+  });
+
+  test('W211 — each registry-specialisable file, REPAIRED in its one clause, is ACCEPTED by the registry form — and validateDefinition stops reporting its rule (the control)', async () => {
+    let run = 0;
+    for (const [n, repair] of Object.entries(REGISTRY_REPAIRS)) {
+      const d = await load(`${EX}/invalid/${n}`);
+      const rule = ruleOfFile(n);
+      ok(!regAccepts(d), `${n}: refused before the repair`);
+      ok(accepts(d), `${n}: and ACCEPTED by the static form — the specialisation is what refuses`);
+      ok(rulesOf(d).includes(rule), `${n}: validateDefinition reports ${rule} (the second observer)`);
+      const fixed = clone(d);
+      repair(fixed);
+      ok(!deepEqual(fixed, d), `${n}: the repair changed the document`);
+      if (!regAccepts(fixed)) ok(false, `${n}: ACCEPTED once repaired — refused: ${regExplain(fixed)}`);
+      ok(!rulesOf(fixed).includes(rule), `${n}: validateDefinition no longer reports ${rule} once repaired (got ${rulesOf(fixed).join(', ')})`);
+      run++;
+    }
+    equal(run, 8, 'all eight files ran');
+  });
+
+  test('W211 — every clause the registry form carries, on the hand-built base: refused by it, accepted by the static form, reported by validateDefinition as the rule named; and every value validateDefinition accepts, accepted', () => {
+    const b = base();
+    if (!regAccepts(b)) ok(false, `the base is accepted — refused: ${regExplain(b)}`);
+    equal([...new Set(REGISTRY_CLAUSES.map(([r]) => r))].sort(), ['FD-V31', 'FD-V32', 'FD-V33', 'FD-V35', 'FD-V38', 'FD-V39', 'FD-V4', 'FD-V40', 'FD-V41', 'FD-V46'], 'the rows cover exactly the rules the registry form carries');
+    let run = 0;
+    for (const [rule, what, edit] of REGISTRY_CLAUSES) {
+      const d = base();
+      edit(d);
+      ok(!regAccepts(d), `${what}: refused by the registry form`);
+      if (!accepts(d)) ok(false, `${what}: ACCEPTED by the static form — refused: ${explain(d)}`);
+      ok(rulesOf(d).includes(rule), `${what}: validateDefinition reports ${rule} (got ${rulesOf(d).join(', ')})`);
+      run++;
+    }
+    equal(run, 16, 'every row ran');
+    for (const [what, edit] of REGISTRY_ACCEPTS) {
+      const d = base();
+      edit(d);
+      ok(!deepEqual(d, base()), `${what}: the edit changed the base`);
+      equal(rulesOf(d), [], `${what}: validateDefinition accepts it (the premise)`);
+      if (!regAccepts(d)) ok(false, `${what}: the registry form accepts it — refused: ${regExplain(d)}`);
+      run++;
+    }
+    equal(run, 16 + 8, 'and every accepted row ran');
+  });
+
+  test('W211 — what a schema CANNOT cleanly carry, each NOT refused, beside validateDefinition\'s refusal of the same document (the control); named in the root description; the inputSchema an annotation only', async () => {
+    let run = 0;
+    for (const [rule, what, reg, doc] of NOT_CLEANLY) {
+      const d = await doc();
+      const s = reg === registry ? regSchema : definitionSchema(reg);
+      if (!regAccepts(d, reg === registry ? regValidator : new Validator(s as never, '2020-12', true))) ok(false, `${what}: NOT refused — refused: ${regExplain(d, s)}`);
+      ok(rulesAgainst(d, reg).includes(rule), `${what}: validateDefinition refuses it as ${rule} (got ${rulesAgainst(d, reg).join(', ')})`);
+      run++;
+    }
+    equal(run, 7, 'every row ran');
+    const said = String(regSchema.description);
+    let named = 0;
+    for (const phrase of ['EFFECTIVE', 'WEAKENED', 'a default\'s own value', 'top-level keyword', 'minLength', 'DERIVED', 'EXACTLY ONCE', 'settingsProblem', 'compile', 'inputSchema', 'ANNOTATION', 'needs another node', 'validateDefinition(flow, registry)', 'runtime.check']) {
+      ok(said.includes(phrase), `the root description names ${JSON.stringify(phrase)}`);
+      named++;
+    }
+    equal(named, 14, 'every phrase was looked for');
+    ok(said !== schema.description, 'and it is not the static form\'s');
+    // The inputSchema: carried in its type's branch, and constraining nothing — a value it would refuse is accepted.
+    const input = { type: 'string', minLength: 3 };
+    const withInput = variant((r) => { (r.workers.scorer as { inputSchema?: unknown }).inputSchema = input; });
+    const s = definitionSchema(withInput);
+    const branch = ((s.$defs as Record<string, { allOf: { if: { properties: { type: { const: string } } }; then: { $defs?: { inputSchema?: unknown } } }[] }>).taskNode!.allOf)
+      .find((b) => b.if.properties.type.const === 'Scorer')!;
+    equal(branch.then.$defs?.inputSchema, input, 'Scorer\'s branch carries its worker\'s inputSchema whole');
+    ok(branch.then.$defs?.inputSchema !== input, 'as a COPY — the registry\'s own object is not in the result');
+    const d = base(); nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').needs = { x: '$payload' };
+    ok(regAccepts(d, new Validator(s as never, '2020-12', true)), 'and a node of that type is not held to it');
+  });
+
+  test('W211 — the required WEAKENED by the defaults is carried exactly, and a minLength relaxed to half accepts what the subset accepts (a lone astral character against minLength 2)', () => {
+    // `factor` required by the worker, supplied by `Scorer`'s defaults and not by `Bare`'s (both of worker `scorer`).
+    const reg = variant((r) => {
+      (r.workers.scorer!.settingsSchema as { required?: string[] }).required = ['factor'];
+      (r.nodeTypes as Record<string, unknown>).Bare = { worker: 'scorer' };
+      const p = (r.workers.scorer!.settingsSchema as { properties: Record<string, unknown> }).properties;
+      p.name = { type: 'string', minLength: 2 };
+      p.code = { type: 'string', minLength: 3 };
+      p.tags = { type: 'array', items: { type: 'string', minLength: 2 } };
+      p.meta = { type: 'object', properties: { label: { type: 'string', minLength: 2 }, inner: { type: 'object', properties: { label: { type: 'string', minLength: 2 } } } } };
+      p.short = { type: 'string', maxLength: 2 };
+    });
+    const v = new Validator(definitionSchema(reg) as never, '2020-12', true);
+    const typed = (type: string, settings?: Record<string, unknown>): Doc => {
+      const d = base(); nodeOf(d, 'a').type = type; if (settings !== undefined) nodeOf(d, 'a').settings = settings; return d;
+    };
+    const rows: [string, Doc, boolean][] = [
+      ['Scorer, no settings — factor supplied by its defaults', typed('Scorer'), true],
+      ['Bare, no settings — factor supplied by nothing', typed('Bare'), false],
+      ['Bare, settings without factor', typed('Bare', { name: 'ab' }), false],
+      ['Bare, settings with factor', typed('Bare', { factor: 1 }), true],
+      ['a lone astral character against minLength 2 (two UTF-16 units)', typed('Scorer', { name: '\u{1F600}' }), true],
+      ['an empty string against minLength 2', typed('Scorer', { name: '' }), false],
+      ['three UTF-16 units in two code points against minLength 3', typed('Scorer', { code: '\u{1F600}a' }), true],
+      ['one character against minLength 3 — relaxed to 2, rounded UP', typed('Scorer', { code: 'a' }), false],
+      ['a lone astral character as an ITEM against minLength 2 — the walk reaches items', typed('Scorer', { tags: ['\u{1F600}'] }), true],
+      ['a lone astral character in a NESTED property against minLength 2 — the walk reaches properties', typed('Scorer', { meta: { label: '\u{1F600}' } }), true],
+      ['the same two levels down — the walk RECURSES', typed('Scorer', { meta: { inner: { label: '\u{1F600}' } } }), true],
+      ['two characters against maxLength 2 — emitted as written', typed('Scorer', { short: 'ab' }), true],
+      ['three against maxLength 2', typed('Scorer', { short: 'abc' }), false],
+    ];
+    let ran = 0;
+    for (const [what, d, expected] of rows) {
+      equal(rulesAgainst(d, reg).length === 0, expected, `${what}: validateDefinition's verdict (the premise)`);
+      equal(regAccepts(d, v), expected, `${what}: the registry form's verdict is the validator's`);
+      ran++;
+    }
+    equal(ran, 13, 'thirteen rows RAN');
+    // The control for the relaxation: the same schema with minLength 2 put back REFUSES the astral character, so the
+    // relaxation is what accepts it.
+    const strict = definitionSchema(reg) as unknown as { $defs: { taskNode: { allOf: { if: { properties: { type: { const: string } } }; then: { properties: { settings: { properties: { name: { minLength: number } } } } } }[] } } };
+    const scorer = strict.$defs.taskNode.allOf.find((b) => b.if.properties.type.const === 'Scorer')!;
+    equal(scorer.then.properties.settings.properties.name.minLength, 1, 'minLength 2 is emitted as 1');
+    scorer.then.properties.settings.properties.name.minLength = 2;
+    ok(!regAccepts(rows[4]![1], new Validator(strict as never, '2020-12', true)), 'unrelaxed, a 2020-12 validator refuses it');
+  });
+
+  test('W211 — a registry checkRegistry REFUSES is never specialised: definitionSchema(registry) throws its refusal; the corpus registry does not', () => {
+    const refusedRegistries: [string, Registry][] = [
+      ['a node type naming a worker the registry does not declare', variant((r) => { (r.nodeTypes as Record<string, unknown>).Lost = { worker: 'nope' }; })],
+      ['a pool of a type the registry does not declare', variant((r) => { (r.pools as Record<string, unknown>).stray = { type: 'Nope' }; })],
+      ['a gate type named as a built-in', { ...registry, gateTypes: { distinct: TRIAGE } }],
+      ['a gate type that is not one', { ...registry, gateTypes: { broken: { routes: [], defaultRoute: 'x', fn: () => 'x' } as unknown as GateType } }],
+    ];
+    let ran = 0;
+    for (const [what, reg] of refusedRegistries) {
+      let message = '';
+      try { checkRegistry(reg); } catch (e) { message = `${(e as Error).name}: ${(e as Error).message}`; }
+      ok(message.length > 0, `${what}: checkRegistry refuses it (the premise)`);
+      throws(() => definitionSchema(reg), message, `${what}: definitionSchema throws checkRegistry's own refusal`);
+      ran++;
+    }
+    equal(ran, 4, 'all four refused registries RAN');
+    // The control: the corpus registry, which checkRegistry accepts, is specialised without a throw.
+    checkRegistry(registry);
+    const again = definitionSchema(registry);
+    ok(deepEqual(again, regSchema) && Array.isArray(((again.$defs as Record<string, { properties: { type: { enum?: unknown } } }>).taskNode!.properties.type.enum)), 'the corpus registry is specialised (the control)');
+  });
+
+  test('W211 — every registry-derived set as the validator reads it: a Map, a Set or an object alike; a consumer gate type beside the built-ins, its routes the edge\'s enum', () => {
+    type Defs = Record<string, { properties: Record<string, { enum?: unknown[]; items?: { enum?: unknown[] } }>; allOf?: { if: { properties: { type: { const: string } } }; then: { properties: Record<string, { enum?: unknown[]; items?: { properties: { route: { enum: unknown[] } } } }> } }[] }>;
+    const defs = regSchema.$defs as Defs;
+    // Every expected list below is registry.json's, by hand, and the built-ins' (spec section 2).
+    equal(defs.taskNode!.properties.type!.enum, ['IngestWorker', 'ScoreWorker', 'ReviewWorker', 'PublishWorker', 'ExtractWorker', 'MergeWorker', 'Scorer', 'Transform'], 'the node types, the built-in last');
+    equal(defs.taskNode!.properties.workerGroups!.items!.enum, ['gpu', 'api'], 'the groups');
+    equal(defs.transform!.properties.lang!.enum, ['path'], 'the languages');
+    equal(defs.predicateName!.properties.predicate!.enum, ['isLowConfidence', 'isHighConfidence'], 'the predicates');
+    equal(defs.gateNode!.properties.type!.enum, ['distinct', 'if', 'switch'], 'the gate types');
+    const pool = (t: string) => defs.taskNode!.allOf!.find((b) => b.if.properties.type.const === t)!.then.properties.pool!.enum;
+    equal(pool('Scorer'), ['Scorer', 'scorer-fast'], 'Scorer\'s pools: its own name and its instance');
+    equal(pool('ScoreWorker'), ['ScoreWorker'], 'ScoreWorker\'s: its own name alone');
+    const routes = (t: string) => defs.gateNode!.allOf!.find((b) => b.if.properties.type.const === t)!.then.properties.edges?.items?.properties.route.enum;
+    equal(routes('distinct'), ['first', 'duplicate', 'nokey'], 'distinct\'s routes');
+    equal(routes('if'), ['then', 'else'], 'if\'s routes');
+    equal(routes('switch'), undefined, 'switch is DERIVED: no route enum');
+    // The registry's other shapes: Maps for the keyed sections, Sets for the named ones — the same schema.
+    const asMaps: Registry = {
+      predicates: new Set(registry.predicates), groups: new Set(registry.groups),
+      workers: new Map(Object.entries(registryDoc.workers)), nodeTypes: new Map(Object.entries(registryDoc.nodeTypes)),
+      pools: new Map(Object.entries(registryDoc.pools)), languages: new Map(Object.entries(registry.languages as Record<string, never>)),
+    };
+    ok(deepEqual(definitionSchema(asMaps), regSchema), 'a registry of Maps and Sets specialises as one of objects and lists');
+    // A consumer's gate type: beside the built-ins, its static routes its edges' enum.
+    const withTriage = definitionSchema({ ...registry, gateTypes: { triage: TRIAGE } }).$defs as Defs;
+    equal(withTriage.gateNode!.properties.type!.enum, ['distinct', 'if', 'switch', 'triage'], 'the built-ins, then the registry\'s');
+    equal(withTriage.gateNode!.allOf!.find((b) => b.if.properties.type.const === 'triage')!.then.properties.edges!.items!.properties.route.enum, ['ok', 'hold'], 'triage\'s routes');
+    // The remaining shapes `Registry` admits (W211's adequacy reader, SHOULD 2): the groups and the predicates as LISTS,
+    // and `gateTypes` as a Map.
+    const asLists: Registry = { ...registry, predicates: [...registry.predicates], groups: [...(registry.groups ?? [])] };
+    ok(!(asLists.groups instanceof Set) && !(asLists.predicates instanceof Set), 'lists, not Sets (the premise)');
+    ok(deepEqual(definitionSchema(asLists), regSchema), 'groups and predicates as lists specialise as Sets do');
+    ok(deepEqual(definitionSchema({ ...registry, gateTypes: new Map([['triage', TRIAGE]]) }).$defs, withTriage), 'gateTypes as a Map specialises as an object does');
+  });
+
+  test('W211 — the soundness claim over registry shapes the corpus registry never takes: each document validateDefinition accepts, the registry form accepts', () => {
+    // W211's adequacy reader, SHOULD 1: an open settingsSchema, a gate type whose schema accepts `{}`, a worker with an
+    // inputSchema beside settings, and the list and Map forms — each a way the form could over-refuse.
+    const open = variant((r) => { delete (r.workers.scorer!.settingsSchema as { additionalProperties?: unknown }).additionalProperties; });
+    const withInput = variant((r) => { (r.workers.scorer as { inputSchema?: unknown }).inputSchema = { type: 'string', minLength: 3 }; });
+    const triageGate = (d: Doc) => { const g = nodeOf(d, 'g'); g.type = 'triage'; delete g.settings; g.edges = [{ to: 'done' }, { route: 'hold', to: 'done' }]; };
+    const scorer = (settings: Record<string, unknown>) => (d: Doc) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').settings = settings; };
+    const rows: [string, Registry, (d: Doc) => void][] = [
+      ['an undeclared setting under a settingsSchema that does not close its properties', open, scorer({ factor: 1, extra: 1 })],
+      ['a gate of a consumer type whose settingsSchema accepts {}, with no settings', { ...registry, gateTypes: { triage: TRIAGE } }, triageGate],
+      ['the same, gateTypes a Map', { ...registry, gateTypes: new Map([['triage', TRIAGE]]) }, triageGate],
+      ['a Scorer with settings, its worker declaring an inputSchema', withInput, scorer({ factor: 2 })],
+      ['a group and a predicate, the registry\'s sets as lists', { ...registry, predicates: [...registry.predicates], groups: [...(registry.groups ?? [])] }, (d) => {
+        nodeOf(d, 'a').workerGroups = ['api']; edgesOf(d, 'a').unshift({ when: { predicate: 'isHighConfidence' }, to: 'split' });
+      }],
+    ];
+    let ran = 0;
+    for (const [what, reg, edit] of rows) {
+      const d = base();
+      edit(d);
+      equal(rulesAgainst(d, reg), [], `${what}: validateDefinition accepts it (the premise)`);
+      const s = definitionSchema(reg);
+      if (!regAccepts(d, new Validator(s as never, '2020-12', true))) ok(false, `${what}: the registry form accepts it — refused: ${regExplain(d, s)}`);
+      ran++;
+    }
+    equal(ran, 5, 'every row RAN');
+    // The control on the same observer: the open schema still refuses a setting of the wrong type.
+    const d = base(); scorer({ factor: 'x' })(d);
+    ok(rulesAgainst(d, open).includes('FD-V33') && !regAccepts(d, new Validator(definitionSchema(open) as never, '2020-12', true)), 'the open schema still refuses factor "x", as the validator does');
+  });
+
+  test('W211 — a NEW object on every call, sharing nothing with another call NOR with the registry\'s own schemas', () => {
+    const reach = (v: unknown, into: Set<object>) => {
+      if (typeof v !== 'object' || v === null || into.has(v)) return;
+      into.add(v);
+      for (const x of Object.values(v)) reach(x, into);
+    };
+    const inA = new Set<object>();
+    reach(definitionSchema(registry), inA);
+    const inB = new Set<object>();
+    reach(definitionSchema(registry), inB);
+    equal([...inB].filter((o) => inA.has(o)).length, 0, 'no object is shared between two results');
+    const inRegistry = new Set<object>();
+    reach(registryDoc, inRegistry);
+    reach(BUILT_IN_GATE_TYPES, inRegistry);
+    ok(inRegistry.has(registryDoc.workers.scorer!.settingsSchema as object) && inRegistry.has(BUILT_IN_GATE_TYPES.distinct!.settingsSchema as object), 'the walk reached the registry\'s schemas (the control)');
+    equal([...inA].filter((o) => inRegistry.has(o)).length, 0, 'and none with the registry or the built-in gate types it was built from');
+    ok(inA.size > 150, `the walk reached the branches (${inA.size} objects)`);
+  });
+
+  test('W211 — it NEVER refuses what validateDefinition accepts against the same registry — every valid flow given each registered and unregistered name, each refusal of the registry form a refusal of the validator', async () => {
+    const r = await registrySweep(validNames, regSchema, registry);
+    equal(r.unsound, [], 'no document the validator accepts is refused by the registry form');
+    ok(r.refused > 200 && r.accepted > 200, `both halves are populated (refused ${r.refused}, accepted ${r.accepted})`);
+    // The POSITIVE CONTROL on the same observer: an over-strict copy — the groups without "api" — IS reported unsound.
+    const strict = clone(regSchema) as unknown as DefinitionSchema & { $defs: { taskNode: { properties: { workerGroups: { items: { enum: string[] } } } } } };
+    strict.$defs.taskNode.properties.workerGroups.items.enum = ['gpu'];
+    const control = await registrySweep(['linear.flow.json'], strict, registry);
+    ok(control.unsound.some((w) => w.includes('workerGroups = ["api","gpu"]')), `the over-strict copy is caught (unsound: ${JSON.stringify(control.unsound)})`);
+  });
+
   test('the suite registered every case it declares', () => {
-    equal(collected().filter((s) => s.suite === SUITE).reduce((n, s) => n + s.cases.length, 0), 14, 'fourteen cases');
+    equal(collected().filter((s) => s.suite === SUITE).reduce((n, s) => n + s.cases.length, 0), 25, 'fourteen of W210\'s and eleven of W211\'s');
   });
 });
 
