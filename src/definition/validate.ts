@@ -39,7 +39,7 @@ const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'] as const;
  * `definitionSchema()` builds its `pattern` from the validator's expression. **A COPY** — `compile()` on it, or a
  * consumer's edit, moves no verdict (W210's conformity reader, S2: the live object did).
  */
-const ID_RE_COPY = new RegExp(ID_RE.source, ID_RE.flags);
+const ID_RE_COPY: RegExp = new RegExp(ID_RE.source, ID_RE.flags);
 /** **The seven node kinds `FD-V24` admits** — v0.50 (W210, ADR 0132), for `definitionSchema()`'s `kind` enum; a FROZEN copy. */
 const KINDS_COPY: readonly (typeof KINDS)[number][] = Object.freeze([...KINDS]);
 export { ID_RE_COPY as ID_RE, KINDS_COPY as KINDS };
