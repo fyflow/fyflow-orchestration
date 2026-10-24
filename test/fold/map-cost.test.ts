@@ -2,7 +2,7 @@
  * Ladder L1-L2 — **what a large `map` costs, held as CLOCK-FREE COUNTS** — P39 stop-and-ask (e) and its exit artifact's
  * clause (1), [W197](../../doc/work-items/w197-the-cost-check-and-the-exit-artifact.md) under
  * [P39](../../doc/plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md): the work of a `map` run at
- * **8,000 items is below 6x its work at 2,000** — linear is 4x, a per-input cost that grows with the run 16x — for the
+ * **8,000 items is below 6x its work at 2,000** (in node and deno; in a browser 2,000 against 500, below) — linear is 4x, a per-input cost that grows with the run 16x — for the
  * three subjects P39 made linear — and, since W199 under [P40](../../doc/plans/p40-what-a-reference-read-costs-inside-a-map.md),
  * a fourth, the reference read — each read through the counter its own item placed:
  *
@@ -54,6 +54,25 @@
  * deno and the browser alike — closed when the drive ends.
  *
  * Runs in all three L0-L5 runtimes; nothing here reads a file, so nothing is skipped in the browser bundle.
+ *
+ * **The browser runs the SMALLER PAIR — 500 and 2,000 items; node and deno run 2,000 and 8,000** —
+ * [P44](../../doc/plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) decision 1,
+ * [W214](../../doc/work-items/w214-the-chromium-lanes-headroom.md). The whole L1-L5 bundle runs in ONE chromium page under
+ * `scripts/run-browser-tests.mjs`' 60 s wait, and this suite was over half of that page's wall at 2,000 / 8,000 (P44 fact
+ * 7; W214's Record re-took it). **The claim is the same at either pair**: every count here that grows with the run is a
+ * formula of `n` derived by hand, pinned EXACTLY at both sizes, and the ratio is asserted for 4x the items, so it is clock-free and the same in every
+ * runtime by construction — a third runtime finds a configuration error at the smaller pair as surely as at the larger
+ * (`doc/workflow.md` section 8). **What the browser no longer runs is 8,000 items**: a browser-only cost that appears only
+ * past 2,000 items would be seen by node and deno and not here. The cases, their titles and their count are the SAME in all
+ * three runtimes, so `RT-R1`'s parity count holds (`spec/runtime-targets.md` v0.14). The host is read as five other suites
+ * read it — a `document` — and the membership case holds the pair to 2,000 / 8,000 wherever a SECOND observer, a `Deno`
+ * global or `process.versions.node`, says the host is deno or node. **The suite title and case 0's title name the node and
+ * deno pair** (`test/definition/l4-corpus.test.ts` binds the title), so in a browser they print 2,000 / 8,000 beside a run
+ * at 500 / 2,000; the assertion messages print the sizes that ran. **And two provocations hold by a thinner margin there**
+ * (W214's adequacy reader): at 2,000 / 8,000 every sparse UNCOUNTED provocation crosses its iteration ceiling, while at
+ * 500 / 2,000 the driver's uncounted scan (plain, every 16th read) is red by its RATIO alone — 7.07x against the 6x line —
+ * and the reference read's uncounted filter (every 64th read) by 9.2x. Each is still deterministic, and each names the
+ * same observer; a change that makes either provocation sparser can turn it green in the browser alone.
  */
 import { collected, equal, ok, suite } from '../harness.ts';
 import { Accumulator, foldWith, type FoldCounter } from '../../src/fold/accumulator.ts';
@@ -79,9 +98,20 @@ function comparePaths(a: string, b: string): number {
   return 0;
 }
 
-/** P39 (e)'s two sizes. 4x the items: linear is 4x the work, a per-input cost that grows with the run 16x. */
-const SMALL = 2000;
-const LARGE = 8000;
+/** The host is a browser when it has a `document` — `test/scheduler/runtime.test.ts`' reading, and four other suites'. */
+const IN_BROWSER = typeof (globalThis as { document?: unknown }).document !== 'undefined';
+/**
+ * The SECOND observer of the host, independent of the first: a `Deno` global, or node's `process.versions.node`. Read only
+ * by the membership case, which holds the pair to 2,000 / 8,000 wherever this says node or deno.
+ */
+const NODE_OR_DENO = typeof (globalThis as { Deno?: unknown }).Deno !== 'undefined'
+  || typeof (globalThis as { process?: { versions?: { node?: unknown } } }).process?.versions?.node === 'string';
+/**
+ * P39 (e)'s two sizes. 4x the items: linear is 4x the work, a per-input cost that grows with the run 16x. **2,000 and
+ * 8,000 in node and deno, 500 and 2,000 in a browser** (P44 decision 1, W214 — the header says why).
+ */
+const SMALL = IN_BROWSER ? 500 : 2000;
+const LARGE = IN_BROWSER ? 2000 : 8000;
 /** P39 (e)'s line. */
 const BOUND = 6;
 /** The ceiling, as a multiple of a subject's DERIVED linear work at that size: past it the observer stops. */
@@ -424,7 +454,7 @@ function driverFailing(provoke?: (d: Driver) => void): { plain: string[]; needs:
  * | `sibling map` | `score`, joined; then `regroup` and a SECOND map over `regroup`'s THREE slots, its branch `publish` | `publish` reads `["score"]` — every output, depth 0 (`FD-V28` forces the array form) |
  *
  * **The sibling shape's arities are P40 (e)'s answer, (e1)** (the maintainer, 2026-10-22): the READING map at a FIXED
- * arity — three — and the TARGET map at 2,000 / 8,000 items, so the work scales through the list the index holds and the
+ * arity — three — and the TARGET map at the suite's two sizes (2,000 / 8,000; 500 / 2,000 in a browser), so the work scales through the list the index holds and the
  * ratio is ~4x. A sibling reader's ANSWER is the whole target list (`FD-V28`), so with BOTH maps growing the run composes
  * n·m entries whatever the resolver does: the price of the answer, stated in `spec/flow-definition.md` section 3, and not a
  * shape a ratio can hold. Here the EXACT pin is what turns red when the per-read filter or sort is restored COUNTED — the ratio
@@ -835,7 +865,7 @@ suite(SUITE, (test) => {
   test(DECLARED_CASES[0]!, () => {
     ran.push(DECLARED_CASES[0]!);
     const f = foldFailing();
-    equal(f.counts, [foldWork(SMALL), foldWork(LARGE)], `the fold's counted work is 13n + 9 at ${SMALL} and ${LARGE}: [26009, 104009]`);
+    equal(f.counts, [foldWork(SMALL), foldWork(LARGE)], `the fold's counted work is 13n + 9 at ${SMALL} and ${LARGE}: [${foldWork(SMALL)}, ${foldWork(LARGE)}] — [26009, 104009] at 2,000 / 8,000, [6509, 26009] at 500 / 2,000`);
     equal(f.failed, [], `no clause fails — the work ${f.counts.join(' -> ')} (${(f.counts[1]! / f.counts[0]!).toFixed(2)}x), the iterations ${f.iterations.join(' -> ')} (${(f.iterations[1]! / f.iterations[0]!).toFixed(2)}x)`);
     // The iteration observer is LIVE: the materialisation walks its 2n through Map iterators.
     ok(f.iterations[0]! >= 2 * SMALL && f.iterations[1]! >= 2 * LARGE, `the iteration observer saw the materialisation walk its 2n: ${f.iterations.join(', ')}`);
@@ -1010,7 +1040,7 @@ suite(SUITE, (test) => {
     ran.push(DECLARED_CASES[6]!);
     const r = refFailing();
     equal(r.counts, REF_SHAPES.map((sh) => [refWork(sh)(SMALL), refWork(sh)(LARGE)]),
-      'the entries examined, derived: 2n one step back, 2n two steps back, 7n nested, 4n sibling — [4000, 16000], [4000, 16000], [14000, 56000], [8000, 32000]');
+      `the entries examined, derived: 2n one step back, 2n two steps back, 7n nested, 4n sibling at ${SMALL} and ${LARGE} — [4000, 16000], [4000, 16000], [14000, 56000], [8000, 32000] at 2,000 / 8,000; [1000, 4000], [1000, 4000], [3500, 14000], [2000, 8000] at 500 / 2,000`);
     equal(r.failed, { 'one step back': [], 'two steps back': [], 'nested map': [], 'sibling map': [] }, `no clause fails — iterations ${JSON.stringify(r.iterations)}`);
     ok(r.iterations.every(([s, l]) => s! >= SMALL && l! >= LARGE), `the iteration observer saw the driver walk: ${JSON.stringify(r.iterations)}`);
   });
@@ -1095,6 +1125,10 @@ suite(SUITE, (test) => {
 
   test(DECLARED_CASES[8]!, () => {
     equal(ran, DECLARED_CASES.slice(0, -1), 'every declared case ran, in order — a case that leaves the suite fails here naming itself');
+    // The pair, by the SECOND observer of the host (W214): 2,000 / 8,000 wherever node or deno is detected, 500 / 2,000
+    // elsewhere — so the browser pair cannot leak into node or deno, nor the larger pair into the browser, unseen.
+    equal([SMALL, LARGE], NODE_OR_DENO ? [2000, 8000] : [500, 2000],
+      `the suite's pair on this host (${NODE_OR_DENO ? 'node or deno' : 'neither node nor deno'}, a document ${IN_BROWSER ? 'present' : 'absent'})`);
     equal(collected().filter((s) => s.suite === SUITE).reduce((n, s) => n + s.cases.length, 0), DECLARED_CASES.length,
       'and the suite registers exactly the cases it declares');
   });
