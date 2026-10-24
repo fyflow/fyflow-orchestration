@@ -1566,7 +1566,21 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       if (nd.edges !== undefined) add('FD-V9', where, 'fanout has edges');
       if (nd.branches !== undefined && !Array.isArray(nd.branches)) {
         add('FD-V21', where, 'fanout branches must be an array');
+      } else if (Array.isArray(nd.branches)) {
+        // **A branch ENTRY that is not a string is `FD-V21`'s too** — v0.52, W215, Q774 (P44 (d1)). The graph
+        // builder drops a non-string entry before `FD-V2` or `FD-V9`'s kind clause can see it, and `FD-V9`'s floor
+        // and distinctness count it, so `["b", "c", 5]` was ACCEPTED as a fan-out of the strings alone — the same
+        // silence `edge.to` and a map's `branch` were given this clause for. One finding per entry, by index.
+        (nd.branches as unknown[]).forEach((b, i) => {
+          if (typeof b !== 'string') add('FD-V21', where, `fanout branches[${i}] must be a string, got ${describeValue(b)}`);
+        });
       }
+    }
+    // **A join's `of` that is present and not a string is `FD-V21`'s** — v0.52, W215, Q774 (P44 (d1)). `FD-V2` and
+    // `FD-V6` read `of` only where it is a string, so `of: null` on a join of no region drew NO finding at all. Absent
+    // is `FD-V23`'s (a required key), so this clause is asked only where the key is present.
+    if (nd.kind === 'join' && nd.of !== undefined && typeof nd.of !== 'string') {
+      add('FD-V21', where, `join of must be a string, got ${describeValue(nd.of)}`);
     }
     // ---- FD-V25: the map's own rule, and FD-V9 is untouched ----
     // `spec/flow-definition.md` v0.8 and ADR 0036. Two separate ids rather than one

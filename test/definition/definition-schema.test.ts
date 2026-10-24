@@ -96,6 +96,8 @@ const REPAIRS: Record<string, (d: Doc) => void> = {
   'FD-V17--unknown-key-on-an-edge.flow.json': (d) => { const e = edgesOf(d, 'score')[0]!; e.when = { predicate: e.whn }; delete e.whn; },
   'FD-V18--on-names-user-action.flow.json': (d) => { edgesOf(d, 'review')[0]!.on = ['failed']; nodeOf(d, 'review').optional = true; },
   'FD-V21--optional-is-not-a-boolean.flow.json': (d) => { nodeOf(d, 'extract').optional = true; },
+  'FD-V21--join-of-is-not-a-string.flow.json': (d) => { nodeOf(d, 'collect').of = 'split'; },
+  'FD-V21--fanout-branch-entry-is-not-a-string.flow.json': (d) => { nodeOf(d, 'split').branches = ['scoreA', 'scoreB']; },
   'FD-V23--node-without-a-kind.flow.json': (d) => { nodeOf(d, 'score').kind = 'task'; },
   'FD-V24--unknown-node-kind.flow.json': (d) => { nodeOf(d, 'pick').kind = 'ask'; },
   'FD-V26--an-unreserved-dollar-token.flow.json': (d) => { nodeOf(d, 'publish').needs = { run: '$payload' }; },
@@ -224,6 +226,9 @@ const CLAUSES: [string, string, (d: Doc) => void][] = [
   ['FD-V18', 'an on repeating a state', (d) => { edgesOf(d, 'a')[0]!.on = ['done', 'done']; }],
   ['FD-V23', 'an edge without to', (d) => { delete edgesOf(d, 'a')[0]!.to; }],
   ['FD-V21', 'an edge to that is not a string', (d) => { edgesOf(d, 'a')[0]!.to = 5; }],
+  // W215, Q774 resolved (v0.52): W210's two ACCEPTS pins, flipped — a branch entry and a join's `of` that are not strings.
+  ['FD-V21', 'a branch entry that is not a string', (d) => { nodeOf(d, 'split').branches = ['b', 'c', 5]; }],
+  ...([null, 5, [], {}, true] as unknown[]).map((v): [string, string, (d: Doc) => void] => ['FD-V21', `a join of ${JSON.stringify(v)}`, (d) => { nodeOf(d, 'join').of = v; }]),
   ['FD-V17', 'an undeclared edge key', (d) => { edgesOf(d, 'a')[0]!.zz = 1; }],
   ['FD-V41', 'a route on a task edge', (d) => { edgesOf(d, 'a')[0]!.route = 'x'; }],
   ['FD-V41', 'a route on a join edge', (d) => { edgesOf(d, 'join')[0]!.route = 'x'; }],
@@ -298,14 +303,8 @@ const ACCEPTS: [string, (d: Doc) => void][] = [
   ['workerGroups the registry declares', (d) => { nodeOf(d, 'a').workerGroups = ['gpu', 'api']; }],
   ['a transform', (d) => { nodeOf(d, 'a').type = 'Scorer'; nodeOf(d, 'a').transform = { lang: 'path', expr: 'confidence' }; }],
   ['a join edge with needs', (d) => { edgesOf(d, 'join')[0]!.needs = { x: 'a' }; }],
-  ['a branch entry that is not a string (Q774)', (d) => { nodeOf(d, 'split').branches = ['b', 'c', 5]; }],
-  ['a join of no region whose of is not a string (Q774)', (d) => {
-    d.nodes = [
-      { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
-      { id: 'j', kind: 'join', of: null, edges: [{ to: 'done' }] },
-      { id: 'done', kind: 'end', outcome: 'completed' },
-    ];
-  }],
+  // W210's two Q774 rows — a branch entry and a region-less join's `of` that are not strings — LEFT this table at W215:
+  // `FD-V21` refuses both since v0.52, so they are CLAUSES rows and the W215 case below.
 ];
 
 /**
@@ -583,7 +582,7 @@ suite(SUITE, (test) => {
     equal(rulesOf(b), [], 'and validateDefinition reports nothing on it');
     equal([...new Set(CLAUSES.map(([r]) => r))].sort(), [...CLAUSE_RULES].sort(), 'the rows cover exactly the rules named');
     // A COUNT beside the set (rule 8 (d)): a row dropped from a rule other rows still cover keeps the set equal.
-    equal(CLAUSES.length, 105, 'a hundred and one rows written and four generated (the ordering operators)');
+    equal(CLAUSES.length, 111, 'a hundred and two rows written, four generated (the ordering operators) and five generated (a join of null, 5, [], {} and true — W215)');
     let run = 0;
     for (const [rule, what, edit] of CLAUSES) {
       const d = base();
@@ -596,8 +595,8 @@ suite(SUITE, (test) => {
     equal(run, CLAUSES.length, 'every row ran');
   });
 
-  test('every value validateDefinition accepts INSIDE a node is accepted — each subset type and keyword, retryPolicy, version, on, length defaults, every operator, a non-string branch entry and join of (Q774)', () => {
-    equal(ACCEPTS.length, 7 + 10 + 6 + 7 + 7, 'the seven types alone, ten subset rows, six more, the seven operators and seven more');
+  test('every value validateDefinition accepts INSIDE a node is accepted — each subset type and keyword, retryPolicy, version, on, length defaults, every operator', () => {
+    equal(ACCEPTS.length, 7 + 10 + 6 + 7 + 5, 'the seven types alone, ten subset rows, six more, the seven operators and five more (W210\'s two Q774 rows left at W215)');
     let run = 0;
     for (const [what, edit] of ACCEPTS) {
       run++;
@@ -1019,8 +1018,72 @@ suite(SUITE, (test) => {
     ok(control.unsound.some((w) => w.includes('workerGroups = ["api","gpu"]')), `the over-strict copy is caught (unsound: ${JSON.stringify(control.unsound)})`);
   });
 
+  test('W215 — Q774 resolved: a non-string join of and branch entry REFUSED by both forms and reported FD-V21 by the validator, with and without a region; each repaired to its string form ACCEPTED by both, the validator\'s verdict on that form unmoved', () => {
+    // Expected values from spec/flow-definition.md v0.52's FD-V21 row and Q774's table, written before the first run:
+    // each non-string value is FD-V21, naming `of` or `branches[i]`; the STRING form keeps its 0.11.0 verdict — the base's
+    // `of: "split"` and `["b", "c"]` nothing, a region-less join's `of: "nowhere"` FD-V2 and FD-V6 (no FD-V21).
+    const noRegion = (of: unknown): Doc => clone({
+      flowId: 'q774', version: 1, entry: 'a',
+      nodes: [
+        { id: 'a', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'j' }] },
+        { id: 'j', kind: 'join', of, edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    });
+    const detailsOf = (d: Doc): string[] => validateDefinition(d as unknown as FlowDefinition, registry).filter((f) => f.rule === 'FD-V21').map((f) => f.detail);
+    const rows: [string, Doc, Doc, string, string[]][] = [];
+    for (const v of [null, 5, [], {}, true] as unknown[]) {
+      const inRegion = base(); nodeOf(inRegion, 'join').of = v;
+      rows.push([`a join of ${JSON.stringify(v)} closing a fanout`, inRegion, base(), 'join of must be a string', []]);
+      rows.push([`a region-less join of ${JSON.stringify(v)}`, noRegion(v), noRegion('nowhere'), 'join of must be a string', ['FD-V2', 'FD-V6']]);
+    }
+    const mixed = base(); nodeOf(mixed, 'split').branches = ['b', 'c', 5];
+    rows.push(['a fanout ["b", "c", 5]', mixed, base(), 'fanout branches[2] must be a string, got 5', []]);
+    const nulled = base(); nodeOf(nulled, 'split').branches = [null, 'b', 'c'];
+    rows.push(['a fanout [null, "b", "c"]', nulled, base(), 'fanout branches[0] must be a string, got null', []]);
+    let run = 0;
+    for (const [what, bad, repaired, detail, repairedRules] of rows) {
+      ok(!accepts(bad), `${what}: refused by the static form`);
+      ok(!regAccepts(bad), `${what}: refused by the registry form`);
+      const ds = detailsOf(bad);
+      equal(ds.length, 1, `${what}: exactly one FD-V21 finding (got ${JSON.stringify(ds)})`);
+      ok(ds[0]!.startsWith(detail), `${what}: the finding names the key — "${ds[0]}" starts with "${detail}"`);
+      if (!accepts(repaired)) ok(false, `${what}: its string form ACCEPTED by the static form — refused: ${explain(repaired)}`);
+      if (!regAccepts(repaired)) ok(false, `${what}: its string form ACCEPTED by the registry form — refused: ${regExplain(repaired)}`);
+      equal(rulesOf(repaired), repairedRules, `${what}: the string form's verdict is 0.11.0's (the control)`);
+      run++;
+    }
+    equal(run, 12, 'five values in two places, and two branch lists');
+    // **The CHARSET half — "held to the id charset unconditionally"** (W215's adequacy reader, SHOULD 2: `{ type: 'string' }`
+    // survived): a STRING `of` or branch entry outside `[A-Za-z0-9_-]{1,64}` is refused by both forms, and the validator
+    // refuses it too — FD-V2, since no node id can be outside the charset (FD-V16) — never FD-V21, which is the type's.
+    const charset: [string, Doc][] = [];
+    for (const s of ['a b', '', 'x'.repeat(65)]) {
+      const o = base(); nodeOf(o, 'join').of = s; charset.push([`a join of ${JSON.stringify(s)}`, o]);
+      const b = base(); nodeOf(b, 'split').branches = ['b', s]; charset.push([`a branch entry ${JSON.stringify(s)}`, b]);
+    }
+    for (const [what, d] of charset) {
+      ok(!accepts(d), `${what}: refused by the static form`);
+      ok(!regAccepts(d), `${what}: refused by the registry form`);
+      ok(rulesOf(d).includes('FD-V2') && !rulesOf(d).includes('FD-V21'), `${what}: the validator refuses it FD-V2, not FD-V21 (got ${rulesOf(d).join(', ')})`);
+    }
+    equal(charset.length, 6, 'three strings outside the charset, at of and at a branch entry');
+  });
+
+  test('W215 — the two new corpus files, each repaired in its one clause, are VALID — no other finding (the repair names the right node)', async () => {
+    // W215's adequacy reader, NIT (R1, R2): the generic REPAIRS case asks only that the file's own rule stops firing, so a
+    // repair naming the WRONG node (`of: "scoreA"`, `["scoreA", "nowhere"]`) passed it. Both files are otherwise clean.
+    const names = ['FD-V21--join-of-is-not-a-string.flow.json', 'FD-V21--fanout-branch-entry-is-not-a-string.flow.json'];
+    for (const n of names) {
+      const fixed = await load(`${EX}/invalid/${n}`);
+      REPAIRS[n]!(fixed);
+      equal(rulesOf(fixed), [], `${n}: repaired, validateDefinition reports nothing`);
+      ok(accepts(fixed) && regAccepts(fixed), `${n}: repaired, both forms accept it`);
+    }
+  });
+
   test('the suite registered every case it declares', () => {
-    equal(collected().filter((s) => s.suite === SUITE).reduce((n, s) => n + s.cases.length, 0), 25, 'fourteen of W210\'s and eleven of W211\'s');
+    equal(collected().filter((s) => s.suite === SUITE).reduce((n, s) => n + s.cases.length, 0), 27, 'fourteen of W210\'s, eleven of W211\'s and two of W215\'s');
   });
 });
 

@@ -811,8 +811,10 @@ included), a `retryPolicy`, a `transform` and an `answerSchema` — each key wit
 validator, or to an agent writing a flow, BEFORE the findings. It is BUILT from the validator's own key sets, so its
 keys cannot drift from them (the reference tokens and the operator partition are written beside them and held to the
 validator by its tests); it is a new plain object on every call, yours to change. A join's `of` and a fanout's branch
-entries are held to the id charset only where they are strings — the validator does no more today
-([Q774](doc/questions/q774.md)).
+entries are held to the id charset, a non-string refused — as `validateDefinition` refuses one under `FD-V21` **since
+0.12.0** (`spec/flow-definition.md` v0.52, [Q774](doc/questions/q774.md)). **That is a change in what is accepted**:
+`of: null`, or `branches: ["b", "c", 5]`, passed 0.11.0's validator with no finding when nothing else in the flow
+tripped over it, and is refused now.
 
 | | |
 |---|---|
