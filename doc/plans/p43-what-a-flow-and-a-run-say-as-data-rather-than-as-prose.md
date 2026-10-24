@@ -1,6 +1,6 @@
 # P43 — What do a flow and a run say as DATA rather than as prose?
 
-**Status:** declared 2026-10-23 — on `26c55ed` (the tree clean, `main` at 0.10.0, published, `origin/main` equal), answering fyflow-app's *pass 4* #1-#6; facts 1-9 read at this declaration; stop-and-asks (a)-(h) ANSWERED by the maintainer 2026-10-23, all as recommended; W209-W212 each wait on the item before them.
+**Status:** complete and retro'd 2026-10-24 — W208-W212 done, `gate:full` EXIT 0 on W212's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-23 — on `26c55ed` (the tree clean, `main` at 0.10.0, published, `origin/main` equal), answering fyflow-app's *pass 4* #1-#6; facts 1-9 read at this declaration; stop-and-asks (a)-(h) ANSWERED by the maintainer 2026-10-23, all as recommended; W209-W212 each wait on the item before them.
 **Question this plan answers:** *what can an author, an agent and a host read of a flow and of a run as DATA — a
 definition's shape as a JSON Schema, plain and specialised to a registry; a failed task's error, from the nodes its
 failed edge leads to; whether a tried transform threw or failed its consumer's schema; and when an ask was asked — where
@@ -390,3 +390,194 @@ deno and chromium; the release state, measured.
 | [Q249](../questions/q249.md) | a node type's version against a definition's — `deferred`, kept | — |
 | [Q278](../questions/q278.md) | a keyword outside the subset is refused — `resolved`; decision 2 is why the EMITTED schema is outside its reach | — |
 | *(Q770-Q779)* | none planned | each item's block, on a NO |
+
+## Record
+
+*Written 2026-10-24 over W212's final tree, the tree held still before it. Every figure is read from the five items' own
+files, or re-taken by W212's declaration step and named so. Ids are bare text, as in P33's-P42's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W208** `0c42377` | `WiringVerdict.cause` (`'threw'` / `'schema'`, `TransformFailureCause`) at `judgeTransform`'s two sites, every road; the `asked` element's `observedAt` (the driver's `now`, the STORED time where a replay regenerates it within the prefix), `NodeRun.askedAt`; ADR 0130 | run-state v0.35 (`RN-R36`, `RN-R37`, `RN-R19`); flow-definition v0.48 | **Q760 resolved** / — ; Q372's dated note | ONE asked exception — `examples/l6.ts`'s six W182 whole-element comparisons — answered YES | conformity 1 SHOULD, 3 NIT; adequacy 31 mutations, 1 SHOULD, 4 NIT. **Overlap 1** | 97 / 2216; 2847 / 238 | `gate:item` EXIT 0, 10/10, 1,131.5 s |
+| **W209** `ceecb90` | the `"n!error"` reference — four spellings, `part: 'error'`, `AimedReference`; `FD-V26`'s three `!` clauses; the driver's error arm over the existing index; the wiring key; `ask-after-a-failure.flow.json` and three invalid files; ADR 0131 | flow-definition v0.49 | — / — | TWO asked exceptions — `spec/outcome-record.md`'s figure sentence; `examples/l6.ts`'s `NOT_YET_AT_L6 = ['error']` — each answered YES | conformity 1 BLOCKER (L6 red, fixed by the second exception), 1 SHOULD, 6 NIT; adequacy 48 mutations, 1 SHOULD, NITs. **Overlap 1** | 99 / 2242; 2847 / 238 | `gate:item` EXIT 0, 10/10, 1,136.5 s |
+| **W210** `d155bed` | `definitionSchema()` — the static shape as 2020-12, built from the validator's key sets, a description per key; `ID_RE`, `KINDS` and four more exported as copies; `@cfworker/json-schema` 4.1.1 a test-only devDependency (+42,802 bundle bytes); the suite; ADR 0132 | flow-definition v0.50 | — / **Q774** | THREE stop-and-asks answered as recommended under (h): `deno.lock`'s line, `validate.ts`' four further constants, a missing description an L1 throw | conformity 1 BLOCKER, 2 SHOULD, 4 NIT; adequacy ~110 mutations, 1 BLOCKER, 3 SHOULD, NITs — the soundness claim false on the first green tree. **Overlap 1** | 100 / 2256; 2847 / 238 | `gate:item` EXIT 0, 10/10, 1,129.8 s |
+| **W211** `7055c12` | `definitionSchema(registry)` — `checkRegistry` first; per-type and per-gate-type branches, the four enums, the not-cleanly rows in the root description; `minLength` emitted ⌈n/2⌉ | flow-definition v0.51 | — / — ; ADR 0133 SKIPPED (no rule moves) | none | conformity 0 BLOCKER, 2 SHOULD, 3 NIT; adequacy 88 probes, 4 SHOULD, 4 NIT. **Overlap 2** | 100 / 2267; 2847 / 238 | `gate:item` EXIT 0, 10/10, 1,142.3 s |
+| **W212** `fd4680b` | the `W212 exit` L6 block — a task's thrown message handed to the ask after its failure edge by all four `!error` spellings, `null` after a success, a map's failures in item order; the ask's `observedAt` live, kept across a resume from a store on a fresh runtime under another clock, a live ask past the tail and a lost tail's regenerated ask each stamped by the new clock — fourteen claims, eight runs; `NOT_YET_AT_L6` removed; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 3 NIT; adequacy 32 mutants, 1 SHOULD, 4 NIT — every one acted on or declared; 16 probes. **Overlap 0** | 100 / 2267; **2861 / 246** | **`gate:full`** EXIT 0, 11/11 self-tests, 3,637 s |
+
+**One question raised (Q774), one closed (Q760). Three asked exceptions (W208's one, W209's two), each answered YES; three
+stop-and-asks inside W210, answered as recommended. The readers' overlap, every Record stating its own: 1, 1, 1, 2, 0.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) `definitionSchema()` held by a test-only 2020-12 validator to ACCEPT every valid corpus flow and REFUSE every shape-only invalid file, `definitionSchema(registry)` the same against `spec/examples/registry.json`, each refusal with a control, in `gate:full` and all three L0-L5 runtimes | W210 and W211: `test/definition/definition-schema.test.ts` (25 cases) — every valid flow accepted; every shape-only file refused beside its one-clause repair accepted (one file moved class, `FD-V40--gate-key-path-with-an-index`, refused); eight registry-specialisable files refused by the registry form and accepted by the static one; never refusing what `validateDefinition` accepts, with a positive control; node, deno and chromium (parity 2,267) | **met** |
+| (2) an L2 suite holding `"n!error"` equal to the outcome's `error` after a failure edge, `null` where it succeeded, in the bare, `?` and array forms; `transform-fails`' `cause` on both branches; `observedAt` from the driver's clock, KEPT across a resume from every stored prefix, an older checkpoint resuming equal | W209: `test/driver/error-reference.test.ts`, `test/definition/error-reference.test.ts`; W208: `transform-cause.test.ts`, `test/driver/asked-at.test.ts` (every prefix, a later clock, hand-edited stored times), `test/fold/asked-at.test.ts`; a 0.10.0 checkpoint resumed with no time; 1,372 corpus runs byte-identical but for the two keys | **met** |
+| (3) one L6 block, node 24 and deno, threaded and inline: an ask after a failure edge handed the failed task's error; an ask's `observedAt` the same before and after a resume from a store once the first runtime is gone; each claim with its control | the `W212 exit` block, fourteen claims over eight runs, **2861 / 246, 0 failed** in both runtimes | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W212, one command on the final tree after the readers' fixes: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included (3,168.0 s wall, 10 lanes), 3,637 s in all | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **94 / 2197 → 100 / 2267** in node, deno and
+chromium; L6 **2847 / 238 → 2861 / 246** in node and deno; `check:docs` `RUN_FLOOR` 52 → **54** `run` snippets; `check:spec`
+C4 45; spec/flow-definition **v0.47 → v0.51**, run-state **v0.34 → v0.35**, outcome-record a figure sentence (W209's
+exception, no version); `CHECKPOINT_FORMAT` 1, `VerdictKind`, `VERDICT_KINDS` and every count unmoved; the package surface
+gains `definitionSchema`, `DefinitionSchema`, `TransformFailureCause`, `AimedReference`, six key-set constants (copies) and
+the optional fields `WiringVerdict.cause`, `asked.observedAt`, `NodeRun.askedAt` — **all additive** (decision 9); one
+test-only devDependency; `doc/concept.md` untouched. **The chromium lane**: 53.6-54.1 s before W210, 55.0 s after it, 56.7-57.5 s
+after W211, **57.0 s** re-taken by W212 (unmoved by it) — of 60.
+
+**What the plan answered.** *What can an author, an agent and a host read of a flow and of a run as DATA?* — **a
+definition's static shape and its shape against one registry, as JSON Schema 2020-12 BUILT from the validator** (ADR 0132),
+with `validateDefinition` the authority for what neither carries and the promise one-directional (what the schema refuses,
+the validator refuses); **a failed task's error, as a `needs` reference** (`"n!error"`, ADR 0131), reachable by every node
+the plain reference reaches; **whether a tried transform threw, as `cause`**; and **when an ask was asked, as `observedAt`**,
+kept across a resume because the replay takes the stored time (ADR 0130). **The price**: one consequence the other way —
+a 0.10.0 driver refuses a 0.11.0 checkpoint `diverged` at its first `asked` element (ADR 0130 consequence 2, measured).
+**fyflow-app's pass 4**: #1-#4 accepted in the shapes above, the default `{ error }` declined ((c2)), #5 closed (Q760),
+#6 recorded withdrawn; the reply is written
+(`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass4.reply.md`).
+
+**Pass 1 #11, WITHDRAWN** by its asker (pass 4 #6): fyflow-app resumes only against immutable flow versions and the
+`diverged` prefix check stands. Q372 and Q249 stay `deferred` for other hosts ((f1)); Q372 carries W208's dated note.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W208 moves no existing value but by the two fields | **HOLDS** — 1,372 runs byte-identical once the two keys are removed; but a CONSUMER comparing whole elements moved (`examples/l6.ts`' W182 block, six comparisons — W208's exception) | W208 Record |
+| 2 | `cause` on `checkWiring`'s verdicts; the corpus's `transform-fails` file reads `'schema'` | **HOLDS** | W208 Record |
+| 3 | `!` collides with nothing | **HOLDS on the final tree** — false at W209's first gate until L6's census exemption | W209 Record |
+| 4 | the static schema refuses every shape-only file and accepts every valid flow on its first green run; at most two files move class | **HOLDS** — one file moved | W210 Record |
+| 5 | `@cfworker/json-schema` bundles for chromium under 50 KB; the suite under 1 s | **HOLDS in part** — 42,802 bytes, 0.57 s, but only after a cut: the first draft took the lane to 61.6 s | W210 Record |
+| 6 | the registry form refuses `FD-V31`, `32`, `35`, `38`, `39`'s files and not `33`'s, `36`'s or `41`'s | **FAILS as written** — `FD-V33`'s IS refused (a type's `settings` schema is registry-specialisable) | W211 Record |
+| 7 | W212 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2847 / 238 → 2861 / 246 | W212 Record |
+
+**The D′ paragraph's census predictions**: short at TWO consumers that read a WHOLE value rather than a NAME — W208's six
+whole-element comparisons in `examples/l6.ts` and W209's L6 census over `spec/flow-definition.md`'s table — each found by
+running the lane (B′) or by a reader, never by the grep D′ names. And fact 3's *a node type's `settingsSchema` embeds as it
+stands* was corrected by W211 for one keyword (`minLength`).
+
+**Questions**: **raised [Q774](../questions/q774.md)** (W210, `open` — `FD-V21` accepts a non-string `of` or branch
+entry); **closed [Q760](../questions/q760.md)** (W208). `npm run q -- --where status=open` lists **Q774** alone.
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.11.0** — the version bump, the push and the publish to npm and JSR | (h1) | **the maintainer** — *only when the maintainer says so* | this Record |
+| [Q774](../questions/q774.md) — refusing a non-string `of` / branch entry moves `validateDefinition`'s verdicts | W210 | **the maintainer** — retro section 8 (a) | the question |
+| the reply to fyflow-app | the plan's *reply* paragraph | **done** — W212 | W212's Record |
+| the chromium lane at ~57 of 60 s | W210, W211, W212 | **the next item adding to the browser bundle** — retro section 8 (b) | below |
+| W212's declared NITs — the pool a block ran on observed by no claim; a retry clearing `task.error` pinned by no L6 claim | W212's adequacy reader | the next item touching the block — test gaps, not defects; no question raised | W212's Record |
+| the byte copies `C:/tmp-w208` … `C:/tmp-w212` and the session scratchpad's probes | every item | **the maintainer** — left in place, outside the repository | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-24 over W212's final tree, by W212's author as the plan's last item. Every figure is read from the
+five items' Records; this retro re-ran no harness but the chromium wall (W212's re-take 5). **Two routings here need the
+maintainer** (section 8); nothing is acted on outside the record step's four files and W212's one declared exception.*
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P43's declaration | — | (a)-(h), all as recommended | — | — |
+| W208 | **1** — `examples/l6.ts`' W182 comparisons, YES | — | 2 SHOULD, 7 NIT | **Q760 closed** |
+| W209 | **2** — `spec/outcome-record.md`, `examples/l6.ts`' census exemption, YES | — | 1 BLOCKER, 2 SHOULD, NITs | — |
+| W210 | **2** — `deno.lock`, `validate.ts`' constants | **1** — a missing description an L1 throw — all three answered as recommended under (h) | 2 BLOCKER (one subject), 5 SHOULD, NITs | **Q774 raised** |
+| W211 | — | — | 6 SHOULD, 7 NIT | — |
+| W212 | — (one exception declared before the edit) | — | 1 SHOULD, 7 NIT | — |
+| **P43** | **5, each answered YES** | **9 answers, all as recommended** | **every one acted on or declared** | **1 raised, 1 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E
+
+**B′ held and found what D′ missed, twice.** W208's L6 run on the change found six whole-element comparisons no name grep
+could; W209's found the L6 census binding section 3's rows to runs — but only at the first `gate`, because B′ ran L6 BEFORE
+the spec's table row existed: **L6 reads `spec/`, so a lane run on code without its spec edit is a census of half the
+change** (W209's lesson). W210's B′ found the chromium lane over 60 s before any `Owns` was fixed. **C held** (one confirming
+gate per item, on the final tree). **D′ held at every NAME it grepped and was blind to a WHOLE-VALUE reader** — section 4 (a).
+**E held**: every item's probes cut one clause per call site; W212's P5 is the one WIDER-set kill, every resume of a run
+with an ask diverging.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W208 | 1 SHOULD, 3 NIT | 31 mutations; 1 SHOULD, 4 NIT | **1** — the no-consumer-schema road | 125th |
+| W209 | 1 BLOCKER, 1 SHOULD, 6 NIT | 48 mutations; 1 SHOULD, NITs | **1** — the `FD-V27` row's wording | 126th |
+| W210 | 1 BLOCKER, 2 SHOULD, 4 NIT | ~110 mutations; 1 BLOCKER, 3 SHOULD, NITs | **1** — the soundness claim | 127th |
+| W211 | 2 SHOULD, 3 NIT | 88 probes; 4 SHOULD, 4 NIT | **2** — the groups and predicates; the top-level-keyword clause | 128th |
+| W212 | 3 NIT | 32 mutants; 1 SHOULD, 4 NIT | **0** | 129th |
+
+**Every Record states its overlap**, the eighth plan running. **Five measurements, all inside section 6's 0-4 band. The
+ordinal is a hundred and twenty-nine, so the next is the HUNDRED-AND-THIRTIETH** — carried into `doc/workflow.md` by
+W212's declared exception.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a census by NAME is blind to a reader that compares a WHOLE value** — W208: `examples/l6.ts`' six W182 comparisons through a canonicaliser, naming no changed member; W209: an L6 census over a whole spec table's rows; W210: the soundness sweep writing whole keys, blind to a nested over-strictness; W211: one registry written, five over-refusals in shapes the corpus never takes | **FOLLOWED** — D′'s grep per changed name ran in each; B′ ran the lanes | B′'s lane runs (W208, W209), W209's conformity reader, W210's two readers, W211's adequacy reader | **FOUR occurrences in four items** — pass 3 rule 2's bar, and rule 3's sharpest class: a followed rule (D′) that cannot see the class. **Not proposed as a new rule**: B′ — *run every lane on the change before fixing `Owns`* — is the mechanism that caught the two that a lane could, and section 5 rule 8 (a)'s *the SHAPES the clause quantifies over* already covers the probes'. Recorded for the next plan's brief: **a census by name is a census of NAMES; a reader of the whole value is found by running it** |
+| **(b) B′'s lanes run on code without its spec edit** — W209's L6 census reads `spec/flow-definition.md`; B′ ran before the table row existed | **FOLLOWED as worded** (*builds its change … and runs every lane*); the change was built in two halves | W209's first `gate` and its conformity reader (BLOCKER) | One occurrence, with an argument for generality — `examples/l6.ts` reads `spec/` and the corpus, so any item editing the spec has it. **Recommended as a ONE-CLAUSE amendment to B′ carried in the next brief, not a workflow rule** (section 6 B): *the change includes its `spec/` and corpus edits; the lanes run on all of it* |
+| **(c) `export *` made shared constants public** — W210 exported `ID_RE` and `KINDS` from `validate.ts`, and `index.ts` re-exports that module whole, so a module-private constant became package surface — first LIVE (a consumer's `KINDS.splice` moved verdicts, W210's conformity SHOULD), then copies | the plan's decision 1 said *exported or shared as W210 judges*; nothing asked which surface an `export` reaches | W210's conformity reader | One occurrence. `index.ts:3`'s `export *` is a standing hazard: every `export` added to `validate.ts` is public. Recorded; no rule — the conformity pass caught it |
+| **(d) a claim's OBSERVER is a shape too** — P42's observation, carried in P43's brief, recurred in W212: `PAST THE TAIL`'s `confirm` is past the RUN's stored tail and asked after `resume()` drops its replay, so ADR 0130's in-replay branch was unexercised | **FOLLOWED** — the brief named it; the claim had a control | W212's own P6, and its adequacy reader (S12, S13) | **THIRD plan running** (P42's two, P43's one). Section 5 rule 8 (a) covers it and the provocation written to the clause caught it before the Record — the mechanism worked as designed |
+| **(e) the chromium lane is a shared budget at ~95%** | — | W210's B′ (61.6 s at the first draft); W211 and W212 re-took it | Section 8 (b) |
+
+**Pass 3 rule 5 over P43's defects**, by what caught them: **a rung in `gate`** — L6 (W208's six comparisons, W209's census),
+the chromium lane's 60 s wait (W210's first draft), `check:register` `R8` (W208's Q760 wording); **the authors** — W208's M05,
+W210's re-cut, W211's first-pass gaps, W212's palindrome fixture and P6; **the conformity readers** — W210's soundness
+BLOCKER by construction, W211's prototype-name validator caveat, wording elsewhere; **the adequacy readers** — W210's nested
+over-strictness, W211's five registry shapes, W212's in-replay branch. **No rung would have caught** a claim of absence over
+a space wider than its probe writes (W210, W211) — that is section 6's reader.
+
+**The flaky rows ([Q599](../questions/q599.md))**: **NO in P43** — every item's `gate` and confirming gate ran L6 green in
+both runtimes; W212's L6 green in every run, including under its readers' load.
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** A thrown `Error` reached the outcome record as its `message` on both pools,
+as `spec/outcome-record.md` says, and the scheduler cleared `task.error` across a retry on 0.6.0 (W212's adequacy reader's
+probe — not pinned by a claim).
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′ caught what D′ could not, C and E held, every Record stated its
+overlap, every BLOCKER reached no Record unacted.
+
+**B. Carried for the next plan's author** — P39's proposal B as P40 adopted it and P40's-P42's retros carried it (B′, C, D′,
+E and the brief sentences), **with ONE clause added to B′** (section 4 (b)): *the change B′ builds includes its `spec/` and
+corpus edits — `examples/l6.ts` reads both*. And section 4 (a) beside D′ as an observation: *a census by name is a census of
+names; a reader of the WHOLE value is found by running the lanes*.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 42nd refusal, P2-P43.** P43's text defects were a spec row's
+  wording (W209), a claim *every pattern is read from the validator* (W210), an ADR-governance sentence contradicting ADR
+  0132 (W211), a stale plan list in `examples/l6.ts`' header and a present-tense sentence a version made false (W212) — each
+  found by a reader or an author reading the text beside the code. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; this Record and Retro |
+| `doc/workflow.md` | W212's declared exception: the Status line's count (FORTY-THREE, P1-P43), section 6's ordinal (a hundred and twenty-nine; the HUNDRED-AND-THIRTIETH next), the ledger's first row (42 times, P2-P43) |
+
+`README.md`, `doc/questions/**` and `doc/decisions/**` carry nothing more: Q760, Q774 and ADRs 0130-0132 are the items'.
+
+**Ids.**
+
+- **Issued**: W208, W209, W210, W211, W212; ADR 0130, ADR 0131, ADR 0132; Q774; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): W213 CLOSED unissued, as expected; Q770-Q771 SPENT
+  (W208's), Q772-Q773 SPENT (W209's), Q775 SPENT (W210's), Q776-Q777 SPENT (W211's), Q778-Q779 SPENT (W212's); ADR 0133
+  SKIPPED (W211's, no rule moved); ADR 0134 SKIPPED.
+
+**The next plan starts at W214, Q780 and ADR 0135.** The next S id is S13; the next plan id is P44.
+
+### 8. Stop-and-asks for the maintainer
+
+*Neither blocks P43's close: both are routings of work that is NOT this plan's, listed for the maintainer's answer.*
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(a)** | **[Q774](../questions/q774.md) — `FD-V21` says a join's `of` and a fanout's branch entries are ids, and `validateDefinition` accepts a non-string there** (`of: null` on a join of no region, `["b", 5]`), so `definitionSchema()` accepts them too, to keep its one-directional promise. Refusing them moves `validateDefinition`'s VERDICTS — documents 0.10.0 accepts would be refused — which P43 prediction 3 excluded | **(a1)** YES, in its own small item of the next plan: `FD-V21` refuses a non-string `of` and branch entry (stated as a change in what is accepted, in 0.11.0's or 0.12.0's notes), the schema tightened to the charset with it; fyflow-app told in the next reply | **(a2)** leave Q774 open until a consumer meets it; **(a3)** document the leniency in `FD-V21` instead |
+| **(b)** | **The chromium lane is at ~57 of its 60 s** (W211 56.7-57.5, W212 57.0) — the P39/P40 map-cost suite alone 34 s. The next suite of ~3 s takes the lane over, and W210's first draft showed a suite's cost includes the GC it leaves for later suites | **(b1)** before the next item that adds to the browser bundle, the plan that declares it decides: raise `scripts/run-browser-tests.mjs`' 60 s wait to 120 s (a one-line edit with its own `chore:` and a stated reason), or move the map-cost suite's 8,000-item counts to node and deno only | **(b2)** leave it, and let the next item meet the 60 s red at its B′ run (it will — B′ runs the lane) |
