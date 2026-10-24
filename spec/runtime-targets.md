@@ -1,6 +1,6 @@
 # spec/runtime-targets — three runtimes, one source tree
 
-**Status:** v0.13 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.14 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2 acts on the second spec-conformity pass**,
 which found that v0.1's central claim — *a `node:` import is fatal to a Deno build* — is **false at
 Deno 2**, and that the `*.node.ts` mechanism it described does not exist in the form it described.
@@ -42,6 +42,10 @@ adapter's worker half, is a consumer's asset to serve beside a bundle. **Since W
 from the JSR SOURCE and false of the npm dist**, whose build replaces the envelope worker's URL with a `data:` URL on
 Node and a `Blob` URL in the browser (`scripts/build.mjs`, held by `pack:smoke` P11). The limit now names which
 build it describes. No rule, check or test changes.
+**v0.14 is [W214](../doc/work-items/w214-the-chromium-lanes-headroom.md)** under [P44](../doc/plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) (decision 1): `RT-R1`'s *same suites* now names its one SIZED exception —
+`test/fold/map-cost.test.ts` runs its clock-free counts at 500 / 2,000 items in a browser and at 2,000 / 8,000 in Node
+and Deno, the same nine cases in all three, so the parity count holds. Section 4's *How the browser rung actually runs*,
+note 1, now names the six suites that read their host and what each does with it. No rule id, check or other test changes.
 
 **Normative.** These rules constrain what the source may import and what a gate must run in.
 **Inherited, not chosen.** `fyflow-scheduler` runs on Deno, Node and the browser from one source
@@ -133,7 +137,7 @@ each of its five assertions was negative-tested.
 
 | id | | Test owed by |
 |---|---|---|
-| `RT-R1` | **A runtime is supported only if the gate runs in it.** Ladder **L0-L5** run in all three — they are pure logic over fixtures and cost three cheap passes rather than three expensive ones. A claim of support with no gate behind it is the thing `doc/workflow.md` section 1 rule 4 forbids. **Satisfied for all three since W3**: Node 24 and Deno execute the suites directly, and `scripts/build-browser-tests.mjs` + `scripts/run-browser-tests.mjs` run the *same* suites in chromium, firefox and webkit | **every item that ships a gate** — W2, W3, W4 and W5 |
+| `RT-R1` | **A runtime is supported only if the gate runs in it.** Ladder **L0-L5** run in all three — they are pure logic over fixtures and cost three cheap passes rather than three expensive ones. A claim of support with no gate behind it is the thing `doc/workflow.md` section 1 rule 4 forbids. **Satisfied for all three since W3**: Node 24 and Deno execute the suites directly, and `scripts/build-browser-tests.mjs` + `scripts/run-browser-tests.mjs` run the *same* suites in chromium, firefox and webkit. **The same suites, and the same CASES — one at a smaller SIZE** (v0.14, [W214](../doc/work-items/w214-the-chromium-lanes-headroom.md)): `test/fold/map-cost.test.ts` pins its counts, each a hand-derived formula of `n`, at 500 / 2,000 items in a browser and at 2,000 / 8,000 in Node and Deno, because the whole bundle runs in ONE page under `scripts/run-browser-tests.mjs`' 60 s wait and that suite was over half of it; its case count is the same in all three, so the parity count `run-browser-tests.mjs` compares holds, and 8,000 items is never run in a browser | **every item that ships a gate** — W2, W3, W4 and W5 |
 | `RT-R10` | **L6 runs in Node 24 and Deno, and not in the browser** — [Q33](../doc/questions/q33.md), answered by W5 and measured rather than reasoned. Both runtimes load **one** `.ts` worker file and one bare `fyflow-scheduler` specifier resolved in configuration ([ADR 0013](../doc/decisions/0013-the-scheduler-is-a-development-dependency-reached-from-the-working-tree.md) rules 3-4), so the second runtime costs a two-line import map. **Q33's leaning was *Node only for P1*, and its stated reason — *a real worker file per runtime, `.ts` for Deno and `.js` for Node* — is false at Node 24**: a typed `.ts` worker runs there, `inline` and threaded ([S9](../doc/scheduler-upstream.md)). The browser is the genuinely expensive one — Playwright, the worker emitted as a separate bundle asset, and a page to serve it from — and whether it must run before release is [Q52](../doc/questions/q52.md). **What keeps L6 out of the browser is the glob**: L6 lives in `examples/**`, and `scripts/build-browser-tests.mjs` globs `test/**/*.test.ts`. *(This read "the exclusion is structural, not a note … nothing that imports a scheduler can reach the browser bundle by accident" from v0.7 to v0.9. Since [ADR 0048](../doc/decisions/0048-the-scheduler-is-a-declared-dependency-reached-by-one-bare-specifier.md) `src/driver/driver.ts` imports the scheduler, so the bundle carries its **browser build** whenever a suite imports the driver — measured at W57, 27 files / 703 cases in chromium, firefox and webkit with it in. What stays out is a RUN: no suite constructs a scheduler, and the harness that does is in a tree the glob does not reach. `S9`, which refused the import in `test/**`, is retired with ADR 0013 rule 6.)* | **W5** |
 | `RT-R2` | **One source tree. No per-runtime fork, and no runtime branch in ordinary logic.** A `typeof Deno !== 'undefined'` test inside the fold or the driver is a defect: it makes run state depend on the host, which `doc/concept.md` section 5 does not allow. Where a difference is genuinely unavoidable, section 3 says how it is expressed | W2 and W3 |
 | `RT-R3` | **A published file typechecks under all three configurations** — Deno's `deno.json` `compilerOptions`, `tsconfig.node.json`, and `tsconfig.browser.json`. This is ladder L0, run three times. It catches a **browser** violation of `RT-R4` if and only if the browser config sets `types: []` and omits `deno.ns`; it does **not** catch a `node:` import on its own, and `RT-R4` is what does | W2 and W3 |
@@ -222,7 +226,13 @@ otherwise rediscover both.
    inlined copy when it is present. **The suites are byte-identical in all three
    runtimes** — only the fixture *source* differs, and that lives in tooling, which
    `RT-R7` exempts. A suite that had to branch on its host would defeat the point
-   of running it three times.
+   of running it three times. *(v0.14, corrected by W214's conformity reader: six suites DO read their host, by a
+   `document`. Five skip or substitute what a browser cannot run as written — `test/scheduler/runtime.test.ts` skips its
+   real-scheduler cases (`RT-R10`); `envelope-worker.test.ts` and `transform.test.ts` run the `class` backend in place of
+   `inline` and `threaded`; `test/jsonata/jsonata.test.ts` runs no worker backend, and `function-table.test.ts` skips its
+   source-equality check. ONE SIZES by it: `map-cost.test.ts` runs the SAME cases at a smaller `n` there, `RT-R1`. Every
+   count it pins that grows with the run is a formula of `n` asserted at both of its sizes, so the claim — exact work,
+   under 6x for 4x the items — is one claim at either pair.)*
 2. **The corpus must be set by a module imported first, not by a statement.** ES
    module imports are hoisted, so an assignment written at the top of the entry
    runs *after* every suite has already loaded its fixtures at module scope — and
