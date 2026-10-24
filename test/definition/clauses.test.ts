@@ -20,7 +20,7 @@
  *
  * Every expected value is the rule id from `spec/flow-definition.md` section 5.
  */
-import { ok, suite } from '../harness.ts';
+import { equal, ok, suite } from '../harness.ts';
 import { typesFor } from '../registry-fixture.ts';
 import { validateDefinition, violatedRules } from '../../src/definition/validate.ts';
 import type { FlowDefinition, FlowNode, Registry } from '../../src/definition/types.ts';
@@ -144,6 +144,44 @@ suite('FD-V8, FD-V16, FD-V17, FD-V21, FD-V23 — every clause', (test) => {
     fires('FD-V21', 'branches is a string', doc([
       task('a', [{ to: 'f' }]), { id: 'f', kind: 'fanout', branches: 'b1' }, end('z'),
     ]));
+  });
+  // **W215, Q774 resolved — v0.52**: a join's `of` and a fanout's branch ENTRY that are not strings. Before v0.52 each
+  // drew no finding naming it — a region-less join's non-string `of` and `["b1", "b2", 5]` drew NONE at all (Q774's
+  // table, re-taken at 1270502). Expected values from the FD-V21 row: one FD-V21 finding naming the key and quoting the
+  // value; the STRING form's verdict is 0.11.0's, so each refusal sits beside its control.
+  const fdv21 = (d: FlowDefinition) => validateDefinition(d, registry).filter((f) => f.rule === 'FD-V21').map((f) => f.detail);
+  const fanJoin = (branches: unknown, of: unknown) => doc([
+    task('a', [{ to: 'f' }]),
+    { id: 'f', kind: 'fanout', branches },
+    task('b1', [{ to: 'j' }]), task('b2', [{ to: 'j' }]),
+    { id: 'j', kind: 'join', of, edges: [{ to: 'z' }] },
+    end('z'),
+  ]);
+  const loneJoin = (of: unknown) => doc([task('a', [{ to: 'j' }]), { id: 'j', kind: 'join', of, edges: [{ to: 'z' }] }, end('z')]);
+  test('FD-V21 — a join `of` that is not a string, closing a fanout and closing nothing', () => {
+    equal(violatedRules(validateDefinition(fanJoin(['b1', 'b2'], 'f'), registry)), [], 'the control: of "f" closing the fanout is accepted');
+    equal(violatedRules(validateDefinition(loneJoin('nowhere'), registry)), ['FD-V2', 'FD-V6'], 'the control: a region-less of "nowhere" is FD-V2 and FD-V6, as at 0.11.0');
+    for (const [v, shown] of [[null, 'null'], [5, '5'], [[], '[]'], [{}, '{}'], [true, 'true']] as [unknown, string][]) {
+      equal(fdv21(fanJoin(['b1', 'b2'], v)), [`join of must be a string, got ${shown}`], `of ${shown} closing a fanout: one FD-V21 naming of`);
+      equal(fdv21(loneJoin(v)), [`join of must be a string, got ${shown}`], `of ${shown} on a region-less join: one FD-V21 naming of`);
+      equal(violatedRules(validateDefinition(loneJoin(v), registry)), ['FD-V21'], `of ${shown} on a region-less join: FD-V21 alone — Q774's zero findings`);
+    }
+    equal(fdv21(doc([task('a', [{ to: 'j' }]), { id: 'j', kind: 'join', edges: [{ to: 'z' }] }, end('z')])), [], 'an ABSENT of is FD-V23\'s, not FD-V21\'s');
+  });
+  test('FD-V21 — a fanout branch entry that is not a string, one finding per entry by index', () => {
+    equal(fdv21(fanJoin(['b1', 'b2'], 'f')), [], 'the control: two string entries, no FD-V21');
+    equal(fdv21(fanJoin(['b1', 'b2', 5], 'f')), ['fanout branches[2] must be a string, got 5'], '["b1", "b2", 5]: one FD-V21 naming branches[2]');
+    equal(violatedRules(validateDefinition(fanJoin(['b1', 'b2', 5], 'f'), registry)), ['FD-V21'], '["b1", "b2", 5]: FD-V21 alone — Q774\'s zero findings');
+    equal(fdv21(fanJoin([null, 'b1', {}, 'b2', ['b1']], 'f')),
+      ['fanout branches[0] must be a string, got null', 'fanout branches[2] must be a string, got {}', 'fanout branches[4] must be a string, got ["b1"]'],
+      'three non-string entries: three findings, each by its index');
+    equal(fdv21(fanJoin('b1', 'f')), ['fanout branches must be an array'], 'branches not an array keeps its own clause and no entry clause');
+    // A TWO-entry list — FD-V9's floor exactly (W215's adequacy reader, SHOULD 1: every list above had three or more).
+    equal(fdv21(fanJoin(['b1', 5], 'f')), ['fanout branches[1] must be a string, got 5'], '["b1", 5]: one FD-V21 naming branches[1]');
+  });
+  test('FD-V21 — `of` is a JOIN\'s key: on any other kind it is FD-V17\'s undeclared key, never FD-V21', () => {
+    // W215's adequacy reader, NIT (V17): the clause asked on every kind added an FD-V21 here.
+    equal(violatedRules(validateDefinition(doc([task('a', [{ to: 'z' }], { of: 5 }), end('z')]), registry)), ['FD-V17'], 'a task carrying of: 5 is FD-V17 alone');
   });
   test('FD-V23 — a document missing `version`', () => {
     const d = doc([task('a', [{ to: 'z' }]), end('z')]) as unknown as Record<string, unknown>;

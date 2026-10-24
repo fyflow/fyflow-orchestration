@@ -1,0 +1,14 @@
+{
+  "flowId": "join-of-not-a-string",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task",   "type": "IngestWorker", "edges": [ { "to": "split" } ] },
+    { "id": "split",   "kind": "fanout", "branches": [ "scoreA", "scoreB" ] },
+    { "id": "scoreA",  "kind": "task",   "type": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "scoreB",  "kind": "task",   "type": "ScoreWorker",  "edges": [ { "to": "collect" } ] },
+    { "id": "collect", "kind": "join",   "of": [ "split" ],            "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task",   "type": "PublishWorker","edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",    "outcome": "completed" }
+  ]
+}

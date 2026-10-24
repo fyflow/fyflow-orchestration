@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.51 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.52 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -611,6 +611,18 @@ section's, recorded here (ADR 0132 decided the static form and left this one to 
 `minLength` row corrects P43 fact 3's *a node type's `settingsSchema` embeds in a 2020-12 document as it stands*: it does
 but for that one keyword. Still **45 refusals**.
 
+**v0.52 is [W215](../doc/work-items/w215-fd-v21-refuses-a-non-string-of-and-branch-entry.md) under
+[P44](../doc/plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — `FD-V21` refuses a join's `of` and a
+fanout's branch ENTRY that are not strings**, as its own sentence (*a declared key holds a value of the wrong type*)
+already said: P44 (d1), decision 2, resolving [Q774](../doc/questions/q774.md). Until now `FD-V2` and `FD-V6` read `of`
+only where it was a string and the graph builder dropped a non-string entry, so `of: null` on a join of no region and
+`["b", "c", 5]` drew **no finding at all**. **A CHANGE IN WHAT IS ACCEPTED — BREAKING, shipping in 0.12.0**: a document
+0.11.0's `validateDefinition` accepts is refused, and `definitionSchema()` (both forms) holds `of` and every `branches`
+entry to the id charset unconditionally, where it admitted any non-string. One finding per non-string entry, by index; an
+absent `of` is still `FD-V23`'s. No ADR (ADR 0136 unused): the rule's sentence is unmoved, its enumeration gains two
+examples. Cases: `spec/examples/invalid/FD-V21--join-of-is-not-a-string.flow.json` and
+`FD-V21--fanout-branch-entry-is-not-a-string.flow.json`. Still **45 refusals**.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -640,7 +652,7 @@ instances — anything that does not survive `JSON.parse(JSON.stringify(x))` is 
 | `entry` | string | a node id (`FD-V3`) |
 | `nodes` | array | one object per node, order irrelevant |
 
-### The definition's shape as a schema — v0.50, v0.51
+### The definition's shape as a schema — v0.50, v0.51, v0.52
 
 [ADR 0132](../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md), P43 (a1), (b1).
 **`definitionSchema()` returns this document's STATIC SHAPE as a JSON Schema, draft 2020-12** — a plain,
@@ -651,7 +663,7 @@ findings; **the library never evaluates it**.
 | | |
 |---|---|
 | **built from** | the validator's own key sets — every kind's declared and required keys, the edge's, the document's, `retryPolicy`'s, `transform`'s, a `when`'s three shapes, the schema subset's keywords — and its `FD-V16` id charset, its kinds, `on`'s states, the predicate operators and roots and the key-path grammar. A key the validator gains is a key the schema gains; a key with no description written makes `definitionSchema()` throw, naming it. **Three things are written in the schema's module, the validator keeping them private** — the reference grammar's tokens (`"."`, `"$payload"`, `"$item"`, `"!error"`), the operator partition `FD-V44` reads, and which edge keys each kind's edges admit — each held to the validator by W210's suite, spelling by spelling and operator by operator |
-| **carries** | every rule a node, an edge or a value decides by its OWN shape: `FD-V16`, `FD-V17`, `FD-V18`, `FD-V21`, `FD-V23`, `FD-V24`, `FD-V26` (section 3's reference grammar, `"n!error"` included), `FD-V30`, `FD-V37`, `FD-V42`-`FD-V45`, `FD-V47`, `FD-V48` but for ADR 0056's `examples` check; the shape clauses of `FD-V7` (a task's and an ask's edges non-empty, a join's ONE edge without `on` or `when`), `FD-V8`, `FD-V9` (two distinct branches, no `edges`), `FD-V25` (`over`, no `edges`), `FD-V40`'s key path and `FD-V41`'s per-edge half (a `route` only on a gate's edge, which carries nothing else). **A join's `of` and a fanout's branch entries are held to the id charset only where they are STRINGS**: the validator holds both through the graph alone, so it ACCEPTS `of: null` on a join of no region and `["b", "c", 5]` today, and the schema must not refuse what it accepts ([Q774](../doc/questions/q774.md)) |
+| **carries** | every rule a node, an edge or a value decides by its OWN shape: `FD-V16`, `FD-V17`, `FD-V18`, `FD-V21`, `FD-V23`, `FD-V24`, `FD-V26` (section 3's reference grammar, `"n!error"` included), `FD-V30`, `FD-V37`, `FD-V42`-`FD-V45`, `FD-V47`, `FD-V48` but for ADR 0056's `examples` check; the shape clauses of `FD-V7` (a task's and an ask's edges non-empty, a join's ONE edge without `on` or `when`), `FD-V8`, `FD-V9` (two distinct branches, no `edges`), `FD-V25` (`over`, no `edges`), `FD-V40`'s key path and `FD-V41`'s per-edge half (a `route` only on a gate's edge, which carries nothing else). **A join's `of` and a fanout's branch entries are held to the id charset**, a non-string refused — `FD-V21` since v0.52 ([Q774](../doc/questions/q774.md), resolved); until then the schema admitted one, because the validator did |
 | **does not carry** | anything that needs ANOTHER node or the REGISTRY: whether a named node exists and what kind it is, reachability, cycles, regions and joins (`FD-V1`-`FD-V3`, `FD-V6`, `FD-V10`-`FD-V13`, `FD-V19`, `FD-V20`, `FD-V22`), where a reference points (`FD-V27`-`FD-V29`, `FD-V49`), and every registered name and what it declares — node types, pools, groups, languages, predicates, gate types, their settings and routes. The registry-specialised form, `definitionSchema(registry)`, carries what of that a registry decides of one node (below, v0.51) |
 | **the authority** | **`validateDefinition(flow, registry)`** — and `runtime.check(flow)` on a runtime — for every rule above it does not carry, and for the definition as a whole. The schema's root `description` says so. **What the schema refuses, `validateDefinition` refuses under every registry; the converse does not hold** |
 | **not ADR 0053's subset** | that subset governs the schemas the library EVALUATES; this one it EMITS for a consumer's validator, so it uses `$defs`, `$ref`, `oneOf`, `if`/`then` and `pattern`. An `answerSchema` it describes is in the subset, and the schema says so |
@@ -2640,7 +2652,7 @@ C4 fails if one is missing.
 | `FD-V18` | an edge's `on` is present and is not a non-empty array of distinct values drawn from `"done"` and `"failed"`. **`"user_action"` is refused** — it suspends rather than routes (ADR 0004 rule 3, [Q30](../doc/questions/q30.md)) |
 | `FD-V19` | a node whose kind is not `end` belongs to `branchOf(F, bᵢ)` for **two distinct** branch entries of the same `fanout`. Convergent branches make `branchPath` a property of the traversal rather than of the node, and P1 refuses them ([Q27](../doc/questions/q27.md)) |
 | `FD-V20` | a node outside `region(F)` has an edge to `F`'s join |
-| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, **`type`** or **`pool`** not a string (v0.17, v0.19; a `gate`'s `type` too, v0.23), **an `ask`'s `settings` not a plain object** (v0.42 — the library never reads them, so their shape is their whole check), and so on |
+| `FD-V21` | a declared key holds a value of the wrong type **or outside its declared range** — `optional` not a boolean, `edges` not an array, `outcome` not a string, `version` not an integer or below 1, **`type`** or **`pool`** not a string (v0.17, v0.19; a `gate`'s `type` too, v0.23), **an `ask`'s `settings` not a plain object** (v0.42 — the library never reads them, so their shape is their whole check), **a `join`'s `of` present and not a string, a `fanout`'s `branches` entry not a string — one finding per entry, by index** (v0.52, [Q774](../doc/questions/q774.md): `FD-V2` and `FD-V6` read `of` only as a string, and the graph builder drops a non-string entry as it does a non-string `edge.to` or map `branch`, so neither drew a finding naming it), and so on. Cases: `spec/examples/invalid/FD-V21--optional-is-not-a-boolean.flow.json`, `FD-V21--join-of-is-not-a-string.flow.json`, `FD-V21--fanout-branch-entry-is-not-a-string.flow.json` |
 | `FD-V22` | a node in `region(F)` whose kind is not `end` has an incoming edge from a node that is neither in `region(F)` nor `F` itself. **The only way into a region is through the node that OPENED it** — its `fanout` or, since v0.8, its `map`. Section 4's *"where a rule says a fanout `F` it means whichever kind opened the region"* is scoped to that section, so this rider says it in the section where the rule lives |
 | `FD-V23` | a **required key is absent** — a node without `id` or `kind`; a `task` without `edges` **or without `type`** (v0.19: `type` is required on every task node, and the *neither of two keys* clause v0.17 wrote here went with `workerType`); a `fanout` without `branches`; **a `map` without `over` or `branch`**; a `join` without `of` or `edges`; an `end` without `outcome`; **a `gate` without `type` or `edges`** (v0.23); **an `ask` without `edges`** (v0.42); an edge without `to`; or the document without `flowId`, `version`, `entry` or `nodes`. **`version` is required**, matching section 1 — an omitted version is one that silently means nothing |
 | `FD-V24` | a node's `kind` is not one of `task`, `fanout`, **`map`**, `join`, `end`, **`gate`** (v0.23), **`ask`** (v0.42). **`kind: "decision"` is the case this exists for** — section 2 warns the author away from that word, and until v0.4 nothing rejected it |

@@ -48,9 +48,6 @@ export type DefinitionSchema = { $schema: string } & Record<string, unknown>;
 
 type Schema = Record<string, unknown>;
 
-/** An id where the value is a string, and anything that is not a string — `nodeKeySchema`'s `branches` and `of`. */
-const idOrNonString = (): Schema => ({ anyOf: [ref('id'), { not: { type: 'string' } }] });
-
 /** A `$ref` into this document's own `$defs`. */
 const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 
@@ -103,7 +100,7 @@ const KIND_DESCRIPTIONS: Readonly<Record<string, Readonly<Record<string, string>
   },
   fanout: {
     kind: 'A `fanout`: opens a region of N branches declared HERE, closed by the one `join` naming it. Dispatches nothing.',
-    branches: 'The region\'s branch entries: at least two distinct node ids (FD-V9), each a task or an ask, none of them its own join (FD-V9, FD-V12 — validateDefinition\'s).',
+    branches: 'The region\'s branch entries: at least two distinct node ids (FD-V9), each a string (FD-V21), each a task or an ask, none of them its own join (FD-V9, FD-V12 — validateDefinition\'s).',
   },
   map: {
     kind: 'A `map`: opens a region of ONE branch, opened once per item of an array at run time, closed by the one `join` naming it. Dispatches nothing.',
@@ -113,7 +110,7 @@ const KIND_DESCRIPTIONS: Readonly<Record<string, Readonly<Record<string, string>
   },
   join: {
     kind: 'A `join`: closes the region its `of` opened, by the join policy the driver is given. Dispatches nothing.',
-    of: 'The id of the `fanout` or `map` whose region this closes (FD-V6, validateDefinition\'s).',
+    of: 'The id of the `fanout` or `map` whose region this closes: a string (FD-V21); that it names an existing node (FD-V2) and that the node is one (FD-V6) are validateDefinition\'s.',
     edges: 'Exactly one edge, carrying neither `when` nor `on` (FD-V7): a join has no outcome for either to read.',
   },
   end: {
@@ -209,12 +206,12 @@ function nodeKeySchema(kind: string, key: string): Schema {
     case 'needs': return ref('needs');
     case 'retryPolicy': return ref('retryPolicy');
     case 'workerGroups': return { type: 'array', minItems: 1, uniqueItems: true, items: { type: 'string' } };
-    // **`branches`' entries and `of` admit a NON-string** — W210's conformity reader, B1: the validator holds both only
-    // through the graph (`FD-V2`, `FD-V6` and `FD-V9` read a string and pass anything else over), so `of: null` on a join
-    // of no region and `["b", "c", 5]` are ACCEPTED there, and refusing them here would refuse what the validator accepts
-    // (ADR 0132 rule 2). A string is held to the id charset. That `FD-V21` should refuse the rest is Q774.
-    case 'branches': return { type: 'array', minItems: 2, uniqueItems: true, items: idOrNonString() };
-    case 'of': return idOrNonString();
+    // **`branches`' entries and `of` are ids, unconditionally** — v0.52, W215, Q774 resolved (P44 (d1)): `FD-V21` refuses
+    // a non-string `of` and a non-string branch entry, so the schema may too (ADR 0132 rule 2). Until then both admitted
+    // a non-string here, because the validator accepted one (W210's conformity reader, B1). A string outside the charset
+    // names no node — every node id is `FD-V16`'s — so `FD-V2` refuses it.
+    case 'branches': return { type: 'array', minItems: 2, uniqueItems: true, items: ref('id') };
+    case 'of': return ref('id');
     case 'over': case 'branch': return ref('id');
     case 'outcome': return { type: 'string', minLength: 1 };
     case 'answerSchema': return ref('subsetSchema');

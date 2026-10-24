@@ -61,7 +61,10 @@ validator's own key sets; a 2020-12 validator holds it true in the tests alone.*
    **Where the validator is looser than `FD-V21`'s sentence, the schema follows the validator**: a join's `of` and a
    fanout's branch entries are held to the id charset only where they are strings, because the validator holds both
    through the graph alone and accepts `of: null` on a join of no region and `["b", "c", 5]` (W210's conformity reader;
-   [Q774](../questions/q774.md)).
+   [Q774](../questions/q774.md)). *(Amended by [W215](../work-items/w215-fd-v21-refuses-a-non-string-of-and-branch-entry.md),
+   `spec/flow-definition.md` v0.52: that example no longer holds — `FD-V21` refuses both, Q774 resolved, and the schema
+   holds `of` and every branch entry to the id charset unconditionally. The rule — the schema follows the validator — is
+   unmoved.)*
 3. **A plain object, a new one per call**, JSON-serialisable, `$schema`
    `https://json-schema.org/draft/2020-12/schema`. The library never evaluates it.
 4. **Not held to ADR 0053's subset** (P43 decision 2). That subset is for schemas the library evaluates; this one it emits,
