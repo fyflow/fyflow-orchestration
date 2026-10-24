@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's** and **P39's**. *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's** and **P43's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -93,6 +93,7 @@
  * | **W200 — a reference read inside a map** | **P40's EXIT ARTIFACT clause (3): ADR 0124's index on real workers in both runtimes.** Per pool, THREADED and INLINE, one run of a `map` of TWELVE items (`10` and `11` beside `1`) whose branch is `work` → `mid` → `post`, `post` opening an inner map of two, and after the join a SIBLING map of three slots. Every reader's composed payload — what its worker was handed — is ADR 0044's predicate (`outputIsVisible`) applied to the run's OWN outputs in branch-path order, and the value derived by hand from the worker's source, for four shapes, each its own claim: `post` reading `work` (two steps back) and `mid` (one step back), the inner `tail` reading `work` (depth 1) and `leaf` (depth 2), and the sibling's `publish` reading `["post"]` and `["work"]` (every output; `work` thereby read at two depths). Each claim's CONTROL on the same observer: another instance's selection, or the string order, differs from every payload; and each payload has exactly the keys its `needs` declares. The predicate route moves with the shared key function since W199; the hand route is the independent one. Its registry is written in the block, not `registry.json` |
  * | **W203 — one shared copy of a large value** | **P41's EXIT ARTIFACT clause (3): ADR 0126's shared copy on real workers in both runtimes.** Per pool, THREADED and INLINE, the app's fetch-then-map shape: `fetch` returns the item list (TWELVE items) beside a 2,000-row catalogue, a `Uint8Array` and a `Map`, and the map's `work` declares `needs: { item: "$item", all: "fetch", run: "$payload" }`. (1) Every non-writing instance's value is fetch's result and the payload BY HAND, with a one-row-changed control. (2) What the worker holds: on the INLINE pool `all` frozen at depths 0, 1 and 3 and `run` frozen, on the THREADED one neither (`postMessage`'s clone); the reader's own `"$item"` unfrozen on both. (3) An instance writing a nested field of its `all`: INLINE, each attempt THROWS `TypeError` and the optional task ends `failed` after its one retry; THREADED, the write lands on its own clone. (4) That write reaches no sibling, no later reader and not the stored record. (5) The edge predicate's `ctx.needs.all` is ONE frozen object across every call, the value by hand. (6) A predicate writing into it STOPS the run, `TypeError` reported once, `halted` by it. (7) The GAP (P41 (f2)): a write into the shared `Uint8Array` and `Map` throws on neither pool; on the INLINE pool the next reader and its edge predicate see it (one resolver), on the THREADED one neither does, and the stored record never does. FOUR runs. Its registry is written in the block, not `registry.json` |
  * | **W206 — what a node was handed, read after the fact** | **P42's EXIT ARTIFACT clause (3): `RN-R45`'s reading on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of TWELVE items whose `work` reads `{ item: "$item", run: "$payload" }` and routes through a registered predicate into the built-in `if` gate `route` — items 0-5 to the END `low` inside the map, 6-11 to the join — then a fanout of `fast` and a HELD `slow` whose join a consumer's policy fires at its FIRST arrival, the ask `review`, `file` and the END `done`. Every task's worker ECHOES its envelope. (1) LIVE, at the parked ask, `handle.inputOf` answers every task dispatched so far — `slow` still in flight — with ONE `envelope` equal to its own echo and to no other's, and `file` and `done` `not-reached`. (2) STORED, once the runtime is shut down, the root `inputOf` over the header and events a store kept answers all sixteen tasks the same way. (3) `low` by its node id alone at exactly paths 0-5 and `done`, each by hand. (4) The gate at every path, by hand. (5) The join's ARRIVALS — the late one included — and its COLLECTION, by hand, the early firing arranged and asserted; the map's join's collection too. (6) The ask, by hand and equal to its `asked` input. (7) A HALTED run read once its runtime is gone: every envelope dispatched before the halt by hand, the nodes after it `not-reached`, never `diverged`. (8) A CHANGED REGISTRY refused `diverged` at the first stored `gated` element. Each claim with its control. FOUR runs. Its registry is written in the block, not `registry.json` |
+ * | **W212 — a failed task's ERROR, and WHEN an ask was asked** | **P43's EXIT ARTIFACT clause (3): ADR 0131's `"n!error"` and ADR 0130's `observedAt` on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of four whose OPTIONAL `probe` THROWS for items 1 and 3, each its own message → the join → an OPTIONAL `lookup` that THROWS where the payload says `fail` → on its `on: ["failed"]` edge (and its default one) the ask `why`, whose `needs` reads all four `!error` spellings — `"lookup!error"`, `"lookup!error?"`, `["probe!error"]`, `["probe!error?"]` → the ask `confirm` → `done`; every clock injected. (1) The ERROR: `why`'s `asked` input carries the thrown message by hand, in the bare and `?` forms, `lookup`'s record's `error`. (2) Its CONTROL: the same ask after a SUCCEEDING `lookup` carries `null`. (3) The ARRAY forms: `[null, <probe 1's message>, null, <probe 3's>]`, item order, on both runs. (4) LIVE: `why`'s `observedAt` and `askedAt` clock A. (5) RESUMED on a fresh runtime B under clock B once A is shut down: `why`'s time is still clock A. (6) PAST THE TAIL, the control: `confirm`, asked on B, carries clock B. (7) A LOST TAIL: the store without `why`'s `asked` element, resumed on a fresh D under clock D, regenerates `why` past the tail stamped clock D. EIGHT runs. The reference censuses read its flow, so `NOT_YET_AT_L6` is gone again. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5984,6 +5985,22 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W212**: P43's exit-artifact block — fourteen subjects, seven per pool: the error, its control, the array forms, the
+  // live time, the resumed time, its control past the tail, and a lost tail (since the author's P6).
+  'W212 exit (threaded): the ERROR',
+  'W212 exit (threaded): the CONTROL',
+  'W212 exit (threaded): the ARRAY forms',
+  'W212 exit (threaded): LIVE',
+  'W212 exit (threaded): RESUMED',
+  'W212 exit (threaded): PAST THE TAIL',
+  'W212 exit (threaded): a LOST TAIL',
+  'W212 exit (inline): the ERROR',
+  'W212 exit (inline): the CONTROL',
+  'W212 exit (inline): the ARRAY forms',
+  'W212 exit (inline): LIVE',
+  'W212 exit (inline): RESUMED',
+  'W212 exit (inline): PAST THE TAIL',
+  'W212 exit (inline): a LOST TAIL',
   // **W206**: P42's exit-artifact block — sixteen subjects, eight per pool: the live reading, the stored reading, the ends,
   // the gate, the join's two answers, the ask, a halted run read up to its halt, a changed registry refused `diverged`.
   'W206 exit (threaded): LIVE',
@@ -6585,22 +6602,11 @@ const spellingOf = (ref: unknown): string => {
   }
 };
 
-/**
- * **`NOT_YET_AT_L6` is BACK — W209, by the maintainer's YES to its stop-and-ask 2**, as W190 and W191 held it: the rows
- * of section 3's table no L6 run names yet, by the census BUCKET. `'error'` is v0.49's `"n!error"` row
- * ([ADR 0131](../doc/decisions/0131-a-reference-may-name-a-nodes-error.md)), whose L6 run is P43's exit artifact.
- * **W212's L6 block must RUN the form and REMOVE this list again**, as W192 did — the two reference censuses below
- * subtract it from the table's side, and the set clause names it, so a form L6 starts running while still listed appears
- * twice and is red.
- */
-const NOT_YET_AT_L6: readonly string[] = ['error'];
-/** A spelling of a row `NOT_YET_AT_L6` exempts — the `!error` row's four. */
-const exemptSpelling = (s: string): boolean => NOT_YET_AT_L6.includes('error') && s.includes('!error');
-
-// **`NOT_YET_AT_L6` stood here from W190 to W192**, and is back above since W209 — the rows of section 3's table no L6 run named, `"$payload"` (v0.44)
-// and `"$item"` (v0.45), held both ways by the two reference censuses. P38's W192 runs both, and the censuses read the flows
-// its block STARTED beside EXPECTED's, so the list is removed rather than left empty: an empty exemption is a place to put
-// the next one without a census noticing.
+// **`NOT_YET_AT_L6` stood here from W190 to W192, and again from W209 to W212** — the rows of section 3's table no L6 run
+// named: `"$payload"` (v0.44) and `"$item"` (v0.45), then `"n!error"` (v0.49, ADR 0131), held both ways by the two
+// reference censuses. P38's W192 runs the first two and P43's W212 the third — all four of its spellings, on `why`'s
+// `needs` — and the censuses read the flows each block STARTED beside EXPECTED's, so the list is removed rather than left
+// empty: an empty exemption is a place to put the next one without a census noticing.
 
 async function referenceSpellingsInSpecAsync(): Promise<string[]> {
   const deno = (globalThis as Record<string, unknown>).Deno as
@@ -13674,6 +13680,266 @@ if (inBlock !== null) {
   }
 }
 
+/**
+ * **W212 — a failed task's ERROR handed to the ask after its failure edge, and WHEN an ask was asked kept across a resume,
+ * on real workers in both runtimes: P43's EXIT ARTIFACT clause (3)** —
+ * [W212](../doc/work-items/w212-the-exit-artifact-on-real-workers-the-reply-and-p43s-close.md),
+ * [P43](../doc/plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md),
+ * [ADR 0131](../doc/decisions/0131-a-reference-may-name-a-nodes-error.md) (`"n!error"`, `spec/flow-definition.md` v0.49) and
+ * [ADR 0130](../doc/decisions/0130-a-regenerated-asked-element-keeps-the-stored-runs-time.md) (`observedAt`, `RN-R36`,
+ * `RN-R19`) — fyflow-app's *pass 4* #2 and #4.
+ *
+ * **One flow per pool**, THREADED and INLINE: `fetch` returns four items; a `map` whose branch `probe` (OPTIONAL, no retry)
+ * THROWS a known message for an ODD item — 1 and 3, each its own message, so every wrong ORDER of the four answers differs
+ * from the right one but a swap of the two `null`s (rule 8 (a), *a fixture where every WRONG selection differs*) — and
+ * returns for the others, every outcome going on to the map's join `collect`;
+ * then `lookup` (OPTIONAL, no retry), which THROWS a known message where the run's payload says `fail`; on its
+ * `on: ["failed"]` edge — and on its default edge, so the succeeding run reaches the same ask — the ask `why`, whose `needs`
+ * reads ALL FOUR spellings of section 3's `!error` row: `"lookup!error"`, `"lookup!error?"`, `["probe!error"]` and
+ * `["probe!error?"]`; then the ask `confirm` and the END `done`. **Every clock is INJECTED, a constant**, so every time is by
+ * hand: the FAILING run starts on runtime A under `ER_CLOCK_A`, parks at `why`, and A is SHUT DOWN; the run is RESUMED from
+ * what a store kept (the checkpoint through JSON) on a FRESH runtime B under `ER_CLOCK_B`, `why` answered there, `confirm`
+ * asked and answered; the same store LESS its last element — `why`'s `asked` element, as a store that lost its tail keeps
+ * it (`RN-R24`) — resumed on a third fresh runtime under `ER_CLOCK_D`; and the SUCCEEDING run, its own runtime, under
+ * `ER_CLOCK_C`. **Seven claims per pool, each its own verdict:**
+ * - **the error** — `why`'s `asked` input carries `lookup`'s thrown message, BY HAND, in the bare and the `?` forms, and it is
+ *   `lookup`'s outcome record's `error` (ADR 0131 rule 3);
+ * - **its control** — the same ask after a SUCCEEDING `lookup` carries `null` in both forms, the key PRESENT (the `?` form's
+ *   node ran);
+ * - **the array forms** — `["probe!error"]` and `["probe!error?"]` are one per instance in item order, `null` where `probe`
+ *   succeeded and its message where it threw, on both runs;
+ * - **live** — `why`'s `asked` element carries `observedAt` `ER_CLOCK_A`, the fold's `askedAt` the same, and `lookup`'s
+ *   outcome record the same clock (the driver's `now`, ADR 0130 rule 1);
+ * - **resumed** — on B, once A is gone, the resume is not refused, and `why`'s `askedAt` in B's state and its `asked` element
+ *   in B's checkpoint are `ER_CLOCK_A`: the ORIGINAL, not B's (ADR 0130 rule 2 — a fresh `now()` there would be refused
+ *   `diverged`);
+ * - **past the tail** — the CONTROL on the same observers: `confirm`, asked on B after the resume, carries `ER_CLOCK_B`, `why`
+ *   keeps `ER_CLOCK_A` through its answer, and the run completes. *`confirm` is past the stored tail in the RUN, but it is
+ *   asked LIVE, once the replay has ended (`resume()` drops its replay), so `ask()` takes its live branch here — the
+ *   replay's own past-the-tail branch is the next claim's (the adequacy reader, SHOULD 1; the author's P6).*;
+ * - **a lost tail** — the store without `why`'s `asked` element, resumed: the replay regenerates `why` PAST the stored
+ *   tail inside the step it replays, so it is stamped `ER_CLOCK_D` — the one place a regenerated element is past the tail
+ *   while the replay still runs (the author's provocation P6, which survived the six claims above: `confirm` is reached
+ *   after the replay ends, where `ask()` reads no replay at all).
+ *
+ * **No order across tasks is asserted**: the array forms' order is the branch-path order section 3 fixes, not a completion
+ * order, and `probe`'s four instances settle in whatever order they do.
+ */
+const ER_DEADLINE_MS = 30_000;
+const ER_ITEMS = 4;
+/** The injected clocks: A starts the failing run, B resumes it, C runs the succeeding one. */
+const ER_CLOCK_A = 1_111;
+const ER_CLOCK_B = 2_222;
+const ER_CLOCK_C = 3_333;
+/** The clock of the resume from the store that lost its tail. */
+const ER_CLOCK_D = 4_444;
+const ER_TENANT = 't-212';
+// `ErWork`: `fetch` returns `settings.items` items; `probe` throws for an odd item; `lookup` throws where the run's payload
+// says `fail`; every other call returns `{ role }`.
+const ER_WORKER = 'export default class { async setup() {} async run(p) { const s = p.settings || {}; const x = p.input || {}; ' +
+  'if (s.role === "fetch") return { items: Array.from({ length: s.items }, (_, i) => ({ i })) }; ' +
+  'if (s.role === "probe" && x.item.i % 2 === 1) throw new Error("W212: probe " + x.item.i + " failed"); ' +
+  'if (s.role === "lookup" && x.run.fail) throw new Error("W212: lookup failed for " + x.run.tenant); ' +
+  'return { role: s.role }; } }';
+const erDoc = () => ({
+  workers: { erWork: { url: rcUrl(ER_WORKER) } },
+  nodeTypes: {
+    ErThreaded: { worker: 'erWork', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    ErInline: { worker: 'erWork', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+const erFlow = (pool: 'threaded' | 'inline') => {
+  const type = pool === 'threaded' ? 'ErThreaded' : 'ErInline';
+  const once = { maxRetries: 0, backoffMs: 0 };
+  return {
+    flowId: `w212-error-${pool}`, version: 1, entry: 'fetch',
+    nodes: [
+      { id: 'fetch', kind: 'task', type, settings: { role: 'fetch', items: ER_ITEMS }, edges: [{ to: 'each' }] },
+      { id: 'each', kind: 'map', over: 'items', branch: 'probe' },
+      { id: 'probe', kind: 'task', type, optional: true, retryPolicy: once, settings: { role: 'probe' }, needs: { item: '$item' },
+        edges: [{ on: ['done', 'failed'], to: 'collect' }] },
+      { id: 'collect', kind: 'join', of: 'each', edges: [{ to: 'lookup' }] },
+      { id: 'lookup', kind: 'task', type, optional: true, retryPolicy: once, settings: { role: 'lookup' }, needs: { run: '$payload' },
+        edges: [{ on: ['failed'], to: 'why' }, { to: 'why' }] },
+      { id: 'why', kind: 'ask', needs: { err: 'lookup!error', maybe: 'lookup!error?', probes: ['probe!error'], maybeProbes: ['probe!error?'] },
+        edges: [{ to: 'confirm' }] },
+      { id: 'confirm', kind: 'ask', needs: { got: '.' }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+// **The values BY HAND**, from `ER_WORKER`'s source: the scheduler reduces a thrown `Error` to its `message`
+// (`spec/outcome-record.md`), and a `"n!error"` reference resolves to it, `null` where the output succeeded (ADR 0131 rule 3).
+const ER_LOOKUP_MESSAGE = 'W212: lookup failed for t-212';
+/** `["probe!error"]` — one per instance, in item order (section 3's branch-path order): items 1 and 3 threw. */
+const ER_PROBES = [null, 'W212: probe 1 failed', null, 'W212: probe 3 failed'];
+const ER_WHY_KEYS = ['err', 'maybe', 'maybeProbes', 'probes'];
+const ER_ANSWER = { value: 'given by a person' };
+let erBlock: { runs: string[]; flows: FlowDefinition[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const flows: FlowDefinition[] = [];
+  const r: Record<string, unknown> = {};
+  const erClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W212 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  const erAwait = async <T>(p: Promise<T>, what: string): Promise<T> => {
+    const w = await settleWithin(p, ER_DEADLINE_MS);
+    if (w.by !== 'done') throw new Error(`W212: ${what} never happened within ${ER_DEADLINE_MS} ms`);
+    return w.value;
+  };
+  /** An `asked` element of `inputs` for `taskId`, copied, or a named absence. */
+  const askedOf = (inputs: readonly FoldInput[], taskId: string) => {
+    const a = inputs.find((i) => i.kind === 'asked' && i.taskId === taskId);
+    return a === undefined ? null : structuredClone(a) as { input: Record<string, unknown>; observedAt?: number };
+  };
+  /** `lookup`'s outcome record in `inputs`: `[terminalState, error, observedAt]`, or a named absence. */
+  const recordOf = (inputs: readonly FoldInput[], taskId: string) => {
+    const o = inputs.find((i) => i.kind === 'outcome' && i.record.taskId === taskId);
+    return o === undefined || o.kind !== 'outcome' || o.record.kind !== 'outcome' ? 'NO RECORD'
+      : [o.record.terminalState, o.record.error, o.record.observedAt];
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    const flow = erFlow(pool);
+    flows.push(flow);
+    await erClause(`${pool}, the failing run on A, resumed on B`, async () => {
+      const runId = `w212f${pool[0]}`;
+      const id = (x: string) => `${runId}:${x}:0`;
+      let stored!: Checkpoint;
+      const rtA = createRuntime(erDoc() as never);
+      try {
+        let parked!: () => void;
+        const parkedP = new Promise<void>((res) => { parked = res; });
+        const h = rtA.start(flow, { tenant: ER_TENANT, fail: true }, {
+          runId, now: () => ER_CLOCK_A,
+          onFoldInput: (i) => { if (i.kind === 'asked') parked(); },
+        });
+        runs.push(`${flow.flowId} ${runId} on A`);
+        await erAwait(parkedP, `${runId}'s why parking on A`);
+        // LIVE, at the park on A.
+        const inputs = h.driver.foldInputs();
+        const asked = askedOf(inputs, id('why:-'));
+        const lookup = recordOf(inputs, id('lookup:-'));
+        const why = h.state().nodes[id('why:-')];
+        r[`error${pool}`] = asked === null ? 'NO asked ELEMENT'
+          : [Object.keys(asked.input).sort(), asked.input.err, asked.input.maybe, lookup];
+        r[`arrayF${pool}`] = asked === null ? 'NO asked ELEMENT' : [asked.input.probes, asked.input.maybeProbes];
+        r[`live${pool}`] = [asked?.observedAt ?? 'NO observedAt', why?.state ?? 'NO ENTRY', why?.askedAt ?? 'NO askedAt',
+          typeof lookup === 'string' ? lookup : lookup[2]];
+        // What a store keeps — the header and the events, through JSON.
+        stored = JSON.parse(JSON.stringify(h.driver.checkpoint())) as Checkpoint;
+      } finally {
+        await rtA.shutdown();
+      }
+      // ---- from here runtime A is GONE: the run lives only in what a store kept ----
+      const rtB = createRuntime(erDoc() as never);
+      try {
+        let confirmAsked!: () => void;
+        const confirmP = new Promise<void>((res) => { confirmAsked = res; });
+        const h2 = rtB.resume(flow, stored, {
+          now: () => ER_CLOCK_B,
+          onFoldInput: (i) => { if (i.kind === 'asked' && i.taskId === id('confirm:-')) confirmAsked(); },
+        });
+        runs.push(`${flow.flowId} ${runId} resumed on B`);
+        const why = h2.state().nodes[id('why:-')];
+        r[`resumed${pool}`] = [h2.outcome(), why?.state ?? 'NO ENTRY', why?.askedAt ?? 'NO askedAt',
+          askedOf(h2.driver.checkpoint().events, id('why:-'))?.observedAt ?? 'NO observedAt'];
+        if (!h2.driver.resolve(id('why:-'), 'done', { result: ER_ANSWER, actor: 'w212-person' })) throw new Error('W212: why`s answer was refused on B');
+        await erAwait(confirmP, `${runId}'s confirm parking on B`);
+        const confirm = h2.state().nodes[id('confirm:-')];
+        const past = [askedOf(h2.driver.foldInputs(), id('confirm:-'))?.observedAt ?? 'NO observedAt', confirm?.askedAt ?? 'NO askedAt',
+          h2.state().nodes[id('why:-')]?.askedAt ?? 'NO askedAt'];
+        if (!h2.driver.resolve(id('confirm:-'), 'done', { result: { confirmed: true }, actor: 'w212-person' })) throw new Error('W212: confirm`s answer was refused on B');
+        const won = await settleWithin(h2.done, ER_DEADLINE_MS);
+        r[`past${pool}`] = [...past, won.by === 'done' ? won.value.outcome : 'NEVER SETTLED'];
+      } finally {
+        await rtB.shutdown();
+      }
+      // ---- a LOST TAIL (RN-R24): the same store without its last element, on a third fresh runtime ----
+      const last = stored.events[stored.events.length - 1];
+      const lost = { header: stored.header, events: stored.events.slice(0, -1) } as Checkpoint;
+      const rtD = createRuntime(erDoc() as never);
+      try {
+        const h3 = rtD.resume(flow, lost, { now: () => ER_CLOCK_D });
+        runs.push(`${flow.flowId} ${runId} resumed on D from a lost tail`);
+        const why = h3.state().nodes[id('why:-')];
+        // The PREMISE first: what was lost IS why's asked element, so the replay must regenerate it past the tail.
+        r[`lost${pool}`] = [last?.kind === 'asked' && last.taskId === id('why:-'), h3.outcome(), why?.state ?? 'NO ENTRY',
+          why?.askedAt ?? 'NO askedAt', askedOf(h3.driver.checkpoint().events, id('why:-'))?.observedAt ?? 'NO observedAt'];
+      } finally {
+        await rtD.shutdown();
+      }
+    });
+    await erClause(`${pool}, the succeeding run`, async () => {
+      const runId = `w212s${pool[0]}`;
+      const id = (x: string) => `${runId}:${x}:0`;
+      const rt = createRuntime(erDoc() as never);
+      try {
+        let parked!: () => void;
+        const parkedP = new Promise<void>((res) => { parked = res; });
+        let confirmAsked!: () => void;
+        const confirmP = new Promise<void>((res) => { confirmAsked = res; });
+        const h = rt.start(flow, { tenant: ER_TENANT, fail: false }, {
+          runId, now: () => ER_CLOCK_C,
+          onFoldInput: (i) => {
+            if (i.kind === 'asked' && i.taskId === id('why:-')) parked();
+            if (i.kind === 'asked' && i.taskId === id('confirm:-')) confirmAsked();
+          },
+        });
+        runs.push(`${flow.flowId} ${runId}`);
+        await erAwait(parkedP, `${runId}'s why parking`);
+        const inputs = h.driver.foldInputs();
+        const asked = askedOf(inputs, id('why:-'));
+        r[`null${pool}`] = asked === null ? 'NO asked ELEMENT'
+          : [Object.keys(asked.input).sort(), asked.input.err, asked.input.maybe, recordOf(inputs, id('lookup:-'))];
+        r[`arrayS${pool}`] = asked === null ? 'NO asked ELEMENT' : [asked.input.probes, asked.input.maybeProbes];
+        // Run to its end, so the runtime is shut down with nothing parked.
+        if (!h.driver.resolve(id('why:-'), 'done', { result: ER_ANSWER, actor: 'w212-person' })) throw new Error('W212: why`s answer was refused');
+        await erAwait(confirmP, `${runId}'s confirm parking`);
+        if (!h.driver.resolve(id('confirm:-'), 'done', { result: { confirmed: true }, actor: 'w212-person' })) throw new Error('W212: confirm`s answer was refused');
+        const won = await settleWithin(h.done, ER_DEADLINE_MS);
+        if (won.by !== 'done' || won.value.outcome !== 'completed') throw new Error(`W212: ${runId} did not complete`);
+      } finally {
+        await rt.shutdown();
+      }
+    });
+  }
+  erBlock = { runs, flows, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W212 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (erBlock !== null) {
+  const key = 'cross-row';
+  const r = erBlock.r;
+  for (const pool of ['threaded', 'inline'] as const) {
+    check(key, `W212 exit (${pool}): the ERROR — after lookup's failure edge, why's asked input carries lookup's thrown message BY HAND in ` +
+      'the bare and the ? forms, and lookup`s outcome record is failed with that error, under clock A', r[`error${pool}`],
+    [ER_WHY_KEYS, ER_LOOKUP_MESSAGE, ER_LOOKUP_MESSAGE, ['failed', ER_LOOKUP_MESSAGE, ER_CLOCK_A]]);
+    check(key, `W212 exit (${pool}): the CONTROL — the same ask after a SUCCEEDING lookup carries null in both forms, the ? form's key present, ` +
+      'and lookup`s record is done with no error, under clock C', r[`null${pool}`],
+    [ER_WHY_KEYS, null, null, ['done', null, ER_CLOCK_C]]);
+    check(key, `W212 exit (${pool}): the ARRAY forms — ["probe!error"] and ["probe!error?"] are one per map instance in item order, ` +
+      'null where probe succeeded and its own message at items 1 and 3, on the failing run and on the succeeding one',
+    [r[`arrayF${pool}`], r[`arrayS${pool}`]], [[ER_PROBES, ER_PROBES], [ER_PROBES, ER_PROBES]]);
+    check(key, `W212 exit (${pool}): LIVE — on A, why's asked element carries observedAt clock A, why is suspended with askedAt clock A, ` +
+      'and lookup`s outcome record the same clock (the driver`s now)', r[`live${pool}`], [ER_CLOCK_A, 'suspended', ER_CLOCK_A, ER_CLOCK_A]);
+    check(key, `W212 exit (${pool}): RESUMED — on a fresh runtime B under clock B, once A is shut down, the run resumes (not refused) and ` +
+      'why`s askedAt in B`s state and its asked element in B`s checkpoint are clock A, the ORIGINAL', r[`resumed${pool}`],
+    // `awaiting_action`: a node suspended and nothing has resolved it (`spec/run-state.md` section 4, `RN-R7`).
+    ['awaiting_action', 'suspended', ER_CLOCK_A, ER_CLOCK_A]);
+    check(key, `W212 exit (${pool}): PAST THE TAIL — the CONTROL: confirm, asked LIVE on B once the replay has ended, carries observedAt and askedAt clock B, ` +
+      'why keeps clock A through its answer, and the run completes', r[`past${pool}`], [ER_CLOCK_B, ER_CLOCK_B, ER_CLOCK_A, 'completed']);
+    check(key, `W212 exit (${pool}): a LOST TAIL — the store without why's asked element (its last), resumed on a fresh runtime under clock D: ` +
+      'the replay regenerates why PAST the stored tail, stamped clock D, in the state and the checkpoint', r[`lost${pool}`],
+    [true, 'awaiting_action', 'suspended', ER_CLOCK_D, ER_CLOCK_D]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -13714,7 +13980,9 @@ if (inBlock !== null) {
 // **And `+ inBlock.runs.length` since W206**: its FOUR runs — per pool, threaded and inline, the handed-input flow run to the
 // end (its ask answered) and the same flow whose predicate throws for item 5 (it halts). Every reading replays on a driver of
 // its own, deaf, and hands nothing to a scheduler: a reading is not a run.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0);
+// **And `+ erBlock.runs.length` since W212**: its EIGHT runs — per pool, threaded and inline, the failing run started on A,
+// its resume on a fresh B, its lost tail's resume on a fresh D, and the succeeding run.
+const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -14070,7 +14338,10 @@ const PER_PLAIN_ROW = 22;
 // **498 at W203, +16 by W206 — P42's EXIT ARTIFACT clause (3)**: the handed-input block's sixteen clauses — per pool,
 // threaded and inline, the live reading, the stored reading, the ends, the gate, the join, the ask, the halted run and the
 // changed registry — all cross-row because the block is outside the row loop. 498 + 16 = 514.
-const CROSS_ROW = 514;
+// **514 at W206, +14 by W212 — P43's EXIT ARTIFACT clause (3)**: the error-and-time block's fourteen clauses — per pool,
+// threaded and inline, the error, its control on a succeeding run, the array forms, the live time, the resumed time, the
+// time past the tail and a lost tail's — all cross-row because the block is outside the row loop. 514 + 14 = 528.
+const CROSS_ROW = 528;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -14232,7 +14503,7 @@ if (rowCosts.length !== EXPECTED.length) {
   // `"$payload"` or a `"$item"` runs at L6 (W182's every-kind clause reads its block's flows the same way). Read only
   // because the block RECORDED each as it started it, so a block that crashed first leaves its forms uncounted and the
   // clauses below name them.
-  for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? [])]) {
+  for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? []), ...(erBlock?.flows ?? [])]) {
     for (const n of definition.nodes) {
       const sites = [(n as { needs?: Record<string, unknown> }).needs,
         ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
@@ -14272,16 +14543,17 @@ if (rowCosts.length !== EXPECTED.length) {
   // against it. The claim is corrected rather than the bound removed, because the
   // bound is right for the reason that survives.
   check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
-    [...forms].length + NOT_YET_AT_L6.length, referenceFormsInSpec());
-  // And WHICH six, so a seventh bucket appearing is a finding rather than a silently
+    [...forms].length, referenceFormsInSpec());
+  // And WHICH seven (six until v0.49's `!error` row), so an eighth bucket appearing is a finding rather than a silently
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
-  check('cross-row', 'and they are the table`s rows, not six of something else — `payload` since v0.44 (W190) and `item` since v0.45 (W191), run since W192',
-    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'error', 'item', 'one', 'payload', 'self', 'suffix']);
+  check('cross-row', 'and they are the table`s rows, not seven of something else — `payload` since v0.44 (W190) and `item` since v0.45 (W191), run since W192; `error` since v0.49 (W209), run since W212',
+    [...forms].sort(), ['all', 'error', 'item', 'one', 'payload', 'self', 'suffix']);
   // **`NOT_YET_AT_L6` is GONE — W192.** W190 named `"$payload"`'s row there and W191 `"$item"`'s, each held both ways by the
   // two clauses above (the count added the list, the set compared the concatenation, so a form L6 started running while still
   // listed appeared twice), because no L6 run named either until P38's exit artifact. W192's block runs both — on nodes and
-  // on edges — and the clauses read its flows, so nothing is subtracted and nothing is exempt.
+  // on edges — and the clauses read its flows, so nothing is subtracted and nothing is exempt. **And GONE AGAIN — W212**: W209
+  // named the `!error` row there (`'error'`), and P43's exit artifact runs it, all four spellings on `why`'s `needs`.
 
   /**
    * **`FD-V29`'s REFUSAL, made observable at L6 — W47, and it is this item's
@@ -14392,7 +14664,7 @@ if (rowCosts.length !== EXPECTED.length) {
   {
     const l6Spellings = new Set<string>();
     // EXPECTED's flows and the flows W192's block STARTED — the `forms` census's two sources above.
-    for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? [])]) {
+    for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? []), ...(erBlock?.flows ?? [])]) {
       for (const n of definition.nodes) {
         const sites = [(n as { needs?: Record<string, unknown> }).needs,
           ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
@@ -14400,19 +14672,22 @@ if (rowCosts.length !== EXPECTED.length) {
       }
     }
     // **Derived from the ROW count rather than from a literal `5`**, and it says the
-    // structural thing: exactly one of the table's rows carries two spellings, which
-    // is what *`?` is a modifier* means in the table rather than in the prose.
-    // Over the rows L6 runs: `NOT_YET_AT_L6`'s row and its spellings (W209's `!error`, four) are set aside on both sides.
-    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC.filter((s) => !exemptSpelling(s));
-    check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows — `?` is a modifier',
-      runSpellings.length, referenceFormsInSpec() - NOT_YET_AT_L6.length + 1);
+    // structural thing: the `?` row carries two spellings, which is what *`?` is a
+    // modifier* means in the table rather than in the prose. *(Until v0.49 it was the ONE
+    // such row, and this comment said so in the present tense until W212's conformity reader.)*
+    // **Since v0.49 (W209) a SECOND row carries more than one spelling**: the `!error` row names FOUR — the part on each of
+    // the plain row's and the `?` row's — so `+ 1` for the `?` modifier and `+ 3` for the `!error` row. Set aside on both
+    // sides from W209 to W212 (`NOT_YET_AT_L6`); compared whole since W212, whose block runs all four.
+    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC;
+    check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows for the `?` modifier, and three more for the `!error` row`s four',
+      runSpellings.length, referenceFormsInSpec() + 1 + 3);
     assertThat('cross-row', 'and the conditional ARRAY spelling is one the table actually NAMES, ' +
       'so the set equality below is over every spelling and not one fewer',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
       `the table names: ${REFERENCE_SPELLINGS_IN_SPEC.join(', ')}`);
     // **Nothing beside them since W192**: `"$payload"` (W190) and `"$item"` (W191) were the table's and no L6 run's, named in
-    // `NOT_YET_AT_L6` until P38's exit artifact ran both.
-    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — and the two `$` references, since W192',
+    // `NOT_YET_AT_L6` until P38's exit artifact ran both; the `!error` row's four (W209) until P43's (W212).
+    check('cross-row', 'and L6 runs every one of them, the conditional ARRAY form included — and the two `$` references, since W192; the four `!error` spellings since W212',
       [...l6Spellings].sort(), runSpellings);
     // **And that the fifth one's `?` is LOAD-BEARING where L6 runs it**, which is
     // what stops it being a spelling somebody wrote for the sake of the count:
@@ -16309,14 +16584,18 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2847 / 238 since W206 — P42's EXIT ARTIFACT clause (3), +16 and four runs**, DERIVED at the declaration: the
 // handed-input block's sixteen cross-row assertions (`CROSS_ROW` 498 -> 514) over its four runs. No row moved (P42
 // prediction 6).
-const DECLARED_TOTAL = 2847;
+// **2861 / 246 since W212 — P43's EXIT ARTIFACT clause (3), +14 and eight runs**, DERIVED: the error-and-time block's
+// fourteen cross-row assertions (`CROSS_ROW` 514 -> 528) over its eight runs (2859 / 244 before the lost tail's claim and
+// run, which the author's provocation P6 earned); removing `NOT_YET_AT_L6`
+// added and removed no assertion. No row moved (P43 prediction 7).
+const DECLARED_TOTAL = 2861;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 238;
+const DECLARED_RUNS = 246;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
