@@ -13,7 +13,7 @@
 // **`CHECK_SPEC_DIR` points every check at a copy of `spec/`**, which is how
 // `--self-test` builds the invalid `spec/` this repository does not contain without
 // writing a byte into the real one. Every path below derives from `SPEC`, so one
-// override reaches `C1`-`C8`; `rel()` still resolves against `ROOT`, because it only
+// override reaches `C1`-`C9`; `rel()` still resolves against `ROOT`, because it only
 // ever labels a message. It exists for the self-test and for nothing else, on the
 // pattern of `CHECK_SOURCE_PKG` and `CHECK_SCHEDULER_DTS`.
 //
@@ -409,6 +409,79 @@ if (existsSync(README)) {
   }
 }
 
+// --- C9: every corpus file a rule row cites EXISTS -----------------------------
+// **W223, P45 (h1)** — P44's retro (a), from W216's adequacy reader's S1: W216 renamed an FD-V40
+// case, the reader restored the OLD name in the FD-V40 row, and every check stayed green. `C3`/`C4`
+// read the corpus DIRECTORY and `C5` reads LINKS; a citation in a code span was read by nothing.
+//
+// **What is read: every row `RULE_ROW` declares, all nine prefixes** — the plan row says *a refusal
+// row*, and an `FD-C`/`FD-R`/`RN-R` row's citation goes stale the same way (W223's Scope 1). Three
+// spellings were MEASURED in those rows at `b7f9031` (W223's M2) and each resolves differently:
+//   full     `spec/examples/<dir>/<name>`  — against the spec root, as written
+//   bare     `<name>.flow.json` AFTER a full `.flow.json` citation in the same row — against that
+//            citation's directory: the *"Cases: `spec/examples/invalid/A`, `B`, `C`"* spelling
+//   bare     with no full `.flow.json` citation before it in the row — against the corpus
+//            directories, resolving if any one of them holds it
+// A full span need not be a file: RN-R2's `spec/examples/valid/` is a DIRECTORY and is resolved the
+// same way (W223's conformity reader, NIT 2). A non-corpus `.json` (`deno.json`, `tsconfig.*.json`,
+// `examples/deno-import-map.json` in `RT-R` rows) is none of these and is not read.
+//
+// **And a corpus spelling C9 cannot resolve is REFUSED rather than skipped** (W223's adequacy reader,
+// finding 7): a span ending `.flow.json`, or naming `examples/{valid,invalid,wiring}/`, that is
+// neither full nor bare — `invalid/X.flow.json`, `./spec/examples/…` — would otherwise pass in
+// silence. A bare corpus `.json` that is not `.flow.json` (`registry.json`, in two directories) is
+// not read; none occurs in a rule row (W223's Out).
+//
+// **A FORMER name is not a citation**: a span immediately preceded by `until vN.N` is the history of
+// a rename — `FD-V40`'s *"(until v0.53 `FD-V40--gate-key-path-with-an-index.flow.json`, …)"*, the one
+// unresolved span on the tree this was written on — and is not resolved. Prose outside rule rows is
+// NOT read (W223's Out: the bare names there mix `spec/examples/` and `examples/flows/`, no directory
+// written to tell them apart).
+{
+  const EXAMPLES = join(SPEC, 'examples');
+  const CORPUS_DIRS = existsSync(EXAMPLES)
+    ? readdirSync(EXAMPLES).filter((d) => statSync(join(EXAMPLES, d)).isDirectory())
+    : [];
+  const FORMER = /until v\d+\.\d+\s*$/;
+  const PARTIAL = /\.flow\.json$|(^|\/)examples\/(valid|invalid|wiring)\//;
+  let resolvedCount = 0, formerCount = 0;
+  for (const p of mdFiles) {
+    for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
+      const row = RULE_ROW.exec(line);
+      if (!row) continue;
+      let dir = null; // the directory of the nearest full `.flow.json` citation before this span
+      for (const m of line.matchAll(/`([^`\n]+)`/g)) {
+        const s = m[1];
+        const full = s.startsWith('spec/examples/');
+        const bare = /^[\w.-]+\.flow\.json$/.test(s);
+        if (!full && !bare) {
+          if (PARTIAL.test(s)) fail('C9', `${row[1]}'s row in ${rel(p)} cites \`${s}\`, a corpus spelling C9 cannot resolve — write spec/examples/<dir>/<name> or a bare <name>.flow.json`);
+          continue;
+        }
+        if (FORMER.test(line.slice(0, m.index))) { formerCount++; continue; }
+        let where, ok;
+        if (full) {
+          where = join(SPEC, s.slice('spec/'.length));
+          ok = existsSync(where);
+          if (s.endsWith('.flow.json')) dir = dirname(where);
+        } else if (dir !== null) {
+          where = join(dir, s);
+          ok = existsSync(where);
+        } else {
+          where = join(EXAMPLES, `{${CORPUS_DIRS.join(',')}}`, s);
+          ok = CORPUS_DIRS.some((d) => existsSync(join(EXAMPLES, d, s)));
+        }
+        if (ok) resolvedCount++;
+        else fail('C9', `${row[1]}'s row in ${rel(p)} cites \`${s}\`, and ${rel(where)} does not exist`);
+      }
+    }
+  }
+  notes.push(
+    `C9 resolved ${resolvedCount} corpus citation(s) in rule rows, and skipped ${formerCount} marked ` +
+    '"until vN.N" as a former name.',
+  );
+}
+
 // --- C5: every relative link inside spec/ resolves ----------------------------
 // **LIFTED to `scripts/check-markdown.mjs` by W25, and the id stays.** `C5` has done
 // this for `spec/` since W1 and `doc/` had nothing; the two are one comparison, so
@@ -430,7 +503,8 @@ const checks = ['C1 examples parse', 'C2 rule ids unique', 'C3 invalid examples 
                 'C4 every definition refusal has a case', 'C5 links resolve',
                 'C6 every other rule names a test owner',
                 'C7 valid corpus resolves against registry.json',
-                'C8 README version column matches each document'];
+                'C8 README version column matches each document',
+                'C9 every corpus file a rule row cites exists'];
 console.log(`spec check — ${mdFiles.length} documents, ${jsonFiles.length} examples, ${declared.size} rules\n`);
 for (const c of checks) {
   // **The id is the first word, not the first two characters** — the exact
