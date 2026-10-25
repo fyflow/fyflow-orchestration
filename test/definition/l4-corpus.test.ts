@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W221 — P45 (a1), (b1), (g1), decisions 2-8, ADR 0140: a comparison's `valueFrom` — L1 in
+  // `test/definition/value-from.test.ts`, L2 in `test/driver/value-from.test.ts`; both counted below.
+  'L1 — W221, P45 (a1) (b1) (g1): a comparison`s valueFrom — exactly one right side, FD-V43 on both keys, the needs a path names declared, compared as a literal, absent no match',
+  'L2 — W221, P45 (a1) (b1): a comparison`s valueFrom routes a run — pass 6`s size against its limit both ways, an if on input.a against input.b, no predicate registered',
   // W220 — P45 (c1), decision 1: the key path reader (`keyPathSteps`, `KeyPathStep`, `readKeyPath`, `KEY_PATH_RE`,
   // `PREDICATE_ROOTS`) from the root entry — L1 in `test/definition/key-path-reader.test.ts`, its cases held by its
   // own `DECLARED_CASES` and counted below.
@@ -1048,6 +1052,15 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W209's two suites, counted the same way and for the same reason.**
   // **W220's suite, counted the same way and for the same reason** — its adequacy reader's D4b, D4c and D5: a case
   // deleted WITH its `DECLARED_CASES` line, or the suite emptied at load, left `npm test` at exit 0 before this count.
+  // **W221's two suites, counted the same way and for the same reason** — W220's adequacy reader's D4b/D4c/D5 class: a
+  // case deleted WITH its `DECLARED_CASES` line, or a suite emptied at load, leaves `npm test` at exit 0 without a count.
+  test('W221`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1 — W221, P45 (a1) (b1) (g1): a comparison`s valueFrom — exactly one right side, FD-V43 on both keys, the needs a path names declared, compared as a literal, absent no match'), 11,
+      'test/definition/value-from.test.ts registers its eleven: exactly one side, FD-V43 on valueFrom, the literal clauses, (g1), the evaluator, objects, absent, the if, the schema, the corpus file, and the membership');
+    equal(count('L2 — W221, P45 (a1) (b1): a comparison`s valueFrom routes a run — pass 6`s size against its limit both ways, an if on input.a against input.b, no predicate registered'), 4,
+      'test/driver/value-from.test.ts registers its four: pass 6 both ways, an absent valueFrom, the if, and the membership');
+  });
   test('W220`s suite still REGISTERS the five cases it declares — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L1 — W220, P45 (c1): the key path reader from the root entry — keyPathSteps, KeyPathStep, readKeyPath, KEY_PATH_RE and PREDICATE_ROOTS'), 5,

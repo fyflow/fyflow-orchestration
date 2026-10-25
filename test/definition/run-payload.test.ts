@@ -126,7 +126,9 @@ suite(SUITE, (test) => {
     // positions are in NO map instance, so the refusal is now the AIM rule's, FD-V49 — and FD-V26 is silent.
     const node = findingsOf(atNode({ item: '$item' }));
     equal(node.map((f) => f.rule), ['FD-V49'], 'at a node outside any map instance: FD-V49, never FD-V26');
-    const edge = findingsOf(atEdge({ item: '$item' }));
+    // `run` declared too (v0.55, W221, P45 (g1)): `atEdge`'s comparison reads `needs.run`, and an undeclared `needs` key is
+    // FD-V43 — so the edge declares what its comparison reads, and this case still asks about `"$item"` alone.
+    const edge = findingsOf(atEdge({ item: '$item', run: '$payload' }));
     equal(edge.map((f) => f.rule), ['FD-V49'], 'at an edge outside any map instance: FD-V49');
     ok(edge[0]!.detail.startsWith('edge needs["item"]'), `the edge's own wording — got ${edge[0]!.detail}`);
     // Inside a map instance it is LEGAL (W191's L1 suite holds every site; this is the one W190 refused).

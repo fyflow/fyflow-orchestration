@@ -1,0 +1,13 @@
+{
+  "flowId": "a-comparison-with-value-and-value-from",
+  "version": 1,
+  "entry": "score",
+  "nodes": [
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "path": "outcome.result.score", "op": "gte", "value": 50, "valueFrom": "outcome.result.threshold" }, "to": "review" },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

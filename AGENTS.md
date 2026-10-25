@@ -895,14 +895,14 @@ a flow document can say what a branch depends on without any code at all, which 
 an agent emit a complete flow. A name still works and is what a predicate that COMPUTES uses.
 
 ```ts run
-import { validateDefinition, type FlowDefinition } from 'fyflow-orchestration';
+import { evaluateWhen, validateDefinition, type FlowDefinition, type When } from 'fyflow-orchestration';
 
 // A `when` is EXACTLY ONE of three shapes, told apart by which keys it carries.
 const flow: FlowDefinition = {
   flowId: 'declared', version: 1, entry: 'score',
   nodes: [
     { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-      // 1. a COMPARISON — a key path over the context, an operator, a literal.
+      // 1. a COMPARISON — a key path over the context, an operator, a literal (or `valueFrom`, below).
       { when: { path: 'outcome.result.confidence', op: 'lt', value: 0.5 }, to: 'review' },
       // 2. a flat GROUP — `all` or `any`, whose members are comparisons.
       { when: { any: [
@@ -941,15 +941,40 @@ if (refuse({ path: 'result.confidence', op: 'lt', value: 0.5 })[0] !== 'FD-V43')
 if (refuse({ path: 'outcome.result.name', op: 'matches', value: '^a' })[0] !== 'FD-V44') throw new Error('an unknown operator is FD-V44');
 // FD-V45 — a group is FLAT, and a member naming a registered predicate could be IMPURE.
 if (refuse({ all: [{ any: [{ path: 'outcome.result.a', op: 'eq', value: 1 }] }] })[0] !== 'FD-V45') throw new Error('nesting is FD-V45');
+
+// `valueFrom` (since 0.13.0) — compare against ANOTHER key path over the same context, in place of `value`.
+// Exactly one of the two: both, or neither, is FD-V42. It takes the same roots as `path` (FD-V43).
+if (refuse({ path: 'outcome.result.score', op: 'gte', valueFrom: 'outcome.result.threshold' }).length !== 0) throw new Error('valueFrom alone is valid');
+if (refuse({ path: 'outcome.result.score', op: 'gte', value: 50, valueFrom: 'outcome.result.threshold' })[0] !== 'FD-V42') throw new Error('both is FD-V42');
+if (refuse({ path: 'outcome.result.score', op: 'gte', valueFrom: 'result.threshold' })[0] !== 'FD-V43') throw new Error('a rootless valueFrom is FD-V43');
+// A `needs` path — on either side — reads a key THIS EDGE's `needs` declares; `refuse`'s edge declares none, so FD-V43.
+if (refuse({ path: 'outcome.result.size', op: 'lte', valueFrom: 'needs.limit.max' })[0] !== 'FD-V43') throw new Error('an undeclared needs key is FD-V43');
+
+// What it resolves to is compared as a literal would be — and an ABSENT one is NO MATCH for every operator,
+// so `x gt y` and `x lte y` are BOTH false where `y` is absent. No `default` stands in for it: that is the left's.
+const ask = (when: When, result: unknown) => evaluateWhen(when, { outcome: { result } as never, needs: {} }, new Map());
+const gt: When = { path: 'outcome.result.x', op: 'gt', valueFrom: 'outcome.result.y' };
+const lte: When = { path: 'outcome.result.x', op: 'lte', valueFrom: 'outcome.result.y' };
+if (!ask(gt, { x: 5, y: 3 }) || ask(lte, { x: 5, y: 3 })) throw new Error('5 gt 3, and not 5 lte 3');
+if (ask(gt, { x: 5 }) || ask(lte, { x: 5 })) throw new Error('y absent: both are false');
+// A resolved object or array is no match too, `ne` included — `!==` would have said true.
+if (ask({ path: 'outcome.result.x', op: 'ne', valueFrom: 'outcome.result.y' }, { x: 5, y: { v: 5 } })) throw new Error('ne against an object is no match');
 ```
 
 | | |
 |---|---|
-| `path` | a key path over the context, **rooted at `outcome` or `needs`** — `outcome.result.x`, `outcome.taskId`, `needs.earlier.flag`, and an array element by a bracket index after a key, `outcome.result.items[0].score` (never on the root). No wildcard, no expression |
+| `path` | a key path over the context, **rooted at `outcome` or `needs`** — `outcome.result.x`, `outcome.taskId`, `needs.earlier.flag`, and an array element by a bracket index after a key, `outcome.result.items[0].score` (never on the root). No wildcard, no expression. **A `needs` path names a key THIS EDGE's `needs` declares** (since 0.13.0, `FD-V43`): any other would be absent for ever |
 | `op` | one of `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `startsWith`, and **nothing else** |
-| `value` | a scalar: `null`, a boolean, a finite number or a string |
+| `value` | a scalar: `null`, a boolean, a finite number or a string. **Exactly one of `value` and `valueFrom`** (`FD-V42`) |
+| `valueFrom` | since 0.13.0, in place of `value` — **another key path over the same context**, held to everything `path` is; what it resolves to is compared as a literal would be. **No match where it does not resolve, or resolves to an object or an array** |
 | `default` | optional — what is compared when the path does not resolve **or resolves to `null`**, which is exactly `??`. Without it an absent path is **no match**, and a resolved `null` is compared as the scalar it is |
 | `length` | optional `true` — compare the LENGTH of an array or a string, after `default` |
+
+**The type moved with it, in 0.13.0.** `PredicateLeaf` is a two-member union — `{ value, valueFrom?: never }` or
+`{ valueFrom, value?: never }` over the shared `PredicateLeafBase` — so a comparison with both, or neither, fails to
+compile, and code READING `leaf.value` now sees `PredicateScalar | undefined`: tell the two apart by `'valueFrom' in leaf`.
+`PREDICATE_LEAF_KEYS` gained `valueFrom` and `PREDICATE_LEAF_REQUIRED` lost `value`; `predicateProblem(when, edgeNeeds?)`
+takes the keys an edge's `needs` declares, and asks the `needs` rule only when given them.
 
 **Three things to know before you write one.**
 **A comparison between kinds is no match, never a coercion** — `{ op: 'lt', value: 50 }` is false
@@ -961,6 +986,10 @@ holding `null` as well as a missing one.
 that holds over NUMBERS, and over an absent path where you declared a `default`. Over a value an
 ordering operator cannot compare, a string or a boolean, **both it and its complement are false**.
 `startsWith` has no complement here at all.
+**An absent `valueFrom` is no match for every operator, and nothing makes it otherwise** — `default` and `length`
+are the LEFT side's, and there is no `valueDefault`. So `x gt y` and `x lte y` are BOTH false where `y` is
+absent: route the absent case by its own edge if it matters. And a `valueFrom` resolving to an object or an
+array is no match even for `ne`, where an object on the LEFT with `ne` is still true — the left side is 0.12.0's.
 **A declared predicate CANNOT be impure.** There is no clock, no random source and no way to name
 anything but the context, so re-evaluating it over the same log gives the same answer. A registered
 name has no such guarantee — which is the trade, and why a regular expression, a date window or a
@@ -1111,7 +1140,7 @@ differently from a run.
 | `KEY_PATH_RE` | the GRAMMAR (`spec/flow-definition.md` section 2's KEY PATH): dot-separated object keys, each `[A-Za-z0-9_-]{1,64}` optionally followed by array indexes `[n]` — `n` is `0` or a number with no leading zero, at most 999,999,999 — never an index leading the path; no quoted key, no wildcard, no expression. A gate's `key` is refused `FD-V40` outside it |
 | `keyPathSteps(path)` | the PARSE: a path's steps in order, each `{ key }` or `{ index }` — that union is `KeyPathStep`. **Total**: any string has steps, and a segment the grammar does not spell is ONE literal key (`files[*]` is a key named `files[*]`), so test the path with `KEY_PATH_RE` first |
 | `readKeyPath(value, path)` | the READ: a KEY step is an OWN key of a PLAIN object, an INDEX step an own element of a REAL array; anything else — a missing key, `null`, an array under a key step, a class instance, a hole — is `undefined`. **A plain numeric segment is a KEY**: `xs.1` is nothing over an array, `xs[1]` is its element. The value at the end is returned whatever it is |
-| `PREDICATE_ROOTS` | a task's or a join's edge comparison's two ROOTS, `outcome` and `needs` (`FD-V43`): the first key of its `path`, read up to the first `.` or `[`; never indexed, never alone. **An `if` gate's one root, `input`, is not a public name** — section 19 |
+| `PREDICATE_ROOTS` | a task's or a join's edge comparison's two ROOTS, `outcome` and `needs` (`FD-V43`): the first key of its `path` (and of a `valueFrom`), read up to the first `.` or `[`; never indexed, never alone. **An `if` gate's one root, `input`, is not a public name** — section 19 |
 
 ```ts run
 import { KEY_PATH_RE, keyPathSteps, PREDICATE_ROOTS, readKeyPath, type KeyPathStep } from 'fyflow-orchestration';
@@ -1135,10 +1164,12 @@ for (const bad of ['files[*].name', 'xs[01]', '[0].x', 'a..b']) {
 const first = keyPathSteps('files[*].name')[0]!;
 if (!('key' in first) || first.key !== 'files[*]') throw new Error('an unspelled segment is one literal key');
 
-// A comparison's path on an edge: a key path whose first key is a root, with a key after it.
+// A comparison's path on an edge: a key path whose first key is a root, with a key after it. NECESSARY, not
+// sufficient: FD-V43 also holds a `needs.X` path to an X the edge's own `needs` declares (since 0.13.0), which
+// these names cannot see — `validateDefinition` is the authority on a whole flow.
 const edgePath = (p: string) => KEY_PATH_RE.test(p) && (PREDICATE_ROOTS as readonly string[]).includes(p.split(/[.[]/)[0]!) && /^[A-Za-z0-9_-]+\./.test(p);
 if (!edgePath('outcome.result.files[0].size') || edgePath('result.size') || edgePath('outcome[0].x') || edgePath('needs')) {
-  throw new Error('the roots, as FD-V43 reads them');
+  throw new Error('the grammar and the roots, as FD-V43 reads them on a path alone');
 }
 ```
 
@@ -5438,7 +5469,7 @@ registered:
 |---|---|---|
 | **settings** | `{ when }` — a comparison or a flat `all`/`any` group, section 4's grammar, whose paths start at **`input`**: the value that reached the gate | `{ key, cases }` — `key` a key path as `distinct`'s, `cases` a map from a CASE NAME to a scalar or a non-empty array of scalars |
 | **routes** | `then`, and `else` — the DEFAULT, so an edge with no `route` is the fallback | every case name, then `default` — the DEFAULT. So a case left unwired is refused at load, NAMING the case (`FD-V41`) |
-| **matches** | `when` holds over `{ input }`, by the evaluator a task edge's `when` uses — the same operators, absent rule, `default` and `length` | the case one of whose values is `===` the resolved key: `"1"` and `1` are two values, and a value in two cases is refused at load |
+| **matches** | `when` holds over `{ input }`, by the evaluator a task edge's `when` uses — the same operators, absent rule, `default` and `length`, and since 0.13.0 a `valueFrom` over `input` too (`input.a` `lt` `valueFrom: "input.b"`; `input.b` absent is no match, so `else`) | the case one of whose values is `===` the resolved key: `"1"` and `1` are two values, and a value in two cases is refused at load |
 | **refused at load (`FD-V40`)** | a registered predicate NAME (a gate has no outcome to hand it), a root other than `input` — or `input` alone — and every `when` defect section 4 refuses, named | a case named `default` or outside the route charset, a value that is not a scalar, an empty array, a value in two cases or twice in one, an empty `cases` |
 
 - **Neither reads the gate's memory**: two branches with one key take the same route at a `switch`, where
@@ -5691,8 +5722,9 @@ is underneath it.**
    library's own sub-path — `import { jsonata } from 'fyflow-orchestration/jsonata'` — so it is one
    import and one object entry with no logic in it, but it is not nothing and it is not a domain
    worker. **A flow that only SELECTS needs no adapter; a flow that COMPUTES does.**
-2. **A comparison reads ONE path and compares it to ONE literal.** It cannot name a second path and
-   it cannot do arithmetic, so *is the mean below the threshold this run carries* is not a comparison.
+2. **A comparison reads ONE path and compares it to ONE literal — or, since 0.13.0, to ONE other path
+   (`valueFrom`).** It cannot do arithmetic, so *is the threshold this run carries* is a comparison now
+   (`valueFrom: "needs.cfg.threshold"`, the edge declaring `cfg`) and *is the MEAN below it* is not.
    **The route around it is data**: a tier-three `Transform` node computes the answer and the `when`
    reads `outcome.result.<field>`. That is what the flow below does, and it is the one place the
    three-tier rule's *reshape for … a decision* is load-bearing rather than advisory — a `transform`
@@ -5702,7 +5734,8 @@ is underneath it.**
 > **A comparison whose `value` is meant to be a path is NOT refused** — `{ "op": "eq", "value":
 > "needs.cfg.threshold" }` is a perfectly good string comparison against the literal text, and it is
 > false for ever. The grammar catches a wrong ROOT (`FD-V43`) and nothing catches this
-> ([Q456](doc/questions/q456.md)). Write the literal, or compute the comparison in a `Transform` node.
+> ([Q456](doc/questions/q456.md)). Write the literal — or, since 0.13.0, write the path as `valueFrom`, which is
+> what reads it.
 
 > **This flow is `examples/flows/ui-emitted.flow.json` and this registry is
 > `examples/ui-registry.json`, with the SCHEMAS reduced to what these three verdicts turn on.** The

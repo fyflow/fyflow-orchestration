@@ -1,0 +1,23 @@
+{
+  "flowId": "value-from",
+  "version": 1,
+  "entry": "check",
+  "nodes": [
+    { "id": "check", "kind": "gate", "type": "if",
+      "settings": { "when": { "path": "input.size", "op": "lte", "valueFrom": "input.limit" } },
+      "edges": [ { "route": "then", "to": "limits" }, { "to": "tooBig" } ] },
+    { "id": "limits", "kind": "task", "type": "IngestWorker", "edges": [ { "to": "score" } ] },
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "path": "outcome.result.score", "op": "gte", "valueFrom": "needs.limit.min" }, "to": "publish", "needs": { "limit": "limits" } },
+        { "when": { "any": [
+            { "path": "outcome.result.label", "op": "eq", "valueFrom": "outcome.result.expected" },
+            { "path": "outcome.result.items", "op": "gt", "valueFrom": "outcome.result.floors[0].count", "length": true, "default": [] }
+        ] }, "to": "publish" },
+        { "to": "review" }
+    ] },
+    { "id": "review",  "kind": "task", "type": "ReviewWorker", "edges": [ { "to": "done" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "tooBig",  "kind": "end", "outcome": "too-big" },
+    { "id": "done",    "kind": "end", "outcome": "completed" }
+  ]
+}
