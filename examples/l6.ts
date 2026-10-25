@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's**, **P43's** and **P44's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's**, **P43's**, **P44's** and **P45's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -95,6 +95,7 @@
  * | **W206 — what a node was handed, read after the fact** | **P42's EXIT ARTIFACT clause (3): `RN-R45`'s reading on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of TWELVE items whose `work` reads `{ item: "$item", run: "$payload" }` and routes through a registered predicate into the built-in `if` gate `route` — items 0-5 to the END `low` inside the map, 6-11 to the join — then a fanout of `fast` and a HELD `slow` whose join a consumer's policy fires at its FIRST arrival, the ask `review`, `file` and the END `done`. Every task's worker ECHOES its envelope. (1) LIVE, at the parked ask, `handle.inputOf` answers every task dispatched so far — `slow` still in flight — with ONE `envelope` equal to its own echo and to no other's, and `file` and `done` `not-reached`. (2) STORED, once the runtime is shut down, the root `inputOf` over the header and events a store kept answers all sixteen tasks the same way. (3) `low` by its node id alone at exactly paths 0-5 and `done`, each by hand. (4) The gate at every path, by hand. (5) The join's ARRIVALS — the late one included — and its COLLECTION, by hand, the early firing arranged and asserted; the map's join's collection too. (6) The ask, by hand and equal to its `asked` input. (7) A HALTED run read once its runtime is gone: every envelope dispatched before the halt by hand, the nodes after it `not-reached`, never `diverged`. (8) A CHANGED REGISTRY refused `diverged` at the first stored `gated` element. Each claim with its control. FOUR runs. Its registry is written in the block, not `registry.json` |
  * | **W212 — a failed task's ERROR, and WHEN an ask was asked** | **P43's EXIT ARTIFACT clause (3): ADR 0131's `"n!error"` and ADR 0130's `observedAt` on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of four whose OPTIONAL `probe` THROWS for items 1 and 3, each its own message → the join → an OPTIONAL `lookup` that THROWS where the payload says `fail` → on its `on: ["failed"]` edge (and its default one) the ask `why`, whose `needs` reads all four `!error` spellings — `"lookup!error"`, `"lookup!error?"`, `["probe!error"]`, `["probe!error?"]` → the ask `confirm` → `done`; every clock injected. (1) The ERROR: `why`'s `asked` input carries the thrown message by hand, in the bare and `?` forms, `lookup`'s record's `error`. (2) Its CONTROL: the same ask after a SUCCEEDING `lookup` carries `null`. (3) The ARRAY forms: `[null, <probe 1's message>, null, <probe 3's>]`, item order, on both runs. (4) LIVE: `why`'s `observedAt` and `askedAt` clock A. (5) RESUMED on a fresh runtime B under clock B once A is shut down: `why`'s time is still clock A. (6) PAST THE TAIL, the control: `confirm`, asked on B, carries clock B. (7) A LOST TAIL: the store without `why`'s `asked` element, resumed on a fresh D under clock D, regenerates `why` past the tail stamped clock D. EIGHT runs. The reference censuses read its flow, so `NOT_YET_AT_L6` is gone again. Its registry is written in the block, not `registry.json` |
  * | **W218 — what a join hands on, keyed by each branch's OWN key, and a key path's bracket index into it** | **P44's EXIT ARTIFACT clause (3): ADR 0138's own keys and `CHECKPOINT_FORMAT` 2, and ADR 0137's `[n]`, on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 5 flow: a `fanout` over `prep` and `side`, `prep` holding a `map` over `xs` whose join `inner` and the fan-out's `outer` both fire; item 0's `work` held back, so `side` settles first and the map's instance 1 before 0; then `check` (an echo), two `if` and two `distinct` gates, the ask `confirm`, `done`. (1) The COLLECTION: `check`'s result and `confirm`'s input are `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}` byte for byte. (2) The IF on `input.prep.1 eq 2` routes `then`; its CONTROL `input.0.0.1` `else`. (3) The INDEX `side.xs[1]` routes `first` with key 2; its CONTROL `side.xs.1` `nokey`. (4) The OWN KEY `prep.1` routes `first` with key 2; its CONTROL `prep[1]` `nokey`. (5) The IF on an INDEX `input.side.xs[1] eq 2` routes `then`; its CONTROL `input.side.xs.1` `else`. (6) FORMAT 1 REFUSED: the run's store with `format: 1` refused `format` by `runtime.resume` on a fresh runtime once the first is shut down; its CONTROL the same store as written resuming there and completing. SIX runs. Its registry is written in the block, not `registry.json` |
+ * | **W222 — a comparison against ANOTHER key path, `valueFrom`** | **P45's EXIT ARTIFACT clause (3): ADR 0140's `valueFrom` on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 6 flow (`sizeLimit` moved in front of `stat`; `stat`'s guarded edge pass 6's verbatim) behind an entry `if`: `ab` (an `if` on `input.a lt <right>`) → `abThen` / `abElse` → `sizeLimit` (returns `{ max: 100 }`) → `stat` (returns `{ size }`), whose edge to `copy` is `outcome.result.size lte <right>` with `needs: { limit: "sizeLimit" }`, default `skip`. EIGHT runs per pool: (A) `valueFrom: "needs.limit.max"` / `"input.b"`, size 50, `{a:1,b:2}` → `copy`, `then`; (B) the same, size 150, `{a:3,b:2}` → `skip`, `else`; (C, D) the LITERAL CONTROL, `value: 100` / `2`, the roads A and B took; (E) the ABSENT CONTROL, `needs.limit.nope` / `input.b` absent, size 50, `{a:1}` → `skip`, `else`; (F, G) the BOUNDARY, size 100 and `{a:2,b:2}` → `copy`, `else`, by `valueFrom` and by the literal; (H) the ABSENT CONTROL under `gt` → `skip`, `else`. Each edge claim reads the workers' results and the pool's realm, each `if` claim the payload handed on. Eleven claims per pool. SIXTEEN runs. Its registry and flow are written in the block, not under `examples/flows/` (no corpus-derived count moves) |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5997,6 +5998,31 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W222**: P45's exit-artifact block — twenty-two subjects, eleven per pool: the edge lte and gt, its literal control,
+  // its absent control and its boundary; the if then and else, its literal control, its absent control and its boundary;
+  // the absent control under gt (the last three per pool since the adequacy reader's SHOULD 1 and 3).
+  'W222 exit (threaded): the EDGE at the BOUNDARY —',
+  'W222 exit (threaded): the IF at the BOUNDARY —',
+  'W222 exit (threaded): the ABSENT CONTROL under gt —',
+  'W222 exit (inline): the EDGE at the BOUNDARY —',
+  'W222 exit (inline): the IF at the BOUNDARY —',
+  'W222 exit (inline): the ABSENT CONTROL under gt —',
+  'W222 exit (threaded): the EDGE, lte —',
+  'W222 exit (threaded): the EDGE, gt —',
+  'W222 exit (threaded): the EDGE`s LITERAL CONTROL —',
+  'W222 exit (threaded): the EDGE`s ABSENT CONTROL —',
+  'W222 exit (threaded): the IF, then —',
+  'W222 exit (threaded): the IF, else —',
+  'W222 exit (threaded): the IF`s LITERAL CONTROL —',
+  'W222 exit (threaded): the IF`s ABSENT CONTROL —',
+  'W222 exit (inline): the EDGE, lte —',
+  'W222 exit (inline): the EDGE, gt —',
+  'W222 exit (inline): the EDGE`s LITERAL CONTROL —',
+  'W222 exit (inline): the EDGE`s ABSENT CONTROL —',
+  'W222 exit (inline): the IF, then —',
+  'W222 exit (inline): the IF, else —',
+  'W222 exit (inline): the IF`s LITERAL CONTROL —',
+  'W222 exit (inline): the IF`s ABSENT CONTROL —',
   // **W218**: P44's exit-artifact block — twenty-two subjects, eleven per pool: the collection, the if and its control, the
   // index and its control, the own key and its control, the if on an index and its control (since the conformity
   // reader's SHOULD 1), format 1 refused and its control.
@@ -14236,6 +14262,191 @@ if (okBlock !== null) {
   }
 }
 
+/**
+ * **W222 — a comparison against ANOTHER key path over the same context, `valueFrom`, on real workers in both runtimes:
+ * P45's EXIT ARTIFACT clause (3)** —
+ * [W222](../doc/work-items/w222-the-exit-artifact-on-real-workers-the-reply-and-p45s-close.md),
+ * [P45](../doc/plans/p45-what-a-comparison-may-compare-against-and-who-may-read-a-key-path.md),
+ * [ADR 0140](../doc/decisions/0140-a-comparison-may-compare-against-another-key-path-and-an-absent-one-is-no-match.md)
+ * (`spec/flow-definition.md` v0.55: section 3's `valueFrom` table, `FD-C3`, `FD-C7`, `FD-V42`, `FD-V43`) — fyflow-app's
+ * *pass 6* #1.
+ *
+ * **One flow shape per pool**, THREADED and INLINE: the entry `if` gate `ab` on `input.a lt <right>` — `then` to the echo
+ * `abThen`, else to the echo `abElse`, both on to `sizeLimit`; `sizeLimit` (pass 6's Limit: its worker returns its
+ * settings' `out`, `{ max: 100 }`); `stat` (pass 6's StatPath: `{ size }` from its settings), whose edge to `copy` is
+ * pass 6's own — `when: { path: "outcome.result.size", op: "lte", <right> }`, `needs: { limit: "sizeLimit" }` — with a
+ * default edge to `skip`; `copy` and `skip` → `done`. *Pass 6's fragment wires `sizeLimit`'s own edge to `copy`; here, as
+ * in W221's L2 suite, `sizeLimit` runs BEFORE `stat` (so the edge's `needs` names a settled producer) and the `if` prefix
+ * is added in front — `stat`'s guarded edge is pass 6's accepted form byte for byte (the conformity reader, NIT 2).*
+ * **The flow is written here, not under `examples/flows/`**, so no
+ * corpus-derived count moves (W221's Record: a corpus file feeds every one).
+ *
+ * **Eight runs per pool**, each on its own runtime and run id, max 100 in every one — the right sides, the operators and
+ * the inputs vary, BY HAND from v0.55 (W222's table): **A** `valueFrom: "needs.limit.max"` / `valueFrom: "input.b"`,
+ * size 50, `{a:1,b:2}` → `copy`, `then`; **B** the same rights, size 150, `{a:3,b:2}` → `skip`, `else`; **C** and **D**
+ * the LITERAL CONTROL, `value: 100` / `value: 2`, the inputs of A and B → the roads A and B took; **E** the ABSENT
+ * CONTROL, `valueFrom: "needs.limit.nope"` (a key the edge declares, an absent leaf — (g1) accepts it) / `valueFrom:
+ * "input.b"` with `input.b` absent, size 50, `{a:1}` → `skip`, `else`: run E's left sides are run A's, so only the right
+ * side's absence separates them; **F** the BOUNDARY, A's rights at size 100 and `{a:2,b:2}` → `copy` (`lte` holds at
+ * equality), `else` (`lt` does not), and **G** its literal twin, the same roads; **H** the ABSENT CONTROL under `gt` —
+ * E's rights and inputs with both operators `gt` → `skip`, `else`: with E it is v0.55's *`x gt y` and `x lte y` are BOTH
+ * false where `y` is absent*, and it is what separates an absent right side read as anything ordering BELOW the left
+ * (`0`) from no match, which E (`lte`, `lt`) cannot (the adequacy reader, SHOULD 1 and 3). **Eleven claims per pool,
+ * each its own verdict**: the edge lte and gt, its literal control, its absent control, its boundary; the `if` then and
+ * else, its literal control, its absent control, its boundary; the absent control under `gt`. SIXTEEN runs.
+ *
+ * **Each claim reads its own premise**: an edge claim the results the real workers returned (`sizeLimit`'s, `stat`'s); an
+ * `if` claim the payload its echo handed on (so the absent control's `input.a` is READ, not assumed — the adequacy
+ * reader's SHOULD 2); and every edge claim the pool's REALM — how many of the run's tasks ran in THIS realm, counted by
+ * the worker on `globalThis`: 0 on the threaded pool (a worker thread has its own global), 4 on the inline pool (the run's
+ * four tasks) — so a pool labelled inline that is not is red (the adequacy reader's SHOULD 4).
+ *
+ * **No order across tasks is asserted**: each claim reads which task was DISPATCHED and the gate's recorded route.
+ */
+const W222_DEADLINE_MS = 30_000;
+const W222_MAX = 100;
+// `p6Echo`: a task whose settings carry `out` returns it; any other returns its input. Every task counts itself on its
+// realm's `globalThis` — the main realm's count moves only for a task run INLINE.
+const W222_REALM = '__w222InlineTasks';
+const W222_WORKER = 'export default class { async setup() {} async run(p) { const s = p.settings || {}; ' +
+  `globalThis.${W222_REALM} = (globalThis.${W222_REALM} || 0) + 1; ` +
+  'return s.out !== undefined ? s.out : p.input; } }';
+const w222RealmCount = () => ((globalThis as Record<string, unknown>)[W222_REALM] as number | undefined) ?? 0;
+const w222Doc = () => ({
+  workers: { p6Echo: { url: rcUrl(W222_WORKER) } },
+  nodeTypes: {
+    P6Threaded: { worker: 'p6Echo', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    P6Inline: { worker: 'p6Echo', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+type W222Right = { value: number } | { valueFrom: string };
+type W222Run = {
+  tag: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H'; edge: W222Right; ifR: W222Right; size: number;
+  payload: Record<string, number>; edgeOp?: 'gt'; ifOp?: 'gt';
+};
+const W222_RUNS: readonly W222Run[] = [
+  { tag: 'A', edge: { valueFrom: 'needs.limit.max' }, ifR: { valueFrom: 'input.b' }, size: 50, payload: { a: 1, b: 2 } },
+  { tag: 'B', edge: { valueFrom: 'needs.limit.max' }, ifR: { valueFrom: 'input.b' }, size: 150, payload: { a: 3, b: 2 } },
+  { tag: 'C', edge: { value: W222_MAX }, ifR: { value: 2 }, size: 50, payload: { a: 1, b: 2 } },
+  { tag: 'D', edge: { value: W222_MAX }, ifR: { value: 2 }, size: 150, payload: { a: 3, b: 2 } },
+  { tag: 'E', edge: { valueFrom: 'needs.limit.nope' }, ifR: { valueFrom: 'input.b' }, size: 50, payload: { a: 1 } },
+  { tag: 'F', edge: { valueFrom: 'needs.limit.max' }, ifR: { valueFrom: 'input.b' }, size: 100, payload: { a: 2, b: 2 } },
+  { tag: 'G', edge: { value: W222_MAX }, ifR: { value: 2 }, size: 100, payload: { a: 2, b: 2 } },
+  { tag: 'H', edge: { valueFrom: 'needs.limit.nope' }, ifR: { valueFrom: 'input.b' }, size: 50, payload: { a: 1 }, edgeOp: 'gt', ifOp: 'gt' },
+];
+const w222Flow = (pool: 'threaded' | 'inline', run: W222Run) => {
+  const type = pool === 'threaded' ? 'P6Threaded' : 'P6Inline';
+  return {
+    flowId: `w222-value-from-${pool}-${run.tag}`, version: 1, entry: 'ab',
+    nodes: [
+      { id: 'ab', kind: 'gate', type: 'if', settings: { when: { path: 'input.a', op: run.ifOp ?? 'lt', ...run.ifR } },
+        edges: [{ route: 'then', to: 'abThen' }, { to: 'abElse' }] },
+      { id: 'abThen', kind: 'task', type, edges: [{ to: 'sizeLimit' }] },
+      { id: 'abElse', kind: 'task', type, edges: [{ to: 'sizeLimit' }] },
+      { id: 'sizeLimit', kind: 'task', type, settings: { out: { max: W222_MAX } }, edges: [{ to: 'stat' }] },
+      { id: 'stat', kind: 'task', type, settings: { out: { size: run.size } }, edges: [
+        { when: { path: 'outcome.result.size', op: run.edgeOp ?? 'lte', ...run.edge }, needs: { limit: 'sizeLimit' }, to: 'copy' },
+        { to: 'skip' },
+      ] },
+      { id: 'copy', kind: 'task', type, edges: [{ to: 'done' }] },
+      { id: 'skip', kind: 'task', type, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+let vfBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  const vfClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W222 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  /** Whether each named node's task was DISPATCHED in `inputs`, in the order named. */
+  const dispatchedOf = (inputs: readonly FoldInput[], runId: string, ids: readonly string[]) =>
+    ids.map((x) => inputs.some((i) => i.kind === 'dispatched' && i.taskId === `${runId}:${x}:-:0`));
+  /** A task's outcome result as JSON, or a named absence. */
+  const resultOf = (inputs: readonly FoldInput[], taskId: string) => {
+    const o = inputs.find((i) => i.kind === 'outcome' && i.record.taskId === taskId);
+    return o === undefined || o.kind !== 'outcome' || o.record.kind !== 'outcome' ? 'NO RECORD' : JSON.stringify(o.record.result);
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    for (const run of W222_RUNS) {
+      await vfClause(`${pool}, run ${run.tag}`, async () => {
+        const flow = w222Flow(pool, run);
+        const runId = `w222${run.tag.toLowerCase()}${pool[0]}`;
+        const rt = createRuntime(w222Doc() as never);
+        try {
+          const realm0 = w222RealmCount();
+          const h = rt.start(flow, structuredClone(run.payload), { runId });
+          runs.push(`${flow.flowId} ${runId}`);
+          const won = await settleWithin(h.done, W222_DEADLINE_MS);
+          const inputs = h.driver.foldInputs();
+          const g = h.state().gated.find((x) => x.gateId === 'ab');
+          r[`edge${pool}${run.tag}`] = [
+            won.by === 'done' ? won.value.outcome : 'NEVER SETTLED',
+            ...dispatchedOf(inputs, runId, ['copy', 'skip']),
+            resultOf(inputs, `${runId}:sizeLimit:-:0`), resultOf(inputs, `${runId}:stat:-:0`),
+            w222RealmCount() - realm0,
+          ];
+          const [thenRan, elseRan] = dispatchedOf(inputs, runId, ['abThen', 'abElse']);
+          // The `if`'s PREMISE: what its echo handed on is the payload the gate read.
+          const echoed = thenRan ? resultOf(inputs, `${runId}:abThen:-:0`) : elseRan ? resultOf(inputs, `${runId}:abElse:-:0`) : 'NEITHER RAN';
+          r[`if${pool}${run.tag}`] = [g === undefined ? 'NO DECISION' : g.route, thenRan, elseRan, echoed];
+        } finally {
+          await rt.shutdown();
+        }
+      });
+    }
+  }
+  vfBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W222 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (vfBlock !== null) {
+  const key = 'cross-row';
+  const r = vfBlock.r;
+  const LIMIT = `{"max":${W222_MAX}}`;
+  for (const pool of ['threaded', 'inline'] as const) {
+    // The REALM: tasks of the run that ran in this realm — none on a worker thread, all four inline (the block comment).
+    const realm = pool === 'threaded' ? 0 : 4;
+    const copied = (size: number) => ['completed', true, false, LIMIT, `{"size":${size}}`, realm];
+    const skipped = (size: number) => ['completed', false, true, LIMIT, `{"size":${size}}`, realm];
+    check(key, `W222 exit (${pool}): the EDGE, lte — run A, size 50 lte valueFrom needs.limit.max (100, what sizeLimit's real ` +
+      'worker returned, read through the edge`s needs): copy dispatched, skip not; completed; the premise sizeLimit {"max":100}, ' +
+      `stat {"size":50}; ${realm} of its tasks in this realm`, r[`edge${pool}A`], copied(50));
+    check(key, `W222 exit (${pool}): the EDGE, gt — run B, size 150 against the same valueFrom, 100: no match, the default — ` +
+      'skip dispatched, copy not; completed', r[`edge${pool}B`], skipped(150));
+    check(key, `W222 exit (${pool}): the EDGE\`s LITERAL CONTROL — runs C and D, the literal value 100 in valueFrom's place: ` +
+      'the roads A and B took, copy at 50 and skip at 150', [r[`edge${pool}C`], r[`edge${pool}D`]], [copied(50), skipped(150)]);
+    check(key, `W222 exit (${pool}): the EDGE\`s ABSENT CONTROL — run E, valueFrom needs.limit.nope (the edge declares limit; ` +
+      'the leaf is absent): no match, so skip where size 50 is below max 100 — the road A did not take',
+    r[`edge${pool}E`], skipped(50));
+    check(key, `W222 exit (${pool}): the EDGE at the BOUNDARY — run F, size 100 lte valueFrom 100: copy (lte holds at ` +
+      'equality); and run G, the literal 100, the same road', [r[`edge${pool}F`], r[`edge${pool}G`]], [copied(100), copied(100)]);
+    check(key, `W222 exit (${pool}): the IF, then — run A's entry if on input.a lt valueFrom input.b, 1 lt 2: then; ` +
+      'abThen dispatched, abElse not, handing on the payload it read', r[`if${pool}A`], ['then', true, false, '{"a":1,"b":2}']);
+    check(key, `W222 exit (${pool}): the IF, else — run B's, 3 lt 2: else; abElse dispatched, abThen not`,
+      r[`if${pool}B`], ['else', false, true, '{"a":3,"b":2}']);
+    check(key, `W222 exit (${pool}): the IF\`s LITERAL CONTROL — runs C and D, the literal 2 in valueFrom's place: then and ` +
+      'else, the routes A and B took', [r[`if${pool}C`], r[`if${pool}D`]],
+    [['then', true, false, '{"a":1,"b":2}'], ['else', false, true, '{"a":3,"b":2}']]);
+    check(key, `W222 exit (${pool}): the IF\`s ABSENT CONTROL — run E, input.b absent: no match, so else where input.a is 1 ` +
+      '(run A`s left side, which took then) — the payload read, {"a":1}', r[`if${pool}E`], ['else', false, true, '{"a":1}']);
+    check(key, `W222 exit (${pool}): the IF at the BOUNDARY — run F, 2 lt valueFrom 2: else (lt does not hold at equality); ` +
+      'and run G, the literal 2, the same route', [r[`if${pool}F`], r[`if${pool}G`]],
+    [['else', false, true, '{"a":2,"b":2}'], ['else', false, true, '{"a":2,"b":2}']]);
+    check(key, `W222 exit (${pool}): the ABSENT CONTROL under gt — run H, E's absent right sides with both operators gt: ` +
+      'skip and else, so with E, x gt y and x lte y are BOTH false where y is absent (v0.55) — an absent right side read as ' +
+      'anything ordering below 50 or 1 would copy and take then', [r[`edge${pool}H`], r[`if${pool}H`]],
+    [skipped(50), ['else', false, true, '{"a":1}']]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -14280,7 +14491,10 @@ if (okBlock !== null) {
 // its resume on a fresh B, its lost tail's resume on a fresh D, and the succeeding run.
 // **And `+ okBlock.runs.length` since W218**: its SIX runs — per pool, threaded and inline, the claimed run on A, its
 // resume on a fresh B, and the control run. B's refused format-1 resume builds no driver and is not a run.
-const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0);
+// **And `+ vfBlock.runs.length` since W222**: its SIXTEEN runs — per pool, threaded and inline, runs A to H, each on its
+// own runtime: the two claimed runs, the two literal controls, the absent control, the boundary and its literal twin,
+// and the absent control under `gt` (ten before the adequacy reader's SHOULD 1 and 3 added F, G and H).
+const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0) + (vfBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -14643,7 +14857,11 @@ const PER_PLAIN_ROW = 22;
 // threaded and inline, the collection, the `if` and its control, the index and its control, the own key and its
 // control, the `if` on an index and its control, format 1 refused and its control — all cross-row because the block is
 // outside the row loop. 528 + 22 = 550. *(546 / eighteen before the conformity reader's SHOULD 1 added the `if` on an index.)*
-const CROSS_ROW = 550;
+// **550 at W218, +22 by W222 — P45's EXIT ARTIFACT clause (3)**: the value-from block's twenty-two clauses — per pool,
+// threaded and inline, the edge lte and gt, its literal control, its absent control and its boundary, the `if` then and
+// else, its literal control, its absent control and its boundary, and the absent control under `gt` — all cross-row
+// because the block is outside the row loop. 550 + 22 = 572. *(566 / sixteen before the adequacy reader's SHOULD 1 and 3.)*
+const CROSS_ROW = 572;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -16893,14 +17111,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2883 / 252 since W218 — P44's EXIT ARTIFACT clause (3), +22 and six runs**, DERIVED: the own-key block's twenty-two
 // cross-row assertions (`CROSS_ROW` 528 -> 550) over its six runs (2879 / 252 before the conformity reader's SHOULD 1
 // added the `if` on an index, a gate in the same runs). No row moved (P44 prediction 6).
-const DECLARED_TOTAL = 2883;
+// **2905 / 268 since W222 — P45's EXIT ARTIFACT clause (3), +22 and sixteen runs**, DERIVED: the value-from block's
+// twenty-two cross-row assertions (`CROSS_ROW` 550 -> 572) over its sixteen runs (2899 / 262 before the adequacy reader's
+// SHOULD 1 and 3 added the boundary and the absent control under `gt`). No row moved (P45 prediction 6).
+const DECLARED_TOTAL = 2905;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 252;
+const DECLARED_RUNS = 268;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
