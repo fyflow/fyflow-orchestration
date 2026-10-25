@@ -103,7 +103,8 @@ export function readKeyPath(value: unknown, path: string): unknown {
  * closure over anything — so a declared predicate **CANNOT** be impure, which is strictly stronger
  * than [Q9](../../doc/questions/q9.md)'s measured result for a function (evaluating twice caught
  * 1 impurity shape of 4) and is asserted rather than argued. `scope` is a task edge's `DecisionContext`
- * or an `if` gate's `{ input }` (W154) — the path is read off it by `readKeyPath`, and that is the only read.
+ * or an `if` gate's `{ input }` (W154) — the path, and since v0.55 a `valueFrom`, is read off it by `readKeyPath`,
+ * and that is the only read.
  *
  * **Total by construction**, because `FD-V42`-`FD-V45` refuse everything this does not handle at
  * `new Driver`. The `default:` arm below is the assertion that they held; `unknownOp` is the error it throws,
@@ -135,7 +136,19 @@ export function evalLeaf(scope: object, p: PredicateLeaf, unknownOp: (message: s
     else if (typeof v === 'string') v = v.length;
     else return false;
   }
-  const w = p.value;
+  // **The RIGHT side — a literal, or since v0.55 another key path over the SAME scope** (ADR 0140, P45 (a1), (b1),
+  // decisions 3-4). A `valueFrom` is read by the one `readKeyPath`, AFTER the left side's `default` and `length`, which
+  // are the left's alone: an ABSENT right side is no match whatever the operator — no `default` stands in for it, so
+  // `x gt y` and `x lte y` are both false where `y` is absent — and a resolved OBJECT or ARRAY is no match for every
+  // operator, `ne` included. That guard is WRITTEN, not inherited: under `===` alone `ne` would be true against a left
+  // scalar, and `eq` true where both sides name one object (P45 fact 3). A resolved `null` is compared as the scalar it is.
+  let w: unknown;
+  if (p.valueFrom !== undefined) {
+    w = readKeyPath(scope, p.valueFrom);
+    if (w === undefined || (typeof w === 'object' && w !== null)) return false;
+  } else {
+    w = p.value;
+  }
   switch (p.op) {
     // **Type-STRICT, and it is a departure measured rather than assumed.** Under JS comparison
     // `{confidence: "0.4"} < 0.5` is true and every `typeof`-guarded predicate in this tree is false;

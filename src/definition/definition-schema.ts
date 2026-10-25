@@ -150,7 +150,7 @@ const KIND_DESCRIPTIONS: Readonly<Record<string, Readonly<Record<string, string>
 const EDGE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   to: 'The id of the node this edge leads to (FD-V2, validateDefinition\'s).',
   on: 'The terminal states this edge is eligible for: a non-empty list of distinct "done" / "failed" (FD-V18). Absent: ["done"]. "user_action" suspends rather than routes.',
-  when: 'The decision: a registered predicate NAME { predicate }, a declared COMPARISON { path, op, value, default?, length? }, or a flat GROUP { all } or { any } of comparisons (FD-V42-FD-V45). Absent: the edge is the default for its state.',
+  when: 'The decision: a registered predicate NAME { predicate }, a declared COMPARISON { path, op, value or valueFrom, default?, length? }, or a flat GROUP { all } or { any } of comparisons (FD-V42-FD-V45). Absent: the edge is the default for its state.',
   needs: 'What this edge\'s predicate sees beyond its node\'s outcome — `needs`\' grammar minus "." (FD-V26).',
   route: 'On a gate\'s edge, which of the gate type\'s routes it carries; absent: the type\'s DEFAULT route (FD-V41). Refused on every other kind\'s edge.',
 };
@@ -167,9 +167,10 @@ const TRANSFORM_DESCRIPTIONS: Readonly<Record<string, string>> = {
 
 const PREDICATE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   predicate: 'A registered predicate\'s name (FD-V4, validateDefinition\'s).',
-  path: `A key path over the decision's context, starting at ${PREDICATE_ROOTS.map((r) => `"${r}"`).join(' or ')} and naming a key beyond it; a key past the root may be followed by array indexes [n], the root never (FD-V43).`,
+  path: `A key path over the decision's context, starting at ${PREDICATE_ROOTS.map((r) => `"${r}"`).join(' or ')} and naming a key beyond it; a key past the root may be followed by array indexes [n], the root never; a "needs" key the edge declares (FD-V43).`,
   op: `One of ${PREDICATE_OPS.join(', ')} (FD-V44). The ordering operators compare numbers and "startsWith" a string — a comparison between kinds is no match, never a coercion.`,
-  value: 'The scalar compared against: null, a boolean, a number or a string (FD-V44).',
+  value: 'The scalar compared against: null, a boolean, a number or a string (FD-V44). Exactly one of value and valueFrom (FD-V42).',
+  valueFrom: `A key path over the same context, compared against as a literal would be — the same roots as path, ${PREDICATE_ROOTS.map((r) => `"${r}"`).join(' or ')}, and a "needs" key the edge declares (FD-V43). Exactly one of value and valueFrom (FD-V42). Where it does not resolve, or resolves to an object or an array, the comparison is no match for every operator.`,
   default: 'What is compared where the path does not resolve or resolves to null: a scalar, or — with `length` — an array or a string (FD-V44).',
   length: 'Exactly true: compare the LENGTH of the array or string, against a number (FD-V44).',
   all: 'A flat group: a non-empty list of comparisons that must all hold (FD-V45).',
@@ -352,6 +353,9 @@ function leafSchema(id: string): Schema {
     path: { type: 'string', pattern: path },
     op: { enum: [...PREDICATE_OPS] },
     value: scalar(),
+    // v0.55 (ADR 0140): the RIGHT side as a key path — `path`'s own pattern, so the two keys cannot be held to different
+    // grammars; (g1)'s *a `needs` key the edge declares* needs the edge's own `needs` and is the validator's alone.
+    valueFrom: { type: 'string', pattern: path },
     default: { anyOf: [scalar(), { type: 'array', items: scalar() }] },
     length: { const: true },
   };
@@ -359,6 +363,8 @@ function leafSchema(id: string): Schema {
     description: 'A declared comparison over the decision\'s context.',
     type: 'object',
     required: [...PREDICATE_LEAF_REQUIRED],
+    // **Exactly one of `value` / `valueFrom`** (`FD-V42`, v0.55): both satisfy both branches and neither satisfies none.
+    oneOf: [{ required: ['value'] }, { required: ['valueFrom'] }],
     properties: Object.fromEntries(PREDICATE_LEAF_KEYS.map((k) => {
       const s = keySchemas[k];
       if (s === undefined) throw new Error(`definitionSchema: a comparison declares the key "${k}" and no schema is written for it`);

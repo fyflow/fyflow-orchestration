@@ -1,0 +1,14 @@
+{
+  "flowId": "a-needs-key-the-edge-does-not-declare",
+  "version": 1,
+  "entry": "limits",
+  "nodes": [
+    { "id": "limits", "kind": "task", "type": "IngestWorker", "edges": [ { "to": "score" } ] },
+    { "id": "score", "kind": "task", "type": "ScoreWorker", "edges": [
+        { "when": { "path": "outcome.result.size", "op": "lte", "valueFrom": "needs.limit.max" }, "to": "review", "needs": { "limits": "limits" } },
+        { "to": "done" }
+    ] },
+    { "id": "review", "kind": "end", "outcome": "needs-review" },
+    { "id": "done",   "kind": "end", "outcome": "completed" }
+  ]
+}

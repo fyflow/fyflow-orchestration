@@ -61,9 +61,9 @@ const gateFlow = (key: string): FlowDefinition => ({
   ],
 }) as unknown as FlowDefinition;
 /** A task edge whose `when` compares `path`. */
-const edgeFlow = (path: string): FlowDefinition => ({
+const edgeFlow = (path: string, needs?: Record<string, unknown>): FlowDefinition => ({
   flowId: 'e', version: 1, entry: 'work', nodes: [
-    { id: 'work', kind: 'task', type: 'Work', edges: [{ to: 'a', when: { path, op: 'eq', value: 'b' } }, { to: 'b' }] },
+    { id: 'work', kind: 'task', type: 'Work', edges: [{ to: 'a', when: { path, op: 'eq', value: 'b' }, ...(needs === undefined ? {} : { needs }) }, { to: 'b' }] },
     { id: 'a', kind: 'end', outcome: 'a' }, { id: 'b', kind: 'end', outcome: 'b' },
   ],
 }) as unknown as FlowDefinition;
@@ -146,7 +146,9 @@ suite(SUITE, (test) => {
     ok(wrongScope.includes('starts at "outcome"') && wrongScope.includes('one root is "input"'), `an if reading outcome[0] starts at "outcome", not its root: ${wrongScope}`);
     // A root alone is still a root alone, and an index one key in is fine — the two neighbours.
     ok(detailsOf(edgeFlow('outcome')).includes('is a root alone'), 'outcome alone is still a root alone');
-    equal(findingsOf(edgeFlow('needs.a[0]')), [], 'needs.a[0] — an index on the first key past the root — validates');
+    // v0.55 (W221, P45 (g1)): a `needs` path's first key must be one the edge declares, so the edge declares `a` — the
+    // claim here is the INDEX one key in, and the key it indexes is read up to its `[`.
+    equal(findingsOf(edgeFlow('needs.a[0]', { a: '$payload' })), [], 'needs.a[0] — an index on the first key past the root — validates');
     equal(findingsOf(ifFlow('input.xs[1]')), [], 'input.xs[1] validates');
   });
 

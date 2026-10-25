@@ -96,10 +96,12 @@ export type PredicateOp = typeof PREDICATE_OPS[number];
 export const PREDICATE_ROOTS = ['outcome', 'needs'] as const;
 
 /**
- * **What a declared comparison may compare AGAINST** — a scalar, and nothing else (`FD-V44`).
+ * **What a declared comparison's LITERAL may be** — a scalar, and nothing else (`FD-V44`).
  * Every one of the ten predicate bodies in this tree compares to one (`0.5`, `50`, `true`,
  * `'r1:publish:'`, `0`), and admitting an object would need a deep-equality semantics with no
- * instance and no obvious right answer for `NaN`, key order or a prototype.
+ * instance and no obvious right answer for `NaN`, key order or a prototype. *Since v0.55 a comparison
+ * may compare against ANOTHER key path instead — `valueFrom` (ADR 0140) — and a resolved object or
+ * array there is no match, for the same reason.*
  */
 export type PredicateScalar = null | boolean | number | string;
 
@@ -109,21 +111,20 @@ export interface PredicateName {
 }
 
 /**
- * **One comparison over the decision's own context** — `FD-V43` owns the path and `FD-V44` the
- * operator and the value.
+ * **What every comparison carries, whichever right side it names** — `FD-V43` owns the path and `FD-V44` the
+ * operator and the modifiers.
  */
-export interface PredicateLeaf {
+export interface PredicateLeafBase {
   /**
    * A KEY PATH over the `DecisionContext` itself, read by `readKeyPath` — the same resolution a
    * gate's `settings.key` gets, measured unchanged at this scope. **Its first segment is `outcome`
    * or `needs` and nothing else** (`FD-V43`), because a first segment that is neither resolves to
    * `undefined` in silence and a typo would be a wrong key rather than a refusal. A key past the root may
    * carry array indexes — `outcome.result.items[0].score` — and the root never does (v0.53, ADR 0137).
+   * **A `needs` path names a key that edge's `needs` DECLARES** (v0.55, P45 (g1)): any other is absent for ever.
    */
   path: string;
   op: PredicateOp;
-  /** The literal compared against. Required — there is no operator here that takes one operand. */
-  value: PredicateScalar;
   /**
    * **What is compared when the path does not resolve, or resolves to `null`.** Absent is NO MATCH
    * by default; where this is declared it is substituted instead — which is `?? 0` and `?? []`
@@ -148,6 +149,32 @@ export interface PredicateLeaf {
    */
   length?: true;
 }
+
+/**
+ * **One comparison over the decision's own context — against a LITERAL, or against ANOTHER KEY PATH** (v0.55,
+ * [ADR 0140](../../doc/decisions/0140-a-comparison-may-compare-against-another-key-path-and-an-absent-one-is-no-match.md),
+ * P45 (a1)). Exactly one of `value` / `valueFrom` (`FD-V42`), so a TWO-member union rather than one interface with
+ * both optional — `PredicateGroup`'s precedent: `{ path, op }` with neither, and both at once, fail at L0. **The type
+ * change, stated** (P45 decision 8): until 0.13.0 `value` was required, so code READING `leaf.value` now sees
+ * `PredicateScalar | undefined` and tells the two apart by `'valueFrom' in leaf`.
+ */
+export type PredicateLeaf =
+  | (PredicateLeafBase & {
+    /** The literal compared against. */
+    value: PredicateScalar;
+    valueFrom?: never;
+  })
+  | (PredicateLeafBase & {
+    /**
+     * **A key path over the SAME context, compared against as a literal would be** — the same roots as `path` (and
+     * the same `needs` rule), held to `FD-V43`; resolved by `readKeyPath` when the comparison is asked. Type-strict, a
+     * resolved `null` compared as `null`; **a resolved object or array is NO MATCH for every operator, `ne` included**;
+     * and **an ABSENT one is NO MATCH** — the left side's `default` does not stand in for it, so `x gt y` and `x lte y`
+     * are both false where `y` is absent. `default` and `length` are the LEFT side's only.
+     */
+    valueFrom: string;
+    value?: never;
+  });
 
 /**
  * **A FLAT group — `all` or `any`, and its members are LEAVES.** Nesting is refused by name

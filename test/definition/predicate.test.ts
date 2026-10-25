@@ -54,11 +54,11 @@ const REGISTRY: Registry = {
 };
 
 /** A one-decision flow carrying `when` on its first edge — the smallest document each refusal needs. */
-const flowWith = (when: unknown): FlowDefinition => ({
+const flowWith = (when: unknown, needs?: Record<string, unknown>): FlowDefinition => ({
   flowId: 'p', version: 1, entry: 'score',
   nodes: [
     { id: 'score', kind: 'task', type: 'ScoreWorker', edges: [
-      { when, to: 'review' } as unknown as { to: string },
+      (needs === undefined ? { when, to: 'review' } : { when, to: 'review', needs }) as unknown as { to: string },
       { to: 'done' },
     ] },
     { id: 'review', kind: 'task', type: 'ReviewWorker', edges: [{ to: 'done' }] },
@@ -66,7 +66,14 @@ const flowWith = (when: unknown): FlowDefinition => ({
   ],
 } as unknown as FlowDefinition);
 
-const rulesFor = (when: unknown): string[] => violatedRules(validateDefinition(flowWith(when), REGISTRY));
+const rulesFor = (when: unknown, needs?: Record<string, unknown>): string[] => violatedRules(validateDefinition(flowWith(when, needs), REGISTRY));
+/**
+ * **An edge whose `needs` DECLARES the keys the root cases read** — v0.55, P45 (g1): a `needs` path whose first key the
+ * edge does not declare is `FD-V43` (W221), so the ROOT-selection fixtures below declare `outcome` and `x` (`"$payload"`,
+ * legal on an edge) to keep asking about the ROOT alone. Without it `needs.outcome` and `needs.x` would be refused for
+ * the KEY, and the selection fixture would bind nothing about the root.
+ */
+const ROOT_NEEDS = { outcome: '$payload', x: '$payload' };
 
 /** A `DecisionContext` with the two roots, built here so no expected value comes from the driver. */
 const ctxOf = (result: unknown, needs: Record<string, unknown> = {}, taskId = 'r1:score:-:0'): DecisionContext => ({
@@ -141,9 +148,11 @@ suite(SUITE, (test) => {
     // Obligation (e)'s third shape — a LIST is a claim about another list. These three lists are the
     // document's own key tables, and `spec/flow-definition.md`'s `when` subsection is the other half.
     equal([...PREDICATE_NAME_KEYS], ['predicate'], 'the name form`s keys');
-    equal([...PREDICATE_LEAF_KEYS], ['path', 'op', 'value', 'default', 'length'], 'a comparison`s keys');
+    // v0.55 (W221, ADR 0140): `valueFrom` joins the comparison's keys and `value` leaves the required ones — exactly one
+    // of the two is FD-V42's own clause, held in `test/definition/value-from.test.ts`.
+    equal([...PREDICATE_LEAF_KEYS], ['path', 'op', 'value', 'valueFrom', 'default', 'length'], 'a comparison`s keys');
     equal([...PREDICATE_GROUP_KEYS], ['all', 'any'], 'a group`s keys');
-    equal([...PREDICATE_LEAF_REQUIRED], ['path', 'op', 'value'], 'and which of a comparison`s are required');
+    equal([...PREDICATE_LEAF_REQUIRED], ['path', 'op'], 'and which of a comparison`s are required');
   });
 
   // ---- FD-V43: the key path, and its two ROOTS -----------------------------------------------
@@ -170,7 +179,7 @@ suite(SUITE, (test) => {
     ];
     for (const [path, why] of ROOT_CASES) {
       const want = path.split('.')[0] === 'outcome' || path.split('.')[0] === 'needs' ? [] : ['FD-V43'];
-      equal(rulesFor(leaf({ path })), want, `${path}: ${why}`);
+      equal(rulesFor(leaf({ path }), ROOT_NEEDS), want, `${path}: ${why}`);
     }
     // The CONTROL over the RELATION: the list reaches BOTH readings. A fixture list where every
     // entry is refused under either reading binds neither, so this says so rather than assuming it.
@@ -182,8 +191,8 @@ suite(SUITE, (test) => {
 
   test('FD-V43 — a ROOT ALONE names a container and is refused; both roots with a leaf are accepted', () => {
     for (const r of PREDICATE_ROOTS) {
-      equal(rulesFor(leaf({ path: r })), ['FD-V43'], `"${r}" alone is a container, and no comparison against it can be true`);
-      equal(rulesFor(leaf({ path: `${r}.x` })), [], `"${r}.x" is a path a decision can see`);
+      equal(rulesFor(leaf({ path: r }), ROOT_NEEDS), ['FD-V43'], `"${r}" alone is a container, and no comparison against it can be true`);
+      equal(rulesFor(leaf({ path: `${r}.x` }), ROOT_NEEDS), [], `"${r}.x" is a path a decision can see`);
     }
     // The CONTROL, over the RELATION rather than over either side: the two roots are DIFFERENT
     // values, so a tree where `PREDICATE_ROOTS` was one name repeated passes every clause above

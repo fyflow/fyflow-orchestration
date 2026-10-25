@@ -89,6 +89,16 @@ const SHAPE_FILES_OF_OTHER_RULES = [
   'FD-V9--fanout-with-one-branch.flow.json',
   'FD-V40--gate-key-path-with-a-wildcard.flow.json',
 ];
+/**
+ * **One file of a SHAPE-ONLY rule that the schema does NOT refuse, because its clause is not a shape** — W221, P45 (g1),
+ * `spec/flow-definition.md` v0.55: `FD-V43` refuses a `needs` path whose first key THIS EDGE's `needs` does not declare,
+ * which reads a SIBLING key of the comparison's edge — a relation between two keys' VALUES that a `pattern` cannot state.
+ * Section 1's *does not carry* row names it. Accepted by the schema, refused by the validator: the partition reads it so.
+ */
+const CROSS_KEY_FILES_OF_SHAPE_RULES = ['FD-V43--a-needs-key-the-edge-does-not-declare.flow.json'];
+/** Which invalid files the STATIC form refuses — ONE predicate, read by the static partition, its repairs and W211's registry partition. */
+const staticRefuses = (n: string): boolean =>
+  (SHAPE_ONLY.includes(ruleOfFile(n)) && !CROSS_KEY_FILES_OF_SHAPE_RULES.includes(n)) || SHAPE_FILES_OF_OTHER_RULES.includes(n);
 
 /** Each refused file repaired in its ONE clause — hand-written from the file and the rule, never from a verdict. */
 const REPAIRS: Record<string, (d: Doc) => void> = {
@@ -111,6 +121,8 @@ const REPAIRS: Record<string, (d: Doc) => void> = {
   'FD-V30--retry-policy-max-retries-is-a-string.flow.json': (d) => { (nodeOf(d, 'score').retryPolicy as Record<string, unknown>).maxRetries = 1; },
   'FD-V37--transform-not-lang-and-expr.flow.json': (d) => { (nodeOf(d, 'score').transform as Record<string, unknown>).expr = 'confidence'; },
   'FD-V42--when-is-a-bare-string.flow.json': (d) => { const e = edgesOf(d, 'score')[0]!; e.when = { predicate: e.when }; },
+  'FD-V42--a-comparison-with-value-and-value-from.flow.json': (d) => { delete (edgesOf(d, 'score')[0]!.when as Record<string, unknown>).value; },
+  'FD-V43--value-from-outside-the-roots.flow.json': (d) => { (edgesOf(d, 'score')[0]!.when as Record<string, unknown>).valueFrom = 'outcome.result.threshold'; },
   'FD-V43--predicate-path-has-no-root.flow.json': (d) => { (edgesOf(d, 'score')[0]!.when as Record<string, unknown>).path = 'outcome.result.confidence'; },
   'FD-V44--predicate-op-outside-the-subset.flow.json': (d) => { (edgesOf(d, 'score')[0]!.when as Record<string, unknown>).op = 'startsWith'; },
   'FD-V45--a-group-inside-a-group.flow.json': (d) => {
@@ -179,6 +191,12 @@ const CLAUSES: [string, string, (d: Doc) => void][] = [
   ['FD-V44', 'a default holding an object', when(leaf({ op: 'gt', length: true, default: [{}] }))],
   ['FD-V44', 'length false', when(leaf({ length: false }))],
   ['FD-V42', 'a comparison without its value', when({ path: 'outcome.result', op: 'eq' })],
+  // W221, v0.55: `valueFrom` — exactly one of the two right sides (FD-V42), and `path`'s own pattern (FD-V43).
+  ['FD-V42', 'a comparison with both value and valueFrom', when(leaf({ valueFrom: 'outcome.result.b' }))],
+  ['FD-V43', 'a valueFrom at a foreign root', when({ path: 'outcome.result', op: 'eq', valueFrom: 'input.b' })],
+  ['FD-V43', 'a valueFrom that is a root alone', when({ path: 'outcome.result', op: 'eq', valueFrom: 'needs' })],
+  ['FD-V43', 'a valueFrom indexing its root', when({ path: 'outcome.result', op: 'eq', valueFrom: 'outcome[0].x' })],
+  ['FD-V43', 'a valueFrom that is not a string', when({ path: 'outcome.result', op: 'eq', valueFrom: 5 })],
   ['FD-V42', 'a comparison with an undeclared key', when(leaf({ zz: 1 }))],
   ['FD-V44', 'an op outside the enumeration', when(leaf({ op: 'matches' }))],
   ...['lt', 'lte', 'gt', 'gte'].map((op): [string, string, (d: Doc) => void] => ['FD-V44', `${op} against a string`, when(leaf({ op, value: 'x' }))]),
@@ -552,16 +570,16 @@ suite(SUITE, (test) => {
     const refused: string[] = [];
     const accepted: string[] = [];
     for (const n of invalidNames) (accepts(await load(`${EX}/invalid/${n}`)) ? accepted : refused).push(n);
-    const expectRefused = invalidNames.filter((n) => SHAPE_ONLY.includes(ruleOfFile(n)) || SHAPE_FILES_OF_OTHER_RULES.includes(n));
+    const expectRefused = invalidNames.filter(staticRefuses);
     equal(refused, expectRefused, 'the refused files are exactly the shape-only rules\' and the three named');
     equal(accepted, invalidNames.filter((n) => !expectRefused.includes(n)), 'and every other file is accepted');
     // Every name the two lists carry is a file on disk, and every shape-only rule has one — so neither list is vacuous.
-    for (const n of SHAPE_FILES_OF_OTHER_RULES) ok(invalidNames.includes(n), `${n} is in the corpus`);
+    for (const n of [...SHAPE_FILES_OF_OTHER_RULES, ...CROSS_KEY_FILES_OF_SHAPE_RULES]) ok(invalidNames.includes(n), `${n} is in the corpus`);
     for (const r of SHAPE_ONLY) ok(invalidNames.some((n) => ruleOfFile(n) === r), `${r} has a corpus file`);
   });
 
   test('each refused file, REPAIRED in its one clause, is ACCEPTED — and validateDefinition stops reporting its rule (the control)', async () => {
-    const refusedNames = invalidNames.filter((n) => SHAPE_ONLY.includes(ruleOfFile(n)) || SHAPE_FILES_OF_OTHER_RULES.includes(n));
+    const refusedNames = invalidNames.filter(staticRefuses);
     equal(Object.keys(REPAIRS).sort(), [...refusedNames].sort(), 'one repair per refused file, and no other');
     for (const n of refusedNames) {
       const d = await load(`${EX}/invalid/${n}`);
@@ -582,7 +600,7 @@ suite(SUITE, (test) => {
     equal(rulesOf(b), [], 'and validateDefinition reports nothing on it');
     equal([...new Set(CLAUSES.map(([r]) => r))].sort(), [...CLAUSE_RULES].sort(), 'the rows cover exactly the rules named');
     // A COUNT beside the set (rule 8 (d)): a row dropped from a rule other rows still cover keeps the set equal.
-    equal(CLAUSES.length, 111, 'a hundred and two rows written, four generated (the ordering operators) and five generated (a join of null, 5, [], {} and true — W215)');
+    equal(CLAUSES.length, 116, 'a hundred and seven rows written (five of them W221`s valueFrom rows), four generated (the ordering operators) and five generated (a join of null, 5, [], {} and true — W215)');
     let run = 0;
     for (const [rule, what, edit] of CLAUSES) {
       const d = base();
@@ -773,7 +791,7 @@ suite(SUITE, (test) => {
     equal(refused, [], 'no valid flow is refused');
     const registryFiles = Object.keys(REGISTRY_REPAIRS);
     for (const n of registryFiles) ok(invalidNames.includes(n), `${n} is in the corpus`);
-    const staticRefused = invalidNames.filter((n) => SHAPE_ONLY.includes(ruleOfFile(n)) || SHAPE_FILES_OF_OTHER_RULES.includes(n));
+    const staticRefused = invalidNames.filter(staticRefuses);
     const got: string[] = [];
     for (const n of invalidNames) if (!regAccepts(await load(`${EX}/invalid/${n}`))) got.push(n);
     equal(got, invalidNames.filter((n) => staticRefused.includes(n) || registryFiles.includes(n)), 'refused: the static form\'s files and the eight registry-specialisable files, no other');

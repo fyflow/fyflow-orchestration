@@ -25,6 +25,15 @@ reached the gate (spec/flow-definition.md section 3's *The `input` root*, `FD-C8
 a task edge's and do not move. **No ADR restates it**: W154's stop-and-ask (k) was answered NO, so
 P32 and spec v0.31 are the record and this note is the pointer that answer named.*
 
+*A dated note, 2026-10-25, W221's record step: **rules 1, 4, 6 and 7 and consequence 6 are AMENDED by
+[ADR 0140](0140-a-comparison-may-compare-against-another-key-path-and-an-absent-one-is-no-match.md)** (spec v0.55,
+[P45](../plans/p45-what-a-comparison-may-compare-against-and-who-may-read-a-key-path.md) (a1), (b1), (g1)). A comparison
+carries exactly one of `value` / `valueFrom` — a second key path over the same context, held to rule 4's roots — so rule
+1's `{ path, op, value, … }` reads `value` OR `valueFrom`; rule 6 holds on either side, and a resolved object or array on
+the right is no match for every operator; rule 7's absent rule holds on either side, and `default` is the left side's
+alone; and since v0.55 a `needs` path's first key must be one its edge's `needs` declares (`FD-V43`). The rules below are
+unedited.*
+
 ## Context
 
 A flow definition is **data** and a predicate is **a name registered in code**

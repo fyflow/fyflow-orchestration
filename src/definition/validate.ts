@@ -686,8 +686,13 @@ export function gateTypeCollisions(x: GateTypes | undefined): string[] {
  * a claim about another list* — on the tables this item adds.
  */
 export const PREDICATE_NAME_KEYS: readonly string[] = ['predicate'];
-export const PREDICATE_LEAF_KEYS: readonly string[] = ['path', 'op', 'value', 'default', 'length'];
-export const PREDICATE_LEAF_REQUIRED: readonly string[] = ['path', 'op', 'value'];
+// **v0.55 (ADR 0140, P45 decision 2): a comparison's RIGHT side is `value` OR `valueFrom`** — so `valueFrom` joins the
+// declared keys and `value` leaves the required ones, and EXACTLY ONE of the two is `FD-V42`'s own clause in
+// `leafProblem` (`RIGHT_SIDE_KEYS`). Two exported constants' VALUES move, stated as such (decision 8).
+export const PREDICATE_LEAF_KEYS: readonly string[] = ['path', 'op', 'value', 'valueFrom', 'default', 'length'];
+export const PREDICATE_LEAF_REQUIRED: readonly string[] = ['path', 'op'];
+/** The two keys a comparison carries EXACTLY ONE of — its right side (v0.55). */
+const RIGHT_SIDE_KEYS: readonly string[] = ['value', 'valueFrom'];
 export const PREDICATE_GROUP_KEYS: readonly string[] = ['all', 'any'];
 
 /** Which of the three shapes an object is, by the key that marks it — or `null` for none, `'ambiguous'` for more than one. */
@@ -739,6 +744,14 @@ interface ComparisonScope {
   readonly foreignRoot: (root: string) => string;
   /** Why a root ALONE is refused — the tail of `FD-V43`'s root-alone message. */
   readonly rootAlone: (root: string) => string;
+  /**
+   * **The keys THIS EDGE's `needs` declares, where the comparison sits on an edge whose `needs` the validator read** —
+   * v0.55, P45 (g1): a `needs` path whose first key past the root is not among them resolves to nothing for ever
+   * (`FD-C3`'s `{}`), so it is refused under `FD-V43`, on `path` and `valueFrom` alike. `undefined` asks nothing: the `if`
+   * gate's scope has no `needs` root, a caller of `predicateProblem` passing no edge, and an edge whose `needs` `FD-V26`
+   * refuses.
+   */
+  readonly needsDeclared?: readonly string[];
 }
 
 const EDGE_SCOPE: ComparisonScope = {
@@ -756,35 +769,73 @@ const GATE_SCOPE: ComparisonScope = {
   rootAlone: () => 'and names no key — a gate\'s path names a key INSIDE the value that reached it, as every gate\'s key path does; a value that must be compared whole is wrapped by the task before the gate',
 };
 
+/**
+ * **`FD-V43` over ONE key of a comparison — `path`, or since v0.55 `valueFrom`** (ADR 0140, P45 decision 2): the
+ * key-path grammar, the scope's roots, an index on the root, a root alone, and under (g1) a `needs` key the edge does
+ * not declare. ONE function both keys go through, so the right side cannot be held to a different grammar than the left.
+ * The message names the key, so a `path` reads byte-for-byte as before.
+ */
+function comparisonPathProblem(o: Record<string, unknown>, key: 'path' | 'valueFrom', where: string, scope: ComparisonScope): { rule: string; message: string } | null {
+  const path = o[key];
+  if (typeof path !== 'string' || !KEY_PATH_RE.test(path)) {
+    return { rule: 'FD-V43', message: `${where} ${key} ${JSON.stringify(path)} is not a key path — ${KEY_PATH_WORDS}` };
+  }
+  // **The ROOT is read up to the first `.` or `[`** (v0.53, ADR 0137): an index is a SUFFIX of a segment, so
+  // `input[0]` starts at `input`, and is then refused below for indexing it.
+  const segments = path.split('.');
+  const first = segments[0]!;
+  const bracket = first.indexOf('[');
+  const root = bracket === -1 ? first : first.slice(0, bracket);
+  if (!scope.roots.includes(root)) {
+    return { rule: 'FD-V43', message: `${where} ${key} ${JSON.stringify(path)} starts at ${JSON.stringify(root)}, ${scope.foreignRoot(root)}` };
+  }
+  // **An index ON the root is refused** (ADR 0137): the root is the scope's own container — a `DecisionContext` member,
+  // or the value that reached an `if` gate — and a path's first step past it is a KEY, as a gate's `settings.key`, whose
+  // grammar no index may lead, names a key inside that value. `outcome[0]` and `needs[0]` could only ever be nothing.
+  if (bracket !== -1) {
+    return { rule: 'FD-V43', message: `${where} ${key} ${JSON.stringify(path)} indexes its root ${JSON.stringify(root)} — a path names a KEY inside its root first, as a gate's key path names a key inside the value that reached it; an index follows a key (${root}.items[0])` };
+  }
+  if (segments.length < 2) {
+    return { rule: 'FD-V43', message: `${where} ${key} ${JSON.stringify(path)} is a root alone ${scope.rootAlone(root)}` };
+  }
+  // **(g1), v0.55 — a `needs` key the edge does not declare** (P45, the maintainer's answer 2026-10-25): `ctx.needs` is
+  // exactly what THIS EDGE's `needs` composed, `{}` where it declares none (`FD-C3`), so any other first key is absent
+  // for ever and the comparison NO MATCH for ever — `FD-V43`'s own argument, *would resolve to nothing in silence*, one
+  // step in. The key is read up to its first `[`, as the root is.
+  if (root === 'needs' && scope.needsDeclared !== undefined) {
+    const seg = segments[1]!;
+    const at = seg.indexOf('[');
+    const name = at === -1 ? seg : seg.slice(0, at);
+    if (!scope.needsDeclared.includes(name)) {
+      const declared = scope.needsDeclared.length === 0 ? 'declares no `needs`, so its `ctx.needs` is {}' : `declares needs ${scope.needsDeclared.map((k2) => JSON.stringify(k2)).join(', ')}`;
+      return { rule: 'FD-V43', message: `${where} ${key} ${JSON.stringify(path)} reads needs key ${JSON.stringify(name)}, and this edge ${declared} — the key would be absent for ever and the comparison no match for ever; declare it in the edge's needs` };
+    }
+  }
+  return null;
+}
+
 function leafProblem(o: Record<string, unknown>, where: string, scope: ComparisonScope = EDGE_SCOPE): { rule: string; message: string } | null {
   const extra = Object.keys(o).filter((k) => !PREDICATE_LEAF_KEYS.includes(k));
   if (extra.length) {
     return { rule: 'FD-V42', message: `${where} carries ${extra.map((k) => JSON.stringify(k)).join(', ')}, which a comparison does not declare; it is { ${PREDICATE_LEAF_KEYS.join(', ')} }` };
   }
   for (const k of PREDICATE_LEAF_REQUIRED) {
-    if (!(k in o)) return { rule: 'FD-V42', message: `${where} is missing required key "${k}"; a comparison is { ${PREDICATE_LEAF_KEYS.join(', ')} } with ${PREDICATE_LEAF_REQUIRED.join(', ')} required` };
+    if (!(k in o)) return { rule: 'FD-V42', message: `${where} is missing required key "${k}"; a comparison is { ${PREDICATE_LEAF_KEYS.join(', ')} } with ${PREDICATE_LEAF_REQUIRED.join(', ')} required and exactly one of ${RIGHT_SIDE_KEYS.map((k2) => JSON.stringify(k2)).join(' or ')}` };
   }
-  // ---- FD-V43: the key path, and its ROOT ----
-  const path = o.path;
-  if (typeof path !== 'string' || !KEY_PATH_RE.test(path)) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is not a key path — ${KEY_PATH_WORDS}` };
+  // **EXACTLY ONE of `value` / `valueFrom`** — v0.55, `FD-V42` widened rather than a rule beside it (ADR 0140, P45
+  // decision 2): which keys a comparison carries is the shape rule's question, and both-or-neither is that question.
+  // A document that says both says neither, as a group's `all` and `any` (`FD-V45`).
+  const sides = RIGHT_SIDE_KEYS.filter((k) => k in o);
+  if (sides.length !== 1) {
+    return { rule: 'FD-V42', message: `${where} carries ${sides.length === 0 ? 'neither' : 'both'} "value" and "valueFrom"; a comparison compares against exactly one — a literal "value", or "valueFrom", a key path over the same context` };
   }
-  // **The ROOT is read up to the first `.` or `[`** (v0.53, ADR 0137): an index is a SUFFIX of a segment, so
-  // `input[0]` starts at `input`, and is then refused below for indexing it.
-  const first = path.split('.')[0]!;
-  const bracket = first.indexOf('[');
-  const root = bracket === -1 ? first : first.slice(0, bracket);
-  if (!scope.roots.includes(root)) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} starts at ${JSON.stringify(root)}, ${scope.foreignRoot(root)}` };
-  }
-  // **An index ON the root is refused** (ADR 0137): the root is the scope's own container — a `DecisionContext` member,
-  // or the value that reached an `if` gate — and a path's first step past it is a KEY, as a gate's `settings.key`, whose
-  // grammar no index may lead, names a key inside that value. `outcome[0]` and `needs[0]` could only ever be nothing.
-  if (bracket !== -1) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} indexes its root ${JSON.stringify(root)} — a path names a KEY inside its root first, as a gate's key path names a key inside the value that reached it; an index follows a key (${root}.items[0])` };
-  }
-  if (path.split('.').length < 2) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is a root alone ${scope.rootAlone(root)}` };
+  // ---- FD-V43: the key path, and its ROOT — on `path`, and since v0.55 on `valueFrom` by the SAME clauses ----
+  const pathProblem = comparisonPathProblem(o, 'path', where, scope);
+  if (pathProblem !== null) return pathProblem;
+  const fromValue = 'valueFrom' in o;
+  if (fromValue) {
+    const fromProblem = comparisonPathProblem(o, 'valueFrom', where, scope);
+    if (fromProblem !== null) return fromProblem;
   }
   // ---- FD-V44: the operator, the literal, and the two modifiers ----
   const op = o.op;
@@ -795,6 +846,15 @@ function leafProblem(o: Record<string, unknown>, where: string, scope: Compariso
     return { rule: 'FD-V44', message: `${where} length is ${JSON.stringify(o.length)}; it is exactly true or absent — there is no "compare the value, not its length" to ask for` };
   }
   const takesLength = o.length === true;
+  // **The LITERAL clauses are `value`'s alone** (P45 fact 4): a `valueFrom`'s kind is known only when the comparison is
+  // asked, where the type-strict arms answer no match. What does not depend on the right side's kind is still asked of
+  // it — a length has no prefix, and the `default` clauses, which are the LEFT side's.
+  if (fromValue) {
+    if (takesLength && STRING_OPS.has(op)) {
+      return { rule: 'FD-V44', message: `${where} takes a length and uses "${op}"; a length is a number and has no prefix` };
+    }
+    return defaultProblem(o, where, takesLength);
+  }
   if (!isScalar(o.value)) {
     return { rule: 'FD-V44', message: `${where} value is ${scalarName(o.value)}; a comparison compares against a SCALAR — null, a boolean, a finite number or a string` };
   }
@@ -810,6 +870,11 @@ function leafProblem(o: Record<string, unknown>, where: string, scope: Compariso
   if (takesLength && STRING_OPS.has(op)) {
     return { rule: 'FD-V44', message: `${where} takes a length and uses "${op}"; a length is a number and has no prefix` };
   }
+  return defaultProblem(o, where, takesLength);
+}
+
+/** `FD-V44`'s `default` clauses — the LEFT side's, so asked of a comparison whichever right side it names. */
+function defaultProblem(o: Record<string, unknown>, where: string, takesLength: boolean): { rule: string; message: string } | null {
   if ('default' in o) {
     const d = o.default;
     const okDefault = Array.isArray(d) ? d.every(isScalar) : isScalar(d);
@@ -840,7 +905,10 @@ function leafProblem(o: Record<string, unknown>, where: string, scope: Compariso
  * has owned *an edge's `when` names a predicate absent from the registry* since P1 and whose only
  * change at v0.27 is where the name is written.
  */
-export function predicateProblem(v: unknown): { rule: string; message: string } | null {
+export function predicateProblem(v: unknown, edgeNeeds?: readonly string[]): { rule: string; message: string } | null {
+  // **`edgeNeeds` — the keys the edge's `needs` declares** (v0.55, P45 (g1)); `[]` for an edge declaring none. Omitted,
+  // the `needs` clause is not asked — the validator always passes it, where the edge's `needs` is not `FD-V26`'s.
+  const scope: ComparisonScope = edgeNeeds === undefined ? EDGE_SCOPE : { ...EDGE_SCOPE, needsDeclared: edgeNeeds };
   if (typeof v !== 'object' || v === null || Array.isArray(v)) {
     return {
       rule: 'FD-V42',
@@ -862,8 +930,8 @@ export function predicateProblem(v: unknown): { rule: string; message: string } 
     if (typeof o.predicate !== 'string') return { rule: 'FD-V42', message: `when predicate is ${scalarName(o.predicate)}; it is the name of a registered predicate` };
     return null;
   }
-  if (shape === 'leaf') return leafProblem(o, 'when');
-  return groupProblem(o, 'when', EDGE_SCOPE);
+  if (shape === 'leaf') return leafProblem(o, 'when', scope);
+  return groupProblem(o, 'when', scope);
 }
 
 /**
@@ -1723,7 +1791,13 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // predicate at all has no name to look up, and reporting both would make `FD-V42`'s fixture
       // name two rules.
       if (ed?.when !== undefined) {
-        const problem = predicateProblem(ed.when);
+        // (g1), v0.55: the keys this edge's `needs` declares — `[]` where it declares none (`FD-C3`'s `{}`), and NOT asked
+        // where the `needs` is one `FD-V26` refuses below (not an object, or empty), so one defect draws one rule.
+        const nv: unknown = ed.needs;
+        const edgeNeeds = nv === undefined ? []
+          : (typeof nv === 'object' && nv !== null && !Array.isArray(nv) && Object.keys(nv).length > 0) ? Object.keys(nv)
+            : undefined;
+        const problem = predicateProblem(ed.when, edgeNeeds);
         if (problem) add(problem.rule, at, problem.message);
         else for (const name of predicateNamesIn(ed.when)) {
           if (!preds.has(name)) add('FD-V4', at, `when names "${name}", which is not a registered predicate`);
