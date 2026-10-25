@@ -9,7 +9,7 @@ import { deepStrictEqual, strictEqual } from 'node:assert/strict';
 import { externalImports, parsePublishedFileUrls, posix, stagingPlan, windows } from './publish-output.ts';
 
 // Faithful to the real output, ANSI colour codes and all (taken from a real dry run on this tree).
-const HEADER = '\x1b[0m\x1b[1m\x1b[32mSimulating publish\x1b[0m of \x1b[0m\x1b[38;5;245m@fyflow/orchestration@0.12.0\x1b[0m with files:';
+const HEADER = '\x1b[0m\x1b[1m\x1b[32mSimulating publish\x1b[0m of \x1b[0m\x1b[38;5;245m@fyflow/orchestration@0.13.0\x1b[0m with files:';
 const dryRun = (root: string, files: string[]) => [
   '\x1b[0m\x1b[32mCheck\x1b[0m index.ts',
   'Checking for slow types in the public API...',
