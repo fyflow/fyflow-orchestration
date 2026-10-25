@@ -1,6 +1,6 @@
 # P45 — What may a comparison compare against, and who may read a key path the way a gate does?
 
-**Status:** declared 2026-10-25 — on `a48b77c` (the tree clean, `main` at 0.12.0, tagged `v0.12.0` on `ffcc774`,
+**Status:** complete and retro'd 2026-10-25 — W220-W223 done, `gate:full` EXIT 0 on W222's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-25 — on `a48b77c` (the tree clean, `main` at 0.12.0, tagged `v0.12.0` on `ffcc774`,
 `origin/main` = `ffcc774`, one local commit ahead: Q790), answering fyflow-app's *pass 6* #1-#2; facts 1-10 read or
 MEASURED at this declaration; the evaluation's stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-25; **(g) and
 (h) ANSWERED by the maintainer 2026-10-25, *as recommended*** — (g1), built in W221; (h1), W223 ISSUED, serial after W221 and
@@ -20,8 +20,9 @@ refusing both-or-neither; every 0.12.0 corpus verdict unmoved; green in node, de
 `outcome.result.size lte needs.limit.max` both ways and an `if` routes by `input.a` against `input.b`, each with its
 control — the same value as a literal, and an absent `valueFrom` taking the other route; and `npm run gate:full` EXIT 0
 — the LAST item runs it (workflow v0.29).*
-**Reserves:** W220-W223 (W223 expected unused unless (h1)), Q791-Q798, ADR 0140-0142 (ADR 0141 and ADR 0142 expected
-unused); no S id
+**Reserves:** W220-W223 (all four issued — W223 by (h1); *this line read "W223 expected unused unless (h1)" from the
+declaration until P45's close, stale from W221's commit, corrected by W222*), Q791-Q798 (all SPENT, unissued), ADR
+0140-0142 (ADR 0140 issued; ADR 0141 and ADR 0142 SPENT, unissued); no S id
 
 ```
 Question: what may a comparison compare against, and who may read a key path the way a gate does?
@@ -376,5 +377,185 @@ sentence, written before it — **Q790**. [Q790](../questions/q790.md) was raise
 **P45's Q block therefore starts at Q791**, and Q790 is the maintainer's, not this plan's. W and ADR agree (W220, ADR
 0140).
 
-- **Reserved here**: W220-W223 (W223 expected unused unless (h1)); Q791-Q798, two per item; ADR 0140-0142 (ADR 0141 and
+- **Reserved here**: W220-W223 (W223 issued by (h1) — *"expected unused unless (h1)" until W222 corrected it*); Q791-Q798, two per item; ADR 0140-0142 (ADR 0141 and
   ADR 0142 expected unused). No S id; the next S id is S13.
+
+## Record
+
+*Written 2026-10-25 over W222's final tree, the tree held still before it. Every figure is read from the four items' own
+files, or re-taken by W222 and named so. Ids are bare text, as in P33's-P44's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W220** `c170eb0` | `keyPathSteps` and `KeyPathStep` re-exported beside `readKeyPath` (both builds, measured on the built bundles); `condition.ts`' docblock; `key-path-reader.test.ts` with its count held in `l4-corpus`; `AGENTS.md` section 4's subsection and `run` snippet, `RUN_FLOOR` 55 | none | — / — ; ADR 0141 SPENT | none used | conformity 1 SHOULD, 2 NIT; adequacy 36 probes, 2 SHOULD, 3 NIT. **Overlap 1** | 104 / 2301; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,478.5 s |
+| **W221** `b7f9031` | `valueFrom`: `FD-V42` widened (exactly one of `value` / `valueFrom`), `FD-V43` on both keys and (g1)'s undeclared `needs` key, `evalLeaf`'s right side, `PredicateLeaf` a union over `PredicateLeafBase`, `definitionSchema()`; four corpus files; two suites; ADR 0140 | flow-definition v0.55 | — / — | one ASKED (minor, recommended taken): `spec/outcome-record.md`'s figure sentence; P45's plan file for (g)/(h) | conformity 2 SHOULD, 4 NIT; adequacy 51 mutants, 3 survivors, 4 weakenings. **Overlap 0** | 106 / 2321; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,199.5 s |
+| **W223** `214e1d5` | `check:spec` `C9`: every corpus file a rule row cites resolved (full, bare-after-full, bare-alone, directory; a partial spelling refused; a former name marked `until vN.N` skipped); its probes and META entries, floors 44 / 42 | none | — / — | none; scope WIDENED from *refusal rows* to all nine rule prefixes (a minor stop-and-ask, recommended taken — retro section 8 (a)) | conformity 1 SHOULD, 5 NIT; adequacy 15 mutations, 5 survivors. **Overlap 3** | 106 / 2321; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,199.2 s |
+| **W222** `c9bf13f` | the `W222 exit` L6 block — pass 6's flow on real workers, threaded and inline: `outcome.result.size lte needs.limit.max` and an entry `if` on `input.a lt input.b`, each both ways, beside its literal control, its absent control, its boundary, and both comparisons absent under `gt` — twenty-two claims, sixteen runs; the README's copies and its stale tail; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping; and this plan's two stale Reserves lines (the brief's instruction) | conformity 0 SHOULD, 4 NIT; adequacy 29 mutants (+6 in deno), 4 SHOULD, 3 NIT; the author's 14 provocations. **Overlap 1** | 106 / 2321; **2905 / 268** | **`gate:full`** EXIT 0, 11/11 self-tests, 3,215.4 s wall (18:38:42 → 19:40:29) |
+
+**No question raised or closed. One asked exception (W221). The readers' overlap, every Record stating its own: 1, 0, 3, 1.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) an L1-L2 suite holding `valueFrom` — exactly one of the two keys, `FD-V43` on an edge and in an `if`, type-strict, `null` as `null`, an object or array no match (`ne` included), absent no match so `x gt y` and `x lte y` are both false, by hand; `definitionSchema()`; every 0.12.0 corpus verdict unmoved; three runtimes | W221: `test/definition/value-from.test.ts` (76 hand-derived verdicts, re-derived by its conformity reader) and `test/driver/value-from.test.ts` (pass 6's flow at L2, no predicate registered); the schema's `oneOf`; no 0.12.0 corpus verdict moved, (g1) included; node, deno and chromium (parity 2,321) | **met** |
+| (2) `keyPathSteps` and `KeyPathStep` from the root entry in the node AND browser builds, beside the three already public, all five in `AGENTS.md` with a `run` snippet | W220: the re-export; the built `dist/node/index.js` and `dist/browser/index.js` each exporting both (measured, and by both readers); `AGENTS.md` section 4's subsection, its snippet executed by `check:docs` (`RUN_FLOOR` 55) | **met** |
+| (3) one L6 block, node 24 and deno, threaded and inline: pass 6's own flow routing by `outcome.result.size lte needs.limit.max` both ways and an `if` by `input.a` against `input.b`, each with its control — the literal, and an absent `valueFrom` taking the other route | the `W222 exit` block, **2905 / 268, 0 failed** in both runtimes; `sizeLimit` runs before `stat` (pass 6's fragment wires `sizeLimit` to `copy`; `stat`'s edge is the accepted form byte for byte — W222's conformity NIT 2). Beyond the clause, after the adequacy reader: the boundary, and the absent right side under `gt` | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W222, one command on the final tree after the readers' fixes: the ladder (L1-L5 106 / 2,321 in three runtimes, L6 2905 / 268 in two), then 11/11 self-test lanes ok, `check:register:selftest` included (3,215.4 s wall, 10 lanes) — first time, no red run | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **103 / 2295 → 106 / 2321** in node, deno and
+chromium; L6 **2883 / 252 → 2905 / 268** in node and deno; `check:docs` `RUN_FLOOR` **54 → 55**; `check:spec` 45
+refusals, unmoved, and `C9` new; spec/flow-definition **v0.54 → v0.55**; **`CHECKPOINT_FORMAT` 2, unmoved**; the package
+surface MOVES — two new root names (`keyPathSteps`, `KeyPathStep`), `PredicateLeaf` a union over the new
+`PredicateLeafBase`, `PREDICATE_LEAF_KEYS` and `PREDICATE_LEAF_REQUIRED`'s values, `definitionSchema()`'s comparison, and
+`validateDefinition`'s verdicts on `valueFrom` (now accepted) and an undeclared `needs` key (now refused) — **intended as
+0.13.0**, non-breaking for documents that route (decision 8); `doc/concept.md` untouched.
+
+**What the plan answered.** *May a declared comparison compare a key path against another key path over the same
+context?* — **yes**, as `valueFrom`: exactly one of `value` / `valueFrom`, the same roots and `FD-V43` clauses as `path`,
+compared as the literal would be, an object or array no match for every operator (ADR 0140). *What does it answer when
+that other path does not resolve?* — **no match, for every operator**: `x gt y` and `x lte y` are both false where `y` is
+absent, measured on real workers by W222's runs E and H. *May a host read a key path with the library's own reader?* —
+**yes**: `readKeyPath` was already public, and `keyPathSteps` / `KeyPathStep` now are, from both builds, all five names
+documented. **fyflow-app's pass 6**: #1 accepted as `valueFrom`; #2 accepted, no validator function; (g1) named as a
+change in what is accepted; the reply is written
+(`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass6.reply.md`), **status UNRELEASED**.
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W220 moves no existing case; `RUN_FLOOR` 54 → 55; the browser bundle exports `keyPathSteps` with no build-script edit | **HOLDS** | W220 Record |
+| 2 | W221 moves no corpus verdict, under (g1) too, and no existing `FD-C7` case | **HOLDS** | W221 Record |
+| 3 | W221's B′ census finds 1-5 L1-L5 cases constructing an undeclared `needs` comparison | **HOLDS at FOUR** | W221 Record |
+| 4 | W221 moves no L6 claim and no `CHECKPOINT_FORMAT` | **HOLDS** | W221 Record |
+| 5 | W210's schema suite moves only where it reads the key list | **HOLDS, qualified** — it moved where it partitions the corpus too (the (g1) file) | W221 Record |
+| 6 | W222 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2883 / 252 → 2905 / 268 (2899 / 262 before the adequacy reader); no `EXPECTED` row, pair row or other block moved | W222 Record |
+
+**Questions**: none closed, none raised. `npm run q -- --where status=open` lists none.
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.13.0** — the version bump, the push and the publish to npm and JSR | (e1) | **the maintainer** — *only when the maintainer says so* | this Record; the reply's status line |
+| `C9`'s scope widened to all nine rule prefixes | W223's minor stop-and-ask | **the maintainer** — retro section 8 (a) | the retro |
+| corpus citations in spec PROSE (M4's 76 bare names) unchecked | W223 | **the maintainer** — retro section 8 (b) | the retro |
+| ADR 0102's `stopped` dual read (P44 retro (b)) | P44 | **still open** — no P45 row touched resume | P44's retro |
+| [Q456](../questions/q456.md) — refusing a path-shaped literal | W221 | **stays deferred** — `valueFrom` is now the road its callout names | W221 Record |
+| the reply to fyflow-app | the plan's *reply* paragraph | **done** — W222 | W222's Record |
+| the byte copies `C:/tmp-w220` … `C:/tmp-w223`, `C:/tmp-w222` and the session scratchpad's probes | every item | **the maintainer** — left in place, outside the repository | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-25 over W222's final tree, by W222's author as the plan's last item. Every figure is read from the
+four items' Records. **Two routings here need the maintainer** (section 8); nothing is acted on outside the record step's
+four files and W222's declared exceptions.*
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P45's declaration | — | (a)-(f); (g), (h) after it, *as recommended* | — | — |
+| W220 | — | — | 3 SHOULD, NITs | — |
+| W221 | **1** — `spec/outcome-record.md`'s figure sentence, minor, recommended taken | — | 4 SHOULD (2 conformity, 2 adequacy), NITs | — |
+| W223 | — (the scope widened inside `Owns`, a minor stop-and-ask) | — | 1 SHOULD + the adequacy reader's 5 survivors, NITs | — |
+| W222 | — (two exceptions declared: the bookkeeping; the Reserves lines) | — | 4 SHOULD (adequacy), NITs | — |
+| **P45** | **one asked** | **8 answers** | **every one acted on or declared** | **0 raised, 0 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E
+
+**B′ held**: every item ran `npm run gate` on its whole draft in a byte copy before fixing its `Owns`, and **B′ is what
+found W221's three corpus-derived counts** (`wiring.test.ts`' arcs 76 → 80, W211's partition, `result-value.test.ts`'
+outcome-record figure) — none a name the census grepped. **C held** (one confirming gate per item). **D′ held at every
+name it grepped and was blind where it says it is**: a census of NAMES cannot see a reader of the WHOLE corpus (W221), and
+cannot see a sentence quantifying over all values (*`eq` and `ne` complement over every value*, W221's conformity SHOULD
+2). **E held**: every item's probes cut one clause per call site.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W220 | 1 SHOULD, 2 NIT | 36 probes; 2 SHOULD, 3 NIT | **1** — the forward claim *since 0.13.0* | 135th |
+| W221 | 2 SHOULD, 4 NIT | 51 mutants; 3 survivors, 4 weakenings | **0** | 136th |
+| W223 | 1 SHOULD, 5 NIT | 15 mutations; 5 survivors | **3** — the stale header census, the partial spellings, the bare-alone fallback | 137th |
+| W222 | 0 SHOULD, 4 NIT | 29 mutants (+6 deno); 4 SHOULD, 3 NIT | **1** — run E's separation: the conformity reader re-derived *only the absent right side separates E from A*, the adequacy reader showed it holds only for resolutions ordering ABOVE the left (SHOULD 3) | 138th |
+
+**Every Record states its overlap**, the tenth plan running. **Four measurements, all inside section 6's 0-4 band. The
+ordinal is a hundred and thirty-eight, so the next is the HUNDRED-AND-THIRTY-NINTH** — carried into `doc/workflow.md` by
+W222's declared exception.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a corpus file feeds EVERY count derived over the corpus** — W221's `value-from.flow.json` moved three derived counts in three suites, none of them a name the census grepped | **FOLLOWED** — D′'s census by name | B′ (the lanes, run on the draft) | **Not a new rule**: D′'s own sentence — *a reader of the WHOLE value is found by running the lanes* — is what B′ exists for, and it worked. W222 took the cheap road the finding implies: its flow is written in the block, not under `examples/flows/`. Carried for the next brief: *a new corpus file is a census site of every corpus-derived count* |
+| **(b) a rule that adds a no-match case falsifies every CLOSURE sentence** — *`eq` and `ne` complement over every value* became false under `valueFrom` (W221's conformity SHOULD 2) | **FOLLOWED** — the premise census named the premises the plan listed | W221's conformity reader | One occurrence, argued general: a closure claim quantifies over all values, so ANY new value class can falsify it. **Not a rule**: carried for the next brief — *a premise census includes the sentences that quantify over every value* |
+| **(c) W223 WIDENED its own scope** — the row said *a refusal row*; `C9` reads all nine rule prefixes, under a minor stop-and-ask the maintainer has not seen | — | W223's author, stated in its Record (conformity NIT 5) | **Section 8 (a)** |
+| **(d) corpus citations in spec PROSE stay unchecked** — 76 bare names mixing `spec/examples/**` and `examples/flows/**` with no directory written (W223's M4) | — | W223's author | **Section 8 (b)** |
+| **(e) a check's self-test header census was stale since W61** and nothing read it (W223's conformity SHOULD 1) | — | W223's conformity reader | One occurrence. A count a script can derive is not written down (P27 decision 4); W223 re-took it. **Not a rule** |
+| **(f) the readers' CONSTRUCTIONS found what mutation did not** — W223: a directory citation and a partial path, both spellings a rule row could carry, found by building inputs, not by breaking code | **FOLLOWED** — section 6 says *construction finds what the CODE cannot see* | both W223 readers | **No change** — the sentence exists and was borne out again |
+| **(g) a typecheck lane does not OBSERVE an export's removal** — W220: three of four named lanes compile `index.ts` and use neither new name; **and nothing in the gate builds `dist/`**, so the bundles were a one-off measurement | **FOLLOWED** — the row named the lanes | W220's adequacy reader (SHOULD 2, NIT 1) | One occurrence. **Recorded, not adopted**: an L0 clause names what a lane USES. Building `dist/` in the gate is a `package.json` change no P45 row owns, and the publish workflow's `prepack` builds `dist/` and runs a real flow from the packed tarball (`.github/workflows/publish.yml`) before anything is published; carried for the next plan that touches the build |
+| **(h) a record step moved the HEAD of a cell and not its TAIL** — `examples/README.md`'s l6.ts cell read *69 row labels and 246 runs* and had no W218 entry through P44's close, while its head read 252 ([Q171](../questions/q171.md)'s class, a second time) | **FOLLOWED** — `X10` held the two copies it anchors | W222's author, while editing the cell; W222's conformity reader, NIT 1, that the entry was missing too | One more occurrence of a known class; `X10` anchors the head by design. **No change**: the tail is the cell's history, and the next item editing it re-reads it — as W222 did |
+| **(i) an L6 block's controls at the right side's OWN boundary** — W222's first cut never compared at equality nor under an operator for which an absent value read as `0` would differ (the adequacy reader's SHOULD 1 and 3), and its `if` absent control did not read its own premise (SHOULD 2) | **FOLLOWED** — rule 8 (a)'s *where it SELECTS, a fixture where every WRONG selection differs* | W222's adequacy reader | **Not a new rule** — rule 8 (a) names it; the first cut chose inputs that separated the shapes the author thought of (W222's own *Why E separates* paragraph said so). Fixed: runs F, G, H, the premise read |
+| **(j) an L6 block labelled by POOL does not check the pool** — setting the inline type `inline: false` left every claim green (W222's adequacy SHOULD 4); W218's block has the same shape | **FOLLOWED** — the blocks run both pools as the rows say | W222's adequacy reader | Fixed in W222's block (the realm count); **W218's block is left as it is** (no P45 row owns its claims) and recorded here for the next item touching it |
+| **(k) the orchestrating session's subagents were forced to hand back while a reader still ran** — the pattern recurred across P44's and P45's items: an item agent's run ends at its hand-back, so an agent that has launched its readers must either wait inside its own run or lose them | — | the orchestrator's briefs (*do NOT hand back while a reader is running*) | **Not a workflow rule** — it is how this harness runs agents, not how an item is verified. Recorded: the item's brief says WAIT, and the item waits on a blocking loop rather than ending its turn |
+
+**Pass 3 rule 5 over P45's defects**, by what caught them: **a rung in `gate`** — B′'s lanes (W221's three derived counts);
+**the authors** — W222's stale README tail; **the conformity readers** — W220's *nor the evaluator*, W221's schema
+description and closure sentence, W223's header census and directory citation; **the adequacy readers** — W220's
+emptiable suite, W221's right-side modifiers, W223's five survivors, W222's boundary, premise and pool. **No rung would
+have caught** a check's scope widened by its own item (section 8 (a)).
+
+**The flaky rows ([Q599](../questions/q599.md))**: **NO in P45's confirming gates**; W220's B′ draft met one — L6 deno's
+`cross-row` W94 (2h) / W97 arrangement row, `failing: ["K=2"]` — re-run alone green (W220's Record).
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** Every W222 claim held on both pools, in node and deno; a worker thread's
+`globalThis` is its own and an inline worker's is the main realm's, in both runtimes (W222's realm count).
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′ found what D′ could not, as designed; every reader finding
+fell under an existing clause (rule 8 (a), (c); section 6's *construction*).
+
+**B. Carried for the next plan's author** — P39's proposal B as P40 adopted it and P40's-P45's retros carried it (B′, C,
+D′, E and the brief sentences), **with three sentences added to the brief** (section 4 (a), (b), (j)): *a new corpus file
+is a census site of every count derived over the corpus*; *a premise census includes the sentences that quantify over
+every value*; *a block labelled by pool, realm or runtime reads which one it ran on*.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 44th refusal, P2-P45.** P45's text defects were a
+  reference sentence *nor the evaluator* (W220), a schema description and a closure sentence (W221), a stale header
+  census (W223), a README tail and a mislabelled worker name (W222) — each found by a reader or an author reading the text
+  beside the code. W223's prose-citation question is section 8 (b), a check over `spec/`, not `doc/`. **No other ledger
+  row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; the two Reserves lines (W222's declared exception); this Record and Retro |
+| `doc/workflow.md` | W222's declared exception: the Status line's count (FORTY-FIVE, P1-P45), section 6's ordinal (a hundred and thirty-eight; the HUNDRED-AND-THIRTY-NINTH next), the ledger's first row (44 times, P2-P45) |
+
+`README.md`, `doc/questions/**` and `doc/decisions/**` carry nothing more: ADR 0140 and its note in ADR 0074 are W221's.
+
+**Ids.**
+
+- **Issued**: W220, W221, W222, W223; ADR 0140; no Q; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): Q791-Q792 SPENT (W220's), Q793-Q794 SPENT (W221's),
+  Q795-Q796 SPENT (W222's), Q797-Q798 SPENT (W223's); ADR 0141-0142 SKIPPED (0141 W220's, expected unused by decision 1;
+  0142 the plan's spare).
+
+**The next plan starts at W224, Q799 and ADR 0143.** The next S id is S13; the next plan id is P46.
+
+### 8. Stop-and-asks for the maintainer
+
+*Neither blocks P45's close: both are routings of work that is NOT this plan's, listed for the maintainer's answer.*
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(a)** | **W223 widened `C9`'s scope**: the plan's row and (h1) said *a refusal row's* corpus citations; `C9` resolves the citations of EVERY rule row (all nine prefixes — `FD-C`, `FD-R`, `RN-R` … as well as `FD-V`), taken as a minor stop-and-ask because a non-refusal row's citation goes stale the same way. The maintainer has not seen it | **(a1)** keep it — the wider predicate is the reason-free one, and it resolved 47 citations green with one former name skipped | **(a2)** narrow `C9` to refusal rows (`FD-V` / `RN-V`…) in the next plan touching `scripts/check-spec.mjs` |
+| **(b)** | **Corpus citations in spec PROSE stay unchecked** — W223's M4: 76 bare `*.flow.json` names outside rule rows, mixing `spec/examples/**` and `examples/flows/**` with no directory written, so a renamed file's prose mention goes stale with every check green | **(b1)** leave them unread, recorded here — a bare prose name has no directory to resolve against, and resolving it against both corpora accepts a name in the wrong one | **(b2)** a small item in the next plan touching `spec/`: resolve every bare prose name against both corpora, with its probe; **(b3)** raise it as a question |
