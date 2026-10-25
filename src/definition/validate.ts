@@ -25,7 +25,11 @@ import { allRegions, buildGraph, certainlySettled, innermostMapOf } from './regi
 // declared-comparison evaluator, in `./condition.ts` since W154's exception (p), where `routing.ts`' `evaluateWhen` reaches
 // it too. Nothing in `src/definition` imports `src/driver`.
 import { evaluateDeclared } from './condition.ts';
-export { readKeyPath } from './condition.ts';
+// **The key path reader, public from the root entry** — `readKeyPath` since W92, and `keyPathSteps` with its step type
+// since W220 (P45 (c1), decision 1): the one parse and the one read a gate, a comparison and the wiring check use, so a
+// host need not keep its own copy of the spelling. `index.ts` is `export *` over this module; no other name moves.
+export { keyPathSteps, readKeyPath } from './condition.ts';
+export type { KeyPathStep } from './condition.ts';
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 // `gate` since v0.23 (W92, ADR 0066) — and adding it HERE alone made this validator THROW: `NODE_KEYS[nd.kind]!`

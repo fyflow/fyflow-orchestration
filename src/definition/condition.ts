@@ -6,9 +6,11 @@
  * is*). [W154](../../doc/work-items/w154-the-built-in-if-and-switch.md) exception (p): until it, the `if` reached
  * the evaluator through `routing.ts`, which imports `src/definition` — a module cycle in a published library.
  *
- * **Not re-exported by `index.ts`.** `readKeyPath` stays public through `validate.ts`' re-export, and
- * `evaluateWhen` through `routing.ts`, so the package's exported names do not move. Nothing here imports anything
- * but types.
+ * **Not re-exported WHOLE by `index.ts`.** Three names here are public, each through `validate.ts`' re-export:
+ * `readKeyPath` (public since W92, defined in `validate.ts` then; through this re-export since W154), and `keyPathSteps`
+ * with its `KeyPathStep` (since W220, P45 (c1) — fyflow-app's pass 6 #2: a host reads a key path with the library's own
+ * parse and read rather than a copy of the spelling). `evalLeaf` and `evaluateDeclared` are NOT (P45 decision 1): a
+ * host evaluates a `when` by `evaluateWhen`, public through `routing.ts`. Nothing here imports anything but types.
  */
 import type { PredicateLeaf, When } from './types.ts';
 

@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W220 — P45 (c1), decision 1: the key path reader (`keyPathSteps`, `KeyPathStep`, `readKeyPath`, `KEY_PATH_RE`,
+  // `PREDICATE_ROOTS`) from the root entry — L1 in `test/definition/key-path-reader.test.ts`, its cases held by its
+  // own `DECLARED_CASES` and counted below.
+  'L1 — W220, P45 (c1): the key path reader from the root entry — keyPathSteps, KeyPathStep, readKeyPath, KEY_PATH_RE and PREDICATE_ROOTS',
   // W217 — P44 (a1), (b), decisions 4-6, ADR 0138: a join hands on each branch under its OWN key, and a format-1
   // checkpoint is refused `format` — L2 in `test/driver/own-key.test.ts`; counted below.
   'L2 — W217, ADR 0138: a join hands on each branch under its OWN key, and format 1 is refused',
@@ -1042,6 +1046,13 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   });
   // **W205's three suites, counted the same way and for the same reason.**
   // **W209's two suites, counted the same way and for the same reason.**
+  // **W220's suite, counted the same way and for the same reason** — its adequacy reader's D4b, D4c and D5: a case
+  // deleted WITH its `DECLARED_CASES` line, or the suite emptied at load, left `npm test` at exit 0 before this count.
+  test('W220`s suite still REGISTERS the five cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('L1 — W220, P45 (c1): the key path reader from the root entry — keyPathSteps, KeyPathStep, readKeyPath, KEY_PATH_RE and PREDICATE_ROOTS'), 5,
+      'test/definition/key-path-reader.test.ts registers its five: the root`s names and the control, the steps, the read, the grammar and the roots, and the membership');
+  });
   test('W209`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L1 — W209, ADR 0131: "n!error" in the grammar — referenceTarget`s part, FD-V26`s "!" clauses at both sites, FD-V27 to FD-V29 as the plain form, and the wiring check`s string'), 11,
