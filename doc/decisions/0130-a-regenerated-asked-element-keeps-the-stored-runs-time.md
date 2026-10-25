@@ -42,7 +42,9 @@ regenerates it within the stored prefix takes the stored element's time.**
    0.11.0 — no `observedAt` — resumes and compares equal (`sameData` reads an absent key and an `undefined` one alike), and
    its resumed run carries no time for that ask. A stored `observedAt` that is not a number is not one a driver wrote: the
    regenerated element, carrying none, differs from it and the resume is refused `diverged` at that element. Every other
-   element at that position is refused exactly as before.
+   element at that position is refused exactly as before. *(Since [ADR 0138](0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md) ([W217](../work-items/w217-a-join-keyed-by-each-branchs-own-key-and-checkpoint-format-2.md), 0.12.0) a
+   checkpoint written before 0.11.0 is format 1 and refused `format` before its events are read, so the *resumes and
+   compares equal* half of this rule no longer has a checkpoint to apply to; the rule is unmoved.)*
 3. **The rule lives in `ask()`, the one writer**, so `resume()` and an `inputOf` reading inherit it through the one replay;
    nothing is excluded from `sameData`.
 4. **The fold surfaces it** as `NodeRun.askedAt` on the ask's entry — present only where the element carried one, and

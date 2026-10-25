@@ -67,7 +67,7 @@ suite(SUITE, (test) => {
     const h = r.start(LINEAR, payload, { onFoldInput: () => { payload.nested.k = 'MUTATED IN THE CALLBACK'; } });
     payload.nested.k = 'MUTATED AFTER START';
     ok(h.driver.runId !== 'r1', `the ARRANGEMENT: this is the runtime's second run, minted ${h.driver.runId}, so the default position cannot pass`);
-    equal(h.header, { format: 1, runId: 'r2', flowId: 'ckpt-rt', version: 5, entryPayload: { n: 1, nested: { k: 'v' } } },
+    equal(h.header, { format: 2, runId: 'r2', flowId: 'ckpt-rt', version: 5, entryPayload: { n: 1, nested: { k: 'v' } } },
       'RunHandle.header — every field a literal from the flow and the call above, the payload as it was PASSED');
     equal(h.header, h.driver.checkpoint().header, 'and it is the driver`s header');
     ok(h.header !== h.driver.checkpoint().header && h.header.entryPayload !== h.driver.checkpoint().header.entryPayload,

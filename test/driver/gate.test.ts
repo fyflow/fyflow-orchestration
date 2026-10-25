@@ -204,7 +204,7 @@ const DECLARED_CASES: readonly string[] = [
   'a RESUME rebuilds the memory by replay at EVERY cut — equal to the run nobody killed, with the killed driver alive in the same process',
   'the RESUMED memory is the one the replay REBUILDS — not a fresh empty one, not the killed driver`s — cut where the three memories DIFFER',
   'the prefix check compares the gate`s ANSWERS — a stored route tampered, or a type whose answer changed, is refused `diverged` at that position',
-  'a checkpoint taken BEFORE this item resumes unchanged — no new field, and a run with no gate records no `gated` element',
+  'a checkpoint taken BEFORE this item, its header moved to format 2, resumes unchanged — no new field, and a run with no gate records no `gated` element',
   'the road IN — DriverOptions.gateTypes: absent means the built-ins, a consumer type RUNS, a collision and a malformed type are refused at construction',
   'two gates in one run keep TWO memories — one per gate, not one per type and not one for every gate',
   'a gate inside a FANOUT branch: its drop EXITS the branch, the other branch ARRIVES, and the join carries what arrived',
@@ -581,12 +581,16 @@ suite(SUITE, (test) => {
     ok(err instanceof ResumeRefused && err.reason === 'diverged' && err.index === firstGated, `an impure type is refused at its first answer: ${String(err)}`);
   });
 
-  test('a checkpoint taken BEFORE this item resumes unchanged — no new field, and a run with no gate records no `gated` element', () => {
+  test('a checkpoint taken BEFORE this item, its header moved to format 2, resumes unchanged — no new field, and a run with no gate records no `gated` element', () => {
     // Produced on `fb2a981` (W92's tree) by `dev-dist/w93/w92-checkpoint.ts`: `map-fanout`'s shape driven to a
     // quiescent point by a fake scheduler, `JSON.stringify(driver.checkpoint())`, and pasted here as data. A browser
     // cannot read a file under `test/`, so it is a literal (W32's finding).
+    // **Its header is moved to format 2 and nothing else** (P44 decision 5, ADR 0138): at format 1 every driver since
+    // 0.12.0 refuses it `format` before reading an event, so the claim this case makes — no element kind W93 added is
+    // demanded of an older run's EVENTS — is held on the same events under the one format this driver reads. The
+    // refusal of the format-1 original is `test/driver/own-key.test.ts`'s.
     const cp = W92_CHECKPOINT as unknown as Checkpoint;
-    equal(Object.keys(cp).sort(), ['events', 'header'], 'the pre-W93 checkpoint is { header, events } — format 1, unchanged');
+    equal(Object.keys(cp).sort(), ['events', 'header'], 'the pre-W93 checkpoint is { header, events } — its events unchanged, its header at format 2');
     const h = harness(W92_FLOW as unknown as FlowDefinition);
     h.driver.resume(cp);
     equal(JSON.stringify(h.driver.foldInputs().slice(0, cp.events.length)), JSON.stringify(cp.events), 'it resumes, its stored events regenerated element for element');
@@ -655,7 +659,7 @@ suite(SUITE, (test) => {
     equal(h.gated(), [{ kind: 'gated', gateId: 'g', branchPath: '0', route: 'nokey' }], 'the gate decided at branch 0, with no key');
     const events = h.driver.foldInputs().flatMap((i) => (i.kind === 'region' ? [`${i.event.type} ${i.event.branchPath}`] : []));
     ok(events.includes('branch.exited 0') && events.includes('branch.arrived 1'), `branch 0 EXITED at the drop and branch 1 ARRIVED: ${events.join(', ')}`);
-    equal(h.inputOf('R:publish:-:0'), { 1: { v: 1 } }, 'the join fired and carried what ARRIVED — branch 1 alone (JP-R12)');
+    equal(h.inputOf('R:publish:-:0'), { b: { v: 1 } }, 'the join fired and carried what ARRIVED — branch `b` alone, under its entry id (JP-R12 v0.25)');
     h.scheduler.settle('R:publish:-:0', 'done', { ok: true });
     equal(fold(h.driver.foldInputs()).outcome, 'completed', 'and the run completes');
     // The PASS: branch 0 keyed, so it continues through `a2` and arrives with what `a2` returned.
@@ -666,7 +670,7 @@ suite(SUITE, (test) => {
     equal(hp.inputOf('R:a2:0:0'), { k: 'K' }, 'on its first route the gate hands `a2` what reached it');
     hp.scheduler.settle('R:a2:0:0', 'done', { set: 'K' });
     hp.scheduler.settle('R:b:1:0', 'done', { v: 1 });
-    equal(hp.inputOf('R:publish:-:0'), { 0: { set: 'K' }, 1: { v: 1 } }, 'and both branches ARRIVE, the gated one with a2`s result');
+    equal(hp.inputOf('R:publish:-:0'), { a: { set: 'K' }, b: { v: 1 } }, 'and both branches ARRIVE, the gated one with a2`s result — under `fan`s entries `[a, b]` (JP-R12 v0.25)');
   });
 
   test('a gate that declares no key and no settings: the type is handed no key and `{}`, and the element records no key', () => {
@@ -797,7 +801,7 @@ suite(SUITE, (test) => {
 // ---- the pre-W93 checkpoint, as data ----------------------------------------------------------------
 const W92_FLOW = {"flowId": "w92-map", "version": 1, "entry": "ingest", "nodes": [{"id": "ingest", "kind": "task", "type": "Ingest", "edges": [{"to": "split"}]}, {"id": "split", "kind": "map", "over": "items", "branch": "score"}, {"id": "score", "kind": "task", "type": "Work", "edges": [{"to": "collect"}]}, {"id": "collect", "kind": "join", "of": "split", "edges": [{"to": "publish"}]}, {"id": "publish", "kind": "task", "type": "Publish", "edges": [{"to": "done"}]}, {"id": "done", "kind": "end", "outcome": "completed"}]};
 const W92_CHECKPOINT = {
-  header: {"format": 1, "runId": "R", "flowId": "w92-map", "version": 1, "entryPayload": {"from": "caller"}},
+  header: {"format": 2, "runId": "R", "flowId": "w92-map", "version": 1, "entryPayload": {"from": "caller"}}, // format 1 as produced; 2 since ADR 0138
   events: [
     {"kind": "dispatched", "taskId": "R:ingest:-:0"},
     {"kind": "outcome", "record": {"kind": "outcome", "taskId": "R:ingest:-:0", "terminalState": "done", "result": {"items": ["a", "b", "c"]}, "error": null, "attempts": 0, "schedulerTimestamp": 1, "observedAt": 0, "startTime": 1, "endTime": 2, "executionTime": 1}},

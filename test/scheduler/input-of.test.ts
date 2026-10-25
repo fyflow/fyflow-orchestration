@@ -136,7 +136,7 @@ suite(SUITE, (test) => {
     const h3 = runtimeOn(s3).start(NESTED, { tenant: 't1' }, { joinPolicy: FIRST as JoinPolicy });
     for (const id of ['r1:a:-:0', 'r1:plain:1:0']) s3.settle(id, RESULT(id));
     await turn();
-    equal(h3.inputOf({ nodeId: 'j', branchPath: '-' }), { ok: true, inputs: [{ nodeId: 'j', kind: 'join', branchPath: '-', handed: 'collection', value: { 1: RESULT('r1:plain:1:0') } }] },
+    equal(h3.inputOf({ nodeId: 'j', branchPath: '-' }), { ok: true, inputs: [{ nodeId: 'j', kind: 'join', branchPath: '-', handed: 'collection', value: { plain: RESULT('r1:plain:1:0') } }] }, // keyed by the entry id (JP-R12 v0.25)
       'the join fired on plain`s arrival alone — by hand — and the handle reads it, so the reading was built with the run`s policy');
     const withLiveToken = inputOf(NESTED, OPTS, h3.driver.checkpoint(), { nodeId: 'j', branchPath: '-' });
     ok(!withLiveToken.ok && withLiveToken.reason === 'diverged', 'the control: the same checkpoint read with liveToken is refused diverged');

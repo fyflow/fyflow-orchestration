@@ -572,7 +572,7 @@ suite(SUITE, (test) => {
     equal(held(first.driver), {}, 'STOPPED: nothing is entered on this driver again, so it keeps nothing (a run-level moment)');
     const cp = structuredClone(first.driver.checkpoint());
     equal(Object.keys(cp.header).sort(), ['entryPayload', 'flowId', 'format', 'runId', 'version'], 'the header: the same five keys (decision 5)');
-    equal(cp.header.format, 1, 'at format 1 — CHECKPOINT_FORMAT unmoved');
+    equal(cp.header.format, 2, 'at format 2 — CHECKPOINT_FORMAT, unmoved by "$item" (W191); 2 since ADR 0138 moved it for the join`s keys');
     // A FRESH driver and scheduler: nothing is in the checkpoint for the items, so the replay must REBUILD them.
     const again = make(appCase2());
     again.driver.resume(cp);

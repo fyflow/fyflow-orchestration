@@ -302,10 +302,10 @@ suite(SUITE, (test) => {
       'the ARRANGEMENT: the entry node RECEIVED the composed `{ seed }` — so storing the entry node`s received payload is a different value');
 
     equal(d.checkpoint().header, {
-      format: 1, runId: 'batch42', flowId: 'ckpt-selects', version: 7,
+      format: 2, runId: 'batch42', flowId: 'ckpt-selects', version: 7,
       entryPayload: { n: 3, tag: 'x', when: new Date(11) },
     }, 'RN-R15: the header — every field a literal from the definition and the start() call above');
-    equal(CHECKPOINT_FORMAT, 1, 'RN-R16: the format this version writes is 1, and the header carries that constant');
+    equal(CHECKPOINT_FORMAT, 2, 'RN-R16 v0.36: the format this version writes is 2 (1 until ADR 0138), and the header carries that constant');
     ok(!deepEqual(d.checkpoint().header.entryPayload, headInput) && !deepEqual(d.checkpoint().header.entryPayload, { out: 'head-result' }),
       'and it is NEITHER the entry node`s received payload NOR its result — the two wrong selections a store is most likely to write');
     ok(Object.getPrototypeOf((d.checkpoint().header.entryPayload as { when: object }).when) === Date.prototype,
@@ -348,8 +348,8 @@ suite(SUITE, (test) => {
     b.start({ who: 'b', extra: [1] });
     scheduler.settle('job-7:only:-:0', 'done', { result: 1 });
     const ha = a.checkpoint().header, hb = b.checkpoint().header;
-    equal(ha, { format: 1, runId: 'batch42', flowId: 'ckpt-selects', version: 7, entryPayload: { who: 'a' } }, 'driver A`s header is A`s');
-    equal(hb, { format: 1, runId: 'job-7', flowId: 'ckpt-other', version: 2, entryPayload: { who: 'b', extra: [1] } }, 'driver B`s header is B`s');
+    equal(ha, { format: 2, runId: 'batch42', flowId: 'ckpt-selects', version: 7, entryPayload: { who: 'a' } }, 'driver A`s header is A`s');
+    equal(hb, { format: 2, runId: 'job-7', flowId: 'ckpt-other', version: 2, entryPayload: { who: 'b', extra: [1] } }, 'driver B`s header is B`s');
     const differs = (['runId', 'flowId', 'version', 'entryPayload'] as const).filter((k) => deepEqual(ha[k], hb[k]));
     equal(differs, [], 'the ARRANGEMENT: the two headers differ in EVERY selected field, so one driver reading the other`s cannot pass on any of them');
   });

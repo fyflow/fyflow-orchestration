@@ -193,7 +193,11 @@ make the reply depend on Map insertion order, which is dispatch order, which is 
 5. **No rule about what a region CARRIES moves.** `JP-R12` already keys by `branchPath`, and a branch
    inside an instance carries that instance's path as its own prefix — so two instances of one opener
    hold **disjoint** branch-path key sets and their collections cannot collide. `ADR 0044`'s
-   visibility and `checkWiring` need no change.
+   visibility and `checkWiring` need no change. *(Amended by [ADR 0138](0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md), [W217](../work-items/w217-a-join-keyed-by-each-branchs-own-key-and-checkpoint-format-2.md): a collection is
+   keyed by each branch's OWN key since 0.12.0, so two instances of one opener may hold the SAME key set, and the
+   prefix argument above no longer applies to the collection. They are kept apart because each INSTANCE holds its own
+   collection — rule 1's instance key, the `arrivals` map's second level — which is unmoved, and which kept them apart
+   all along. `RunState.regions` and every region event still key by branch path, and for them this consequence stands.)*
 6. **What is still refused, and by what.** `FD-V19` keeps one node out of two branch entries of one
    fanout; `ID-R6` refuses a `branchPath` across a map region with no item index supplied; `ID-R1`
    refuses a duplicate dispatch. **Those three are what make the derived key TOTAL**, and they are why

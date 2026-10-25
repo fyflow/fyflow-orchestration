@@ -124,7 +124,7 @@ export interface Cell {
    *
    * Two claims read this one map, and that is deliberate. `spec/join-policy.md`
    * section 4's **`JP-R12`**: a satisfied join carries **the arrived branches'
-   * results keyed by `branchPath`** — all of them, which is how it satisfies the
+   * results, each under the branch's own key** (an entry id, an item index — ADR 0138; `branchPath` until 0.12.0) — all of them, which is how it satisfies the
    * constraint that made the old answer `null`, since *which* terminal event
    * satisfied the join is decided by fan-out completion order and a collection
    * keyed by branch does not depend on it. And `spec/flow-definition.md` section 3:

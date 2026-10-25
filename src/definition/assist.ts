@@ -96,7 +96,7 @@ function typeNames(s: Record<string, unknown>): string[] {
  *
  * `properties` gives `$.k`; `items` gives `$[]`, once, because every element has the same schema in
  * the subset; a key named by `required` with no `properties` entry is still a path, typed `*`; and
- * `additionalProperties` holding a SCHEMA gives `$.*` — the map record's minted branch key, the one
+ * `additionalProperties` holding a SCHEMA gives `$.*` — the map record's minted item-index key, the one
  * shape no author can declare (the header, [Q306](../../doc/questions/q306.md)).
  *
  * An open schema (no `type`) admits every type, so its `properties` and `items` are walked too: a

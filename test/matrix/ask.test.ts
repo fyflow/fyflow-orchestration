@@ -56,19 +56,19 @@ const EXPECTED: Record<string, Record<string, [string, string, string[], unknown
     'live-token-requiring-arrival': ['waiting', 'waiting-on-human', [], undefined],
   },
   'ask-answered': {
-    'arrival-count': ['satisfied', 'joined', ['resumed(split:0)', 'arrived(split:0)'], { 0: { ok: true }, 1: { s: 0.9 } }],
-    'live-token': ['satisfied', 'joined', ['resumed(split:0)', 'arrived(split:0)'], { 0: { ok: true }, 1: { s: 0.9 } }],
-    'live-token-requiring-arrival': ['satisfied', 'joined', ['resumed(split:0)', 'arrived(split:0)'], { 0: { ok: true }, 1: { s: 0.9 } }],
+    'arrival-count': ['satisfied', 'joined', ['resumed(split:0)', 'arrived(split:0)'], { review: { ok: true }, score: { s: 0.9 } }],
+    'live-token': ['satisfied', 'joined', ['resumed(split:0)', 'arrived(split:0)'], { review: { ok: true }, score: { s: 0.9 } }],
+    'live-token-requiring-arrival': ['satisfied', 'joined', ['resumed(split:0)', 'arrived(split:0)'], { review: { ok: true }, score: { s: 0.9 } }],
   },
   'ask-declined-exits': {
     'arrival-count': ['waiting', 'stuck', ['resumed(split:0)', 'exited(split:0)'], undefined],
-    'live-token': ['satisfied', 'joined', ['resumed(split:0)', 'exited(split:0)'], { 1: { s: 0.9 } }],
-    'live-token-requiring-arrival': ['satisfied', 'joined', ['resumed(split:0)', 'exited(split:0)'], { 1: { s: 0.9 } }],
+    'live-token': ['satisfied', 'joined', ['resumed(split:0)', 'exited(split:0)'], { score: { s: 0.9 } }],
+    'live-token-requiring-arrival': ['satisfied', 'joined', ['resumed(split:0)', 'exited(split:0)'], { score: { s: 0.9 } }],
   },
   'ask-declined-lost': {
     'arrival-count': ['waiting', 'stuck', ['resumed(split:0)', 'lost(split:0)'], undefined],
-    'live-token': ['satisfied', 'joined', ['resumed(split:0)', 'lost(split:0)'], { 1: { s: 0.9 } }],
-    'live-token-requiring-arrival': ['satisfied', 'joined', ['resumed(split:0)', 'lost(split:0)'], { 1: { s: 0.9 } }],
+    'live-token': ['satisfied', 'joined', ['resumed(split:0)', 'lost(split:0)'], { score: { s: 0.9 } }],
+    'live-token-requiring-arrival': ['satisfied', 'joined', ['resumed(split:0)', 'lost(split:0)'], { score: { s: 0.9 } }],
   },
 };
 

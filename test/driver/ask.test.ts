@@ -336,7 +336,7 @@ suite(SUITE, (test) => {
     equal(s.outcome, 'awaiting_action', 'and the run waits on the person, not `stuck`');
     ok(m.driver.resolve('r1:review:0:0', 'done', { result: { ok: true }, actor: 'ana' }), 'answered');
     equal(m.seen.slice(-5), ['resolution', 'resumed(0)', 'arrived(0)', 'joinSettled', 'dispatched'], 'resumed, arrived, the join fires, publish dispatched');
-    equal(m.sch.inputOf('r1:publish:-:0'), { 0: { ok: true }, 1: { s: 0.9 } }, 'the join carries the ANSWER as branch 0`s arrival (JP-R12)');
+    equal(m.sch.inputOf('r1:publish:-:0'), { review: { ok: true }, score: { s: 0.9 } }, 'the join carries the ANSWER as branch `review`s arrival — keyed by the entry id, ask-in-a-fanout`s `[review, score]` (JP-R12 v0.25)');
     equal(fold(m.driver.foldInputs()).regions.split!['-']!.suspended, [], 'and the region lists nothing suspended');
   });
 
@@ -365,7 +365,7 @@ suite(SUITE, (test) => {
     ok(m.driver.resolve('r1:approve:1:0', 'failed', { actor: 'p' }), 'item 1 declined — it exits to `skipped`');
     equal(m.sch.ids(), ['r1:ingest:-:0'], 'the join still waits for item 0');
     ok(m.driver.resolve('r1:approve:0:0', 'done', { result: 'a!', actor: 'p' }), 'item 0 answered last');
-    equal(m.sch.inputOf('r1:publish:-:0'), { 0: 'a!', 2: 'c!' }, 'the join carries the two answers that ARRIVED, keyed by branch path');
+    equal(m.sch.inputOf('r1:publish:-:0'), { 0: 'a!', 2: 'c!' }, 'the join carries the two answers that ARRIVED, keyed by item index (a top-level map: index and branch path are one string)');
   });
 
   test(DECLARED_CASES[9]!, () => {
@@ -390,7 +390,7 @@ suite(SUITE, (test) => {
     equal(m.sch.ids(), ['r1:a:0:0', 'r1:b:1:0'], 'branch 1 arrived and the join does NOT fire');
     equal(outcome(m.driver), 'awaiting_action', 'waiting on the person');
     ok(m.driver.resolve('r1:check:0:0', 'done', { result: 'ok', actor: 'p' }), 'answered');
-    equal(m.sch.inputOf('r1:publish:-:0'), { 0: 'ok', 1: 'B' }, 'the join fires, carrying the answer for branch 0');
+    equal(m.sch.inputOf('r1:publish:-:0'), { a: 'ok', b: 'B' }, 'the join fires, carrying the answer for branch `a` — keyed by `split`s entries `[a, b]` (JP-R12 v0.25)');
   });
 
   test(DECLARED_CASES[10]!, async () => {

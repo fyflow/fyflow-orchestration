@@ -93,7 +93,7 @@ if (JSON.stringify(shout?.result) !== '{"text":"hello world !"}') throw new Erro
 
 A **decision** is an edge with a `when` naming a predicate: code you supply, under a name the
 registry declares. A **fan-out** opens branches that run concurrently; a **join** waits for them and
-hands the next node every branch's result, keyed by branch path. Below, two runs at high and low
+hands the next node every branch's result, each under its own entry id. Below, two runs at high and low
 confidence take different roads. The worker is
 [examples/getting-started/tag.ts](examples/getting-started/tag.ts).
 
@@ -116,7 +116,7 @@ const isLowConfidence: Predicate = (ctx) => {
 
 // THE FLOW — a DECISION, a FAN-OUT, a JOIN. `ingest` goes to `review` when the predicate holds,
 // otherwise to `split`. `split` runs two branches concurrently; `collect` waits for both and hands
-// `publish` every branch's result, keyed by branch path.
+// `publish` every branch's result, each under its own entry id.
 const flow: FlowDefinition = {
   flowId: 'decide', version: 1, entry: 'ingest',
   nodes: [
@@ -144,13 +144,13 @@ const ran = (s: RunState) => Object.values(s.nodes).map((n) => n.nodeId).sort();
 const resultOf = (s: RunState, id: string) => Object.values(s.nodes).find((n) => n.nodeId === id)?.result;
 console.log(ran(high));                    // [ 'classify', 'enrich', 'ingest', 'publish' ]
 console.log(ran(low));                     // [ 'ingest', 'review' ]
-console.log(resultOf(high, 'publish'));    // { '0': { confidence: 0.9, ingest: true, enrich: true }, '1': { …, classify: true }, publish: true }
+console.log(resultOf(high, 'publish'));    // { enrich: { confidence: 0.9, ingest: true, enrich: true }, classify: { …, classify: true }, publish: true }
 
 // Verified by the docs gate:
 if (high.outcome !== 'completed' || low.outcome !== 'completed') throw new Error(`outcomes ${high.outcome} / ${low.outcome}`);
 if (ran(high).join() !== 'classify,enrich,ingest,publish') throw new Error(`high ran ${ran(high).join()}`);
 if (ran(low).join() !== 'ingest,review') throw new Error(`low ran ${ran(low).join()}`);
-const want = '{"0":{"confidence":0.9,"ingest":true,"enrich":true},"1":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
+const want = '{"enrich":{"confidence":0.9,"ingest":true,"enrich":true},"classify":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
 if (JSON.stringify(resultOf(high, 'publish')) !== want) throw new Error(`publish received ${JSON.stringify(resultOf(high, 'publish'))}`);
 ```
 

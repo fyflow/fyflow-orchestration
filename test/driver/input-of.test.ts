@@ -451,12 +451,12 @@ suite(SUITE, (test) => {
     const m = driveEarly();
     const cp = m.driver.checkpoint();
     const read = (target: Parameters<typeof inputOf>[3]) => inputOf(EARLY, m.opts, cp, target);
-    equal(view(read({ nodeId: 'j' })), [['0', 'arrival', B], ['-', 'collection', { 0: B }], ['1', 'arrival', C]],
-      'j: b arrives and the join FIRES on it, handing on {0: B}; c arrives LATE, after the firing — and is answered');
+    equal(view(read({ nodeId: 'j' })), [['0', 'arrival', B], ['-', 'collection', { b: B }], ['1', 'arrival', C]],
+      'j: b arrives and the join FIRES on it, handing on {b: B} — keyed by the entry id, `f`s `[b, c]` (JP-R12 v0.25); c arrives LATE, after the firing — and is answered');
     equal(one(read({ nodeId: 'j', branchPath: '1' }), 'the late arrival').value, C, 'the late arrival by its path');
-    equal(one(read({ nodeId: 'j', branchPath: '-' }), 'the collection').value, { 0: B }, 'the collection by the opener`s path: what was handed on, not what arrived');
+    equal(one(read({ nodeId: 'j', branchPath: '-' }), 'the collection').value, { b: B }, 'the collection by the opener`s path: what was handed on, not what arrived');
     // `s` reads `"c?"`: c had NOT settled at s's dispatch, so the key is ABSENT (FD-C4) — the final state has c's output.
-    equal(one(read({ taskId: 'r1:s:-:0' }), 's').value, { settings: {}, input: { it: { 0: B } } }, 's was handed no `c` — c settled after it was dispatched');
+    equal(one(read({ taskId: 'r1:s:-:0' }), 's').value, { settings: {}, input: { it: { b: B } } }, 's was handed no `c` — c settled after it was dispatched');
     ok(fold(cp.events).nodes['r1:c:1:0']?.state === 'done', 'the control: c DID settle, so a composition from the final state would have handed s a `c`');
     // `t` reads `["w"]`: only w:1 had settled when mj fired on it.
     equal(one(read({ taskId: 'r1:t:-:0' }), 't').value, { settings: {}, input: { ws: [WE(1)], it: { 1: WE(1) } } }, 't was handed one w — the other two settled after');
@@ -592,17 +592,20 @@ suite(SUITE, (test) => {
     };
     equal([
       r(null), r({}), r({ header: cp.header }), r({ header: cp.header, events: {} }),
-      r({ header: { ...cp.header, format: 2 }, events: cp.events }),
+      // **Format 1 — every checkpoint 0.11.0 wrote, the run itself otherwise unchanged — is refused `format`** (`RN-R16` v0.36,
+      // ADR 0138): `inputOf` reads ONE format, as resume does. It read `format: 2` until this driver's format was 2.
+      r({ header: { ...cp.header, format: 1 }, events: cp.events }),
+      r({ header: { ...cp.header, format: 3 }, events: cp.events }),
       r({ header: { ...cp.header, runId: 7 }, events: cp.events }),
       // A runId of the right TYPE that is no run id (ID-R2) — the conformity reader's construction: it threw until refused.
       r({ header: { ...cp.header, runId: 'r:1' }, events: cp.events }),
       r({ header: { ...cp.header, runId: '' }, events: cp.events }),
       r({ header: cp.header, events: [...cp.events.slice(0, 3), null, ...cp.events.slice(3)] }),
       r({ header: { ...cp.header, entryPayload: () => 1 }, events: cp.events }),
-    ], Array(10).fill('format:null'), 'each run that is not a stored run this version wrote is `format`');
+    ], Array(11).fill('format:null'), 'each run that is not a stored run this version wrote is `format`');
     equal([r(cp, { ...MAP_GATE, flowId: 'other' } as FlowDefinition), r(cp, { ...MAP_GATE, version: 2 } as FlowDefinition)], ['flow:null', 'flow:null'],
       'a definition that is not the stored run`s: `flow`');
-    const f = inputOf(MAP_GATE, m.opts, { header: { ...cp.header, format: 2 }, events: cp.events }, { taskId: 'r1:w:0:0' });
+    const f = inputOf(MAP_GATE, m.opts, { header: { ...cp.header, format: 1 }, events: cp.events }, { taskId: 'r1:w:0:0' });
     ok(!f.ok && f.message.includes('ResumeRefused (format)'), 'the message is resumeRefusal`s own — one function reads a header for both');
     // A HALTED, a CANCELLED run: a resume refuses both before replaying; a reading reads them (decision 5).
     const halted = { header: cp.header, events: [...cp.events, { kind: 'halted', reason: 'X' } as FoldInput] };
@@ -621,7 +624,8 @@ suite(SUITE, (test) => {
       equal(m.failures.length, 1, 'the predicate`s throw halted the run');
       ok(inputOf(DECIDE, m.opts, cp, { taskId: 'r1:a:-:0' }).ok, 'a predicate`s throw: a is read');
       equal(refusal(inputOf(DECIDE, m.opts, cp, { nodeId: 'y' })), `not-reached@${at(cp, 'halted')}`, 'and what follows the halt is not-reached, the prefix ending AT the halt');
-      // A 0.7.0 store wrote the halt `stopped` (ADR 0102): read as one.
+      // A 0.7.0 store wrote the halt `stopped` (ADR 0102): read as one. *(Under a FORMAT-2 header — `cp.header` is this
+      // driver's — since a 0.7.0 checkpoint itself is format 1 and refused `format` first (ADR 0138).)*
       const old = { header: cp.header, events: cp.events.map((e) => (e.kind === 'halted' ? { kind: 'stopped', reason: e.reason } as unknown as FoldInput : e)) };
       equal([inputOf(DECIDE, m.opts, old, { taskId: 'r1:a:-:0' }).ok, refusal(inputOf(DECIDE, m.opts, old, { nodeId: 'y' }))], [true, `not-reached@${at(cp, 'halted')}`],
         'a 0.7.0 `stopped` element ends the prefix exactly as `halted` does');
@@ -636,7 +640,7 @@ suite(SUITE, (test) => {
       m.sch.done('r1:b:0:0', B);
       const cp = m.driver.checkpoint();
       equal(m.failures, ['UnresolvedReference'], 'FD-R3 halted the run');
-      equal(view(inputOf(UNRESOLVED, m.opts, cp, { nodeId: 'j', branchPath: '-' })), [['-', 'collection', { 0: B }]], 'FD-R3: the collection the join handed on is read');
+      equal(view(inputOf(UNRESOLVED, m.opts, cp, { nodeId: 'j', branchPath: '-' })), [['-', 'collection', { b: B }]], 'FD-R3: the collection the join handed on is read');
       equal(one(inputOf(UNRESOLVED, m.opts, cp, { taskId: 'r1:c:1:0' }), 'c').value, { settings: {}, input: A }, 'and c, dispatched before');
       equal(refusal(inputOf(UNRESOLVED, m.opts, cp, { taskId: 'r1:s:-:0' })), `not-reached@${at(cp, 'halted')}`, 's — whose composition threw — is not-reached');
     }

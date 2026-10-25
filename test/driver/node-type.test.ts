@@ -12,7 +12,7 @@
  *
  * **`input` is asserted against what the SPEC says the node receives** — section 3's ordinary edge
  * (the previous node's result), `JP-R11` (a branch's copy; an instance's own item) and `JP-R12` (the
- * collection keyed by branch path) — written from the fixture's settlements before the driver runs,
+ * collection keyed by each branch's own key, ADR 0138) — written from the fixture's settlements before the driver runs,
  * because since v0.19 there is no bare node whose whole payload could stand as the other half of a
  * pair. *(W59 measured `input` against an untyped node in the same position; that road retired with
  * `workerType`.)* Every expected value is copied from the definition and the fixture, never the run.
@@ -149,8 +149,8 @@ const SHAPES: readonly [string, (extra: Record<string, unknown>, s: Fake, opts: 
     s.settle('r1:ingest:-:0', INGEST);
     s.settle('r1:scoreA:0:0', { score: 1 });
     s.settle('r1:scoreB:1:0', { score: 2 });
-    // JP-R12: the arrived branches' results keyed by branch path.
-    return { subject: ['r1:publish:-:0'], control: 'r1:scoreA:0:0', expectedInput: { 'r1:publish:-:0': { '0': { score: 1 }, '1': { score: 2 } } } };
+    // JP-R12 v0.25: the arrived branches' results, each under its entry id — `split`'s `[scoreA, scoreB]`.
+    return { subject: ['r1:publish:-:0'], control: 'r1:scoreA:0:0', expectedInput: { 'r1:publish:-:0': { scoreA: { score: 1 }, scoreB: { score: 2 } } } };
   }],
 ];
 

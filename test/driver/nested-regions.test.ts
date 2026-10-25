@@ -456,9 +456,9 @@ const DECLARED: [suite: string, cases: string[]][] = [
     'branch.exited is the sixth, and it too names the instance the branch was in',
   ]],
   ['L2 — W85: what a NESTED join carries — JP-R12 at two levels and at depth three', [
-    'two instances of one opener carry DISJOINT and COMPLETE collections',
+    'two instances of one opener carry SEPARATE and COMPLETE collections, under the same own keys',
     'a LOST branch removes its key from ITS instance and from no other',
-    'depth THREE: every level carries its own branches, and the innermost keys have three segments',
+    'depth THREE: every level carries its own branches, and every key at every level is ONE segment',
     'the key order holds at BOTH levels when twelve instances settle descending',
   ]],
   ['L2 — W85: N = 0 inside a map, at the depths the lift made reachable', [
@@ -634,10 +634,11 @@ suite('L2 — W85: the three branch-exit paths, under a region nested in a map',
       [{ '0.0': 'arrived', '0.1': 'arrived' }, { '1.0': 'exited', '1.1': 'arrived' }],
       'and `RN-R6` records `exited` in the instance it happened in and `arrived` in the other — ' +
       'three of section 2`s three TERMINAL kinds now occur at a non-`-` instance in this file');
-    equal(receivedBy(h, 'r1:after:1:0'), { '1.1': { w: 'q1' } },
-      '`JP-R12` — an EXITED branch has no key, so instance 1 carries one entry where instance 0 ' +
+    // Keyed by `f2`'s entries `[p, q]` — each branch's OWN key (v0.25, ADR 0138), where v0.24 keyed `1.1`.
+    equal(receivedBy(h, 'r1:after:1:0'), { q: { w: 'q1' } },
+      '`JP-R12` — an EXITED branch has no key, so instance 1 carries one entry (`q`) where instance 0 ' +
       'carries two. The rule enumerates three ways to have no key and this is the third');
-    equal(receivedBy(h, 'r1:after:0:0'), { '0.0': { w: 'p0' }, '0.1': { w: 'q0' } }, 'instance 0 is whole');
+    equal(receivedBy(h, 'r1:after:0:0'), { p: { w: 'p0' }, q: { w: 'q0' } }, 'instance 0 is whole');
     for (const i of [0, 1]) h.scheduler.settle(`r1:after:${i}:0`, 'done', { result: { i } });
     h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
     equal(fold(h.driver.foldInputs()).outcome, 'completed',
@@ -649,13 +650,17 @@ suite('L2 — W85: the three branch-exit paths, under a region nested in a map',
 
 suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at depth three', (test) => {
   /**
-   * **ADR 0062 consequence 5 as an assertion rather than as an argument.** It says
-   * two instances of one opener hold *disjoint* collections *by construction*,
-   * because a branch inside an instance carries that instance's path as its prefix.
-   * Derived from `JP-R12` before the run: `f2@i`'s join carries `{"i.0": p's result,
-   * "i.1": q's result}`, and nothing else can be in it.
+   * **ADR 0062's instance key as an assertion rather than as an argument.** Its
+   * consequence 5 said two instances of one opener hold *disjoint* collections *by
+   * construction*, because a branch inside an instance carried that instance's path as
+   * its prefix. **Since v0.25 (ADR 0138) the keys carry no prefix** — `f2@i`'s join
+   * carries `{"p": p's result, "q": q's result}` for EVERY `i`, the same key set — so
+   * what keeps the two apart is that each INSTANCE holds its own collection, which is
+   * what ADR 0138 puts in place of the prefix argument. Derived from `JP-R12` before the
+   * run; the VALUES are what tell the two instances apart, and a collection keyed by
+   * the opener alone would hand both items one object holding the last writer's values.
    */
-  test('two instances of one opener carry DISJOINT and COMPLETE collections', () => {
+  test('two instances of one opener carry SEPARATE and COMPLETE collections, under the same own keys', () => {
     const h = harness(FANOUT_IN_MAP);
     openTwoInstances(h);
     for (const [id, w] of [['r1:p:0.0:0', 'p0'], ['r1:q:0.1:0', 'q0'],
@@ -664,15 +669,17 @@ suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at de
     }
     h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
 
-    // `collect` is `split`'s join, so what IT carries is keyed by the MAP's branch
-    // paths — one entry per item — and each value is what that item's own `j2`
-    // carried. Two levels of `JP-R12`, read from one dispatch.
-    equal(receivedBy(h, 'r1:publish:-:0'), {
-      '0': { '0.0': { w: 'p0' }, '0.1': { w: 'q0' } },
-      '1': { '1.0': { w: 'p1' }, '1.1': { w: 'q1' } },
+    // `collect` is `split`'s join, so what IT carries is keyed by the MAP's item
+    // indexes — one entry per item — and each value is what that item's own `j2`
+    // carried, keyed by `f2`'s entries. Two levels of `JP-R12`, read from one dispatch.
+    const got = receivedBy(h, 'r1:publish:-:0') as Record<string, Record<string, unknown>>;
+    equal(got, {
+      '0': { p: { w: 'p0' }, q: { w: 'q0' } },
+      '1': { p: { w: 'p1' }, q: { w: 'q1' } },
     }, 'the outer join carries one entry per ITEM and each is the inner join`s own collection. ' +
-       'The two inner key sets share no key, which is what ADR 0062 consequence 5 argues from the ' +
-       'path prefix and what nothing asserted');
+       'The two inner key sets are the SAME — `p` and `q` — and the values are each instance`s own, ' +
+       'which is ADR 0062`s instance key doing it now that no key carries a prefix (ADR 0138)');
+    ok(got['0'] !== got['1'], 'and they are two OBJECTS, one per instance, not one collection read twice');
     equal(fold(h.driver.foldInputs()).outcome, 'completed',
       'and the run completes, so the two collections above are what a SATISFIED join carried and ' +
       'not what a halted run left behind');
@@ -692,24 +699,25 @@ suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at de
     h.scheduler.settle('r1:q:1.1:0', 'done', { result: { w: 'q1' } });
 
     equal(receivedBy(h, 'r1:publish:-:0'), {
-      '0': { '0.0': { w: 'p0' }, '0.1': { w: 'q0' } },
-      '1': { '1.1': { w: 'q1' } },
-    }, 'item 0 carries BOTH its branches and item 1 carries ONE — the lost branch has no key, and ' +
+      '0': { p: { w: 'p0' }, q: { w: 'q0' } },
+      '1': { q: { w: 'q1' } },
+    }, 'item 0 carries BOTH its branches and item 1 carries ONE (`q`) — the lost branch has no key, and ' +
        'the two collections differ in their key SETS rather than only in their values. A read keyed ' +
        'by the opener hands both items the same object');
   });
 
   /**
-   * **Depth three**, where `JP-R12` applies at three levels at once and the innermost
-   * keys carry three segments. W84 asserted the KEYS at this depth and left what each
-   * level CARRIES unasserted.
+   * **Depth three**, where `JP-R12` applies at three levels at once. W84 asserted the
+   * KEYS at this depth and left what each level CARRIES unasserted. *(Until v0.25 the
+   * innermost keys carried three segments; since ADR 0138 every key is ONE.)*
    *
-   * Derived on paper, innermost first:
-   *   `F@1.0` -> `{"1.0.0": p, "1.0.1": q}` and `F@1.1` -> `{"1.1.0": p, "1.1.1": q}`
-   *   `M@1`   -> `{"1.0": <F@1.0's collection>, "1.1": <F@1.1's collection>}`
-   *   `A@-`   -> `{"0": b0's result, "1": <M@1's collection>}`
+   * Derived on paper, innermost first — `F`'s entries `[p, q]`, `M`'s item indexes,
+   * `A`'s entries `[b0, b1]`:
+   *   `F@1.0` -> `{"p": p@1.0.0, "q": q@1.0.1}` and `F@1.1` -> `{"p": p@1.1.0, "q": q@1.1.1}`
+   *   `M@1`   -> `{"0": <F@1.0's collection>, "1": <F@1.1's collection>}`
+   *   `A@-`   -> `{"b0": b0's result, "b1": <M@1's collection>}`
    */
-  test('depth THREE: every level carries its own branches, and the innermost keys have three segments', () => {
+  test('depth THREE: every level carries its own branches, and every key at every level is ONE segment', () => {
     equal(validateDefinition(DEPTH_THREE, registry), [], 'the document validates with zero findings');
     const h = harness(DEPTH_THREE);
     h.driver.start({});
@@ -723,14 +731,15 @@ suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at de
     h.scheduler.settle('r1:publish:-:0', 'done', { result: {} });
 
     equal(receivedBy(h, 'r1:publish:-:0'), {
-      '0': { w: 'b0' },
-      '1': {
-        '1.0': { '1.0.0': { w: 'p:1.0.0' }, '1.0.1': { w: 'q:1.0.1' } },
-        '1.1': { '1.1.0': { w: 'p:1.1.0' }, '1.1.1': { w: 'q:1.1.1' } },
+      b0: { w: 'b0' },
+      b1: {
+        '0': { p: { w: 'p:1.0.0' }, q: { w: 'q:1.0.1' } },
+        '1': { p: { w: 'p:1.1.0' }, q: { w: 'q:1.1.1' } },
       },
-    }, 'THREE nestings of JP-R12 in one value: the outer fanout`s two branches, the map`s two items ' +
-       'under branch 1, and each item`s own fanout under that. The innermost keys carry three ' +
-       'segments, which `spec/task-id.md` section 1 has reserved since P1');
+    }, 'THREE nestings of JP-R12 in one value: the outer fanout`s two entries, the map`s two items ' +
+       'under `b1`, and each item`s own fanout under that — every key ONE segment, so `input.b1.1.q` ' +
+       'reaches the second item`s `q` (ADR 0138). The full path `1.1.1` is still the TASK id`s, ' +
+       'which is where each value`s `w` came from');
 
     const s = fold(h.driver.foldInputs());
     equal(s.outcome, 'completed',
@@ -744,16 +753,17 @@ suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at de
 
   /**
    * **`JP-R12`'s key-ORDER clause, at a depth that is not the one it was written
-   * for.** The rule's own Test cell says the discriminating fixture is *a map at
-   * N = 12 nested in a fan-out branch, settled descending*, because integer-like keys
-   * are re-ordered ascending BY THE LANGUAGE and dotted keys are not.
+   * for** — the rule's second key-order fixture, twelve INSTANCES of one opener settled
+   * descending, `q` before `p` inside each.
    *
-   * **This is the same hazard one key further in**, and it is a different fixture
-   * rather than the same one: here the INSTANCES are what multiply, so the twelve
-   * collections are twelve separate objects and the ordering being asserted is
-   * inside the OUTER join, over twelve dotted-free integer-like keys, while each
-   * inner collection's keys are dotted. Settled descending, both orders have to come
-   * out ascending.
+   * **v0.25 (ADR 0138) changes what it discriminates and keeps its shape.** Until v0.24
+   * each inner collection's keys were DOTTED (`11.0`, `11.1`), so the comparator had to
+   * order them. Now they are `f2`'s entries `p` and `q` — NON-integer-like, so the
+   * language keeps INSERTION order, and `p` coming out first though `q` settled first in
+   * every instance is the driver inserting in `branches` order rather than settlement
+   * order. The outer keys are item indexes `0` … `11`, integer-like, which the language
+   * orders anyway; what that level discriminates is each instance's values under its OWN
+   * index — a key taken from settlement position files instance 11's under `0`.
    */
   test('the key order holds at BOTH levels when twelve instances settle descending', () => {
     const items = Array.from({ length: 12 }, (_, i) => `i${i}`);
@@ -769,11 +779,15 @@ suite('L2 — W85: what a NESTED join carries — JP-R12 at two levels and at de
     equal(Object.keys(outer), items.map((_, i) => String(i)),
       'the OUTER join`s keys come out 0..11 ascending though the items settled 11..0 — and at this ' +
       'level the language would have done it anyway, which is why the level below is the test');
-    equal(Object.keys(outer['11']!), ['11.0', '11.1'],
-      'and inside instance 11 the keys are DOTTED, where the language preserves insertion order — ' +
-      'so `11.1` settling before `11.0` and coming out second is the comparator doing it. Twelve ' +
-      'instances rather than twelve branches: the multiplication is in the KEY now');
-    equal(Object.keys(outer['0']!), ['0.0', '0.1'], 'and the same inside instance 0');
+    equal(outer['11'], { p: { w: 'p11' }, q: { w: 'q11' } },
+      'and each item`s collection sits under its OWN index — instance 11 settled FIRST, so a key ' +
+      'taken from settlement position would file it under `0`');
+    equal(outer['0'], { p: { w: 'p0' }, q: { w: 'q0' } }, 'and instance 0, settled LAST, under `0`');
+    equal(Object.keys(outer['11']!), ['p', 'q'],
+      'and inside instance 11 the keys are `f2`s entries in `branches` order — non-integer-like, ' +
+      'where the language keeps INSERTION order — so `q` settling before `p` and coming out second ' +
+      'is the driver inserting in `branches` order, not settlement order');
+    equal(Object.keys(outer['0']!), ['p', 'q'], 'and the same inside instance 0');
   });
 });
 
@@ -836,13 +850,14 @@ suite('L2 — W85: N = 0 inside a map, at the depths the lift made reachable', (
     equal(trace(h).filter((s) => s.startsWith('lost')), ['lost M@1 1.0', 'lost M@1 1.1'],
       'TWO branches of M@1 ended, one per empty instance — `JP-R10` applied twice rather than once ' +
       'per opener, which is exactly what a latch keyed by the opener would have prevented');
-    // **The author expected `{"0": ...}` here and the run said `{"0": ..., "1": {}}`.**
+    // **The author expected `{"0": ...}` here and the run said `{"0": ..., "1": {}}`** — keyed by
+    // `A`'s entries since v0.25, `{"b0": ..., "b1": {}}`.
     // `M@1`'s own join is SATISFIED — `live-token` fires when a region has no live
     // branches and a lost branch is not a live one — so it routes out carrying `{}`,
     // and branch 1 of the OUTER fanout arrives with that empty object. *`JP-R12`'s
     // `{}` is a value that PROPAGATES, not an absence*, and at depth 1 there is
     // nothing above a region for it to propagate into.
-    equal(receivedBy(h, 'r1:publish:-:0'), { '0': { w: 'b0' }, '1': {} },
+    equal(receivedBy(h, 'r1:publish:-:0'), { b0: { w: 'b0' }, b1: {} },
       'branch 1 of the outer fanout ARRIVED, carrying the empty collection M@1`s join fired with — ' +
       'so `JP-R12``s *a join nothing arrived at carries {}* is not where this stops: the `{}` is ' +
       'itself what the enclosing branch carries in');
@@ -926,10 +941,10 @@ suite('L2 — W85: the at-most-once latch is per INSTANCE — Q95`s precondition
     equal(joinSettlements(h.driver.foldInputs()), ['f2@0:true', 'f2@1:true', 'split@-:true'],
       'THREE settlements, one per region instance — and instance 1 fired although instance 0 had ' +
       'already latched, which is the too-STRONG direction on the same expression');
-    equal(receivedBy(h, 'r1:publish:-:0'), { '0': { '0.0': { w: 'p0' } }, '1': { '1.0': { w: 'p1' } } },
+    equal(receivedBy(h, 'r1:publish:-:0'), { '0': { p: { w: 'p0' } }, '1': { p: { w: 'p1' } } },
       '`JP-R12` rule 4 PER INSTANCE: each item carries the ONE branch that arrived before its own ' +
       'join became terminal, and the late arrival recorded nothing. Keyed by the opener, the late ' +
-      '`0.1` lands in a collection that is still open and item 0 comes out with two keys');
+      '`q` (at `0.1`) lands in a collection that is still open and item 0 comes out with two keys');
   });
 
   /**

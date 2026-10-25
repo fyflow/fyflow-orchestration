@@ -361,18 +361,20 @@ suite(SUITE, (test) => {
       const noR = await checkWiring(reg({ type: 'object', required: ['key'] }), d);
       equal(noR.verdicts.find((x) => x.consumer === 'setup')!.kind, 'no', `${shape}: a consumer requiring the gate's SETTING name is no — the gate hands on what reached it, not its settings`);
     }
-    // A gate routing into a join carries its branch's key into the record — the fanout shape, branch 0.
+    // A gate routing into a join carries its branch's key into the record — the fanout shape, branch 0, whose key is its
+    // ENTRY ID `identify` (`split`'s `[identify, other]`) since v0.25 (ADR 0138; `0` until then).
     const f = SHAPES[1]![1](GATE({ edges: [{ to: 'collect' }, { route: 'duplicate', to: 'dropped' }, { route: 'nokey', to: 'dropped' }] }));
     // The join must feed a TASK for the record to have a consumer to be judged against — the shape's feeds an end.
     f.nodes = f.nodes.filter((n) => n.id !== 'setup').map((n) => (n.id === 'collect' ? { ...n, edges: [{ to: 'after' }] } : n)) as typeof f.nodes;
     f.nodes.push({ id: 'after', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] } as (typeof f.nodes)[number]);
     // What the record carries is observed through `fits` (a verdict carries a sample only for a transformed arc):
-    // a consumer DESCRIBING key "0" meets the producer's shape there only if the record HAS branch 0's key —
+    // a consumer DESCRIBING key "identify" meets the producer's shape there only if the record HAS branch 0's key —
     // an absent key is read as never emitted (the check's stated leniency) and fits whatever is described.
-    const rec = async (zero: JsonSchema) => (await checkWiring(reg({ type: 'object', properties: { '0': zero } }), f)).verdicts.find((x) => x.shape === 'record')!;
+    const rec = async (zero: JsonSchema, key = 'identify') => (await checkWiring(reg({ type: 'object', properties: { [key]: zero } }), f)).verdicts.find((x) => x.shape === 'record')!;
     const asString = await rec({ type: 'string' });
     equal([asString.consumer, asString.kind], ['after', 'no'], `branch 0's key IS in the record, THROUGH the gate — described as a string it is no: ${asString.why}`);
-    ok(asString.why.includes('$.0'), 'and the reason is at $.0');
+    ok(asString.why.includes('$.identify'), 'and the reason is at $.identify');
+    equal((await rec({ type: 'string' }, '0')).kind, 'fits', 'the control: the POSITION `0` — 0.11.0`s key — is no key of the record now, so describing it meets nothing');
     equal((await rec({ type: 'object', required: ['series'] })).kind, 'fits', 'and under it is what reached the gate — identify`s output, which requires series — not the gate`s settings');
     // An ENTRY gate: the walk passes through it to every route's target.
     const entry = { flowId: 'eg', version: 1, entry: 'dedupe', nodes: [GATE(), { id: 'setup', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'done' }] },
