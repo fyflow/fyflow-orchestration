@@ -1,6 +1,6 @@
 # P44 — What does a join hand on, and how does a key path reach into it?
 
-**Status:** declared 2026-10-24 — on `bdbdb1c` (the tree clean, `main` at 0.11.0, tagged `v0.11.0`, `origin/main` equal),
+**Status:** complete and retro'd 2026-10-25 — W214-W218 done, `gate:full` EXIT 0 on W218's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-24 — on `bdbdb1c` (the tree clean, `main` at 0.11.0, tagged `v0.11.0`, `origin/main` equal),
 answering fyflow-app's *pass 5* #1-#2 and P43's two retro stop-and-asks; facts 1-10 read or MEASURED at this declaration;
 stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-24, (b) modified by the maintainer; W215-W218 each wait on the
 item before them.
@@ -380,3 +380,178 @@ deno and chromium; the release state, measured.
 | [Q165](../questions/q165.md) | a join reducer — `deferred`, unmoved; a reducer would receive the new keys | — |
 | [Q411](../questions/q411.md) | a bare `k in o` answering from `Object.prototype` — `icebox`; the same prototype-name class decision 4's `__proto__` entry id meets, closed there by own-property definition | — |
 | *(Q780-Q789)* | none planned | each item's block, on a NO |
+
+## Record
+
+*Written 2026-10-25 over W218's final tree, the tree held still before it. Every figure is read from the five items' own
+files, or re-taken by W218 and named so. Ids are bare text, as in P33's-P43's Records.*
+
+**The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.
+
+| item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|---|---|
+| **W214** `1270502` | the map-cost suite at 500 / 2,000 items in a browser, 2,000 / 8,000 in node and deno, the host read by `document`, a second observer for the guard | runtime-targets v0.14 (`RT-R1`) | — / — ; ADR 0135 SPENT | none | conformity 3 SHOULD, 4 NIT; adequacy 17 probes, 1 SHOULD, NITs. **Overlap 1** | 100 / 2267; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,218.4 s |
+| **W215** `07bc379` | `FD-V21` refuses a non-string join `of` and fanout branch entry; both schema forms hold them to the id charset; two invalid corpus files | flow-definition v0.52 | **Q774 resolved** / — ; ADR 0136 SPENT | none beyond the record step (ADR 0132's amendment note) | conformity 1 SHOULD, 5 NIT; adequacy 36 probes, 2 SHOULD, NITs. **Overlap 0** | 100 / 2274; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,137.3 s |
+| **W216** `5d14a2c` | a bracket index `[n]` in a key path — grammar, `readKeyPath`'s array arm, `FD-V43`'s root, the wiring refinement by `minItems`, the schema's patterns; the FD-V40 corpus file re-cut to a wildcard; ADR 0137 | flow-definition v0.53 | — / — | none beyond the record step (ADR 0068's note) | conformity 2 SHOULD, 4 NIT; adequacy 57 probes, 1 SHOULD, NITs. **Overlap 1** | 102 / 2289; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,159.4 s |
+| **W217** `177234d` | a join's collection keyed by each branch's OWN key (`Object.fromEntries`), the wiring record the same; `CHECKPOINT_FORMAT` 2; 41 L1-L5 cases, 22 L6 claims and 5 snippets re-derived; `own-key.test.ts`; ADR 0138 | join-policy v0.25, run-state v0.36, flow-definition v0.54 | — / — | none beyond the record step (notes in ADR 0037, 0062, 0102, 0130) | conformity 3 SHOULD, 8 NIT; adequacy 29 probes, 3 SHOULD, NITs. **Overlap 1** | 103 / 2295; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,074.1 s |
+| **W218** `3c76c60` | the `W218 exit` L6 block — pass 5's flow on real workers, threaded and inline: the collection by hand, an `if` on `input.prep.1`, `distinct` keys `side.xs[1]` and `prep.1`, an `if` on `input.side.xs[1]`, each with its control, and a format-1 store refused by a fresh runtime's `resume` beside the store as written resuming — twenty-two claims, six runs; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 2 NIT; adequacy 36 probes, 0 SHOULD, 3 NIT; the author's 13 provocations. **Overlap 0** | 103 / 2295; **2883 / 252** | **`gate:full`** EXIT 0, 11/11 self-tests, 2,551 s (a first run EXIT 1 on a half-written close — the Record) |
+
+**One question closed (Q774), none raised. No asked exception; no stop-and-ask inside an item. The readers' overlap, every
+Record stating its own: 1, 0, 1, 1, 0.**
+
+### The exit artifact, measured
+
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) an L2 and L5 suite: a join's collection keyed by each branch's own key at depth one, two and three, a branch that did not arrive having no key, the order by hand; `CHECKPOINT_FORMAT` 2, a format-1 checkpoint refused `format` by name | W217: `test/driver/own-key.test.ts` (pass 5's flow, `"b"`/`"2"` → `["2","b"]`, `__proto__` an own key, the wiring record, format 1 refused by `resume()`, `runtime.resume` and `inputOf` beside format 2); the re-derived `nested-regions`, `map`, `matrix` suites; both ways against the 0.11.0 driver | **met** |
+| (2) an L1-L2 suite: `[n]` in a gate's `key` and a `when.path` on a real array, a plain numeric segment over an array still `undefined`, the wiring refinement; `FD-V21`; green in all three L0-L5 runtimes with the chromium lane under its 60 s wait by a margin stated | W216: `test/definition/key-path-index.test.ts`, `test/driver/key-path-index.test.ts`; W215: `clauses.test.ts`, the schema suite; node, deno and chromium (parity 2,295). **The margin, as a SHARE** (W214): the map-cost suite ~21% of the lane fast, 27% slow, against 50-70% before; the in-page wall 13.5-31.9 s across the states measured | **met** |
+| (3) one L6 block, node 24 and deno, threaded and inline: a gate keyed by an entry id and an index and an `if` on a bracket index route a run on real workers, and a format-1 checkpoint is refused `format` by a runtime's resume, each claim with its control | the `W218 exit` block, twenty-two claims over six runs, **2883 / 252, 0 failed** in both runtimes. *A `distinct` key has no `input.` root, so the plan's `input.<entry id>.<index>` is spelled `prep.1` (W218's Record)* | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W218, one command on the final tree after the readers' fixes: the ladder, then 11/11 self-test lanes ok, `check:register:selftest` included (2,245.5 s wall, 10 lanes), 2,551 s in all. *Its first run was EXIT 1 — `state.mjs` refused this plan's Status line still reading* declared *beside its Record; moved, and re-run whole* | **met** |
+
+**The counts across the plan**, each from the items' gate tables: L1-L5 **100 / 2267 → 103 / 2295** in node, deno and
+chromium; L6 **2861 / 246 → 2883 / 252** in node and deno; `check:docs` `RUN_FLOOR` **54**, unmoved; `check:spec` 45
+refusals, unmoved; spec/flow-definition **v0.51 → v0.54**, join-policy **v0.24 → v0.25**, run-state **v0.35 → v0.36**,
+runtime-targets **v0.13 → v0.14**; **`CHECKPOINT_FORMAT` 1 → 2**; the package surface MOVES — every key of every join's
+collection, `CHECKPOINT_FORMAT`'s value, `KEY_PATH_RE.source`, `definitionSchema()`'s patterns and `validateDefinition`'s
+verdicts on a non-string `of` / branch entry and on a bracket-index path — **BREAKING, 0.12.0** (decision 7);
+`doc/concept.md` untouched.
+
+**What the plan answered.** *Can a flow read what a join hands on by a key path?* — **yes**: every branch under its OWN
+key, one segment at every depth — a map's item index, a fan-out's entry node id — in the object's own order, built by
+own-property definition (ADR 0138); and **an array element by a bracket index** `[n]`, on a real array only, a plain
+numeric segment keeping its meaning (ADR 0137). *And what does a run started before the change become?* — **refused**:
+`CHECKPOINT_FORMAT` 2, a 0.11.0 checkpoint refused `format` by name and a 0.11.0 driver refusing a 0.12.0 one the same way,
+measured both ways (W217) — the maintainer's (b), no backward compatibility. **fyflow-app's pass 5**: #1 (a)-(c) accepted
+in the shapes above, (d) declined with the drain-or-abandon instruction; #2 accepted as `[n]` only, the quoted form
+declined; Q774 named as a change in what is accepted; the reply is written
+(`../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass5.reply.md`).
+
+**Predictions, scored against the items' Records.**
+
+| | prediction | verdict | evidence |
+|---|---|---|---|
+| 1 | W214 takes the chromium lane under 35 s and moves no case count | **HOLDS, weaker than it reads** — under 35 s in every state measured, but the baseline was 21 s in the fast state: the wall is a property of the machine's STATE | W214 Record |
+| 2 | W215 moves no existing corpus verdict; only W210's two pins flip | **HOLDS** | W215 Record |
+| 3 | W216 flips the FD-V40 corpus file and no other | **HOLDS** | W216 Record |
+| 4 | W217's census is fact 3's plus its spec edits' readers — at least 41 / 22, at most five more files | **HOLDS at its floor** — exactly fact 3's; but two passing CONTROLS in `examples/l6.ts` went VACUOUS, which no failing-test census can see | W217 Record |
+| 5 | no L5 matrix cell's own assertion moves under W217 | **HOLDS** | W217 Record |
+| 6 | W218 moves `X10` by its block alone, and no existing L6 row | **HOLDS** — 2861 / 246 → 2883 / 252 | W218 Record |
+
+**Questions**: **closed [Q774](../questions/q774.md)** (W215); none raised. `npm run q -- --where status=open` lists none.
+
+**Handed on**, each with its owner:
+
+| hand-off | from | owner | where it is recorded |
+|---|---|---|---|
+| **0.12.0** — the version bump, the push and the publish to npm and JSR | (e1) | **the maintainer** — *only when the maintainer says so* | this Record |
+| `check:spec` stays green when a refusal row cites a corpus file that does not exist | W216's adequacy S1 | **the maintainer** — retro section 8 (a) | the retro |
+| ADR 0102's `stopped` dual read, unreachable since format 2 | W217's decision | **the maintainer** — retro section 8 (b) | the retro |
+| the reply to fyflow-app | the plan's *reply* paragraph | **done** — W218 | W218's Record |
+| the byte copies `C:/tmp-w214` … `C:/tmp-w218` and the session scratchpad's probes | every item | **the maintainer** — left in place, outside the repository | each item's Record |
+
+## Retro
+
+*Pass 3 ran on 2026-10-25 over W218's final tree, by W218's author as the plan's last item. Every figure is read from the
+five items' Records. **Two routings here need the maintainer** (section 8); nothing is acted on outside the record step's
+four files and W218's one declared exception.*
+
+### 1. The asks
+
+| item | widenings (rule 6), each answered | design, each answered | reader defects | raised / closed |
+|---|---|---|---|---|
+| P44's declaration | — | (a)-(f), (b) modified by the maintainer | — | — |
+| W214 | — | — | 4 SHOULD, NITs | — |
+| W215 | — | — | 3 SHOULD, NITs | **Q774 closed** |
+| W216 | — | — | 3 SHOULD, NITs | — |
+| W217 | — | — | 6 SHOULD, NITs | — |
+| W218 | — (one exception declared before the edit) | — | 2 SHOULD, NITs | — |
+| **P44** | **none asked** | **6 answers** | **every one acted on or declared** | **0 raised, 1 closed** |
+
+### 2. The `Owns` and the census sites — B′, C, D′ and E
+
+**B′ held**: every item ran `npm run gate` on its whole draft — spec and corpus edits included, P43's added clause —
+before fixing its `Owns`, and no item edited outside them. **C held** (one confirming gate per item, on the final tree).
+**D′ held at every name it grepped, and was blind where the plan said it would be** — W217's two L6 CONTROLS (section 4
+(a)) were found by reading, not by a lane or a grep. **E held**: every item's probes cut one clause per call site.
+
+### 3. The readers, and the overlap
+
+| item | conformity | adequacy | overlap | ordinal |
+|---|---|---|---|---|
+| W214 | 3 SHOULD, 4 NIT | 17 probes; 1 SHOULD, NITs | **1** — the titles printing the node pair in a browser | 130th |
+| W215 | 1 SHOULD, 5 NIT | 36 probes; 2 SHOULD, NITs | **0** | 131st |
+| W216 | 2 SHOULD, 4 NIT | 57 probes; 1 SHOULD, NITs | **1** — the index arm's reading of a hole | 132nd |
+| W217 | 3 SHOULD, 8 NIT | 29 probes; 3 SHOULD, NITs | **1** — a stale *keyed by branch path* message | 133rd |
+| W218 | 2 SHOULD, 2 NIT | 36 probes; 0 SHOULD, 3 NIT | **0** | 134th |
+
+**Every Record states its overlap**, the ninth plan running. **Five measurements, all inside section 6's 0-4 band. The
+ordinal is a hundred and thirty-four, so the next is the HUNDRED-AND-THIRTY-FIFTH** — carried into `doc/workflow.md` by
+W218's declared exception.
+
+### 4. Rules followed that failed, and the rung (pass 3 rules 3 and 5)
+
+| candidate | followed? | caught by | verdict |
+|---|---|---|---|
+| **(a) a re-keying turns an old-shaped CONTROL literal VACUOUS, and a failing-test census cannot see it** — W217: the W206 block's two controls (`collection[1] !==` and `ask[1] !==` a `{ 0: …, 1: … }` literal) passed before and after, because an old-shaped literal differs from every new value | **FOLLOWED** — B′ ran every lane, fact 3 measured the census by running it | W217's author, by READING for each premise the change falsifies (Re-take 2) | One occurrence, with an argument for generality: section 5 rule 8 (d)'s *a control must fail where its claim is VACUOUS* names the class, and a census by FAILURE is by construction blind to a test that keeps passing. **Not a new rule** — rule 8 (d) covers it; carried for the next brief as one sentence: *where a change moves a value's SHAPE, a control comparing against the old shape is re-derived, not re-run* |
+| **(b) a change of key TYPE moves which orderings the LANGUAGE does for you** — W217: integer-like map keys made the insertion sort unobservable on every map fixture (a lexicographic sort survived every lane, the adequacy reader's M8), killed only by twelve non-integer-like fan-out entries; and W218's `prep` < `side` makes `branches` order and a sorted order coincide on pass 5's flow (W218's conformity NIT 4) | **FOLLOWED** — the fixtures kept their shapes, as decision 4 said | W217's adequacy reader; W218's conformity reader | **TWO occurrences in two items** — pass 3 rule 2's bar. Section 5 rule 8 (a)'s *where it SELECTS, a fixture where every WRONG selection differs* already says it; what failed is that the fixture's discriminating power was a property of its KEYS, which the change moved. **Not a new rule**: recorded for the next brief — *a change to a key's type re-asks which wrong orders each fixture still separates* |
+| **(c) a `__proto__` assignment probe must be graded in node, not deno** — deno 2.9.6 has no `Object.prototype.__proto__` accessor, so `o['__proto__'] = v` there DEFINES an own key, as `Object.fromEntries` does | — (a measured fact, W217's re-take 3) | W217's author | One occurrence; **stated where it binds** — `own-key.test.ts`' header. Recorded: a definition-vs-assignment provocation is graded in node or a browser |
+| **(d) `check:spec` stays green when a refusal row cites a corpus file that does not exist** — W216 renamed `FD-V40--gate-key-path-with-an-index.flow.json`; the adequacy reader restored the OLD name in the FD-V40 row and every check stayed green (S1) | — | W216's adequacy reader | A defect in a check with no rung, pre-existing, the fix in `scripts/check-spec.mjs` — on no P44 row's `Owns`. **Section 8 (a)** |
+| **(e) a wall is a property of a machine STATE** — W214: the same bundle 21 s and 51-58 s within the hour on one laptop; fact 7's *~57 of 60 s* and prediction 1's *under 35 s* were statements about one state | **FOLLOWED** — the wall was re-taken before and after, as the row said | W214's own interleaved measurement | One occurrence, argued general ([Q179](../questions/q179.md)'s *a cost is a property of a machine*, one level in). **Recorded for the next brief: a headroom is stated as a SHARE of the lane, together with the machine state it was measured in** — not a workflow rule |
+| **(f) a plan that states its exit TWICE can state it two ways** — exit clause (3) says *an `if` on a bracket index*, the *W218 — outputs* paragraph an `if` on `input.prep.1` and a gate on the index (spelled with an `input.` root a `distinct` key does not have); W218's first cut met the paragraph | **FOLLOWED** — the item wrote its `Owns` and Outputs from the row and the paragraph, as section 7 rule 2 says | W218's conformity reader (SHOULD 1, 2) | One occurrence. **Not a rule**: the conformity reader reads the exit clause as well as the row, which is what caught it. Recorded for the next plan's author: *an exit clause and an item's outputs paragraph are one claim written twice; write the second from the first* |
+| **(g) ADR 0102's `stopped` dual read is unreachable from any checkpoint a driver writes** since format 2 (a 0.7.0 checkpoint is refused `format` first) | W217 KEPT it (removing it is a separate decision) | W217's author | **Section 8 (b)** |
+
+**Pass 3 rule 5 over P44's defects**, by what caught them: **a rung in `gate`** — `check:register` `R7` (W217's ADR field);
+**the authors** — W217's two vacuous controls; **the conformity readers** — W214's six host-reading suites, W216's key
+group, W217's stale comments, W218's missing `if` on an index; **the adequacy readers** — W215's charset, W216's bound,
+W217's sort and record keys. **No rung would have caught** a check that cannot see a missing file (W216 S1) — that is
+section 8 (a).
+
+**The flaky rows ([Q599](../questions/q599.md))**: **NO in P44** — every item's `gate` and confirming gate ran L6 green in
+both runtimes; W218's L6 green in every run, including under its readers' and its provocations' load.
+
+### 5. The scheduler
+
+**No S entry raised. No contract found broken.** An own `__proto__` key survived the threaded pool's `postMessage` clone
+in node and deno (W217's re-take), and every W218 claim held on both pools.
+
+### 6. Proposals (pass 3 rule 4), ranked
+
+**A. Recommended for the workflow: NO CHANGE to a rule.** B′ and C held; D′'s blindness is the class the plan named;
+rules 8 (a) and 8 (d) cover section 4 (a) and (b); every Record stated its overlap.
+
+**B. Carried for the next plan's author** — P39's proposal B as P40 adopted it and P40's-P44's retros carried it (B′ with
+P43's clause, C, D′, E and the brief sentences), **with three sentences added to the brief** (section 4 (a), (b), (e)):
+*a control comparing against a value's old SHAPE is re-derived, not re-run*; *a change to a key's type re-asks which wrong
+orders each fixture still separates*; *a headroom is a SHARE, stated with the machine state it was measured in*.
+
+### 7. Refusals, and what this retro changed
+
+- **A check over `doc/` — considered and NOT proposed; it is the 43rd refusal, P2-P44.** P44's text defects were a
+  spec note's *two kinds* (W214), a re-take's *one* pin (W215), an ADR's *no change for an unvalidated caller* (W216),
+  stale *keyed by branch path* comments (W217) and a block that did not say which of its plan's two wordings it met (W218)
+  — each found by a reader reading the text beside the code. **No other ledger row is re-raised.**
+
+| file | why |
+|---|---|
+| this plan | the Status line; this Record and Retro |
+| `doc/workflow.md` | W218's declared exception: the Status line's count (FORTY-FOUR, P1-P44), section 6's ordinal (a hundred and thirty-four; the HUNDRED-AND-THIRTY-FIFTH next), the ledger's first row (43 times, P2-P44) |
+
+`README.md`, `doc/questions/**` and `doc/decisions/**` carry nothing more: Q774 and ADRs 0137-0138 are the items'.
+
+**Ids.**
+
+- **Issued**: W214, W215, W216, W217, W218; ADR 0137, ADR 0138; no Q; no S entry.
+- **Reserved and unissued, SKIPPED and never reissued** (section 3): W219 CLOSED unissued, as expected; Q780-Q781 SPENT
+  (W214's), Q782-Q783 SPENT (W215's), Q784-Q785 SPENT (W216's), Q786-Q787 SPENT (W217's), Q788-Q789 SPENT (W218's); ADR
+  0135 SPENT (W214's), ADR 0136 SPENT (W215's), ADR 0139 SKIPPED.
+
+**The next plan starts at W220, Q790 and ADR 0140.** The next S id is S13; the next plan id is P45.
+
+### 8. Stop-and-asks for the maintainer
+
+*Neither blocks P44's close: both are routings of work that is NOT this plan's, listed for the maintainer's answer.*
+
+| | the question | recommended | the alternatives |
+|---|---|---|---|
+| **(a)** | **`check:spec` does not check that a corpus file a refusal row cites EXISTS** — W216's adequacy S1: the renamed FD-V40 file's OLD name restored in its row, every check green. A small fix in `scripts/check-spec.mjs` (every cited `spec/examples/**` path resolved), with its self-test probe | **(a1)** YES, in its own small item of the next plan that touches `spec/`, the check and its probe together | **(a2)** raise it as a question and leave it; **(a3)** accept it — a reader finds a stale name |
+| **(b)** | **ADR 0102 rule 3's `stopped` dual read is unreachable** since `CHECKPOINT_FORMAT` 2 — no checkpoint a driver writes carries `stopped`, and a 0.7.0 checkpoint is refused `format` first (ADR 0138 consequence 3). Removing it is a code and ADR change, not P44's | **(b1)** remove it in the next plan that touches the driver's resume, with an ADR 0102 amendment — the maintainer's no-backward-compatibility answer (b) already covers its last reader | **(b2)** keep it, documented as unreachable (today's state) |
