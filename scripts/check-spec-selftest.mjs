@@ -17,7 +17,13 @@
 // clauses at **ID** granularity and calls `check-spec` *seven clauses*. This file
 // works at **`fail()`-SITE** granularity, and the two reconcile exactly:
 //
-//   30  `fail()` sites in `check-spec.mjs`  — C1×1 C2×4 C3×3 C4×7 C5×2 C6×1 C7×9 C8×3
+//   **RE-TAKEN AT W223** by `grep -o "fail('C[0-9]*'," scripts/check-spec.mjs | sort | uniq -c`:
+//   34  `fail()` sites — C1×1 C2×4 C3×3 C4×9 C5×2 C6×1 C7×9 C8×3 C9×2; 44 probes and 42 META
+//       entries, which the floors below hold. *The headline read 30 and C4×7 from W61 until W223's
+//       conformity reader found it never re-taken; C4's two missing sites are W65's spec-paragraph
+//       pair. The 18 / 21 reconciliation below is W30's, true of that tree and kept as history.*
+//        (C9 added TWO at W223, P45 (h1): a cited corpus path that does not exist, and a corpus
+//         spelling C9 cannot resolve. Its probes and META entries are at the end of each list.)
 //        (C4 gained ONE at W61: the README row's HEADLINE count beside the tail count it read.)
 //        (C7 gained TWO at W61: a transform's `lang` against `languages`, and FD-V35's case
 //         naming a language the registry lacks — the fifth set, W59's pair one set over.)
@@ -315,11 +321,13 @@ const PROBES = [
   // --- C3: every invalid example names a declared rule ---------------------------
   {
     name: 'spec/examples/invalid/ removed entirely',
-    check: 'C3', also: ['C4'],
+    check: 'C3', also: ['C4', 'C9'],
     // **A structural cascade, declared rather than discovered.** With the directory
     // gone C3 says so once and C4 then reports all 22 definition refusals as
     // uncovered — the two cannot disagree about a missing directory, which is
     // exactly the shape rule 7 (c) admits (`check-docs`' `X3 -> X4, X5`).
+    // **And `C9` since W223**: every rule row citing an `invalid/` case now cites a file that is
+    // not there — measured on this probe's first run under C9, not predicted.
     apply: (spec) => rmSync(join(spec, 'examples', 'invalid'), { recursive: true, force: true }),
   },
   {
@@ -385,7 +393,9 @@ const PROBES = [
   // --- C7: the valid corpus resolves against the declared registry ---------------
   {
     name: 'registry.json removed, so FD-V4 and FD-V32 cannot be evaluated at all',
-    check: 'C7',
+    check: 'C7', also: ['C9'],
+    // **`C9` since W223, a declared cascade**: five rule rows (FD-V31-FD-V33, FD-V35, FD-V38) cite
+    // `spec/examples/registry.json` by its full path — measured on this probe's first run under C9.
     apply: (spec) => rmSync(join(spec, 'examples', 'registry.json')),
   },
   {
@@ -567,6 +577,137 @@ const PROBES = [
         /(\| \[join-policy\.md\]\(join-policy\.md\)[\s\S]*?)\*\*v\d+\.\d+\*\* \|/,
         (_m, head) => `${head} |`)),
   },
+
+  // --- C9: every corpus file a rule row cites exists — W223, P45 (h1) -------------
+  // **One probe per citation SHAPE the clause resolves differently** (W223's M2: full, bare after a
+  // full, bare alone), plus the cited FILE deleted rather than the citation edited, the former-name
+  // marker removed, and the one probe where a WRONG directory selection differs (obligation (a)'s
+  // *where it SELECTS*). Each edits ONE row through `editRow`, because every string these anchor on
+  // also occurs in prose that `C9` does not read — an edit there would be vacuous for the clause.
+  {
+    name: 'a full spec/examples citation in a rule row naming a file in the WRONG directory',
+    check: 'C9',
+    // The file exists — in `invalid/`. A resolver by BASENAME would pass it; `C9` resolves the path
+    // as written. FD-V44's row carries this one full citation and no bare one after it.
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V44', (l) => l.replace(
+      '`spec/examples/invalid/FD-V44--predicate-op-outside-the-subset.flow.json`',
+      '`spec/examples/valid/FD-V44--predicate-op-outside-the-subset.flow.json`')),
+  },
+  {
+    name: 'W216 S1 — a renamed case`s OLD name restored in its row, unmarked as a former name',
+    check: 'C9',
+    // **The defect's own shape** (P44 retro (a)): a bare name AFTER the row's full citation. The
+    // row already carries `until v0.53` EARLIER in the line, before the former name — so this probe
+    // also fails if the former-name marker is read anywhere in the line rather than immediately
+    // before the span (the META entry *FORMER unanchored* names it).
+    // **And the LINE is declared** (the adequacy reader's finding 4): the rule, the citation, and the
+    // path it was resolved against — the row's own `invalid/` directory, which is what a `dir` mistake
+    // would move.
+    expect: /^ {2}C9: FD-V40's row in \S*spec\/flow-definition\.md cites `FD-V40--gate-key-path-with-an-index\.flow\.json`, and \S*spec\/examples\/invalid\/FD-V40--gate-key-path-with-an-index\.flow\.json does not exist$/m,
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V40', (l) => l.replace(
+      '`FD-V40--an-if-condition-outside-input.flow.json`',
+      '`FD-V40--gate-key-path-with-an-index.flow.json`')),
+  },
+  {
+    name: 'a cited corpus FILE deleted while its row still cites it',
+    check: 'C9',
+    // The rename's other half: the citation untouched and the file gone. FD-V42 keeps another case
+    // (`FD-V42--when-is-a-bare-string`), so `C4`'s coverage is unmoved and `C9` is the only reporter.
+    apply: (spec) => rmSync(join(spec, 'examples', 'invalid', 'FD-V42--a-comparison-with-value-and-value-from.flow.json')),
+  },
+  {
+    name: 'a bare citation AFTER a full one naming a file that exists only in ANOTHER corpus directory',
+    check: 'C9',
+    // **The selection probe.** `value-from.flow.json` is W221's VALID file; FD-V43's row cites its
+    // cases in `invalid/`. Resolved against the row's own directory it does not exist; resolved
+    // against any corpus directory it does — so this is the fixture where the wrong selection differs.
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V43', (l) => l.replace(
+      '`FD-V43--value-from-outside-the-roots.flow.json`', '`value-from.flow.json`')),
+  },
+  {
+    name: 'a bare citation with no full one before it naming a file in no corpus directory',
+    check: 'C9',
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-R3', (l) => l.replace(
+      '`reference-past-a-map-arity.flow.json`', '`reference-past-a-map-arty.flow.json`')),
+  },
+  {
+    name: 'the "until vN.N" marker removed, so a former name reads as a live citation',
+    check: 'C9',
+    // The exemption is load-bearing on the tree as shipped (W223's M3: the ONE unresolved span), so
+    // the marker going is a citation of a file that does not exist.
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V40', (l) => l.replace(
+      '(until v0.53 `FD-V40--gate-key-path-with-an-index.flow.json`', '(`FD-V40--gate-key-path-with-an-index.flow.json`')),
+  },
+
+  // --- C9's second pass — W223's two readers, every probe below a survivor or a construction ------
+  {
+    name: 'a bare citation misspelled in a rule row OUTSIDE flow-definition.md, and not an FD- row',
+    check: 'C9',
+    // Adequacy finding 1 (A1/A2): every probe above edits `flow-definition.md`, so C9 narrowed to
+    // that file, or to `FD-` rows, survived. RN-R13 in `run-state.md` cites `p1-routed-away.flow.json`.
+    apply: (spec) => editRow(spec, 'run-state.md', 'RN-R13', (l) => l.replace(
+      '`p1-routed-away.flow.json`', '`p1-routed-awy.flow.json`')),
+  },
+  {
+    name: 'a DIRECTORY citation in a rule row misspelled',
+    check: 'C9',
+    // Conformity NIT 2: RN-R2 cites `spec/examples/valid/`, which C9 did not read while its spans
+    // had to end in `.json`.
+    apply: (spec) => editRow(spec, 'run-state.md', 'RN-R2', (l) => l.replace(
+      '`spec/examples/valid/`', '`spec/examples/vlaid/`')),
+  },
+  {
+    name: 'a former name marked "since vN.N" rather than "until vN.N"',
+    check: 'C9',
+    // Adequacy finding 2 (A7b): the marker's WORD is part of the exemption; `since v0.53` before a
+    // span is not the history of a rename, and the name it precedes must resolve.
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V40', (l) => l.replace(
+      '(until v0.53 `FD-V40--gate-key-path-with-an-index.flow.json`', '(since v0.53 `FD-V40--gate-key-path-with-an-index.flow.json`')),
+  },
+  {
+    name: 'a bare citation resolved against the NEAREST full one, not the first',
+    check: 'C9',
+    // Adequacy finding 3 (A5). Appended to FD-V43's row: a full `valid/` citation that resolves,
+    // then a bare `invalid/` name. Against the nearest (`valid/`) it does not exist; against the
+    // first (`invalid/`) it does — the wrong selection passes.
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V43', (l) => l.replace(
+      '`FD-V43--a-needs-key-the-edge-does-not-declare.flow.json`',
+      '`FD-V43--a-needs-key-the-edge-does-not-declare.flow.json`, `spec/examples/valid/value-from.flow.json`, ' +
+      '`FD-V43--predicate-path-has-no-root.flow.json`')),
+  },
+  {
+    name: 'a bare citation after registry.json resolved against the row`s flow directory, not registry.json`s',
+    check: 'C9',
+    // Adequacy finding 3 (A4): only a full `.flow.json` citation sets the row's directory. A stray
+    // flow file is written beside `registry.json` and cited bare after it in FD-V31's row: against
+    // `invalid/` (the row's flow directory) it does not exist; against `spec/examples/` it does.
+    apply: (spec) => {
+      writeFileSync(join(spec, 'examples', 'stray.flow.json'), '{}\n');
+      editRow(spec, 'flow-definition.md', 'FD-V31', (l) => l.replace(
+        '`spec/examples/registry.json`', '`spec/examples/registry.json`, `stray.flow.json`'));
+    },
+  },
+  {
+    name: 'a MISSING full citation still sets the row`s directory for the bare one after it',
+    check: 'C9',
+    // Adequacy finding 3 (A3), graded by the failure COUNT: FD-V43's full citation renamed to a file
+    // that does not exist, and the bare citation after it to `value-from.flow.json` (a `valid/` file).
+    // The directory is `invalid/` either way, so BOTH fail (2); a `dir` set only when the full file
+    // exists falls back to every corpus directory, finds `valid/value-from.flow.json`, and reports 1.
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V43', (l) => l.replace(
+      '`spec/examples/invalid/FD-V43--predicate-path-has-no-root.flow.json`',
+      '`spec/examples/invalid/FD-V43--predicate-path-has-no-roots.flow.json`')
+      .replace('`FD-V43--value-from-outside-the-roots.flow.json`', '`value-from.flow.json`')),
+  },
+  {
+    name: 'a PARTIAL corpus path in a rule row, neither full nor bare',
+    check: 'C9',
+    // Adequacy finding 7: `invalid/X.flow.json` passed in silence. It is refused now as a spelling C9
+    // cannot resolve, whether or not the file exists (this one does).
+    apply: (spec) => editRow(spec, 'flow-definition.md', 'FD-V44', (l) => l.replace(
+      '`spec/examples/invalid/FD-V44--predicate-op-outside-the-subset.flow.json`',
+      '`invalid/FD-V44--predicate-op-outside-the-subset.flow.json`')),
+  },
 ];
 
 /**
@@ -590,9 +731,10 @@ const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** Floors, because `caught === PROBES.length` is vacuously true at zero. */
 // 22 / 23 until W59, which added two of each and raised both to the counts it ships — Q102's
-// ratchet, the obligation on the item that adds a probe.
-const MIN_PROBES = 29;
-const MIN_META = 28;
+// ratchet, the obligation on the item that adds a probe. 29 / 28 until W223, which added C9's
+// thirteen probes and thirteen META entries and raised both to the counts it ships (44 / 42).
+const MIN_PROBES = 44;
+const MIN_META = 42;
 
 /**
  * **How many gradings may be backed by the CORPUS rather than by the probe they
@@ -741,6 +883,46 @@ const META = [
     (t) => t.replace("    if (!column.includes(`**${own[1]}**`))",
       "    if (false && !column.includes(`**${own[1]}**`))")],
 
+  // --- C9 — W223: its ONE fail() site, and the four branches that decide what reaches it ----------
+  // Every branch entry is inert on the tree as shipped (every span there resolves by either
+  // reading), so a grading is the named probe's and never the corpus's — `MAX_CORPUS` holds it.
+  ['C9`s fail() site disabled', 'W216 S1 — a renamed case`s OLD name restored in its row, unmarked as a former name',
+    (t) => t.replace("        else fail('C9',", "        else [].push('C9',")],
+  ['C9 reads every span as a former name', 'a full spec/examples citation in a rule row naming a file in the WRONG directory',
+    (t) => t.replace('        if (FORMER.test(line.slice(0, m.index))) {', '        if (true || FORMER.test(line.slice(0, m.index))) {')],
+  ['C9`s former-name marker read anywhere before the span rather than immediately before it',
+    'W216 S1 — a renamed case`s OLD name restored in its row, unmarked as a former name',
+    (t) => t.replace('  const FORMER = /until v\\d+\\.\\d+\\s*$/;', '  const FORMER = /until v\\d+\\.\\d+/;')],
+  ['C9 resolves a bare citation after a full one against every corpus directory, not the row`s own',
+    'a bare citation AFTER a full one naming a file that exists only in ANOTHER corpus directory',
+    (t) => t.replace('        } else if (dir !== null) {', '        } else if (false && dir !== null) {')],
+  ['C9 accepts a bare citation with no full one before it whatever it names',
+    'a bare citation with no full one before it naming a file in no corpus directory',
+    (t) => t.replace('          ok = CORPUS_DIRS.some(', '          ok = true || CORPUS_DIRS.some(')],
+  // The second pass — each entry a survivor W223's adequacy reader measured (A-ids are its own).
+  ['C9 reads FD- rows only (A1)', 'a bare citation misspelled in a rule row OUTSIDE flow-definition.md, and not an FD- row',
+    (t) => t.replace('      const row = RULE_ROW.exec(line);\n      if (!row) continue;\n      let dir = null;',
+      "      const row = RULE_ROW.exec(line);\n      if (!row || !row[1].startsWith('FD-')) continue;\n      let dir = null;")],
+  ['C9 reads only spans ending .json, so a directory citation is unread',
+    'a DIRECTORY citation in a rule row misspelled',
+    (t) => t.replace('      for (const m of line.matchAll(/`([^`\\n]+)`/g)) {', '      for (const m of line.matchAll(/`([^`\\n]+\\.json)`/g)) {')],
+  ['C9`s former-name marker without its word (A7b)', 'a former name marked "since vN.N" rather than "until vN.N"',
+    (t) => t.replace('  const FORMER = /until v\\d+\\.\\d+\\s*$/;', '  const FORMER = /v\\d+\\.\\d+\\s*$/;')],
+  ['C9`s row directory is the FIRST full citation, not the nearest (A5)', 'a bare citation resolved against the NEAREST full one, not the first',
+    (t) => t.replace("          if (s.endsWith('.flow.json')) dir = dirname(where);", "          if (s.endsWith('.flow.json')) dir ??= dirname(where);")],
+  ['C9`s row directory set by ANY full citation, registry.json included (A4)',
+    'a bare citation after registry.json resolved against the row`s flow directory, not registry.json`s',
+    (t) => t.replace("          if (s.endsWith('.flow.json')) dir = dirname(where);", '          dir = dirname(where);')],
+  ['C9`s row directory set only when the full citation exists (A3)',
+    'a MISSING full citation still sets the row`s directory for the bare one after it',
+    (t) => t.replace("          if (s.endsWith('.flow.json')) dir = dirname(where);", "          if (ok && s.endsWith('.flow.json')) dir = dirname(where);")],
+  ['C9`s partial-spelling fail() site disabled', 'a PARTIAL corpus path in a rule row, neither full nor bare',
+    (t) => t.replace("          if (PARTIAL.test(s)) fail('C9',", "          if (PARTIAL.test(s)) [].push('C9',")],
+  ['C9`s failure line no longer names the rule, the citation or the path (A9)',
+    'W216 S1 — a renamed case`s OLD name restored in its row, unmarked as a former name',
+    (t) => t.replace("        else fail('C9', `${row[1]}'s row in ${rel(p)} cites \\`${s}\\`, and ${rel(where)} does not exist`);",
+      "        else fail('C9', 'a citation does not resolve');")],
+
   // --- the REPORT, which no set of check ids can see ----------------------------
   // A mutation to the report changes no failure id, so `tripped` is unmoved and only
   // the `agree` projection below fires. W24's conformity reader found this in
@@ -765,6 +947,21 @@ const append = (p, text) => writeFileSync(p, readFileSync(p, 'utf8') + text);
 const edit = (p, f) => {
   const before = readFileSync(p, 'utf8');
   writeFileSync(p, f(before));
+};
+/**
+ * **ONE rule row of one spec document, edited by `f` — W223.** The row is FOUND without a
+ * `.replace`, so the instrumented harness counts exactly `f`'s own call: a row that is not there
+ * throws rather than passing, and an `f` that matches nothing is a miss. The DOCUMENT is a parameter
+ * since the adequacy reader's finding 1: every C9 probe edited `flow-definition.md`, so narrowing C9
+ * to that file (or to `FD-` rows) survived.
+ */
+const editRow = (spec, file, id, f) => {
+  const p = join(spec, file);
+  const lines = readFileSync(p, 'utf8').split('\n');
+  const i = lines.findIndex((l) => l.startsWith(`| \`${id}\` |`));
+  if (i < 0) throw new Error(`editRow: no rule row declares ${id}`);
+  lines[i] = f(lines[i]);
+  writeFileSync(p, lines.join('\n'));
 };
 
 /** Every file under `dir`, as repo-relative paths. */
@@ -960,12 +1157,17 @@ export async function selfTest(root) {
     const rows = [...out.matchAll(/^ {2}(ok {2}|FAIL) {2}(C\d+) /gm)]
       .filter((m) => m[1] === 'FAIL').map((m) => m[2]).sort();
     const agree = rows.join(',') === tripped.join(',');
-    const refused = r.status !== 0 && tripped.join(',') === declared.join(',') && agree;
+    // **A probe may also declare the failure LINE it must produce — W223** (its adequacy reader's
+    // finding 4): C9's Outputs promise a message naming the rule, the citation and the resolved path,
+    // and an id set cannot see a message. Only a probe carrying `expect` is held to one.
+    const worded = !probe.expect || probe.expect.test(out);
+    const refused = r.status !== 0 && tripped.join(',') === declared.join(',') && agree && worded;
     return {
-      vacuous: false, refused, ran: RAN(out), declared, tripped, agree, status: r.status,
+      vacuous: false, refused, ran: RAN(out), declared, tripped, agree, worded, status: r.status,
       failures: (out.match(/^ {2}C\d+: /gm) ?? []).length,
       msg: `exited ${r.status}, wanted [${declared.join(',')}], got [${tripped.join(',')}]` +
-        `${agree ? '' : `, report rows said [${rows.join(',')}]`}`,
+        `${agree ? '' : `, report rows said [${rows.join(',')}]`}` +
+        `${worded ? '' : `, and no failure line matched ${probe.expect}`}`,
     };
   };
 
@@ -1013,6 +1215,7 @@ export async function selfTest(root) {
       : v.refused ? 'caught'
         : !v.agree ? 'disagreed'
           : missing.length ? 'disappeared'
+            : !v.worded ? 'misworded'
             : v.status === 0 ? 'exit0'
               : v.tripped.length > v.declared.length ? 'noisy' : 'other';
     console.log(`  ran: ${v.ran ? 'yes' : 'no'}`);
@@ -1124,7 +1327,7 @@ export async function selfTest(root) {
         }
       }
       else if (outcome === 'noisy') why = ` — "${probeName}" still reports every id it declared; the mutant only got NOISIER, which is not a detection`;
-      else if (['disappeared', 'disagreed', 'exit0'].includes(outcome)) ok = true;
+      else if (['disappeared', 'disagreed', 'misworded', 'exit0'].includes(outcome)) ok = true;
       else why = ` — the child reported outcome "${outcome || '(none)'}", which grades nothing`;
     } finally { rmSync(path, { force: true }); }
     return { ok, why, kind, outcome };
