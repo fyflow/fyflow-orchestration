@@ -17,7 +17,7 @@ worker returned, routing can **fan out** into parallel branches, and a **join** 
 The scheduler runs tasks; this library decides **which task runs next**. `fyflow-scheduler` has no
 dependency graph of its own, so sequence, decision, fan-out and join live here.
 
-Published on npm as `fyflow-orchestration` and on JSR as `@fyflow/orchestration`. The manifests read `0.11.0`.
+Published on npm as `fyflow-orchestration` and on JSR as `@fyflow/orchestration`. The manifests read `0.12.0`.
 
 ## Install
 
