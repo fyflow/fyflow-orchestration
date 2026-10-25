@@ -818,7 +818,8 @@ entries are held to the id charset, a non-string refused — as `validateDefinit
 tripped over it, and is refused now. **And the other way, since 0.12.0** (`spec/flow-definition.md` v0.53,
 [ADR 0137](doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)):
 a gate's key and a comparison's `path` may carry a bracket index — `files[0].series`, `outcome.result.files[0].series` — so both patterns accept it — and
-`KEY_PATH_RE`, the gate key's, is the exported constant whose `source` moved. Only more is accepted.
+`KEY_PATH_RE`, the gate key's, is the exported constant whose `source` moved. Only more is accepted. *(It, the parse and
+the read a host may call are section 4's* Reading a key path the way the library does*.)*
 
 | | |
 |---|---|
@@ -1096,6 +1097,56 @@ that throws stops the run; and a reference
 the run did not produce stops the run with an `UnresolvedReference` (`FD-R3`, section 9) exactly as a
 node's does. **An edge with no `when` may carry a `needs` and nothing will ever read it** — accepted
 and inert, which `spec/flow-definition.md` section 3 records rather than refuses.
+
+### Reading a key path the way the library does — `readKeyPath`, `keyPathSteps`, `KEY_PATH_RE`, `PREDICATE_ROOTS`
+
+**A host that suggests, checks or previews a key path need not keep its own copy of the spelling.** Five names, all
+from the root entry in node, the browser and Deno — `readKeyPath`, `KEY_PATH_RE` and `PREDICATE_ROOTS` since before
+0.12.0, **`keyPathSteps` and its `KeyPathStep` type since 0.13.0** (P45, fyflow-app's pass 6 #2). They are the ones a
+gate's `settings.key`, a comparison's `path` and the wiring check read, so a host using them cannot read a path
+differently from a run.
+
+| name | what it is |
+|---|---|
+| `KEY_PATH_RE` | the GRAMMAR (`spec/flow-definition.md` section 2's KEY PATH): dot-separated object keys, each `[A-Za-z0-9_-]{1,64}` optionally followed by array indexes `[n]` — `n` is `0` or a number with no leading zero, at most 999,999,999 — never an index leading the path; no quoted key, no wildcard, no expression. A gate's `key` is refused `FD-V40` outside it |
+| `keyPathSteps(path)` | the PARSE: a path's steps in order, each `{ key }` or `{ index }` — that union is `KeyPathStep`. **Total**: any string has steps, and a segment the grammar does not spell is ONE literal key (`files[*]` is a key named `files[*]`), so test the path with `KEY_PATH_RE` first |
+| `readKeyPath(value, path)` | the READ: a KEY step is an OWN key of a PLAIN object, an INDEX step an own element of a REAL array; anything else — a missing key, `null`, an array under a key step, a class instance, a hole — is `undefined`. **A plain numeric segment is a KEY**: `xs.1` is nothing over an array, `xs[1]` is its element. The value at the end is returned whatever it is |
+| `PREDICATE_ROOTS` | a task's or a join's edge comparison's two ROOTS, `outcome` and `needs` (`FD-V43`): the first key of its `path`, read up to the first `.` or `[`; never indexed, never alone. **An `if` gate's one root, `input`, is not a public name** — section 19 |
+
+```ts run
+import { KEY_PATH_RE, keyPathSteps, PREDICATE_ROOTS, readKeyPath, type KeyPathStep } from 'fyflow-orchestration';
+
+const value = { files: [{ name: 'a.csv' }, { name: 'b.csv' }], xs: ['p', 'q'] };
+
+// The grammar, the parse and the read of one path.
+if (!KEY_PATH_RE.test('files[0].name')) throw new Error('files[0].name is a key path');
+const steps: KeyPathStep[] = keyPathSteps('files[0].name');
+if (JSON.stringify(steps) !== '[{"key":"files"},{"index":0},{"key":"name"}]') throw new Error(`steps: ${JSON.stringify(steps)}`);
+if (readKeyPath(value, 'files[0].name') !== 'a.csv') throw new Error('files[0].name reads a.csv');
+if (readKeyPath(value, 'files[2].name') !== undefined) throw new Error('past the end is nothing');
+
+// A plain numeric segment is a KEY, and an array has none: xs.1 is nothing where xs[1] is 'q'.
+if (readKeyPath(value, 'xs[1]') !== 'q' || readKeyPath(value, 'xs.1') !== undefined) throw new Error('xs.1 is a key');
+
+// A malformed path is refused by the grammar — and the parse, being total, still answers.
+for (const bad of ['files[*].name', 'xs[01]', '[0].x', 'a..b']) {
+  if (KEY_PATH_RE.test(bad)) throw new Error(`${bad} is not a key path`);
+}
+const first = keyPathSteps('files[*].name')[0]!;
+if (!('key' in first) || first.key !== 'files[*]') throw new Error('an unspelled segment is one literal key');
+
+// A comparison's path on an edge: a key path whose first key is a root, with a key after it.
+const edgePath = (p: string) => KEY_PATH_RE.test(p) && (PREDICATE_ROOTS as readonly string[]).includes(p.split(/[.[]/)[0]!) && /^[A-Za-z0-9_-]+\./.test(p);
+if (!edgePath('outcome.result.files[0].size') || edgePath('result.size') || edgePath('outcome[0].x') || edgePath('needs')) {
+  throw new Error('the roots, as FD-V43 reads them');
+}
+```
+
+**What is not exported, and why.** No *is this a valid comparison path* function: the grammar and the roots are
+these two values, and a second spelling of `FD-V43` would be a second thing to hold in step — `validateDefinition`
+is the authority on a whole flow. Nor the declared-comparison internals `evalLeaf` and `evaluateDeclared`: a
+`when` is evaluated over a `DecisionContext` by **`evaluateWhen(when, ctx, predicates)`**, which IS public from the root entry
+(`predicates` a `Map` of the registered names it may call), and the built-in `if` evaluates its `when` over `{ input }` inside a run.
 
 ---
 
