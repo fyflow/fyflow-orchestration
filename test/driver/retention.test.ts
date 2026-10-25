@@ -13,7 +13,7 @@
  * |---|---|
  * | which structures may hold a settled result | `RN-R13` in [spec/run-state.md](../../spec/run-state.md) section 7 — `inputs` holds it, `log` is its record-kind subsequence BY REFERENCE, and `outputsCache` aliases it |
  * | when a region's collection is released | `JP-R11`/`JP-R12` in [spec/join-policy.md](../../spec/join-policy.md) section 4, and ADR 0046 rule 3 |
- * | what a satisfied join carries | `JP-R12` — one entry per branch that emitted `branch.arrived`, keyed by `branchPath`, ascending segment-wise-numeric |
+ * | what a satisfied join carries | `JP-R12` — one entry per branch that emitted `branch.arrived`, keyed by each branch's own key (ADR 0138) — a top-level map's item index, which is its `branchPath` too — ascending |
  * | `stuck` on `p1-routed-away` under `arrival-count` | `RN-R10`, and `spec/join-policy.md` section 3's first row |
  * | that a halted run releases | `OR-R10`, and ADR 0046 rule 3's THIRD moment — the run-level one |
  * | that a halted run does not ROUTE | `OR-R10` again, and it is the guard W53's conformity reader bought |
@@ -873,8 +873,8 @@ suite(SUITE, (test) => {
 
     h.scheduler.settle('r1:scoreB:1:0', 'done', { result: { s: 'b' } });
     ok(
-      deepEqual(h.payloadOf('r1:publish:-:0'), { 0: { s: 'a' }, 1: { s: 'b' } }),
-      'JP-R12 — both branches, keyed by branchPath, so the release came after the read here too',
+      deepEqual(h.payloadOf('r1:publish:-:0'), { scoreA: { s: 'a' }, scoreB: { s: 'b' } }),
+      'JP-R12 — both branches, each under its entry id (fanout-join`s `[scoreA, scoreB]`), so the release came after the read here too',
     );
     equal(heldArrivals(h.driver), 0,
       'ADR 0046 rule 3 is about a REGION and not about a region KIND. `FD-V9`s floor makes a ' +

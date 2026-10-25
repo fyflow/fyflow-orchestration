@@ -151,7 +151,7 @@ suite(SUITE, (test) => {
     const h = firstAt(r.log, 'header');
     ok(h < firstAt(r.log, 'fold '), `BEFORE the first onFoldInput — header at ${h}, first element at ${firstAt(r.log, 'fold ')}`);
     ok(h < firstAt(r.log, 'add '), `BEFORE the first addTask — header at ${h}, first hand-off at ${firstAt(r.log, 'add ')}`);
-    equal(r.headers[0], { format: 1, runId: 'batch42', flowId: 'hdr-line', version: 3, entryPayload: { n: 1, nested: { k: 'v' } } },
+    equal(r.headers[0], { format: 2, runId: 'batch42', flowId: 'hdr-line', version: 3, entryPayload: { n: 1, nested: { k: 'v' } } },
       'RN-R15`s five facts, each a literal from the flow and the call — version 3 and run batch42, so a wrong selection differs');
     equal(r.headers[0], r.d.checkpoint().header, 'equal to checkpoint().header');
     ok(r.headers[0] !== r.d.checkpoint().header && r.headers[0]!.entryPayload !== r.d.checkpoint().header.entryPayload,

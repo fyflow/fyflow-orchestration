@@ -383,8 +383,14 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
   });
 
   test('a fan-out`s record is exact in its KEYS and requires NONE of them (JP-R12`s three roads): describing the paths fits, requiring one is no', async () => {
-    const r = reg({ A: { outputSchema: OUT_A }, P: { inputSchema: { type: 'object', properties: { '0': { type: 'object', required: ['x'] }, '1': { type: 'object' } } } },
-      Q: { inputSchema: { type: 'object', required: ['2'] } }, R: { inputSchema: { type: 'object', required: ['1'] } }, S: { inputSchema: { type: 'object', properties: { '0': { type: 'object', required: ['y'] } } } } });
+    // **Keyed by ENTRY NODE ID since v0.25** (ADR 0138): `split`'s entries `[l, r]` are the record's two keys, where they
+    // were the branch paths `0` and `1`. Every consumer below names the keys the run hands it, derived from the document.
+    const r = reg({ A: { outputSchema: OUT_A }, P: { inputSchema: { type: 'object', properties: { l: { type: 'object', required: ['x'] }, r: { type: 'object' } } } },
+      Q: { inputSchema: { type: 'object', required: ['0'] } }, R: { inputSchema: { type: 'object', required: ['r'] } }, S: { inputSchema: { type: 'object', properties: { l: { type: 'object', required: ['y'] } } } },
+      // 0.11.0's key for branch 0, described with the shape the branch does NOT guarantee: the record never carries `0`
+      // now, so a consumer describing it (and requiring nothing) is read as never meeting it — `fits`, the leniency on a
+      // CLOSED record — and S, the same shape at `l`, is what is `no`.
+      P0: { inputSchema: { type: 'object', properties: { '0': { type: 'object', required: ['y'] } } } } });
     const mk = (successor: string, second: unknown[]) => flow([
       task('in', 'A', 'split'), { id: 'split', kind: 'fanout', branches: ['l', 'r'] }, task('l', 'A', 'join'), ...second,
       { id: 'join', kind: 'join', of: 'split', edges: [{ to: 'out' }] }, task('out', successor, 'done'), { id: 'done', kind: 'end', outcome: 'completed' }]);
@@ -394,13 +400,15 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     const s = (await checkWiring(r, mk('S', plain))).verdicts.find((v) => v.consumer === 'out')!;
     equal(s.kind, 'no', 'a path described with a shape the branch does not guarantee: the KEYS are exact');
     const q = (await checkWiring(r, mk('Q', plain))).verdicts.find((v) => v.consumer === 'out')!;
-    equal(q.kind, 'no', 'a consumer requiring a path the region does not have');
+    equal(q.kind, 'no', 'a consumer requiring a key the region does not have — `0`, branch 0`s POSITION, which 0.11.0 keyed by');
+    const p0 = (await checkWiring(r, mk('P0', plain))).verdicts.find((v) => v.consumer === 'out')!;
+    equal(p0.kind, 'fits', 'and describing the position `0` with a shape `l` does not guarantee is `fits` — the record carries no `0` (ADR 0138), the S control above `no` at `l`');
     // A consumer REQUIRING a branch key is `no` whether or not the branch can visibly leave: a person may
     // resolve a non-optional branch task `failed` (RS-R3) and a policy may fire before it settles — W73's
     // conformity reader found the first cut reading `fits` here, the direction a run can falsify.
     const rr = (await checkWiring(r, mk('R', plain))).verdicts.find((v) => v.consumer === 'out')!;
     equal(rr.kind, 'no', 'requiring the key of a branch with no visible exit');
-    ok(rr.why.includes('consumer requires "1", producer does not guarantee it'), rr.why);
+    ok(rr.why.includes('consumer requires "r", producer does not guarantee it'), rr.why);
     const leaves = mk('R', [{ id: 'r', kind: 'task', type: 'A', edges: [{ when: { predicate: 'go' }, to: 'gone' }, { to: 'join' }] }, { id: 'gone', kind: 'end', outcome: 'left' }]);
     equal((await checkWiring(r, leaves)).verdicts.find((v) => v.consumer === 'out')!.kind, 'no', 'and of one that can');
   });
@@ -412,7 +420,8 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     const A: JsonSchema = { type: 'object', required: ['items'], properties: { items: { type: 'array', items: { type: 'object', required: ['x'], properties: { x: { type: 'integer' } } } } }, additionalProperties: false, examples: [{ items: [{ x: 1 }, { x: 2 }] }] };
     const B: JsonSchema = { type: 'object', required: ['x'], properties: { x: { type: 'integer' } }, additionalProperties: false, examples: [{ x: 1 }] };
     // The successor is TRANSFORMED so the record's sample is reported (a `fits` verdict carries none): the
-    // fake language's `0` picks the outer record's first key, and the sample's keys are what the check minted.
+    // fake language's `0` picks the outer record's first key, and the sample's keys are what the check minted — the outer
+    // region is a MAP each time, so its keys are ITEM INDEXES, one segment (ADR 0138; minted branch paths until 0.12.0).
     const r = reg({ A: { outputSchema: A, inputSchema: {} }, B: { outputSchema: B, inputSchema: { type: 'object' } }, P: { inputSchema: { type: 'object' } } });
     const END = { id: 'done', kind: 'end', outcome: 'completed' };
     const OUT = { transform: { lang: 'path', expr: '0' } };
@@ -427,7 +436,7 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
       equal(report.counts, { 'fits': arcs - 1, 'no': 0, 'transform-passes': 1, 'transform-fails': 0, 'unchecked': 0 }, `${name}: ${arcs} arcs, every one a verdict, none a throw`);
       const rec = report.verdicts.find((v) => v.consumer === 'out')!;
       equal([rec.shape, rec.sample?.arity], ['record', 2], `${name}: the successor receives the outer record, at the example's arity`);
-      ok(Object.keys(rec.sample!.value as object).every((k) => /^\d+(\.\d+)*$/.test(k)), `${name}: the sample's keys are branch paths — ${Object.keys(rec.sample!.value as object).join(', ')}`);
+      equal(Object.keys(rec.sample!.value as object), ['0', '1'], `${name}: the sample's keys are the item indexes 0 and 1, one segment, at the example's arity 2`);
     }
   });
 

@@ -249,7 +249,8 @@ suite('L2 — FD-C1: what a node receives', (test) => {
     drain(h, () => ({ done: true }), ['r1:ingest:-:0']);
     equal(h.payloadOf('r1:publish:-:0'),
       { '0': { done: true }, '1': { done: true }, '2': { done: true } },
-      'JP-R12 — the join still carries the arrivals keyed by branchPath, untouched (P12 decision 3)');
+      'JP-R12 — the join still carries the arrivals keyed by item index, untouched (P12 decision 3; at the top level ' +
+      'a map`s item index and its branch path are one string, so ADR 0138 moves no key here)');
   });
 });
 
@@ -515,9 +516,10 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     // which is why `FD-V28` demands the bare form and the value is not an array.
     // `own` is `"."`, which for a fanout branch entry is its own copy of what the
     // fanout node received — `JP-R11` — and that is `joinA`'s collection keyed by
-    // branchPath (`JP-R12`). Both readers get the same, which is what makes `first`
+    // each branch's OWN key, `splitA`'s entries `[scoreA1, scoreA2]` (`JP-R12` v0.25,
+    // ADR 0138). Both readers get the same, which is what makes `first`
     // the only thing this pair is about.
-    const COLLECTION = { '0': { A: 1 }, '1': { A: 2 } };
+    const COLLECTION = { scoreA1: { A: 1 }, scoreA2: { A: 2 } };
     equal(h.payloadOf('r1:publishB1:0:0'), { own: COLLECTION, first: { A: 1 } },
       'branch 0 sees scoreA1');
     equal(h.payloadOf('r1:publishB2:1:0'), { own: COLLECTION, first: { A: 1 } },
@@ -669,7 +671,7 @@ suite('L2 — ADR 0044: what a run carries across SIBLING regions', (test) => {
     equal(h.payloadOf('r1:y2:1.1:0'), { got: { X: 1 } },
       'y2 at `1.1` sees x1 at `1.0` — they agree on `outer`, and the inner segments belong to ' +
       'two unrelated regions. **The prefix rule refused exactly this**');
-    equal(h.payloadOf('r1:y1:1.0:0'), { '1.0': { X: 1 }, '1.1': { X: 2 } },
+    equal(h.payloadOf('r1:y1:1.0:0'), { x1: { X: 1 }, x2: { X: 2 } }, // `innerA`'s entries, one segment (ADR 0138)
       'the control: `y1` declares NOTHING, so it receives `joinA``s collection unchanged — ' +
       '`JP-R11` and `JP-R12`, and ADR 0040 rule 1`s *the default is unchanged*. Which is what ' +
       'keeps the row above a statement about the REFERENCE rather than about the dispatch');

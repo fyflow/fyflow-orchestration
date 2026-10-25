@@ -615,12 +615,27 @@ suite('L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it'
    * | the four depth-2 matrix rows | their inner keys are `1.0` and `1.1`, and `scoreC` settles before `scoreD` in every one of them — so insertion order **already equals** sorted order |
    * | the L2 permutation test | it permutes a top-level map, whose keys are integer-like again |
    *
-   * So the discriminating shape needs **dotted keys** AND **a settlement order
+   * So the discriminating shape needed **dotted keys** AND **a settlement order
    * that is not the sorted one** AND **a two-digit index**, and
    * `map-in-fanout.flow.json` is the one corpus flow that can carry all three:
    * `perItem` sits in branch `1` of `outer`, so its instances are `1.0 … 1.N-1`.
+   *
+   * **v0.25 (ADR 0138) took the dotted keys away, and this fixture keeps its shape
+   * with its reason restated** (P44 decision 4). The inner collection is now keyed
+   * `"0"` … `"11"` — each instance's ITEM INDEX, one segment — which is integer-like,
+   * so the LANGUAGE lists them ascending whatever the insertion and the sort is not
+   * what this can discriminate any more. **What it discriminates now is the KEY
+   * itself**, on the shape where every wrong key differs: settled descending, a key
+   * taken from SETTLEMENT position files item 11's result under `"0"`; the full
+   * path gives `"1.11"`; the enclosing branch's key (`extract`) repeated is 0.11.0's
+   * `"1.0"` shape; and the two-digit indexes are the ones a key read from the path's
+   * FIRST digit after a dot rather than its last segment gets wrong (`1.10` -> `"1"`).
+   * The sort's own discriminating fixtures moved to the fan-out half, whose entry ids
+   * are not integer-like: `test/driver/own-key.test.ts` — three entries settled in reverse for a
+   * removed or reversed sort, and TWELVE settled in order for a lexicographic one (the adequacy
+   * reader's M8: at ten or fewer entries lexicographic and numeric order agree).
    */
-  test('twelve items, settled DESCENDING, come out in segment-wise numeric order', async () => {
+  test('twelve items, settled DESCENDING, each under its OWN item index', async () => {
     const h = harness(await load('valid/map-in-fanout.flow.json'));
     h.driver.start({});
     h.scheduler.settle('r1:ingest:-:0', 'done', { result: {} });
@@ -657,24 +672,25 @@ suite('L2 — JP-R12: the KEY ORDER, on the only shape that can discriminate it'
     ok(publish !== undefined, 'the outer join fired, which it can only do once branch 1 arrived — ' +
       'and branch 1 arrives when the INNER join routes out of itself');
     const outer = inputOf(publish!) as Record<string, unknown>;
-    const inner = outer['1'] as Record<string, unknown>;
+    equal(Object.keys(outer), ['scoreA', 'extract'],
+      'the OUTER collection is keyed by `outer`s entry ids, in `branches` order — `[scoreA, extract]`, ' +
+      'read off map-in-fanout.flow.json by hand — never `0` and `1`, the positions 0.11.0 keyed');
+    const inner = outer['extract'] as Record<string, unknown>;
     ok(inner !== undefined && typeof inner === 'object',
-      'branch 1 of `outer` carries the inner region`s collection');
+      'branch `extract` of `outer` carries the inner region`s collection');
 
-    const expected = Array.from({ length: 12 }, (_v, i) => `1.${i}`);
+    const expected = Array.from({ length: 12 }, (_v, i) => String(i));
     equal(Object.keys(inner), expected,
-      'JP-R12 — ascending segment-wise NUMERIC order. Three answers are ' +
-      'distinguishable here and only one is right: unsorted gives 1.11 … 1.0 ' +
-      '(settlement order), lexicographic gives 1.0, 1.1, 1.10, 1.11, 1.2 …, and ' +
-      'segment-wise numeric gives 1.0 … 1.11. Dotted keys are NOT re-ordered by the ' +
-      'language, which is the whole reason this shape is the only one that can tell');
+      'JP-R12 v0.25 — each instance under its OWN item index, ONE segment: `0` … `11`. The full ' +
+      'path would give `1.0` … `1.11` (0.11.0`s keys); and since the keys are integer-like the ' +
+      'language lists them ascending, so the order here is the object`s own (ADR 0138)');
 
-    // And the values follow the keys, so a sort that reordered the keys without
-    // their values would be caught too.
+    // And the values follow the keys: settled DESCENDING, so a key taken from
+    // settlement position files item 11's result under `0`, and every index here is
+    // one where a wrong key and the right one carry different values.
     for (let i = 0; i < 12; i++) {
-      equal(inner[`1.${i}`], { at: i },
-        `key 1.${i} carries item ${i}'s own result — the sort moves keys AND values ` +
-        'together, or it is a different defect wearing the same shape');
+      equal(inner[String(i)], { at: i },
+        `key ${i} carries item ${i}'s own result — not the ${i}-th to settle, which is item ${11 - i}`);
     }
   });
 
@@ -1375,7 +1391,7 @@ suite('L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE', 
       'instance being settled. Collapse the order and this line says so');
 
     h.scheduler.settle('r1:q:1.1:0', 'done', { result: { who: 'q1' } });
-    equal(carriedInto(h, 'split', '-', '1'), { '1.0': { who: 'p1' }, '1.1': { who: 'q1' } },
+    equal(carriedInto(h, 'split', '-', '1'), { p: { who: 'p1' }, q: { who: 'q1' } },
       'f2@1`s join carries ITS OWN two branches — and it is the SECOND instance firing while ' +
       'the FIRST still holds a collection, so a read keyed by the opener returns instance 0`s ' +
       'and this is where it says so');
@@ -1384,7 +1400,7 @@ suite('L2 — a region opener INSIDE a map region RUNS, keyed by the INSTANCE', 
       'what a release keyed by the opener would have thrown away');
 
     h.scheduler.settle('r1:q:0.1:0', 'done', { result: { who: 'q0' } });
-    equal(carriedInto(h, 'split', '-', '0'), { '0.0': { who: 'p0' }, '0.1': { who: 'q0' } },
+    equal(carriedInto(h, 'split', '-', '0'), { p: { who: 'p0' }, q: { who: 'q0' } },
       'and f2@0`s join carries its own, unaffected by instance 1 having fired and released');
 
     for (const i of [2]) {

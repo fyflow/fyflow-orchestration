@@ -50,7 +50,7 @@ function compiles(): number { return ((globalThis as Record<string, unknown>).__
 
 /**
  * The four kinds of `input`, as `[label, the value received, the expression, what the worker must see]`.
- * The join collection is `JP-R12`'s record keyed by branch path; the fake reads `1.score` as the
+ * The join collection is a MAP's `JP-R12` record, keyed by item index (integer-like keys — ADR 0138); the fake reads `1.score` as the
  * key `1` then `score`.
  */
 const KINDS: readonly [string, unknown, string, unknown][] = [

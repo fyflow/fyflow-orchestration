@@ -49,7 +49,10 @@ through to `input.record`.
    It is read and NEVER WRITTEN: nothing in the library appends `'stopped'`. It is not a member of `FoldInput`; the
    stored sequence is data from before the rename.
 4. **`CHECKPOINT_FORMAT` stays `1`.** A 0.7.0 checkpoint of a halted run is refused for the right reason, and one of a
-   live run — which holds no halt element, and is otherwise byte-identical — still resumes.
+   live run — which holds no halt element, and is otherwise byte-identical — still resumes. *(Since [ADR 0138](0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)
+   ([W217](../work-items/w217-a-join-keyed-by-each-branchs-own-key-and-checkpoint-format-2.md), 0.12.0) `CHECKPOINT_FORMAT` is `2`, and every 0.7.0 checkpoint — halted or live — is refused `format`
+   before rule 3's read is reached; the read is kept, and reaches only a `stopped` element under a format-2 header,
+   which no driver writes.)*
 5. **The new stop avoids the word.** W174's outcome is `interrupted`, not `stopped`, or a stored 0.7.0 halt would read
    as a resumable stop.
 

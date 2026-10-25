@@ -220,7 +220,7 @@ const DECLARED_CASES = [
   'RN-R19 — a fed element is appended AS STORED — its clock, its attempts — and as the driver`s own copy',
   'RN-R20 — the data comparison reads nested region events and every key, and ignores key order and undefined keys',
   'RN-R23 — the `halted` position is the halt`s own, wherever it sits',
-  'RN-R23 / ADR 0102 — a 0.7.0 checkpoint: a stored `stopped` is refused `halted` at ITS position, and one of a live run still resumes',
+  'RN-R23 / ADR 0102 — a stored `stopped` (0.7.0`s kind) is refused `halted` at ITS position under this format, one of a live run still resumes, and the 0.7.0 checkpoint itself is refused `format`',
   'RN-R23 — a resume refused DURING its replay leaves the driver spent and deaf, with nothing handed to a scheduler',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
@@ -422,17 +422,23 @@ suite(SUITE, (test) => {
   test('RN-R23 — the header refusals, each by name, before anything is replayed or dispatched', () => {
     const Q = REF.quiet;
     const cases: [string, unknown, string, string][] = [
-      ['format', { ...Q, header: { ...Q.header, format: 2 } }, 'format', 'a format this version does not know'],
+      // **Format 1 — what every driver before 0.12.0 wrote — is refused by name** (`RN-R16` v0.36, ADR 0138): this
+      // driver reads ONE format, so the same run's checkpoint at format 1 is refused where `Q` itself — the CONTROL below,
+      // the same events at format 2 — passes. It read `format: 2` (*a format this version does not know*) until 0.12.0.
+      ['format', { ...Q, header: { ...Q.header, format: 1 } }, 'format', 'format 1 — every 0.11.0 checkpoint, the same run'],
+      ['format', { ...Q, header: { ...Q.header, format: 3 } }, 'format', 'a format this version does not know'],
       ['format', { header: Q.header, events: 'not an array' }, 'format', 'events that are not an array'],
       ['format', { events: Q.events }, 'format', 'no header at all'],
       ['run', { ...Q, header: { ...Q.header, runId: 'R2' } }, 'run', 'a checkpoint of another run'],
       ['flow', { ...Q, header: { ...Q.header, flowId: 'resume-other' } }, 'flow', 'another flow'],
       ['flow', { ...Q, header: { ...Q.header, version: 4 } }, 'flow', 'the same flow at another version — no migration'],
-      // W89's adequacy reader, a20: `format > 1` in place of `!== 1` passed at the one value, 2.
+      // W89's adequacy reader, a20: `format > 1` in place of `!== 1` passed at the one value, 2. At format 2 the two
+      // inequalities are `format 1` (below) and `format 3` (above), both above; `0` and a string are kept.
       ['format', { ...Q, header: { ...Q.header, format: 0 } }, 'format', 'format 0'],
       ['format', { ...Q, header: { ...Q.header, format: '1' } }, 'format', 'format "1", a string'],
+      ['format', { ...Q, header: { ...Q.header, format: '2' } }, 'format', 'format "2", a string — this format\'s number, not its type'],
       ['format', { ...Q, header: { runId: 'R', flowId: 'resume-main', version: 3, entryPayload: { n: 1 } } }, 'format', 'no format at all'],
-      // W89's conformity reader, finding 1: a header field of the wrong TYPE is not a header format 1 wrote.
+      // W89's conformity reader, finding 1: a header field of the wrong TYPE is not a header the format writes.
       ['format', { ...Q, header: { ...Q.header, runId: undefined } }, 'format', 'no runId'],
       ['format', { ...Q, header: { ...Q.header, runId: 7 } }, 'format', 'a numeric runId'],
       ['format', { ...Q, header: { ...Q.header, version: '3' } }, 'format', 'a string version'],
@@ -703,7 +709,7 @@ suite(SUITE, (test) => {
   // at that element's position — where renamed with no read it passed `resumeRefusal` and the replay refused it
   // `diverged` (P34 fact 7 (i)-(ii)). Each 0.7.0 checkpoint below is a checkpoint this file's run took, with ONE element's
   // `kind` re-written to what 0.7.0 wrote there and nothing else — the bytes a 0.7.0 store holds of that run.
-  test('RN-R23 / ADR 0102 — a 0.7.0 checkpoint: a stored `stopped` is refused `halted` at ITS position, and one of a live run still resumes', () => {
+  test('RN-R23 / ADR 0102 — a stored `stopped` (0.7.0`s kind) is refused `halted` at ITS position under this format, one of a live run still resumes, and the 0.7.0 checkpoint itself is refused `format`', () => {
     const as070 = (cp: Checkpoint, at: number): Checkpoint => ({
       header: cp.header,
       events: cp.events.map((e, i) => (i === at ? { ...e, kind: 'stopped' } as unknown as FoldInput : e)),
@@ -720,7 +726,13 @@ suite(SUITE, (test) => {
     equal(halted.events.map((e) => e.kind), ['dispatched', 'halted'], 'the ARRANGEMENT: the entry dispatched, then the halt at 1');
     equal(oldKinds(halted), 0, 'and NOTHING this version writes is of the old kind — read, never written (ADR 0102 rule 3)');
     const old = as070(halted, 1);
-    equal(oldKinds(old), 1, 'the ARRANGEMENT: the 0.7.0 checkpoint holds exactly one `stopped` element');
+    equal(oldKinds(old), 1, 'the ARRANGEMENT: the 0.7.0-shaped checkpoint holds exactly one `stopped` element');
+    // **The 0.7.0 checkpoint ITSELF is format 1, and is refused `format` before its events are read** (ADR 0138
+    // consequence 3): the `stopped` read below is held under THIS driver's header, a pairing no driver writes.
+    const as070AtFormat1 = { ...old, header: { ...old.header, format: 1 } } as Checkpoint;
+    equal([refusal(() => plainDriver(INGEST_THEN_MAP, 'lg', new FakeScheduler()).resume(as070AtFormat1)).reason,
+      resumeRefusal(INGEST_THEN_MAP, as070AtFormat1, 'lg')?.reason], ['format', 'format'],
+      'a 0.7.0 checkpoint as 0.7.0 wrote it — format 1 — is refused `format`, by the driver and the pre-check, never `halted`');
     const sch = new FakeScheduler();
     const d = plainDriver(INGEST_THEN_MAP, 'lg', sch);
     const r = refusal(() => d.resume(old));
@@ -755,7 +767,7 @@ suite(SUITE, (test) => {
     // resumes: `REF.quiet`, with `b` and `a2` in flight (RN-R21's case above) and `c` parked.
     equal(oldKinds(REF.quiet) + REF.quiet.events.filter((e) => e.kind === 'halted').length, 0, 'the ARRANGEMENT: no halt element of either kind');
     equal(resumeRefusal(MAIN, REF.quiet, 'R'), null, 'the dual read refuses nothing a live run stored');
-    equal(REF.quiet.header.format, 1, 'the ARRANGEMENT: format 1 — what 0.7.0 wrote and what ADR 0102 rule 4 keeps');
+    equal(REF.quiet.header.format, 2, 'the ARRANGEMENT: format 2 — this driver`s (it read format 1, what 0.7.0 wrote, until ADR 0138)');
     const { d: live, s: ls } = resumeFrom(REF.quiet);
     equal([resumedOf(live).map((e) => e.taskIds), ls.added.map((t) => t.id)], [[['R:b:1:0', 'R:a2:0:0']], ['R:b:1:0', 'R:a2:0:0']],
       'it RESUMES, re-dispatching exactly the in-flight set');

@@ -109,6 +109,12 @@ two rest on.**
    emitted `branch.arrived`, whose value is what that branch carried into the join.** Keys are in
    **ascending `branchPath` order, compared segment-wise as numbers**, so the collection is
    byte-identical whatever order the branches settled in. A join nothing arrived at carries `{}`.
+   *(Amended by [ADR 0138](0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md), [W217](../work-items/w217-a-join-keyed-by-each-branchs-own-key-and-checkpoint-format-2.md), `spec/join-policy.md` v0.25: the key is each branch's OWN key, one
+   segment — a `map` instance's item index, a `fanout` branch's entry node id — and the order is the object's own,
+   inserted in ascending index and in `branches` order, integer-like keys listed first by the language. The rule — all
+   of them, keyed, the same value whatever the settlement order — is unmoved; what is keyed moved. This ADR's
+   consequences that read the old key — a payload key equal to the task id's third segment, `over: "0"` naming branch
+   0's entry — hold since then for a top-level map only, and `over` names an entry id.)*
 
 5. **No reducer, and the refusal is narrow.** [Q36](../questions/q36.md)'s second candidate — *a
    declared reducer on the join node* — is **not taken here**, and not because it is wrong:

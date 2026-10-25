@@ -183,8 +183,10 @@ suite(SUITE, (test) => {
     const cp = storedRun();
     const b = runtimeOn(seams());
     let e: unknown;
-    try { b.resume(LINEAR, { ...cp, header: { ...cp.header, format: 2 } }); } catch (x) { e = x; }
-    ok(e instanceof ResumeRefused && e.reason === 'format', 'the ARRANGEMENT: refused by its header');
+    // **Format 1 — the same run as every 0.11.0 driver wrote it — refused by `runtime.resume`** (`RN-R16` v0.36, ADR 0138);
+    // it read `format: 2` until this driver's format was 2. The control is the next line: the same `cp` at format 2 resumes.
+    try { b.resume(LINEAR, { ...cp, header: { ...cp.header, format: 1 } }); } catch (x) { e = x; }
+    ok(e instanceof ResumeRefused && e.reason === 'format', 'the ARRANGEMENT: refused by its header — format 1');
     equal(b.resume(LINEAR, cp).driver.runId, 'r2', 'and the SAME run id then resumes on the same runtime — the header was refused before any driver existed');
     // W89's conformity reader, finding 1: a header with no runId was refused only AFTER the runtime minted an id for it.
     const e2 = runtimeOn(seams());

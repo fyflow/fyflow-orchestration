@@ -351,10 +351,19 @@ export interface RunPauseOptions {
 
 /**
  * **What a checkpoint's header says, and the number a resume refuses on** — `RN-R16`,
- * ADR 0064 rule 3. `1` at this version; it moves only when what a checkpoint CARRIES moves, and
+ * ADR 0064 rule 3. `2` at this version; it moves only when what a checkpoint CARRIES moves, and
  * a resume refuses a format it does not know — `ResumeRefused` with `reason: 'format'` (`RN-R23`, W89).
+ *
+ * **`1` until 0.12.0, and it moved because a join's collection moved** — `RN-R16` v0.36,
+ * [ADR 0138](../../doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)
+ * (P44 (b), the maintainer's: no backward compatibility). A collection reaches a checkpoint through an `asked` element's
+ * `input`, a `gated` decision taken on a key path into it, and every fed outcome whose worker read it (P44 fact 4), so a
+ * format-1 run replayed under the own-key collection would refuse `diverged`, re-route a gate, or carry results computed
+ * from keys that no longer exist. **This driver carries ONE keying and reads no format 1**: every 0.11.0 checkpoint — a
+ * join in it or none — is refused `format` by `resume()`, `runtime.resume` and `inputOf`, before anything is replayed;
+ * and a 0.11.0 driver refuses this one's the same way.
  */
-export const CHECKPOINT_FORMAT = 1;
+export const CHECKPOINT_FORMAT = 2;
 
 /**
  * **The header — the facts a run's EVENTS cannot regenerate** (`RN-R15`, ADR 0064 rule 2, P23
@@ -421,7 +430,8 @@ export interface Checkpoint {
  * **Widened by W158 with `cancelled`, and that is BREAKING for a consumer switching on `reason` exhaustively** —
  * `resumed`'s and `gated`'s precedent (ADR 0094 consequence 1). **And W171 RENAMED `stopped` to `halted`** (ADR 0102, P34
  * stop-and-ask (f)) — BREAKING, and loudly: a consumer's `reason === 'stopped'` no longer compiles, so it cannot silently
- * come to mean P34's resumable stop. A 0.7.0 checkpoint holding a `stopped` element is refused `halted`.
+ * come to mean P34's resumable stop. A 0.7.0 checkpoint holding a `stopped` element was refused `halted`; since
+ * `CHECKPOINT_FORMAT` 2 (ADR 0138) it is format 1 and refused `format` first.
  */
 export type ResumeRefusalReason = 'format' | 'run' | 'flow' | 'halted' | 'cancelled' | 'diverged';
 
@@ -488,10 +498,10 @@ function headerRefusal(definition: FlowDefinition, checkpoint: unknown, runId?: 
       `ResumeRefused (format): the checkpoint's header.format is ${JSON.stringify(h.format) ?? String(h.format)}, and this version reads ` +
         `format ${CHECKPOINT_FORMAT} only (RN-R16) — a checkpoint in a format this driver does not know is refused rather than guessed at.`);
   }
-  // **The header's three identifying fields must be the TYPES format 1 writes** — W89's conformity reader, finding 1: a
+  // **The header's three identifying fields must be the TYPES this format writes** (format 1's, unmoved at 2) — W89's conformity reader, finding 1: a
   // header with no `runId` passed this function when no run id was given (the runtime's call), so `runtime.resume` minted an
   // id, built a driver, spent the id, and only then heard the driver refuse it; a numeric `runId` reached the replay and was
-  // refused as `diverged` at 0. A header that is not format 1's shape is refused as `format`, before anything is built.
+  // refused as `diverged` at 0. A header that is not this format's shape is refused as `format`, before anything is built.
   if (typeof h.runId !== 'string' || typeof h.flowId !== 'string' || typeof h.version !== 'number') {
     return new ResumeRefused('format', null,
       `ResumeRefused (format): the checkpoint's header carries runId ${JSON.stringify(h.runId) ?? String(h.runId)}, flowId ` +
@@ -517,6 +527,8 @@ function haltRefusal(events: unknown[]): ResumeRefused | null {
   // **The DUAL READ — ADR 0102 rule 3 (W171).** A 0.7.0 store wrote the halt as `{ kind: 'stopped', reason }`, and
   // `CHECKPOINT_FORMAT` did not move, so the old kind is READ here as the halt it is: refused `halted`, at its position.
   // Without it a 0.7.0 checkpoint of a halted run passed this scan and was refused `diverged` by the replay (P34 fact 7).
+  // *(Since format 2 — ADR 0138 — a 0.7.0 checkpoint is format 1 and refused `format` before this scan, so no checkpoint
+  // a driver WRITES reaches this arm with a `stopped` element. The read is kept, unmoved: removing it is not P44's.)*
   const at = events.findIndex((e) => {
     const k = (e as { kind?: unknown } | null)?.kind;
     return k === 'halted' || k === 'stopped';
@@ -593,7 +605,7 @@ export interface NodeInput {
  *
  * | reason | when | `index` |
  * |---|---|---|
- * | `format` | the run is not `{ header, events[] }`, its `header.format` is not {@link CHECKPOINT_FORMAT}, its header's three fields are not format 1's types, its `runId` is not a run id (`ID-R2`), or its entry payload does not clone — `resumeRefusal`'s header half, the one function | `null` |
+ * | `format` | the run is not `{ header, events[] }`, its `header.format` is not {@link CHECKPOINT_FORMAT}, its header's three fields are not the format's types, its `runId` is not a run id (`ID-R2`), or its entry payload does not clone — `resumeRefusal`'s header half, the one function | `null` |
  * | `flow` | `header.flowId` or `header.version` is not the definition's — no migration | `null` |
  * | `unknown` | the target cannot name anything in this run: a node id the definition lacks, a branch path that is not `spec/task-id.md`'s grammar, or a task id that does not parse, names another run, an attempt other than `0`, or a node that is neither a task nor an ask | `null` |
  * | `not-reached` | the replay did not hand the target anything within the stored prefix a reading verifies — which ends at the first `halted`, `stopped` or `cancelRequested` element, or at the stored events' end | the prefix's length |
@@ -662,8 +674,9 @@ function sameData(a: unknown, b: unknown): boolean {
 /**
  * **The time a regenerated `asked` element takes from the stored element at its position** — `RN-R19` v0.35, ADR 0130,
  * W208: the stored element's `observedAt` where it is an `asked` element carrying a number there, and `undefined`
- * otherwise. `undefined` covers a checkpoint written before 0.11.0 (no `observedAt`, so the regenerated element carries
- * none and compares equal) and every element that is not what the replay regenerates there — which `append`'s prefix
+ * otherwise. `undefined` covered a checkpoint written before 0.11.0 (no `observedAt`, so the regenerated element carried
+ * none and compared equal) — refused `format` since `CHECKPOINT_FORMAT` 2 (ADR 0138), so no checkpoint a resume replays
+ * now lacks one an `asked` element's writer stamped — and covers every element that is not what the replay regenerates there — which `append`'s prefix
  * check then refuses `diverged`, as it did before this field: a stored `observedAt` that is not a number is not one a
  * driver wrote, and the regenerated element, carrying none, differs from it. Module-private: not surface.
  */
@@ -953,6 +966,11 @@ function cloneValue(v: unknown): unknown {
  * [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
  * exists to refuse.
  *
+ * *(That paragraph is 0.11.0's argument, kept as history: since
+ * [ADR 0138](../../doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)
+ * a collection's keys are ONE segment, so no dotted key remains in one. This order still fixes the INSERTION order of a
+ * collection — ascending item index, `branches` order — and the order of every `visible` group `compose` builds.)*
+ *
  * **Segment-wise numeric rather than lexicographic**, because lexicographic puts
  * `"10"` before `"2"`. Both are deterministic and only one reads as an order.
  */
@@ -979,21 +997,38 @@ function compareBranchPaths(a: string, b: string): number {
 }
 
 /**
- * **What a satisfied join carries** — `JP-R12`. One entry per branch that emitted
- * `branch.arrived`, keyed by its `branchPath`, valued by what that branch carried
- * into the join. **Inserted in `compareBranchPaths` order**, so the object is the
- * same value whatever order the branches settled in.
+ * **What a satisfied join carries** — `JP-R12` (v0.25,
+ * [ADR 0138](../../doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)).
+ * One entry per branch that emitted `branch.arrived`, keyed by **the branch's OWN key, one segment** — a `map`
+ * instance's ITEM INDEX (the arriving `branchPath`'s last segment) and a `fanout` branch's ENTRY NODE ID
+ * (`branches[segment]`, the segment being the entry's position, `RegionSets.branches`) — valued by what that branch
+ * carried into the join. The arrivals stay keyed by their FULL path where they are recorded (`arrivals`, one map per
+ * region INSTANCE, ADR 0062), so the key is derived here, at the one site, from state that already exists.
+ *
+ * **Inserted in `compareBranchPaths` order** over the full paths — ascending item index for a map, `branches` order for
+ * a fan-out, since every path in one instance's map is that instance's path plus one segment. **The object's OWN order is
+ * what a reader sees, and it is the language's**: integer-like keys first, ascending, then the rest in insertion order —
+ * so a fan-out whose entries are `"b"` and `"2"` lists `"2"` first. Deterministic either way, which is what the pinned
+ * insertion was for: the dotted keys that kept SETTLEMENT order (0.11.0's depth-2 hazard) no longer exist.
+ *
+ * **Built by own-property DEFINITION (`Object.fromEntries`), never by assignment** — `FD-V16`'s charset admits an entry
+ * id `__proto__`, and `out['__proto__'] = v` SETS THE PROTOTYPE and leaves no key; `fromEntries` defines an own data
+ * property, which `structuredClone` and `JSON.stringify` keep (P44 fact 2). No id is refused (P44 (a1)).
  *
  * A join nothing arrived at carries `{}` rather than `null`, and that is a real
  * case rather than a defensive one: `live-token` fires over an all-exited region,
  * which is the cost [ADR 0003](../../doc/decisions/0003-a-join-is-satisfied-when-its-region-has-no-live-branches.md)
  * records for it.
  */
-function collectArrivals(arrived: ReadonlyMap<string, unknown> | undefined): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  if (!arrived) return out;
-  for (const path of [...arrived.keys()].sort(compareBranchPaths)) out[path] = arrived.get(path);
-  return out;
+function collectArrivals(
+  arrived: ReadonlyMap<string, unknown> | undefined,
+  region: Pick<RegionSets, 'opensWith' | 'branches'>,
+): Record<string, unknown> {
+  if (!arrived) return {};
+  return Object.fromEntries([...arrived.keys()].sort(compareBranchPaths).map((path) => {
+    const segment = path.slice(path.lastIndexOf('.') + 1);
+    return [region.opensWith === 'fanout' ? region.branches[Number(segment)]! : segment, arrived.get(path)] as const;
+  }));
 }
 
 /**
@@ -1907,7 +1942,8 @@ export class Driver {
   private readonly firedJoins = new Map<string, Set<string>>();
   /**
    * **What each branch carried into its join, keyed by region and then by
-   * `branchPath`** — [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+   * `branchPath`** — the FULL path, here where it is recorded; the collection a join hands on is keyed by each
+   * branch's OWN key, derived from these paths by `collectArrivals` at the exit (ADR 0138) —[ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
    * rule 4, and `JP-R11` in [spec/join-policy.md](../../spec/join-policy.md)
    * section 4.
    *
@@ -5475,8 +5511,8 @@ export class Driver {
     }
     this.asked.add(taskId);
     // **WHEN it was asked** (`RN-R37` v0.35, `RN-R19`, ADR 0130, W208): within a replay's stored prefix the element is
-    // REGENERATED and takes the stored element's time — or carries none where the stored one carries none, a checkpoint
-    // written before 0.11.0 — so it compares equal (`RN-R20`) and the run keeps when the person was ASKED, not when the
+    // REGENERATED and takes the stored element's time — or carries none where the stored one carries none (a checkpoint
+    // written before 0.11.0 did; it is format 1 and refused `format` since ADR 0138) — so it compares equal (`RN-R20`) and the run keeps when the person was ASKED, not when the
     // replay ran. Past the stored tail (`RN-R24`) and on a live run it is the injected clock, an outcome record's.
     const replay = this.replay;
     const at = this.inputs.length;
@@ -6103,7 +6139,7 @@ export class Driver {
     // join's successor, which is outside this region or in the enclosing one, and
     // `firedJoins` already holds this region — so no path out of that call can read
     // or refill what is dropped here.
-    const collected = collectArrivals(this.arrivals.get(region.fanoutId)?.get(rp));
+    const collected = collectArrivals(this.arrivals.get(region.fanoutId)?.get(rp), region);
     this.releaseArrivals(region.fanoutId, rp);
     // **A READING's cut — the COLLECTION this join hands on** (`RN-R45`, W205, P42 decision 3): at its OPENER's path, the
     // value a policy selected at firing time, its `joinSettled` element already compared at `firedAt`. Not its successor's
@@ -6115,9 +6151,10 @@ export class Driver {
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
     const edge = join.edges?.[0];
-    // **The join carries the arrived branches' results, keyed by `branchPath`** —
-    // `JP-R12`, [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
-    // rule 4, answering [Q36](../../doc/questions/q36.md).
+    // **The join carries the arrived branches' results, each under the branch's OWN key** — a map's item index, a
+    // fan-out's entry node id — `JP-R12`, [ADR 0037](../../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)
+    // rule 4 as [ADR 0138](../../doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)
+    // amends it (it was the full `branchPath` until 0.12.0), answering [Q36](../../doc/questions/q36.md).
     //
     // **This paragraph read *"the join passes `null`, deliberately"* and the reason
     // it gave was correct**: `settleJoin` is reached from three sites with three
@@ -6135,12 +6172,13 @@ export class Driver {
     // kept this a question rather than a convention. The arrivals are recorded in
     // the `join` arm of `enter` as they happen and read here as a whole.
     //
-    // **`collectArrivals` pins the KEY ORDER, and that is not decoration.** The
-    // order-dependence does not vanish when the payload is keyed; it moves. Measured:
-    // integer-like keys are re-ordered ascending by the language, so a depth-1 join
-    // is deterministic for free, while **dotted keys keep insertion order — which
-    // for a join is settlement order.** Invisible at depth 1 and live at depth 2,
-    // which is W21's and W22's shape a third time in this tree.
+    // **`collectArrivals` pins the INSERTION order, and the object's own order is the
+    // language's.** The order-dependence does not vanish when the payload is keyed; it
+    // moves. Until 0.12.0 a nested join's keys were DOTTED, which keep insertion order —
+    // settlement order, unpinned — and the hazard was live at depth 2 (W21's and W22's
+    // shape a third time). Every key is one segment now (ADR 0138): a map's are
+    // integer-like and the language lists them ascending, and a fan-out's entry ids are
+    // inserted in `branches` order, an integer-like id listed first by the language.
     //
     // A join nothing arrived at carries `{}`. `live-token` fires over an all-exited
     // region, so that case is live rather than defensive.

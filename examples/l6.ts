@@ -660,7 +660,7 @@ interface Expectation {
   failureNames?: string[];
   /**
    * A dispatched node's folded `result`. Used to pin **`JP-R12`** — a satisfied
-   * join carries the arrived branches' results keyed by `branchPath`
+   * join carries the arrived branches' results, each under the branch's own key (ADR 0138; `branchPath` until 0.12.0)
    * ([ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
    * answering [Q36](../doc/questions/q36.md)). The matrix asserts it at L5; these
    * two rows are the same claim **on real workers**, which is the only place the
@@ -1164,12 +1164,13 @@ const tvBranchEvents = (all: boolean): Record<string, string[]> => Object.fromEn
 const tvThumb = (name: string) => ({ name, thumbnail: `thumbs/${name.slice(0, name.lastIndexOf('.'))}.jpg` });
 /**
  * **What `publish` receives is `JP-R12` at TWO levels and it names NO winner**: `all`'s record is one entry per map
- * branch, each being that branch's `perFile` record — which holds the thumbnail at `i.0` and nothing at `i.1`, because
- * the gate road EXITED in every instance.
+ * branch, keyed by its item index, each being that branch's `perFile` record — which holds the thumbnail under
+ * `beside`'s entry id `thumbnail` and nothing under `identify`, because the gate road EXITED in every instance. *(Keyed
+ * `i.0` until 0.12.0 — each branch's own key since ADR 0138.)*
  */
 const tvPublish = () => ({
   published: true,
-  joinPayload: Object.fromEntries(TV_IDENTIFIED.map((f, i) => [String(i), { [`${i}.0`]: tvThumb(f.name) }])),
+  joinPayload: Object.fromEntries(TV_IDENTIFIED.map((f, i) => [String(i), { thumbnail: tvThumb(f.name) }])),
 });
 const tvResults = (run: string, files: readonly TvFile[], which: 'all' | 'identify' | 'publish'): Record<string, unknown> => ({
   ...(which === 'all' ? Object.fromEntries(files.map((f, i) => [`${run}:download:${i}:0`, { name: f.name, sizeMB: f.sizeMB, path: `cache/${f.name}` }])) : {}),
@@ -1472,8 +1473,9 @@ const EXPECTED: Expectation[] = [
     // `{confidence: 0.9}`; each branch receives its own copy of that (`JP-R11`)
     // and the `score` role returns `{confidence, score: Math.round(0.9 * 100)}` =
     // `{confidence: 0.9, score: 90}`; both branches arrive, so `JP-R12` collects
-    // them under their branch paths `0` and `1`, and `publish` echoes what it was
-    // handed. **This read `joinPayload: null` until
+    // them under their ENTRY IDS `scoreA` and `scoreB` — `split`'s `branches`, each
+    // branch's own key (`JP-R12` v0.25, ADR 0138; the branch paths `0` and `1` until
+    // 0.12.0) — and `publish` echoes what it was handed. **This read `joinPayload: null` until
     // [ADR 0037](../doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md)**,
     // with the comment calling it *"Q36's current answer"* — which is exactly why
     // the row went red rather than quietly agreeing.
@@ -1481,8 +1483,8 @@ const EXPECTED: Expectation[] = [
       'r1:publish:-:0': {
         published: true,
         joinPayload: {
-          '0': { confidence: 0.9, score: 90 },
-          '1': { confidence: 0.9, score: 90 },
+          scoreA: { confidence: 0.9, score: 90 },
+          scoreB: { confidence: 0.9, score: 90 },
         },
       },
     },
@@ -2102,8 +2104,8 @@ const EXPECTED: Expectation[] = [
     //   - the three `score` instances got **different** items, which is ADR 0037
     //     rule 3 (`JP-R11`). Handed the whole value they would read `confidence:
     //     0.9` and return three identical `{0.9, 90}`;
-    //   - `publish` got the join's collection — `JP-R12`, keyed by `branchPath`,
-    //     ascending, one entry per branch that arrived.
+    //   - `publish` got the join's collection — `JP-R12`, keyed by item index (a top-level
+    //     map's index and branch path are one string), ascending, one entry per branch that arrived.
     nodeResults: {
       'r22:ingest:-:0': {
         confidence: 0.9,
@@ -2128,7 +2130,7 @@ const EXPECTED: Expectation[] = [
     why: 'W35 — P10`s EXIT ARTIFACT. A map on real workers: the run dispatches three tasks ' +
       'because a worker returned an array of three, and that number is in no flow definition and ' +
       'no constant here. Each instance receives its OWN item (ADR 0037 rule 3) and computes a ' +
-      'different score; the join carries all three back keyed by branch path (JP-R12). A `fanout` ' +
+      'different score; the join carries all three back keyed by item index (JP-R12). A `fanout` ' +
       'cannot reach this shape at all — FD-V9 makes its branches things somebody wrote down',
   },
   {
@@ -2270,11 +2272,13 @@ const EXPECTED: Expectation[] = [
           // `"."` — what this node would have received had it declared nothing,
           // which after a join is `JP-R12`'s collection. The row's original claim,
           // unchanged and now reached through the self form.
+          // Keyed by each branch's OWN key (ADR 0138): `outer`'s entries `[scoreA, prep]`, and
+          // under `prep` the map's item indexes — `0` and `1`, where 0.11.0 keyed `1.0` and `1.1`.
           own: {
-            '0': { confidence: 0.9, score: 90 },
-            '1': {
-              '1.0': { confidence: 0.1, score: 10 },
-              '1.1': { confidence: 0.2, score: 20 },
+            scoreA: { confidence: 0.9, score: 90 },
+            prep: {
+              '0': { confidence: 0.1, score: 10 },
+              '1': { confidence: 0.2, score: 20 },
             },
           },
           // **`["item?"]` — the FIFTH spelling of section 3's table, on real
@@ -2921,8 +2925,9 @@ const EXPECTED: Expectation[] = [
       // shapes, and reading the wrong branch is now a failure that says so.
       'r37:scoreA1:0:0': { confidence: 0.4, score: 40 },
       'r37:scoreA2:1:0': { seen: 1, word: null },
-      'r37:publishB1:0:0': { published: true, joinPayload: { own: { '0': { confidence: 0.4, score: 40 }, '1': { seen: 1, word: null } }, first: { confidence: 0.4, score: 40 } } },
-      'r37:publishB2:1:0': { published: true, joinPayload: { own: { '0': { confidence: 0.4, score: 40 }, '1': { seen: 1, word: null } }, first: { confidence: 0.4, score: 40 } } },
+      // `own` is `splitA`'s collection, keyed by its entries `[scoreA1, scoreA2]` (JP-R12 v0.25, ADR 0138).
+      'r37:publishB1:0:0': { published: true, joinPayload: { own: { scoreA1: { confidence: 0.4, score: 40 }, scoreA2: { seen: 1, word: null } }, first: { confidence: 0.4, score: 40 } } },
+      'r37:publishB2:1:0': { published: true, joinPayload: { own: { scoreA1: { confidence: 0.4, score: 40 }, scoreA2: { seen: 1, word: null } }, first: { confidence: 0.4, score: 40 } } },
     },
     why: 'W51 — P14`s exit artifact. Two SIBLING fanout regions on real workers, with both ' +
       'branches of the second reading branch 0 of the first. Under the prefix rule this document ' +
@@ -3185,16 +3190,19 @@ const EXPECTED: Expectation[] = [
       'r42:rank:1.0:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
       'r42:rank:1.1:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
       'r42:rank:1.2:0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
-      // The outer join's collection: branch 0's bare result, and at key `1` the inner join's
-      // collection keyed by the whole dotted path — `nested-map`'s shape with typed instances.
+      // The outer join's collection: `inB`'s bare result, and under `relay` the inner join's
+      // collection keyed by item index — `nested-map`'s shape with typed instances (ADR 0138; key `1`
+      // and the whole dotted path until 0.12.0).
       'r42:publish:-:0': {
         published: true,
+        // `fan`'s entries `[inB, relay]`, and under `relay` the map's item indexes `0`-`2` (ADR 0138; `0`, `1`
+        // and `1.0`-`1.2` until 0.12.0).
         joinPayload: {
-          '0': { confidence: 0.9, score: 90 },
-          '1': {
-            '1.0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
-            '1.1': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
-            '1.2': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
+          inB: { confidence: 0.9, score: 90 },
+          relay: {
+            '0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.1, factor: 1000, score: 100, retried: false },
+            '1': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.2, factor: 1000, score: 200, retried: false },
+            '2': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.3, factor: 1000, score: 300, retried: false },
           },
         },
       },
@@ -3411,11 +3419,12 @@ const EXPECTED: Expectation[] = [
       'r46:stamp:2:0': ECHO_EXAMPLE,
       // A transform that SUCCEEDS over the ordinary edge's value — kind 1 of `FD-C5`'s four.
       'r46:note:3:0': NOTED,
+      // `split`'s four entries `[scoreA, review, stamp, note]`, each branch's own key (ADR 0138; `0`-`3` until 0.12.0).
       'r46:publish:-:0': { published: true, joinPayload: {
-        '0': { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
-        '1': ECHO_EXAMPLE,
-        '2': ECHO_EXAMPLE,
-        '3': NOTED,
+        scoreA: { keys: ['input', 'settings'], extraKeys: [], settingsKeys: ['factor'], confidence: 0.9, factor: 10, score: 9, retried: false },
+        review: ECHO_EXAMPLE,
+        stamp: ECHO_EXAMPLE,
+        note: NOTED,
       } },
     },
     // ONE retry under the TYPE's policy (the nodes declare none): each transform evaluated twice,
@@ -3771,12 +3780,14 @@ const EXPECTED: Expectation[] = [
       'r51:grade:1.2:0': { confidence: 0.5, score: 50 },
       'r51:publish:-:0': {
         published: true,
+        // Two levels of maps, so every key is an ITEM INDEX: `perWord`'s `0`, `1`, and under each `perShard`'s own
+        // `0`, `1` (, `2`) — where 0.11.0 keyed the inner ones `0.0`, `0.1`, `1.0`-`1.2` (ADR 0138).
         joinPayload: {
-          '0': { '0.0': { confidence: 1, score: 100 }, '0.1': { confidence: 0.1, score: 10 } },
+          '0': { '0': { confidence: 1, score: 100 }, '1': { confidence: 0.1, score: 10 } },
           '1': {
-            '1.0': { confidence: 0.5, score: 50 },
-            '1.1': { confidence: 0.5, score: 50 },
-            '1.2': { confidence: 0.5, score: 50 },
+            '0': { confidence: 0.5, score: 50 },
+            '1': { confidence: 0.5, score: 50 },
+            '2': { confidence: 0.5, score: 50 },
           },
         },
       },
@@ -3829,7 +3840,7 @@ const EXPECTED: Expectation[] = [
       'r52:recheck:0.1:0': { confidence: 0.1, score: 10 },
       'r52:publish:-:0': {
         published: true,
-        joinPayload: { '0': { '0.0': { confidence: 1, score: 100 }, '0.1': { confidence: 0.1, score: 10 } } },
+        joinPayload: { '0': { '0': { confidence: 1, score: 100 }, '1': { confidence: 0.1, score: 10 } } }, // item indexes at both levels (ADR 0138)
       },
     },
     why: 'W86 — the control for the row above, and the only thing that differs is the payload`s word ' +
@@ -8559,7 +8570,10 @@ if (checkOff !== null) {
 
   // **(v) ADR 0062 consequence 5, turned from an argument into a value.** *A branch inside an
   // instance carries that instance's path as its own prefix*, so two instances of one opener hold
-  // DISJOINT key sets and their collections cannot collide. Asserted as a relation over the run's
+  // DISJOINT key sets and their collections cannot collide. *(Since ADR 0138 the COLLECTIONS are keyed by
+  // each branch's own key and two instances' may share a key set; what this asserts is the run's
+  // `regions`, which still key by branch path and are unmoved — and the collections are kept apart
+  // by the instance key, (vii) below.)* Asserted as a relation over the run's
   // own regions rather than against a literal: every branch path of every instance must begin with
   // that instance's path, and the union must be every branch that arrived.
   const instanceKeys = (r: RunReport, opener: string) =>
@@ -8616,13 +8630,15 @@ if (checkOff !== null) {
     nonRootEvents > 0, `${nonRootEvents} events at a non-root instance`);
 
   // **(vii) `JP-R12` at TWO LEVELS on real workers.** The outer join's collection is keyed by the
-  // outer branch paths, and each VALUE is the inner instance's own collection — derived from the
-  // run's regions rather than from the row's literal, so the two roads to one value can disagree.
+  // outer branches' own keys (item indexes, `perWord` being a map), and each VALUE is the inner
+  // instance's own collection, keyed by the LAST SEGMENT of that instance's branch paths — each
+  // branch's own key (ADR 0138; the full paths until 0.12.0) — derived from the run's regions rather
+  // than from the row's literal, so the two roads to one value can disagree.
   const outerPayload = (artifact.state.nodes['r51:publish:-:0']?.result as { joinPayload?: Record<string, Record<string, unknown>> })?.joinPayload ?? {};
   check('cross-row', 'JP-R12 at TWO LEVELS on real workers: the outer collection`s keys are the outer branches and each ' +
     'VALUE`s keys are that instance`s own collection, derived from the run`s regions',
     Object.fromEntries(Object.entries(outerPayload).map(([k, v]) => [k, Object.keys(v).sort()])),
-    Object.fromEntries(keysA.map(([path, ks]) => [path, ks])));
+    Object.fromEntries(keysA.map(([path, ks]) => [path, ks.map((k) => k.slice(k.lastIndexOf('.') + 1)).sort()])));
 
   // **(viii) The ARRANGEMENT, asserted rather than trusted.** Two facts of the run make the closing
   // order determinate: `shard@0` settled before `shard@1` (the worker's work is proportional to the
@@ -11616,9 +11632,9 @@ if (askBlock !== null) {
         r[`d3${runId}`], [[`outcome ${ids.score} done`, 'region branch.arrived 1', 'joinSettled collect true', `dispatched ${ids.publish}`],
           [ids.score, ids.publish]]);
     }
-    check(key, `${at}: \`publish\` received the join\`s collection — the ANSWER as branch 0, \`score\`\`s result as branch 1 (JP-R12) — ` +
-      'the run completed, `done` its fold, and the scheduler never saw the ask', r[`d4${runId}`],
-    [askCanon({ 0: { ok: true }, 1: { scored: runId } }), 'completed', true, true, false]);
+    check(key, `${at}: \`publish\` received the join\`s collection — the ANSWER under \`review\`, \`score\`\`s result under \`score\` ` +
+      '(JP-R12 v0.25: each branch`s entry id) — the run completed, `done` its fold, and the scheduler never saw the ask', r[`d4${runId}`],
+    [askCanon({ review: { ok: true }, score: { scored: runId } }), 'completed', true, true, false]);
   }
   // (5)
   const s = { draft: 'w182s:draft:-:0', approve: 'w182s:approve:-:0', publish: 'w182s:publish:-:0' };
@@ -12104,7 +12120,7 @@ if (attBlock !== null) {
     r.h1, [1, true, [0, 0]]);
   check(key, 'W188 exit (3): its header is a FROZEN copy equal to the handle`s and to the checkpoint`s — the five facts (RN-R15) — and a ' +
     'copy of its OWN: its entry payload neither the caller`s object nor the run`s, one level down both ways (RN-R39)', r.h2,
-    [true, true, true, askCanon({ format: 1, runId: 'w188h', flowId: 'w188-messages', version: 1, entryPayload: { deep: { n: 1 }, topic: 'w188h' } }),
+    [true, true, true, askCanon({ format: 2, runId: 'w188h', flowId: 'w188-messages', version: 1, entryPayload: { deep: { n: 1 }, topic: 'w188h' } }),
       [true, 1, 1, 1]]);
   // An entry fan-out of two: `regionEntered`, two `branch.opened`, two `dispatched` — 2N + 1 (ADR 0064 fact 5) — and both tasks
   // handed on, all inside start(); the run then completes.
@@ -12628,8 +12644,8 @@ if (piBlock !== null) {
   ['completed', [0, 1, 2].map((i) => ({ it: copyItems[i], run: copyPayload })), ['threaded'], ['caller', 'caller']]);
   // (4) — RN-R32/RN-R33 (the stop), RN-R15 (the header's five facts), RN-R19/RN-R21 (the replay), ADR 0118 (the store rebuilt).
   check(key, 'W192 exit (4): STOPPED with instance 1 answered and arrived and two asks parked — interrupted, the header the five keys at ' +
-    'format 1 carrying the payload as started, nothing stored but these kinds', r.s1,
-  ['interrupted', ['entryPayload', 'flowId', 'format', 'runId', 'version'], 1, reviewPayload,
+    'format 2 (CHECKPOINT_FORMAT since ADR 0138) carrying the payload as started, nothing stored but these kinds', r.s1,
+  ['interrupted', ['entryPayload', 'flowId', 'format', 'runId', 'version'], 2, reviewPayload,
     ['asked', 'attempted', 'dispatched', 'interrupted', 'outcome', 'region', 'regionEntered', 'resolution'],
     ['w192s:pay:1:0'], ['w192s:review:0:0', 'w192s:review:2:0']]);
   check(key, 'W192 exit (4): resumed on a FRESH runtime and answered there — each successor receives what the UNINTERRUPTED run`s did, ' +
@@ -13389,7 +13405,7 @@ if (shBlock !== null) {
  *   differs from each, and `file`'s result for the other answer from `done`'s;
  * - **the gate** — `route` at each path 0-11 answers `received`, that instance's `work` result by hand; CONTROL as above;
  * - **the join** — `fj`'s ARRIVAL at `0` (`fast`'s result) and its LATE ARRIVAL at `1` (`slow`'s), each by hand, and its
- *   COLLECTION at `-`, `{ "0": fast's result }`; the ARRANGEMENT asserted (`fj` fired before `slow` settled, in the stored
+ *   COLLECTION at `-`, `{ "fast": fast's result }` (`fan`'s entry id, ADR 0138; `"0"` until 0.12.0); the ARRANGEMENT asserted (`fj` fired before `slow` settled, in the stored
  *   order); CONTROL the collection with the late arrival in it differing. And `collect`'s collection, `{ "6" … "11" }` by
  *   hand, with an instance that ENDED at `low` (`3`) `not-reached` as its arrival;
  * - **the ask** — `review` answers `received`, `{ got: fj's collection }` by hand and equal to its stored `asked`
@@ -13589,13 +13605,13 @@ try {
       const collection = inOne(read({ nodeId: 'fj', branchPath: '-' }));
       r[`join${pool}`] = [firedAt >= 0 && slowAt > firedAt,
         inOne(read({ nodeId: 'fj', branchPath: '0' })), inOne(read({ nodeId: 'fj', branchPath: '1' })), collection,
-        collection[1] !== inCanon({ 0: inFast(), 1: inSlow() }),
+        collection[1] !== inCanon({ fast: inFast(), slow: inSlow() }),
         inOne(read({ nodeId: 'collect', branchPath: '-' })), inOne(read({ nodeId: 'collect', branchPath: '3' }))];
       // The ask: by hand, and equal to its stored `asked` element's input.
       const asked = stored.events.find((i) => i.kind === 'asked' && i.taskId === id('review:-'));
       const ask = inOne(read({ taskId: id('review:-') }));
       r[`ask${pool}`] = [ask, asked === undefined ? 'NO ASKED' : ask[1] === inCanon((asked as { input: unknown }).input),
-        ask[1] !== inCanon({ got: { 0: inFast(), 1: inSlow() } })];
+        ask[1] !== inCanon({ got: { fast: inFast(), slow: inSlow() } })];
       // A changed registry: `w206Keep` answering `false` — refused at the first stored `gated` element.
       const changed: InputOfOptions = { ...options, predicates: new Map([...(options.predicates ?? new Map()), ['w206Keep', () => false]]) };
       const refused = inputOf(flow, changed, stored, { taskId: id('review:-') });
@@ -13657,7 +13673,7 @@ if (inBlock !== null) {
   for (const pool of ['threaded', 'inline'] as const) {
     check(key, `W206 exit (${pool}): LIVE — handle.inputOf at the parked ask answers every one of the ${tasks} tasks dispatched so far (slow still ` +
       'in flight) with ONE envelope equal to its OWN echo and to no other task`s, and the parked ask its value by hand; file and done not-reached, the same handle answering both once the run is over (the CONTROL)',
-    r[`live${pool}`], [[], 0, tasks, ['envelope'], false, ['received', inCanon({ got: { 0: inFast() } })], ['not-reached', 'not-reached'], true, true]);
+    r[`live${pool}`], [[], 0, tasks, ['envelope'], false, ['received', inCanon({ got: { fast: inFast() } })], ['not-reached', 'not-reached'], true, true]);
     check(key, `W206 exit (${pool}): STORED — once the runtime is shut down, the root inputOf over the header and events a store kept answers every ` +
       `one of the run's ${tasks + 1} tasks with its OWN echo and no other's`, r[`stored${pool}`], ['completed', [], 0, tasks + 1, ['envelope']]);
     check(key, `W206 exit (${pool}): the ENDS — low by its node id alone answers received at exactly paths 0-${IN_LOW - 1}, each work's result by hand ` +
@@ -13668,10 +13684,10 @@ if (inBlock !== null) {
     check(key, `W206 exit (${pool}): the JOIN — fj fired before slow settled (the ARRANGEMENT); its arrival at 0 is fast's result, its LATE arrival at 1 ` +
       'slow`s, its collection at - only fast`s (the late arrival in it differing, the CONTROL); collect`s collection is items 6-11`s results, ' +
       'an instance that ended at low not-reached as an arrival', r[`join${pool}`],
-    [true, ['arrival', inCanon(inFast())], ['arrival', inCanon(inSlow())], ['collection', inCanon({ 0: inFast() })], true,
+    [true, ['arrival', inCanon(inFast())], ['arrival', inCanon(inSlow())], ['collection', inCanon({ fast: inFast() })], true,
       ['collection', inCanon(Object.fromEntries(Array.from({ length: IN_ITEMS - IN_LOW }, (_, k) => [String(IN_LOW + k), inWork(IN_LOW + k)])))], 'not-reached']);
     check(key, `W206 exit (${pool}): the ASK — review answers received, { got: fj's collection } by hand and its stored asked element's input ` +
-      '(the late arrival in it differing, the CONTROL)', r[`ask${pool}`], [['received', inCanon({ got: { 0: inFast() } })], true, true]);
+      '(the late arrival in it differing, the CONTROL)', r[`ask${pool}`], [['received', inCanon({ got: { fast: inFast() } })], true, true]);
     check(key, `W206 exit (${pool}): a HALTED run, read once its runtime is gone — fetch's and every work's envelope by hand; route at ${IN_STOP}, ` +
       'review and done not-reached AT the stored halted element (the prefix`s end), never diverged; the completed run answering route there (the CONTROL)', r[`halt${pool}`],
     ['halted', 1, ['envelope', inCanon(inEnvFetch())], [], IN_ITEMS, [['not-reached', true], ['not-reached', true], ['not-reached', true]], ['received', inCanon(inWork(IN_STOP))]]);

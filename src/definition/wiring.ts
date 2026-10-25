@@ -9,7 +9,7 @@
  * module derives the SCHEMA of that value from the producer side of each arc that reaches it, one
  * verdict per arc, in five shapes: an ordinary **edge** (the producer's `outputSchema`), a fan-out
  * **branch** (the same value the fan-out received — `JP-R11`), a map **item** (one element of the
- * `over` array the map received), a join's **record** (`JP-R12`'s, keyed by branch path),
+ * `over` array the map received), a join's **record** (`JP-R12`'s, keyed by each branch's own key),
  * and a **needs** composition (`FD-C1`'s table: `"."` is the edge's value, a node id is that node's
  * output, `[id]` an array of them, a `?` makes the key optional — and over a map's item, one
  * composed object per element, evaluated per element as the run does). The ENTRY has no arc: its
@@ -42,14 +42,14 @@
  * **A join successor's input is a DIFFERENT question** (decision 8), and the subset cannot say
  * *any key, each of shape S* — measured at W73's declaration: `additionalProperties: <schema>` is
  * refused by `schemaProblem`. So the record's shape is THIS MODULE's knowledge and not a keyword's:
- * for a `fanout` region the record schema is exact in its KEYS (every declared branch path a
- * property, no other key) and REQUIRES none of them — a branch that is lost has no entry, and a
+ * for a `fanout` region the record schema is exact in its KEYS (every declared branch ENTRY NODE ID a
+ * property, no other key — v0.25, ADR 0138; a branch path until 0.12.0) and REQUIRES none of them — a branch that is lost has no entry, and a
  * branch is lost by three roads no document shows (an `optional` task failing, a person resolving a
  * suspended task `failed`, a policy firing before it settles — `JP-R12`, `spec/join-policy.md`
  * section 2), so a consumer requiring a branch key is `no`; and for a `map` region it is an object whose keys are
- * branch paths minted at run time, each of the branch's output shape — carried internally as
+ * ITEM INDEXES minted at run time (`"0"`, `"1"`, …), each of the branch's output shape — carried internally as
  * `additionalProperties: <schema>` with a `branchKeys` marker, which `fits` reads and no author may
- * write. A consumer naming a property that is not a branch path never meets it.
+ * write. A consumer naming a property that is not an item index never meets it.
  *
  * **A transformed arc is verified on a SAMPLE, and the verdict says which sample** (ADR 0056 rule
  * 3, [Q301](../../doc/questions/q301.md)): the producer's first declared example, else the
@@ -93,7 +93,7 @@ import { describeFindings, findings, schemaProblem, type JsonSchema } from './sc
 import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry, TaskNode } from './types.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
 import { keyPathSteps } from './condition.ts';
-import { allRegions, branchPathOf, buildGraph, innermostMapOf, type Graph, type RegionSets } from './regions.ts';
+import { allRegions, buildGraph, innermostMapOf, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
 // ---- the verdict -----------------------------------------------------------------------------
@@ -197,8 +197,12 @@ const typesOf = (s: Record<string, unknown>): string[] => {
 };
 const widen = (ts: string[]): string[] => ts.flatMap((t) => (t === 'integer' ? ['integer'] : t === 'number' ? ['number', 'integer'] : [t]));
 const canon = (v: unknown): string => JSON.stringify(v);
-/** A key `JP-R12` can mint: a branch path — `0`, `1.0`, `12.3.1`. */
-const BRANCH_KEY = /^\d+(\.\d+)*$/;
+/**
+ * **A key a map's `JP-R12` record can mint: an ITEM INDEX** — `0`, `1`, `12`, as `String(i)` spells it (v0.25, ADR 0138).
+ * A branch path — `1.0`, `12.3.1` — until 0.12.0, when a nested collection's keys carried the enclosing path; no key is
+ * dotted now, and none has a leading zero.
+ */
+const BRANCH_KEY = /^(?:0|[1-9][0-9]*)$/;
 /** **What a `"n!error"` key holds** — v0.49, ADR 0131: the outcome record's `error`, a string or `null`. Frozen: shared. */
 const ERROR_SCHEMA: JsonSchema = Object.freeze({ type: ['string', 'null'] });
 
@@ -235,14 +239,14 @@ export function fits(P: JsonSchema, C: JsonSchema, path = '$'): { verdict: 'fits
   // 4. objects: every property the consumer REQUIRES the producer must require; each shared
   //    property fits recursively; a key the consumer describes and the producer does not name is
   //    read as never emitted (the header's stated leniency) unless the consumer REQUIRES it, or
-  //    unless the producer is a map's record, whose branch-path keys are known to carry the
+  //    unless the producer is a map's record, whose item-index keys are known to carry the
   //    branch's shape; the consumer's additionalProperties:false forbids any producer key it does
   //    not name
   if (ct.includes('object') && pt.includes('object')) {
     const preq = new Set((p.required ?? []) as string[]), creq = (c.required ?? []) as string[];
     for (const k of creq) if (!preq.has(k)) return { verdict: 'no', why: `${path}: consumer requires "${k}", producer does not guarantee it` };
     const pp = (p.properties ?? {}) as Record<string, JsonSchema>, cp = (c.properties ?? {}) as Record<string, JsonSchema>;
-    // A `JP-R12` record over a map region: its keys are branch paths, each of the branch's shape (the header).
+    // A `JP-R12` record over a map region: its keys are item indexes, each of the branch's shape (the header).
     const record = p.branchKeys === true && isPlainObject(p.additionalProperties) ? (p.additionalProperties as JsonSchema) : undefined;
     for (const k of Object.keys(cp)) {
       // **`own`, never a bare `k in pp`** — the third and fourth occurrence of a class this repository has
@@ -257,7 +261,7 @@ export function fits(P: JsonSchema, C: JsonSchema, path = '$'): { verdict: 'fits
       if (!own(pp, k)) {
         if (record !== undefined && BRANCH_KEY.test(k)) {
           const r = fits(record, cp[k]!, `${path}.${k}`);
-          if (r.verdict !== 'fits') return { verdict: 'no', why: `${r.why} (a branch path the map's record may mint)` };
+          if (r.verdict !== 'fits') return { verdict: 'no', why: `${r.why} (an item index the map's record may mint)` };
           continue;
         }
         if (p.additionalProperties === false) continue;            // producer never emits k
@@ -729,7 +733,7 @@ class Wiring {
       (n.kind === 'task' || n.kind === 'ask' || n.kind === 'join' || n.kind === 'gate') && (n.edges ?? []).some((e) => e.to === region.joinId));
   }
 
-  /** `JP-R12`'s record for the region a join closes — exact for a fan-out, keyed by minted paths for a map. */
+  /** `JP-R12`'s record for the region a join closes — exact for a fan-out, keyed by entry id; keyed by item index for a map. */
   private record(j: JoinNode): Arrival {
     const region = this.regions.find((r) => r.joinId === j.id);
     const base = { shape: 'record' as const, producer: j.id };
@@ -768,23 +772,16 @@ class Wiring {
       values.push({ branch: b, schema: firstSchema, sample: first.sample ?? { value: null, source: 'witness' } });
     }
     const source: ArcSampleSource = values.every((v) => v.sample.source === 'example') ? 'example' : 'witness';
-    // **The sample's keys for a region INSIDE a map region take item index 0 for every enclosing map** —
-    // the schema does not depend on the key, and `branchPathOf` refuses a path that crosses a map with
-    // no index (`ID-R6`). W73's conformity reader found the check THROWING here on two documents the
-    // validator accepts (a fan-out inside a map branch, a map in a map) — shapes the driver refused at
-    // construction until [W84](../../doc/work-items/w84-what-a-regions-identity-is.md) and **RUNS since**
-    // ([ADR 0062](../../doc/decisions/0062-a-region-instance-is-its-opener-and-the-openers-own-branch-path.md),
-    // Q160). **The reason this line gives survives the lift and is now the whole of it**: the schema does
-    // not depend on the key, so index 0 is a SAMPLE and always was — it was never an argument about
-    // whether a run would start.
-    const enclosing = new Map(this.regions.filter((r) => r.opensWith === 'map' && r.members.has(region.fanoutId)).map((r) => [r.fanoutId, 0] as const));
+    // **The record is keyed as the run keys the collection — each branch's OWN key, one segment** (`JP-R12` v0.25,
+    // [ADR 0138](../../doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)):
+    // a fan-out's by ENTRY NODE ID, a map's sample by ITEM INDEX `"0"` … `"n-1"`. So the keys no longer depend on
+    // where the region sits: until 0.12.0 they were `branchPathOf`'s full paths, which took item index 0 for every
+    // enclosing map (a SAMPLE — W73's conformity reader found the check throwing there on a fan-out inside a map
+    // branch), and that question is gone with them. **Built by own-property DEFINITION** (`Object.fromEntries`), as
+    // `collectArrivals` builds the run's, so an entry id `__proto__` is a property here as it is a key there.
     if (opener.kind === 'fanout') {
-      const props: Record<string, JsonSchema> = {}; const sample: Record<string, unknown> = {};
-      for (const v of values) {
-        const path = branchPathOf(this.regions, v.branch, enclosing);
-        props[path] = v.schema;
-        sample[path] = v.sample.value;
-      }
+      const props: Record<string, JsonSchema> = Object.fromEntries(values.map((v) => [v.branch, v.schema] as const));
+      const sample: Record<string, unknown> = Object.fromEntries(values.map((v) => [v.branch, v.sample.value] as const));
       // **No key is REQUIRED — `JP-R12`'s three roads** (the header): a branch lost by an `optional` task
       // failing, by a person resolving a suspended task `failed` (`spec/join-policy.md` section 2, `RS-R3`),
       // or by a policy firing before it settles has no entry, and none of the three shows in the document.
@@ -798,8 +795,8 @@ class Wiring {
     const v = values[0];
     if (!v) return { ...base, unchecked: `map "${opener.id}"'s branch never arrives at "${j.id}"` };
     const arity = this.arrivals(opener.branch)[0]?.sample?.arity ?? 1;
-    const sample: Record<string, unknown> = {};
-    for (let i = 0; i < arity; i++) sample[branchPathOf(this.regions, opener.branch, new Map([...enclosing, [opener.id, i]]))] = v.sample.value;
+    const sample: Record<string, unknown> = {};                          // integer-like keys only: no `__proto__` here
+    for (let i = 0; i < arity; i++) sample[String(i)] = v.sample.value;
     return {
       ...base,
       schema: { type: 'object', additionalProperties: v.schema, branchKeys: true } as JsonSchema,

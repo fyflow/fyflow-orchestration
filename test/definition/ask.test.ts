@@ -392,12 +392,13 @@ suite(SUITE, (test) => {
       { id: 'done', kind: 'end', outcome: 'completed' },
     ] } as unknown as FlowDefinition;
     equal((await checkWiring(wr, viaNeeds)).verdicts.map((v) => `${v.shape}:${v.kind}`), ['needs:fits'], 'a needs naming the ask carries its answerSchema');
-    // An ask as a fan-out's branch: its answer is that branch's key — `0` — in the join's record. A consumer naming a
-    // key the record never mints never meets it (the header's leniency), so the DISCRIMINATING consumer requires a key
-    // `0` CANNOT carry if `0` is the ask's closed answerSchema: `no` exactly when the ask's branch arrives.
+    // An ask as a fan-out's branch: its answer is that branch's key — its ENTRY ID `approve` since v0.25 (ADR 0138; the
+    // position `0` until then) — in the join's record. A consumer naming a key the record never mints never meets it (the
+    // header's leniency), so the DISCRIMINATING consumer requires a key `approve` CANNOT carry if `approve` is the ask's
+    // closed answerSchema: `no` exactly when the ask's branch arrives.
     const wr2: WiringRegistry = { ...wr, workers: { ...wr.workers,
-      zeroScore: { url: 'test://zs', inputSchema: { type: 'object', properties: { '0': { type: 'object', required: ['score'] } } } },
-      zeroApproved: { url: 'test://za', inputSchema: { type: 'object', properties: { '0': { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } } } } },
+      zeroScore: { url: 'test://zs', inputSchema: { type: 'object', properties: { approve: { type: 'object', required: ['score'] } } } },
+      zeroApproved: { url: 'test://za', inputSchema: { type: 'object', properties: { approve: { type: 'object', required: ['approved'], properties: { approved: { type: 'boolean' } } } } } },
     }, nodeTypes: { ...wr.nodeTypes, ZeroScore: { worker: 'zeroScore' }, ZeroApproved: { worker: 'zeroApproved' } } };
     const region = (consumer: string) => ({ flowId: 'w3', version: 1, entry: 'src', nodes: [
       { id: 'src', kind: 'task', type: 'Source', edges: [{ to: 'split' }] },
@@ -409,9 +410,9 @@ suite(SUITE, (test) => {
       { id: 'done', kind: 'end', outcome: 'completed' },
     ] }) as unknown as FlowDefinition;
     equal((await checkWiring(wr2, region('ZeroScore'))).verdicts.filter((v) => v.consumer === 'use').map((v) => `${v.shape}:${v.kind}`), ['record:no'],
-      'the ask`s branch ARRIVES in the record: its key `0` is the answerSchema, which never carries `score`');
+      'the ask`s branch ARRIVES in the record: its key `approve` is the answerSchema, which never carries `score`');
     equal((await checkWiring(wr2, region('ZeroApproved'))).verdicts.filter((v) => v.consumer === 'use').map((v) => `${v.shape}:${v.kind}`), ['record:fits'],
-      'and the control: `0` requiring what the answer guarantees fits');
+      'and the control: `approve` requiring what the answer guarantees fits');
     // No FD-R4 target: an entry ask lists nothing; a task at the entry lists itself.
     equal((await checkWiring(wr, flow({ answerSchema: ANSWER }, 'Approved', 'approve'))).entry, [], 'an entry ask is no start target');
     equal((await checkWiring(wr, flow({ answerSchema: ANSWER }, 'Approved'))).entry, ['src'], 'the control: an entry task is');

@@ -69,7 +69,7 @@ const DECLARED_CASES = [
   'the app`s case 1: an ENTRY ask, and its successor reaches the invoice the run started with beside the person`s answer',
   'an EDGE: a declared predicate routes on needs.run.amount, both ways, with no task before the decision',
   'FD-R4 at start(): a "$payload" key is composed from the CALLER`s value before the header exists — refused with the driver unstarted, accepted when it fits',
-  'a RESUME on a fresh driver composes the same value — the header five keys at format 1, and no fold-input kind the "." control lacks',
+  'a RESUME on a fresh driver composes the same value — the header five keys at the format this driver writes, and no fold-input kind the "." control lacks',
   'the COPY claim over a NESTED payload, read both ways: the caller`s object after start(), and a worker`s and a predicate`s nested write to what they received',
   'a flow naming "$payload" nowhere is unchanged — its fold inputs and dispatched inputs equal the same flow`s without the key, the key aside',
   'every case this suite declares actually ran — a deleted case fails naming itself',
@@ -208,7 +208,7 @@ suite(SUITE, (test) => {
     equal(good.sch.ids(), ['r1:each:0:0', 'r1:each:1:0', 'r1:each:2:0'], 'and a list that fits starts three instances');
   });
 
-  test('a RESUME on a fresh driver composes the same value — the header five keys at format 1, and no fold-input kind the "." control lacks', () => {
+  test('a RESUME on a fresh driver composes the same value — the header five keys at the format this driver writes, and no fold-input kind the "." control lacks', () => {
     const resumable = (ref: string) => flow('resume', 'a', [
       task('a', 'approve'),
       { id: 'approve', kind: 'ask', needs: { inv: ref, prev: '.' }, edges: [{ to: 'pay' }] },
@@ -226,7 +226,7 @@ suite(SUITE, (test) => {
     first.sch.done('r1:a:-:0', { from: 'a' });
     const cp = structuredClone(first.driver.checkpoint());
     equal(Object.keys(cp.header).sort(), ['entryPayload', 'flowId', 'format', 'runId', 'version'], 'the header: the same five keys (decision 5)');
-    equal(cp.header.format, 1, 'at format 1 — CHECKPOINT_FORMAT unmoved');
+    equal(cp.header.format, 2, 'at format 2 — CHECKPOINT_FORMAT, unmoved by "$payload" (W190); 2 since ADR 0138 moved it for the join`s keys');
     const again = make(resumable('$payload'));
     again.driver.resume(cp);
     // The STORE's object written after the resume, nested: the resumed run holds its own copy of the stored header's

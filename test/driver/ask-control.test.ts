@@ -336,7 +336,7 @@ suite(SUITE, (test) => {
     equal(b.sch.added, [SCORE], 'the join still waits for the task');
     b.sch.settle(SCORE, 'done', { s: 1 });
     equal(b.sch.added, [SCORE, PUBLISH], 'the join fires');
-    equal(b.sch.inputs.get(PUBLISH), { 0: { ok: true }, 1: { s: 1 } }, 'carrying the answer for the ask`s branch');
+    equal(b.sch.inputs.get(PUBLISH), { review: { ok: true }, score: { s: 1 } }, 'carrying the answer for the ask`s branch, under its entry id `review` (JP-R12 v0.25)');
     b.sch.settle(PUBLISH, 'done', 'p');
     equal(state(b.driver).outcome, 'completed', 'to `completed`');
   });
@@ -416,7 +416,7 @@ suite(SUITE, (test) => {
     equal(m.sch.added, [INGEST, SCORE], 'and HELD — not handed on');
     m.driver.unpause({ actor: 'ops' });
     equal(m.sch.added, [INGEST, SCORE, PUBLISH], 'the unpause hands it on');
-    equal(m.sch.inputs.get(PUBLISH), { 0: { ok: true }, 1: { s: 1 } }, 'with the answer as the ask`s branch`s arrival');
+    equal(m.sch.inputs.get(PUBLISH), { review: { ok: true }, score: { s: 1 } }, 'with the answer as the ask`s branch`s arrival, under `review` (JP-R12 v0.25)');
   });
 
   test(DECLARED_CASES[9]!, async () => {

@@ -218,11 +218,12 @@ if (v48.join() !== 'FD-V48') throw new Error(`expected FD-V48, got ${v48.join()}
 >
 > **What each instance receives, and what the join hands on.** Each instance is dispatched with
 > **its own item** — `over`'s array at that instance's index, as its own copy, so no two instances
-> share an object — and the join carries **every item's result keyed by that item's branch path**. A
-> map of three items at the top level dispatches three tasks and its successor receives
-> `{ "0": …, "1": …, "2": … }`; **a map nested in a fan-out branch keys its collection with the whole
-> path**, so a map inside branch 1 gives `{ "1.0": …, "1.1": … }`. *(This said "keyed by its item
-> index", which is the depth-1 case stated as if it were general — W34's conformity reader.)*
+> share an object — and the join carries **every item's result keyed by that item's INDEX**, one
+> segment, wherever the map sits: a map of three items dispatches three tasks and its successor
+> receives `{ "0": …, "1": …, "2": … }`, and so does a map nested in a fan-out branch. **Since 0.12.0**
+> ([ADR 0138](doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)): until then a nested map keyed its collection with the whole path — a map
+> inside branch 1 gave `{ "1.0": …, "1.1": … }` — and *What a join carries downstream* in section 5 says
+> what moved with it.
 > [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md),
 > and see *What a join carries downstream* in section 5 for what happens when an item's branch does
 > not arrive.
@@ -522,7 +523,7 @@ that passed it through.
 | where it is legal | every node and every edge — at the entry, on a task, it equals `"."`, and both spellings are accepted. **On an edge it is NOT refused** the way `"."` is: a predicate has no `ctx.payload`, so `needs: { run: '$payload' }` is how a decision routes on `needs.run.amount` with no task before it |
 | always there | no `?` and no array form: `["$payload"]` and `"$payload?"` are `FD-V26`, each naming the bare form. The whole `$` prefix is reserved — `$` is outside the node-id charset (`FD-V16`), so the token can never collide with a node — and any other `$` spelling (`"$input"`, a typo) is `FD-V26` naming the two `$` references |
 | `"$item"` | the prefix's second reference, the item of the map instance the reader is in — the next subsection |
-| on a resume | the same value, from the stored header: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` stays 1) |
+| on a resume | the same value, from the stored header: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` does not move for it — it is 2 since 0.12.0, for the join's keys, section 5) |
 | at `start()` | `FD-R4` holds a task's composed `"$payload"` key to its worker's `inputSchema` like any other key (section 9) — composed from the value you passed, before the run exists |
 | in the wiring check | an arc composed through a `"$payload"` key is `unchecked`: the run's payload is a value no schema declares (section 15) |
 | what it costs | ONE copy of the whole payload per RUN, from 0.10.0 — however many instances of a `map` read it. *(Until 0.10.0 one copy per key per read: inside a `map`, once per instance — the cliff above at its largest.)* On an ASK the copy is also written into the run's LOG: the `asked` element keeps what reached the ask (section 7) |
@@ -617,7 +618,7 @@ passed it through.
 | always there | no `?` and no array form: `["$item"]` and `"$item?"` are `FD-V26`, each naming the bare form |
 | what it is | its OWN deep copy of the item, per key per read — two `"$item"` keys on one node are two objects, and a worker or a predicate writing into one reaches nothing else |
 | what an instance KEEPS | its item, by reference to the element the map received — and only where some node of that map's region reads `"$item"`: a map nobody reads it from keeps nothing. **Released when nothing of that instance may still be entered** — its branch has ended (arrived at the map's join, exited the region, or been lost) AND no branch of a region nested inside it is still live — told by those branches' terminal region events, never by a join: an ask parked in the instance keeps it until the person answers, and a nested fan-out whose join a policy fired early keeps it until its last branch ends. Released whole when the run halts, is cancelled or is stopped (`spec/run-state.md` `RN-R13`) |
-| on a resume | rebuilt by the replay, which re-enters the map: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` stays 1) |
+| on a resume | rebuilt by the replay, which re-enters the map: nothing new is written to the log, the header or the checkpoint (`CHECKPOINT_FORMAT` does not move for it — it is 2 since 0.12.0, for the join's keys, section 5) |
 | at `start()` | `FD-R4` composes it on an ENTRY map's branch task from the element the walk reached — which IS that instance's item — and holds it to the worker's `inputSchema` like any key (section 9). *Until 0.8.0's W191 ANY `needs` on such a task — `"."` included — made `start()` throw an `UnresolvedBranchPath` instead of `BoundaryRefused`* |
 | in the wiring check | an arc composed through a `"$item"` key reads the enclosing map's ITEM schema, one sample per element; `unchecked` for an ENTRY map, whose items come from the run's payload, which no schema declares (section 15) |
 | what it costs | one copy of ONE element per key per read — the cheap end of section 3's cliff — and the retention above, at most the `over` array the log already holds |
@@ -1230,10 +1231,12 @@ is not a supported choice. See
 
 ### What a join carries downstream
 
-**The arrived branches' results, keyed by branch path.** A satisfied join dispatches its successor
-with an object whose keys are the `branchPath`s of the branches that **reached** it, and whose values
-are what each of those branches carried in — so a fan-out's results are not thrown away, and the
-value is the same whatever order the branches finished in.
+**The arrived branches' results, each under the branch's OWN key.** A satisfied join dispatches its
+successor with an object holding one entry per branch that **reached** it — keyed by the branch's
+**entry node id** for a `fanout` and by the **item index** for a `map`, one segment at every depth —
+whose values are what each of those branches carried in. So a fan-out's results are not thrown away,
+a key path reaches into any depth (`input.prep.1`), and the value is the same whatever order the
+branches finished in.
 
 ```ts run
 import { createRuntime } from 'fyflow-orchestration/scheduler';
@@ -1255,7 +1258,7 @@ const flow: FlowDefinition = {
   flowId: 'collect', version: 1, entry: 'split',
   nodes: [
     { id: 'split',   kind: 'fanout', branches: ['scoreA', 'scoreB'] },
-    // `scoreA` is branch path "0" and is made SLOW on purpose, so "1" settles first.
+    // `scoreA` is the FIRST entry and is made SLOW on purpose, so `scoreB` settles first.
     { id: 'scoreA',  kind: 'task', type: 'Scorer', settings: { score: 0.9, ms: 40 }, edges: [{ to: 'collect' }] },
     { id: 'scoreB',  kind: 'task', type: 'Scorer', settings: { score: 0.4 },         edges: [{ to: 'collect' }] },
     { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'publish' }] },
@@ -1274,7 +1277,7 @@ const inputs: FoldInput[] = [];
 const state = await runtime.start(flow, {}, { onFoldInput: (input) => { inputs.push(input); } }).done;
 await runtime.shutdown();
 
-// **The order is READ, not assumed.** The delay above ASKS for branch "1" to settle first; this is
+// **The order is READ, not assumed.** The delay above ASKS for `scoreB` to settle first; this is
 // what the run actually did, and the claim below is about the collection being independent of it.
 const settledOrder = inputs.flatMap((i) =>
   (i.kind === 'outcome' && /:score[AB]:/.test(i.record.taskId) ? [i.record.taskId.split(':')[1]] : []));
@@ -1283,13 +1286,14 @@ console.log(settledOrder.join(' then '));    // 'scoreB then scoreA'
 // `publish` is the join's successor, so what it received IS the collection — and `tag` returns what
 // it was handed with its own label added, so the collection is readable in the result.
 const published = Object.values(state.nodes).find((n) => n.nodeId === 'publish')?.result;
-console.log(JSON.stringify(published));      // {"0":{"score":0.9},"1":{"score":0.4},"publish":true}
+console.log(JSON.stringify(published));      // {"scoreA":{"score":0.9},"scoreB":{"score":0.4},"publish":true}
 
-const want = '{"0":{"score":0.9},"1":{"score":0.4},"publish":true}';
+const want = '{"scoreA":{"score":0.9},"scoreB":{"score":0.4},"publish":true}';
 if (JSON.stringify(published) !== want) throw new Error(`the join carried ${JSON.stringify(published)}`);
-// **B settled FIRST and is still under key "1".** The collection is keyed by BRANCH PATH, not by
-// arrival order, which is the whole point — and the two assertions are a pair: the first says which
-// order the run took, the second says the record did not follow it.
+// **B settled FIRST and is still under its own key, listed SECOND.** The collection is keyed by each
+// branch's ENTRY ID and inserted in `branches` order, not in arrival order, which is the whole point —
+// and the two assertions are a pair: the first says which order the run took, the second says the
+// record did not follow it.
 if (settledOrder.join() !== 'scoreB,scoreA') throw new Error(`settled ${settledOrder.join()} — the arrangement did not hold, so the claim below is untested`);
 ```
 
@@ -1302,20 +1306,32 @@ if (settledOrder.join() !== 'scoreB,scoreA') throw new Error(`settled ${settledO
 2. **`{}` is a real answer, not an error.** Under `liveToken` a join fires once its region has no live
    branches, and every branch reaching an `end` satisfies that with nothing arrived. If that should be
    a failure instead, pass `liveTokenRequiringArrival` — see above.
-3. **The keys are strings, in ascending branch-path order**, compared segment by segment as numbers —
-   so `"0"`, `"1"`, `"2"`, `"10"` at the top level, and `"1.0"`, `"1.1"`, `"1.10"` inside branch 1.
-   A nested region's inner join carries its own object, which becomes the value of the outer branch it
-   sits in. **Every key of one collection has the same number of segments**, because they are the
-   branch paths of one region. *(An earlier version of this bullet illustrated the order as `"1"`,
-   `"1.0"`, `"2"`, `"10"` — a mix of depths that no single collection can hold, and one that
-   `Object.keys` would not even return in that order, because JavaScript re-orders integer-like keys
-   ahead of string ones. W34's conformity reader.)*
+3. **Every key is ONE segment, at every depth — the branch's own key.** A `fanout`'s branch is keyed by
+   its entry node id (`FD-V9` keeps them distinct), a `map`'s instance by its item index — so a
+   fan-out whose first branch holds a map gives `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}`, never
+   `"0.1"` under `"0"`. A nested region's inner join carries its own object, which becomes the value of
+   the outer branch it sits in. The full branch path is not lost: it is the region's own path (`regionPath`) + `.` + the
+   position — the position alone at the top level, where `regionPath` is `-` — on every `branch.*` event, task id and
+   `inputOf` path, which are unchanged.
+4. **The order is the object's own.** Entries are inserted in `branches` order for a fan-out and in
+   ascending item index for a map, and **JavaScript lists integer-like keys first, ascending** — so a
+   fan-out whose entries are `"b"` and `"2"` lists `"2"` first. Deterministic whatever order the
+   branches finished in; no node id is refused for it. Each entry is an own property, so even an entry
+   id `__proto__` is a key.
+5. **BREAKING in 0.12.0, and a run in flight across the upgrade cannot be resumed.** Until 0.11.0 the
+   keys were full branch paths (`{"0":{"0.0":1,"0.1":2},"1":{"xs":[1,2]}}` for the flow above) and a
+   fan-out's were POSITIONS; a flow reading `"0.1"` or `"0"` reads nothing now. A collection reaches a
+   checkpoint (an ask's kept input, a gate's decision, a worker's result), so **`CHECKPOINT_FORMAT` is
+   2** and a checkpoint 0.11.0 wrote — join or none — is refused `ResumeRefused('format')` by
+   `resume()`, `runtime.resume` and `inputOf`; a 0.11.0 driver refuses a 0.12.0 checkpoint the same
+   way. There is no migration: drain or abandon those runs first
+   ([ADR 0138](doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)).
 
 *(This section read **"`null`, currently … this is [Q36](doc/questions/q36.md) and it is open"**
 until [ADR 0037](doc/decisions/0037-what-a-branch-receives-is-a-property-of-the-fan-out-and-what-a-join-carries-is-a-property-of-the-region.md).
 The argument for the `null` was real and is unchanged — which branch finishes last is genuinely
 non-deterministic — and what answered it is that carrying **all** the arrivals keyed by branch is not
-picking one. `spec/join-policy.md` section 4, `JP-R12`.)*
+picking one. `spec/join-policy.md` section 4, `JP-R12`; its keys are each branch's own since 0.12.0.)*
 
 ### The same on the RUNTIME — a decision, a fan-out and a join on real workers
 
@@ -1350,7 +1366,7 @@ const isLowConfidence: Predicate = (ctx) => {
 
 // THE FLOW — a DECISION, a FAN-OUT, a JOIN. `ingest` goes to `review` when the predicate holds,
 // otherwise to `split`. `split` runs two branches concurrently; `collect` waits for both and hands
-// `publish` every branch's result, keyed by branch path.
+// `publish` every branch's result, each under its own entry id.
 const flow: FlowDefinition = {
   flowId: 'decide', version: 1, entry: 'ingest',
   nodes: [
@@ -1378,13 +1394,13 @@ const ran = (s: RunState) => Object.values(s.nodes).map((n) => n.nodeId).sort();
 const resultOf = (s: RunState, id: string) => Object.values(s.nodes).find((n) => n.nodeId === id)?.result;
 console.log(ran(high));                    // [ 'classify', 'enrich', 'ingest', 'publish' ]
 console.log(ran(low));                     // [ 'ingest', 'review' ]
-console.log(resultOf(high, 'publish'));    // { '0': { confidence: 0.9, ingest: true, enrich: true }, '1': { …, classify: true }, publish: true }
+console.log(resultOf(high, 'publish'));    // { enrich: { confidence: 0.9, ingest: true, enrich: true }, classify: { …, classify: true }, publish: true }
 
 // Verified by the docs gate:
 if (high.outcome !== 'completed' || low.outcome !== 'completed') throw new Error(`outcomes ${high.outcome} / ${low.outcome}`);
 if (ran(high).join() !== 'classify,enrich,ingest,publish') throw new Error(`high ran ${ran(high).join()}`);
 if (ran(low).join() !== 'ingest,review') throw new Error(`low ran ${ran(low).join()}`);
-const want = '{"0":{"confidence":0.9,"ingest":true,"enrich":true},"1":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
+const want = '{"enrich":{"confidence":0.9,"ingest":true,"enrich":true},"classify":{"confidence":0.9,"ingest":true,"classify":true},"publish":true}';
 if (JSON.stringify(resultOf(high, 'publish')) !== want) throw new Error(`publish received ${JSON.stringify(resultOf(high, 'publish'))}`);
 ```
 
@@ -1635,9 +1651,10 @@ keeps waiting, and the run is not stuck.
   the element's `observedAt` is the driver's `now` — the clock an outcome record's `observedAt` reads — and the node's
   entry carries it as **`askedAt`**, kept after the answer as `input` is. **A resume KEEPS the stored time**: the replay
   regenerates the element and takes its stored `observedAt`, so a wait measured across a resume does not restart; past
-  the stored tail it is the resumed driver's `now`. An `asked` element written before 0.11.0 has none, and its run
-  resumes with none. **A driver older than 0.11.0 refuses a newer checkpoint `diverged` at its first ask** — resume a
-  run on a driver at least as new as the one that wrote it.
+  the stored tail it is the resumed driver's `now`. *(An `asked` element written before 0.11.0 has none; since 0.12.0
+  such a checkpoint is refused `format` before its events are read — section 5, `CHECKPOINT_FORMAT` 2.)* **A driver
+  older than 0.11.0 refused a 0.11.0 checkpoint `diverged` at its first ask**; any driver before 0.12.0 refuses a 0.12.0
+  checkpoint `format` before replaying anything — resume a run on a driver of the format that wrote it.
 - **The answer is `driver.resolve(taskId, …)`** — the same call as below. `'done'` with `result` the answer, held to the
   ask's `answerSchema` (refused as `BoundaryRefused` with NOTHING appended and the ask still parked — answer again;
   `validateBoundaries: false` turns it off); `'failed'` with an `error` is the person DECLINING, held to nothing.
@@ -2887,7 +2904,9 @@ After a refusal the run is **halted**: nothing routes for it again, and its stat
 and FOUR surfaces are renamed — the `RunOutcome` `stopped` is `halted`, `RunState.stoppedBy` is `haltedBy`, the fold
 input `{ kind: 'stopped', reason }` is `{ kind: 'halted', reason }`, and `ResumeRefusalReason`'s `stopped` is
 `halted` — so a comparison against an old name, or a `{ kind: 'stopped' }` you construct, no longer compiles. A 0.7.0 checkpoint or log holding a `{ kind: 'stopped' }` element still reads as `halted`:
-`fold` folds it so, and a resume refuses it `halted` at its position.
+`fold` folds it so, and a resume refuses it `halted` at its position — but a 0.7.0 checkpoint is format 1, so since
+0.12.0 a resume refuses it `format` first (section 5); the `halted` read is reached only by such an element under a
+format-2 header, which no driver writes.
 
 ---
 
@@ -4080,7 +4099,7 @@ driver.start({ items: [1, 2, 3] });
 
 **What an expression sees, and what it may not.** `$` is the node's input — the previous node's
 result, the object `needs` described, a map instance's own item, or a join's collection keyed by
-branch path — and the node's effective `settings` are bound as `$settings`, so one expression is
+each branch's own key — and the node's effective `settings` are bound as `$settings`, so one expression is
 parameterised per node. **Five names are unbound, by name, on every compiled expression**: `$now`,
 `$millis`, `$random` — the three every adapter must refuse, because a transform is a function of what
 the run produced and run state is a fold of the log — **`$shuffle`**, JSONata's own fourth, which
@@ -4135,10 +4154,10 @@ if (!publish('$sum([*.score])', { ...registry, languages: {} }).some((f) => f.ru
 // The envelope worker — the class the bootstrap helper puts around your worker — with the adapter's worker half by URL.
 const w = new EnvelopeWorker({ worker: echo.url, languages: { jsonata: jsonata.worker } });
 await w.setup();
-const record = { '0': { score: 40 }, '1': { score: 20 } };                                    // JP-R12's collection, two branches
+const record = { scoreA: { score: 40 }, scoreB: { score: 20 } };                              // JP-R12's collection: `split`'s two entry ids
 const total = await w.run({ settings: { factor: 2 }, input: record, transform: { lang: 'jsonata', expr: '$sum([*.score]) * $settings.factor' } });
 if (total !== 120) throw new Error(`the worker received ${JSON.stringify(total)} — expected the reduction, 120`);
-const one = await w.run({ settings: {}, input: { '0': { score: 7 } }, transform: { lang: 'jsonata', expr: '$sum([*.score])' } });
+const one = await w.run({ settings: {}, input: { scoreA: { score: 7 } }, transform: { lang: 'jsonata', expr: '$sum([*.score])' } });
 if (one !== 7) throw new Error('arity one, the same expression: 7');
 const none = await w.run({ settings: {}, input: {}, transform: { lang: 'jsonata', expr: '$sum([*.score])' } });
 if (none !== 0) throw new Error('a join nothing reached: 0, because the reduction is over the ARRAY form');
@@ -4576,7 +4595,7 @@ Three things follow, and they are the whole of what you need:
 |---|---|
 | **`RunState.regions` is TWO-LEVEL** | `regions[openerId][openerPath]`. The opener's id is unchanged in meaning and in value; the second key is `-` for a region in no region, and inside a `map` region it is that map's item index |
 | **every `RegionEvent` carries `regionPath` beside `regionId`** | so an event says WHICH instance it is about. The same for `UnsatisfiableJoin` |
-| **a join's collection is per INSTANCE** | `JP-R12` keys it by branch path, and a branch inside an instance carries that instance's path as its own prefix — so two instances of one opener hold DISJOINT key sets and cannot collide |
+| **a join's collection is per INSTANCE** | each instance of one opener holds its OWN collection, so two instances cannot collide — even though, since 0.12.0, their keys are each branch's own key (`JP-R12`) and two instances may hold the SAME key set ([ADR 0138](doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md): until 0.11.0 the keys were branch paths, carrying the instance's path as a prefix) |
 
 **Both arities come from data, at both levels, and neither is in the document.** That is what
 separates a `map` from a `fanout`: `FD-V9` requires a fan-out's branch entries to be written down, so
@@ -4662,11 +4681,12 @@ if (!arrivals.includes('perLine@0 <- 0.0') || !arrivals.includes('perLine@1 <- 1
 }
 
 // WHAT THE OUTER JOIN CARRIES IS TWO LEVELS DEEP. `JP-R12`: one entry per branch that arrived, keyed
-// by branch path — and each of the outer entries IS that instance's own collection.
+// by its OWN key — an item index at both levels — and each of the outer entries IS that instance's own
+// collection. So `report.0.1` is order 0's second line: the key path a gate or an `if` reads.
 const report = Object.values(state.nodes).find((n) => n.nodeId === 'report')?.result as Record<string, Record<string, { sku: string }>>;
 console.log(Object.keys(report).filter((k) => k !== 'reported').sort());   // [ '0', '1' ]
-console.log(report['0']!['0.1']!.sku);                       // ab-1
-if (report['0']!['0.1']!.sku !== 'ab-1' || report['1']!['1.0']!.sku !== 'c-0') {
+console.log(report['0']!['1']!.sku);                         // ab-1
+if (report['0']!['1']!.sku !== 'ab-1' || report['1']!['0']!.sku !== 'c-0') {
   throw new Error(`the outer collection's values are the inner collections: ${JSON.stringify(report)}`);
 }
 ```
@@ -4799,7 +4819,7 @@ console.log(state.outcome);                                  // completed
 if (state.outcome !== 'completed') throw new Error(`expected completed, got ${state.outcome}`);
 // The same answer a run nobody killed gives (section 17's):
 const report = Object.values(state.nodes).find((n) => n.nodeId === 'report')?.result as Record<string, Record<string, { sku: string }>>;
-if (report['0']!['0.1']!.sku !== 'ab-1' || report['1']!['1.0']!.sku !== 'c-0') {
+if (report['0']!['1']!.sku !== 'ab-1' || report['1']!['0']!.sku !== 'c-0') {
   throw new Error(`the resumed run reaches the same report: ${JSON.stringify(report)}`);
 }
 
@@ -4936,11 +4956,13 @@ if (JSON.stringify(store.header) !== JSON.stringify(driver.checkpoint().header))
   ([Q374](doc/questions/q374.md)) — and so is a stored `attempted` event's number, which a re-run task is handed as
   the attempts it SPENT (one naming a task the replay never dispatched, carrying no positive integer, or not RISING over
   the last stored for its task, is refused `diverged` at its position). A store you do not trust is a store you should not resume from.
-- **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes), `run` (the
+- **`ResumeRefused` names its `reason`**: `format` (not a checkpoint this version writes — **every checkpoint 0.11.0
+  or earlier wrote is format 1 and refused here**: `CHECKPOINT_FORMAT` is 2 since 0.12.0, section 5), `run` (the
   header's run is not the driver's), `flow` (another flow id or `version` — there is no migration),
   `halted`, `cancelled` and `diverged` — the last three with the `index` of the position. **A HALTED
-  run is not resumable**: the refusal that halted it would halt it again — and a 0.7.0 checkpoint whose
-  halt is stored under the old kind, `stopped`, is refused `halted` at that element's position (ADR 0102). **Nor is a CANCELLED one**
+  run is not resumable**: the refusal that halted it would halt it again — and a halt stored under 0.7.0's kind,
+  `stopped`, is refused `halted` at that element's position (ADR 0102; a 0.7.0 checkpoint itself is format 1, refused
+  `format` first). **Nor is a CANCELLED one**
   (section 6): a cancel is its owner's act, and a resume would hand the scheduler again what the owner
   stopped — `index` is the first cancelled settlement or the cancel request, whichever is first. A completed or `stuck` run resumes to itself and
   dispatches nothing. **A STOPPED run is the one terminal run a resume TAKES** (below): its `interrupted` event is replayed, and `resumed` ends it.
@@ -5257,12 +5279,13 @@ for (const d of firsts) {
 }
 
 // A DROP IS AN `end`, so it is a path end like any other — and the thumbnail ran for EVERY file: each file's
-// `perFile` record holds its thumbnail, and nothing from the gate road, which ended at an `end` in every branch.
+// `perFile` record holds its thumbnail under `beside`'s entry id `thumbnail`, and nothing from the gate road,
+// which ended at an `end` in every branch.
 console.log(state.pathEnds.map((p) => p.at).sort());
 //   [ 'done', 'dropDuplicate', 'dropDuplicate', 'dropUnidentified', 'seriesReady', 'seriesReady' ]
 const published = Object.values(state.nodes).find((n) => n.nodeId === 'publish')!.result as
   { joinPayload: Record<string, Record<string, { thumbnail?: string }>> };
-const thumbs = Object.entries(published.joinPayload).map(([i, perFile]) => perFile[`${i}.0`]?.thumbnail);
+const thumbs = Object.values(published.joinPayload).map((perFile) => perFile['thumbnail']?.thumbnail);
 if (thumbs.length !== files.length || thumbs.some((t) => t === undefined)) throw new Error(`a thumbnail per file: ${thumbs.join()}`);
 
 // A GATE TYPE OF YOUR OWN is CODE, registered by name the way `distinct` is written. A route its `fn` returns that

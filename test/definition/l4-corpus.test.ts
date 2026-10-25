@@ -425,7 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
-  // W216 — P44 (c1), decision 3, ADR 0137: a bracket array index `[n]` in a key path — L1 in
+  // W217 — P44 (a1), (b), decisions 4-6, ADR 0138: a join hands on each branch under its OWN key, and a format-1
+  // checkpoint is refused `format` — L2 in `test/driver/own-key.test.ts`; counted below.
+  'L2 — W217, ADR 0138: a join hands on each branch under its OWN key, and format 1 is refused',
+  // W216 —P44 (c1), decision 3, ADR 0137: a bracket array index `[n]` in a key path — L1 in
   // `test/definition/key-path-index.test.ts`, L2 in `test/driver/key-path-index.test.ts`; both counted below.
   'L1 — W216, ADR 0137: a bracket array index in a key path — the grammar on a gate`s key and a when.path, the root, readKeyPath, the wiring refinement and the schema',
   'L2 — W216, ADR 0137: a bracket array index routes a run — a distinct, a switch, an if and a task edge by xs[1], each beside xs.1',

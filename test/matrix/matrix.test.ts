@@ -411,11 +411,14 @@ suite('L5 — what the matrix says as a whole', (test) => {
    * **`JP-R12` — what a satisfied join carries.** Every expectation below is
    * written by hand from `spec/join-policy.md` section 4 and the row's own steps,
    * before it was run: *one entry per branch that emitted `branch.arrived`, keyed
-   * by its `branchPath`, valued by what that branch carried into the join*, with
-   * keys in ascending segment-wise-numeric `branchPath` order.
+   * by the branch's OWN key — a fan-out's ENTRY NODE ID — valued by what that branch
+   * carried into the join*, inserted in `branches` order (v0.25, ADR 0138; keyed by
+   * `branchPath` until v0.24). Every matrix flow's entry ids are non-integer-like, so
+   * the object's own order IS `branches` order here.
    *
-   * **`ARRIVED_AT_JOIN` is the hand-written half and it is written as PATHS, not
-   * as values**, so it says what `JP-R12`'s key set means — *which branches
+   * **`ARRIVED_AT_JOIN` is the hand-written half and it is written as KEYS, not
+   * as values** — each the entry id of the branch at that position in the flow's
+   * `branches`, read off `flows.ts` and the corpus file by hand — so it says what `JP-R12`'s key set means — *which branches
    * arrived* — and cannot be satisfied by a harness echoing what it was given.
    * The VALUES are then looked up in the scenario's own `steps`, which are
    * hand-written fixtures (`doc/workflow.md` section 5 rule 4), so **no expected
@@ -430,11 +433,11 @@ suite('L5 — what the matrix says as a whole', (test) => {
    * | | what binds it if the source is swapped |
    * |---|---|
    * | every depth-1 key and value | the second-route test below, whose `stepResults` carries an `ingest` control no payload-derived source can satisfy, plus `ranKeys === declaredKeys` |
-   * | `nested-all-arrive`'s inner collection | additionally the key-order test's `['1.0', '1.1']` literal |
+   * | `nested-all-arrive`'s inner collection | additionally the key-order test's `['scoreC', 'scoreD']` literal |
    * | the other three depth-2 inner collections | **`INNER_COLLECTION` and nothing else** |
    *
    * The adequacy reader measured that last row: swapping `INNER_COLLECTION` for
-   * `payload['1']` **and** breaking the driver so a nested join with one arrival
+   * the outer collection's branch-1 value **and** breaking the driver so a nested join with one arrival
    * carries `{}` is green, while the driver defect alone costs 1. The values are
    * hand-written today and the claim is true; what is not true is that anything
    * would notice if they stopped being. **The second-route test below now runs over
@@ -442,66 +445,74 @@ suite('L5 — what the matrix says as a whole', (test) => {
    */
   const ARRIVED_AT_JOIN: Record<string, string[]> = {
     // depth 1 — `spec/join-policy.md` section 2's three terminal events decide
-    // this, and only `branch.arrived` puts a key in.
-    'all-arrive': ['0', '1'],
-    'routed-away': ['0'], //           branch 1 reached an `end`  -> exited, no key
-    'lost-settled': ['0'], //          branch 1 failed, no eligible edge -> lost
-    'lost-resolved': ['0'], //         branch 1 resolved `failed` -> lost
-    'optional-null': ['1'], //         branch 0 failed to an `end`; reviewB arrives
-    'resumed': ['0', '1'], //          branch 1 suspended, resolved `done`, arrived
+    // this, and only `branch.arrived` puts a key in. The key is the ENTRY id of the
+    // branch at that position: `fanout-join`, `p1-routed-away` and `optionalLost` are
+    // `[scoreA, scoreB]`, `fanout-failure` `[scoreA, reviewB]`, `sixEvents`
+    // `[lostA, exitB, arriveC]`.
+    'all-arrive': ['scoreA', 'scoreB'],
+    'routed-away': ['scoreA'], //      branch 1 reached an `end`  -> exited, no key
+    'lost-settled': ['scoreA'], //     branch 1 failed, no eligible edge -> lost
+    'lost-resolved': ['scoreA'], //    branch 1 resolved `failed` -> lost
+    'optional-null': ['reviewB'], //   branch 0 failed to an `end`; reviewB arrives
+    'resumed': ['scoreA', 'scoreB'], // branch 1 suspended, resolved `done`, arrived
     'all-exit': [], //                 NOTHING arrived. `{}`, and it is live
-    'six-events': ['2'], //            0 lost, 1 exited, 2 suspended-resumed-arrived
-    // depth 2 — the outer region only. Branch `1` of `outer` is the INNER JOIN's
-    // own exit, so its value is the inner region's collection rather than a task
-    // result, and it is declared separately below.
-    'nested-all-arrive': ['0', '1'],
-    'nested-inner-lost': ['0', '1'],
-    'nested-inner-exit': ['0', '1'],
+    'six-events': ['arriveC'], //      0 lost, 1 exited, 2 suspended-resumed-arrived
+    // depth 2 — the outer region only, `outer`'s `[scoreA, scoreB]`. Branch 1 of
+    // `outer` (`scoreB`) is the INNER JOIN's own exit, so its value is the inner
+    // region's collection rather than a task result, and it is declared separately below.
+    'nested-all-arrive': ['scoreA', 'scoreB'],
+    'nested-inner-lost': ['scoreA', 'scoreB'],
+    'nested-inner-exit': ['scoreA', 'scoreB'],
     // `live-token-requiring-arrival` declares the inner join UNSATISFIABLE here,
     // so `JP-R10` loses outer branch 1 and it has no key. Every other column
     // fires the inner join carrying `{}`. **One row, two different key sets** —
     // which is why this entry is per COLUMN and the rest are per row.
-    'nested-inner-all-exit': ['0', '1'],
+    'nested-inner-all-exit': ['scoreA', 'scoreB'],
   };
 
   /** Per-column overrides, for the one row whose columns disagree. */
   const ARRIVED_BY_COLUMN: Record<string, string[]> = {
-    'nested-inner-all-exit/live-token-requiring-arrival': ['0'],
+    'nested-inner-all-exit/live-token-requiring-arrival': ['scoreA'],
   };
 
   /**
-   * The branch path each region member's TASK sits at — hand-written from each
-   * flow in `flows.ts`, so the value lookup below goes through the fixture rather
-   * than through `branchPathOf`.
+   * The task each arriving branch's KEY names — hand-written from each flow in
+   * `flows.ts`, so the value lookup below goes through the fixture rather than
+   * through `branchPathOf`. The task id still carries the branch PATH (`ID-R*`,
+   * unmoved by ADR 0138); only the collection's key is the entry id.
    */
   const TASK_AT: Record<string, Record<string, string>> = {
-    'all-arrive': { '0': 'r1:scoreA:0:0', '1': 'r1:scoreB:1:0' },
-    'routed-away': { '0': 'r1:scoreA:0:0' },
-    'lost-settled': { '0': 'r1:scoreA:0:0' },
-    'lost-resolved': { '0': 'r1:scoreA:0:0' },
-    'optional-null': { '1': 'r1:reviewB:1:0' },
-    'resumed': { '0': 'r1:scoreA:0:0', '1': 'r1:scoreB:1:0' },
+    'all-arrive': { scoreA: 'r1:scoreA:0:0', scoreB: 'r1:scoreB:1:0' },
+    'routed-away': { scoreA: 'r1:scoreA:0:0' },
+    'lost-settled': { scoreA: 'r1:scoreA:0:0' },
+    'lost-resolved': { scoreA: 'r1:scoreA:0:0' },
+    'optional-null': { reviewB: 'r1:reviewB:1:0' },
+    'resumed': { scoreA: 'r1:scoreA:0:0', scoreB: 'r1:scoreB:1:0' },
     'all-exit': {},
-    'six-events': { '2': 'r1:arriveC:2:0' },
-    'nested-all-arrive': { '0': 'r1:scoreA:0:0' },
-    'nested-inner-lost': { '0': 'r1:scoreA:0:0' },
-    'nested-inner-exit': { '0': 'r1:scoreA:0:0' },
-    'nested-inner-all-exit': { '0': 'r1:scoreA:0:0' },
+    'six-events': { arriveC: 'r1:arriveC:2:0' },
+    'nested-all-arrive': { scoreA: 'r1:scoreA:0:0' },
+    'nested-inner-lost': { scoreA: 'r1:scoreA:0:0' },
+    'nested-inner-exit': { scoreA: 'r1:scoreA:0:0' },
+    'nested-inner-all-exit': { scoreA: 'r1:scoreA:0:0' },
   };
 
+  /** The key the INNER join's exit arrives under at the outer join: `outer`'s entry at position 1. */
+  const INNER_EXIT_KEY = 'scoreB';
+
   /**
-   * Branch `1` of every depth-2 row is the INNER join's exit, so its value is
-   * `JP-R12` applied one level down. Written out rather than computed, because
-   * computing it would be running the rule to check the rule.
+   * Branch `scoreB` of every depth-2 row is the INNER join's exit, so its value is
+   * `JP-R12` applied one level down — keyed by `inner`'s entries `[scoreC, scoreD]`,
+   * ONE segment, where v0.24 keyed them `1.0` and `1.1`. Written out rather than
+   * computed, because computing it would be running the rule to check the rule.
    */
   const INNER_COLLECTION: Record<string, unknown> = {
-    'nested-all-arrive': { '1.0': { from: 'scoreC' }, '1.1': { from: 'scoreD' } },
-    'nested-inner-lost': { '1.0': { from: 'scoreC' } }, //  1.1 failed -> lost
-    'nested-inner-exit': { '1.0': { from: 'scoreC' } }, //  1.1 bailed -> exited
+    'nested-all-arrive': { scoreC: { from: 'scoreC' }, scoreD: { from: 'scoreD' } },
+    'nested-inner-lost': { scoreC: { from: 'scoreC' } }, //  scoreD failed -> lost
+    'nested-inner-exit': { scoreC: { from: 'scoreC' } }, //  scoreD bailed -> exited
     'nested-inner-all-exit': {}, //                          both bailed -> nothing arrived
   };
 
-  /** The result a fixture step gave the task at `path`, from `steps` alone. */
+  /** The result a fixture step gave the task under `key`, from `steps` alone. */
   function fixtureResultAt(scenario: { key: string; steps: readonly unknown[] }, path: string): unknown {
     const taskId = TASK_AT[scenario.key]?.[path];
     if (taskId === undefined) return undefined;
@@ -519,7 +530,7 @@ suite('L5 — what the matrix says as a whole', (test) => {
     return seen ? out : undefined;
   }
 
-  test('JP-R12 — a satisfied join carries the arrived branches, keyed by branchPath', () => {
+  test('JP-R12 — a satisfied join carries the arrived branches, each under its OWN key (an entry id)', () => {
     // **This test replaces `a satisfied join carries `null``**, which asserted the
     // placeholder `spec/join-policy.md` section 4 called one. Its second half is
     // KEPT below and is what stops a harness returning a constant from passing:
@@ -560,20 +571,20 @@ suite('L5 — what the matrix says as a whole', (test) => {
       declaredKeys += expectedPaths.length;
 
       // **The KEY ORDER is asserted, not just the key set** — `deepEqual` on
-      // arrays is order-sensitive where a set comparison would not be. The
-      // hazard is invisible at depth 1, where the language re-orders
-      // integer-like keys ascending whatever the insertion order; it is live at
-      // depth 2, where dotted keys keep insertion order and insertion order is
-      // SETTLEMENT order.
+      // arrays is order-sensitive where a set comparison would not be. Every key
+      // here is a non-integer-like entry id, so the object keeps INSERTION order and
+      // the assertion reads `branches` order. *(It cannot discriminate insertion
+      // from settlement order — every row settles in `branches` order; the key-order
+      // test below says where that is discriminated.)*
       equal(Object.keys(payload), expectedPaths,
-        `${where}: JP-R12 — the join's payload keys are exactly the branch paths that emitted ` +
-        `branch.arrived, in ascending segment-wise-numeric order. Got ` +
+        `${where}: JP-R12 — the join's payload keys are exactly the entry ids of the branches that emitted ` +
+        `branch.arrived, in \`branches\` order. Got ` +
         `${JSON.stringify(Object.keys(payload))}, expected ${JSON.stringify(expectedPaths)}`);
 
       for (const path of expectedPaths) {
         ranKeys++;
         const inner = INNER_COLLECTION[scenario.key];
-        const expected = path === '1' && inner !== undefined
+        const expected = path === INNER_EXIT_KEY && inner !== undefined
           ? inner
           : fixtureResultAt(scenario, path);
         equal(payload[path], expected,
@@ -653,7 +664,7 @@ suite('L5 — what the matrix says as a whole', (test) => {
         .map((st) => JSON.stringify((st as { result?: unknown }).result ?? null));
       for (const c of cells.filter((x) => x.joinFired)) {
         const payload = c.payloads[scenario.downstream] as Record<string, unknown>;
-        const inner = payload['1'];
+        const inner = payload[INNER_EXIT_KEY];
         if (inner === undefined || typeof inner !== 'object' || inner === null) continue;
         for (const [path, v] of Object.entries(inner as Record<string, unknown>)) {
           ok(stepResults.includes(JSON.stringify(v)),
@@ -693,11 +704,13 @@ suite('L5 — what the matrix says as a whole', (test) => {
     for (const c of routedAway.cells.filter((x) => x.joinFired)) {
       ranRoutedAway++;
       const payload = c.payloads[routedAway.scenario.downstream] as Record<string, unknown>;
-      ok(!('1' in payload),
-        `${c.policyId}: P1's own case — branch 1 was routed away to an \`end\`, so it never ` +
-        'arrived and JP-R12 gives it NO key. `1: null` would say it arrived carrying nothing');
-      ok('0' in payload, `${c.policyId}: and branch 0 DID arrive, so the absence above is a ` +
+      ok(!Object.hasOwn(payload, 'scoreB'),
+        `${c.policyId}: P1's own case — branch 1 (\`scoreB\`) was routed away to an \`end\`, so it never ` +
+        'arrived and JP-R12 gives it NO key. `scoreB: null` would say it arrived carrying nothing');
+      ok(Object.hasOwn(payload, 'scoreA'), `${c.policyId}: and branch 0 (\`scoreA\`) DID arrive, so the absence above is a ` +
         'statement about branch 1 rather than about the payload being empty');
+      ok(!Object.hasOwn(payload, '0') && !Object.hasOwn(payload, '1'),
+        `${c.policyId}: and no key is a POSITION — 0.11.0's \`{"0": …}\` is gone (ADR 0138)`);
     }
 
     equal(ranRoutedAway, 3, 'three of routed-away`s four columns fire a join — arrival-count does ' +
@@ -716,41 +729,37 @@ suite('L5 — what the matrix says as a whole', (test) => {
     }
   });
 
-  test('JP-R12 — the key ORDER is numeric per segment, and depth 2 is where it can break', () => {
-    // **The constructed case, because the corpus cannot express one on its own.**
-    // Measured before the rule was written: integer-like object keys are
-    // re-ordered ASCENDING by the language whatever the insertion order, so every
-    // depth-1 row is deterministic for free and no depth-1 assertion can fail
-    // here. Dotted keys are NOT: `1.1` inserted before `1.0` stays first. So the
-    // depth-2 rows are the whole of this clause's live evidence AT L5, and this test
-    // says so rather than looping over 52 cells and reporting coverage it has not
-    // got.
+  test('JP-R12 — the key ORDER is the object`s own: `branches` order at both depths for these entry ids', () => {
+    // **v0.25 (ADR 0138): the keys are entry ids, ONE segment at every depth**, and
+    // this test read *the key ORDER is numeric per segment, and depth 2 is where it can
+    // break* — the dotted inner keys `1.0`, `1.1` that kept insertion order are gone.
+    // What the language does with the new keys is asserted first, on the expression
+    // `collectArrivals` uses (`Object.fromEntries`), so a change in the language is
+    // what this test says rather than a mystery elsewhere: a non-integer-like key keeps
+    // INSERTION order, and an integer-like one is listed first whatever its insertion.
     //
-    // **What this test does NOT do is discriminate the ordering, and an earlier
-    // version claimed it did.** It read *"this is the only place in the suite where
-    // the sort is load-bearing"*. **False, and the adequacy reader measured it**:
-    // every depth-2 matrix row settles `scoreC` before `scoreD`, so insertion order
-    // here ALREADY equals sorted order and a lexicographic sort passes this test.
-    // Emptying its loop while making the driver's sort lexicographic costs **1**
-    // failure — and that failure is in `test/driver/map.test.ts`, on the map at
-    // N = 12 settled descending, not here. **This asserts that the keys are dotted
-    // and in ascending order on a row where they would be anyway**; the
-    // discriminating fixture is at L2 and `JP-R12`'s Test column now says so.
-    const probe: Record<string, number> = {};
-    for (const k of ['1.1', '1.0']) probe[k] = 1;
-    equal(Object.keys(probe), ['1.1', '1.0'],
-      'the language does NOT re-order dotted keys — if this ever changes, the sort in ' +
-      '`collectArrivals` becomes untestable and this test is what says so');
+    // **What this test does NOT do is discriminate the insertion order**: every
+    // depth-2 matrix row settles `scoreC` before `scoreD`, so settlement order already
+    // equals `branches` order here. The discriminating fixtures are at L2 —
+    // `test/driver/nested-regions.test.ts` and `test/driver/map.test.ts` — and
+    // `JP-R12`'s Test column says so.
+    equal(Object.keys(Object.fromEntries([['scoreD', 1], ['scoreC', 2]])), ['scoreD', 'scoreC'],
+      'the language keeps a non-integer-like key in INSERTION order — so `branches` order is the ' +
+      'driver`s doing, and if this ever changes the insertion becomes untestable and this is what says so');
+    equal(Object.keys(Object.fromEntries([['b', 1], ['2', 2]])), ['2', 'b'],
+      'and lists an integer-like key FIRST whatever its insertion — the object`s own order JP-R12 v0.25 documents');
 
     const nested = NESTED_ALL.find((r) => r.scenario.key === 'nested-all-arrive')!;
     let ranNested = 0;
     for (const c of nested.cells.filter((x) => x.joinFired)) {
       ranNested++;
       const outer = c.payloads[nested.scenario.downstream] as Record<string, unknown>;
-      const innerCollection = outer['1'] as Record<string, unknown>;
-      equal(Object.keys(innerCollection), ['1.0', '1.1'],
-        `${c.policyId}: the INNER join's collection is keyed by the inner branch paths in ` +
-        'ascending order — dotted keys, which the language does NOT re-order');
+      equal(Object.keys(outer), ['scoreA', 'scoreB'],
+        `${c.policyId}: the OUTER join's keys are \`outer\`'s entries in \`branches\` order`);
+      const innerCollection = outer[INNER_EXIT_KEY] as Record<string, unknown>;
+      equal(Object.keys(innerCollection), ['scoreC', 'scoreD'],
+        `${c.policyId}: the INNER join's collection is keyed by \`inner\`'s entries, ONE segment, in ` +
+        '`branches` order — not `1.0`/`1.1` (0.11.0), and not repeating the outer key');
     }
     equal(ranNested, 4, 'all four columns of nested-all-arrive fire and were checked — counted ' +
       'from what the loop DID. The adequacy reader emptied this loop for 0');

@@ -3373,7 +3373,7 @@ suite('W185 — through createRuntime: onHeader is handed the header inside star
     equal(log.slice(1).sort(), ['add r2:a:-:0', 'fold 0 dispatched'], 'the CONTROL: the run`s one element and one hand-off are in the log');
     equal(log[0], 'header', 'and the header came FIRST — before the element the composed onFoldInput handed on AND before the addTask');
     equal(headers.length, 1, 'onHeader is called ONCE');
-    equal(headers[0], { format: 1, runId: 'r2', flowId: 'f', version: 1, entryPayload: { n: 1, nested: { k: 'v' } } },
+    equal(headers[0], { format: 2, runId: 'r2', flowId: 'f', version: 1, entryPayload: { n: 1, nested: { k: 'v' } } },
       'RN-R15`s five facts — the runtime`s SECOND minted run, r2, so a default position differs — the payload as it was passed');
     equal(headers[0], h.header, 'the SAME header the handle carries, field for field');
     ok(headers[0] !== h.header && Object.isFrozen(headers[0]), 'a separate, frozen copy of it');
