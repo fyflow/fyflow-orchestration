@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's** and **P43's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's**, **P43's** and **P44's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -94,6 +94,7 @@
  * | **W203 — one shared copy of a large value** | **P41's EXIT ARTIFACT clause (3): ADR 0126's shared copy on real workers in both runtimes.** Per pool, THREADED and INLINE, the app's fetch-then-map shape: `fetch` returns the item list (TWELVE items) beside a 2,000-row catalogue, a `Uint8Array` and a `Map`, and the map's `work` declares `needs: { item: "$item", all: "fetch", run: "$payload" }`. (1) Every non-writing instance's value is fetch's result and the payload BY HAND, with a one-row-changed control. (2) What the worker holds: on the INLINE pool `all` frozen at depths 0, 1 and 3 and `run` frozen, on the THREADED one neither (`postMessage`'s clone); the reader's own `"$item"` unfrozen on both. (3) An instance writing a nested field of its `all`: INLINE, each attempt THROWS `TypeError` and the optional task ends `failed` after its one retry; THREADED, the write lands on its own clone. (4) That write reaches no sibling, no later reader and not the stored record. (5) The edge predicate's `ctx.needs.all` is ONE frozen object across every call, the value by hand. (6) A predicate writing into it STOPS the run, `TypeError` reported once, `halted` by it. (7) The GAP (P41 (f2)): a write into the shared `Uint8Array` and `Map` throws on neither pool; on the INLINE pool the next reader and its edge predicate see it (one resolver), on the THREADED one neither does, and the stored record never does. FOUR runs. Its registry is written in the block, not `registry.json` |
  * | **W206 — what a node was handed, read after the fact** | **P42's EXIT ARTIFACT clause (3): `RN-R45`'s reading on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of TWELVE items whose `work` reads `{ item: "$item", run: "$payload" }` and routes through a registered predicate into the built-in `if` gate `route` — items 0-5 to the END `low` inside the map, 6-11 to the join — then a fanout of `fast` and a HELD `slow` whose join a consumer's policy fires at its FIRST arrival, the ask `review`, `file` and the END `done`. Every task's worker ECHOES its envelope. (1) LIVE, at the parked ask, `handle.inputOf` answers every task dispatched so far — `slow` still in flight — with ONE `envelope` equal to its own echo and to no other's, and `file` and `done` `not-reached`. (2) STORED, once the runtime is shut down, the root `inputOf` over the header and events a store kept answers all sixteen tasks the same way. (3) `low` by its node id alone at exactly paths 0-5 and `done`, each by hand. (4) The gate at every path, by hand. (5) The join's ARRIVALS — the late one included — and its COLLECTION, by hand, the early firing arranged and asserted; the map's join's collection too. (6) The ask, by hand and equal to its `asked` input. (7) A HALTED run read once its runtime is gone: every envelope dispatched before the halt by hand, the nodes after it `not-reached`, never `diverged`. (8) A CHANGED REGISTRY refused `diverged` at the first stored `gated` element. Each claim with its control. FOUR runs. Its registry is written in the block, not `registry.json` |
  * | **W212 — a failed task's ERROR, and WHEN an ask was asked** | **P43's EXIT ARTIFACT clause (3): ADR 0131's `"n!error"` and ADR 0130's `observedAt` on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of four whose OPTIONAL `probe` THROWS for items 1 and 3, each its own message → the join → an OPTIONAL `lookup` that THROWS where the payload says `fail` → on its `on: ["failed"]` edge (and its default one) the ask `why`, whose `needs` reads all four `!error` spellings — `"lookup!error"`, `"lookup!error?"`, `["probe!error"]`, `["probe!error?"]` → the ask `confirm` → `done`; every clock injected. (1) The ERROR: `why`'s `asked` input carries the thrown message by hand, in the bare and `?` forms, `lookup`'s record's `error`. (2) Its CONTROL: the same ask after a SUCCEEDING `lookup` carries `null`. (3) The ARRAY forms: `[null, <probe 1's message>, null, <probe 3's>]`, item order, on both runs. (4) LIVE: `why`'s `observedAt` and `askedAt` clock A. (5) RESUMED on a fresh runtime B under clock B once A is shut down: `why`'s time is still clock A. (6) PAST THE TAIL, the control: `confirm`, asked on B, carries clock B. (7) A LOST TAIL: the store without `why`'s `asked` element, resumed on a fresh D under clock D, regenerates `why` past the tail stamped clock D. EIGHT runs. The reference censuses read its flow, so `NOT_YET_AT_L6` is gone again. Its registry is written in the block, not `registry.json` |
+ * | **W218 — what a join hands on, keyed by each branch's OWN key, and a key path's bracket index into it** | **P44's EXIT ARTIFACT clause (3): ADR 0138's own keys and `CHECKPOINT_FORMAT` 2, and ADR 0137's `[n]`, on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 5 flow: a `fanout` over `prep` and `side`, `prep` holding a `map` over `xs` whose join `inner` and the fan-out's `outer` both fire; item 0's `work` held back, so `side` settles first and the map's instance 1 before 0; then `check` (an echo), two `if` and two `distinct` gates, the ask `confirm`, `done`. (1) The COLLECTION: `check`'s result and `confirm`'s input are `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}` byte for byte. (2) The IF on `input.prep.1 eq 2` routes `then`; its CONTROL `input.0.0.1` `else`. (3) The INDEX `side.xs[1]` routes `first` with key 2; its CONTROL `side.xs.1` `nokey`. (4) The OWN KEY `prep.1` routes `first` with key 2; its CONTROL `prep[1]` `nokey`. (5) The IF on an INDEX `input.side.xs[1] eq 2` routes `then`; its CONTROL `input.side.xs.1` `else`. (6) FORMAT 1 REFUSED: the run's store with `format: 1` refused `format` by `runtime.resume` on a fresh runtime once the first is shut down; its CONTROL the same store as written resuming there and completing. SIX runs. Its registry is written in the block, not `registry.json` |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5996,6 +5997,31 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W218**: P44's exit-artifact block — twenty-two subjects, eleven per pool: the collection, the if and its control, the
+  // index and its control, the own key and its control, the if on an index and its control (since the conformity
+  // reader's SHOULD 1), format 1 refused and its control.
+  'W218 exit (threaded): the COLLECTION —',
+  'W218 exit (threaded): the IF —',
+  'W218 exit (threaded): the IF`s CONTROL —',
+  'W218 exit (threaded): the INDEX —',
+  'W218 exit (threaded): the INDEX`s CONTROL —',
+  'W218 exit (threaded): the OWN KEY —',
+  'W218 exit (threaded): the OWN KEY`s CONTROL —',
+  'W218 exit (threaded): the IF on an INDEX —',
+  'W218 exit (threaded): the IF on an INDEX`s CONTROL —',
+  'W218 exit (threaded): FORMAT 1 REFUSED —',
+  'W218 exit (threaded): FORMAT 1 REFUSED`s CONTROL —',
+  'W218 exit (inline): the COLLECTION —',
+  'W218 exit (inline): the IF —',
+  'W218 exit (inline): the IF`s CONTROL —',
+  'W218 exit (inline): the INDEX —',
+  'W218 exit (inline): the INDEX`s CONTROL —',
+  'W218 exit (inline): the OWN KEY —',
+  'W218 exit (inline): the OWN KEY`s CONTROL —',
+  'W218 exit (inline): the IF on an INDEX —',
+  'W218 exit (inline): the IF on an INDEX`s CONTROL —',
+  'W218 exit (inline): FORMAT 1 REFUSED —',
+  'W218 exit (inline): FORMAT 1 REFUSED`s CONTROL —',
   // **W212**: P43's exit-artifact block — fourteen subjects, seven per pool: the error, its control, the array forms, the
   // live time, the resumed time, its control past the tail, and a lost tail (since the author's P6).
   'W212 exit (threaded): the ERROR',
@@ -13956,6 +13982,260 @@ if (erBlock !== null) {
   }
 }
 
+/**
+ * **W218 — what a join hands on, keyed by each branch's OWN key, a key path's bracket index into it, and a checkpoint of
+ * the old keying refused by format, on real workers in both runtimes: P44's EXIT ARTIFACT clause (3)** —
+ * [W218](../doc/work-items/w218-the-exit-artifact-on-real-workers-the-reply-and-p44s-close.md),
+ * [P44](../doc/plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md),
+ * [ADR 0138](../doc/decisions/0138-a-join-hands-on-each-branch-under-its-own-key-and-a-checkpoint-of-the-old-keying-is-refused-by-format.md)
+ * (`JP-R12` v0.25, `RN-R16` and `RN-R23` v0.36) and
+ * [ADR 0137](../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)
+ * (`FD-V40`, the KEY PATH paragraph, v0.53) — fyflow-app's *pass 5* #1 and #2.
+ *
+ * **One flow per pool**, THREADED and INLINE, and it is pass 5's own: `split`, a `fanout` over `prep` and `side`; `prep`
+ * → the `map` `each` over `xs`, whose branch `work` → its join `inner` → `outer`; `side` → `outer`, the fan-out's join.
+ * **Every task is an ECHO** — its worker returns the input it was handed — and the payload is `{ "xs": [1, 2] }`, so by
+ * hand from JP-R12 v0.25: `inner` closes `each` over `[1, 2]`, keys `"0"` and `"1"` (the item indexes) valued by each
+ * instance's item; `outer` closes `split`, keys `"prep"` and `"side"` (the ENTRY NODE IDS), `prep`'s value `inner`'s
+ * collection and `side`'s the payload — `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}`, in `branches` order outside and
+ * ascending index inside. **The order is ARRANGED against itself** (section 5 rule 8 (f)): item 0's `work` is held back
+ * `W218_HOLD_MS`, so `side` settles before the map's instances and instance 1 before instance 0 — a collection built in
+ * settlement order would list `side` first; the map's inner order the language fixes anyway (integer-like keys), so that
+ * half of the arrangement is a premise and not a discriminator (W217's adequacy reader, M8). *And `prep` < `side`
+ * alphabetically, so `branches` order and a SORTED order coincide on this flow: what the outer half discriminates is
+ * settlement order, not a sort — pass 5's flow is kept verbatim, and the sort is own-key.test.ts case 2's (the
+ * conformity reader, NIT 4).* Then `check` (an echo — what
+ * its worker RECEIVED, returned through the pool's boundary); the `if` gate `byIf`; the `distinct` gate `byKeyA`; the
+ * `distinct` gate `byKeyB`; the `if` gate `byIfIdx` — every route of each to an echo of its own, and every echo on to the
+ * next gate; and the ask `confirm` (`needs: { got: "." }`) → `done`. **A gate passes on the value that reached it**, so all
+ * four gates read the collection.
+ *
+ * **Two settings of the four paths, one run each**: the CLAIMED — `input.prep.1` (`byIf`), `side.xs[1]` and `prep.1`
+ * (`distinct`'s keys, rooted at the value with NO `input.` root, ADR 0137 — so the plan's *a gate keyed
+ * `input.side.xs[1]`* is spelled `side.xs[1]` here: with the root it would read nothing) and `input.side.xs[1]`
+ * (`byIfIdx`, P44 exit clause (3)'s *an `if` on a bracket index*, the conformity reader's SHOULD 1) — and the CONTROL —
+ * `input.0.0.1` (the path a reader would TRY for 0.11.0's keys; it named nothing under 0.11.0 either, so this control
+ * shows the `if` is not constant-`then`, and the claim is what separates the keyings — the conformity reader, NIT 3),
+ * `side.xs.1` (a plain numeric segment over an ARRAY: nothing), `prep[1]` (an index over a plain OBJECT: nothing) and
+ * `input.side.xs.1` (the `if`'s numeric segment over the array: nothing).
+ * The claimed run parks at `confirm` on runtime A; what a store keeps (the checkpoint through JSON) is taken and A is
+ * SHUT DOWN; on a FRESH runtime B the store with its header's `format` alone set to 1 is resumed and REFUSED, then the
+ * store as written is resumed on the same B, answered, and completes. **Eleven claims per pool, each its own verdict**:
+ * the collection; the `if` and its control; the index and its control; the own key and its control; the `if` on an
+ * index and its control; format 1 refused and its control. SIX runs — per pool the claimed run on A, its resume on B and the control run; the refused resume
+ * builds no driver and is not a run.
+ *
+ * **No order across tasks is asserted** but the two the block ARRANGES (its premise, read from the run's own outcome
+ * elements): the collection's order is the one JP-R12 fixes, not a completion order.
+ */
+const W218_DEADLINE_MS = 30_000;
+/** How long item 0's `work` is held back, so `side` and instance 1 settle first (rule 8 (f)'s 300 ms, W94). */
+const W218_HOLD_MS = 300;
+const W218_PAYLOAD = { xs: [1, 2] };
+// **The collection BY HAND** (the block comment): entry ids outside in `branches` order, item indexes inside.
+const W218_COLLECTION = '{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}';
+// `OkEcho`: returns its input; a task whose settings name `holdOn` waits `holdMs` first where its input IS that value.
+const W218_WORKER = 'export default class { async setup() {} async run(p) { const s = p.settings || {}; ' +
+  'if (s.holdOn !== undefined && p.input === s.holdOn) await new Promise((r) => setTimeout(r, s.holdMs)); ' +
+  'return p.input; } }';
+const w218Doc = () => ({
+  workers: { okEcho: { url: rcUrl(W218_WORKER) } },
+  nodeTypes: {
+    OkThreaded: { worker: 'okEcho', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    OkInline: { worker: 'okEcho', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+type W218Paths = { ifPath: string; keyA: string; keyB: string; ifIdx: string };
+const W218_CLAIMED: W218Paths = { ifPath: 'input.prep.1', keyA: 'side.xs[1]', keyB: 'prep.1', ifIdx: 'input.side.xs[1]' };
+const W218_CONTROL: W218Paths = { ifPath: 'input.0.0.1', keyA: 'side.xs.1', keyB: 'prep[1]', ifIdx: 'input.side.xs.1' };
+const w218Flow = (pool: 'threaded' | 'inline', which: 'claimed' | 'control', p: W218Paths) => {
+  const type = pool === 'threaded' ? 'OkThreaded' : 'OkInline';
+  const echo = (id: string, to: string) => ({ id, kind: 'task', type, edges: [{ to }] });
+  const distinct = (id: string, key: string, prefix: string, to: string) => [
+    { id, kind: 'gate', type: 'distinct', settings: { key },
+      edges: [{ route: 'first', to: `${prefix}First` }, { route: 'duplicate', to: `${prefix}Dup` }, { route: 'nokey', to: `${prefix}Nokey` }] },
+    echo(`${prefix}First`, to), echo(`${prefix}Dup`, to), echo(`${prefix}Nokey`, to),
+  ];
+  return {
+    flowId: `w218-own-key-${pool}-${which}`, version: 1, entry: 'split',
+    nodes: [
+      { id: 'split', kind: 'fanout', branches: ['prep', 'side'] },
+      echo('prep', 'each'),
+      { id: 'each', kind: 'map', over: 'xs', branch: 'work' },
+      { id: 'work', kind: 'task', type, settings: { holdOn: 1, holdMs: W218_HOLD_MS }, edges: [{ to: 'inner' }] },
+      { id: 'inner', kind: 'join', of: 'each', edges: [{ to: 'outer' }] },
+      echo('side', 'outer'),
+      { id: 'outer', kind: 'join', of: 'split', edges: [{ to: 'check' }] },
+      echo('check', 'byIf'),
+      { id: 'byIf', kind: 'gate', type: 'if', settings: { when: { path: p.ifPath, op: 'eq', value: 2 } },
+        edges: [{ route: 'then', to: 'ifThen' }, { to: 'ifElse' }] },
+      echo('ifThen', 'byKeyA'), echo('ifElse', 'byKeyA'),
+      ...distinct('byKeyA', p.keyA, 'a', 'byKeyB'),
+      ...distinct('byKeyB', p.keyB, 'b', 'byIfIdx'),
+      { id: 'byIfIdx', kind: 'gate', type: 'if', settings: { when: { path: p.ifIdx, op: 'eq', value: 2 } },
+        edges: [{ route: 'then', to: 'idxThen' }, { to: 'idxElse' }] },
+      echo('idxThen', 'confirm'), echo('idxElse', 'confirm'),
+      { id: 'confirm', kind: 'ask', needs: { got: '.' }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+let okBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  const okClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W218 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  const okAwait = async <T>(p: Promise<T>, what: string): Promise<T> => {
+    const w = await settleWithin(p, W218_DEADLINE_MS);
+    if (w.by !== 'done') throw new Error(`W218: ${what} never happened within ${W218_DEADLINE_MS} ms`);
+    return w.value;
+  };
+  /** One gate's decision: `[route, key]`, the key `'NO KEY'` where the decision carries none — or a named absence. */
+  const decisionOf = (state: RunState, gateId: string) => {
+    const d = state.gated.find((g) => g.gateId === gateId);
+    return d === undefined ? 'NO DECISION' : [d.route, Object.hasOwn(d, 'key') ? d.key : 'NO KEY'];
+  };
+  /** Whether each named node's task was DISPATCHED in `inputs`, in the order named. */
+  const dispatchedOf = (inputs: readonly FoldInput[], runId: string, ids: readonly string[]) =>
+    ids.map((x) => inputs.some((i) => i.kind === 'dispatched' && i.taskId === `${runId}:${x}:-:0`));
+  /** The index of `taskId`'s outcome element in `inputs`, -1 where there is none. */
+  const settledAt = (inputs: readonly FoldInput[], taskId: string) =>
+    inputs.findIndex((i) => i.kind === 'outcome' && i.record.taskId === taskId);
+  /** What a run hands its gates and its ask: `check`'s result and `confirm`'s `got`, each as JSON, and the premise. */
+  const readRun = (h: RunHandle, runId: string, pool: string, which: string) => {
+    const inputs = h.driver.foldInputs();
+    const check = inputs.find((i) => i.kind === 'outcome' && i.record.taskId === `${runId}:check:-:0`);
+    const asked = inputs.find((i) => i.kind === 'asked' && i.taskId === `${runId}:confirm:-:0`);
+    r[`collection${pool}${which}`] = [
+      check === undefined || check.kind !== 'outcome' || check.record.kind !== 'outcome' ? 'NO RECORD' : JSON.stringify(check.record.result),
+      asked === undefined || asked.kind !== 'asked' ? 'NO asked ELEMENT' : JSON.stringify((asked.input as { got?: unknown }).got),
+      // The PREMISE, as arranged: `side` settled before the map's instance 0, and instance 1 before instance 0.
+      settledAt(inputs, `${runId}:side:1:0`) < settledAt(inputs, `${runId}:work:0.0:0`) && settledAt(inputs, `${runId}:side:1:0`) >= 0,
+      settledAt(inputs, `${runId}:work:0.1:0`) < settledAt(inputs, `${runId}:work:0.0:0`) && settledAt(inputs, `${runId}:work:0.1:0`) >= 0,
+    ];
+    const state = h.state();
+    r[`if${pool}${which}`] = [decisionOf(state, 'byIf'), ...dispatchedOf(inputs, runId, ['ifThen', 'ifElse'])];
+    r[`keyA${pool}${which}`] = [decisionOf(state, 'byKeyA'), ...dispatchedOf(inputs, runId, ['aFirst', 'aDup', 'aNokey'])];
+    r[`keyB${pool}${which}`] = [decisionOf(state, 'byKeyB'), ...dispatchedOf(inputs, runId, ['bFirst', 'bDup', 'bNokey'])];
+    r[`ifIdx${pool}${which}`] = [decisionOf(state, 'byIfIdx'), ...dispatchedOf(inputs, runId, ['idxThen', 'idxElse'])];
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    await okClause(`${pool}, the claimed run on A, refused at format 1 and resumed on B`, async () => {
+      const flow = w218Flow(pool, 'claimed', W218_CLAIMED);
+      const runId = `w218c${pool[0]}`;
+      const confirmId = `${runId}:confirm:-:0`;
+      let stored!: Checkpoint;
+      const rtA = createRuntime(w218Doc() as never);
+      try {
+        let parked!: () => void;
+        const parkedP = new Promise<void>((res) => { parked = res; });
+        const h = rtA.start(flow, structuredClone(W218_PAYLOAD), {
+          runId, onFoldInput: (i) => { if (i.kind === 'asked' && i.taskId === confirmId) parked(); },
+        });
+        runs.push(`${flow.flowId} ${runId} on A`);
+        await okAwait(parkedP, `${runId}'s confirm parking on A`);
+        readRun(h, runId, pool, 'claimed');
+        // What a store keeps — the header and the events, through JSON.
+        stored = JSON.parse(JSON.stringify(h.driver.checkpoint())) as Checkpoint;
+      } finally {
+        await rtA.shutdown();
+      }
+      // ---- from here runtime A is GONE: the run lives only in what a store kept ----
+      const rtB = createRuntime(w218Doc() as never);
+      try {
+        // The SAME store with its header's format alone set to 1 — a 0.11.0 checkpoint's header (RN-R23).
+        const formatOne = { header: { ...stored.header, format: 1 }, events: stored.events } as unknown as Checkpoint;
+        let refused: unknown = 'NOT REFUSED';
+        try { rtB.resume(flow, formatOne); } catch (err) { refused = err; }
+        r[`format${pool}`] = [
+          stored.header.format,
+          refused instanceof ResumeRefused ? 'ResumeRefused' : refused instanceof Error ? refused.name : String(refused),
+          refused instanceof ResumeRefused ? refused.reason : 'NO REASON',
+          refused instanceof ResumeRefused ? refused.index : 'NO INDEX',
+          refused instanceof Error && refused.message.includes('header.format is 1') && refused.message.includes('format 2 only'),
+        ];
+        // The CONTROL, on the same fresh runtime: the store as written.
+        const h2 = rtB.resume(flow, stored);
+        runs.push(`${flow.flowId} ${runId} resumed on B`);
+        const askedB = h2.driver.checkpoint().events.find((i) => i.kind === 'asked' && i.taskId === confirmId);
+        const resumed = [h2.outcome(), h2.state().nodes[confirmId]?.state ?? 'NO ENTRY',
+          askedB === undefined || askedB.kind !== 'asked' ? 'NO asked ELEMENT' : JSON.stringify((askedB.input as { got?: unknown }).got)];
+        if (!h2.driver.resolve(confirmId, 'done', { result: { confirmed: true }, actor: 'w218-person' })) throw new Error('W218: confirm`s answer was refused on B');
+        const won = await settleWithin(h2.done, W218_DEADLINE_MS);
+        r[`resumed${pool}`] = [...resumed, won.by === 'done' ? won.value.outcome : 'NEVER SETTLED'];
+      } finally {
+        await rtB.shutdown();
+      }
+    });
+    await okClause(`${pool}, the control run`, async () => {
+      const flow = w218Flow(pool, 'control', W218_CONTROL);
+      const runId = `w218k${pool[0]}`;
+      const confirmId = `${runId}:confirm:-:0`;
+      const rt = createRuntime(w218Doc() as never);
+      try {
+        let parked!: () => void;
+        const parkedP = new Promise<void>((res) => { parked = res; });
+        const h = rt.start(flow, structuredClone(W218_PAYLOAD), {
+          runId, onFoldInput: (i) => { if (i.kind === 'asked' && i.taskId === confirmId) parked(); },
+        });
+        runs.push(`${flow.flowId} ${runId}`);
+        await okAwait(parkedP, `${runId}'s confirm parking`);
+        readRun(h, runId, pool, 'control');
+        // Run to its end, so the runtime is shut down with nothing parked.
+        if (!h.driver.resolve(confirmId, 'done', { result: { confirmed: true }, actor: 'w218-person' })) throw new Error('W218: confirm`s answer was refused');
+        const won = await settleWithin(h.done, W218_DEADLINE_MS);
+        if (won.by !== 'done' || won.value.outcome !== 'completed') throw new Error(`W218: ${runId} did not complete`);
+      } finally {
+        await rt.shutdown();
+      }
+    });
+  }
+  okBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W218 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (okBlock !== null) {
+  const key = 'cross-row';
+  const r = okBlock.r;
+  for (const pool of ['threaded', 'inline'] as const) {
+    check(key, `W218 exit (${pool}): the COLLECTION — outer's successor check received, and the ask confirm was handed, ` +
+      `${W218_COLLECTION} byte for byte: entry ids in branches order though side settled first, item indexes ascending — ` +
+      'the PREMISE as arranged (side before instance 0, instance 1 before 0), on the claimed run and the control run',
+    [r[`collection${pool}claimed`], r[`collection${pool}control`]],
+    [[W218_COLLECTION, W218_COLLECTION, true, true], [W218_COLLECTION, W218_COLLECTION, true, true]]);
+    check(key, `W218 exit (${pool}): the IF — byIf on input.prep.1 eq 2 routes then: the key path reaches the map's second ` +
+      'item under the entry id, one segment a level; ifThen dispatched, ifElse not', r[`if${pool}claimed`], [['then', 'NO KEY'], true, false]);
+    check(key, `W218 exit (${pool}): the IF\`s CONTROL — the same gate on input.0.0.1, the path a reader would try for 0.11.0's keys ` +
+      '(it named nothing there either), names nothing and routes else — so the gate is not constant-then: ifElse dispatched, ifThen not', r[`if${pool}control`], [['else', 'NO KEY'], false, true]);
+    check(key, `W218 exit (${pool}): the INDEX — byKeyA keyed side.xs[1] reads element 1 of the real array, 2 (element 0 is 1), ` +
+      'and routes first; aFirst dispatched, aDup and aNokey not', r[`keyA${pool}claimed`], [['first', 2], true, false, false]);
+    check(key, `W218 exit (${pool}): the INDEX\`s CONTROL — side.xs.1, a plain numeric segment over an ARRAY, resolves to ` +
+      'nothing (ADR 0137: a key step is an own key of a plain object) and routes nokey with no key', r[`keyA${pool}control`], [['nokey', 'NO KEY'], false, false, true]);
+    check(key, `W218 exit (${pool}): the OWN KEY — byKeyB keyed prep.1, the entry id then the item index, reads 2 and routes ` +
+      'first; bFirst dispatched, bDup and bNokey not', r[`keyB${pool}claimed`], [['first', 2], true, false, false]);
+    check(key, `W218 exit (${pool}): the OWN KEY\`s CONTROL — prep[1], an index over the plain OBJECT the map's join handed ` +
+      'on, resolves to nothing and routes nokey with no key', r[`keyB${pool}control`], [['nokey', 'NO KEY'], false, false, true]);
+    check(key, `W218 exit (${pool}): the IF on an INDEX — byIfIdx on input.side.xs[1] eq 2 reads element 1 of the real array ` +
+      'and routes then; idxThen dispatched, idxElse not', r[`ifIdx${pool}claimed`], [['then', 'NO KEY'], true, false]);
+    check(key, `W218 exit (${pool}): the IF on an INDEX\`s CONTROL — input.side.xs.1, the if's plain numeric segment over the ARRAY, ` +
+      'resolves to nothing, no match, and routes else; idxElse dispatched, idxThen not', r[`ifIdx${pool}control`], [['else', 'NO KEY'], false, true]);
+    check(key, `W218 exit (${pool}): FORMAT 1 REFUSED — the store the claimed run's runtime kept is at format 2; on a fresh ` +
+      'runtime B, once A is shut down, the same store with its header`s format alone set to 1 is refused by runtime.resume: ' +
+      'ResumeRefused format at index null, its message naming format 1 met and format 2 read (RN-R16, RN-R23)',
+    r[`format${pool}`], [2, 'ResumeRefused', 'format', null, true]);
+    check(key, `W218 exit (${pool}): FORMAT 1 REFUSED\`s CONTROL — on the same runtime B the store as written resumes, not ` +
+      'refused: awaiting_action, confirm suspended with the collection as its stored input; answered, the run completes',
+    r[`resumed${pool}`], ['awaiting_action', 'suspended', W218_COLLECTION, 'completed']);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -13998,7 +14278,9 @@ if (erBlock !== null) {
 // its own, deaf, and hands nothing to a scheduler: a reading is not a run.
 // **And `+ erBlock.runs.length` since W212**: its EIGHT runs — per pool, threaded and inline, the failing run started on A,
 // its resume on a fresh B, its lost tail's resume on a fresh D, and the succeeding run.
-const pairRunCount = pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0);
+// **And `+ okBlock.runs.length` since W218**: its SIX runs — per pool, threaded and inline, the claimed run on A, its
+// resume on a fresh B, and the control run. B's refused format-1 resume builds no driver and is not a run.
+const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -14357,7 +14639,11 @@ const PER_PLAIN_ROW = 22;
 // **514 at W206, +14 by W212 — P43's EXIT ARTIFACT clause (3)**: the error-and-time block's fourteen clauses — per pool,
 // threaded and inline, the error, its control on a succeeding run, the array forms, the live time, the resumed time, the
 // time past the tail and a lost tail's — all cross-row because the block is outside the row loop. 514 + 14 = 528.
-const CROSS_ROW = 528;
+// **528 at W212, +22 by W218 — P44's EXIT ARTIFACT clause (3)**: the own-key block's twenty-two clauses — per pool,
+// threaded and inline, the collection, the `if` and its control, the index and its control, the own key and its
+// control, the `if` on an index and its control, format 1 refused and its control — all cross-row because the block is
+// outside the row loop. 528 + 22 = 550. *(546 / eighteen before the conformity reader's SHOULD 1 added the `if` on an index.)*
+const CROSS_ROW = 550;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -16604,14 +16890,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // fourteen cross-row assertions (`CROSS_ROW` 514 -> 528) over its eight runs (2859 / 244 before the lost tail's claim and
 // run, which the author's provocation P6 earned); removing `NOT_YET_AT_L6`
 // added and removed no assertion. No row moved (P43 prediction 7).
-const DECLARED_TOTAL = 2861;
+// **2883 / 252 since W218 — P44's EXIT ARTIFACT clause (3), +22 and six runs**, DERIVED: the own-key block's twenty-two
+// cross-row assertions (`CROSS_ROW` 528 -> 550) over its six runs (2879 / 252 before the conformity reader's SHOULD 1
+// added the `if` on an index, a gate in the same runs). No row moved (P44 prediction 6).
+const DECLARED_TOTAL = 2883;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 246;
+const DECLARED_RUNS = 252;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +
