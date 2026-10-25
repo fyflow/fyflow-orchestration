@@ -1,6 +1,6 @@
 {
   "name": "fyflow-orchestration",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Flow orchestration over fyflow-scheduler: sequence, decision, fan-out and join",
   "keywords": [
     "workflow",
