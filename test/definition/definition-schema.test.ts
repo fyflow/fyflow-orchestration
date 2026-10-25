@@ -87,7 +87,7 @@ const SHAPE_ONLY = ['FD-V16', 'FD-V17', 'FD-V18', 'FD-V21', 'FD-V23', 'FD-V24', 
 const SHAPE_FILES_OF_OTHER_RULES = [
   'FD-V8--end-node-with-edges.flow.json',
   'FD-V9--fanout-with-one-branch.flow.json',
-  'FD-V40--gate-key-path-with-an-index.flow.json',
+  'FD-V40--gate-key-path-with-a-wildcard.flow.json',
 ];
 
 /** Each refused file repaired in its ONE clause — hand-written from the file and the rule, never from a verdict. */
@@ -126,7 +126,7 @@ const REPAIRS: Record<string, (d: Doc) => void> = {
     nodeOf(d, 'split').branches = ['scoreA', 'scoreB'];
     d.nodes.push({ id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] });
   },
-  'FD-V40--gate-key-path-with-an-index.flow.json': (d) => { (nodeOf(d, 'dedupe').settings as Record<string, unknown>).key = 'files.series'; },
+  'FD-V40--gate-key-path-with-a-wildcard.flow.json': (d) => { (nodeOf(d, 'dedupe').settings as Record<string, unknown>).key = 'files[0].series'; },
 };
 
 /** A hand-built base flow with every structural kind — the control for the constructed clauses below. */

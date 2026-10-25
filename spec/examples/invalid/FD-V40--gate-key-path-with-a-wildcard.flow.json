@@ -4,7 +4,7 @@
   "entry": "identify",
   "nodes": [
     { "id": "identify", "kind": "task", "type": "ExtractWorker", "edges": [ { "to": "dedupe" } ] },
-    { "id": "dedupe",   "kind": "gate", "type": "distinct", "settings": { "key": "files[0].series" }, "edges": [
+    { "id": "dedupe",   "kind": "gate", "type": "distinct", "settings": { "key": "files[*].series" }, "edges": [
         { "to": "setup" },
         { "route": "duplicate", "to": "dropped" },
         { "route": "nokey",     "to": "dropped" }

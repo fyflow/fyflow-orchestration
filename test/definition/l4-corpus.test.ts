@@ -425,6 +425,10 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W216 — P44 (c1), decision 3, ADR 0137: a bracket array index `[n]` in a key path — L1 in
+  // `test/definition/key-path-index.test.ts`, L2 in `test/driver/key-path-index.test.ts`; both counted below.
+  'L1 — W216, ADR 0137: a bracket array index in a key path — the grammar on a gate`s key and a when.path, the root, readKeyPath, the wiring refinement and the schema',
+  'L2 — W216, ADR 0137: a bracket array index routes a run — a distinct, a switch, an if and a task edge by xs[1], each beside xs.1',
   // W210 — P43 (a1), (b1), decisions 1-4, ADR 0132: `definitionSchema()`, a definition's static shape as a JSON Schema
   // draft 2020-12, held by a TEST-ONLY 2020-12 validator to the corpus — L1 in `test/definition/definition-schema.test.ts`.
   'L1 — W210, ADR 0132: definitionSchema() — a valid 2020-12 document, the corpus accepted, every shape-only refusal beside its repair, never refusing what validateDefinition accepts',

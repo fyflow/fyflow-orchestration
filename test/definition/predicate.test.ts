@@ -149,7 +149,7 @@ suite(SUITE, (test) => {
   // ---- FD-V43: the key path, and its two ROOTS -----------------------------------------------
 
   test('FD-V43 — a path that is not a key path, and one whose FIRST segment is not a root', () => {
-    for (const bad of ['', 'outcome.', '.result', 'outcome result', 'outcome.result[0]', 'outcome.*.x']) {
+    for (const bad of ['', 'outcome.', '.result', 'outcome result', 'outcome.result[01]', 'outcome.result[*]', 'outcome.*.x']) {
       equal(rulesFor(leaf({ path: bad })), ['FD-V43'], `path ${JSON.stringify(bad)} is outside the key-path grammar`);
     }
     equal(rulesFor(leaf({ path: 7 as unknown as string })), ['FD-V43'], 'a path that is not a string');
@@ -406,8 +406,8 @@ suite(SUITE, (test) => {
         'a bare walk reads Object.prototype.toString and answers about a FUNCTION'],
       ['a class instance is not a plain object', { box: new Box() }, 'outcome.result.box.id',
         'a bare walk reads its own field; `readKeyPath` does not'],
-      ['an ARRAY mid-path has no index', { list: [{ id: 'x' }] }, 'outcome.result.list.0.id',
-        'a bare walk indexes; the grammar has no index (P24 stop-and-ask (d))'],
+      ['an ARRAY under a plain numeric segment is not indexed', { list: [{ id: 'x' }] }, 'outcome.result.list.0.id',
+        'a bare walk indexes; a numeric segment is a KEY (P44 (c1)) — the index form is list[0], ADR 0137'],
       ['a Map is not a plain object', { m: new Map([['id', 'x']]) }, 'outcome.result.m.id',
         'a bare walk reads nothing here either, but `.size` would differ'],
       ['null mid-path is nothing', { nul: null }, 'outcome.result.nul.id', 'both give nothing, and neither throws'],

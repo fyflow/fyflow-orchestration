@@ -154,7 +154,7 @@ const DECLARED_CASES = [
   'distinct is registered THROUGH the interface: one predicate, one registry road, a second type the same way',
   'GateTypeRefused and NameCollision at construction — each clause of gateTypeProblem, both ways',
   'distinct`s decision: first, duplicate and nokey, keys compared as JSON values, one memory',
-  'readKeyPath — own keys of plain objects, no index, and anything else is nothing',
+  'readKeyPath — own keys of plain objects, a numeric segment a KEY, and anything else is nothing',
   'new Driver CONSTRUCTS a gate flow since W93 — ADR 0066 rule 7 LIFTED — an INVALID one still reports its FD-V, and a consumer type arrives by DriverOptions.gateTypes',
   'the spec`s tables are the code`s lists, both ways — the gate`s keys, the interface`s members, distinct`s routes',
   'what a gate carries on EVERY route, with a plain and a transformed consumer, and from an entry gate',
@@ -203,15 +203,15 @@ suite(SUITE, (test) => {
   test('FD-V40 — settings a plain object, the key a KEY PATH (the library`s grammar), and the type`s settingsSchema', () => {
     everyShape(GATE({ settings: ['series'] }), ['FD-V40'], 'settings an array is FD-V40');
     everyShape(GATE({ settings: 'series.id' }), ['FD-V40'], 'settings a string is FD-V40');
-    // The KEY PATH — P24 stop-and-ask (d): dotted object keys in FD-V16's charset, no index, wildcard or expression.
-    for (const key of ['files[0].series', 'a..b', '.a', 'a.', 'a.*', '$.a', 'a b', 'series/id', 'x'.repeat(65), 'a.' + 'x'.repeat(65), 'a.b.' + 'x'.repeat(65)]) {
+    // The KEY PATH — P24 stop-and-ask (d): dotted object keys in FD-V16's charset, no wildcard or expression; since v0.53 (ADR 0137) a key may carry array indexes [n].
+    for (const key of ['files[*].series', 'files[01].series', '[0].series', 'a..b', '.a', 'a.', 'a.*', '$.a', 'a b', 'series/id', 'x'.repeat(65), 'a.' + 'x'.repeat(65), 'a.b.' + 'x'.repeat(65)]) {
       everyShape(GATE({ settings: { key } }), ['FD-V40'], `key ${JSON.stringify(key)} is outside the grammar`);
     }
-    for (const key of ['series', 'series.id', 'a_b-c.d9.E', 'x'.repeat(64) + '.y']) cleanEveryShape(GATE({ settings: { key } }), `key ${JSON.stringify(key)} is a key path`);
+    for (const key of ['series', 'series.id', 'a_b-c.d9.E', 'files[0].series', 'x'.repeat(64) + '.y']) cleanEveryShape(GATE({ settings: { key } }), `key ${JSON.stringify(key)} is a key path`);
     // The grammar is the LIBRARY's, so it is asked of a type that is not registered too — beside FD-V39.
-    everyShape(GATE({ type: 'unique', settings: { key: 'files[0]' } }), ['FD-V39', 'FD-V40'], 'a bad key beside an unknown type reports both');
+    everyShape(GATE({ type: 'unique', settings: { key: 'files[*]' } }), ['FD-V39', 'FD-V40'], 'a bad key beside an unknown type reports both');
     // …and of a consumer type whose schema would accept any string there.
-    everyShape(GATE({ type: 'threshold', settings: { limit: 1, key: 'a[0]' }, edges: [{ to: 'setup' }, { route: 'low', to: 'dropped' }] }), ['FD-V40'], 'threshold`s schema admits any string key; the grammar still refuses an index');
+    everyShape(GATE({ type: 'threshold', settings: { limit: 1, key: 'a[01]' }, edges: [{ to: 'setup' }, { route: 'low', to: 'dropped' }] }), ['FD-V40'], 'threshold`s schema admits any string key; the grammar still refuses a leading-zero index');
     // The type's settingsSchema — distinct requires a non-empty `key` and nothing else.
     everyShape(GATE({ settings: undefined }), ['FD-V40'], 'distinct with NO settings: its schema requires key, over {} ');
     everyShape(GATE({ settings: { key: 'series', window: 3 } }), ['FD-V40'], 'distinct refuses a key its schema does not declare');
@@ -289,7 +289,7 @@ suite(SUITE, (test) => {
     equal(validateDefinition(valid, corpusReg), [], 'gated-map.flow.json is valid against the built-ins alone');
     const g = valid.nodes.find((n) => n.kind === 'gate') as unknown as { type: string; settings: { key: string }; edges: Edge[] };
     ok(g.type === 'distinct' && g.settings.key.includes('.') && g.edges.some((e) => e.route === undefined), 'and it carries distinct, a DOTTED key, and the default by omission');
-    for (const [file, rule] of [['FD-V39--gate-type-not-registered', 'FD-V39'], ['FD-V40--gate-key-path-with-an-index', 'FD-V40'], ['FD-V41--a-declared-route-with-no-edge', 'FD-V41']] as const) {
+    for (const [file, rule] of [['FD-V39--gate-type-not-registered', 'FD-V39'], ['FD-V40--gate-key-path-with-a-wildcard', 'FD-V40'], ['FD-V41--a-declared-route-with-no-edge', 'FD-V41']] as const) {
       const rules = violatedRules(validateDefinition(await load(`invalid/${file}.flow.json`), corpusReg));
       equal(rules, [rule], `${file}.flow.json is refused by exactly its own rule`);
     }
@@ -391,7 +391,7 @@ suite(SUITE, (test) => {
     // **A copy of distinct under ANOTHER name validates exactly as distinct does** — nothing names distinct.
     const copy: Registry = { ...registry, gateTypes: { unique: { ...distinct } } };
     for (const edges of [DISTINCT_EDGES, [{ to: 'setup' }], [...DISTINCT_EDGES, { route: 'nokey', to: 'dropped' }]] as Edge[][]) {
-      for (const settings of [{ key: 'series.id' }, { key: 'a[0]' }, {}]) {
+      for (const settings of [{ key: 'series.id' }, { key: 'a[*]' }, {}]) {
         const a = rulesAt(SHAPES[2]![1](GATE({ edges, settings })));
         const b = rulesAt(SHAPES[2]![1](GATE({ type: 'unique', edges, settings })), copy);
         equal(b, a, `the copy and distinct agree on ${JSON.stringify({ edges: edges.length, settings })}: ${a.join(',') || 'clean'}`);
@@ -448,13 +448,13 @@ suite(SUITE, (test) => {
     equal(memory.size, 6, 'the memory holds one entry per KEY seen — s1, s2, s3, 1, "1" and the empty string — and nokey writes nothing');
   });
 
-  test('readKeyPath — own keys of plain objects, no index, and anything else is nothing', () => {
+  test('readKeyPath — own keys of plain objects, a numeric segment a KEY, and anything else is nothing', () => {
     const v = { series: { id: 's1', tags: ['a'] }, list: [{ id: 'x' }], nul: null };
     equal(readKeyPath(v, 'series.id'), 's1', 'a nested own key');
     equal(readKeyPath(v, 'series'), v.series, 'the value at the end is returned whatever it is');
     equal(readKeyPath(v, 'series.missing'), undefined, 'a missing key is nothing');
-    equal(readKeyPath(v, 'list.0.id'), undefined, 'an ARRAY mid-path is nothing — no index, by stop-and-ask (d)');
-    equal(readKeyPath(v, 'series.tags.0'), undefined, 'and an array at the last step, indexed, is nothing too');
+    equal(readKeyPath(v, 'list.0.id'), undefined, 'an ARRAY under a plain numeric segment is nothing — the segment is a KEY, by (c1); an index is [n] (ADR 0137)');
+    equal(readKeyPath(v, 'series.tags.0'), undefined, 'and an array at the last step, under a numeric segment, is nothing too');
     equal(readKeyPath(v, 'nul.id'), undefined, 'null mid-path is nothing');
     equal(readKeyPath(v, 'series.toString'), undefined, 'a PROTOTYPE key is not an own key');
     equal(readKeyPath('s1', 'length'), undefined, 'a primitive has no keys here');
@@ -833,7 +833,7 @@ suite(W153_SUITE, (test) => {
     equal(Object.keys(nodeSettings).sort(), ['cases', 'fallback', 'key'], 'a COPY: the gate`s own settings are unmoved by routesFor writing into its argument');
     // Refused settings — a key outside the grammar, a schema refusal, a settingsProblem message — mean NO call.
     for (const [why, settings] of [
-      ['a key outside the grammar', { cases: ['red'], fallback: 'other', key: 'a[0]' }],
+      ['a key outside the grammar', { cases: ['red'], fallback: 'other', key: 'a[*]' }],
       ['the schema refuses', { cases: ['red'], fallback: 'other', extra: 1 }],
       ['settingsProblem refuses', { cases: ['red'], fallback: 'red' }],
       ['settings not a plain object', ['red']],
@@ -1007,7 +1007,7 @@ suite(W153_SUITE, (test) => {
 
   test('settingsProblem runs after a KEY refusal too, and a THROWING settingsProblem blocks route resolution (adequacy M63, M32; conformity C4)', () => {
     // A bad key AND a fallback that is a case: both are FD-V40, the second from settingsProblem.
-    const both = validateDefinition(TWO_GATES({ settings: { cases: ['red', 'green'], fallback: 'green', key: 'a[0]' } }), derivedRegistry);
+    const both = validateDefinition(TWO_GATES({ settings: { cases: ['red', 'green'], fallback: 'green', key: 'a[*]' } }), derivedRegistry);
     equal(both.map((f) => `${f.rule}@${f.at}`), ['FD-V40@gB', 'FD-V40@gB'], 'the key grammar and settingsProblem, two FD-V40 findings');
     ok(both.some((f) => f.detail.includes('also a case')), `one of them settingsProblem's: ${both.map((f) => f.detail).join(' | ')}`);
     // A throwing settingsProblem on a derived type whose wiring is WRONG: FD-V39 alone — routesFor not asked,
