@@ -863,7 +863,7 @@ suite('W100 — what a KEY PATH must satisfy: a path the producer FORBIDS is `no
     { key: 'sereis.id', kind: 'no', at: '$', says: 'additionalProperties: false', why: 'a transposition: the root is CLOSED and does not name it' },
     { key: 'series.slug', kind: 'no', at: '$.series', says: 'additionalProperties: false', why: 'the SECOND step is the closed one — a walk bounded at one step passes this' },
     { key: 'name.id', kind: 'no', at: '$.name', says: 'calls it string', why: 'a key path reads an own key of a plain object and the producer calls this one a string' },
-    { key: 'tags.0', kind: 'no', at: '$.tags', says: 'calls it array', why: '`readKeyPath` reads no index: an ARRAY mid-path is undefined' },
+    { key: 'tags.0', kind: 'no', at: '$.tags', says: 'calls it array', why: 'a plain numeric segment is a KEY (P44 (c1)): an ARRAY under a key step is undefined — the index form is tags[0], ADR 0137' },
     { key: 'tags', kind: 'fits', why: 'the LEAF`s type is never read — an array is a fine place for a path to END, and `nokey` at run time' },
     { key: 'name', kind: 'fits', why: 'the leaf is a string, which is what `distinct` wants and is still not this check`s question' },
     { key: 'series', kind: 'fits', why: 'the leaf is an object, which `distinct` routes to `nokey` — the type`s judgement, not the library`s' },

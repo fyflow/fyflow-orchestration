@@ -292,7 +292,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
 | `ask` | waits for a PERSON — `edges`, and optionally `settings` (opaque), `answerSchema` (what a `done` answer must satisfy) and `needs` (what reaches it). Never dispatched, and has a task id; its answer is its output. A run PARKS at one and takes the person's answer at `resolve()` (section 7) | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`, as a task); `settings` that is not a plain object (`FD-V21`); a key only a task declares — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups`, `transform` — one finding per key (`FD-V47`); an `answerSchema` outside the schema subset (`FD-V48`) |
-| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value (`series.id`; no index). Built in: `distinct`, `if` and `switch`. Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
+| `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value — `series.id`, and since 0.12.0 an array element by a bracket index, `files[0].series` (a plain `xs.1` is still a KEY, never an index). Built in: `distinct`, `if` and `switch`. Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node — and an `ask` — must have an edge that can be taken when it succeeds.** A node whose only edge is
 `{ when: { predicate: 'p' }, to: 'x' }` is refused at construction — it is the mistake the format most invites, and
@@ -814,7 +814,10 @@ validator by its tests); it is a new plain object on every call, yours to change
 entries are held to the id charset, a non-string refused — as `validateDefinition` refuses one under `FD-V21` **since
 0.12.0** (`spec/flow-definition.md` v0.52, [Q774](doc/questions/q774.md)). **That is a change in what is accepted**:
 `of: null`, or `branches: ["b", "c", 5]`, passed 0.11.0's validator with no finding when nothing else in the flow
-tripped over it, and is refused now.
+tripped over it, and is refused now. **And the other way, since 0.12.0** (`spec/flow-definition.md` v0.53,
+[ADR 0137](doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)):
+a gate's key and a comparison's `path` may carry a bracket index — `files[0].series`, `outcome.result.files[0].series` — so both patterns accept it — and
+`KEY_PATH_RE`, the gate key's, is the exported constant whose `source` moved. Only more is accepted.
 
 | | |
 |---|---|
@@ -940,7 +943,7 @@ if (refuse({ all: [{ any: [{ path: 'outcome.result.a', op: 'eq', value: 1 }] }] 
 
 | | |
 |---|---|
-| `path` | a key path over the context, **rooted at `outcome` or `needs`** — `outcome.result.x`, `outcome.taskId`, `needs.earlier.flag`. No array index, no wildcard, no expression |
+| `path` | a key path over the context, **rooted at `outcome` or `needs`** — `outcome.result.x`, `outcome.taskId`, `needs.earlier.flag`, and an array element by a bracket index after a key, `outcome.result.items[0].score` (never on the root). No wildcard, no expression |
 | `op` | one of `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, `startsWith`, and **nothing else** |
 | `value` | a scalar: `null`, a boolean, a finite number or a string |
 | `default` | optional — what is compared when the path does not resolve **or resolves to `null`**, which is exactly `??`. Without it an absent path is **no match**, and a resolved `null` is compared as the scalar it is |
@@ -5163,7 +5166,7 @@ rest, while every file gets a thumbnail* — had nowhere to keep that memory.
 
 | | |
 |---|---|
-| **it names a gate TYPE** | `distinct` is built in: routes `first` (its DEFAULT), `duplicate` and `nokey`, keyed by `settings.key` — a DOTTED path of object keys over the value that reached the gate, no index, no wildcard, no expression. A key a flow needs COMPUTED is computed by the task before the gate. `if` and `switch` are built in too, and remember nothing (the end of this section) |
+| **it names a gate TYPE** | `distinct` is built in: routes `first` (its DEFAULT), `duplicate` and `nokey`, keyed by `settings.key` — a DOTTED path of object keys over the value that reached the gate, each key optionally followed by bracket indexes into an ARRAY (`files[0].series`, `m[0][2]`; `[n]` with no leading zero, at most 999,999,999, never leading the path — [ADR 0137](doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)); no quoted key, no wildcard, no expression. **`[1]` and `.1` are two paths**: `xs[1]` is element 1 of a real array and nothing over an object, `xs.1` an object's own key `"1"` and nothing over an array. A key a flow needs COMPUTED is computed by the task before the gate. `if` and `switch` are built in too, and remember nothing (the end of this section) |
 | **every route is wired, exactly once** | an edge with no `route` carries the type's DEFAULT route, never every route; a DROP is an edge to an `end`, and each is refused at load if it is missing (`FD-V41`) |
 | **it computes nothing** | the branch leaves on the chosen route with EXACTLY the value that reached the gate |
 | **its memory is ONE per gate per RUN** | shared by every branch that reaches it, whatever map item or region instance it comes from — and it starts empty with the run and ends with it |
@@ -5468,7 +5471,7 @@ its three routes, so the third is the control sitting in the same report.
 | the author writes | the check says |
 |---|---|
 | a key path the producer FORBIDS at any step | **`no`** on every arc leaving by a key-resolved route, naming the gate, the key, the STEP it stopped on, the word the schema itself uses, and the route |
-| a key path the producer describes | those arcs carry `required` along the path, so a consumer requiring it **`fits`** |
+| a key path the producer describes | those arcs carry `required` along the path, so a consumer requiring it **`fits`** — and through a bracket index `[n]`, `minItems: n + 1` on that array and nothing about any element past it, since `items` speaks for every element ([ADR 0137](doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)) |
 | the same arc, with the type declaring no guarantee | **`no`** again — *consumer requires "owner", producer does not guarantee it* |
 | an arc leaving by a route the type does NOT call key-resolved | its own verdict, unchanged — the refusal is the ROUTE's and not the gate's |
 

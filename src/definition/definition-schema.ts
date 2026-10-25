@@ -60,6 +60,22 @@ function body(re: RegExp, name: string): string {
   return s.slice(1, -1);
 }
 
+/**
+ * **One key-path SEGMENT as a pattern** — an id, then zero or more `[n]` (v0.53,
+ * [ADR 0137](../../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)).
+ * `KEY_PATH_RE` is `^SEG(?:\.SEG)*$` and a comparison's `path` is `^ROOT(?:\.SEG)+$`, so the two must spell SEG
+ * alike: this throws where `KEY_PATH_RE`'s body is no longer built from it, rather than let the schema and the
+ * validator disagree about an index in silence.
+ */
+function keyPathSegment(id: string): string {
+  const seg = `${id}(?:\\[(?:0|[1-9][0-9]{0,8})\\])*`;
+  const whole = body(KEY_PATH_RE, 'KEY_PATH_RE');
+  if (whole !== `${seg}(?:\\.${seg})*`) {
+    throw new Error(`definitionSchema: KEY_PATH_RE (${String(KEY_PATH_RE)}) is no longer one segment pattern repeated — a comparison's path pattern cannot be derived from it`);
+  }
+  return seg;
+}
+
 /** Look a key up in a description table, throwing where the validator declares a key this module does not describe. */
 function described(table: Readonly<Record<string, string>>, key: string, where: string): string {
   const d = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined;
@@ -151,7 +167,7 @@ const TRANSFORM_DESCRIPTIONS: Readonly<Record<string, string>> = {
 
 const PREDICATE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   predicate: 'A registered predicate\'s name (FD-V4, validateDefinition\'s).',
-  path: `A key path over the decision's context, starting at ${PREDICATE_ROOTS.map((r) => `"${r}"`).join(' or ')} and naming a key beyond it (FD-V43).`,
+  path: `A key path over the decision's context, starting at ${PREDICATE_ROOTS.map((r) => `"${r}"`).join(' or ')} and naming a key beyond it; a key past the root may be followed by array indexes [n], the root never (FD-V43).`,
   op: `One of ${PREDICATE_OPS.join(', ')} (FD-V44). The ordering operators compare numbers and "startsWith" a string — a comparison between kinds is no match, never a coercion.`,
   value: 'The scalar compared against: null, a boolean, a number or a string (FD-V44).',
   default: 'What is compared where the path does not resolve or resolves to null: a scalar, or — with `length` — an array or a string (FD-V44).',
@@ -199,7 +215,7 @@ function nodeKeySchema(kind: string, key: string): Schema {
     case 'type': case 'pool': return { type: 'string' };
     case 'settings':
       return kind === 'gate'
-        ? { type: 'object', properties: { key: { type: 'string', pattern: KEY_PATH_RE.source, description: 'A key path: dot-separated object keys, each [A-Za-z0-9_-]{1,64} — no index, no wildcard, no expression (FD-V40).' } } }
+        ? { type: 'object', properties: { key: { type: 'string', pattern: KEY_PATH_RE.source, description: 'A key path: dot-separated object keys, each [A-Za-z0-9_-]{1,64} and optionally followed by array indexes [n] (n is 0 or has no leading zero, at most 999999999; never leading the path) — files[0].series; no quoted key, no wildcard, no expression (FD-V40).' } } }
         : { type: 'object' };
     case 'transform': return ref('transform');
     case 'optional': return { type: 'boolean' };
@@ -327,7 +343,9 @@ function referenceSchema(withSelf: boolean, id: string): Schema {
 
 /** A declared comparison — `FD-V42`'s shape, `FD-V43`'s path, `FD-V44`'s operator and value. */
 function leafSchema(id: string): Schema {
-  const path = `^(?:${PREDICATE_ROOTS.join('|')})(?:\\.${id})+$`;
+  // **A segment past the root may carry array indexes; the root may not** (v0.53, ADR 0137; `FD-V43`'s root rule). The
+  // segment is `KEY_PATH_RE`'s own, which `keyPathSegment` asserts against that expression's source.
+  const path = `^(?:${PREDICATE_ROOTS.join('|')})(?:\\.${keyPathSegment(id)})+$`;
   // A function, not one shared object: each use gets its own, so no part of a result aliases another.
   const scalar = (): Schema => ({ type: ['null', 'boolean', 'number', 'string'] });
   const keySchemas: Record<string, Schema> = {

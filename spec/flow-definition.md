@@ -1,6 +1,6 @@
 # spec/flow-definition — the flow definition format
 
-**Status:** v0.52 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
+**Status:** v0.53 — written by [W1](../doc/work-items/w1-the-normative-layer.md) under
 [P1](../doc/plans/p1-what-satisfies-a-join.md). **v0.2** acted on the first spec-conformity pass
 (ADR 0004, and `region(F)` made computable). **v0.3** acted on the second, which found that `FD-V19`
 had reintroduced the v0.1 defect class under a new id — a refusal rule rejecting the valid corpus.
@@ -623,6 +623,22 @@ absent `of` is still `FD-V23`'s. No ADR (ADR 0136 unused): the rule's sentence i
 examples. Cases: `spec/examples/invalid/FD-V21--join-of-is-not-a-string.flow.json` and
 `FD-V21--fanout-branch-entry-is-not-a-string.flow.json`. Still **45 refusals**.
 
+**v0.53 is [W216](../doc/work-items/w216-a-bracket-array-index-in-a-key-path.md) under
+[P44](../doc/plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — a key path may INDEX AN ARRAY by a bracket suffix `[n]`**: P44 (c1), decision 3,
+[ADR 0137](../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md), answering fyflow-app's pass 5 #2. A segment is a key in `FD-V16`'s charset followed by zero or
+more `[n]`, `n` being `0` or `[1-9][0-9]{0,8}` — no leading zero, at most 999,999,999 — and an index never leads
+the path (`files[0].series`, `xs[1]`, `m[0][2]`), wherever a key path is read: a gate's `settings.key` (`distinct`,
+`switch`, a consumer's type), a task's or a join's edge `when.path` and an `if` gate's. `readKeyPath` resolves `[n]` on a
+REAL array and nothing else; **a plain numeric segment KEEPS its meaning** — an own key of a plain object, `undefined` over
+an array — and there is no quoted-key form (P44 (c2), (c3), declined). `FD-V43`'s root is read up to the first `.` or
+`[`, and an index ON the root is refused. Section 3's wiring check refines along an index by `minItems` and refuses one
+where the producer cannot be an array, stepping into `items` — within the subset, so nothing past an index is
+guaranteed. **A CHANGE IN WHAT IS ACCEPTED, and only MORE**: every key path v0.52 accepted is accepted and resolves as
+before (none held `[`); **`KEY_PATH_RE`'s `source` is package surface and moves**, as do `definitionSchema()`'s two
+key-path patterns; shipping in 0.12.0 with P44's BREAKING changes. The corpus file
+`FD-V40--gate-key-path-with-an-index.flow.json` (`files[0].series`, now a key path) is re-cut to `files[*].series` and
+renamed `FD-V40--gate-key-path-with-a-wildcard.flow.json`. Still **45 refusals**.
+
 **Binds:** [ADR 0002](../doc/decisions/0002-a-flow-definition-is-data-and-a-predicate-is-registered-by-name.md)
 (the graph is data; a predicate is a name; an unknown name fails at instantiation) and
 [ADR 0004](../doc/decisions/0004-a-non-success-outcome-routes-only-where-an-edge-opts-in-and-user-action-suspends.md)
@@ -1155,13 +1171,19 @@ to a type later would be dropped in silence by every flow that had omitted it. *
 `end` produces exactly the events an `end` already produces** — `pathEnded`, and `branch.exited` inside a
 region, with the run `completed` — measured at P24's declaration (fact 3) on an emulation, with no new rule.
 
-**The KEY PATH — P24 stop-and-ask (d)**: dot-separated OBJECT keys, each segment in `FD-V16`'s charset
-(`^[A-Za-z0-9_-]{1,64}(\.[A-Za-z0-9_-]{1,64})*$`), over the value the gate receives. **No array index, no
+**The KEY PATH — P24 stop-and-ask (d); an array INDEX since v0.53** ([ADR 0137](../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)):
+dot-separated SEGMENTS over the value the gate receives, each an OBJECT key in `FD-V16`'s charset followed by zero or
+more bracket indexes `[n]` — `n` is `0` or `[1-9][0-9]{0,8}`, no leading zero, at most 999,999,999 —
+(`^SEG(\.SEG)*$`, `SEG` = `[A-Za-z0-9_-]{1,64}(\[(0|[1-9][0-9]{0,8})\])*`): `series.id`, `files[0].series`,
+`m[0][2]`. **An index is a SUFFIX of a segment and never leads the path**, so the first step is always a key. **A plain
+numeric segment is a KEY** — `xs.1` reads an own key `"1"` and is nothing over an array (P44 (c1)). **No quoted key, no
 wildcard, no expression** — a key a flow needs COMPUTED is computed in the task before the gate, because
 the driver has no `async` and every expression language here evaluates to a Promise (ADR 0051). Checked
-by `FD-V40` on EVERY gate that declares `key`, because the library, not the type, resolves it: a segment
-that is not an own key of a plain object — a missing key, `null`, an array mid-path, a primitive — resolves
-to *nothing*, which `distinct` routes to `nokey`. **The grammar is not a `settingsSchema`'s to state**: the
+by `FD-V40` on EVERY gate that declares `key`, because the library, not the type, resolves it: a KEY step
+that is not an own key of a plain object — a missing key, `null`, an array under a key step, a primitive — and an
+INDEX step `[n]` that is not element `n` of a REAL array (`Array.isArray`, `n` below its length and an OWN element, so a hole is nothing: a plain object holding
+`"n"`, an array-like object, a typed array and a string are not indexed) resolve to *nothing*, which `distinct` routes
+to `nokey`. **The grammar is not a `settingsSchema`'s to state**: the
 subset has no `pattern` (ADR 0053).
 
 **Where a gate may stand.** Anywhere a `task` may, except as a region's branch entry — `FD-V9` and `FD-V25`
@@ -1403,16 +1425,19 @@ thing a declared predicate guarantees over a registered one (rule 5 above). A pr
 mix the two is a registered name that calls both.
 
 **The PATH is a key path over the `DecisionContext` itself** (`FD-V43`), resolved by the same
-`readKeyPath` a gate's `settings.key` gets — dot-separated object keys, each in `FD-V16`'s charset,
-**no array index, no wildcard, no expression**. Its **first segment is `outcome` or `needs` and
-nothing else**, and a root alone names no value:
+`readKeyPath` a gate's `settings.key` gets — the same grammar (section 2's KEY PATH: object keys, each optionally
+followed by array indexes `[n]` since v0.53, ADR 0137), **no wildcard, no expression**. Its **first segment is `outcome`
+or `needs` and nothing else** — read up to the first `.` or `[` — a root alone names no value, and **an index ON the root
+is refused**: a path names a KEY inside its root first, as a gate's key path names a key inside the value that reached it:
 
 | | |
 |---|---|
 | `outcome.result.confidence` | the node's effective outcome, `OR-R9` — the same record a registered predicate reads under `ctx.outcome` |
 | `outcome.taskId`, `outcome.terminalState`, `outcome.attempts` | the driver's own fields on that record. **No schema describes them**, which is why a wiring verdict over a predicate's path is not this version's |
 | `needs.earlier.flagged` | what THIS EDGE's `needs` composed, `FD-C3` — `{}` where the edge declares none, so every path under it is absent |
+| `outcome.result.items[0].score` | **v0.53**: an index after a key — element 0 of a REAL array, and nothing over an object or past its end |
 | `outcome`, `needs` | **refused**: a root is a container and a comparison against it could only ever be no match |
+| `outcome[0].x`, `needs[0]` | **refused, v0.53**: an index ON the root — `outcome` is a record and `needs` an object, so it could only ever be nothing |
 | `outcom.result.x`, `result.confidence` | **refused**: a first segment that is neither root would resolve to nothing in silence, which is a wrong key rather than a question |
 
 **The `input` root — an `if` gate's condition, and nowhere else — v0.31** (P32 decision 4,
@@ -1422,8 +1447,9 @@ that reached the gate**, as the driver's `structuredClone` carries it (ADR 0067'
 agree) — by the evaluator this subsection describes. Its ONE root is **`input`**: `outcome` and `needs` are refused
 there, because a gate has no outcome and no edge `needs`, and `input` is refused on a task's or a join's edge,
 because a `DecisionContext` has no `input` and the path would resolve to nothing in silence. **Two scopes, not one
-wider list.** `input` ALONE is refused as a root alone is: a gate's path names a key INSIDE the value that reached
-it, as every gate's key path does, so a value that must be compared whole is wrapped by the task before the gate.
+wider list.** `input` ALONE is refused as a root alone is, and so is an index ON it (`input[0]`, v0.53): a gate's path names a key
+INSIDE the value that reached it, as every gate's key path does, so a value that must be compared whole — or indexed
+whole — is wrapped by the task before the gate.
 **Every defect in that `when` is reported as `FD-V40`** — the gate's settings — with the message of the
 `FD-V42`-`FD-V45` clause it broke (P32 decision 7).
 
@@ -1465,7 +1491,8 @@ obvious right answer for `NaN`, key order or a prototype.
 > body on exactly that string.
 
 **An ABSENT path is NO MATCH, and `default` is what a comparison may put in its place.** A path that
-does not resolve — a missing key, `null` or an array mid-path, a primitive, a class instance — gives
+does not resolve — a missing key, `null` or an array under a key step, an index `[n]` that is not an own element of a
+real array (v0.53), a primitive, a class instance — gives
 `undefined`, and a comparison against it is false whichever operator it uses. Where the comparison
 declares `default`, that value is substituted instead, **before `length` is taken**.
 
@@ -2280,17 +2307,24 @@ reason is now the one that survives)*. **A GATE carries what reached it, REFINED
 GUARANTEES** (v0.25, [ADR 0068](../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)):
 the value is the one that reached the gate — a gate has no worker, so it is never a consumer and produces
 nothing — and where the gate's type declares this route **key-resolved**, the SCHEMA gains `required` along
-the gate's own key path, at every step, because the run cannot take that route unless the path was there.
+the gate's own key path, at every step, because the run cannot take that route unless the path was there. **At an
+INDEX step `[n]` (v0.53, ADR 0137) the array's `minItems` rises to `n + 1` — never lowered — and the refinement STOPS**:
+what lies past the index is one element's, and the subset's one element keyword, `items`, speaks for every element
+(`prefixItems` is outside it, ADR 0053), so nothing past an index is required.
 A gate routing into a join carries its branch's key into the record as the node before it would.
 
 **And a KEY PATH the arriving schema FORBIDS makes that arc `no`** (v0.26,
 [W100](../doc/work-items/w100-what-a-key-path-must-satisfy.md)): the question is per STEP and about the
-CONTAINER, because that is what `readKeyPath` is — each segment an OWN key of a PLAIN object, and a missing
-key, a `null`, an ARRAY mid-path or a primitive `undefined`. So a step whose declared types cannot include
-`object` is refused (`name.id` where the producer calls `name` a string, or `tags.0`, since no index is read),
+CONTAINER, because that is what `readKeyPath` is — each KEY step an OWN key of a PLAIN object, and a missing
+key, a `null`, an ARRAY under a key step or a primitive `undefined`. So a key step whose declared types cannot include
+`object` is refused (`name.id` where the producer calls `name` a string, or `tags.0`, since a numeric segment is a key),
 and so is a step a CLOSED object does not name (`sereis.id` at `$`, or `series.slug` where `series` is closed
 over `id` and `title`) — while a step an OPEN object does not name forbids NOTHING, which is the same leniency
-the `fits` row states. **The LEAF's type is never read**: `readKeyPath` returns whatever the path ends on, and
+the `fits` row states. **An INDEX step `[n]` asks the same of an ARRAY** (v0.53, ADR 0137): one whose declared types
+cannot include `array` is refused (`name[0]`, or `files[0][0]` where an element is an object), and one that may be an
+array steps INTO its `items` — so `tags[2].x` is refused at `$.tags[2]` where the items are strings, and
+`closed[1].slug` where they are closed over `id` — while an array with no `items` forbids nothing. **No index is ever
+refused for being past the end**: the subset has no `maxItems` (ADR 0053), so that is a silence. **The LEAF's type is never read**: `readKeyPath` returns whatever the path ends on, and
 *which leaf values count as a key* is the type's judgement ([ADR 0068](../doc/decisions/0068-a-route-guarantees-what-its-type-declares-and-the-library-derives-it-from-the-key-path.md)
 rule 3), so a path ending on an array is fine here and `nokey` at run time. The reason names the gate, the key,
 the STEP, the schema's own word for it and the ROUTE that can never be taken. **And the check can call a route
@@ -2671,10 +2705,10 @@ C4 fails if one is missing.
 | `FD-V37` | a `transform` is **not exactly `{ lang, expr }`** — not an object, missing either key, either not a string, or carrying any other key. v0.18, section 2. A key beside the two would be read by nothing (`FD-V30`'s reason). *(v0.18's other clause — a transform on a `task` with no `type` — has no instance since v0.19: every task node is typed, the wrapper fronts every pool, and a node with no `type` is `FD-V23` with the transform's own clauses still applied beside it.)* Case: `spec/examples/invalid/FD-V37--transform-not-lang-and-expr.flow.json` |
 | `FD-V38` | a `task`'s `pool` names **no registered pool instance**, or names an instance **of another type than the node's** — v0.19, section 2, [ADR 0054](../doc/decisions/0054-every-task-node-names-a-type-and-a-type-is-a-derivation-to-pool-options.md). The registry's `pools` is **EMPTY when absent**; the type's own name is the default instance and is accepted; a non-string `pool` is `FD-V21`; and the rule is asked only once the type is registered (`FD-V32` first). **Its own id rather than a clause of `FD-V32`** because the fix is different: `FD-V32` sends an author to the registry's types, this to its instances or to the node. Case: `spec/examples/invalid/FD-V38--pool-not-an-instance-of-the-type.flow.json`, against `spec/examples/registry.json`, whose `scorer-fast` is an instance of `Scorer` named by a `ScoreWorker` node |
 | `FD-V39` | a `gate`'s `type` names **no registered gate type** — none of the built-ins and none the registry's `gateTypes` adds — or names one that **is not a `GateType`**, or one **registered twice** (a built-in and the registry's); or, since v0.30, names a DERIVED type whose **`routesFor` throws or returns a malformed route set for this gate's settings**, or whose **`settingsProblem` throws or returns neither a message nor `null`** — the type's defects, which only a gate's settings reveal ([ADR 0092](../doc/decisions/0092-a-gate-types-routes-are-declared-statically-or-derived-from-its-node.md)) — v0.23, section 2's `gate` subsection, [ADR 0066](../doc/decisions/0066-a-gate-is-a-decision-with-memory-that-names-a-registered-type-and-wires-every-route-exactly-once.md). **Two readings of one fix**, on `FD-V32`'s precedent: the name or the registry. A malformed or colliding type is the REGISTRY's mistake and is refused at construction by name (`GateTypeRefused`, `NameCollision`); reached here directly, it is reported on the gate that names it, as `FD-V36` reports a `compile` that is not a function. Case: `spec/examples/invalid/FD-V39--gate-type-not-registered.flow.json` |
-| `FD-V40` | a `gate`'s `settings` is **not a plain object**; its **`key` is not a KEY PATH** — dot-separated object keys, each in `FD-V16`'s charset, no index, no wildcard, no expression (P24 stop-and-ask (d)) — checked on every gate that declares `key`, because the library resolves it; or its type's **`settingsSchema` refuses** the settings, `{}` when absent, asked once `FD-V39` passed. v0.23. **Or, since v0.30, its type's `settingsProblem` returns a message**, asked with a copy of the settings once they are a plain object the schema accepts, and the message is reported here (ADR 0092; P32 decision 3); **or, where the type carries `settingsProblem` or `routesFor`, the settings cannot be COPIED** — `structuredClone` refuses them — which is the settings' defect and not the type's. **Its own id rather than a clause of `FD-V33`**, whose subject is a node TYPE's worker: an author fixes this in the gate's own settings, and the key grammar is the library's rather than a schema's — the subset has no `pattern`. **Since v0.31 it is where the built-in `if`'s and `switch`'s settings are refused** (section 2's built-in table, P32 decision 7): `if`'s `{ when }` — its condition held to `FD-V42`-`FD-V45`'s grammar minus the name shape over the ONE root `input`, the message naming the clause it broke (section 3's *The `input` root*) — and `switch`'s `{ key, cases }` — a case name outside `FD-V16`'s charset or `default`, a case value that is neither a scalar nor a non-empty array of scalars, **a value named by two cases**, an EMPTY `cases`, and a value repeated inside one case. Case: `spec/examples/invalid/FD-V40--gate-key-path-with-an-index.flow.json` — `files[0].series`; and `FD-V40--an-if-condition-outside-input.flow.json` — an `if` comparing `outcome.result.confidence` |
+| `FD-V40` | a `gate`'s `settings` is **not a plain object**; its **`key` is not a KEY PATH** — dot-separated object keys, each in `FD-V16`'s charset and optionally followed by array indexes `[n]` (no leading zero, at most 999,999,999, never leading the path; v0.53, ADR 0137), no quoted key, no wildcard, no expression (P24 stop-and-ask (d)) — checked on every gate that declares `key`, because the library resolves it; or its type's **`settingsSchema` refuses** the settings, `{}` when absent, asked once `FD-V39` passed. v0.23. **Or, since v0.30, its type's `settingsProblem` returns a message**, asked with a copy of the settings once they are a plain object the schema accepts, and the message is reported here (ADR 0092; P32 decision 3); **or, where the type carries `settingsProblem` or `routesFor`, the settings cannot be COPIED** — `structuredClone` refuses them — which is the settings' defect and not the type's. **Its own id rather than a clause of `FD-V33`**, whose subject is a node TYPE's worker: an author fixes this in the gate's own settings, and the key grammar is the library's rather than a schema's — the subset has no `pattern`. **Since v0.31 it is where the built-in `if`'s and `switch`'s settings are refused** (section 2's built-in table, P32 decision 7): `if`'s `{ when }` — its condition held to `FD-V42`-`FD-V45`'s grammar minus the name shape over the ONE root `input`, the message naming the clause it broke (section 3's *The `input` root*) — and `switch`'s `{ key, cases }` — a case name outside `FD-V16`'s charset or `default`, a case value that is neither a scalar nor a non-empty array of scalars, **a value named by two cases**, an EMPTY `cases`, and a value repeated inside one case. Case: `spec/examples/invalid/FD-V40--gate-key-path-with-a-wildcard.flow.json` — `files[*].series` (until v0.53 `FD-V40--gate-key-path-with-an-index.flow.json`, `files[0].series`, which v0.53 accepts); and `FD-V40--an-if-condition-outside-input.flow.json` — an `if` comparing `outcome.result.confidence` |
 | `FD-V41` | **the `route` key and a gate's wiring** — v0.23: a gate's edge **names a route its type does not declare**; a route the type declares has **no edge** or **more than one**, an edge with no `route` counting for the DEFAULT route and never for every route (both asked once `FD-V39` passed — a document alone cannot know a type's routes). **Since v0.30 the routes counted are the GATE's resolved set** — a derived type's are asked of its `routesFor` once `FD-V40` passed on the gate, so each gate is counted against its own, and a derived type's gate whose settings `FD-V40` refused, or whose `settingsProblem` threw, is not counted at all (ADR 0092); a gate's edge carries **`when`, `on` or `needs`**, or a `route` that is not a string; or **an edge of any node that is not a `gate` carries `route`**. **One rule owns the key on every edge**, `FD-V26`'s precedent for `needs`, so `FD-V17`'s key table does not move; and a gate's edge carrying only `to` and `route` is `FD-V7`'s precedent for a join's edge carrying neither `when` nor `on`. **Why every route is wired rather than a drop being an omission**: a route a type grows later would be dropped in silence by every flow that had omitted it (P24 decision 4). Case: `spec/examples/invalid/FD-V41--a-declared-route-with-no-edge.flow.json` — `distinct`'s `duplicate` unwired; and since v0.31 `FD-V41--a-switch-case-with-no-edge.flow.json` — a `switch`'s case `rework`, the forgotten case an edge chain of comparisons cannot catch |
 | `FD-V42` | **a `when` is not one of the three SHAPES, or carries a key its shape does not declare** — v0.27, section 3's `when` subsection. Not an object (a bare STRING is this clause, with the object form in the message); an object marking **none** of `predicate` / `path`-or-`op` / `all`-or-`any`; one marking **more than one**; a `predicate` that is not a string; a comparison **missing** `path`, `op` or `value`; or any shape carrying a key beside its own — `FD-V30`'s and `FD-V37`'s reading, because the evaluator reads exactly these and a key beside them would be read by nothing. Case: `spec/examples/invalid/FD-V42--when-is-a-bare-string.flow.json` |
-| `FD-V43` | **a comparison's `path` is not a key path, or does not start at a ROOT a decision can see** — v0.27. Not a string, or outside `FD-V16`'s charset as dot-separated segments (no array index, no wildcard, no expression); a **first segment other than `outcome` or `needs`**, which would resolve to nothing in silence and so is a wrong key rather than a question; or a **root alone**, which names a container no comparison can be true of. The resolution is `readKeyPath`'s, the DRIVER's own — measured unchanged at this scope, because `ctx.outcome`, `ctx.outcome.result` and the FROZEN `ctx.needs` are all plain objects. **Since v0.31 the built-in `if` gate holds its condition to this grammar over ONE root, `input`** — `outcome` and `needs` refused there, `input` refused on a task's or a join's edge, and `input` alone refused as any root alone is — and reports a defect as `FD-V40`, the gate's settings, not here (section 3's *The `input` root*, P32 decisions 4 and 7). This rule's own roots do not move. Case: `spec/examples/invalid/FD-V43--predicate-path-has-no-root.flow.json` |
+| `FD-V43` | **a comparison's `path` is not a key path, or does not start at a ROOT a decision can see** — v0.27. Not a string, or outside section 2's KEY PATH grammar (object keys in `FD-V16`'s charset, each optionally followed by array indexes `[n]` since v0.53; no wildcard, no expression); a **first segment other than `outcome` or `needs`** — read up to the first `.` or `[` — which would resolve to nothing in silence and so is a wrong key rather than a question; or a **root alone**, which names a container no comparison can be true of; or, since v0.53, an **index ON the root** (`outcome[0].x`), which could only ever be nothing (ADR 0137). The resolution is `readKeyPath`'s, the DRIVER's own — measured unchanged at this scope, because `ctx.outcome`, `ctx.outcome.result` and the FROZEN `ctx.needs` are all plain objects. **Since v0.31 the built-in `if` gate holds its condition to this grammar over ONE root, `input`** — `outcome` and `needs` refused there, `input` refused on a task's or a join's edge, and `input` alone, or indexed (`input[0]`), refused as any root alone is — and reports a defect as `FD-V40`, the gate's settings, not here (section 3's *The `input` root*, P32 decisions 4 and 7). This rule's own roots do not move. Case: `spec/examples/invalid/FD-V43--predicate-path-has-no-root.flow.json` |
 | `FD-V44` | **a comparison's `op` is outside the closed enumeration, or its `value` is one the operator cannot compare** — v0.27. An `op` that is not one of `eq, ne, lt, lte, gt, gte, startsWith`, refused BY NAME with the enumeration in the message (ADR 0053's shape); a `value` that is not a SCALAR; a number operator against a non-number or `startsWith` against a non-string, **because a comparison between kinds is no match and never a coercion**; a `length` that is not exactly `true`; a `length` with a non-number `value` or with `startsWith`; or a `default` that is neither a scalar nor an array of scalars, or that has no length where `length` measures it. Case: `spec/examples/invalid/FD-V44--predicate-op-outside-the-subset.flow.json` |
 | `FD-V45` | **a GROUP is not a non-empty array of COMPARISONS** — v0.27. Both `all` and `any`; a group that is not an array or is empty (an empty group is *always true* or *always false* written as a question); a member that is not an object, or that marks none of the shapes; a member that is itself a **group**, because a group is FLAT and nesting is refused rather than evaluated; or a member naming a **registered predicate**, because a group holding a function could be impure and that is the one thing a declared predicate guarantees over a registered one. A member's own `path`, `op` and `value` are `FD-V43`'s and `FD-V44`'s, and its own SHAPE — a missing or undeclared key, or an object marking more than one shape — is `FD-V42`'s, wherever the comparison sits; `FD-V45` owns only what makes it not a comparison at all. Case: `spec/examples/invalid/FD-V45--a-group-inside-a-group.flow.json` |
 | `FD-V46` | **a node of a type that only TRANSFORMS declares no `transform`** — v0.28. A node type that names no worker has nothing to run but the transform (`BUILT_IN_NODE_TYPES`, ADR 0075), so such a node would dispatch a real task, pay a clone and a log record, and hand its successor the value it was given — an expensive IDENTITY. The test is the PROPERTY and not the name: any type with no `worker` is one, and only a built-in may be (a consumer's worker-less type is refused where the registry is built, so an omitted `worker` never becomes a transform-only type by accident). **Its own id rather than a clause of `FD-V37`**, on `FD-V28`'s stated precedent that a different fix earns a different id: `FD-V37` refuses a `transform` that is MALFORMED and this refuses one that is MISSING. Reported only once the type is registered — an unregistered type is `FD-V32`'s. The detail names the two cheaper tiers, which is the three-tier rule where an author meets it. Case: `spec/examples/invalid/FD-V46--a-transform-only-node-with-no-transform.flow.json` |

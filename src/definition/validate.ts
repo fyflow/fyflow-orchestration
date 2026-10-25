@@ -282,12 +282,21 @@ export function languagesOf(x: Languages | undefined): ReadonlyMap<string, Langu
 // ---- the GATE: its key path, its interface, and the one built-in type — v0.23 (W92, ADR 0066) ----
 
 /**
- * **A KEY PATH — P24 stop-and-ask (d), answered**: dot-separated OBJECT keys, each segment in `FD-V16`'s
- * charset, over the value a gate receives. **No array index, no wildcard, no expression** — a key a flow
- * needs COMPUTED is computed in the task before the gate (P24 decision 5), because the driver has no
- * `async` and `evaluate()` in every expression language here returns a Promise (ADR 0051).
+ * **A KEY PATH — P24 stop-and-ask (d), answered; an array INDEX since v0.53** (P44 (c1),
+ * [ADR 0137](../../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)):
+ * dot-separated SEGMENTS over the value a gate receives, each an OBJECT key in `FD-V16`'s charset followed by zero or
+ * more bracket indexes `[n]` — `n` is `0` or `[1-9][0-9]{0,8}`, no leading zero, at most 999,999,999. **An index is a
+ * SUFFIX of a segment and never leads the path**, so the first step is always a key. A plain numeric segment (`xs.1`)
+ * is still a KEY. **No quoted key, no wildcard, no expression** — a key a flow needs COMPUTED is computed in the task
+ * before the gate (P24 decision 5), because the driver has no `async` and `evaluate()` in every expression language
+ * here returns a Promise (ADR 0051). **Its `source` is package surface and moved at v0.53**; every string it matched
+ * before it still matches, and resolves as before, since none held `[`.
  */
-export const KEY_PATH_RE = /^[A-Za-z0-9_-]{1,64}(?:\.[A-Za-z0-9_-]{1,64})*$/;
+export const KEY_PATH_RE: RegExp = /^[A-Za-z0-9_-]{1,64}(?:\[(?:0|[1-9][0-9]{0,8})\])*(?:\.[A-Za-z0-9_-]{1,64}(?:\[(?:0|[1-9][0-9]{0,8})\])*)*$/;
+
+/** What a key path IS, in the words every refusal of one uses — `FD-V40`'s and `FD-V43`'s messages, one sentence. */
+const KEY_PATH_WORDS = 'dot-separated object keys, each [A-Za-z0-9_-]{1,64} and optionally followed by array indexes [n] ' +
+  '(n is 0 or a number with no leading zero, at most 999999999 — files[0].series, m[0][2]); no index leading the path, no quoted key, no wildcard, no expression';
 
 /**
  * **Why a gate's `settings.key` is not a key path, or `null`** — `FD-V40`'s grammar clause. `key` is the
@@ -298,8 +307,7 @@ export const KEY_PATH_RE = /^[A-Za-z0-9_-]{1,64}(?:\.[A-Za-z0-9_-]{1,64})*$/;
 export function keyPathProblem(v: unknown): string | null {
   if (typeof v !== 'string') return `settings.key must be a key path string, got ${JSON.stringify(v)}`;
   if (KEY_PATH_RE.test(v)) return null;
-  return `settings.key ${JSON.stringify(v)} is not a key path — dot-separated object keys, each [A-Za-z0-9_-]{1,64}; ` +
-    'no array index, no wildcard, no expression (a key that must be computed is computed in the task before the gate)';
+  return `settings.key ${JSON.stringify(v)} is not a key path — ${KEY_PATH_WORDS} (a key that must be computed is computed in the task before the gate)`;
 }
 
 // `readKeyPath` — what a key path NAMES on a value — lives in `./condition.ts` since W154 (exception (p)), beside the
@@ -755,11 +763,21 @@ function leafProblem(o: Record<string, unknown>, where: string, scope: Compariso
   // ---- FD-V43: the key path, and its ROOT ----
   const path = o.path;
   if (typeof path !== 'string' || !KEY_PATH_RE.test(path)) {
-    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is not a key path — dot-separated object keys, each [A-Za-z0-9_-]{1,64}; no array index, no wildcard, no expression` };
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is not a key path — ${KEY_PATH_WORDS}` };
   }
-  const root = path.split('.')[0]!;
+  // **The ROOT is read up to the first `.` or `[`** (v0.53, ADR 0137): an index is a SUFFIX of a segment, so
+  // `input[0]` starts at `input`, and is then refused below for indexing it.
+  const first = path.split('.')[0]!;
+  const bracket = first.indexOf('[');
+  const root = bracket === -1 ? first : first.slice(0, bracket);
   if (!scope.roots.includes(root)) {
     return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} starts at ${JSON.stringify(root)}, ${scope.foreignRoot(root)}` };
+  }
+  // **An index ON the root is refused** (ADR 0137): the root is the scope's own container — a `DecisionContext` member,
+  // or the value that reached an `if` gate — and a path's first step past it is a KEY, as a gate's `settings.key`, whose
+  // grammar no index may lead, names a key inside that value. `outcome[0]` and `needs[0]` could only ever be nothing.
+  if (bracket !== -1) {
+    return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} indexes its root ${JSON.stringify(root)} — a path names a KEY inside its root first, as a gate's key path names a key inside the value that reached it; an index follows a key (${root}.items[0])` };
   }
   if (path.split('.').length < 2) {
     return { rule: 'FD-V43', message: `${where} path ${JSON.stringify(path)} is a root alone ${scope.rootAlone(root)}` };

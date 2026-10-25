@@ -117,7 +117,8 @@ export interface PredicateLeaf {
    * A KEY PATH over the `DecisionContext` itself, read by `readKeyPath` — the same resolution a
    * gate's `settings.key` gets, measured unchanged at this scope. **Its first segment is `outcome`
    * or `needs` and nothing else** (`FD-V43`), because a first segment that is neither resolves to
-   * `undefined` in silence and a typo would be a wrong key rather than a refusal.
+   * `undefined` in silence and a typo would be a wrong key rather than a refusal. A key past the root may
+   * carry array indexes — `outcome.result.items[0].score` — and the root never does (v0.53, ADR 0137).
    */
   path: string;
   op: PredicateOp;
@@ -689,8 +690,9 @@ export interface GateNode {
   /**
    * **What the gate's type is configured with** — a plain object its type's `settingsSchema` accepts
    * (`FD-V40`), `{}` when absent. **`key` is the one setting the LIBRARY reads**: where present it is a
-   * KEY PATH (`keyPathProblem`) over the value the gate receives, resolved by the driver and handed to
-   * the type's `fn` as `ctx.key`.
+   * KEY PATH (`keyPathProblem`) over the value the gate receives — dotted object keys, each optionally
+   * followed by array indexes `[n]` since v0.53 (`files[0].series`, ADR 0137) — resolved by the driver and
+   * handed to the type's `fn` as `ctx.key`.
    */
   settings?: Readonly<Record<string, unknown>>;
   /** Each carries `to` and, optionally, `route` — and nothing else (`FD-V41`). */
@@ -706,7 +708,7 @@ export interface GateNode {
  * to be.)*
  */
 export interface GateContext {
-  /** `settings.key` resolved over `input` by `readKeyPath` — `undefined` where the gate declares no `key` or a segment is missing. */
+  /** `settings.key` resolved over `input` by `readKeyPath` — `undefined` where the gate declares no `key`, a key is missing, or an index `[n]` is not an element of a real array. */
   readonly key: unknown;
   /** The value that reached the gate — what leaves it, unchanged, on the route `fn` returns. */
   readonly input: unknown;

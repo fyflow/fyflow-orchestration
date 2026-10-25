@@ -13,17 +13,64 @@
 import type { PredicateLeaf, When } from './types.ts';
 
 /**
+ * **One step of a key path** — a KEY (an own key of a plain object) or, since v0.53, an INDEX (an element of a real
+ * array). [ADR 0137](../../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md).
+ */
+export type KeyPathStep = { readonly key: string } | { readonly index: number };
+
+/**
+ * **A segment's bracket suffix, as the grammar spells it** — a key, then one or more `[n]`, `n` either `0` or
+ * `[1-9][0-9]{0,8}`: no leading zero, at most 999,999,999, so every index the grammar accepts is a valid JavaScript array
+ * index. The SAME key and index spelling `KEY_PATH_RE` (`validate.ts`) accepts — the key `FD-V16`'s charset, never
+ * "any run of non-brackets" (W216's conformity reader, SHOULD 1: `a b[0]`, a 65-character key, `$[0]` were indexed) — and
+ * the index spelled ONCE, below, so the two expressions cannot drift (W216's adequacy reader, K7b). A segment that does
+ * not match is ONE literal key, exactly as every segment was before v0.53 — so every SEGMENT the grammar refuses
+ * resolves as it always did.
+ */
+const INDEX_SPELLING = '\\[(0|[1-9][0-9]{0,8})\\]';
+const INDEXED_SEGMENT = new RegExp(`^([A-Za-z0-9_-]{1,64})((?:${INDEX_SPELLING})+)$`);
+const INDEX = new RegExp(INDEX_SPELLING, 'g');
+
+/**
+ * **A key path's STEPS, in order** — `files[0].series` is `files`, `[0]`, `series`. Split on `.` as it always was
+ * (neither a key nor an index holds one), then each segment's bracket suffix, where it has one the grammar spells,
+ * into its indexes. The one parse `readKeyPath` and the wiring check (`requireAlong`, `keyPathRefusal`) both walk, so
+ * the run and the check cannot read a path differently. Total: any string has steps.
+ */
+export function keyPathSteps(path: string): KeyPathStep[] {
+  const out: KeyPathStep[] = [];
+  for (const seg of path.split('.')) {
+    const m = INDEXED_SEGMENT.exec(seg);
+    if (m === null) { out.push({ key: seg }); continue; }
+    out.push({ key: m[1]! });
+    for (const i of m[2]!.matchAll(INDEX)) out.push({ index: Number(i[1]) });
+  }
+  return out;
+}
+
+/**
  * **What a key path NAMES on a value — the meaning of stop-and-ask (d)'s grammar**, one definition for the
- * driver that resolves it (W93, where a branch enters a gate) and the tests that pin it. Each segment is an OWN key of a plain object
+ * driver that resolves it (W93, where a branch enters a gate) and the tests that pin it. Each KEY step is an OWN key of a plain object
  * (`hasOwnProperty`, never `in`, which walks the prototype — W65's conformity reader, three keyword sites);
- * anything else — a missing key, `null`, an ARRAY mid-path (no index, by (d)), a primitive — is
- * `undefined`, which is what `distinct` routes to `nokey`. The value at the end is returned whatever it is.
+ * anything else — a missing key, `null`, an ARRAY under a key step (a plain numeric segment is a KEY, by (c1)), a
+ * primitive — is `undefined`, which is what `distinct` routes to `nokey`. **An INDEX step `[n]` (v0.53, ADR 0137) is an
+ * OWN element of a REAL array** (`Array.isArray`, `n < length`, not a hole) and of nothing else: a plain object holding a key `"n"`, an
+ * array-like object, a typed array and a primitive are all `undefined`. The value at the end is returned whatever it is.
  */
 export function readKeyPath(value: unknown, path: string): unknown {
   let v = value;
-  for (const seg of path.split('.')) {
+  for (const step of keyPathSteps(path)) {
     if (typeof v !== 'object' || v === null) return undefined;
-    // **A PLAIN object** — its prototype `Object.prototype` or none. An ARRAY is not one (so no index, by (d)), nor
+    if ('index' in step) {
+      // A REAL array and nothing else; past its end is nothing; and an OWN element, as every key step reads an own key —
+      // a HOLE in a sparse array is nothing too, never what the array's prototype answers. *(`structuredClone` keeps a
+      // hole, so a run CAN hold one — W216's conformity reader, NIT 1, measured a custom prototype answering through it.)*
+      if (!Array.isArray(v) || step.index >= v.length || !Object.prototype.hasOwnProperty.call(v, step.index)) return undefined;
+      v = (v as unknown[])[step.index];
+      continue;
+    }
+    const seg = step.key;
+    // **A PLAIN object** — its prototype `Object.prototype` or none. An ARRAY is not one (a KEY step never indexes, by (c1)), nor
     // is a class instance, a `Map` or a `Date`, whatever its own fields hold. *(An `Array.isArray` guard stood above
     // this and was removed once this made it unreachable — rule 8's `a13` measured it survive.)* W92's conformity
     // reader (finding 10) found the first cut reading a class instance's own field while the spec says *own key of

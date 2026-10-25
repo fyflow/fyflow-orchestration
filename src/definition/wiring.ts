@@ -92,6 +92,7 @@
 import { describeFindings, findings, schemaProblem, type JsonSchema } from './schema.ts';
 import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry, TaskNode } from './types.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
+import { keyPathSteps } from './condition.ts';
 import { allRegions, branchPathOf, buildGraph, innermostMapOf, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
@@ -468,14 +469,28 @@ class Wiring {
    * key-resolved route licenses. A step the producer's schema does not describe is left alone rather than
    * invented: `required` on a key no `properties` entry mentions is still a promise the value carries it,
    * which is what the consumer asked about, and describing its SHAPE is not this function's to guess.
+   * **An index step `[n]` raises the array's `minItems` to `n + 1` and ends the walk** (v0.53, ADR 0137) — below.
    */
   private requireAlong(schema: JsonSchema | undefined, key: string): JsonSchema | undefined {
     if (schema === undefined || key === '') return schema;
-    const steps = key.split('.');
+    const steps = keyPathSteps(key);
     const go = (s: unknown, i: number): unknown => {
       if (i >= steps.length || typeof s !== 'object' || s === null || Array.isArray(s)) return s;
       const o = s as Record<string, unknown>;
-      const here = steps[i]!;
+      const step = steps[i]!;
+      // **An INDEX step guarantees a LENGTH, and the refinement STOPS there** (v0.53,
+      // [ADR 0137](../../doc/decisions/0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md)
+      // rule 4). `[n]` resolved means the value is an array of at least `n + 1` elements, so `minItems` rises to
+      // `n + 1` — W99's `required`, one keyword over. **Nothing past the index is required**: what the path names
+      // below it is a property of ONE element, and the subset's only element keyword, `items`, speaks for EVERY
+      // element — `prefixItems` is outside it (ADR 0053) — so requiring it in `items` would promise of `xs[0]`
+      // what the route learned of `xs[1]`. A silence, not a guess (ADR 0068 consequence 5).
+      if ('index' in step) {
+        const floor = step.index + 1;
+        const had = typeof o.minItems === 'number' ? o.minItems : 0;
+        return had >= floor ? o : { ...o, minItems: floor };
+      }
+      const here = step.key;
       const req = Array.isArray(o.required) ? (o.required as string[]) : [];
       const props = (o.properties ?? {}) as Record<string, unknown>;
       // **An OWN key, never a bare read.** `FD-V16`'s charset admits `toString`, `constructor`, `valueOf` and
@@ -504,9 +519,10 @@ class Wiring {
    * the producer can emit.
    *
    * **The question is per STEP and about the CONTAINER, because that is what `readKeyPath` is** —
-   * the DRIVER's own resolution (`src/definition/validate.ts`, W93), where each segment is an OWN key
-   * of a PLAIN object and a missing key, a `null`, an array mid-path or a primitive is `undefined`.
-   * So two shapes forbid a step and the third is a silence:
+   * the DRIVER's own resolution (`src/definition/condition.ts`, W93), where each KEY step is an OWN key
+   * of a PLAIN object and a missing key, a `null`, an array under a key step or a primitive is `undefined`
+   * — and, since v0.53, each INDEX step `[n]` an element of a REAL array (ADR 0137), asked below in the loop.
+   * So, for a key step, two shapes forbid it and the third is a silence:
    *
    * - **its declared types cannot include `object`** — `name.id` where the producer calls `name` a
    *   string. No value the schema admits carries the path.
@@ -528,8 +544,10 @@ class Wiring {
    * Every rung this repository has is green on a flow that did none of the work it exists for.
    */
   private keyPathRefusal(schema: JsonSchema, key: string, gateId: string, route: string): string | null {
-    const steps = key.split('.');
+    const steps = keyPathSteps(key);
     let s = schema as Record<string, unknown>;
+    // Where each step stands, as `findings` addresses a value: `$`, `$.files`, `$.files[0]`.
+    let at = '$';
     const because = (at: string, detail: string): string =>
       `gate "${gateId}" is keyed on "${key}", which the producer's schema FORBIDS at ${at}: ${detail} — so route "${route}" can never be taken, ` +
       // **What follows says what the check KNOWS, and no more** — BOTH readers, independently (the conformity
@@ -544,10 +562,23 @@ class Wiring {
       // census comment is *a wiring check reads two SCHEMAS and never a value*. Every other verdict in this
       // module hedges a run-time consequence (`FD-R2`'s says *at run time*); this one did not.
       'and a run may route every branch by another route, doing none of the work this gate guards';
-    for (let i = 0; i < steps.length; i++) {
-      const here = steps[i]!;
-      const at = i === 0 ? '$' : `$.${steps.slice(0, i).join('.')}`;
+    for (const step of steps) {
       const ts = typesOf(s);
+      // **An INDEX step asks the same question of an ARRAY** (v0.53, ADR 0137 rule 4): a schema whose declared types
+      // cannot include `array` forbids it — `readKeyPath` indexes a real array and nothing else — and one that may be
+      // an array steps INTO its `items`, which speaks for every element and so for this one. **Absent `items` is
+      // OPEN and silent**, as an open object is. *What it cannot say, stated*: no subset keyword bounds an array's
+      // length from above (`maxItems` is outside it, ADR 0053), so an index past every element the producer can emit
+      // is a silence, never a refusal.
+      if ('index' in step) {
+        if (!ts.includes('array')) return because(at, `the schema calls it ${ts.join('|')}, and an index [${step.index}] reads an element of an array`);
+        if (s.items === undefined) return null;                    // OPEN and silent: any element may be there
+        if (!isPlainObject(s.items)) return null;                  // not a schema this can read (`schemaProblem` refuses a tuple); say nothing
+        s = s.items;
+        at = `${at}[${step.index}]`;
+        continue;
+      }
+      const here = step.key;
       if (!ts.includes('object')) return because(at, `the schema calls it ${ts.join('|')}, and a key path reads an own key of a plain object`);
       const props = (s.properties ?? {}) as Record<string, unknown>;
       // **`own`, never a bare read** — `FD-V16`'s charset admits `toString` and `__proto__` as key-path
@@ -571,6 +602,7 @@ class Wiring {
       // ceiling rather than a hole. It stays because this function's contract is *never throw on any schema*.
       if (!isPlainObject(next)) return null;                       // not a schema this can read; say nothing
       s = next;
+      at = at === '$' ? `$.${here}` : `${at}.${here}`;
     }
     return null;
   }

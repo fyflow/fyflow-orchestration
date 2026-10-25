@@ -56,7 +56,12 @@ route is still wired exactly once.
    key-resolved route, `checkWiring` refines what arrived with `required` along that gate's own key path, at
    every step. *A per-route schema LITERAL was considered and is refuted by a fact*: a `GateType` is
    registered ONCE per name and the key path is per NODE (`settings.key`), so a literal on the type cannot
-   name `series` — it could only describe something the settings do not parameterise.
+   name `series` — it could only describe something the settings do not parameterise. *(Amended by
+   [ADR 0137](0137-a-key-path-indexes-an-array-by-a-bracket-suffix-and-a-plain-segment-keeps-its-meaning.md),
+   [W216](../work-items/w216-a-bracket-array-index-in-a-key-path.md), `spec/flow-definition.md` v0.53: a key path may
+   carry an array INDEX `[n]`, and at an index step the refinement raises that array's `minItems` to `n + 1`, never
+   lowering it, and STOPS — nothing past an index is required, since `items` speaks for every element. The rule — the
+   library derives the guarantee from the key path — is unmoved.)*
 3. **The guarantee is PRESENCE, not the leaf's TYPE.** `distinct`'s `fn` returns `nokey` unless `ctx.key` is
    a string or a finite number, so its `first` route does promise more than *the path is there* — and
    *which leaf values count as a key* is the type's judgement and differs between types, so the library
