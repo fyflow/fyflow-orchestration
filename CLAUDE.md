@@ -59,9 +59,9 @@ Two consequences, and both catch people:
    calls the library "the existing FyFlow DAG scheduler" and passes `parents: ['extract']` to a
    constructor with no such field. Its *goals* are still ours; its premise is not. Do not use it as
    a design input without reading `doc/concept.md` section 2 first.
-2. **`SpawnTaskConfig.parents` is declared and dead.** `core/workerInterface.ts:107` declares it at
-   the pinned version; nothing reads it; the spawn path (`core/FyflowScheduler.ts:1930-1935`) drops it
-   silently — re-read at the pin by W157 (`doc/concept.md` section 2 has the line history). It typechecks and does nothing. **Confirmed by the maintainer (2026-08-30): it stays
+2. **`SpawnTaskConfig.parents` is declared and dead.** `core/workerInterface.ts:139` declares it at
+   the pinned version; nothing reads it; the spawn path (`core/FyflowScheduler.ts:2866-2871`) drops it
+   silently — re-read at the pin by W224 (`doc/concept.md` section 2 has the line history). It typechecks and does nothing. **Confirmed by the maintainer (2026-08-30): it stays
    dead and will eventually be removed — never pass it.** [S1](doc/scheduler-upstream.md) is closed;
    do not re-raise it.
 
@@ -240,9 +240,9 @@ this list if it matters.
 - **A `user_action` task fires TWO events, and the first is called `task.failed`.** For a
   non-optional task out of retries the scheduler sets `state = 'user_action'` and then dispatches
   `task.failed` *and* `task.user_action` with the same object — in **two** places,
-  `core/FyflowScheduler.ts:1153-1167` and `1543-1557` (the orphaned-task path) at the pinned
+  `core/FyflowScheduler.ts:1633-1649` and `2256-2268` (the orphaned-task path) at the pinned
   version — **read at 0.3.0, right through 0.5.2 because that file was byte-identical (W36, W37), and
-  re-read at the pin by W157, where it is not byte-identical and the pair is unchanged**. Key outcomes on
+  re-read at the pin by W224, where it is not byte-identical and the pair is unchanged**. Key outcomes on
   **terminal state, not event name**, or you double-count and route a human-intervention case down
   an error edge. An *optional* task takes the other branch: `state = 'failed'`, `resolve(null)`, and
   only `task.failed` fires. **`AGENTS.md` now records the pair on the ordinary path** — §6's per-task
@@ -265,14 +265,15 @@ this list if it matters.
 - `onCompleteDescendants()` is **not a join**: transitive over lineage, but a failing descendant does
   not reject.
 - `maxCompletedTasks` evicts terminal tasks from `scheduler.tasks` with no event to say so.
-- Resource groups are **optimistic** — a limit can be briefly exceeded. Nothing is a hard cap.
+- **A concurrency limit is a HARD CAP at the pin**, and a rate group caps STARTS. Before P46's pin groups were
+  optimistic: a limit could be briefly exceeded.
 - **An INLINE pool fires `task.running` inside `addTask`, and does not clone**: the worker is handed the object `addTask`
   was given, where a threaded pool hands a clone — so an alias is visible on real workers only through an inline
   writer (W186 M3, W192 M3).
 - `addTask` returns `undefined` without `{ createPromise: true }`, and a scheduler that is never
   shut down keeps the process alive.
 - **A group's `onFinish` is marked OPTIONAL and omitting it hangs every task naming that group**, for
-  ever, with `stats` reporting idle; omitting `onStart` throws; omitting `getMetrics` works. So the
+  ever, `stats` reading them `running`; omitting `onStart` throws; omitting `getMetrics` works. So the
   interface's own optionality is wrong in the direction that fails in silence —
   [ADR 0055](doc/decisions/0055-a-group-factorys-output-is-held-to-what-the-scheduler-calls.md) holds
   a group to what the scheduler CALLS, and [S10](doc/scheduler-upstream.md) raises it.

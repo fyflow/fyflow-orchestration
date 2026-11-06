@@ -55,7 +55,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * rather than reading a diff. That reference ships inside the npm package, so it
  * is at `node_modules/fyflow-scheduler/AGENTS.md` rather than next door.
  */
-const PIN = '0.6.0';
+const PIN = '0.7.0';
 
 /** The JSR package Deno resolves the same specifier to. */
 const JSR_NAME = '@fyflow/scheduler';
@@ -423,6 +423,18 @@ if (process.argv.includes('--self-test')) {
   const SPEAKS = /scheduler|\bpin/i;
   const SELF = 'scripts/check-scheduler.mjs';
   const pinToken = new RegExp(`(^|[^\\d.])${PIN.replace(/\./g, '\\.')}(?![\\d]|\\.\\d)`);
+  // **A version written as THIS library's own is not the pin's token** — W224, P46
+  // decision 2. This package's own release numbers reach the scheduler's — three spec lines
+  // name our own release of the Q619 break and the `stopped` checkpoint kind beside the word
+  // *scheduler*, and W224's bump made that number the pin's — so an occurrence QUALIFIED as
+  // ours, `orchestration <v>` or `fyflow-orchestration@<v>`, is struck from the line before the
+  // pin's token is looked for. **Only the occurrence**:
+  // a bare number on the same line is still the pin's, and a probe says so. **Its hole,
+  // stated**: the pin's number written after the word *orchestration* passes, whatever the
+  // sentence means by it — and `\b` admits the word after a hyphen too, so `x-orchestration <v>`
+  // passes as well as `fyflow-orchestration <v>` (W224's conformity reader, F4).
+  const OURS = /\borchestration \d+\.\d+\.\d+|\bfyflow-orchestration@\d+\.\d+\.\d+/g;
+  const unqualified = (s) => s.replace(OURS, '');
   // **And the five RETIRED pin sentences, at ANY version.** The number rule above sees
   // only the CURRENT pin, so after a bump a reinstated *"Pin the scheduler at <old>."* is
   // invisible to it — which is W37's measured state (the gate green with eleven documents
@@ -458,7 +470,7 @@ if (process.argv.includes('--self-test')) {
       scanned++;
       text.split(/\r?\n/).forEach((line, i) => {
         if (r === SELF && /^const PIN = '\d+\.\d+\.\d+';$/.test(line)) return;
-        if (pinToken.test(line) && SPEAKS.test(line)) found.push(`${r}:${i + 1}`);
+        if (pinToken.test(unqualified(line)) && SPEAKS.test(line)) found.push(`${r}:${i + 1}`);
         if (RETIRED.some((re) => re.test(line))) retired.push(`${r}:${i + 1}`);
       });
     }
@@ -476,7 +488,7 @@ if (process.argv.includes('--self-test')) {
       continue;
     }
     if (typeof value !== 'string') continue;
-    if (pinToken.test(value) && SPEAKS.test(value)) found.push(`${r} "${key}"`);
+    if (pinToken.test(unqualified(value)) && SPEAKS.test(value)) found.push(`${r} "${key}"`);
     if (RETIRED.some((re) => re.test(value))) retired.push(`${r} "${key}"`);
   }
   ran.D7 = true;

@@ -55,7 +55,15 @@
 // and the **vacuity floor** (a walk that scanned almost nothing). The first two are
 // probed — the number into every scanned top-level directory, into the root, into the
 // `.md`, `.ts`, `.mjs` and `.json` kinds, into this check's own file and into the import
-// map's `_note`; and each of the five retired sentences once (W157's adequacy reader, A1-A2). The third cannot be, for W29's own reason: the `half` mechanism
+// map's `_note`; and each of the five retired sentences once (W157's adequacy reader, A1-A2); and,
+// since W224, the own-release exemption's three edges: a bare number beside a qualified one on the
+// same line, the same in `package.json`'s `description` (the `NOTES` road), and the npm specifier
+// `fyflow-scheduler@<pin>`, which an exemption widened past `fyflow-orchestration@` would swallow.
+// **Its DISABLING is graded by nothing here, by construction** (W224's conformity reader, F3):
+// disabling it makes `D7` STRICTER, and every probe asserts a refusal, so no probe can see it. The
+// fixed point is the corpus — while a living line names this library's own release at the pin's
+// number, the disabled check is red on the tree itself; when none does, the exemption is idle and
+// disabling it costs nothing `D7` exists for. The third cannot be, for W29's own reason: the `half` mechanism
 // mutates a file that IS there, and no probe can shrink the tree under the walk. A
 // META entry that stops the walk descending at all is not inert on the clean tree for
 // the same reason — the floor fires — so total recursion is graded by that floor; a
@@ -348,6 +356,31 @@ const PROBES = [
     // A2: the map is a RESOLVING file and skipped whole, except its free-text `_note`, which
     // restated the number until W157.
     mutate: (t) => t.replace('"_note": "The Deno half', `"_note": "The scheduler is at ${PIN_NOW}. The Deno half`),
+  },
+  {
+    name: 'the pin`s number written bare on a line that also names this library`s own release of it',
+    half: 'spec/run-state.md', check: 'D7',
+    // **W224, P46 decision 2.** `D7` strikes an occurrence QUALIFIED as this library's own —
+    // `orchestration <v>`, `fyflow-orchestration@<v>` — before it looks for the pin's token,
+    // because three spec lines name our own release whose number the pin reached. The
+    // exemption is per OCCURRENCE: a bare number beside a qualified one on the same line is
+    // still the pin's. An exemption widened to the whole line loses this probe.
+    mutate: (t) => `${t}\nW224 same-line probe: orchestration ${PIN_NOW} beside the scheduler at ${PIN_NOW}.\n`,
+  },
+  {
+    name: 'the pin`s number written as the npm specifier fyflow-scheduler@<pin>',
+    half: 'examples/README.md', check: 'D7',
+    // **W224's adequacy reader, A1.** `OURS` exempts `fyflow-orchestration@<v>`; an exemption widened to
+    // any `fyflow-…@<v>` would also strike the SCHEDULER's own specifier and pass this line.
+    mutate: (t) => `${t}\nW224 npm-specifier probe: the scheduler is fyflow-scheduler@${PIN_NOW} here.\n`,
+  },
+  {
+    name: 'the pin`s number bare beside a qualified one in package.json`s description',
+    half: PKG, check: 'D7',
+    // **W224's adequacy reader, A2.** The `NOTES` road strikes per occurrence as the walk does; an
+    // exemption there widened to the whole value would pass this description.
+    mutate: (t) => t.replace('"description": "Flow orchestration over fyflow-scheduler:',
+      `"description": "orchestration ${PIN_NOW} over the scheduler ${PIN_NOW}:`),
   },
   // The four retired sentences the first set did not drive, one each, so deleting any one of
   // `RETIRED`'s five patterns loses a probe. Each is split in this source so that this line is not
@@ -713,10 +746,10 @@ const ALL_CHECKS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9'];
 const RAN = (out) => /^(All checks passed|\d+ failure\(s\)\.)/m.test(out);
 
 /** The floor `check-policies-selftest.mjs` learned to carry: vacuous at zero. */
-const MIN_PROBES = 56;
+const MIN_PROBES = 59;
 
 /** The same floor for `META`, and for the same reason. */
-const MIN_META = 57;
+const MIN_META = 60;
 
 /**
  * **The mutations `check-scheduler.mjs` itself is run against.** Every probe above
@@ -944,6 +977,23 @@ const META = [
   ['D9`s package-lock version clause disabled — A3',
     'package-lock.json locks the scheduler at a DIFFERENT version',
     (t) => t.replace("fail('D9', `package-lock.json locks", "[].push(`package-lock.json locks")],
+  // **W224.** The own-release exemption, three ways it can be WIDENED, each inert on the clean
+  // tree and each graded by the probe it names. **It has no entry for being DISABLED** — W224's
+  // conformity reader, F3: the entry first shipped here was graded only by the corpus, because the
+  // three spec lines naming this library's own release at the pin's number trip `D7` on the clean
+  // tree, and at the next pin move those lines stop matching, the mutant turns inert, and the entry
+  // would go red for a reason that is not a hole. No probe can grade it at any pin: disabling the
+  // exemption makes `D7` STRICTER, and every probe asserts a refusal. The fixed point is stated in
+  // this file's header.
+  ['D7`s own-release exemption widened from the occurrence to the whole line — W224',
+    'the pin`s number written bare on a line that also names this library`s own release of it',
+    (t) => t.replace("const unqualified = (s) => s.replace(OURS, '');", "const unqualified = (s) => (s.search(OURS) >= 0 ? '' : s);")],
+  ['D7`s own-release exemption widened from fyflow-orchestration@ to any fyflow-…@ — A1',
+    'the pin`s number written as the npm specifier fyflow-scheduler@<pin>',
+    (t) => t.replace('|\\bfyflow-orchestration@\\d+', '|\\bfyflow-[\\w-]+@\\d+')],
+  ['D7`s NOTES road strikes the whole value rather than the occurrence — A2',
+    'the pin`s number bare beside a qualified one in package.json`s description',
+    (t) => t.replace('pinToken.test(unqualified(value))', "pinToken.test(value.search(OURS) >= 0 ? '' : value)")],
   ['D7`s record skip widened from doc/work-items/ to the whole of doc/ — W157',
     'the pin`s number written into doc/concept.md, beside the record directories it is not',
     (t) => t.replace("const RECORDS = ['doc/work-items/',", "const RECORDS = ['doc/', 'doc/work-items/',")],

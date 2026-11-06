@@ -2,8 +2,8 @@
  * The listener boundary — ADR 0007, and `spec/outcome-record.md` sections 2-3.
  *
  * The scheduler's `detail` for `task.completed`/`failed`/`user_action`/`cancelled` IS the live
- * `FyflowTask` (`core/FyflowScheduler.ts:1093, 1164, 1166, 1554, 1556`, and `:1198` for
- * `task.cancelled`, at the pin — re-taken by W158). Nothing downstream of this file ever sees a
+ * `FyflowTask` (`core/FyflowScheduler.ts:1575, 1646, 1648, 2265, 2267`, and `:1680` for
+ * `task.cancelled`, at the pin — re-taken by W224). Nothing downstream of this file ever sees a
  * library object.
  *
  * `OR-R1`: every field is read while the listener runs. No `e`, no `e.detail`, and

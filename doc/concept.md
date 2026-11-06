@@ -47,12 +47,12 @@ worker plugins - but its premise does not: there is nothing to build "on top of 
 there is no DAG.
 
 Verified rather than assumed at every pin since 0.2.1 — the last time by
-[W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) — line by line rather than by reading:
+[W224](work-items/w224-the-pin-moves-to-0-7-0.md) — line by line rather than by reading:
 
 | Claim | Evidence |
 |---|---|
 | No dependency field on `FyflowTask` | No `dependsOn`/`parents` in `core/FyflowScheduler.ts`; the only hits are `spawnedChildren`, which is lineage |
-| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:107` at the pin (`:50` through 0.5.2), read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:1930-1935`; `:1468-1473` through 0.5.2) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
+| `SpawnTaskConfig.parents` exists but is **dead** | Declared at `core/workerInterface.ts:139` at the pin (`:50` through 0.5.2, `:107` at 0.6.0), read **nowhere** in the repo. The spawn path (`core/FyflowScheduler.ts:2866-2871`; `:1468-1473` through 0.5.2, `:1930-1935` at 0.6.0) constructs the task from `id`, `workerType`, `payload`, `optional`, `retryPolicy`, `workerGroups` and **silently drops `parents`**. **Confirmed vestigial by the maintainer** (2026-08-30): it stays dead and will eventually be removed |
 | Spawning is not sequencing | `AGENTS.md` section 7: *"This is lineage, not a dependency: spawning never changes dispatch order."* |
 
 That dead field is the worst kind: it typechecks, it reads like the feature exists, and it does
@@ -69,18 +69,18 @@ control flow at all.
 
 *Verified against **0.3.0** (landed 2026-08-30). Was 0.2.1 when this section was written; every row
 below was re-checked rather than carried forward. Re-checked at the pin by
-[W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md) against the shipped reference's
-diff from 0.5.2's, not by running each row — the first pin since 0.3.0 at which
-`core/FyflowScheduler.ts` is not byte-identical; a row that moved says so.*
+[W224](work-items/w224-the-pin-moves-to-0-7-0.md) against the shipped reference's
+diff from the previous pin's, not by running each row — `core/FyflowScheduler.ts` has not been
+byte-identical since 0.5.2; a row that moved says so.*
 
 | Surface | What we get |
 |---|---|
 | `addTask` / `addTasks` | dispatch, with `{ createPromise: true }` for a settled result. Throws on unknown `workerType` |
 | Events | `task.running`, `task.completed`, `task.failed`, `task.progress`, `task.user_action`, `task.spawn_request`, `scheduler.completed` — **all carrying `timestamp` since 0.3.0** |
 | Events (at the pin, new) | `task.retrying`, `task.cancelling`, `task.cancelled`, `task.message` (and `worker.message`, on the POOL, not the scheduler) — `task.cancelled` subscribed since W158, `task.message` when a run asks (W187); `task.retrying` and `task.cancelling` not heard |
-| Events (0.3.0, new) | `resource.acquired` / `.released` / `.blocked` / `.unblocked`, and `getAdmissionQueue()` (a fifth `unblocked` reason, `cancelled`, at the pin). **Scheduler-level, not flow-level** — useful for diagnosing a stalled pool, useless for a stuck join |
+| Events (0.3.0, new) | `resource.acquired` / `.released` / `.blocked` / `.unblocked`, and `getAdmissionQueue()` (`unblocked`'s reasons at the pin: `admitted`, `migrated`, `orphaned`, `failed`, `shutdown`, `cancelled` — `superseded` no longer emitted). **Scheduler-level, not flow-level** — useful for diagnosing a stalled pool, useless for a stuck join |
 | `FyflowTask` after the run | `state`, `result`, `error`, `attempts`, `startTime`, `endTime`, `executionTime`; at the pin also `attemptNumber`, `cancellation` |
-| Resource groups | `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup` - per-task and per-worker (`residentGroups`) |
+| Resource groups | `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup`, and at the pin `UnitGroup`, `KeyedConcurrentLimitGroup` - per-task and per-worker (`residentGroups`) |
 | Retry | `retryPolicy: { maxRetries, backoffMs }`, per task. **At the pin a backoff is held outside the ready queue**; at 0.5.2 another dispatch could start a retry at once (W157, measured) |
 | Cancel (at the pin) | `scheduler.cancel(id)`: a waiting task never runs, a running one is signalled and ends `cancelled`. Folded since P33: the run ends `cancelled` (ADR 0094) |
 | Spawn | `context.spawnTask()` from inside a worker, plus `onCompleteDescendants()` |
@@ -105,7 +105,8 @@ And these constraints, which are design inputs rather than annoyances:
    upstream at 0.3.0 as a contract rather than a bug ([S8](scheduler-upstream.md)); handled by
    ADR 0007.
 6. **`maxCompletedTasks` evicts terminal tasks** from `scheduler.tasks` with no event to say so.
-7. **Groups are optimistic** - a limit can be briefly exceeded. Nothing here is a hard cap.
+7. **A concurrency limit is a hard cap at the pin, and a rate group caps starts.** Before P46's pin groups were
+   optimistic: a limit could be briefly exceeded.
 8. **`onCompleteDescendants()` does not reject when a descendant fails**, only when the tracked task
    does. It is not a join.
 9. **A resource release is per *attempt*, not per task** (0.3.0). A retried or requeued task emits

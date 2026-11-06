@@ -3621,10 +3621,10 @@ anywhere else.)* This library's listener boundary is written against **0.3.0 sem
 `task.progress`'s detail changed shape at 0.3.0 (the id is `id`, not `taskId`), the second
 `task.user_action` dispatch site arrived there, and `task.timestamp` did not exist before it.
 **`core/FyflowScheduler.ts` was byte-identical between 0.3.0, 0.5.1 and 0.5.2**; it is not at the
-current pin, and W157 re-read what this library rests on there rather than inferring it: the
+current pin, and W157 and W224 re-read what this library rests on there rather than inferring it: the
 `user_action` pair is unchanged on both of its paths, and `task.progress` is built from the same
 fields. What 0.5.1 added is a `worker.setup.*` / `worker.teardown.*` event family this library
-subscribes to not at all. **The current pin adds a sixth task state, `cancelled`, reached only through
+subscribes to not at all. **A sixth task state, `cancelled`, arrived at 0.6.0 and is still the pin's (re-read by W224), reached only through
 `scheduler.cancel(id)`**, and a run hears it: a cancelled task ends its run `cancelled` and settles
 its `done` (section 6, [P33](doc/plans/p33-what-a-run-does-when-a-task-ends-cancelled.md)) — on real
 workers in ladder L6, a task cancelled while running and while queued — and `driver.cancel` asks for one on
@@ -3959,7 +3959,7 @@ instance or your class's `pool()` put it there. The scheduler resolves no key fo
 holding it would be counted in ONE `""` bucket, in silence. Name a keyed group in `groups` instead — each task is then
 counted under its `limitKey` (`FD-R6`, section 12) — or hold a `ConcurrentLimitGroup` or `RateLimitGroup` resident. A
 group your own `code.groupTypes` factory builds is never refused. **BREAKING in 0.8.0**: such a document built a
-runtime at 0.7.0. **`bootstrap` called by hand is not covered** — it is handed group OBJECTS and cannot tell the
+runtime at orchestration 0.7.0. **`bootstrap` called by hand is not covered** — it is handed group OBJECTS and cannot tell the
 built-in factory's keyed group from your own — as a `Driver` built by hand is not covered by `FD-R6`.
 **Your worker's `run(payload, context)` gets the scheduler's own task context as its second argument** —
 the same object the scheduler handed the envelope worker, so `context.signal` (an `AbortSignal`, aborted
