@@ -296,7 +296,7 @@ are not four:
 | Q5's case | what it is here | |
 |---|---|---|
 | a branch task **failed** | `branch.lost` with `reason: 'failed'` | by **either** road — an `optional` node settling, or a human resolving a suspended node `failed` (`RS-R3`). See below |
-| an **`optional`** branch resolving `null` | **the same event.** `state = 'failed'` and `resolve(null)` are two lines of one branch (`../fyflow-scheduler/core/FyflowScheduler.ts:1151-1154`), and `resolve(null)` is invisible to a listener | |
+| an **`optional`** branch resolving `null` | **the same event.** `state = 'failed'` and `resolve(null)` are two lines of one branch (`../fyflow-scheduler/core/FyflowScheduler.ts:1633-1636`), and `resolve(null)` is invisible to a listener | |
 | a branch ending in **`user_action`** | `branch.suspended` — **not** a loss. The branch is still live and the join keeps waiting | |
 | a branch **routed away** | `branch.exited` | it reached an `end` node — P1's case |
 

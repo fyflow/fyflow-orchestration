@@ -127,12 +127,12 @@
     "@cfworker/json-schema": "4.1.1",
     "@types/node": "^24.13.3",
     "esbuild": "^0.25.12",
-    "fyflow-scheduler": "0.6.0",
+    "fyflow-scheduler": "0.7.0",
     "playwright": "^1.62.1",
     "typescript": "^5.9.2"
   },
   "peerDependencies": {
-    "fyflow-scheduler": "0.6.0"
+    "fyflow-scheduler": "0.7.0"
   },
   "dependencies": {
     "jsonata": "2.2.2"

@@ -222,7 +222,7 @@ claimed both were unchanged was wrong about the second.
 - **`attempt` counts flow-level retries only** ([Q16](../doc/questions/q16.md)), and P1 always
   emits `0`. It is **not** the scheduler's retry count: `retryPolicy` retries happen *inside* one
   scheduler task and are reported on that task's `attempts` field
-  (`../fyflow-scheduler/core/FyflowScheduler.ts:1107-1143`, and `AGENTS.md` section 5 —
+  (`../fyflow-scheduler/core/FyflowScheduler.ts:1589-1625`, and `AGENTS.md` section 5 —
   *"`stats.failed` counts tasks that failed... a task with retries counts once"*). Two retry
   counters exist; this segment is ours, and conflating them is what Q16 is about. *(v0.15: the
   scheduler's is now RECORDED — each attempt's start an `attempted` fold input carrying its 1-based
@@ -392,5 +392,5 @@ bookkeeping is wrong, and continuing past it corrupts the run in the way section
 
 **The driver holds the dispatched-id set, not the scheduler.** Asking `scheduler.tasks.has(id)` is
 not a substitute: `maxCompletedTasks` evicts terminal tasks with no event
-(`core/FyflowScheduler.ts:2075`, `_recordTerminalTask`), so the scheduler's answer is *"not any
+(`core/FyflowScheduler.ts:3011`, `_recordTerminalTask`), so the scheduler's answer is *"not any
 more"* rather than *"never"*.

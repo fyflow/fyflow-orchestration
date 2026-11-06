@@ -11,8 +11,13 @@ blocker, and it belongs in a plan instead.
 never says which version is pinned NOW**; every version number in it is a RELEASE — what upstream
 shipped, and when this repository adopted it — and stays as written when the pin moves (W157). The pin
 history: 0.3.0 from 2026-08-30, 0.5.1 from 2026-09-07, 0.5.2 from
-2026-09-08, and 0.6.0 from 2026-10-15
-([W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md)), which shipped [S2](#s2---cancel-a-queued-task).
+2026-09-08, 0.6.0 from 2026-10-15
+([W157](work-items/w157-the-pin-moves-to-0-6-0-behaviour-unmoved.md)), which shipped [S2](#s2---cancel-a-queued-task),
+and 0.7.0 from 2026-11-05 ([W224](work-items/w224-the-pin-moves-to-0-7-0.md)) — the admission rework: hard
+concurrency caps, a resident waiter woken by a release, `UnitGroup` and `KeyedConcurrentLimitGroup`. S10 stands at 0.7.0: the
+interface gains a `cost` and a request/grant argument and still marks both members optional
+(`groups/resourceGroup.ts:140`, `:147`), and both calls are still unguarded (`core/FyflowScheduler.ts:1332`, `:1456`) —
+read by W224. S11 and S12 were not re-read; the reference's diff names neither subject.
 Line references are against **0.5.2** unless a row says otherwise — and `core/FyflowScheduler.ts` is
 **byte-identical to 0.3.0**. *(This said `core/threadWrapper.ts` was byte-identical too. **It is not,
 at either version**: `sha256` differs at 0.3.0, 0.5.1 and 0.5.2, and the 0.5.1 file is a 99-line diff
@@ -485,8 +490,8 @@ identical under Node 24.20.0 and Deno 2.9.6** (`dev-dist/w66/facts-{node,deno}.l
 | `type` | runs to `done` |
 
 So a consumer who writes the interface's required half and omits its optional half gets a scheduler
-that throws on the first task, or one that hangs every task naming the group **in silence, with
-`stats` reporting idle** — which is the worse of the two and the reason to raise this.
+that throws on the first task, or one that hangs every task naming the group **in silence, the tasks
+`running` for ever** — which is the worse of the two and the reason to raise this.
 
 **What we do without it.** `createRuntime` holds a group factory's output to the UNION of the two
 lists — `canRun`, `onStart`, `onFinish`, `getMetrics`, `id`, `type` — and refuses by name at

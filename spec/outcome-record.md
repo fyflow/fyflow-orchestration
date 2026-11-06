@@ -132,7 +132,7 @@ two sources of truth for one string.
 
 `e` is the listener's event; `d` is `e.detail`, which for `task.completed`, `task.failed`,
 `task.user_action` and — v0.13 — `task.cancelled` **is** the live `FyflowTask`
-(`../fyflow-scheduler/core/FyflowScheduler.ts:1093, 1164, 1166, 1554, 1556`, and `:1198` for
+(`../fyflow-scheduler/core/FyflowScheduler.ts:1575, 1646, 1648, 2265, 2267`, and `:1680` for
 `task.cancelled`; `AGENTS.md` section 6). Every expression below is evaluated **synchronously,
 inside the listener**.
 
@@ -142,7 +142,7 @@ inside the listener**.
 | `taskId` | string | `d.id` | |
 | `terminalState` | `'done' \| 'failed' \| 'user_action' \| 'cancelled'` | `d.state` | **never** the event name — see `OR-R3` |
 | `result` | structured-cloneable value \| `null` | `terminalState === 'done' ? structuredClone(d.result) : null` | the guard is part of the expression, not a caveat on it. See `OR-R2` and section 4 |
-| `error` | string \| `null` | `d.error ?? null` | already a string on the task — `task.error = error.message` (`core/FyflowScheduler.ts:1105`). The `Error` object never reaches a listener |
+| `error` | string \| `null` | `d.error ?? null` | already a string on the task — `task.error = error.message` (`core/FyflowScheduler.ts:1587`). The `Error` object never reaches a listener |
 | `attempts` | number | `d.attempts` | the **scheduler's** retry count, not the flow-level attempt in the id. **v0.20: copied as the scheduler reports it, and after a resume it counts EVERY process's attempts** — the scheduler starts it at the `attemptsSpent` a resume hands on (`spec/run-state.md` `RN-R21`, P36 (i)), so a task killed in its second attempt and failing its third on the resume settles with the count the whole run spent. The listener subtracts nothing: a number no scheduler reported is not a record of the scheduler's (ADR 0007) |
 | `schedulerTimestamp` | number | `d.timestamp` | `Date.now()` stamped immediately before dispatch. A **mutable field on the live task**. *The TYPE is `number \| null` since v0.18, for section 7's effective outcome of an ASK alone, which no scheduler stamped; a settlement written here is always a number* |
 | `observedAt` | number | the driver's own `Date.now()` | ADR 0007 rule 4. Not derived from, and not interchangeable with, `schedulerTimestamp` |
@@ -166,9 +166,9 @@ record with a field named `state`, `payload`, `task` or `detail` is a review fin
 
 ### OR-R3, spelled out, because the event names lie
 
-At every pin since 0.3.0 — 0.5.2's lines were `:894-910` and `:1130-1142`, and W157 re-read them at
+At every pin since 0.3.0 — 0.5.2's lines were `:894-910` and `:1130-1142`, and W224 re-read them at
 the current pin — a non-optional task out of retries sets `state = 'user_action'` and then dispatches
-**both** events with the same object (`core/FyflowScheduler.ts:1151-1167`, and again at `:1545-1557`
+**both** events with the same object (`core/FyflowScheduler.ts:1633-1649`, and again at `:2256-2268`
 on the orphaned-task path):
 
 | `d.state` at dispatch | events fired | records written |
@@ -507,7 +507,7 @@ A `throw` cannot do that, and until W3's third conformity pass all three were im
 
 Every one of them is reached from inside a `scheduler.addEventListener` callback, and
 `EventTarget.dispatchEvent` **never hands a listener throw back to its caller**. Measured on Node 24 against
-`../fyflow-scheduler/core/FyflowScheduler.ts:296` at the pin, `:212` when measured (`export class FyflowScheduler extends
+`../fyflow-scheduler/core/FyflowScheduler.ts:345` at the pin, `:212` when measured (`export class FyflowScheduler extends
 EventTarget`): the remaining listeners still run, `dispatchEvent` returns normally, and the error
 resurfaces out of band on `process.nextTick`. In a browser it becomes a `window.onerror` report and
 the page carries on. **In node 24 and deno 2.9 that out-of-band error is an UNCAUGHT exception and the

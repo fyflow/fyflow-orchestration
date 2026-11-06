@@ -7370,7 +7370,7 @@ const UNMINTED: {
     //
     // `ReviewWorker`'s pool runs the `fail` role, which throws; `optional: true`
     // is what makes the scheduler settle it `failed` rather than end it
-    // `user_action` (`core/FyflowScheduler.ts:1151-1154`). So this is the SAME
+    // `user_action` (`core/FyflowScheduler.ts:1633-1636`). So this is the SAME
     // refusal as the row above — one segment where four are required — reaching
     // tier 0 down a different event, which is what makes the `event` field able to
     // fail rather than a constant with five copies.

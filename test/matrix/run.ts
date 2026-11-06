@@ -184,7 +184,7 @@ export class Fake {
         throw new Error(
           `matrix fixture: "${id}" settled \`failed\` but was dispatched with ` +
             `optional=${String(task.optional)}. Only an \`optional\` task can settle failed ` +
-            '(FyflowScheduler.ts:1151-1154 at the pin, re-taken by W158); a non-optional one reaches `user_action`. ' +
+            '(FyflowScheduler.ts:1633-1636 at the pin, re-taken by W224); a non-optional one reaches `user_action`. ' +
             'This event stream cannot occur.',
         );
       }

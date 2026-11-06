@@ -463,7 +463,7 @@ function checkNodeTypeShape(name: string, t: NodeTypeEntry, builtIn = false): vo
  * a document type has none — its knobs are the fields an instance may override), the derivation RUN,
  * its output held to `PoolSpec`'s shape, the derived config against the WORKER's `configSchema`,
  * every group it names present, and decision 9's refusal — a resident group beside `idleTimeout: 0`
- * deadlocks a contended group (P18 fact 6, the scheduler reference's own sentence).
+ * deadlocks a contended group (P18 fact 6, re-measured at P46 fact 6; the scheduler reference's own sentence).
  *
  * **`pool` is a named instance's OWN pool options** (v0.37, ADR 0099): the instance is derived by its type's identity
  * derivation with them merged over the type's declared ones (`nodeTypeFromDeclaration(declaration, pool)`), and the
@@ -512,7 +512,7 @@ export function derivePool(
   }
   const resident = spec.residentGroups === undefined ? 0 : Array.isArray(spec.residentGroups) ? spec.residentGroups.length : Object.keys(spec.residentGroups).length;
   if (resident > 0 && spec.idleTimeout === 0) {
-    throw new DerivationRefused(key, `${who}: residentGroups beside idleTimeout: 0 — a worker that never idles never releases a resident group, and a second pool contending for it waits for ever (measured on 0.5.2, P18 fact 6); give the pool a positive idleTimeout`);
+    throw new DerivationRefused(key, `${who}: residentGroups beside idleTimeout: 0 — a worker that never idles never releases a resident group, and a second pool contending for it waits for ever (measured at P18 fact 6 and re-measured at P46 fact 6); give the pool a positive idleTimeout`);
   }
   return { key, type: typeName, definition: def, worker, config, spec, ...(pool !== undefined ? { pool: copyPool(pool as DeclaredPool) } : {}) };
 }

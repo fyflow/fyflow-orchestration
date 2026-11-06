@@ -1090,8 +1090,9 @@ export interface RunOptions {
    * the group's own `onStart()` before `driver.start`, so a task whose node declares it in
    * `workerGroups` is `resource.blocked` on dispatch. The release is driven by that event and
    * not by a clock: on the first `resource.blocked` naming this group the slot is given back
-   * on a microtask, and the scheduler's own heartbeat re-dispatches the task. No foreign task
-   * is involved, so `onUnmintedTask` stays empty and the row is about the group alone.
+   * on a microtask; at the pin the group's `onFinish` emits `slot-released` and the scheduler wakes
+   * its waiters a microtask later, the heartbeat being only the fallback (read in the source by
+   * W224, not measured). No foreign task is involved, so `onUnmintedTask` stays empty and the row is about the group alone.
    */
   holdGroup?: string;
   /**
@@ -1149,7 +1150,7 @@ export interface ForeignTask {
    *
    * `ID-R5` at L6 had only ever been reached from `task.completed`, because every
    * foreign task W19 injected ran a worker that returns. Only an **optional** task
-   * can settle `failed` (`core/FyflowScheduler.ts:1151-1154`), so a foreign task
+   * can settle `failed` (`core/FyflowScheduler.ts:1633-1636`), so a foreign task
    * that throws needs this flag or it ends `user_action` instead — which is a
    * third event name and a different question again.
    */
