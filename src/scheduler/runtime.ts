@@ -13,7 +13,7 @@
  *
  * **What it does, in one sentence: `resolveRegistry` says what the document MEANS, and this module
  * builds it.** The resolver checks every name, every schema and every derivation and constructs
- * nothing (W65); here the three built-in group types get their factories, every group is created and
+ * nothing (W65); here the built-in group types (five since v0.56) get their factories, every group is created and
  * held to what the scheduler actually calls, every worker URL is resolved against the consumer's
  * `base`, `bootstrap` turns every derived instance into a pool, and the driver's registry is derived
  * once and exposed as `runtime.registry` (decision 14).
@@ -61,7 +61,7 @@
  * depends on the flow and this runtime alone, and **`start` and `resume` refuse from that same call**, so the two
  * cannot disagree.
  */
-import { ConcurrentLimitGroup, FyflowScheduler, KeyedRateLimitGroup, RateLimitGroup } from 'fyflow-scheduler';
+import { ConcurrentLimitGroup, FyflowScheduler, KeyedConcurrentLimitGroup, KeyedRateLimitGroup, RateLimitGroup, UnitGroup } from 'fyflow-scheduler';
 import type { ResourceGroup, WorkerManager } from 'fyflow-scheduler';
 import { checkGateTypes, groupsNamedBy, resolveRegistry } from '../definition/registry.ts';
 import { Driver, inputOf, InvalidDefinition, resumeRefusal } from '../driver/driver.ts';
@@ -111,9 +111,9 @@ export class GroupNotBuildable extends RuntimeError {}
 export class RunIdInUse extends RuntimeError {}
 /**
  * **A `start` or a `resume` given no `createTask`, of a flow a node of which reaches a group the BUILT-IN
- * `KeyedRateLimitGroup` factory built** — `FD-R6`,
+ * `KeyedRateLimitGroup` factory built — or, since v0.56, the built-in `KeyedConcurrentLimitGroup` factory** — `FD-R6`,
  * [ADR 0097](../../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), P37 fact 1 and
- * stop-and-ask (c). That factory gives the group no `keyFrom`, so its key is the task's `limitKey`, which nothing here
+ * stop-and-ask (c). Each such factory gives the group no `keyFrom`, so its key is the task's `limitKey`, which nothing here
  * sets — and the scheduler THROWS in `addTask` for a keyed group with no key. `at` is the first such node in the flow's
  * order; the message carries every `FD-R6` finding `check` returned. Thrown before a run id is minted or a driver built,
  * so the refused call costs nothing.
@@ -127,8 +127,12 @@ export class LimitKeyMissing extends RuntimeError {}
 const KEYED_RULE = 'FD-R6';
 
 /**
- * **The three built-in group types' FACTORIES, and they are three different constructors** (P18
- * fact 2, re-run at W66): `(limit, id)`, `(windows, id)` and `(windows, { id })`, the third keyed.
+ * **The built-in group types' FACTORIES, and they are different constructors** (P18
+ * fact 2, re-run at W66): `(limit, id)`, `(windows, id)` and `(windows, { id })`, the third keyed — and since v0.56 (P46
+ * decisions 3 and 5, ADR 0143 rules 1 and 2) `UnitGroup(units, { id })` and `KeyedConcurrentLimitGroup(limit, { id,
+ * limitFor })`, the fifth keyed. **Neither keyed factory gives a `keyFrom`**, so each keys a task by its `limitKey` (`FD-R6`).
+ * `limitFor` reads a COPY of the document's `limits`, taken here, by OWN key — a later edit to the document moves no limit,
+ * and a key called `constructor` is not answered by `Object.prototype`. No `requestFrom`: a task's request is its `units`.
  * `BUILT_IN_GROUP_TYPES` in `src/definition/registry.ts` carries their schemas and no factory,
  * deliberately — the pure entry constructs nothing (`RT-R13`) — so the two halves meet here and are
  * compared both ways by a test.
@@ -141,7 +145,22 @@ export const BUILT_IN_GROUP_FACTORIES: Readonly<Record<string, (config: unknown,
   ConcurrentLimitGroup: (config, key) => new ConcurrentLimitGroup((config as { limit: number }).limit, key),
   RateLimitGroup: (config, key) => new RateLimitGroup((config as { windows: { limit: number; windowMs: number }[] }).windows, key),
   KeyedRateLimitGroup: (config, key) => new KeyedRateLimitGroup((config as { windows: { limit: number; windowMs: number }[] }).windows, { id: key }),
+  UnitGroup: (config, key) => {
+    const units = (config as { units: number | readonly string[] }).units;
+    return new UnitGroup(typeof units === 'number' ? units : [...units], { id: key });
+  },
+  KeyedConcurrentLimitGroup: (config, key) => {
+    const { limit, limits } = config as { limit: number; limits?: Readonly<Record<string, number>> };
+    const own = new Map<string, number>(Object.entries(limits ?? {}));
+    return new KeyedConcurrentLimitGroup(limit, { id: key, limitFor: (k) => own.get(k) ?? limit });
+  },
 };
+
+/**
+ * **The built-in group types that are KEYED, built with no `keyFrom`** — `FD-R6`'s subject: `KeyedRateLimitGroup` since
+ * v0.35, `KeyedConcurrentLimitGroup` since v0.56 (P46 decision 5). The registry refuses either held resident (Q619).
+ */
+const KEYED_BUILT_IN_GROUP_TYPES: readonly string[] = ['KeyedRateLimitGroup', 'KeyedConcurrentLimitGroup'];
 
 /**
  * **What a created group must carry.** The first three are what the scheduler CALLS on the acquire
@@ -432,7 +451,7 @@ export interface Runtime {
    * rule 4, P37 stop-and-ask (b). `[]` means `start` will not refuse the flow; a non-empty result is what `start`
    * throws, built from this same call (rule 5): the `FD-V` findings as `InvalidDefinition`, and — since
    * [ADR 0097](../../doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md) — the `FD-R6` findings, a
-   * node reaching a group the built-in `KeyedRateLimitGroup` factory built, as `LimitKeyMissing` when `start` is given
+   * node reaching a group the built-in `KeyedRateLimitGroup` or (since v0.56) `KeyedConcurrentLimitGroup` factory built, as `LimitKeyMissing` when `start` is given
    * no `createTask`. **`check` reads as `start` given none** (P37 stop-and-ask (c)), so a caller who will pass a
    * `createTask` setting `limitKey` filters `FD-R6` out by its rule id. **It never throws for a flow's defect**: every
    * finding is returned, as `validateDefinition` returns them, against this runtime's own registry. **Not included,
@@ -657,11 +676,13 @@ export function createRuntime(
     ...(registry.gateTypes !== undefined ? { gateTypes: registry.gateTypes } : {}),
   };
   // **`FD-R6` — what `check` adds that no validator rule states** (ADR 0097 rules 1-3, P37 fact 1 and stop-and-ask (c)).
-  // The groups the BUILT-IN `KeyedRateLimitGroup` factory built: keyed, with no `keyFrom`, so the scheduler's `addTask`
+  // The groups a KEYED built-in factory built — `KeyedRateLimitGroup`, and since v0.56 `KeyedConcurrentLimitGroup` (P46
+  // decision 5): keyed, with no `keyFrom`, so the scheduler's `addTask`
   // throws for a task belonging to one unless the task carries a `limitKey` — which only a consumer's `createTask` can
   // set. A CODE group type's group is never here, keyed or not: its factory is the consumer's and may give it a `keyFrom`.
-  const keyedByBuiltIn = new Set<string>();
-  for (const [key, g] of resolved.groups) if (g.type === 'KeyedRateLimitGroup') keyedByBuiltIn.add(key);
+  // Each key maps to the TYPE that built it, which the finding names.
+  const keyedByBuiltIn = new Map<string, string>();
+  for (const [key, g] of resolved.groups) if (KEYED_BUILT_IN_GROUP_TYPES.includes(g.type)) keyedByBuiltIn.set(key, g.type);
   /**
    * **One `FD-R6` finding per task node that REACHES such a group** — rule 1: the node's `workerGroups`, or the `groups`
    * of the pool it runs on (its `pool`, else its type's default instance) as `resolveRegistry` derived it; the two sets
@@ -683,14 +704,16 @@ export function createRuntime(
       const reached = [...new Set([...fromPool, ...fromNode])].filter((g) => keyedByBuiltIn.has(g)).sort();
       if (reached.length === 0) continue;
       const at = typeof n.id === 'string' ? n.id : null;
+      // The TYPES reached, each once, in a fixed order — the one the message names, for the factory and for the road.
+      const types = [...new Set(reached.map((g) => keyedByBuiltIn.get(g)!))].sort().join(' and ');
       out.push({
         rule: KEYED_RULE,
         at,
         detail: `node ${at === null ? '<unnamed>' : q(at)} reaches keyed group${reached.length > 1 ? 's' : ''} ${reached.map(q).join(', ')}, ` +
-          'built by the built-in KeyedRateLimitGroup factory with no keyFrom — so every task of it needs a limitKey, which ' +
+          `built by the built-in ${types} factory with no keyFrom — so every task of it needs a limitKey, which ` +
           `nothing sets unless start is given a createTask, and without one the scheduler's addTask throws "Missing limit key". ` +
           'Two roads work: pass start a createTask that sets limitKey on the task it builds, or declare the group with a code ' +
-          'group type (code.groupTypes) whose create() builds a KeyedRateLimitGroup with a keyFrom that derives the key. A key ' +
+          `group type (code.groupTypes) whose create() builds a ${types} with a keyFrom that derives the key. A key ` +
           'derived from the flow itself is Q248, deferred',
       });
     }

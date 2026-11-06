@@ -425,6 +425,11 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W225 — P46 decisions 3-5, ADR 0143: UnitGroup and KeyedConcurrentLimitGroup as built-ins and a resident request — L1 in
+  // `test/definition/registry.test.ts` and, through `createRuntime` and against the real scheduler's construction, in
+  // `test/scheduler/runtime.test.ts`; both counted below.
+  'W225 — UnitGroup and KeyedConcurrentLimitGroup as built-ins, and a resident request held to its shape and to the group it names (ADR 0143)',
+  'W225 — the UnitGroup and KeyedConcurrentLimitGroup factories build the scheduler`s own classes, FD-R6 reaches a built-in KeyedConcurrentLimitGroup, and every resident verdict is the scheduler`s',
   // W221 — P45 (a1), (b1), (g1), decisions 2-8, ADR 0140: a comparison's `valueFrom` — L1 in
   // `test/definition/value-from.test.ts`, L2 in `test/driver/value-from.test.ts`; both counted below.
   'L1 — W221, P45 (a1) (b1) (g1): a comparison`s valueFrom — exactly one right side, FD-V43 on both keys, the needs a path names declared, compared as a literal, absent no match',
@@ -1054,6 +1059,14 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // deleted WITH its `DECLARED_CASES` line, or the suite emptied at load, left `npm test` at exit 0 before this count.
   // **W221's two suites, counted the same way and for the same reason** — W220's adequacy reader's D4b/D4c/D5 class: a
   // case deleted WITH its `DECLARED_CASES` line, or a suite emptied at load, leaves `npm test` at exit 0 without a count.
+  // **W225's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
+  test('W225`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W225 — UnitGroup and KeyedConcurrentLimitGroup as built-ins, and a resident request held to its shape and to the group it names (ADR 0143)'), 8,
+      'test/definition/registry.test.ts registers its eight: UnitGroup config, KeyedConcurrentLimitGroup config, the resident shape, against a UnitGroup, against the other built-ins, a code type and the Q619 refusal, every derived road, and copyResident');
+    equal(count('W225 — the UnitGroup and KeyedConcurrentLimitGroup factories build the scheduler`s own classes, FD-R6 reaches a built-in KeyedConcurrentLimitGroup, and every resident verdict is the scheduler`s'), 4,
+      'test/scheduler/runtime.test.ts registers its four: the factories, FD-R6, createRuntime`s refusals and the request handed on, and the real scheduler`s verdicts');
+  });
   test('W221`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('L1 — W221, P45 (a1) (b1) (g1): a comparison`s valueFrom — exactly one right side, FD-V43 on both keys, the needs a path names declared, compared as a literal, absent no match'), 11,

@@ -2687,7 +2687,7 @@ flow, and the class says which document to open.
 member and the group's key; `GroupNotBuildable` — a group type with no `create`; since W89, `RunIdInUse`
 — a `start` or `resume` naming a run id that runtime has already built a driver for, a finished run's included (`RN-R25`, ADR 0091);
 and, since W163, **`LimitKeyMissing`** — a `start` or `resume` given no `createTask`, of a flow a node of which reaches a
-group the built-in `KeyedRateLimitGroup` factory built (`FD-R6`, [ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), section 12), its `at` the node.
+group a built-in keyed factory built — `KeyedRateLimitGroup`, or since spec v0.56 `KeyedConcurrentLimitGroup` (`FD-R6`, [ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md), section 12), its `at` the node.
 *(`LanguageNotBuilt` — a flow transforming on a type no pool was built for — was another until W162 removed it
 with `createRuntime`'s `flows`: every typed pool carries every registered language since
 [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md), section 12.)* A bare
@@ -3237,7 +3237,7 @@ if (!haltedRun.haltedBy?.startsWith('UncloneableResult')) throw new Error(`halte
 |---|---|
 | flow-level **retry** — re-dispatching a NODE under a new attempt, possibly routing elsewhere | **task-level retry IS built** since [W58](doc/work-items/w58-what-a-node-says-about-its-own-task.md): declare `retryPolicy` on the node (section 3) and the scheduler retries inside the same task id, reported on the record's `attempts`. Re-dispatching the node is [Q16](doc/questions/q16.md)'s other half and the task id's fourth segment, and nothing mints one |
 | **`runtime.register()`** — adding node types, pools, groups or languages to a RUNNING runtime | **declined** — [P37](doc/plans/p37-a-runtime-is-its-registry.md) decision 1, [ADR 0096](doc/decisions/0096-a-runtime-is-its-registry-and-start-refuses-from-runtime-check.md): `fyflow-scheduler` cannot add a pool after construction. A changed registry is a NEW runtime; a run on the old one finishes there or moves by stop-and-resume ([P34](doc/plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md)). **A FLOW is not a registry entry**: `runtime.check(flow)`, then `runtime.start(flow, …)`, takes any flow the registry can run, at any time (section 12) |
-| **a `limitKey` from the FLOW** — a node or a document saying which key a task of a keyed group is counted under | **deferred** — [Q248](doc/questions/q248.md). Pass `start` a `createTask` that sets `limitKey` on the task it builds, or register a group type whose `create` builds a `KeyedRateLimitGroup` with a `keyFrom` (section 12). A node reaching a document's built-in keyed group with neither is refused before its run starts — `FD-R6`, `LimitKeyMissing` |
+| **a `limitKey` from the FLOW** — a node or a document saying which key a task of a keyed group is counted under | **deferred** — [Q248](doc/questions/q248.md). Pass `start` a `createTask` that sets `limitKey` on the task it builds, or register a group type whose `create` builds a `KeyedRateLimitGroup` or a `KeyedConcurrentLimitGroup` with a `keyFrom` (section 12). A node reaching a document's built-in keyed group with neither is refused before its run starts — `FD-R6`, `LimitKeyMissing` |
 | **a `start()` that checks a TRANSFORMING task's payload** — the transform run first and its result held to the `inputSchema` | **no** — [ADR 0101](doc/decisions/0101-a-transforming-task-is-not-held-at-start.md): `start()` is synchronous and the transform runs only in the worker, so a task declaring one is UNCHECKED at `start` (`FD-R4`), as a worker declaring no `inputSchema` is. Call `givenVerdict(registry, flow, task, received)` — `tryTransform(…, { input: received })` on the declared transform — first, on each transforming target with the value it RECEIVES (section 15), then start |
 | **redaction by `writeOnly`** — a schema annotation keeping a value out of what a run retains or reports | **no** — [ADR 0098](doc/decisions/0098-four-annotations-join-the-schema-subset-and-constrain-nothing.md) rule 4: `writeOnly`, like `readOnly`, `title` and `description`, is admitted as an annotation since v0.36, held to its shape and read by nothing after. Redact in your own code, before the value reaches a run (section 13) |
 | **pool options on a CLASS type's instance**, and the scheduler's `idleCheckIntervalMs`, `requeueFailedTasks` and `maxWorkerRestarts` anywhere | **no** — [ADR 0099](doc/decisions/0099-a-named-instance-of-a-document-type-may-declare-its-own-pool-options.md) rules 4 and 7: a named instance of a DOCUMENT type may declare `pool` (section 13); a class computes its pool from the instance's `config` and key, so give it a `configSchema` knob. The three are refused as undeclared keys |
@@ -3344,7 +3344,7 @@ if (Object.keys(runtime.groups).join() !== 'gate') throw new Error(`groups: ${Ob
 
 **A custom group type is a FACTORY, and the runtime holds its output to what the scheduler CALLS.**
 The document names a group by KEY with a `type`; the code supplies `{ configSchema?, create(config,
-key) }` under that type name; the three built-ins are pre-registered in the same shape. What comes
+key) }` under that type name; the five built-ins are pre-registered in the same shape (section 13). What comes
 back is checked for ADR 0055's six members and refused by name otherwise. Read the counts off the
 object the runtime built — [W70](doc/work-items/w70-a-flow-that-decides-and-a-custom-group-on-the-runtime.md):
 
@@ -3376,8 +3376,9 @@ class CountingGroup extends EventTarget implements ResourceGroup {
 }
 
 // THE REGISTRY declares the group by KEY, with its TYPE by name and its config; the CODE supplies the
-// factory for that type name — `{ configSchema?, create(config, key) }`. The three built-ins,
-// `ConcurrentLimitGroup`, `RateLimitGroup` and `KeyedRateLimitGroup`, are pre-registered in the same
+// factory for that type name — `{ configSchema?, create(config, key) }`. The five built-ins,
+// `ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup`, `UnitGroup` and
+// `KeyedConcurrentLimitGroup` (section 13), are pre-registered in the same
 // shape, so `"type": "ConcurrentLimitGroup"` needs no code at all. A node type names the groups its
 // pool's tasks acquire.
 const registry: RegistryDocument = {
@@ -3444,14 +3445,14 @@ so a flow published after the runtime started runs on it, transforming on any ty
 rules — every one but `FD-R6`, below — before any run id is spent, so the two cannot disagree: *register* a flow by checking it, then
 start it. `check` leaves out what depends on a RUN rather than the flow — a payload `FD-R4` refuses,
 and a run id in use. **One finding it returns is not a definition defect: `FD-R6`**
-([ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md)) — a node reaching a group of the BUILT-IN `KeyedRateLimitGroup` type, through the
+([ADR 0097](doc/decisions/0097-what-start-refuses-that-the-flow-does-not-decide.md)) — a node reaching a group of a BUILT-IN keyed type — `KeyedRateLimitGroup`, or (spec v0.56) `KeyedConcurrentLimitGroup` (section 13) — through the
 pool it runs on — the named instance its `pool` says, else its type's default — or its `workerGroups`. The runtime builds that group with no `keyFrom`, so the scheduler counts each task
 under its `limitKey` — and nothing sets one unless you pass `start` a `createTask` that does, `(c) => new FyflowTask({
 ...c, limitKey: tenant })`; without one the scheduler's `addTask` throws. So `start` with no `createTask` throws
 **`LimitKeyMissing`** for it — after any `InvalidDefinition`, before any run id is spent — and with one, `FD-R6` refuses
 nothing (a factory that sets no key meets the scheduler's own throw). `check` cannot know what you will pass, so it
 reports `FD-R6` as if you pass none: filter it out by `f.rule` if you start with a keying `createTask`. A group a CODE
-group type builds — a `KeyedRateLimitGroup` with a `keyFrom` — is never `FD-R6`. A pool's `residentGroups` is not read
+group type builds — a keyed group with a `keyFrom` — is never `FD-R6`. A pool's `residentGroups` is not read
 here: a built-in keyed group held RESIDENT is refused earlier, at `createRuntime` (`DerivationRefused`, section 13,
 [Q619](doc/questions/q619.md)). A key derived from the flow is
 [Q248](doc/questions/q248.md), deferred. **And `createRuntime` refuses a malformed `defaultRetryPolicy`** —
@@ -3956,11 +3957,88 @@ a hand-written `NodeTypeDefinition`, or a copy of a resolved one, is a class to 
 **A `residentGroups` naming a group of the built-in `KeyedRateLimitGroup` type is refused at `createRuntime`** (v0.39,
 [Q619](doc/questions/q619.md), W169) — `DerivationRefused`, naming the pool and the group, whether a type, a named
 instance or your class's `pool()` put it there. The scheduler resolves no key for a RESIDENT group, so every worker
-holding it would be counted in ONE `""` bucket, in silence. Name a keyed group in `groups` instead — each task is then
-counted under its `limitKey` (`FD-R6`, section 12) — or hold a `ConcurrentLimitGroup` or `RateLimitGroup` resident. A
+holding it would be counted in ONE `""` bucket, in silence. **A built-in `KeyedConcurrentLimitGroup` is refused the same
+way** (spec v0.56, W225) — the scheduler rejects one held resident at construction. Name a keyed group in `groups` instead — each task is then
+counted under its `limitKey` (`FD-R6`, section 12) — or hold a `ConcurrentLimitGroup` or `RateLimitGroup` resident (or a `UnitGroup`). A
 group your own `code.groupTypes` factory builds is never refused. **BREAKING in 0.8.0**: such a document built a
 runtime at orchestration 0.7.0. **`bootstrap` called by hand is not covered** — it is handed group OBJECTS and cannot tell the
 built-in factory's keyed group from your own — as a `Driver` built by hand is not covered by `FD-R6`.
+
+**Units with names, a limit per key, and a resident REQUEST — as data** — `spec/flow-definition.md` v0.56,
+[ADR 0143](doc/decisions/0143-unit-and-keyed-concurrent-groups-are-built-ins-and-a-resident-request-is-checked-against-the-group.md),
+[W225](doc/work-items/w225-unit-and-keyed-concurrent-groups-and-a-resident-request.md). Two more built-in group types, beside
+`ConcurrentLimitGroup`, `RateLimitGroup` and `KeyedRateLimitGroup`, each the scheduler's own class:
+
+| `type` | `config` | built as |
+|---|---|---|
+| `UnitGroup` | `{ "units": 2 }` (units `0` and `1`) or `{ "units": ["gpu0", "gpu1"] }` — at least one, the names DISTINCT | `new UnitGroup(units, { id: key })` — a hold is granted named units; no `requestFrom` |
+| `KeyedConcurrentLimitGroup` | `{ "limit": 4, "limits": { "E:": 1 } }` — every per-key limit a positive integer | `new KeyedConcurrentLimitGroup(limit, { id: key, limitFor })`, `limitFor(k)` reading a COPY of `limits`, else `limit`; no `keyFrom` |
+
+A repeated unit, or a per-key limit that is not a positive integer, is `GroupConfigRefused` naming the group. **A
+`KeyedConcurrentLimitGroup` is held to `KeyedRateLimitGroup`'s rules**: a node reaching one is `FD-R6` (section 12), and one
+held resident is refused, as above. **A `residentGroups` value may be a REQUEST** — `{ "gpu": { "cost": 1, "from":
+["gpu1"] } }`, `{ cost?, from?, prefer? }`: `from` the units a worker of the pool may hold, `prefer` a hint that never
+blocks, each a non-empty list of distinct ids (an integer for a `UnitGroup` declared by count). **A resident cost is a
+positive INTEGER** — a fraction, which the scheduler throws on, was accepted until spec v0.56. Every cost and request is
+held against the group it names when the runtime is built, `DerivationRefused` naming the pool and the group, each a pool
+the scheduler would throw on at construction: an id a `UnitGroup` lacks, a cost above `from`'s size or above a group's
+limit (a `RateLimitGroup`'s smallest window), and `from` / `prefer` on a `ConcurrentLimitGroup` or `RateLimitGroup`, which
+take no request — `{ cost }` alone is a cost for any group. A request to a group your `code.groupTypes` factory builds is
+handed on untouched WITHIN the request shape `{ cost?, from?, prefer? }`, for its own `checkRequest` — a request
+language beyond that shape is not declarable in a document. A TASK's request is its `units`, set by your `createTask`; nothing in a
+flow declares one.
+
+```ts run
+import { createRuntime } from 'fyflow-orchestration/scheduler';
+import { DerivationRefused, GroupConfigRefused, type FlowDefinition, type RegistryDocument } from 'fyflow-orchestration';
+import { KeyedConcurrentLimitGroup, UnitGroup } from 'fyflow-scheduler';
+
+// Two cards, a worker per card, and this pool pinned to the second; a per-disk limit with a slow USB disk.
+const registry = (resident: unknown, units: unknown = ['gpu0', 'gpu1']): RegistryDocument => ({
+  workers: { ingest: { url: '../../examples/workers/ingest.ts' } },
+  groups: {
+    gpu: { type: 'UnitGroup', config: { units } },
+    disk: { type: 'KeyedConcurrentLimitGroup', config: { limit: 4, limits: { 'E:': 1 } } },
+  },
+  nodeTypes: {
+    Model: { worker: 'ingest', inline: true, pool: { idleTimeout: 1000, residentGroups: resident as never } },
+    Copy: { worker: 'ingest', inline: true, groups: ['disk'] },
+  },
+});
+
+const runtime = createRuntime(registry({ gpu: { cost: 1, from: ['gpu1'] } }), {}, { base: import.meta.url });
+const gpu = runtime.groups['gpu'] as unknown as UnitGroup;
+const disk = runtime.groups['disk'] as unknown as KeyedConcurrentLimitGroup;
+if (!(gpu instanceof UnitGroup) || gpu.getFreeUnits().join() !== 'gpu0,gpu1') throw new Error('the scheduler`s own UnitGroup, both cards free');
+if (!(disk instanceof KeyedConcurrentLimitGroup) || disk.getKeyMetrics('E:').limit !== 1 || disk.getKeyMetrics('C:').limit !== 4) {
+  throw new Error('the per-key limits: E: 1, any other disk 4');
+}
+// The pool is handed the request as declared — the scheduler grants this pool's workers gpu1 and nothing else.
+if (JSON.stringify(runtime.pools['Model']!.spec.residentGroups) !== '{"gpu":{"cost":1,"from":["gpu1"]}}') throw new Error('the request');
+
+// A node reaching the keyed group needs a `limitKey`, which only your createTask sets: FD-R6, as for KeyedRateLimitGroup.
+const copy: FlowDefinition = {
+  flowId: 'copy', version: 1, entry: 'c',
+  nodes: [{ id: 'c', kind: 'task', type: 'Copy', edges: [{ to: 'done' }] }, { id: 'done', kind: 'end', outcome: 'completed' }],
+};
+if (runtime.check(copy).map((f) => f.rule).join() !== 'FD-R6') throw new Error('FD-R6 at the node reaching `disk`');
+await runtime.shutdown();
+
+// What the scheduler would throw on at construction is refused here, naming the pool and the group.
+const refusal = (doc: RegistryDocument): Error => {
+  try { createRuntime(doc, {}, { base: import.meta.url }); } catch (e) { return e as Error; }
+  return new Error('expected a refusal');   // not a refusal class, so every check below throws
+};
+const missing = refusal(registry({ gpu: { from: ['gpu7'] } }));
+if (!(missing instanceof DerivationRefused) || !missing.message.includes('node type "Model"') || !missing.message.includes('unit "gpu7"')) throw new Error(missing.message);
+const tooMany = refusal(registry({ gpu: { cost: 2, from: ['gpu1'] } }));
+if (!(tooMany instanceof DerivationRefused) || !tooMany.message.includes('a cost of 2 from 1')) throw new Error(tooMany.message);
+const keyedResident = refusal(registry(['disk']));
+if (!(keyedResident instanceof DerivationRefused) || !keyedResident.message.includes('KeyedConcurrentLimitGroup')) throw new Error(keyedResident.message);
+const twice = refusal(registry(['gpu'], ['gpu0', 'gpu0']));
+if (!(twice instanceof GroupConfigRefused) || twice.at !== 'gpu') throw new Error(twice.message);
+```
+
 **Your worker's `run(payload, context)` gets the scheduler's own task context as its second argument** —
 the same object the scheduler handed the envelope worker, so `context.signal` (an `AbortSignal`, aborted
 when `scheduler.cancel(taskId)` is called for the task) and `context.emit(name, data)` (a `task.message`

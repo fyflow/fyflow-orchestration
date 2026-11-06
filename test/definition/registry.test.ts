@@ -19,7 +19,7 @@
  * document type and once under a class, under the same claim — what the derived `PoolSpec` carries.
  */
 import { equal, ok, readText, ROOT, suite } from '../harness.ts';
-import { canonical } from '../../src/definition/schema.ts';
+import { canonical, findings as schemaFindings } from '../../src/definition/schema.ts';
 import * as registryModule from '../../src/definition/registry.ts';
 import {
   BUILT_IN_GROUP_TYPES, ConfigRefused, DECLARED_POOL_KEYS, DerivationRefused, DOCUMENT_KEYS, GroupConfigRefused, GroupTypeMissing,
@@ -546,7 +546,7 @@ suite('the key sets are claims about the spec`s tables — compared both ways', 
     const poolOnly = [...instanceTable.matchAll(/^\|\s*`(\w+)`\s*\|\s*optional, a POOL instance's only\b/gm)].map((m) => m[1]!);
     equal(poolOnly, ['pool'], 'one row is a pool instance`s only — `pool`');
     equal(POOL_INSTANCE_KEYS.filter((k) => !poolOnly.includes(k)).sort(), [...INSTANCE_KEYS].sort(), 'and the rest are a group instance`s keys');
-    equal(await specTable('#### The built-in group types'), Object.keys(BUILT_IN_GROUP_TYPES).sort(), 'the three built-ins by name');
+    equal(await specTable('#### The built-in group types'), Object.keys(BUILT_IN_GROUP_TYPES).sort(), 'the five built-ins by name (three until v0.56, W225)');
   });
   test('poolSpecProblem and groupsNamedBy — the shape both derivations pass through', () => {
     equal(poolSpecProblem({}), null, 'empty is a spec');
@@ -866,7 +866,9 @@ suite('W141 — one shape function: checkRegistry and resolveRegistry refuse eve
  */
 suite('W165 — pool options on a named pool instance: a DOCUMENT type`s instance overrides its type`s, held to poolSpecProblem; residentGroups copied; flushIntervalMs bounded (ADR 0099)', (test) => {
   const WK: RegistryDocument['workers'] = { w: { url: 'test://w' } };
-  const GR: RegistryDocument['groups'] = { g: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, h: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, k: { type: 'ConcurrentLimitGroup', config: { limit: 1 } } };
+  // `k`'s limit is 2 since W225 (v0.56, ADR 0143 rule 5): OVER holds it resident at a cost of 2, which the scheduler throws
+  // on at construction above a limit of 1 — and which the registry now refuses, naming the pool and the group.
+  const GR: RegistryDocument['groups'] = { g: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, h: { type: 'ConcurrentLimitGroup', config: { limit: 1 } }, k: { type: 'ConcurrentLimitGroup', config: { limit: 2 } } };
   /** The type's declared pool — every DECLARED_POOL_KEYS member set. */
   const TYPE_POOL = { maxThreads: 2, maxConcurrentTasks: 3, idleTimeout: 1000, residentGroups: ['h'], cancelGraceMs: 100, messages: { flushIntervalMs: 50, maxBuffered: 10 } };
   /** One instance value per key, each DIFFERENT from the type's. */
@@ -1061,6 +1063,233 @@ suite('W165 — pool options on a named pool instance: a DOCUMENT type`s instanc
     refused({ pools: { reshape: { type: 'Transform', inline: true } } } as unknown as RegistryDocument, UndeclaredKey, ['"reshape"', '"inline"'], {}, 'and `inline` is still not an instance key');
   });
 });
+
+/**
+ * **W225 — `UnitGroup` and `KeyedConcurrentLimitGroup` as built-in group types, and a resident unit REQUEST** —
+ * `spec/flow-definition.md` v0.56 (section 3's built-in group types, *What a derivation returns*' `residentGroups` row and
+ * the table after it, the refusal table's `GroupConfigRefused` and `DerivationRefused` rows), P46 decisions 3-5,
+ * [ADR 0143](../../doc/decisions/0143-unit-and-keyed-concurrent-groups-are-built-ins-and-a-resident-request-is-checked-against-the-group.md).
+ * **Every expected verdict is the spec's or the scheduler's reference at the pin** (`node_modules/fyflow-scheduler/AGENTS.md`
+ * §5: *Units with names*, *Asking for particular units* — *"a unit the group does not have … throws"*, *"a cost above the
+ * size of its `from` throws"*; *`residentGroups`* — *"Costs must be positive integers and no larger than the group's
+ * limit"*, *"a `KeyedConcurrentLimitGroup`"* rejected; *Per-key concurrency limits* — *"It must return a positive
+ * integer"*), never this module's output. The refusals are named by their message's SUBJECT — the group, the pool as
+ * `derivePool` names it, the field — and `at` is the group key or the pool key. `test/scheduler/runtime.test.ts`'s W225
+ * suite holds every resident verdict here against the REAL scheduler's construction, a second observer.
+ */
+suite('W225 — UnitGroup and KeyedConcurrentLimitGroup as built-ins, and a resident request held to its shape and to the group it names (ADR 0143)', (test) => {
+  const WK: RegistryDocument['workers'] = { w: { url: 'test://w' } };
+  /** The groups every case may name: named units, counted units, a concurrency limit, a rate limit (smallest window 2), both keyed built-ins, and a CODE type's. */
+  const GROUPS = {
+    gpu: { type: 'UnitGroup', config: { units: ['gpu0', 'gpu1'] } },
+    slots: { type: 'UnitGroup', config: { units: 2 } },
+    conc: { type: 'ConcurrentLimitGroup', config: { limit: 2 } },
+    rate: { type: 'RateLimitGroup', config: { windows: [{ limit: 5, windowMs: 1000 }, { limit: 2, windowMs: 100 }] } },
+    disk: { type: 'KeyedConcurrentLimitGroup', config: { limit: 4, limits: { 'E:': 1 } } },
+    api: { type: 'KeyedRateLimitGroup', config: { windows: [{ limit: 5, windowMs: 1000 }] } },
+    own: { type: 'Own', config: {} },
+  };
+  /** A code group type whose `create` the resolver never calls — its group is handed a request untouched. */
+  const CODE: RegistryCode = { groupTypes: { Own: { create: () => ({}) as never } } };
+  /** One document type `T` holding `resident`, with every group above declared. */
+  const docT = (resident: unknown): RegistryDocument =>
+    ({ workers: WK, groups: GROUPS, nodeTypes: { T: { worker: 'w', pool: { idleTimeout: 1000, residentGroups: resident } } } }) as unknown as RegistryDocument;
+  const resolves = (doc: RegistryDocument, label: string, c: RegistryCode = CODE) => {
+    let err: unknown = null;
+    let r: ReturnType<typeof resolveRegistry> | undefined;
+    try { r = resolveRegistry(doc, c); } catch (e) { err = e; }
+    equal(err === null ? null : `${(err as Error).name}: ${(err as Error).message}`, null, `${label}: resolves`);
+    return r!;
+  };
+  /** A refusal of `T`'s default instance: DerivationRefused, at "T", the pool as derivePool names it, and `names`. */
+  const refusedT = (resident: unknown, names: string[], label: string) => {
+    const e = refused(docT(resident), DerivationRefused, ['node type "T"\'s default instance', ...names], CODE, label);
+    equal(e.at, 'T', `${label}: at the pool key`);
+    return e;
+  };
+
+  test('UnitGroup config: a count >= 1 or a non-empty list of non-empty, DISTINCT strings — everything else GroupConfigRefused naming the group', () => {
+    const one = (config: unknown): RegistryDocument => ({ groups: { u: { type: 'UnitGroup', config } } }) as unknown as RegistryDocument;
+    for (const config of [{ units: 1 }, { units: 8 }, { units: ['gpu0'] }, { units: ['gpu0', 'gpu1', 'x'] }]) {
+      equal(resolves(one(config), `units ${JSON.stringify(config.units)}`).groups.get('u')!.type, 'UnitGroup', `${JSON.stringify(config)}: a UnitGroup`);
+    }
+    const REFUSED: [string, unknown, string][] = [
+      ['a count of 0', { units: 0 }, 'below minimum 1'],
+      ['a fractional count', { units: 1.5 }, 'expected integer|array'],
+      ['an empty list', { units: [] }, 'fewer than 1 items'],
+      ['an empty name', { units: ['gpu0', ''] }, '$.units[1] shorter than 1'],
+      ['a NUMBER in the list (a count is the integer form, never an element)', { units: ['gpu0', 1] }, '$.units[1] expected string'],
+      ['a string count', { units: '2' }, 'expected integer|array'],
+      ['no units', {}, '$.units required'],
+      ['a key beside units — requestFrom is a function, not data', { units: 2, requestFrom: 'x' }, '$.requestFrom not declared'],
+    ];
+    for (const [label, config, says] of REFUSED) {
+      const e = refused(one(config), GroupConfigRefused, ['group "u"', '"UnitGroup"', says], {}, label);
+      equal(e.at, 'u', `${label}: at the group key`);
+    }
+    // BESIDE the schema (P46 fact 7: no uniqueItems): a repeat, the schema itself silent on it.
+    equal(findingsOf(BUILT_IN_GROUP_TYPES.UnitGroup!.configSchema, { units: ['gpu0', 'gpu0'] }), [], 'the CONTROL: the schema alone admits a repeat');
+    const e = refused(one({ units: ['gpu0', 'gpu1', 'gpu0'] }), GroupConfigRefused, ['group "u"', '"UnitGroup"', 'beside its configSchema', 'unit "gpu0" twice'], {}, 'a repeated unit');
+    equal(e.at, 'u', 'a repeated unit: at the group key');
+  });
+
+  test('KeyedConcurrentLimitGroup config: a limit >= 1 and limits an object of POSITIVE INTEGERS — everything else GroupConfigRefused naming the group', () => {
+    const one = (config: unknown): RegistryDocument => ({ groups: { d: { type: 'KeyedConcurrentLimitGroup', config } } }) as unknown as RegistryDocument;
+    for (const config of [{ limit: 1 }, { limit: 4, limits: {} }, { limit: 4, limits: { 'E:': 1, 'C:': 8 } }]) {
+      equal(resolves(one(config), JSON.stringify(config)).groups.get('d')!.config, config, `${JSON.stringify(config)}: resolved as declared`);
+    }
+    const SCHEMA: [string, unknown, string][] = [
+      ['a limit of 0', { limit: 0 }, 'below minimum 1'],
+      ['a fractional limit', { limit: 2.5 }, 'expected integer'],
+      ['no limit', { limits: { a: 1 } }, '$.limit required'],
+      ['limits a list', { limit: 1, limits: [1] }, '$.limits expected object'],
+      ['a key beside the two — keyFrom is a function, not data', { limit: 1, keyFrom: 'drive' }, '$.keyFrom not declared'],
+    ];
+    for (const [label, config, says] of SCHEMA) refused(one(config), GroupConfigRefused, ['group "d"', '"KeyedConcurrentLimitGroup"', says], {}, label);
+    // BESIDE the schema (no schema-valued additionalProperties): each per-key limit a positive integer.
+    equal(findingsOf(BUILT_IN_GROUP_TYPES.KeyedConcurrentLimitGroup!.configSchema, { limit: 1, limits: { a: 0 } }), [], 'the CONTROL: the schema alone admits a zero per-key limit');
+    for (const [label, bad, shownAs] of [['zero', 0, '0'], ['fractional', 1.5, '1.5'], ['a string', '2', '"2"'], ['null', null, 'null'], ['negative', -1, '-1']] as [string, unknown, string][]) {
+      const e = refused(one({ limit: 4, limits: { 'C:': 2, 'E:': bad } }), GroupConfigRefused,
+        ['group "d"', '"KeyedConcurrentLimitGroup"', 'beside its configSchema', '$.limits["E:"]', 'positive integer', `got ${shownAs}`], {}, `a ${label} per-key limit, the second key`);
+      equal(e.at, 'd', `a ${label} per-key limit: at the group key`);
+    }
+  });
+
+  test('a resident record value`s SHAPE (poolSpecProblem): a positive INTEGER cost, or { cost?, from?, prefer? } — each malformed one refused on the type, naming the key', () => {
+    const ADMITTED: unknown[] = [1, 2, { cost: 1 }, { cost: 2 }, {}, { from: ['gpu0'] }, { from: [0, 1] }, { prefer: ['gpu1'] }, { cost: 2, from: ['gpu0', 'gpu1'], prefer: ['gpu1'] }];
+    for (const v of ADMITTED) equal(poolSpecProblem({ residentGroups: { gpu: v } }), null, `${JSON.stringify(v)}: admitted by the shape`);
+    const REFUSED: [string, unknown, string][] = [
+      ['a FRACTIONAL cost — accepted until v0.56', 1.5, 'INTEGER'],
+      ['a zero cost', 0, 'cost > 0'],
+      ['a negative cost', -1, 'cost > 0'],
+      ['NaN', NaN, 'got NaN'],
+      ['Infinity', Infinity, 'got Infinity'],
+      ['null', null, 'plain object'],
+      ['a string', '1', 'plain object'],
+      ['a list', [1], 'an array'],
+      ['a Map', new Map([['cost', 1]]), 'a Map'],
+      ['an undeclared key', { cost: 1, count: 2 }, 'undeclared key "count"'],
+      ['a request cost of 0', { cost: 0 }, '.cost must be a positive integer'],
+      ['a fractional request cost', { cost: 1.5 }, '.cost must be a positive integer'],
+      ['a PRESENT undefined cost', { cost: undefined }, '.cost must be a positive integer'],
+      ['an empty from', { from: [] }, '.from must be a non-empty list'],
+      ['a from that is a string', { from: 'gpu0' }, '.from must be a non-empty list'],
+      ['a PRESENT undefined from', { from: undefined }, '.from must be a non-empty list'],
+      ['an empty prefer', { prefer: [] }, '.prefer must be a non-empty list'],
+      ['an empty id', { from: [''] }, '.from holds ""'],
+      ['a negative id', { from: [-1] }, '.from holds -1'],
+      ['a fractional id', { prefer: [0.5] }, '.prefer holds 0.5'],
+      ['an object id', { from: [{}] }, '.from holds {}'],
+      ['a repeated id in from', { from: ['gpu0', 'gpu0'] }, '.from repeats a unit id'],
+      ['a repeated id in prefer', { prefer: [1, 1] }, '.prefer repeats a unit id'],
+    ];
+    for (const [label, v, says] of REFUSED) {
+      const p = poolSpecProblem({ residentGroups: { gpu: v } });
+      ok(p !== null && p.includes('residentGroups["gpu"]') && p.includes(says), `${label}: refused naming the key and ${says} — ${p}`);
+      // A document type's declared pool is held by its SHAPE check, before its derivation runs — named as the type's field.
+      const e = refused(docT({ gpu: v }), DerivationRefused, ['node type "T".pool', 'residentGroups["gpu"]', says], CODE, `${label}, on a document type`);
+      equal(e.at, 'T', `${label}: at the type`);
+    }
+    // The second key is read, not only the first.
+    ok((poolSpecProblem({ residentGroups: { conc: 1, gpu: { from: [] } } }) ?? '').includes('residentGroups["gpu"]'), 'the record`s SECOND value is held');
+  });
+
+  test('a request held against a built-in UnitGroup`s declared units: an id it lacks, a cost above from`s size or its unit count — DerivationRefused naming the pool and the group', () => {
+    // Accepted: §5's table of requests, on named units and on counted ones.
+    for (const v of [{ gpu: 1 }, { gpu: 2 }, ['gpu'], { gpu: { from: ['gpu1'] } }, { gpu: { from: ['gpu0', 'gpu1'] } }, { gpu: { cost: 2, from: ['gpu0', 'gpu1'] } },
+      { gpu: { prefer: ['gpu1'] } }, { gpu: { cost: 2 } }, { slots: { from: [1] } }, { slots: { cost: 2, from: [0, 1], prefer: [1] } }]) {
+      resolves(docT(v), `UnitGroup ${JSON.stringify(v)}`);
+    }
+    const REFUSED: [string, unknown, string[]][] = [
+      ['a from id the group lacks', { gpu: { from: ['gpu2'] } }, ['group "gpu"', '"UnitGroup"', 'from names unit "gpu2"', '"gpu0", "gpu1"']],
+      ['a prefer id the group lacks — prefer is held as from is', { gpu: { prefer: ['gpu9'] } }, ['group "gpu"', 'prefer names unit "gpu9"']],
+      ['an id the group lacks, SECOND in the list', { gpu: { from: ['gpu0', 'GPU1'] } }, ['group "gpu"', 'from names unit "GPU1"']],
+      ['an INTEGER id on a group of named units', { gpu: { from: [0] } }, ['group "gpu"', 'from names unit 0']],
+      ['a STRING id on a group declared by count — its units are the integers', { slots: { from: ['1'] } }, ['group "slots"', 'from names unit "1"', 'declared by count']],
+      ['an integer past the count', { slots: { prefer: [2] } }, ['group "slots"', 'prefer names unit 2', 'its units are 0, 1']],
+      ['a cost above from`s size', { gpu: { cost: 2, from: ['gpu1'] } }, ['group "gpu"', 'a cost of 2 from 1 candidate unit(s)']],
+      ['a request cost above the unit count', { gpu: { cost: 3 } }, ['group "gpu"', 'a cost of 3 is above the 2 unit(s)']],
+      ['a PLAIN cost above the unit count', { slots: 3 }, ['group "slots"', 'a cost of 3 is above the 2 unit(s)']],
+    ];
+    for (const [label, v, names] of REFUSED) refusedT(v, [`residentGroups["${Object.keys(v as object)[0]}"]`, ...names], label);
+  });
+
+  test('a request on a built-in group that takes none, and a cost above a built-in group`s limit — DerivationRefused; `{ cost }` alone is a cost for any group', () => {
+    resolves(docT({ conc: { cost: 2 } }), '{ cost: 2 } on a ConcurrentLimitGroup(2) — a cost written as an object');
+    resolves(docT({ conc: 2, rate: 2 }), 'a cost AT the limit — a ConcurrentLimitGroup`s, and a RateLimitGroup`s smallest window`s');
+    resolves(docT({ rate: { cost: 1 } }), '{ cost } on a RateLimitGroup');
+    const REFUSED: [string, unknown, string[]][] = [
+      ['from on a ConcurrentLimitGroup', { conc: { from: ['x'] } }, ['group "conc"', '"ConcurrentLimitGroup"', 'naming from', 'takes no request']],
+      ['prefer on a RateLimitGroup', { rate: { cost: 1, prefer: [0] } }, ['group "rate"', '"RateLimitGroup"', 'naming prefer', 'takes no request']],
+      ['from and prefer together', { conc: { from: [0], prefer: [0] } }, ['group "conc"', 'naming from and prefer']],
+      ['a plain cost above a ConcurrentLimitGroup`s limit', { conc: 3 }, ['group "conc"', 'a cost of 3 is above the limit of 2']],
+      ['a request cost above it', { conc: { cost: 3 } }, ['group "conc"', 'a cost of 3 is above the limit of 2']],
+      ['a cost above a RateLimitGroup`s SMALLEST window (5 and 2)', { rate: 3 }, ['group "rate"', 'a cost of 3 is above the limit of 2', 'smallest window']],
+    ];
+    for (const [label, v, names] of REFUSED) refusedT(v, [`residentGroups["${Object.keys(v as object)[0]}"]`, ...names], label);
+  });
+
+  test('a CODE group type`s group is handed the request UNTOUCHED — whatever it names — and the built-in KeyedConcurrentLimitGroup held resident is the Q619 refusal', () => {
+    const r = resolves(docT({ own: { cost: 99, from: ['anything', 7], prefer: ['x'] } }), 'any request on a code group type');
+    equal(r.pools.get('T')!.spec.residentGroups, { own: { cost: 99, from: ['anything', 7], prefer: ['x'] } }, 'and the derived spec carries it as declared');
+    // The Q619 refusal, widened by name (P46 decision 5): a list, a cost, and a request — the keyed refusal FIRST.
+    for (const v of [['disk'], { disk: 1 }, { disk: { cost: 1 } }, { conc: 1, disk: 2 }]) {
+      refusedT(v, ['group "disk"', 'of the built-in type "KeyedConcurrentLimitGroup", in residentGroups', 'REJECTS', 'Q619',
+        'Name "disk" in groups', 'hold a ConcurrentLimitGroup or RateLimitGroup resident'], `KeyedConcurrentLimitGroup resident as ${JSON.stringify(v)}`);
+    }
+    // The other keyed built-in still names its OWN reason, not this one.
+    const e = refusedT(['api'], ['group "api"', 'of the built-in type "KeyedRateLimitGroup"', 'ONE "" bucket'], 'KeyedRateLimitGroup resident');
+    ok(!e.message.includes('REJECTS'), 'and not the KeyedConcurrentLimitGroup`s reason');
+    resolves(({ workers: WK, groups: GROUPS, nodeTypes: { T: { worker: 'w', groups: ['disk'] } } }) as unknown as RegistryDocument, 'the CONTROL: disk in `groups` — FD-R6`s road, not this one');
+  });
+
+  test('the refusal is read off every DERIVED pool — a type`s default, a named instance`s merged pool, a class`s output — each naming its own pool', () => {
+    const BAD = { gpu: { from: ['gpu7'] } };
+    const named = refused(({ workers: WK, groups: GROUPS, nodeTypes: { T: { worker: 'w', pool: { idleTimeout: 1000 } } }, pools: { inst: { type: 'T', pool: { residentGroups: BAD } } } }) as unknown as RegistryDocument,
+      DerivationRefused, ['pool "inst" (an instance of "T")', 'group "gpu"', 'gpu7'], CODE, 'a named instance`s own pool');
+    equal(named.at, 'inst', 'at the instance key');
+    const cls: NodeTypeDefinition = { worker: 'w', pool: () => ({ idleTimeout: 1000, residentGroups: BAD }) };
+    const byClass = refused(({ workers: WK, groups: GROUPS }) as unknown as RegistryDocument, DerivationRefused,
+      ['node type "C"\'s default instance', 'group "gpu"', 'gpu7'], { ...CODE, nodeTypes: { C: cls } }, 'a class`s output');
+    equal(byClass.at, 'C', 'at the class`s default instance');
+    const shapeByClass = refused(({ workers: WK, groups: GROUPS }) as unknown as RegistryDocument, DerivationRefused,
+      ['node type "C"\'s default instance', 'not a PoolSpec', 'residentGroups["gpu"]', 'INTEGER'], { ...CODE, nodeTypes: { C: { worker: 'w', pool: () => ({ residentGroups: { gpu: 0.5 } }) } } }, 'a class`s malformed cost');
+    equal(shapeByClass.at, 'C', 'the shape refusal at the class`s default instance');
+  });
+
+  test('copyResident copies a request DEEPLY — the record, each request, its from and prefer — so the document`s edits after resolve move nothing', () => {
+    const decl = { worker: 'w', pool: { idleTimeout: 1000, residentGroups: { gpu: { cost: 1, from: ['gpu0', 'gpu1'], prefer: ['gpu1'] }, conc: 1 } } };
+    const own = { residentGroups: { gpu: { from: ['gpu1'] } } };
+    const doc = ({ workers: WK, groups: GROUPS, nodeTypes: { T: decl }, pools: { inst: { type: 'T', pool: own } } }) as unknown as RegistryDocument;
+    const r = resolveRegistry(doc, CODE);
+    const t = r.pools.get('T')!.spec.residentGroups as Record<string, { from: string[]; prefer: string[] }>;
+    const i = r.pools.get('inst')!.spec.residentGroups as Record<string, { from: string[] }>;
+    const carried = r.pools.get('inst')!.pool!.residentGroups as Record<string, { from: string[] }>;
+    equal([t, i, carried], [decl.pool.residentGroups, own.residentGroups, own.residentGroups], 'equal to what each declared');
+    const docGpu = decl.pool.residentGroups.gpu;
+    ok((t as unknown) !== decl.pool.residentGroups && t.gpu !== docGpu && t.gpu!.from !== docGpu.from && t.gpu!.prefer !== docGpu.prefer, 'the type`s: record, request, from and prefer each a copy');
+    ok(i.gpu !== own.residentGroups.gpu && i.gpu!.from !== own.residentGroups.gpu.from, 'the instance`s spec: request and from copies');
+    ok(carried.gpu !== own.residentGroups.gpu && carried.gpu!.from !== own.residentGroups.gpu.from && carried.gpu !== i.gpu && carried.gpu!.from !== i.gpu!.from, 'the carried options: copies, and not the spec`s');
+    // Mutate the DOCUMENT after resolve: nothing resolved moves.
+    docGpu.from.push('gpu9'); docGpu.prefer[0] = 'gpu0'; docGpu.cost = 2; own.residentGroups.gpu.from[0] = 'gpu0';
+    equal(t.gpu, { cost: 1, from: ['gpu0', 'gpu1'], prefer: ['gpu1'] }, 'the type`s request unmoved by the document`s edits');
+    equal([i.gpu, carried.gpu], [{ from: ['gpu1'] }, { from: ['gpu1'] }], 'the instance`s, spec and carried, unmoved');
+    // Two calls of the identity derivation hand out two requests.
+    const def = nodeTypeFromDeclaration(decl as unknown as NodeTypeDeclaration);
+    const a = def.pool(undefined, 'x').residentGroups as Record<string, { from: string[] }>;
+    const b = def.pool(undefined, 'y').residentGroups as Record<string, { from: string[] }>;
+    ok(a.gpu !== b.gpu && a.gpu!.from !== b.gpu!.from, 'two derivations, two requests and two from lists');
+    // A record key named `__proto__` (JSON.parse makes it an OWN key) stays a key in the copy, never a prototype.
+    const proto = nodeTypeFromDeclaration(JSON.parse('{"worker":"w","pool":{"residentGroups":{"__proto__":{"from":["a"]}}}}') as NodeTypeDeclaration);
+    const pr = proto.pool(undefined, 'p').residentGroups as Record<string, unknown>;
+    equal([Object.keys(pr), Object.getPrototypeOf(pr) === Object.prototype], [['__proto__'], true], 'an own `__proto__` key copied as a key');
+  });
+});
+
+/** The schema's own findings, for a CONTROL that the subset alone is silent on a rule checked beside it. */
+function findingsOf(schema: unknown, value: unknown): unknown[] {
+  return schemaFindings(schema as never, value);
+}
 
 /** Deep equality for the fixture's own controls — the harness's, so `Infinity` and nested objects compare as `equal` does. */
 function deepEq(a: unknown, b: unknown): boolean {

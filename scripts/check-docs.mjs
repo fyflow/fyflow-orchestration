@@ -742,7 +742,9 @@ if (written.length) {
 // **Raised 52 -> 53 by [W209](../doc/work-items/w209-a-reference-to-a-nodes-error.md)**, section 3's *`"someNode!error"` — what FAILED* snippet — in its row's `Owns`.
 // **Raised 53 -> 54 by [W210](../doc/work-items/w210-the-static-shape-schema.md)**, section 3's *The definition's SHAPE, as data* snippet — in its row's `Owns`.
 // **Raised 54 -> 55 by [W220](../doc/work-items/w220-the-key-path-reader-exported-and-documented.md)**, section 4's *Reading a key path the way the library does* snippet — in its row's `Owns`.
-const RUN_FLOOR = 55;
+// **Raised 55 -> 56 by [W225](../doc/work-items/w225-unit-and-keyed-concurrent-groups-and-a-resident-request.md)**, section 13's *Units with names, a limit per key, and a resident REQUEST* snippet — an exception its Record lists.
+// **Raised 56 -> 57 by [W226](../doc/work-items/w226-grants-reach-a-types-worker-the-reply-and-p46s-close.md)**, section 13's *Which UNITS your worker holds* snippet — an exception its Record lists.
+const RUN_FLOOR = 57;
 {
   // **Only when the document parsed.** A count over a reference whose fences are
   // malformed or untagged is true of the parse and says nothing about coverage —
