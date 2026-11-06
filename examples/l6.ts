@@ -1,7 +1,7 @@
 /**
  * **Ladder L6 — the gate.** Every real run this repository makes: P1's exit
  * artifact, P2's, P4's, P5's, P6's, **P7's**, **P10's**, **P12's**, **P13's**,
- * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's**, **P43's**, **P44's** and **P45's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
+ * **P14's**, **P16's**, **P17's**, **P18's**, **P20's**, **P21's**, **P22's**, **P23's**, **P24's**, **P32's**, **P33's**, **P37's**, **P34's**, **P35's**, **P36's**, **P38's**, **P39's**, **P40's**, **P41's**, **P42's**, **P43's**, **P44's**, **P45's** and **P46's**. *(P40's-P42's were missing from this list from W200 to W212 — each item added its block's table row and not its entry, the class this list's own parenthetical records; W212 adds all four.)* *(**P22's** was missing from this
  * list for the whole of P23 — W86 added its rows and not its entry, a THIRD time; W90 adds both.)* *(This list stopped at P12 while W47's two rows and W51's two were in
  * the file — a count carried as prose in the paragraph above this file's own
  * monument to that. W51's conformity reader. **It then stopped at P18 while W78's
@@ -96,6 +96,7 @@
  * | **W212 — a failed task's ERROR, and WHEN an ask was asked** | **P43's EXIT ARTIFACT clause (3): ADR 0131's `"n!error"` and ADR 0130's `observedAt` on real workers in both runtimes.** Per pool, THREADED and INLINE, one flow: `fetch` → a `map` of four whose OPTIONAL `probe` THROWS for items 1 and 3, each its own message → the join → an OPTIONAL `lookup` that THROWS where the payload says `fail` → on its `on: ["failed"]` edge (and its default one) the ask `why`, whose `needs` reads all four `!error` spellings — `"lookup!error"`, `"lookup!error?"`, `["probe!error"]`, `["probe!error?"]` → the ask `confirm` → `done`; every clock injected. (1) The ERROR: `why`'s `asked` input carries the thrown message by hand, in the bare and `?` forms, `lookup`'s record's `error`. (2) Its CONTROL: the same ask after a SUCCEEDING `lookup` carries `null`. (3) The ARRAY forms: `[null, <probe 1's message>, null, <probe 3's>]`, item order, on both runs. (4) LIVE: `why`'s `observedAt` and `askedAt` clock A. (5) RESUMED on a fresh runtime B under clock B once A is shut down: `why`'s time is still clock A. (6) PAST THE TAIL, the control: `confirm`, asked on B, carries clock B. (7) A LOST TAIL: the store without `why`'s `asked` element, resumed on a fresh D under clock D, regenerates `why` past the tail stamped clock D. EIGHT runs. The reference censuses read its flow, so `NOT_YET_AT_L6` is gone again. Its registry is written in the block, not `registry.json` |
  * | **W218 — what a join hands on, keyed by each branch's OWN key, and a key path's bracket index into it** | **P44's EXIT ARTIFACT clause (3): ADR 0138's own keys and `CHECKPOINT_FORMAT` 2, and ADR 0137's `[n]`, on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 5 flow: a `fanout` over `prep` and `side`, `prep` holding a `map` over `xs` whose join `inner` and the fan-out's `outer` both fire; item 0's `work` held back, so `side` settles first and the map's instance 1 before 0; then `check` (an echo), two `if` and two `distinct` gates, the ask `confirm`, `done`. (1) The COLLECTION: `check`'s result and `confirm`'s input are `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}` byte for byte. (2) The IF on `input.prep.1 eq 2` routes `then`; its CONTROL `input.0.0.1` `else`. (3) The INDEX `side.xs[1]` routes `first` with key 2; its CONTROL `side.xs.1` `nokey`. (4) The OWN KEY `prep.1` routes `first` with key 2; its CONTROL `prep[1]` `nokey`. (5) The IF on an INDEX `input.side.xs[1] eq 2` routes `then`; its CONTROL `input.side.xs.1` `else`. (6) FORMAT 1 REFUSED: the run's store with `format: 1` refused `format` by `runtime.resume` on a fresh runtime once the first is shut down; its CONTROL the same store as written resuming there and completing. SIX runs. Its registry is written in the block, not `registry.json` |
  * | **W222 — a comparison against ANOTHER key path, `valueFrom`** | **P45's EXIT ARTIFACT clause (3): ADR 0140's `valueFrom` on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 6 flow (`sizeLimit` moved in front of `stat`; `stat`'s guarded edge pass 6's verbatim) behind an entry `if`: `ab` (an `if` on `input.a lt <right>`) → `abThen` / `abElse` → `sizeLimit` (returns `{ max: 100 }`) → `stat` (returns `{ size }`), whose edge to `copy` is `outcome.result.size lte <right>` with `needs: { limit: "sizeLimit" }`, default `skip`. EIGHT runs per pool: (A) `valueFrom: "needs.limit.max"` / `"input.b"`, size 50, `{a:1,b:2}` → `copy`, `then`; (B) the same, size 150, `{a:3,b:2}` → `skip`, `else`; (C, D) the LITERAL CONTROL, `value: 100` / `2`, the roads A and B took; (E) the ABSENT CONTROL, `needs.limit.nope` / `input.b` absent, size 50, `{a:1}` → `skip`, `else`; (F, G) the BOUNDARY, size 100 and `{a:2,b:2}` → `copy`, `else`, by `valueFrom` and by the literal; (H) the ABSENT CONTROL under `gt` → `skip`, `else`. Each edge claim reads the workers' results and the pool's realm, each `if` claim the payload handed on. Eleven claims per pool. SIXTEEN runs. Its registry and flow are written in the block, not under `examples/flows/` (no corpus-derived count moves) |
+ * | **W226 — which UNITS a type's worker holds, resident and per task** | **P46's EXIT ARTIFACT clause (3): the scheduler's `grants` through the envelope, on real workers in both runtimes.** One registry DOCUMENT declaring a built-in `UnitGroup` `gpu` over `['u0','u1']` (ADR 0143) and a `ConcurrentLimitGroup` `slots`, and one TYPE's worker (a `data:` module) returning what it read of `workerContext.grants` in its constructor, in `setup()` and in `run()`, and of `context.grants`. Per pool, THREADED and INLINE, EIGHT runs, each on its own runtime: (A) a fan-out of two tasks on a pool holding `{ gpu: 1 }` resident, the two held together by a BARRIER (each task waits until it hears the other) — two workers, resident grants `['u0']` and `['u1']` as a SET from the constructor on, each task's `context.grants` its worker's; (A') the same with `slots` resident — `{}` everywhere; (B) a NAMED instance's request `{ cost: 1, from: ['u1'] }` reaching the scheduler — `['u1']`; (B') the same instance at `{ gpu: 1 }` — `['u0']`; (C) the type holding `gpu` per TASK (`groups`), `createTask` setting `units: { gpu: { from: ['u1'] } }` — `context.grants` `{ gpu: ['u1'] }`, the worker's `{}`; (C') the same `createTask` without `units` — `['u0']`; (D) `gpu` held RESIDENT from `['u0']` AND per task asking `['u1']` — the task's own `['u1']` wins the clash in `context.grants`; (D') no task-held hold — the worker's `['u0']`. `context.grants` asserted frozen. Nine claims per pool. SIXTEEN runs. Its registry and flows are written in the block |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5998,6 +5999,27 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W226**: P46's exit-artifact block — eighteen subjects, nine per pool: the resident grant, the task seeing its
+  // worker's, the resident control, the named instance's request and its control, the task-held grant and its control,
+  // the clash and its control (the last two since the readers, F1/A1).
+  'W226 exit (threaded): RESIDENT —',
+  'W226 exit (threaded): the TASK sees its WORKER`s —',
+  'W226 exit (threaded): RESIDENT`s CONTROL —',
+  'W226 exit (threaded): PINNED —',
+  'W226 exit (threaded): PINNED`s CONTROL —',
+  'W226 exit (threaded): TASK-HELD —',
+  'W226 exit (threaded): TASK-HELD`s CONTROL —',
+  'W226 exit (threaded): the TASK\'s OWN WINS a CLASH —',
+  'W226 exit (threaded): the CLASH`s CONTROL —',
+  'W226 exit (inline): RESIDENT —',
+  'W226 exit (inline): the TASK sees its WORKER`s —',
+  'W226 exit (inline): RESIDENT`s CONTROL —',
+  'W226 exit (inline): PINNED —',
+  'W226 exit (inline): PINNED`s CONTROL —',
+  'W226 exit (inline): TASK-HELD —',
+  'W226 exit (inline): TASK-HELD`s CONTROL —',
+  'W226 exit (inline): the TASK\'s OWN WINS a CLASH —',
+  'W226 exit (inline): the CLASH`s CONTROL —',
   // **W222**: P45's exit-artifact block — twenty-two subjects, eleven per pool: the edge lte and gt, its literal control,
   // its absent control and its boundary; the if then and else, its literal control, its absent control and its boundary;
   // the absent control under gt (the last three per pool since the adequacy reader's SHOULD 1 and 3).
@@ -6961,7 +6983,8 @@ const REACH_CASES: [string, boolean][] = [
  * `new ConcurrentLimitGroup(99)` added to `run-flow.ts` cost ZERO at every rung.
  *
  * So the sweep below reports both. The list is the scheduler objects a RUNTIME is now responsible
- * for — a pool, a scheduler, a driver, and each of the three built-in group classes — and it is the
+ * for — a pool, a scheduler, a driver, and each of the five built-in group classes (`UnitGroup` and
+ * `KeyedConcurrentLimitGroup` since W225; this read *three* until W226) — and it is the
  * same list `S16` enumerates plus `Driver`, because the point here is that the harness builds none
  * of them rather than that the pure entry loads none.
  *
@@ -6987,7 +7010,7 @@ const REACH_CASES: [string, boolean][] = [
  * marker's, and it is a precedent for DECLARING a property rather than for waiving a claim.
  */
 const CONSTRUCTS_A_SCHEDULER_OBJECT =
-  /\bnew\s+(WorkerManager|FyflowScheduler|Driver|ConcurrentLimitGroup|RateLimitGroup|KeyedRateLimitGroup)\s*\(/;
+  /\bnew\s+(WorkerManager|FyflowScheduler|Driver|ConcurrentLimitGroup|RateLimitGroup|KeyedRateLimitGroup|UnitGroup|KeyedConcurrentLimitGroup)\s*\(/;
 
 /**
  * **The marker a file writes to declare that constructing one is its SUBJECT** — W81.
@@ -14447,6 +14470,258 @@ if (vfBlock !== null) {
   }
 }
 
+/**
+ * **W226 — which UNITS a type's worker holds, resident and per task, on real workers in both runtimes: P46's EXIT
+ * ARTIFACT clause (3)** —
+ * [W226](../doc/work-items/w226-grants-reach-a-types-worker-the-reply-and-p46s-close.md),
+ * [P46](../doc/plans/p46-what-the-scheduler-0-7-0-admission-rework-lets-a-document-declare.md) decision 6 and fact 8,
+ * [ADR 0143](../doc/decisions/0143-unit-and-keyed-concurrent-groups-are-built-ins-and-a-resident-request-is-checked-against-the-group.md)
+ * — fyflow-app's *pass 7* #4. The envelope constructs a type's worker with its own `workerContext`
+ * (`src/scheduler/envelope-worker.ts`, `new Inner(config, this.workerContext)`) and hands `run` the task's `context`
+ * untouched; until this block nothing ran either on a real pool.
+ *
+ * **Every expected value is the scheduler's `AGENTS.md` at the pin W224 moved to, read before anything ran**:
+ * - §4: *"`this.workerContext.grants.gpu` is the worker's resident one, set **before the constructor runs**, so `setup()`
+ *   can load onto the right device. A task's `context.grants` includes its worker's resident grants too … Always an
+ *   object, `{}` when nothing was granted"*; and *"its own winning on a clash"*, *"frozen one level down - a copy, on
+ *   inline pools too"* — so the constructor, `setup()` and `run()` read ONE value, a task on a
+ *   resident-holding worker reads its worker's unless it holds the same group itself, `context.grants` is frozen in
+ *   every pool, and a `ConcurrentLimitGroup` (which sets no `grants: true`, §5 *A custom
+ *   group can grant too*) leaves both `{}`.
+ * - §5 *Units with names*: *"What it grants is an array, always, at a cost of 1 too … The lowest-index free unit is
+ *   granted"*, and *"Resident: one worker per device … two workers, one card each"* — so two workers of a pool holding
+ *   `{ gpu: 1 }` over `['u0','u1']` hold `['u0']` and `['u1']`, WHICH worker holds which being the scheduler's, so the
+ *   claim is the SET; one worker alone holds `['u0']`.
+ * - §5 *Asking for particular units*: *"exactly `gpu1` — `{ from: ['gpu1'] }`"*, on a pool's `residentGroups` and on a
+ *   task's `units` (*"`units[id]` is where the group reads a task's request by default"*; *"A task-held hold always costs
+ *   1"*) — so a request `from: ['u1']`, on a pool or on a task, reaches the scheduler and is granted `['u1']`. **Not
+ *   which of `from` and `prefer` it is**: `u1` is free in every run, so a `prefer` would be granted it too (W226's
+ *   adequacy reader, A2, a stated survivor) — the difference between the two is the scheduler's own, and a registry-side
+ *   rename of `from` is held by W225's section-13 snippet in `AGENTS.md`.
+ *
+ * **Eight runs per pool**, THREADED and INLINE, each on its own runtime (so its own `gpu`, both units free at its start):
+ * **A** a fan-out of two tasks on the type `Res<P>` (`residentGroups: { gpu: 1 }`, `maxThreads: 2`, one task per
+ * worker); **A'** the same flow on `Slots<P>`, identical but for `slots`, a `ConcurrentLimitGroup(2)`, in `gpu`'s place;
+ * **B** one task on the NAMED instance `pinned<P>` of `Res<P>`, `{ gpu: { cost: 1, from: ['u1'] } }`; **B'** one task on
+ * `plain<P>`, the same instance at `{ gpu: 1 }` — the request's `from` the one difference; **C** one task of `Held<P>`
+ * (`groups: ['gpu']`, nothing resident) started with `createTask: (c) => new FyflowTask({ ...c, units: { gpu: { from:
+ * ['u1'] } } })` — `units` set where fyflow-app sets it, as `limitKey` is (W163's road); **C'** the same factory without
+ * `units`; **D** one task of `Both<P>`, holding `gpu` RESIDENT `{ cost: 1, from: ['u0'] }` AND per task (`groups`), started
+ * with C's factory (`from: ['u1']`) — a CLASH, the worker's `u0` and the task's own `u1` under one key; **D'** the same on
+ * `ResPin<P>`, identical but for `groups` — no task-held hold, so the factory's `units` names a group the task does not
+ * hold. *D pins both units by `from` because unpinned the order is the scheduler's: measured once, a task-held hold taken
+ * at dispatch got `u0` before its worker was created, and the worker `u1` — an admission order the reference does not
+ * state.* Nine claims per pool: the resident grant, the task seeing its worker's, the resident control, the request on a
+ * named instance and its control, the task-held grant and its control, the clash and its control. SIXTEEN runs.
+ *
+ * **A and A' are ARRANGED, never sampled** (`doc/workflow.md` section 5 rule 5, obligation (f)): a task done before its
+ * sibling is dispatched would hand the sibling its own worker, and both would read one unit. So each of the two tasks
+ * WAITS until it hears the other on a `BroadcastChannel` named in its settings — which crosses worker threads and
+ * realms in Node 24 and Deno — and returns `met: false` after `W226_BARRIER_MS` if it never does; with one task a
+ * worker, two tasks running together are two workers. `met` is read as each claim's PREMISE, beside the count of
+ * distinct worker ids (each worker mints one in its constructor). **No order across tasks is asserted**: every
+ * two-task reading is sorted before it is compared.
+ *
+ * **The REALM** is read too, as W222's block reads it: the worker reports whether `globalThis` carries the marker this
+ * file sets on its own realm — never on a worker thread, always inline — so a pool labelled inline that is not is red.
+ */
+const W226_DEADLINE_MS = 30_000;
+const W226_BARRIER_MS = 10_000;
+const W226_REALM = '__w226MainRealm';
+(globalThis as Record<string, unknown>)[W226_REALM] = true;
+// Each grant is read and COPIED where it is read (`JSON.stringify` — a grant is frozen, and a threaded result is a clone
+// anyway); `null` stands for a context with no `grants` at all, which the scheduler never hands (always an object).
+const W226_WORKER = `export default class {
+  constructor(config, workerContext) {
+    this.workerContext = workerContext;
+    this.id = crypto.randomUUID();
+    this.atCtor = JSON.stringify(workerContext?.grants ?? null);
+  }
+  async setup() { this.atSetup = JSON.stringify(this.workerContext?.grants ?? null); }
+  async teardown() {}
+  async run(p, context) {
+    const s = p.settings || {};
+    let met = null;
+    if (typeof s.barrier === 'string') {
+      // Announce this worker every 20 ms until the sibling is heard, then 100 ms more so it hears this one; a flag, not
+      // clearInterval, ends it — a timer that fires after the channel closed posts nothing.
+      met = await new Promise((resolve) => {
+        const ch = new BroadcastChannel(s.barrier);
+        let done = false;
+        const end = (v) => { if (done) return; done = true; ch.onmessage = null; ch.close(); resolve(v); };
+        const tick = () => { if (done) return; try { ch.postMessage(this.id); } catch {} setTimeout(tick, 20); };
+        ch.onmessage = (e) => { if (e.data !== this.id && !done) { ch.onmessage = null; setTimeout(() => end(true), 100); } };
+        setTimeout(() => end(false), ${W226_BARRIER_MS});
+        tick();
+      });
+    }
+    return { worker: this.id, met, atCtor: this.atCtor, atSetup: this.atSetup,
+      resident: JSON.stringify(this.workerContext?.grants ?? null), task: JSON.stringify(context?.grants ?? null),
+      frozen: Object.isFrozen(context?.grants), mainRealm: globalThis.${W226_REALM} === true };
+  }
+}`;
+const W226_UNITS = ['u0', 'u1'];
+const w226Doc = () => {
+  const types: Record<string, unknown> = {};
+  const pools: Record<string, unknown> = {};
+  // No `idleTimeout: 0` beside a resident group: `createRuntime` refuses the pair (P46 fact 6); each runtime is shut down
+  // after its one run, long before the scheduler's default 5000 ms idles a worker out.
+  for (const [p, inline] of [['T', false], ['I', true]] as const) {
+    types[`Res${p}`] = { worker: 'grants', inline, pool: { maxThreads: 2, residentGroups: { gpu: 1 } } };
+    types[`Slots${p}`] = { worker: 'grants', inline, pool: { maxThreads: 2, residentGroups: { slots: 1 } } };
+    types[`Held${p}`] = { worker: 'grants', inline, groups: ['gpu'], pool: { maxThreads: 2 } };
+    types[`Both${p}`] = { worker: 'grants', inline, groups: ['gpu'], pool: { maxThreads: 2, residentGroups: { gpu: { cost: 1, from: ['u0'] } } } };
+    types[`ResPin${p}`] = { worker: 'grants', inline, pool: { maxThreads: 2, residentGroups: { gpu: { cost: 1, from: ['u0'] } } } };
+    pools[`pinned${p}`] = { type: `Res${p}`, pool: { residentGroups: { gpu: { cost: 1, from: ['u1'] } } } };
+    pools[`plain${p}`] = { type: `Res${p}`, pool: { residentGroups: { gpu: 1 } } };
+  }
+  return {
+    workers: { grants: { url: rcUrl(W226_WORKER) } },
+    groups: {
+      gpu: { type: 'UnitGroup', config: { units: [...W226_UNITS] } },
+      slots: { type: 'ConcurrentLimitGroup', config: { limit: 2 } },
+    },
+    nodeTypes: types,
+    pools,
+  };
+};
+const w226Fan = (id: string, type: string, barrier: string) => ({
+  flowId: `w226-${id}`, version: 1, entry: 'split',
+  nodes: [
+    { id: 'split', kind: 'fanout', branches: ['a', 'b'] },
+    { id: 'a', kind: 'task', type, settings: { barrier }, edges: [{ to: 'j' }] },
+    { id: 'b', kind: 'task', type, settings: { barrier }, edges: [{ to: 'j' }] },
+    { id: 'j', kind: 'join', of: 'split', edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition);
+const w226One = (id: string, type: string, pool?: string) => ({
+  flowId: `w226-${id}`, version: 1, entry: 't',
+  nodes: [
+    { id: 't', kind: 'task', type, ...(pool === undefined ? {} : { pool }), edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+} as unknown as FlowDefinition);
+/** A two-task reading as a SET: each value as JSON (a string already is one), sorted — so no order is asserted. */
+const w226Sorted = (xs: readonly unknown[]) => xs.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).sort();
+type W226Seen = { worker: string; met: boolean | null; atCtor: string; atSetup: string; resident: string; task: string; frozen: boolean; mainRealm: boolean };
+let grBlock: { runs: string[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const r: Record<string, unknown> = {};
+  const grClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W226 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  /** One run on its own runtime: its outcome, and what every task's worker returned, in no particular order. */
+  const runOne = async (tag: string, flow: FlowDefinition, opts: Record<string, unknown> = {}) => {
+    const rt = createRuntime(w226Doc() as never);
+    try {
+      const h = rt.start(flow, {}, { runId: tag, ...opts });
+      runs.push(`${flow.flowId} ${tag}`);
+      const won = await settleWithin(h.done, W226_DEADLINE_MS);
+      const seen = h.driver.foldInputs().flatMap((i) =>
+        i.kind === 'outcome' && i.record.kind === 'outcome' ? [i.record.result as W226Seen] : []);
+      return { outcome: won.by === 'done' ? won.value.outcome : 'NEVER SETTLED', seen };
+    } finally {
+      await rt.shutdown();
+    }
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    const p = pool === 'threaded' ? 'T' : 'I';
+    for (const [run, flow, opts] of [
+      ['A', w226Fan(`resident-${pool}`, `Res${p}`, `w226-barrier-a-${p}`), {}],
+      ['A2', w226Fan(`resident-control-${pool}`, `Slots${p}`, `w226-barrier-a2-${p}`), {}],
+      ['B', w226One(`pinned-${pool}`, `Res${p}`, `pinned${p}`), {}],
+      ['B2', w226One(`pinned-control-${pool}`, `Res${p}`, `plain${p}`), {}],
+      ['C', w226One(`task-held-${pool}`, `Held${p}`),
+        { createTask: (c: ConstructorParameters<typeof FyflowTask>[0]) => new FyflowTask({ ...c, units: { gpu: { from: ['u1'] } } }) }],
+      ['C2', w226One(`task-held-control-${pool}`, `Held${p}`),
+        { createTask: (c: ConstructorParameters<typeof FyflowTask>[0]) => new FyflowTask({ ...c }) }],
+      ['D', w226One(`clash-${pool}`, `Both${p}`),
+        { createTask: (c: ConstructorParameters<typeof FyflowTask>[0]) => new FyflowTask({ ...c, units: { gpu: { from: ['u1'] } } }) }],
+      ['D2', w226One(`clash-control-${pool}`, `ResPin${p}`),
+        { createTask: (c: ConstructorParameters<typeof FyflowTask>[0]) => new FyflowTask({ ...c, units: { gpu: { from: ['u1'] } } }) }],
+    ] as const) {
+      await grClause(`${pool}, run ${run}`, async () => {
+        const { outcome, seen } = await runOne(`w226${run.toLowerCase()}${p.toLowerCase()}`, flow, opts as Record<string, unknown>);
+        r[`${run}${pool}`] = {
+          outcome,
+          tasks: seen.length,
+          met: w226Sorted(seen.map((s) => s.met)),
+          workers: new Set(seen.map((s) => s.worker)).size,
+          atCtor: w226Sorted(seen.map((s) => s.atCtor)),
+          atSetup: w226Sorted(seen.map((s) => s.atSetup)),
+          resident: w226Sorted(seen.map((s) => s.resident)),
+          task: w226Sorted(seen.map((s) => s.task)),
+          // Per task: is ITS context.grants the resident grant of the worker it ran on — read off the same record.
+          taskIsWorkers: seen.map((s) => s.task === s.resident),
+          frozen: w226Sorted(seen.map((s) => s.frozen)),
+          mainRealm: w226Sorted(seen.map((s) => s.mainRealm)),
+        };
+      });
+    }
+  }
+  grBlock = { runs, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W226 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (grBlock !== null) {
+  const key = 'cross-row';
+  const r = grBlock.r as Record<string, Record<string, unknown> | undefined>;
+  const pick = (v: Record<string, unknown> | undefined, ...ks: string[]) => (v === undefined ? 'NO RUN' : ks.map((k) => v[k]));
+  // The two resident grants, as a SET (sorted), each a JSON copy of a grants object.
+  const BOTH = ['{"gpu":["u0"]}', '{"gpu":["u1"]}'];
+  const U0 = '{"gpu":["u0"]}';
+  const U1 = '{"gpu":["u1"]}';
+  for (const pool of ['threaded', 'inline'] as const) {
+    // The REALM: never the main one on a worker thread, always inline.
+    const realm = pool === 'inline';
+    const two = (v: unknown) => [JSON.stringify(v), JSON.stringify(v)];
+    const one = (v: unknown) => [JSON.stringify(v)];
+    check(key, `W226 exit (${pool}): RESIDENT — run A, two tasks held together by the barrier on a pool holding { gpu: 1 } ` +
+      'over UnitGroup [u0, u1]: completed, both met, TWO workers, whose workerContext.grants read in the constructor, in ' +
+      `setup() and in run() are {gpu:[u0]} and {gpu:[u1]} as a set (§4, §5 Units with names); the realm ${realm ? 'main' : 'a thread'}`,
+    pick(r[`A${pool}`], 'outcome', 'tasks', 'met', 'workers', 'atCtor', 'atSetup', 'resident', 'mainRealm'),
+    ['completed', 2, two(true), 2, BOTH, BOTH, BOTH, two(realm)]);
+    check(key, `W226 exit (${pool}): the TASK sees its WORKER\`s — run A, each task's context.grants IS the resident grant ` +
+      'of the worker it ran on (§4: a task`s context.grants includes its worker`s resident grants), so the two tasks read ' +
+      '{gpu:[u0]} and {gpu:[u1]} as a set — each FROZEN (§4: frozen one level down, a copy, on inline pools too)',
+    pick(r[`A${pool}`], 'taskIsWorkers', 'task', 'frozen'), [[true, true], BOTH, two(true)]);
+    check(key, `W226 exit (${pool}): RESIDENT\`s CONTROL — run A', the same flow and pool shape holding slots, a ` +
+      'ConcurrentLimitGroup(2), in gpu`s place: two workers, and workerContext.grants and context.grants {} everywhere ' +
+      '(§4: always an object, {} when nothing was granted)',
+    pick(r[`A2${pool}`], 'outcome', 'met', 'workers', 'atCtor', 'atSetup', 'resident', 'task', 'mainRealm'),
+    ['completed', two(true), 2, two({}), two({}), two({}), two({}), two(realm)]);
+    check(key, `W226 exit (${pool}): PINNED — run B, a NAMED instance whose residentGroups is { gpu: { cost: 1, from: ` +
+      '[u1] } }: the request reaches the scheduler and is granted u1 — its worker holds [u1] from the constructor on, and ' +
+      'its task reads the same',
+    pick(r[`B${pool}`], 'outcome', 'atCtor', 'atSetup', 'resident', 'task', 'mainRealm'),
+    ['completed', [U1], [U1], [U1], [U1], one(realm)]);
+    check(key, `W226 exit (${pool}): PINNED\`s CONTROL — run B', the same instance at { gpu: 1 }, from the one difference: ` +
+      'the lowest free unit, [u0]', pick(r[`B2${pool}`], 'outcome', 'atCtor', 'resident', 'task'),
+    ['completed', [U0], [U0], [U0]]);
+    check(key, `W226 exit (${pool}): TASK-HELD — run C, gpu held per TASK (the type's groups), createTask setting units: ` +
+      '{ gpu: { from: [u1] } } on the FyflowTask it builds: the request reaches the scheduler and is granted u1 — ' +
+      'context.grants {gpu:[u1]}, frozen, and the worker, holding nothing resident, {} — so units survives createTask as ' +
+      'limitKey does', pick(r[`C${pool}`], 'outcome', 'atCtor', 'resident', 'task', 'frozen', 'mainRealm'),
+    ['completed', ['{}'], ['{}'], [U1], one(true), one(realm)]);
+    check(key, `W226 exit (${pool}): TASK-HELD\`s CONTROL — run C', the same createTask without units: the lowest free ` +
+      'unit, context.grants {gpu:[u0]}', pick(r[`C2${pool}`], 'outcome', 'resident', 'task'), ['completed', ['{}'], [U0]]);
+    check(key, `W226 exit (${pool}): the TASK's OWN WINS a CLASH — run D, gpu held RESIDENT from [u0] AND per task, the ` +
+      'task asking from [u1]: the worker holds [u0] from the constructor on, and context.grants.gpu is the task`s own [u1], ' +
+      'not its worker`s (§4: its own winning on a clash)', pick(r[`D${pool}`], 'outcome', 'atCtor', 'resident', 'task', 'mainRealm'),
+    ['completed', [U0], [U0], [U1], one(realm)]);
+    check(key, `W226 exit (${pool}): the CLASH\`s CONTROL — run D', the same resident request and factory with no task-held ` +
+      'hold: context.grants.gpu is the worker`s resident [u0]', pick(r[`D2${pool}`], 'outcome', 'resident', 'task'),
+    ['completed', [U0], [U0]]);
+  }
+}
+
 // **`+ 1` is W67's SHIM RUN, `+ 2` is W78's consumer-road block and `+ 1` is W82's check-OFF arm.**
 // W78's makes two runs under one label — a fan-out that completes and a refusal that stops; W82's
 // makes ONE, because its ON arm is a row the loop above already ran. All three sit OUTSIDE the row
@@ -14494,7 +14769,10 @@ if (vfBlock !== null) {
 // **And `+ vfBlock.runs.length` since W222**: its SIXTEEN runs — per pool, threaded and inline, runs A to H, each on its
 // own runtime: the two claimed runs, the two literal controls, the absent control, the boundary and its literal twin,
 // and the absent control under `gt` (ten before the adequacy reader's SHOULD 1 and 3 added F, G and H).
-const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0) + (vfBlock?.runs.length ?? 0);
+// **And `+ grBlock.runs.length` since W226**: its SIXTEEN runs — per pool, threaded and inline, each on its own runtime: the
+// resident fan-out and its control, the named instance and its control, the task-held run and its control, the clash and
+// its control (twelve before the readers' F1/A1 added the clash).
+const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0) + (vfBlock?.runs.length ?? 0) + (grBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -14861,7 +15139,11 @@ const PER_PLAIN_ROW = 22;
 // threaded and inline, the edge lte and gt, its literal control, its absent control and its boundary, the `if` then and
 // else, its literal control, its absent control and its boundary, and the absent control under `gt` — all cross-row
 // because the block is outside the row loop. 550 + 22 = 572. *(566 / sixteen before the adequacy reader's SHOULD 1 and 3.)*
-const CROSS_ROW = 572;
+// **572 at W222, +18 by W226 — P46's EXIT ARTIFACT clause (3)**: the grants block's eighteen clauses — per pool, threaded
+// and inline, the resident grant, the task seeing its worker's, the resident control, the named instance's request and its
+// control, the task-held grant and its control, the clash and its control — all cross-row because the block is outside
+// the row loop. 572 + 18 = 590. *(586 / fourteen before the readers' F1/A1 added the clash.)*
+const CROSS_ROW = 590;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -17114,14 +17396,17 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2905 / 268 since W222 — P45's EXIT ARTIFACT clause (3), +22 and sixteen runs**, DERIVED: the value-from block's
 // twenty-two cross-row assertions (`CROSS_ROW` 550 -> 572) over its sixteen runs (2899 / 262 before the adequacy reader's
 // SHOULD 1 and 3 added the boundary and the absent control under `gt`). No row moved (P45 prediction 6).
-const DECLARED_TOTAL = 2905;
+// **2923 / 284 since W226 — P46's EXIT ARTIFACT clause (3), +18 and sixteen runs**, DERIVED: the grants block's eighteen
+// cross-row assertions (`CROSS_ROW` 572 -> 590) over its sixteen runs (2919 / 280 before the readers' F1/A1 added the
+// clash and its control). No row moved (P46 prediction 3).
+const DECLARED_TOTAL = 2923;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 268;
+const DECLARED_RUNS = 284;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

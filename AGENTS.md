@@ -4048,6 +4048,62 @@ pass `onTaskMessage` to `start` (since 0.8.0, section 8) and each message of the
 its run, node, branch and attempts as fields — or listen for it on `runtime.scheduler` yourself, as before; what
 cancelling a task does to its RUN is section 6's.
 
+**Which UNITS your worker holds reaches it in both places the scheduler puts it** — P46,
+[W226](doc/work-items/w226-grants-reach-a-types-worker-the-reply-and-p46s-close.md), held on real workers by ladder L6's
+*W226 exit* block, threaded and inline, in Node 24 and Deno. The constructor's second argument is the scheduler's own
+**worker context**, so **`workerContext.grants`** is what the worker's `residentGroups` granted it — a `UnitGroup`'s
+units as an array, `{ gpu: ['gpu1'] }` — set BEFORE the constructor runs, so `setup()` can load onto that card; keep the
+argument (a class extending the scheduler's `BaseWorker` passes it to `super` and reads `this.workerContext`). `run`'s
+second argument is the task's **`context`**, and **`context.grants`** is that attempt's: the task's own units plus its
+worker's resident ones — in the scheduler's words, *"its own winning on a clash"*, so a task holding the group its worker
+holds resident reads its own unit there — per attempt (a retry may get another unit, so read it every time), *"frozen one
+level down - a copy, on inline pools too"*, and `{}` when nothing was granted — a `ConcurrentLimitGroup` grants nothing. **A task's request is `units` on the task, and `units` set by your
+`createTask` reaches the scheduler as `limitKey` does**: `(c) => new FyflowTask({ ...c, units: { gpu: { from: ['gpu1']
+} } })`. A named instance's request reaches the scheduler the same way (section 13's `residentGroups` above); what `from`
+and `prefer` each mean is the scheduler's own.
+
+```ts run
+import { createRuntime, type StartOptions } from 'fyflow-orchestration/scheduler';
+import type { FlowDefinition, RegistryDocument } from 'fyflow-orchestration';
+import { FyflowTask } from 'fyflow-scheduler';
+
+// A type's worker reading both: the card its worker holds (read in the constructor) and what its task was granted.
+const worker = `data:text/javascript,${encodeURIComponent(`export default class {
+  constructor(config, workerContext) { this.card = workerContext.grants.gpu?.[0] ?? null; }
+  async setup() {}
+  run(p, context) { return { card: this.card, task: context.grants }; } }`)}`;
+const registry: RegistryDocument = {
+  workers: { model: { url: worker } },
+  groups: { gpu: { type: 'UnitGroup', config: { units: ['gpu0', 'gpu1'] } } },
+  nodeTypes: {
+    Model: { worker: 'model', inline: true, pool: { residentGroups: { gpu: 1 } } },   // a card per WORKER
+    Batch: { worker: 'model', inline: true, groups: ['gpu'] },                        // a card per TASK
+  },
+  pools: { 'model-1': { type: 'Model', pool: { residentGroups: { gpu: { cost: 1, from: ['gpu1'] } } } } },
+};
+const seen = async (type: string, pool?: string, options: StartOptions = {}): Promise<string> => {
+  const flow: FlowDefinition = { flowId: type, version: 1, entry: 't', nodes: [
+    { id: 't', kind: 'task', type, ...(pool === undefined ? {} : { pool }), edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' }] };
+  const runtime = createRuntime(registry, {}, { base: import.meta.url });   // its own gpu, both cards free
+  try {
+    const run = runtime.start(flow, {}, options);
+    if ((await run.done).outcome !== 'completed') return `${type} did not complete`;   // a sentinel no check below accepts
+    const results = run.driver.foldInputs().flatMap((i) => (i.kind === 'outcome' && i.record.kind === 'outcome' ? [i.record.result] : []));
+    return JSON.stringify(results);
+  } finally {
+    await runtime.shutdown();
+  }
+};
+// Resident: the worker holds a card from its constructor on, and its task sees it; the named instance's request reaches it.
+if (await seen('Model') !== '[{"card":"gpu0","task":{"gpu":["gpu0"]}}]') throw new Error('the lowest free card');
+if (await seen('Model', 'model-1') !== '[{"card":"gpu1","task":{"gpu":["gpu1"]}}]') throw new Error('the named instance`s request');
+// Per task: the worker holds nothing, and `units` set by createTask picks the card.
+const pinned: StartOptions = { createTask: (c) => new FyflowTask({ ...c, units: { gpu: { from: ['gpu1'] } } }) };
+if (await seen('Batch', undefined, pinned) !== '[{"card":null,"task":{"gpu":["gpu1"]}}]') throw new Error('units through createTask');
+if (await seen('Batch') !== '[{"card":null,"task":{"gpu":["gpu0"]}}]') throw new Error('no request, the lowest free card');
+```
+
 **A transform — what a node may DO to its input before its worker sees it** — `spec/flow-definition.md`
 v0.18, [ADR 0051](doc/decisions/0051-a-transform-is-a-declared-expression-in-a-registered-language-applied-in-the-types-worker-wrapper.md),
 [W61](doc/work-items/w61-what-a-transform-is.md). When the value a typed node receives is not the
