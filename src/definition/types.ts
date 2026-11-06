@@ -360,6 +360,21 @@ export interface WorkerEntry {
 }
 
 /**
+ * **A resident group's REQUEST: which units a worker of the pool may hold** — `spec/flow-definition.md` v0.56, P46
+ * decision 4, [ADR 0143](../../doc/decisions/0143-unit-and-keyed-concurrent-groups-are-built-ins-and-a-resident-request-is-checked-against-the-group.md).
+ * The scheduler's own `ResidentGroupRequest`, written out rather than imported, as `PoolSpec`'s other fields are: `cost`
+ * a positive integer (absent: 1); `from` the candidate units, granted from these only; `prefer` a hint that never blocks.
+ * Each a non-empty list of distinct ids — a string, or an integer for a `UnitGroup` declared by count. `{ cost }` alone is
+ * a cost written as an object, for any group; `from` / `prefer` are for a group that takes a request (a `UnitGroup`, or a
+ * code group type with a `checkRequest`), and the registry holds them against a built-in group's declared units.
+ */
+export interface ResidentGroupRequest {
+  cost?: number;
+  from?: readonly (string | number)[];
+  prefer?: readonly (string | number)[];
+}
+
+/**
  * **What a derivation RETURNS: what ONE `WorkerManager` needs, minus the two things the TYPE states
  * beside it** (`worker`, `inline`) — decision 2. `config` is the worker's constructor argument and
  * is checked against `workers[worker].configSchema`; the rest are the scheduler's own options, and a
@@ -372,8 +387,11 @@ export interface PoolSpec {
   idleTimeout?: number;
   /** Group KEYS every task of the pool acquires; the scheduler unions them with a node's `workerGroups`. */
   groups?: readonly string[];
-  /** Group keys held for the WORKER's lifetime rather than per task, at a cost each — never beside `idleTimeout: 0` (decision 9). */
-  residentGroups?: readonly string[] | Readonly<Record<string, number>>;
+  /**
+   * Group keys held for the WORKER's lifetime rather than per task — a list (a cost of 1 each), or a record of a cost (a
+   * positive integer) or a {@link ResidentGroupRequest} per key (v0.56) — never beside `idleTimeout: 0` (decision 9).
+   */
+  residentGroups?: readonly string[] | Readonly<Record<string, number | ResidentGroupRequest>>;
   /**
    * **Threaded pools: the ms a cancelled task's worker gets to stop by itself before it is forced** — the
    * scheduler's own option, declarable since `spec/flow-definition.md` v0.33 (P33 decision 6, W159). Zero or
@@ -463,14 +481,17 @@ export interface PoolInstance {
 
 /** A resource group the runtime constructs — an instance of a group TYPE, by name, with the config its factory's schema admits. */
 export interface GroupInstance {
-  /** One of the three built-ins (`ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup`) or a group type registered in `code`. */
+  /**
+   * One of the five built-ins (`ConcurrentLimitGroup`, `RateLimitGroup`, `KeyedRateLimitGroup`, and since v0.56
+   * `UnitGroup` and `KeyedConcurrentLimitGroup`) or a group type registered in `code`.
+   */
   type: string;
   config?: unknown;
 }
 
 /**
- * **A resource group is a FACTORY** — decision 4 and P18 fact 2: the scheduler's three group classes
- * have three different constructors, so each is a `create(config, key)` behind one shape, and a
+ * **A resource group is a FACTORY** — decision 4 and P18 fact 2: the scheduler's group classes (five
+ * built in since v0.56) have different constructors, so each is a `create(config, key)` behind one shape, and a
  * consumer registers a custom class the same way. `create` returns the scheduler's own `ResourceGroup`
  * interface. **The runtime holds what it returns to SIX members** — `canRun`, `onStart` and
  * `onFinish` because the scheduler calls them, `getMetrics`, `id` and `type` because the interface

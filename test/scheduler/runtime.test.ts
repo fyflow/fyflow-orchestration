@@ -29,7 +29,7 @@ import { CORPUS_LANGUAGES, corpusRegistry, type CorpusRegistryDocument } from '.
 import type { Checkpoint } from '../../src/driver/driver.ts';
 import { liveToken } from '../../src/fold/policies.ts';
 import type { ResourceGroup } from 'fyflow-scheduler';
-import { FyflowTask, KeyedRateLimitGroup } from 'fyflow-scheduler';
+import { ConcurrentLimitGroup, FyflowScheduler, FyflowTask, KeyedConcurrentLimitGroup, KeyedRateLimitGroup, RateLimitGroup, UnitGroup, WorkerManager } from 'fyflow-scheduler';
 import { emptyState, fold, isTerminal, step } from '../../src/fold/run-state.ts';
 import type { FoldInput, RunState } from '../../src/fold/run-state.ts';
 import type { Finding, FlowDefinition, LanguageAdapter, NodeTypeDefinition, RegistryCode, RegistryDocument } from '../../src/definition/types.ts';
@@ -247,7 +247,7 @@ suite('W66 — decision 7: a relative worker url resolves against the consumer`s
 });
 
 suite('W66 — decision 4: the group factories, and what a created group is held to', (test) => {
-  test('the three built-in FACTORIES are exactly the three built-in group TYPES, both ways — two halves of one list', () => {
+  test('the built-in FACTORIES (three until v0.56, five since — W225) are exactly the built-in group TYPES, both ways — two halves of one list', () => {
     equal(Object.keys(BUILT_IN_GROUP_FACTORIES).sort(), Object.keys(BUILT_IN_GROUP_TYPES).sort(),
       'every type with a schema has a factory and every factory a schema');
   });
@@ -4069,5 +4069,183 @@ suite('W187 — through createRuntime: a task`s messages and progress are ROUTED
     s.emit('task.message', message('rel:a:-:0', 2));
     equal([heard, handed], [[0], ['task.message rel:a:-:0', 'task.completed rel:a:-:0']],
       'after the release NOTHING is handed to the driver for the run — rule 4 row 2 — and the callback hears nothing more');
+  });
+});
+
+/**
+ * **W225 — the two v0.56 built-ins BUILT, `FD-R6` reaching a built-in `KeyedConcurrentLimitGroup`, and every resident
+ * verdict held against the REAL scheduler's construction** — `spec/flow-definition.md` v0.56 section 3 and `FD-R6`, P46
+ * decisions 3-5, [ADR 0143](../../doc/decisions/0143-unit-and-keyed-concurrent-groups-are-built-ins-and-a-resident-request-is-checked-against-the-group.md).
+ * Expected values are the scheduler's reference at the pin (`node_modules/fyflow-scheduler/AGENTS.md` §5 — `UnitGroup(units,
+ * { id })`, `getFreeUnits()` *"Units free right now, in unit order"*, `new UnitGroup(2)` *"units 0 and 1"*; `limitFor`, and
+ * `getKeyMetrics(key)` *"An inactive key reads as empty, under its `limitFor` limit"*) and the spec's tables. The last case
+ * is a SECOND OBSERVER for `test/definition/registry.test.ts`'s W225 suite: each resident value's verdict here is the
+ * runtime's AND the scheduler's own `new WorkerManager` + `new FyflowScheduler` over the same groups, each a literal.
+ */
+suite('W225 — the UnitGroup and KeyedConcurrentLimitGroup factories build the scheduler`s own classes, FD-R6 reaches a built-in KeyedConcurrentLimitGroup, and every resident verdict is the scheduler`s', (test) => {
+  const URL_W = 'https://example.test/w.js';
+  const GROUPS = {
+    gpu: { type: 'UnitGroup', config: { units: ['gpu0', 'gpu1'] } },
+    slots: { type: 'UnitGroup', config: { units: 2 } },
+    conc: { type: 'ConcurrentLimitGroup', config: { limit: 2 } },
+    rate: { type: 'RateLimitGroup', config: { windows: [{ limit: 5, windowMs: 1000 }, { limit: 2, windowMs: 100 }] } },
+    disk: { type: 'KeyedConcurrentLimitGroup', config: { limit: 4, limits: { 'E:': 1 } } },
+    api: { type: 'KeyedRateLimitGroup', config: { windows: [{ limit: 5, windowMs: 1000 }] } },
+  };
+  const DOC_KC = {
+    workers: { w: { url: URL_W } },
+    groups: GROUPS,
+    nodeTypes: {
+      Plain: { worker: 'w', inline: true },
+      Disk: { worker: 'w', inline: true, groups: ['disk'] },
+      Gpu: { worker: 'w', inline: true, groups: ['gpu'] },
+    },
+  } as unknown as RegistryDocument;
+  const flowOf = (flowId: string, nodes: Record<string, unknown>[]): FlowDefinition => ({
+    flowId, version: 1, entry: nodes[0]!.id as string,
+    nodes: [...nodes, { id: 'done', kind: 'end', outcome: 'completed' }],
+  }) as unknown as FlowDefinition;
+  const task = (id: string, type: string, extra: Record<string, unknown> = {}) => ({ id, kind: 'task', type, ...extra, edges: [{ to: 'done' }] });
+  const refusalOf = (fn: () => unknown): unknown => {
+    try { fn(); } catch (e) { return e; }
+    return null;
+  };
+  /** A document whose one type `Holds` holds `resident`. */
+  const holding = (resident: unknown): RegistryDocument =>
+    ({ ...DOC_KC, nodeTypes: { Holds: { worker: 'w', inline: true, pool: { idleTimeout: 1000, residentGroups: resident } } } }) as unknown as RegistryDocument;
+
+  test('the factories build the scheduler`s OWN classes: a UnitGroup by count and by name, a KeyedConcurrentLimitGroup whose limitFor reads a COPY of limits by OWN key', () => {
+    const doc = JSON.parse(JSON.stringify(DOC_KC)) as { groups: { disk: { config: { limits: Record<string, number> } } } };
+    const s = seams();
+    const r = createRuntime(doc as unknown as RegistryDocument, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const gpu = r.groups.gpu as unknown as UnitGroup;
+    const slots = r.groups.slots as unknown as UnitGroup;
+    const disk = r.groups.disk as unknown as KeyedConcurrentLimitGroup;
+    ok(gpu instanceof UnitGroup && slots instanceof UnitGroup, 'both UnitGroups are the scheduler`s own class');
+    ok(disk instanceof KeyedConcurrentLimitGroup, 'and the KeyedConcurrentLimitGroup is too');
+    equal([gpu.id, slots.id, disk.id], ['gpu', 'slots', 'disk'], 'each group`s id is the document`s KEY');
+    equal([gpu.getFreeUnits(), gpu.limit], [['gpu0', 'gpu1'], 2], 'named units: free in unit order, limit = the count of names');
+    equal([slots.getFreeUnits(), slots.limit], [[0, 1], 2], 'a count of 2: the units 0 and 1, integers');
+    equal([disk.limit, disk.keyed], [4, true], 'the default per-key limit, keyed');
+    equal(disk.getKeyMetrics('E:').limit, 1, 'limitFor: a key the document lists reads ITS limit');
+    equal(disk.getKeyMetrics('C:').limit, 4, 'limitFor: any other key reads the default');
+    equal(disk.getKeyMetrics('constructor').limit, 4, 'limitFor: an INHERITED name is not a listed key — the default, not Object`s constructor');
+    doc.groups.disk.config.limits['C:'] = 2;
+    doc.groups.disk.config.limits['E:'] = 3;
+    equal([disk.getKeyMetrics('C:').limit, disk.getKeyMetrics('E:').limit], [4, 1], 'the document edited AFTER construction moves no limit — limits was copied');
+    // The factories themselves, called directly — the two halves of one list.
+    const direct = BUILT_IN_GROUP_FACTORIES.UnitGroup!({ units: 3 }, 'u') as unknown as UnitGroup;
+    equal([direct instanceof UnitGroup, direct.id, direct.getFreeUnits()], [true, 'u', [0, 1, 2]], 'UnitGroup({ units: 3 }, "u")');
+    const kc = BUILT_IN_GROUP_FACTORIES.KeyedConcurrentLimitGroup!({ limit: 2 }, 'k') as unknown as KeyedConcurrentLimitGroup;
+    equal([kc instanceof KeyedConcurrentLimitGroup, kc.id, kc.getKeyMetrics('any').limit], [true, 'k', 2], 'KeyedConcurrentLimitGroup({ limit: 2 }) with no limits: every key the default');
+  });
+
+  test('FD-R6 reaches a built-in KeyedConcurrentLimitGroup by its pool and by workerGroups — check finds it, start throws LimitKeyMissing naming the type; a createTask road starts; a UnitGroup is no keyed group', () => {
+    const NAMED = ['"disk"', 'KeyedConcurrentLimitGroup factory', 'sets limitKey', 'code.groupTypes', 'builds a KeyedConcurrentLimitGroup with a keyFrom that derives', 'Q248'];
+    const ROADS: [string, FlowDefinition][] = [
+      ['the TYPE`s pool names `disk`', flowOf('kc-pool', [task('a', 'Disk')])],
+      ['the NODE names `disk` in workerGroups', flowOf('kc-node', [task('a', 'Plain', { workerGroups: ['disk'] })])],
+    ];
+    for (const [label, flow] of ROADS) {
+      const s = seams();
+      const r = createRuntime(DOC_KC, {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+      const found = r.check(flow);
+      equal(found.map((f) => [f.rule, f.at]), [['FD-R6', 'a']], `${label}: ONE finding, FD-R6 at the node`);
+      for (const n of NAMED) ok(found[0]!.detail.includes(n), `${label}: the finding names ${n} — ${found[0]!.detail}`);
+      ok(!found[0]!.detail.includes('KeyedRateLimitGroup'), `${label}: and not the OTHER keyed type, which it does not reach`);
+      const err = refusalOf(() => r.start(flow, {}));
+      ok(err instanceof LimitKeyMissing && (err as LimitKeyMissing).at === 'a', `${label}: start throws LimitKeyMissing at "a" — got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+      equal(s.added, [], `${label}: nothing dispatched`);
+      const h = r.start(flow, {}, { createTask: (c) => ({ ...c, limitKey: 'C:' }) });
+      equal([h.driver.runId, s.added.length, (s.added[0] as { limitKey?: string } | undefined)?.limitKey], ['r1', 1, 'C:'],
+        `${label}: given a createTask the run starts — r1, no run id spent by the refusal — and the task carries its key`);
+    }
+    const r = createRuntime(DOC_KC, {}, { createPool: seams().createPool, createScheduler: seams().createScheduler });
+    const both = r.check(flowOf('both', [task('a', 'Disk', { workerGroups: ['api'] })]));
+    equal(both.map((f) => f.rule), ['FD-R6'], 'a node reaching BOTH keyed built-ins: one finding');
+    for (const n of ['groups "api", "disk"', 'built-in KeyedConcurrentLimitGroup and KeyedRateLimitGroup factory']) ok(both[0]!.detail.includes(n), `and it names ${n} — ${both[0]!.detail}`);
+    equal(r.check(flowOf('gpu', [task('a', 'Gpu')])), [], 'the CONTROL: a node reaching a UnitGroup is not FD-R6 — it is not keyed');
+  });
+
+  test('createRuntime refuses a built-in KeyedConcurrentLimitGroup held resident, and a request its UnitGroup refuses, building nothing; an accepted request reaches the pool`s options as declared, copied', () => {
+    const REFUSED: [string, unknown, string[]][] = [
+      ['a KeyedConcurrentLimitGroup resident', ['disk'], ['group "disk"', 'KeyedConcurrentLimitGroup', 'Q619']],
+      ['a unit the UnitGroup lacks', { gpu: { from: ['gpu5'] } }, ['group "gpu"', 'from names unit "gpu5"']],
+      // Q619 fires FIRST: a REQUEST on a keyed built-in is refused as a keyed group held resident, never as a group that
+      // takes no request (W225's adequacy reader, A1 — the order swapped survived every other case).
+      ['a request on a KeyedConcurrentLimitGroup', { disk: { from: ['x'] } }, ['group "disk"', 'of the built-in type "KeyedConcurrentLimitGroup", in residentGroups', 'Q619']],
+      ['a request on a KeyedRateLimitGroup', { api: { prefer: ['x'] } }, ['group "api"', 'of the built-in type "KeyedRateLimitGroup", in residentGroups', 'Q619']],
+    ];
+    for (const [label, resident, names] of REFUSED) {
+      const s = seams();
+      const err = refusalOf(() => createRuntime(holding(resident), {}, { createPool: s.createPool, createScheduler: s.createScheduler }));
+      ok(err instanceof DerivationRefused && (err as DerivationRefused).at === 'Holds', `${label}: DerivationRefused at "Holds" — got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+      for (const n of ['node type "Holds"\'s default instance', ...names]) ok((err as Error).message.includes(n), `${label}: names ${n}`);
+      equal([s.pools.length, s.built.length], [0, 0], `${label}: no pool and no scheduler built`);
+    }
+    const request = { cost: 1, from: ['gpu1'], prefer: ['gpu1'] };
+    const s = seams();
+    createRuntime(holding({ gpu: request, conc: 2 }), {}, { createPool: s.createPool, createScheduler: s.createScheduler });
+    const holds = s.pools.filter((p) => (p.options.residentGroups as Record<string, unknown> | undefined)?.gpu !== undefined);
+    equal(holds.map((p) => p.options.residentGroups), [{ gpu: request, conc: 2 }], 'ONE pool, handed the request and the cost as declared');
+    const handed = holds[0]!.options.residentGroups as Record<string, { from: string[] }>;
+    ok(handed.gpu !== (request as unknown) && handed.gpu!.from !== request.from, 'and handed a COPY — the request and its from list');
+  });
+
+  test('every resident verdict is the REAL scheduler`s at construction — the runtime refuses where new FyflowScheduler throws, and builds where it builds; the five stated STRICTER cases named (ADR 0143 rule 4)', async () => {
+    // [label, residentGroups, the runtime refuses, the scheduler throws] — each a literal from the reference and the spec.
+    const CASES: [string, unknown, boolean, boolean][] = [
+      ['from one named unit', { gpu: { from: ['gpu1'] } }, false, false],
+      ['both named units at a cost of 2', { gpu: { cost: 2, from: ['gpu0', 'gpu1'] } }, false, false],
+      ['prefer alone', { gpu: { prefer: ['gpu1'] } }, false, false],
+      ['a counted unit by integer', { slots: { from: [1] } }, false, false],
+      ['{ cost } on a ConcurrentLimitGroup', { conc: { cost: 2 } }, false, false],
+      ['a cost AT each limit', { conc: 2, rate: 2, slots: 2 }, false, false],
+      ['a unit the group lacks', { gpu: { from: ['gpu2'] } }, true, true],
+      ['a prefer unit the group lacks', { gpu: { prefer: ['gpu9'] } }, true, true],
+      ['a string id on a counted group', { slots: { from: ['1'] } }, true, true],
+      ['a cost above from`s size', { gpu: { cost: 2, from: ['gpu1'] } }, true, true],
+      ['a request cost above the unit count', { gpu: { cost: 3 } }, true, true],
+      ['a plain cost above the unit count', { slots: 3 }, true, true],
+      ['from on a ConcurrentLimitGroup', { conc: { from: ['x'] } }, true, true],
+      ['prefer on a RateLimitGroup', { rate: { prefer: [0] } }, true, true],
+      ['a cost above a ConcurrentLimitGroup`s limit', { conc: 3 }, true, true],
+      ['a cost above a RateLimitGroup`s smallest window', { rate: 3 }, true, true],
+      ['a fractional cost', { conc: 1.5 }, true, true],
+      ['an empty from', { gpu: { from: [] } }, true, true],
+      ['a KeyedConcurrentLimitGroup resident', ['disk'], true, true],
+      // STRICTER than the scheduler, stated (ADR 0143 rule 4) — FIVE, each refused by shape where the scheduler accepts
+      // (W225's conformity reader, F1): a repeated id (the scheduler counts the SET); a present undefined `from` (read as no
+      // list); an empty `prefer` (a hint for nothing); an undeclared request key (destructured away); and an ARRAY as the
+      // value, which the scheduler destructures as `{ 0: 'gpu0' }` — a request for nothing.
+      ['STRICTER: a repeated id in from', { gpu: { from: ['gpu0', 'gpu0'] } }, true, false],
+      ['STRICTER: a present undefined from', { gpu: { from: undefined } }, true, false],
+      ['STRICTER: an empty prefer', { gpu: { prefer: [] } }, true, false],
+      ['STRICTER: an undeclared request key', { gpu: { foo: 1 } }, true, false],
+      ['STRICTER: an array as the value', { gpu: ['gpu0'] }, true, false],
+    ];
+    // The scheduler's side is built from the scheduler's OWN classes, not through BUILT_IN_GROUP_FACTORIES — the code under
+    // test (W225's conformity reader, F6). The literals are GROUPS' configs, written again.
+    const built = (): Record<string, ResourceGroup> => ({
+      gpu: new UnitGroup(['gpu0', 'gpu1'], { id: 'gpu' }),
+      slots: new UnitGroup(2, { id: 'slots' }),
+      conc: new ConcurrentLimitGroup(2, 'conc'),
+      rate: new RateLimitGroup([{ limit: 5, windowMs: 1000 }, { limit: 2, windowMs: 100 }], 'rate'),
+      disk: new KeyedConcurrentLimitGroup(4, { id: 'disk', limitFor: (k) => (k === 'E:' ? 1 : 4) }),
+      api: new KeyedRateLimitGroup([{ limit: 5, windowMs: 1000 }], { id: 'api' }),
+    }) as unknown as Record<string, ResourceGroup>;
+    for (const [label, resident, ours, theirs] of CASES) {
+      const s = seams();
+      const mine = refusalOf(() => createRuntime(holding(resident), {}, { createPool: s.createPool, createScheduler: s.createScheduler }));
+      ok(mine === null || mine instanceof DerivationRefused, `${label}: the runtime either builds or refuses DerivationRefused — got ${(mine as Error)?.name}: ${(mine as Error)?.message}`);
+      equal(mine !== null, ours, `${label}: the runtime ${ours ? 'refuses' : 'builds'} — ${(mine as Error)?.message ?? 'built'}`);
+      let scheduler: FyflowScheduler | undefined;
+      const theirsErr = refusalOf(() => {
+        const pool = new WorkerManager(URL_W, { inline: true, idleTimeout: 1000, residentGroups: resident as never });
+        scheduler = new FyflowScheduler({ Holds: pool }, built());
+      });
+      if (scheduler !== undefined) await scheduler.shutdown();
+      equal(theirsErr !== null, theirs, `${label}: the scheduler ${theirs ? 'throws' : 'builds'} at construction — ${(theirsErr as Error)?.message ?? 'built'}`);
+    }
   });
 });

@@ -360,7 +360,7 @@ for (const p of files) {
 // `S7` binds the FORM of the reach and `RT-R11` allows it from anywhere published; this binds what
 // a file may DO with it. A `new WorkerManager`, a `new FyflowScheduler` or a resource-group
 // constructor outside `src/scheduler/**` puts a pool, a scheduler or a budget into the pure entry,
-// which a consumer who wanted none of them still pays to load. The three built-in group types are
+// which a consumer who wanted none of them still pays to load. The built-in group types (five since v0.56, W225) are
 // the case: their SCHEMAS are in `src/definition/registry.ts` and their FACTORIES in
 // `src/scheduler/runtime.ts`, two halves of one list.
 //
@@ -369,7 +369,7 @@ for (const p of files) {
 // (ADR 0048 rule 5) and constructs one, which is a TASK and not a pool, a scheduler or a group. The
 // list is enumerated rather than matched by shape, because `new <capitalised>` would catch every
 // class this repository writes.
-const CONSTRUCTS = ['WorkerManager', 'FyflowScheduler', 'ConcurrentLimitGroup', 'RateLimitGroup', 'KeyedRateLimitGroup'];
+const CONSTRUCTS = ['WorkerManager', 'FyflowScheduler', 'ConcurrentLimitGroup', 'RateLimitGroup', 'KeyedRateLimitGroup', 'UnitGroup', 'KeyedConcurrentLimitGroup'];
 const CONSTRUCTOR_DIR = 'src/scheduler/';
 for (const p of files) {
   const r = rel(p);

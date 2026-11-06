@@ -68,9 +68,13 @@ export class PoolTypeMissing extends RegistryError {}
 export class ConfigRefused extends RegistryError {}
 /** A type's OWN config — its default instance's — fails its own `configSchema` or, derived, the worker's; the type has no valid default. */
 export class TypeDefaultRefused extends RegistryError {}
-/** A group's `type` names no group type — none of the three built-ins, none registered in `code`. */
+/** A group's `type` names no group type — none of the built-ins (`BUILT_IN_GROUP_TYPES`), none registered in `code`. */
 export class GroupTypeMissing extends RegistryError {}
-/** A group's config fails its group type's `configSchema`. */
+/**
+ * A group's config fails its group type's `configSchema` — or, since v0.56 (ADR 0143 rules 1 and 2), a built-in's rule the
+ * schema subset cannot state: a `UnitGroup` listing a unit twice, a `KeyedConcurrentLimitGroup` per-key limit that is not
+ * a positive integer.
+ */
 export class GroupConfigRefused extends RegistryError {}
 /** One name, two definitions: a node type in the document AND in `code`, a pool named as a type, a group type named as a built-in. */
 export class NameCollision extends RegistryError {}
@@ -83,7 +87,9 @@ export class NameMissing extends RegistryError {}
 /**
  * A derivation returned something that is not a `PoolSpec`, threw, or produced a pool the runtime refuses: a resident group
  * beside `idleTimeout: 0`, or — since v0.39 ([Q619](../../doc/questions/q619.md) option B) — a group of the built-in
- * `KeyedRateLimitGroup` type held in `residentGroups`, which the scheduler would count in one `""` bucket.
+ * `KeyedRateLimitGroup` type held in `residentGroups`, which the scheduler would count in one `""` bucket, and since v0.56 one
+ * of the built-in `KeyedConcurrentLimitGroup` type, which it rejects at construction; or, since v0.56 (ADR 0143 rules 4 and
+ * 5), a resident cost or request of the wrong shape, or one the built-in group it names refuses.
  */
 export class DerivationRefused extends RegistryError {}
 /**
@@ -100,20 +106,59 @@ export class GateTypeRefused extends RegistryError {}
 // ---- the built-in group types, as DATA -----------------------------------------------------------
 
 /**
- * **The three group types the runtime ships, by name and by config schema** — P18 decision 4 and
- * fact 2. Their constructors differ (`ConcurrentLimitGroup(limit, id?)`, `RateLimitGroup(windows, id?)`,
- * `KeyedRateLimitGroup(windows, options?)`), so each has a factory; the FACTORIES construct scheduler
+ * **The group types the runtime ships, by name and by config schema** — P18 decision 4 and
+ * fact 2; three until v0.56, five since (P46 decisions 3 and 5, ADR 0143). Their constructors differ
+ * (`ConcurrentLimitGroup(limit, id?)`, `RateLimitGroup(windows, id?)`, `KeyedRateLimitGroup(windows, options?)`,
+ * `UnitGroup(units, options?)`, `KeyedConcurrentLimitGroup(limit, options?)`), so each has a factory; the FACTORIES construct scheduler
  * objects and live in the scheduler sub-path, beside `bootstrap` (W66; there is no `/runtime` sub-path — P16 decision 5's *one sub-path that constructs scheduler objects*). What this module needs of them is the NAME — a
  * custom group type colliding with one is refused — and the SCHEMA its config is checked against, and
- * both are data. `RateWindow` is `{ limit, windowMs }` verbatim from the scheduler's `.d.ts`.
+ * both are data. `RateWindow` is `{ limit, windowMs }` verbatim from the scheduler's `.d.ts`. **Two rules the
+ * subset cannot state** (P46 fact 7) are `builtInConfigProblem`'s, below, checked beside the schema.
  */
 export const BUILT_IN_GROUP_TYPES: Readonly<Record<string, { readonly configSchema: JsonSchema }>> = {
   ConcurrentLimitGroup: { configSchema: { type: 'object', required: ['limit'], properties: { limit: { type: 'integer', minimum: 1 } }, additionalProperties: false } },
   RateLimitGroup: { configSchema: { type: 'object', required: ['windows'], properties: { windows: RATE_WINDOWS() }, additionalProperties: false } },
   KeyedRateLimitGroup: { configSchema: { type: 'object', required: ['windows'], properties: { windows: RATE_WINDOWS() }, additionalProperties: false } },
+  // v0.56: `units` a count (the units `0`…`n-1`) or a list of names — `type` may be a list in the subset (P46 fact 7), and
+  // `minimum` reads a number and `minItems` / `items` an array, so each keyword holds its own form. Distinct: beside it.
+  UnitGroup: { configSchema: { type: 'object', required: ['units'], properties: { units: { type: ['integer', 'array'], minimum: 1, minItems: 1, items: { type: 'string', minLength: 1 } } }, additionalProperties: false } },
+  // v0.56: `limits` an object of per-key limits; each value a positive integer is beside it (no schema-valued
+  // `additionalProperties` in the subset).
+  KeyedConcurrentLimitGroup: { configSchema: { type: 'object', required: ['limit'], properties: { limit: { type: 'integer', minimum: 1 }, limits: { type: 'object' } }, additionalProperties: false } },
 };
 function RATE_WINDOWS(): JsonSchema {
   return { type: 'array', minItems: 1, items: { type: 'object', required: ['limit', 'windowMs'], properties: { limit: { type: 'integer', minimum: 1 }, windowMs: { type: 'integer', minimum: 1 } }, additionalProperties: false } };
+}
+
+/** A positive integer — the scheduler's rule for a resident cost, a unit count and a per-key limit. */
+const isPositiveInteger = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 1;
+
+/**
+ * **A built-in group's config, past its schema: the rules the subset cannot state** — v0.56, ADR 0143 rules 1 and 2, P46
+ * fact 7. Called only on a config its schema ADMITTED, and only for a BUILT-IN type's name (a code type cannot take one:
+ * `NameCollision`). A `UnitGroup`'s listed units DISTINCT — the scheduler's constructor throws on a repeat, which would
+ * surface as `GroupUnusable`'s *create() THREW* rather than naming the config; a `KeyedConcurrentLimitGroup`'s every
+ * `limits` value a positive integer — the scheduler reads it only through `limitFor`, at `addTask`, after a run started.
+ */
+function builtInConfigProblem(type: string, config: unknown): string | null {
+  if (type === 'UnitGroup') {
+    const units = (config as { units: unknown }).units;
+    if (Array.isArray(units)) {
+      const seen = new Set<unknown>();
+      for (const u of units) {
+        if (seen.has(u)) return `$.units lists unit ${JSON.stringify(u)} twice — a UnitGroup's units are distinct`;
+        seen.add(u);
+      }
+    }
+  } else if (type === 'KeyedConcurrentLimitGroup') {
+    const limits = (config as { limits?: unknown }).limits;
+    if (limits !== undefined) {
+      for (const [k, v] of Object.entries(limits as Record<string, unknown>)) {
+        if (!isPositiveInteger(v)) return `$.limits[${q(k)}] must be a positive integer — a per-key limit, as \`limit\` is — got ${shown(v)}`;
+      }
+    }
+  }
+  return null;
 }
 
 // ---- the declared key sets, each compared to the spec's tables by a test --------------------------
@@ -215,11 +260,21 @@ function mergePool(base: DeclaredPool, over: DeclaredPool | undefined): Declared
   return out as DeclaredPool;
 }
 
-/** A `residentGroups` value, copied — a list as a list, a `{ key: cost }` record as a record (decision 8). */
+/**
+ * A `residentGroups` value, copied — a list as a list, a record as a record (decision 8) — and since v0.56 DEEPLY (ADR 0143
+ * rule 6): each request object copied, and its `from` and `prefer` arrays, so no two pools' specs share one and none
+ * shares one with the document. **A DOCUMENT type's derivation and a named instance's options** — a CLASS derivation's
+ * `pool()` output is the consumer's object, handed on as the class returned it (above, and W225's conformity F4). `Object.fromEntries` defines every key as an OWN property, as the spread did, so a key
+ * called `__proto__` stays a key and never becomes a prototype.
+ */
 function copyResident(r: DeclaredPool['residentGroups']): DeclaredPool['residentGroups'] {
   if (Array.isArray(r)) return [...r];
-  if (isPlainObject(r)) return { ...r };
+  if (isPlainObject(r)) return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, isPlainObject(v) ? copyRequest(v) : v]));
   return r;
+}
+/** One resident request, copied: its keys as they are, each array fresh. */
+function copyRequest(v: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Array.isArray(x) ? [...x] : x]));
 }
 
 /**
@@ -267,8 +322,8 @@ export function nodeTypeFromDeclaration(decl: NodeTypeDeclaration, over?: Declar
  * **Why a derivation's output is not a `PoolSpec`, or `null`** — the check BOTH forms pass through
  * (decision 2's *a class cannot compute around a check*). The scheduler coerces or ignores a wrong
  * option in silence exactly as it does a retry policy (`FD-V30`'s measurements), so the shape is
- * pinned here: numbers where numbers, a string list for `groups`, a string list or a `{ key: cost }`
- * record for `residentGroups`, and no key beside the eight.
+ * pinned here: numbers where numbers, a string list for `groups`, a string list or a record of a cost
+ * or (v0.56) a request per key for `residentGroups` (`residentValueProblem`), and no key beside the eight.
  *
  * **`cancelGraceMs` and `messages` (v0.33, P33 decision 6, W159) are held to the SCHEDULER's own rules**, read
  * at the pin in its `validateGraceMs` and `resolveMessageOptions`, where it throws at `new WorkerManager`:
@@ -300,7 +355,10 @@ export function poolSpecProblem(v: unknown): string | null {
       if (r.some((g) => typeof g !== 'string' || g.length === 0)) return `PoolSpec.residentGroups must be an array of group keys or a { key: cost } record, got ${JSON.stringify(r)}`;
       if (new Set(r).size !== r.length) return 'PoolSpec.residentGroups repeats a key';   // the adequacy reader (P4): `groups` refused a repeat and this did not
     } else if (isPlainObject(r)) {
-      for (const [k, c] of Object.entries(r)) if (!(typeof c === 'number' && Number.isFinite(c) && c > 0)) return `PoolSpec.residentGroups[${q(k)}] must be a cost > 0, got ${JSON.stringify(c)}`;
+      for (const [k, c] of Object.entries(r)) {
+        const p = residentValueProblem(c);
+        if (p !== null) return `PoolSpec.residentGroups[${q(k)}] ${p}`;
+      }
     } else return `PoolSpec.residentGroups must be an array of group keys or a { key: cost } record, got ${JSON.stringify(r)}`;
   }
   if (v.cancelGraceMs !== undefined && !(typeof v.cancelGraceMs === 'number' && v.cancelGraceMs >= 0)) {
@@ -329,6 +387,40 @@ export function poolSpecProblem(v: unknown): string | null {
     if (ownKey(m, 'maxBuffered') && !(typeof m.maxBuffered === 'number' && Number.isInteger(m.maxBuffered) && m.maxBuffered >= 1)) {
       return `PoolSpec.messages.maxBuffered must be an integer >= 1, got ${shown(m.maxBuffered)}`;
     }
+  }
+  return null;
+}
+
+/** The keys a resident request may carry — the scheduler's `ResidentGroupRequest`, v0.56. */
+const RESIDENT_REQUEST_KEYS: readonly string[] = ['cost', 'from', 'prefer'];
+
+/**
+ * **Why one `residentGroups` record value is neither a cost nor a request, or `null`** — v0.56, P46 decision 4, ADR 0143
+ * rule 4: the SHAPE, which every derivation's output is held to, before anything is known of the group it names (that is
+ * `residentAgainstGroupProblem`'s, after every pool is derived). A cost is a positive INTEGER — the scheduler's
+ * `_normalizeResidentGroups` throws on any other at construction, `1.5` included, which this accepted until v0.56. A request
+ * is a PLAIN object (its prototype `Object.prototype` or `null`, `messages`' reading: the scheduler destructures its own
+ * keys, and a Map would read as a request for nothing) carrying `cost`, `from` and `prefer` and no other key, each key
+ * PRESENT held whatever its value — a present `from: undefined` is a key the scheduler hands its group as a request.
+ * `from` and `prefer` are non-empty lists of DISTINCT ids, each a non-empty string or an integer >= 0.
+ */
+function residentValueProblem(c: unknown): string | null {
+  if (typeof c === 'number') return isPositiveInteger(c) ? null : `must be a cost > 0, an INTEGER (the scheduler's rule), or a request { ${RESIDENT_REQUEST_KEYS.map((k) => `${k}?`).join(', ')} }, got ${shown(c)}`;
+  if (!isPlainObject(c) || !isPlainPrototype(c)) {
+    return `must be a cost (a positive integer) or a request { ${RESIDENT_REQUEST_KEYS.map((k) => `${k}?`).join(', ')} } — a plain object — got ${describeNonPlain(c)}`;
+  }
+  for (const k of Object.keys(c)) if (!RESIDENT_REQUEST_KEYS.includes(k)) return `is a request carrying undeclared key ${q(k)}; it declares ${RESIDENT_REQUEST_KEYS.join(', ')}`;
+  if (ownKey(c, 'cost') && !isPositiveInteger(c.cost)) return `.cost must be a positive integer, got ${shown(c.cost)}`;
+  for (const f of ['from', 'prefer'] as const) {
+    if (!ownKey(c, f)) continue;
+    const list = c[f];
+    if (!Array.isArray(list) || list.length === 0) return `.${f} must be a non-empty list of unit ids, got ${shown(list)}`;
+    for (const u of list) {
+      if (!((typeof u === 'string' && u.length > 0) || (typeof u === 'number' && Number.isInteger(u) && u >= 0))) {
+        return `.${f} holds ${shown(u)} — a unit id is a non-empty string, or an integer >= 0 for a UnitGroup declared by count`;
+      }
+    }
+    if (new Set(list).size !== list.length) return `.${f} repeats a unit id`;
   }
   return null;
 }
@@ -367,6 +459,72 @@ export function groupsNamedBy(spec: PoolSpec): string[] {
 /** The group keys a `PoolSpec` holds RESIDENT — a list as listed, a `{ key: cost }` record by its keys. */
 function residentKeysOf(spec: PoolSpec): string[] {
   return spec.residentGroups === undefined ? [] : Array.isArray(spec.residentGroups) ? [...spec.residentGroups] : Object.keys(spec.residentGroups);
+}
+/** Each resident group key with its value — a list's entry at the scheduler's cost of 1, a record's as declared. */
+function residentEntriesOf(spec: PoolSpec): [string, unknown][] {
+  const r = spec.residentGroups;
+  return r === undefined ? [] : Array.isArray(r) ? r.map((g): [string, unknown] => [g, 1]) : Object.entries(r);
+}
+
+/**
+ * **The two KEYED built-in group types, and why each is refused resident** — Q619 option B (v0.39) and, since v0.56, P46
+ * decision 5. The registry reads the TYPE NAME the document declared, so a code group type's group — whatever it builds —
+ * is never here, as `FD-R6` reads it (`src/scheduler/runtime.ts` holds the same pair).
+ */
+const KEYED_BUILT_INS: Readonly<Record<string, string>> = {
+  KeyedRateLimitGroup: 'the scheduler resolves no key for a resident group, so every worker holding it is counted in ONE "" bucket, in silence',
+  KeyedConcurrentLimitGroup: 'the scheduler REJECTS a KeyedConcurrentLimitGroup in residentGroups when it is constructed: a worker holds its units across tasks, and so across keys, with no key to hold them under',
+};
+
+/**
+ * **A resident cost or request held against the GROUP it names, or `null`** — v0.56, P46 decision 4, ADR 0143 rule 5. Its
+ * SHAPE was `residentValueProblem`'s; this is what the group's declared config says of it, for a BUILT-IN group alone —
+ * each clause a value the scheduler throws on when it is constructed (`_bindResidentGroups`, `UnitGroup.checkRequest`, read
+ * at the pin). A CODE group type's group is handed the request untouched WITHIN the request shape `{ cost?, from?, prefer? }`
+ * — `residentValueProblem` holds that shape for every group, as the scheduler's own `.d.ts` types a resident value
+ * `number | ResidentGroupRequest`, so a request language beyond it is not declarable in a document (W225's conformity F2);
+ * its own `checkRequest` is the authority on the rest. The
+ * keyed built-ins never reach here (refused above).
+ *
+ * - a `UnitGroup`: every id in `from` and `prefer` one of its units — a count's are the integers `0`…`n-1`, a list's its
+ *   strings; a cost no larger than `from`'s size; a cost no larger than its unit count;
+ * - a `ConcurrentLimitGroup` or a `RateLimitGroup`: no `from` and no `prefer` — it takes no request; a cost no larger than
+ *   its limit, which for a `RateLimitGroup` is its smallest window's (the scheduler reads `getMetrics().limit`).
+ */
+function residentAgainstGroupProblem(group: ResolvedGroup, value: unknown): string | null {
+  if (!hasOwn(BUILT_IN_GROUP_TYPES, group.type)) return null;
+  const request = isPlainObject(value) ? value as { cost?: number; from?: readonly (string | number)[]; prefer?: readonly (string | number)[] } : undefined;
+  const cost = typeof value === 'number' ? value : request?.cost ?? 1;
+  const named = `group ${q(group.key)}, of the built-in type ${q(group.type)}`;
+  if (group.type === 'UnitGroup') {
+    const declared = (group.config as { units: number | string[] }).units;
+    const units: (string | number)[] = typeof declared === 'number' ? Array.from({ length: declared }, (_, i) => i) : [...declared];
+    const has = new Set<string | number>(units);
+    for (const f of ['from', 'prefer'] as const) {
+      for (const u of request?.[f] ?? []) {
+        if (!has.has(u)) {
+          return `${f} names unit ${shown(u)}, which ${named} does not have — its units are ${units.map((x) => shown(x)).join(', ')}` +
+            (typeof declared === 'number' ? ' (declared by count: integers, never strings)' : '');
+        }
+      }
+    }
+    if (request?.from !== undefined && cost > request.from.length) {
+      return `a cost of ${cost} from ${request.from.length} candidate unit(s) in from can never be granted by ${named}`;
+    }
+    if (cost > units.length) return `a cost of ${cost} is above the ${units.length} unit(s) of ${named} — a worker of this pool could never start`;
+    return null;
+  }
+  if (request !== undefined && (ownKey(request, 'from') || ownKey(request, 'prefer'))) {
+    return `a request naming ${['from', 'prefer'].filter((f) => ownKey(request, f)).join(' and ')} on ${named}, which takes no request — ` +
+      'from and prefer are a UnitGroup\'s (or a code group type\'s with a checkRequest); { cost } alone is a cost, for any group';
+  }
+  const limit = group.type === 'ConcurrentLimitGroup' ? (group.config as { limit: number }).limit
+    : group.type === 'RateLimitGroup' ? Math.min(...(group.config as { windows: { limit: number }[] }).windows.map((w) => w.limit))
+      : undefined;
+  if (limit !== undefined && cost > limit) {
+    return `a cost of ${cost} is above the limit of ${limit} of ${named}${group.type === 'RateLimitGroup' ? ' (its smallest window\'s)' : ''} — a worker of this pool could never start`;
+  }
+  return null;
 }
 
 /**
@@ -716,7 +874,7 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
   const rawWorkers = sections('workers', doc.workers);
   const workers = new Map<string, WorkerEntry>(checkWorkersShape(rawWorkers as unknown as Workers));
 
-  // ---- group types: the three built-ins and the custom ones, one namespace ----
+  // ---- group types: the built-ins (five since v0.56, W225) and the custom ones, one namespace ----
   const groupTypes = new Map<string, GroupType | { configSchema: JsonSchema }>();
   for (const [name, g] of Object.entries(BUILT_IN_GROUP_TYPES)) groupTypes.set(name, g);
   for (const [name, gt] of Object.entries(code.groupTypes ?? {})) {
@@ -740,6 +898,11 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
     if (gt.configSchema !== undefined) {
       const fs = findings(gt.configSchema, inst.config ?? {});
       if (fs.length) throw new GroupConfigRefused(key, `group ${q(key)}: config fails ${q(inst.type)}'s configSchema — ${describeFindings(fs)}`);
+    }
+    // v0.56 (ADR 0143 rules 1 and 2): a BUILT-IN's rules the subset cannot state, on a config its schema admitted.
+    if (hasOwn(BUILT_IN_GROUP_TYPES, inst.type)) {
+      const p = builtInConfigProblem(inst.type, inst.config);
+      if (p !== null) throw new GroupConfigRefused(key, `group ${q(key)}: config fails ${q(inst.type)}'s rule beside its configSchema — ${p}`);
     }
     groups.set(key, { key, type: inst.type, groupType: gt as GroupType, config: inst.config });
   }
@@ -834,13 +997,24 @@ export function resolveRegistry(doc: RegistryDocument, code: RegistryCode = {}):
   // The scheduler resolves no key for a resident group, so the built-in factory's group — built with no `keyFrom` —
   // counts every worker of every pool holding it in ONE `""` bucket, silently (measured by W163). A CODE group type's
   // group is never this refusal, keyed or not: the factory is the consumer's, as `FD-R6` reads it.
+  //
+  // **Since v0.56 the built-in `KeyedConcurrentLimitGroup` too** (P46 decision 5, ADR 0143 rule 3), which the scheduler
+  // REJECTS in `residentGroups` at construction rather than counting in silence; ours names the pool. **And in the same
+  // pass every resident cost and request is held against the group it names** (ADR 0143 rule 5,
+  // `residentAgainstGroupProblem`): the derived spec is where a type's, an instance's and a class's resident values meet.
   for (const p of pools.values()) {
-    for (const g of residentKeysOf(p.spec)) {
-      if (groups.get(g)?.type !== 'KeyedRateLimitGroup') continue;
-      const who = p.key === p.type ? `node type ${q(p.type)}'s default instance` : `pool ${q(p.key)} (an instance of ${q(p.type)})`;
-      throw new DerivationRefused(p.key, `${who}: the derived pool holds group ${q(g)}, of the built-in type "KeyedRateLimitGroup", in residentGroups — ` +
-        'the scheduler resolves no key for a resident group, so every worker holding it is counted in ONE "" bucket, in silence (Q619). ' +
-        `Name ${q(g)} in groups, where each task is counted under its limitKey (FD-R6), or hold a ConcurrentLimitGroup or RateLimitGroup resident`);
+    const who = p.key === p.type ? `node type ${q(p.type)}'s default instance` : `pool ${q(p.key)} (an instance of ${q(p.type)})`;
+    for (const [g, value] of residentEntriesOf(p.spec)) {
+      const group = groups.get(g);
+      if (group === undefined) continue;   // unreachable: `derivePool` refused a group the document lacks (NameMissing)
+      const keyed = KEYED_BUILT_INS[group.type];
+      if (hasOwn(KEYED_BUILT_INS, group.type) && keyed !== undefined) {
+        throw new DerivationRefused(p.key, `${who}: the derived pool holds group ${q(g)}, of the built-in type ${q(group.type)}, in residentGroups — ` +
+          `${keyed} (Q619). ` +
+          `Name ${q(g)} in groups, where each task is counted under its limitKey (FD-R6), or hold a ConcurrentLimitGroup or RateLimitGroup resident (or a UnitGroup)`);
+      }
+      const problem = residentAgainstGroupProblem(group, value);
+      if (problem !== null) throw new DerivationRefused(p.key, `${who}: residentGroups[${q(g)}] — ${problem}`);
     }
   }
 
