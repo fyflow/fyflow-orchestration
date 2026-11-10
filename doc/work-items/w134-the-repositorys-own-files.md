@@ -1,6 +1,6 @@
 # W134 — The repository's own files: `.gitignore` ignores `.claude/worktrees/` (Q235), `doc/README.md` loses every derived figure (Q484), and `AGENTS.md` states `OR-R6`'s pool dependence (Q534)
 
-**Status:** done — declared 2026-10-07 on `b87fc4a`, the fourth and last item of P30; built, the reader and the fix round done 2026-10-07
+**Status:** done — declared 2026-10-07 on `61774b9`, the fourth and last item of P30; built, the reader and the fix round done 2026-10-07
 **Plan:** P30, `doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md`
 
 *This file carries NO relative link, deliberately*, as W133's, W131's and W132's do — Q142's
@@ -15,7 +15,7 @@ Spec:       none changes. spec/outcome-record.md OR-R6 v0.11 is the SOURCE of Q5
 Owns:       .gitignore; doc/README.md; AGENTS.md, ONE sentence only — the bullet "Returning a
             CLASS INSTANCE from a worker", its sentence beginning "The loud half is a result that
             cannot be cloned at all"; and this file (P30's index row)
-Inputs:     the tree at `b87fc4a` (W133, W131 and W132 done); `npm run state`, `npm run
+Inputs:     the tree at `61774b9` (W133, W131 and W132 done); `npm run state`, `npm run
             check:spec`, `npm run check:budget` and `npm run check:scheduler` as the derivations
             decision 3 deletes against; spec/outcome-record.md OR-R6 v0.11; Q235's, Q484's and
             Q534's own files, and Q488 (Q484's duplicate)
@@ -51,7 +51,7 @@ Gate:       `git check-ignore .claude/worktrees/x` EXIT 0; `check:markdown`,
 Reserves:   Q542-Q546. No ADR (P30's block 0085-0086 is spent). No W beyond W134
 ```
 
-**Exceptions**: one, declared LATE (the conformity reader's finding 6), after its edit in `921aa60`:
+**Exceptions**: one, declared LATE (the conformity reader's finding 6), after its edit in `c2c95a5`:
 P30's **Stop-and-asks table**, row (h) — outside the plan's Record, which is the record step's file.
 The maintainer's answer of 2026-10-07 directed the row there, as W131's record commit did for row (b).
 **W133's drag files were checked up front and none applies**: no
@@ -74,7 +74,7 @@ stop-and-ask (g), asked first. `CLAUDE.md`, `doc/workflow.md` and `doc/concept.m
 
 **In**
 
-1. **Measure first**, on `b87fc4a`, before any edit — output (1). The figure list is the subject
+1. **Measure first**, on `61774b9`, before any edit — output (1). The figure list is the subject
    of decision 3, so it is written down before the deletion, with the command deriving each figure.
 2. **Q235.** One line in `.gitignore`.
 3. **Q484.** The deletion of (1)'s list, then `check:markdown:selftest` re-measured. **If it goes
@@ -119,7 +119,7 @@ stop-and-ask (g), asked first. `CLAUDE.md`, `doc/workflow.md` and `doc/concept.m
 
 ## Record
 
-*Filled in 2026-10-07 on `2b48046`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-07 on `1ec308c`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w134-64418/` (the declaring shell's pid): every log and script named below. Node v24.20.0
 by `fnm use 24` in every shell, Deno 2.9.6; every rung redirected, its EXIT read in the same command,
 never piped. Ids here are bare text, as the header says.
@@ -132,26 +132,26 @@ never piped. Ids here are bare text, as the header says.
 | `npm run check:markdown` | 0 before, 0 after | `md-before.log`, `md-after.log`, `md-fix.log` |
 | `npm run check:markdown:selftest` | 0 before, 0 after | 42/42 probes caught, 7/7 bounded, both times (`mdself-before.log`, `mdself-after.log`, the latter on the tree with every deletion made) |
 | `npm run check:docs` | 0 before, 0 after | 40 snippets (34 run, 6 check) before and after: **no snippet changed** (`docs-before.log`, `docs-fix.log`) |
-| `npm run gate:full > dev-dist/w134-64418/full.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `2b48046`, after the reader's fixes and rule 8's pass 2; 0 `FAIL` lines; `git status --short` empty before and after (`tree-before-full.txt`, `full.exit`); 11:30 to 12:12 |
+| `npm run gate:full > dev-dist/w134-64418/full.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `1ec308c`, after the reader's fixes and rule 8's pass 2; 0 `FAIL` lines; `git status --short` empty before and after (`tree-before-full.txt`, `full.exit`); 11:30 to 12:12 |
 | — L1-L5 | 0 | 1528 cases in node 24.20.0, deno 2.9.6 and chromium (parity 1528): unchanged |
 | — L6 | 0 | 2465 assertions over 162 real runs, node and deno: unchanged |
 | — self-tests | 0 | 11/11 lanes ok |
 
 L7 did not run. **After the record step** (P30, three resolved questions and this file, all read by
-`check:markdown` or `check:register`), on `6833fc9`: `npm run gate` EXIT 0 (`gate-record.log`, 1528 in all
+`check:markdown` or `check:register`), on `1bddb49`: `npm run gate` EXIT 0 (`gate-record.log`, 1528 in all
 three runtimes, 2465 / 162 at L6) and `npm run check:markdown:selftest` EXIT 0 (`md-selftest-record.log`,
-42/42, 7/7). `check:register:selftest` was not re-run alone, `gate:full` having run it at `2b48046`, as at
+42/42, 7/7). `check:register:selftest` was not re-run alone, `gate:full` having run it at `1ec308c`, as at
 W132.
 
-### Scope 1 — the measurement, before any edit, on `cc287bc`
+### Scope 1 — the measurement, before any edit, on `ee63df3`
 
 **The floors** (`scripts/check-markdown.mjs`): `M3` `r.files < 362`, `M4` `r.sources < 120`, `M5`
 `r.anchored < 72`.
 
 | | files (M3) | relative links | linking documents (M4) | anchored (M5) | doc/README.md: relative links / anchored / bytes |
 |---|---|---|---|---|---|
-| before, `cc287bc` | 610 | 5325 | 199 | 84 | 157 / 0 / 51,495 |
-| after, `2b48046` | 612 | 5324 | 199 | 84 | 155 / 0 / 45,499 |
+| before, `ee63df3` | 610 | 5325 | 199 | 84 | 157 / 0 / 51,495 |
+| after, `1ec308c` | 612 | 5324 | 199 | 84 | 155 / 0 / 45,499 |
 
 **Prediction 3 held**: no floor moved. The two links that went are both `[Q484](questions/q484.md)`, inside
 deleted text. The two files added are this file and Q542. Probe r6 measured the margin: doc/README.md with
@@ -204,9 +204,9 @@ pool); the class instance is the quiet half, and it is the one people hit.*
 
 ### Exceptions, reconciled to `git status --short` to the path
 
-`git diff --name-only cc287bc~1 HEAD` plus the record step. **Owns, 4**: `.gitignore`, `doc/README.md`,
+`git diff --name-only ee63df3~1 HEAD` plus the record step. **Owns, 4**: `.gitignore`, `doc/README.md`,
 `AGENTS.md` (one hunk, inside the sentence — asserted by rung `out`'s `out-owns`), this file.
-**Exception, 1, late**: P30's Stop-and-asks table, row (h), in `921aa60` (declared above). **Record step**:
+**Exception, 1, late**: P30's Stop-and-asks table, row (h), in `c2c95a5` (declared above). **Record step**:
 P30's plan (its Record, its Status line, stop-and-ask (c)'s answer cell, and a Q542 row in its
 *Open questions this plan carries*, as W132 added Q541's), `doc/questions/q542.md`
 (raised), `q235.md`, `q484.md`, `q534.md` (resolved). `README.md` was read and not edited: nothing in it

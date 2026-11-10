@@ -21,7 +21,7 @@ number in `M5`'s floor, and nothing else in it (consequence 4).
 A term in this repository is decided in one of three places: a `spec/` section, an ADR, or
 `doc/workflow.md`. Nothing said where. *gate* is a flow node kind, two `npm` commands and a work
 item's verification gate — 229 case-insensitive whole-word occurrences under `spec/**/*.md` and
-2,666 under `doc/` on `839d83a` — and the process vocabulary (*probe*, *provocation*, the two readers)
+2,666 under `doc/` on `2a8262f` — and the process vocabulary (*probe*, *provocation*, the two readers)
 is defined inside list items and tables of `doc/workflow.md` that a fresh reader has no index into.
 
 A glossary that DEFINES its terms is a fourth place a term is decided, and the first to disagree

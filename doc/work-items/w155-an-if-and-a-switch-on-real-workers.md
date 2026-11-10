@@ -3,8 +3,8 @@
 **Status:** done 2026-10-14 — **`npm run gate:item` EXIT 0** on the final tree after both readers' items, one command, its first
 run; `npm run gate:full` EXIT 0 on the pre-reader tree (Record); stop-and-asks (r) and (s) ANSWERED YES by the maintainer
 2026-10-14 and acted on, with the readers' items R1-R7 (Exceptions); Q594 raised deferred; the census-site correction
-(re-take 2) confirmed by the conformity reader and CONFIRMED by the maintainer 2026-10-14 (P32's retro, (v)); both reader passes RUN (gate table); declared 2026-10-13 on `334851d`, declaration step RUN the same day
-in a byte copy of `334851d`, written before any edit outside this file
+(re-take 2) confirmed by the conformity reader and CONFIRMED by the maintainer 2026-10-14 (P32's retro, (v)); both reader passes RUN (gate table); declared 2026-10-13 on `2970c9f`, declaration step RUN the same day
+in a byte copy of `2970c9f`, written before any edit outside this file
 **Plan:** [P32](../plans/p32-what-a-gate-may-decide-without-memory.md) — *may a gate decide by a declared condition
 or a declared value table, without memory?* — and this is its LAST item and its EXIT ARTIFACT.
 
@@ -19,7 +19,7 @@ Owns:       examples/flows/if-then-switch.flow.json (new); examples/l6.ts; examp
             (the flow count) and :311 (the verdict counts), NOT the L4 arc literal at :441 (re-take 2);
             spec/outcome-record.md section 4 :371 (the task-node census sentence). Every other site was
             measured unmoved (re-take 2). And whatever stop-and-ask (r) is answered with. **Every line number
-            here is `334851d`'s, the tree the declaration measured** (the edited tree puts the verdict counts at
+            here is `2970c9f`'s, the tree the declaration measured** (the edited tree puts the verdict counts at
             :314 and the L4 literal at :444 — the readers' nit, R6). And by the Exceptions below (2026-10-14):
             examples/run-flow.ts ((s): `RunReport.gateTypeNames`) and doc/questions/q594.md (new, R5).
 Inputs:     P32's exit-artifact sentence, decisions 1, 4-6, stop-and-asks (b) and (c); W154's Record note *For
@@ -57,7 +57,7 @@ Gate:       `npm run gate:full` (the plan's LAST item, workflow v0.29) on a stil
 Reserves:   Q594-Q598, and NO ADR
 ```
 
-*Reserves: `npm run state` on `334851d` reads the tree's next free question as **Q590**; W154 reserved Q590-Q593 and
+*Reserves: `npm run state` on `2970c9f` reads the tree's next free question as **Q590**; W154 reserved Q590-Q593 and
 issued none, so they are skipped, never reissued (`doc/workflow.md` section 3), and this item takes **Q594-Q598**.
 P32's ADR 0093 went unused at W154 and an exit artifact writes no rule, so this item reserves no ADR. **W156 stays
 reserved and expected unused** (P32's block).*
@@ -83,13 +83,13 @@ reserved and expected unused** (P32's block).*
 
 ## What the declaration step re-took before anything was edited
 
-*P15 decision 5: every fact is re-run by the item that acts on it. Measured 2026-10-13 in a BYTE COPY of `334851d`
+*P15 decision 5: every fact is re-run by the item that acts on it. Measured 2026-10-13 in a BYTE COPY of `2970c9f`
 (`git archive` into `C:/tmp-w155/m`, `node_modules` copied, zero links by `find -type l` and by PowerShell's
 `ReparsePoint` scan), node 24.20.0 and deno 2.9.6, so the author's tree was not touched until this file existed.*
 
 **Re-take 1 — the baseline, re-run in the copy, not transcribed.** `node test/runner.ts` **EXIT 0, 58 files / 1635
 cases**; `node examples/l6.ts` **EXIT 0, 2487 assertions / 164 real runs**. deno and chromium L1-L5 (58 / 1635), deno
-L6 (2487 / 164) and `check:spec` 7 / 75 / 133 are W154's final `gate:item` on the same source tree (`334851d`
+L6 (2487 / 164) and `check:spec` 7 / 75 / 133 are W154's final `gate:item` on the same source tree (`2970c9f`
 committed it) — read from its Record, not re-measured here.
 
 **Re-take 2 — what a new flow, three new task nodes, four new rows and a new block MOVE.** Found by building them in the
@@ -102,12 +102,12 @@ lanes and the twelve checks of `npm run gate`.
 | `test/definition/wiring.test.ts:225` — a comment quoting that census (*`unchecked: 14` over 30 flows*) | the same | text only | yes |
 | `test/definition/wiring.test.ts:441` — **the L4 arc literal (70)**, a walk of `spec/examples/valid/**` | a task in the L4 corpus — **which this item adds none of** | **NO** — measured green. *The brief named this line; the census a new `examples/flows/**` document moves is the one above it in the same file, which W94 moved the same way. W154's note says :441 moves for a task in `spec/examples/valid/**`, which is right and is not this item's case* | not needed |
 | `test/fold/result-value.test.ts:575` ← `spec/outcome-record.md:371` — *19 of 210 corpus task nodes, 191 (91%)* | THREE task nodes (`score`, `publish`, `shelve`), no `needs` | **yes** — `expected 213, actual 210` | the spec sentence, yes; the test derives and is NOT edited |
-| `spec/run-state.md:453` — *153 of 175 task nodes (91%)* | the same count | **no assertion reads it** — a copy stale since W67 (210 at `334851d`), which W82, W86, W94 and W110 left as it was | **no** — not this item's to fix; noted |
+| `spec/run-state.md:453` — *153 of 175 task nodes (91%)* | the same count | **no assertion reads it** — a copy stale since W67 (210 at `2970c9f`), which W82, W86, W94 and W110 left as it was | **no** — not this item's to fix; noted |
 | `examples/l6.ts` `DECLARED_TOTAL`, `DECLARED_RUNS`, `CROSS_ROW`, `ROW_KEYS`, `PER_ROW_SUBJECTS`, `CROSS_ROW_SUBJECTS`, the per-row extras | the rows and the block | yes | yes |
 | `examples/l6.ts` W98's dispatch-order census `{ byCausality: 824, turn: 183, free: 264 }` | the one chained pair `score → publish` on the `certain` row | **yes, 824 → 825** | yes |
 | `examples/l6.ts` W110's block, clause (1) and the `namedByDocument` clause — LITERAL per-row lists over `EXPECTED.filter((e) => e.uiRegistry === true)` | four new rows on the UI registry | **yes, 2 assertions red** | **NO — stop-and-ask (r)** |
 | `examples/README.md:38`, `:70` — `check-docs` `X10`'s two copies | `DECLARED_TOTAL` / `DECLARED_RUNS` | yes, `X10` red | yes |
-| `examples/README.md:81` — *the twenty-eight flows* | the new flow | text; **stale since W110** (30 at `334851d`) | yes — corrected to thirty-one |
+| `examples/README.md:81` — *the twenty-eight flows* | the new flow | text; **stale since W110** (30 at `2970c9f`) | yes — corrected to thirty-one |
 | `scripts/check-workers*.mjs`, `examples/registry.json`, `examples/ui-registry.json`, `THREADABLE_TYPES`, the worker-list clause | a new worker or type | **no** — none is added | — |
 | `examples/l6.ts:6612`'s kind clause — every node KIND in the valid corpus runs at L6 | a new kind | no — `gate` and `task` are there | — |
 | `scripts/check-docs.mjs` `RUN_FLOOR`, `AGENTS.md` | a snippet | no — none is added | — |
@@ -158,7 +158,7 @@ assertions, 164 → 168 runs** (the block's runtime starts nothing — the refus
 
 | | the question | measured | options, and their cost | recommended |
 |---|---|---|---|---|
-| **(r)** | may W155 narrow W110's cross-row block to W110's own two documents — `uiRows` from `EXPECTED.filter((e) => e.uiRegistry === true)` to `… && (e.definition === UI \|\| e.definition === UIN)` (`examples/l6.ts:10972` at `334851d`), every literal in that block unmoved? | P32's exit sentence says *with no predicate … registered*. The only road a row has to an EMPTY predicate map is `uiRegistry: true` — `createRuntime` compares the document's predicate names with the code's functions BOTH WAYS, so an empty map against `registry.json`'s three is refused (W110's stop-and-ask (c), and `run-flow.ts:84`). W110's block selects its rows by that FLAG and asserts two LITERAL per-row lists of seven (`l6.ts:10985` and the `namedByDocument` clause): with this item's four rows on the flag, **both go red** (`actual` lists eleven, the four extra `["l6-if-then-switch", []]` and `[]`), measured in the copy | **1 — narrow the selection (one expression)**: W110's clauses say again exactly what their messages say (*all four `ui-emitted` rows … both `ui-emitted-named` rows*), and this item's block asserts its own rows' empty registries. **2 — extend W110's two literals** by four entries each: two existing expected values and their messages change, and P26's claim absorbs P32's rows. **3 — run on `registry.json`**: no existing assertion moves, but three predicates are registered for every run, which P32's exit sentence refuses. **4 — a block outside the row loop** (W141's road): no assertion moves, but the rows lose the per-row base (24 clauses each — Q32, the dispatch comparison, the retention pair, the wiring verdicts) | **1** |
+| **(r)** | may W155 narrow W110's cross-row block to W110's own two documents — `uiRows` from `EXPECTED.filter((e) => e.uiRegistry === true)` to `… && (e.definition === UI \|\| e.definition === UIN)` (`examples/l6.ts:10972` at `2970c9f`), every literal in that block unmoved? | P32's exit sentence says *with no predicate … registered*. The only road a row has to an EMPTY predicate map is `uiRegistry: true` — `createRuntime` compares the document's predicate names with the code's functions BOTH WAYS, so an empty map against `registry.json`'s three is refused (W110's stop-and-ask (c), and `run-flow.ts:84`). W110's block selects its rows by that FLAG and asserts two LITERAL per-row lists of seven (`l6.ts:10985` and the `namedByDocument` clause): with this item's four rows on the flag, **both go red** (`actual` lists eleven, the four extra `["l6-if-then-switch", []]` and `[]`), measured in the copy | **1 — narrow the selection (one expression)**: W110's clauses say again exactly what their messages say (*all four `ui-emitted` rows … both `ui-emitted-named` rows*), and this item's block asserts its own rows' empty registries. **2 — extend W110's two literals** by four entries each: two existing expected values and their messages change, and P26's claim absorbs P32's rows. **3 — run on `registry.json`**: no existing assertion moves, but three predicates are registered for every run, which P32's exit sentence refuses. **4 — a block outside the row loop** (W141's road): no assertion moves, but the rows lose the per-row base (24 clauses each — Q32, the dispatch comparison, the retention pair, the wiring verdicts) | **1** |
 
 *(r) blocks the confirming gate: until it is answered L6 is red on exactly those two W110 assertions, in both
 runtimes, and `npm run gate:full` is not started over a tree with a known red lane (`doc/workflow.md` section 4). Every
@@ -170,7 +170,7 @@ other part of the item is independent of it and is done.*
 
 | | file | the edit, and nothing else |
 |---|---|---|
-| **(r)** YES, option 1 — answered by the maintainer 2026-10-14, citing the per-decision path as unaffected (this is test code) | `examples/l6.ts` (W110's cross-row block, :10972 at `334851d`) | `uiRows` narrowed to `EXPECTED.filter((e) => e.uiRegistry === true && (e.definition === UI \|\| e.definition === UIN))`; every literal in W110's block unchanged |
+| **(r)** YES, option 1 — answered by the maintainer 2026-10-14, citing the per-decision path as unaffected (this is test code) | `examples/l6.ts` (W110's cross-row block, :10972 at `2970c9f`) | `uiRows` narrowed to `EXPECTED.filter((e) => e.uiRegistry === true && (e.definition === UI \|\| e.definition === UIN))`; every literal in W110's block unchanged |
 
 *The census-site correction (`test/definition/wiring.test.ts` :225/:273/:275/:311 moved, :441 unmoved — re-take 2) is
 recorded as measured and is NOT yet confirmed by the maintainer.* *(A dated note, 2026-10-14: **CONFIRMED by the
@@ -218,7 +218,7 @@ fan-out (Q6) — not applicable.
 
 ## Record
 
-*Written 2026-10-14 with the item's changes UNCOMMITTED on `334851d`. Stop-and-ask (r) was first unanswered, and every lane
+*Written 2026-10-14 with the item's changes UNCOMMITTED on `2970c9f`. Stop-and-ask (r) was first unanswered, and every lane
 of `gate:full` was run SEPARATELY (W154's precedent); the maintainer then answered YES, the line went in (Exceptions), and
 `npm run gate:full` ran ONCE on the still tree. The reader passes have NOT run.* *(P32's retro, 2026-10-14, pass 3
 rule 6: both readers RAN later that day — the gate table's rows and the Exceptions' R1-R7. This line is as first written.)*
@@ -236,7 +236,7 @@ rule 6: both readers RAN later that day — the gate table's rows and the Except
 | `test:l6`, `test:l6:deno` | **EXIT 1 each** | **2599 assertions / 168 real runs, 2 failed in each — exactly W110's two literal clauses, (r)**. Every W155 row and clause passes in both runtimes |
 | `selftests` (all eleven lanes, `check:register:selftest` included) | **EXIT 0** | 11 / 11 ok, 3554.5 s wall |
 | the same rows with (r)'s recommended line, in the byte copy | RAN | L6 **2599 / 168, 0 failed** in node and in deno (re-take 5) — the tree the provocations ran on |
-| conformity reader | RAN 2026-10-14, fresh context, worktree `C:/tmp-w155r/rc` on `334851d` plus this item's diff and new files (before the readers' items), spec first and a route table written from section 2 and RN-R26 before the code was opened; nothing edited | **No defect; 5 gaps, 3 nits.** L6 re-run **2599 / 168, 0 failed, node and deno**; every asserted value derived from the spec and the `score` worker's declared `round(c*100)`, none read as copied from output. Confirmed: the four routes (0.5 at the `gte` boundary, 90 one member of an array case, 50 `default` carrying `(key 50)`, 0.2 `else`); no `key` on an `if` element; the decision before its target's dispatch; FD-V41 as the single finding with the orphaned end removed; **the census-site correction (re-take 2)** — the L6 census moves, `:441`'s 70 arcs do not; **the (r) narrowing selects exactly the rows it selected before**. C1 the gate-type check read a sibling runtime; C2 `start()`'s naming observer a substring; C3 strictness, an unresolved key and an absent input below L6 only; C4 four payloads for five routes; C5 `spec/run-state.md:453`'s stale count unraised; nits: Owns line numbers' tree, the missing P10, the log's bytes. Acted on as R4, R3, R7, R7, R5, R6 |
+| conformity reader | RAN 2026-10-14, fresh context, worktree `C:/tmp-w155r/rc` on `2970c9f` plus this item's diff and new files (before the readers' items), spec first and a route table written from section 2 and RN-R26 before the code was opened; nothing edited | **No defect; 5 gaps, 3 nits.** L6 re-run **2599 / 168, 0 failed, node and deno**; every asserted value derived from the spec and the `score` worker's declared `round(c*100)`, none read as copied from output. Confirmed: the four routes (0.5 at the `gte` boundary, 90 one member of an array case, 50 `default` carrying `(key 50)`, 0.2 `else`); no `key` on an `if` element; the decision before its target's dispatch; FD-V41 as the single finding with the orphaned end removed; **the census-site correction (re-take 2)** — the L6 census moves, `:441`'s 70 arcs do not; **the (r) narrowing selects exactly the rows it selected before**. C1 the gate-type check read a sibling runtime; C2 `start()`'s naming observer a substring; C3 strictness, an unresolved key and an absent input below L6 only; C4 four payloads for five routes; C5 `spec/run-state.md:453`'s stale count unraised; nits: Owns line numbers' tree, the missing P10, the log's bytes. Acted on as R4, R3, R7, R7, R5, R6 |
 | adequacy reader | RAN 2026-10-14, fresh context, worktree `C:/tmp-w155r/ra`, spec first then tests, mutations by exact-anchor replace, every file restored and checked by sha256 and `cmp` | **18 mutations: 12 killed at L6, 2 killed only at L1/L2, 4 subjects survived everything below or at L6 as the item stood.** S1 the (r) narrowing dropped the only guard on WHICH rows run the UI registry (the `map` row moved onto it stayed green in node and deno, red under the old filter); S2 nothing pinned the flow's `if` condition (`0.5`→`0.4`, `gte 0.5`→`gt 0.45` green); S4 the naming observers passed a message naming the wrong route; S5 a gate type in the rows' own runtime green. S3 (an array case matching its LAST value) survives L6 and is killed at L1/L2. None killed for the wrong reason. S1, S2, S4, S5 acted on as R1, R2, R3, R4 — each re-run as a provocation in pass 3 and red on its declared clause |
 | reader overlap | **2** shared subjects | the gate-type check on a sibling runtime (C1, S5) and the unanchored *names the case* (C2, S4) — inside section 6's 0-4 band. **One disagreement**, recorded above in the Record: the (r) narrowing drops no coverage of today's rows (conformity) but drops a forward guard (adequacy, S1); acted on as R1 |
 

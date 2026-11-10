@@ -1,7 +1,7 @@
 # W225 — `UnitGroup` and `KeyedConcurrentLimitGroup` as built-in group types, and a resident unit request
 
 **Status:** done 2026-11-05 — **`npm run gate:item` EXIT 0** on the final tree, its FOURTH run (the first three RED, below);
-declared 2026-11-05 on `fd6227f`; both readers RUN and acted on; nothing raised; one occurrence appended to Q599
+declared 2026-11-05 on `5113a18`; both readers RUN and acted on; nothing raised; one occurrence appended to Q599
 **Plan:** [P46](../plans/p46-what-the-scheduler-0-7-0-admission-rework-lets-a-document-declare.md) — its second item.
 
 ```
@@ -50,7 +50,7 @@ Reserves:   Q801-Q802, ADR 0143
 
 ## Record
 
-**Author's record, 2026-11-05, on `fd6227f` plus W224's uncommitted pin — in review.** Nothing committed.
+**Author's record, 2026-11-05, on `5113a18` plus W224's uncommitted pin — in review.** Nothing committed.
 
 ### Gate
 

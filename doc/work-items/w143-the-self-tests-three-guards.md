@@ -1,6 +1,6 @@
 # W143 — The self-tests' three guards: every compound mutation is instrumented, every META pass carries an unmutated-copy control, and every `ran:` guard has a checked-in case (Q434, Q437, Q536)
 
-**Status:** done — declared 2026-10-08 on `e952ac3`, the sixth item of P31; built, the reader and the fix round done, the maintainer's (B) on the wall taken, `gate:item` and `check:register:selftest` EXIT 0 on `f722ffa`, the record step done, 2026-10-09
+**Status:** done — declared 2026-10-08 on `070a815`, the sixth item of P31; built, the reader and the fix round done, the maintainer's (B) on the wall taken, `gate:item` and `check:register:selftest` EXIT 0 on `d9ff130`, the record step done, 2026-10-09
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, as W140-W145's files do* — Q142's M4 mechanism, which W144 derived
@@ -16,9 +16,9 @@ Spec:       none changes. P31 decision 3 fixes all three directions as each ques
             `ran:` carries a checked-in case that makes the guard fire. Workflow section 5 rule 7
             (a)-(c) binds each new guard; ADR 0072 (a scratch path carries its process) binds every new
             scratch path; ADR 0089 is free and used only if an answer needs it
-Owns:       scripts/*-selftest.mjs (P31's W143 row) — eleven files on e952ac3; scripts/selftest-guards.mjs
+Owns:       scripts/*-selftest.mjs (P31's W143 row) — eleven files on 070a815; scripts/selftest-guards.mjs
             (new, by the maintainer's YES — Exceptions); this file
-Inputs:     the tree at e952ac3 (W140, W142, W141, W145, W144 done); Q434, Q437 and Q536's files;
+Inputs:     the tree at 070a815 (W140, W142, W141, W145, W144 done); Q434, Q437 and Q536's files;
             W105's Record (the instrumented replace's origin, Q434); W125's rows for Q434 and Q437 (the
             measured scope at P29); W131's Record (Q536); check-wiring-selftest.mjs's `applyMutation`
             and META control; check-lookup-selftest.mjs's META CONTROL; check-policies-selftest.mjs's
@@ -34,7 +34,7 @@ Outputs:    (1) the measurement, BEFORE any edit, one row per self-test: its pas
                 named probe to notice) runs one unmutated copy through the same path first, and that
                 copy must come back NOT noticed, or the pass is RED before it grades anything
             (4) Q536: every self-test that grades on `ran:` (`grep -l "ran: yes" scripts/*-selftest.mjs`:
-                docs, markdown, policies, scheduler, source, spec on e952ac3) carries a checked-in case
+                docs, markdown, policies, scheduler, source, spec on 070a815) carries a checked-in case
                 that makes the guard fire, graded on the guard's own failure line
             (5) each new guard provoked at birth in each file (rule 7 (a)-(c)): a compound whose second
                 edit matches nothing goes RED; a META pass whose control is removed is visible; the
@@ -80,10 +80,10 @@ YES written here before the edit. **The drag files, checked up front:**
 
 **In**
 
-1. **Measure first**, output (1), on `e952ac3`, logs under dev-dist/w143-19571/.
+1. **Measure first**, output (1), on `070a815`, logs under dev-dist/w143-19571/.
 2. **Q434**, output (2): the instrumented replace in every pass of every self-test whose mutations are
    compound — check-wiring-selftest.mjs's own PROBES and META passes included, since only its SELF pass uses
-   `applyMutation` on e952ac3.
+   `applyMutation` on 070a815.
 3. **Q437**, output (3): one unmutated-copy control per META pass that lacks one.
 4. **Q536**, output (4): one checked-in `ran:` case in each of the five self-tests that lack one.
 5. Each guard provoked at birth, output (5).
@@ -115,7 +115,7 @@ YES written here before the edit. **The drag files, checked up front:**
 
 ## Record
 
-*Filled in 2026-10-09 on `f722ffa`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-09 on `d9ff130`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w143-19571/` (this item's shell pid): every log, harness and probe file named below. Node v24.20.0
 by `fnm use 24` in every shell; every rung redirected and its EXIT read in the same command, never piped.
 Ids and paths here are bare text, as the header says.
@@ -124,13 +124,13 @@ Ids and paths here are bare text, as the header says.
 
 | clause | verdict | notes |
 |---|---|---|
-| each self-test touched, alone | RAN, **EXIT 0** ×11 | before (`e952ac3`), after (`0b2d8c3`), and the three (B) changed again (`f722ffa`) — the table below; `before-*.log`, `after-*.log`, `afterB-*.log` |
-| `npm run gate:item > dev-dist/w143-19571/item2.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `f722ffa`, `git status --short` empty before; 1439 s |
+| each self-test touched, alone | RAN, **EXIT 0** ×11 | before (`070a815`), after (`4da61d2`), and the three (B) changed again (`d9ff130`) — the table below; `before-*.log`, `after-*.log`, `afterB-*.log` |
+| `npm run gate:item > dev-dist/w143-19571/item2.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `d9ff130`, `git status --short` empty before; 1439 s |
 | — L0-L5 | RAN, 0 | **1580** cases in node 24.20.0, deno 2.9.6 and chromium (`all passed (parity with node: 1580)`): unchanged |
 | — L6 | RAN, 0 | **164** real runs, 2487 assertions, in node and deno: unchanged |
 | — self-tests | RAN, 0 | 10/10 ok, 9 lanes, `check:register:selftest` left out (P31 decision 4), **1277.9 s wall** — against W144's 1316.1 s and this item's own 1600.1 s before (B) |
-| `npm run check:register:selftest > dev-dist/w143-19571/register.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `f722ffa`, after `gate:item`, tree still: 1720 s; probes 237/237 caught and 23/23 clean, grader 4/4, the META control and its two cases, 192/192 META, the STATE_META control and its two cases, 12/12 STATE_META, the SELF case, 22/22 bounded, digest unmoved, `All self-test passes clean.` |
-| an earlier `gate:item` on `0b2d8c3` | RAN, EXIT 0 | 1759 s, self-test wall **1600.1 s** — the measurement that went up as a stop-and-ask (below) |
+| `npm run check:register:selftest > dev-dist/w143-19571/register.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `d9ff130`, after `gate:item`, tree still: 1720 s; probes 237/237 caught and 23/23 clean, grader 4/4, the META control and its two cases, 192/192 META, the STATE_META control and its two cases, 12/12 STATE_META, the SELF case, 22/22 bounded, digest unmoved, `All self-test passes clean.` |
+| an earlier `gate:item` on `4da61d2` | RAN, EXIT 0 | 1759 s, self-test wall **1600.1 s** — the measurement that went up as a stop-and-ask (below) |
 | conformity reader | RAN | 15 findings: 1 blocking, 7 should-fix, 7 notes — below |
 | adequacy reader | NOT RUN | P31 decision 6: one conformity reader for W143 |
 
@@ -138,8 +138,8 @@ L7 did not run. firefox and webkit did not run.
 
 ### The per-self-test table, before and after
 
-Each lane ALONE, sequentially, EXIT 0 every time (`walls.sh`). *before* is `e952ac3`; *after (SELF form)* is
-`0b2d8c3`; *after (B)* is `f722ffa`, re-measured for the three lanes (B) changed. Wall times are one sample
+Each lane ALONE, sequentially, EXIT 0 every time (`walls.sh`). *before* is `070a815`; *after (SELF form)* is
+`4da61d2`; *after (B)* is `d9ff130`, re-measured for the three lanes (B) changed. Wall times are one sample
 on one machine — the 1-4 s lanes move by that much between runs.
 
 | self-test | compound mutations, and their guard before | META control before | grades on `ran:` / checked-in case before | wall before | after (SELF form) | after (B) |
@@ -208,13 +208,13 @@ decision, extended), so the children whose case is a META or STATE guard stop th
 
 ### Exceptions, reconciled to `git status --short` to the path
 
-`git diff --name-only e952ac3..HEAD` before the record step:
+`git diff --name-only 070a815..HEAD` before the record step:
 
 | path | in Owns? |
 |---|---|
 | doc/work-items/w143-the-self-tests-three-guards.md | yes — this file |
 | scripts/check-budget-selftest.mjs, -docs-, -markdown-, -policies-, -register-, -scheduler-, -source-, -spec-, -wiring-, -workers-selftest.mjs | yes — `scripts/*-selftest.mjs` (lookup untouched) |
-| scripts/selftest-guards.mjs | **by the maintainer's YES**, written into Exceptions before the file existed (`0f0213a`) |
+| scripts/selftest-guards.mjs | **by the maintainer's YES**, written into Exceptions before the file existed (`40fbe0a`) |
 
 Nothing else. The record step adds P31's plan, doc/questions/q434.md, q437.md and q536.md — section 1 rule 5's
 files.
@@ -229,10 +229,10 @@ self-test's own variable pointed at itself (a SELF child's arrangement: PROBES a
 `self1` (one SELF entry as its parent spawns and grades it, reason included).
 
 ```
-pass 1 (af914ea)  34 probes: 33 as declared, 1 against (s7)          digest befbf006cd7f9c43 IDENTICAL
-pass 2 (af914ea)  25 probes: 25 as declared                          digest befbf006cd7f9c43 IDENTICAL
-pass 3 (0b2d8c3)  61 probes: 60 as declared, 1 abort (wk2)           digest 1fc54c97f7af9663 IDENTICAL
-pass 4 (f722ffa)  15 probes: 14 as declared, 1 against (g-wrongb)    digest 4e4dfbebed54adcb IDENTICAL
+pass 1 (f97dbd0)  34 probes: 33 as declared, 1 against (s7)          digest befbf006cd7f9c43 IDENTICAL
+pass 2 (f97dbd0)  25 probes: 25 as declared                          digest befbf006cd7f9c43 IDENTICAL
+pass 3 (4da61d2)  61 probes: 60 as declared, 1 abort (wk2)           digest 1fc54c97f7af9663 IDENTICAL
+pass 4 (d9ff130)  15 probes: 14 as declared, 1 against (g-wrongb)    digest 4e4dfbebed54adcb IDENTICAL
 ```
 
 - **Every probe against its declaration was the declaration's**, each re-declared from the line seen: `s7`
@@ -251,14 +251,14 @@ pass 4 (f722ffa)  15 probes: 14 as declared, 1 against (g-wrongb)    digest 4e4d
   a failure (`rd1`-`rd3b`). **S3** (`s8`) — the scheduler junction branch: unreachable on a machine that makes
   junctions. **S6** (`m5`) — the C5 lift's loop-level miss check: the function it calls is caught (`m6`).
 
-### The reader — fresh context, Q434, Q437, Q536 and workflow section 5 rules 7-8 first; a still copy of `af914ea`
+### The reader — fresh context, Q434, Q437, Q536 and workflow section 5 rules 7-8 first; a still copy of `f97dbd0`
 
-It read `git archive af914ea` under dev-dist/w143-19571/reader-tree while rule 8 ran on the live tree, so
+It read `git archive f97dbd0` under dev-dist/w143-19571/reader-tree while rule 8 ran on the live tree, so
 both held still. Its per-question verdict: **Q434 closed; Q536 closed; Q437 closed against its closes-when
 and NOT against this item's output (5)** until finding 1 was fixed.
 
 1. **blocking — register's META and STATE_META controls were not visible when removed.** `NOT RUN` printed a
-   line and pushed nothing, so deleting the control block skipped the pass at exit 0. **Fixed** (`0b2d8c3`):
+   line and pushed nothing, so deleting the control block skipped the pass at exit 0. **Fixed** (`4da61d2`):
    a skipped pass is a failure; STATE_META is gated on the control HOLDING (`rd1`, `rd1b`, `rd1c`).
 2. **should-fix — budget's comment named the wrong mechanism.** **Fixed**, and the `NOT RUN` arm is a
    failure there too (`rd2`).
@@ -284,10 +284,10 @@ and NOT against this item's output (5)** until finding 1 was fixed.
 
 ### The stop-and-ask on the wall, and its answer
 
-`gate:item` on `0b2d8c3` read a self-test wall of **1600.1 s** against W144's 1316.1 s (+22%), the markdown
+`gate:item` on `4da61d2` read a self-test wall of **1600.1 s** against W144's 1316.1 s (+22%), the markdown
 lane 1585.4 s against 1302.6 s: the nine SELF entries each re-ran a probe pass and part of META to reach one
 line. It went up with three options. **The maintainer chose (B) on 2026-10-09**: the nine move in process
-(above), policies and budget keep the SELF form. On `f722ffa` the wall is **1277.9 s** — below both figures —
+(above), policies and budget keep the SELF form. On `d9ff130` the wall is **1277.9 s** — below both figures —
 and the three lanes alone read 742 / 399 / 459 s against 764 / 426 / 464 s before W143. *Not chosen*: (A)
 accept +284 s; (C) keep markdown's `ran:` case as a SELF entry.
 

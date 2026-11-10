@@ -1,6 +1,6 @@
 # P31 — Which of the open questions close once the maintainer takes their decision now?
 
-**Status:** complete and retro'd 2026-10-09 — declared 2026-10-07 on `a68b449`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-09 and the maintainer answered A, B and C the same day, declining D (Retro below)
+**Status:** complete and retro'd 2026-10-09 — declared 2026-10-07 on `9cb40a4`; W140 and W142 done 2026-10-07, W141, W145 and W144 done 2026-10-08, W143 and W146 done 2026-10-09; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-09 and the maintainer answered A, B and C the same day, declining D (Retro below)
 **Question this plan answers:** *with the maintainer's direction taken up front, which of the fourteen
 open questions close inside this repository, and does each close when its fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0 (the LAST item runs it, workflow
@@ -19,14 +19,14 @@ Items:    W140 (refusal messages: Q533), W142 (settlement routing: Q244),
           W146 (the documents: Q542, Q508)
 Reserves: W140-W149, Q553-Q567, ADR 0088-0089
 Baseline: plans to p30, work items to w139, ADRs to 0084, register to Q542 — `npm run state` on
-          `a68b449`, where the tree and the ledger agree on W140 / ADR 0088 and the ledger's Q553
+          `9cb40a4`, where the tree and the ledger agree on W140 / ADR 0088 and the ledger's Q553
           is W139's Record (Q548-Q552 spent unissued)
-Declared: 2026-10-07 on `a68b449`
+Declared: 2026-10-07 on `9cb40a4`
 ```
 
 ## Why this plan, and why now
 
-P30 closed thirteen questions and its items raised four, so fourteen are open on `a68b449`. The
+P30 closed thirteen questions and its items raised four, so fourteen are open on `9cb40a4`. The
 maintainer named the loop that produces this — *a unit may open more questions than it closes* — and
 answered it twice: workflow v0.30's section 1 rule 6 (a defect one simple decision settles is asked,
 not raised), and this plan, which takes every remaining decision BEFORE fan-out so that no item has
@@ -147,7 +147,7 @@ rule-8 passes; this section names what the PLAN needs from it.
 - **Predictions 2 and 6 held for W140.** It needed no ADR, and `CLAUDE.md`, `doc/workflow.md` and
   `doc/concept.md` are untouched.
 - **Overlap**: FOUR shared subjects, the eighty-fourth measurement — the count a retro carries forward.
-- **The confirming gate**: `npm run gate:item` EXIT 0 on `74d3487`, once, on a still tree (decision 4).
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `54f659d`, once, on a still tree (decision 4).
 
 **W142 — done 2026-10-07.** Its own Record covers the gate, the scaling figures, both readers and the rule-8
 passes; this section names what the PLAN needs from it.
@@ -161,7 +161,7 @@ passes; this section names what the PLAN needs from it.
     listeners per run on the scheduler and copied `scheduler.tasks` into each report.
   - The maintainer answered **(B)** on 2026-10-07: route the harness too.
   - W55's command is now linear in wall and heap: 904 ms and 68.0 MiB at N = 800 shared, against 13 652 ms and
-    879 MiB on `7ba87df`.
+    879 MiB on `f5f85ae`.
 - **Stop-and-ask (a) was not needed.** The routing changes no public surface: `start` and `resume` return the
   same handle, and nothing new is exported.
 - **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are untouched.
@@ -172,7 +172,7 @@ passes; this section names what the PLAN needs from it.
   - ID-R4 tier 1 is no longer reachable at L6. Its coverage is L2's.
   - `runPair` refuses a shared pair that filed no routed harness registration.
 - **Overlap**: FOUR shared subjects, the eighty-fifth measurement.
-- **The confirming gate**: `npm run gate:item` EXIT 0 on `81b0ed9`, once, on a still tree (decision 4).
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `ac1b4c4`, once, on a still tree (decision 4).
 
 **W141 — done 2026-10-08.** Its own Record covers the gate, the measurement, both readers and the rule-8
 passes; this section names what the PLAN needs from it.
@@ -186,14 +186,14 @@ passes; this section names what the PLAN needs from it.
   sentence, and `scripts/build-browser-tests.mjs`'s one corpus line. Neither is on this plan's W141 row.
 - **One ask is outstanding for the maintainer**: `spec/flow-definition.md` section 2's single-task F1 sentence
   does not reproduce on 0.5.2 (a single task with no retry settles; several tasks, or a retry, hang).
-  *Answered by the maintainer on 2026-10-08: the sentence corrected as `spec/flow-definition.md` v0.29, `b9dd0c8`,
+  *Answered by the maintainer on 2026-10-08: the sentence corrected as `spec/flow-definition.md` v0.29, `8ea902e`,
   its old reading kept. This retro's correction (pass 3 rule 6): the line said outstanding after the answer.*
 - **Counts:** L1-L5 went from 1538 to **1580** in node, deno and chromium; L6 from 2474 / 162 to **2487 / 164**
   in node and deno — the setup-fails block's two runs.
 - **What W145 inherits**: `scripts/build-browser-tests.mjs` gained one corpus line (`src/definition/registry.ts`).
 - **Prediction 6 held**: `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are untouched.
 - **Overlap**: THREE shared subjects, the eighty-sixth measurement.
-- **The confirming gate**: `npm run gate:item` EXIT 0 on `511a009`, once, on a still tree (decision 4).
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `e762bf0`, once, on a still tree (decision 4).
 
 **W145 — done 2026-10-08.** Its own Record covers the gate, the measurement, the reader and the rule-8
 passes; this section names what the PLAN needs from it.
@@ -209,7 +209,7 @@ passes; this section names what the PLAN needs from it.
 - **Counts:** L1-L5 unchanged at **1580** in node, deno and chromium; L6 unchanged at **164** runs.
 - **What W144 inherits**: nothing in its files. `test/provocations/q541.ts` is a new `test/` file outside
   every glob.
-- **The confirming gate**: `npm run gate:item` EXIT 0 on `ff61ff6`, once, on a still tree (decision 4).
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `1620d1b`, once, on a still tree (decision 4).
 
 **W144 — done 2026-10-08.** Its own Record covers the gate, the floors and the window before and after, the
 reader and the rule-8 passes; this section names what the PLAN needs from it.
@@ -230,7 +230,7 @@ reader and the rule-8 passes; this section names what the PLAN needs from it.
 - **What W143 inherits**: check-markdown-selftest.mjs now builds its tree probes from the script under test's
   `PROBE_TREES`, holds each tree probe's fixture to the in-memory measure, and lets a META entry graded
   `corpus` declare its ids (a 5th element). Its lane is the slowest: about 12.7 min alone, 1302.6 s in the gate.
-- **The confirming gate**: `npm run gate:item` EXIT 0 on `8bbb662`, once, on a still tree (decision 4).
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `f675689`, once, on a still tree (decision 4).
 
 **W143 — done 2026-10-09.** Its own Record covers the gate, the per-self-test table before and after, the reader and
 the rule-8 passes; this section names what the PLAN needs from it.
@@ -245,13 +245,13 @@ the rule-8 passes; this section names what the PLAN needs from it.
   Exceptions before the file existed. Not on this plan's W143 row.
 - **A second stop-and-ask, on the wall**: the first form of the guard cases (nine as SELF entries) put the
   `gate:item` self-test wall at 1600.1 s against W144's 1316.1 s. The maintainer chose **(B)** on 2026-10-09: those
-  nine run in process, one level less end-to-end. On `f722ffa` the wall is **1277.9 s**.
+  nine run in process, one level less end-to-end. On `d9ff130` the wall is **1277.9 s**.
 - **Q434 was live**: the shared instrumented replace found a dead first edit in check-policies-selftest.mjs on its
   first run. Two further in-Owns defects were fixed (the scheduler self-test's junction branch; the source
   self-test's vacuous returns).
 - **Counts:** L1-L5 unchanged at **1580** in node, deno and chromium; L6 unchanged at **164** runs, 2487 assertions.
-- **What W146 inherits**: nothing in its files. `check:markdown:selftest` alone reads 742 s on `f722ffa`.
-- **The confirming gate**: `npm run gate:item` EXIT 0 on `f722ffa`, once, on a still tree (decision 4); and, because
+- **What W146 inherits**: nothing in its files. `check:markdown:selftest` alone reads 742 s on `d9ff130`.
+- **The confirming gate**: `npm run gate:item` EXIT 0 on `d9ff130`, once, on a still tree (decision 4); and, because
   check-register-selftest.mjs moved, `npm run check:register:selftest` EXIT 0 on the same tree, once.
 
 **W146 — done 2026-10-09.** Its own Record covers the gate, each claim before and after, the glossary rows, the reader
@@ -259,9 +259,9 @@ and the rule-8 passes; this section names what the PLAN needs from it.
 
 - **Closed: Q542 and Q508**, each `resolved-by` starting "P31 W146 —". **Raised: none** (Q571-Q573 unused; P31's
   block and Q568-Q570 were wholly reserved). Prediction 1 held for W146.
-- **Q542**: every claim it lists was still present and false on `c9f0918`; each is deleted or corrected in
+- **Q542**: every claim it lists was still present and false on `d3619da`; each is deleted or corrected in
   doc/README.md. The per-plan history table was DELETED to `git` rather than brought to P31 (P27 decisions 2 and 4;
-  Q466), its last form cited at the public `2b48046`.
+  Q466), its last form cited at the public `1ec308c`.
 - **Q508**: all three senses of *gate* stay (decision 2). The commands row had named `gate:item` against ADR 0070,
   which never mentions it; by the maintainer's answer the row now says exactly what ADR 0070 says, and `gate:item`
   is the `confirming gate` row's.
@@ -276,12 +276,12 @@ and the rule-8 passes; this section names what the PLAN needs from it.
   `doc/concept.md` are untouched.
 - **Prediction 2 held**: no ADR; ADR 0089 is unused.
 - **Counts:** L1-L5 unchanged at **1580** in node, deno and chromium; L6 unchanged at **164** runs, 2487 assertions.
-- **The confirming gate — the plan's**: `npm run gate:full` **EXIT 0** on `c99e930`, once, on a still tree
+- **The confirming gate — the plan's**: `npm run gate:full` **EXIT 0** on `322a980`, once, on a still tree
   (decision 4): 2413 s, the self-tests 11/11 ok at **2272.1 s wall**, `check:register:selftest` included.
 
 ### The exit artifact, measured on the final tree
 
-- **`npm run gate:full`: EXIT 0** on `c99e930` (above). The record step then changed only documents and question
+- **`npm run gate:full`: EXIT 0** on `322a980` (above). The record step then changed only documents and question
   files; `check:register`, `check:markdown` and `npm run gate` were re-run on the record step's tree and EXITed 0.
 - **`npm run q -- --where "resolved-by~P31" --fields id,status,resolved-by`** lists **thirteen**, each `resolved` and
   naming its item: Q142 (W144), Q244 (W142), Q266 (W141), Q283 (W141), Q337 (W144), Q434 (W143), Q437 (W143), Q487
@@ -294,7 +294,7 @@ and the rule-8 passes; this section names what the PLAN needs from it.
 
 ## Retro
 
-*Pass 3 ran on 2026-10-09 over `c47087a`, with the working tree clean before it. Scratch
+*Pass 3 ran on 2026-10-09 over `d7b45eb`, with the working tree clean before it. Scratch
 `dev-dist/p31r-25787/` (the retro shell's pid). Every figure is read from the items' logs under
 `dev-dist/w140-2595/`, `w142-4000/`, `w141-12912/`, `w145-14690/`, `w144-16309/`, `w143-19571/` and
 `w146-23759/`, and from their Records. Ids in this Retro are bare text, as in the Record. **Sections 1-9
@@ -310,7 +310,7 @@ question. *Rounds* are distinct answer sittings, read from the Exceptions commit
 |---|---|---|---|---|---|---|
 | W140 | Q533 | 0 | `test/harness.ts` — **(A)**, `throws` matches `${name}: ${message}`; `test/definition/map.test.ts` comment — YES; `test/driver/nested-regions.test.ts` comment — YES | — | 3 | 2 |
 | W142 | Q244 | 0 | — | prediction 3's stop — **(B)**, route the L6 harness too, which put `examples/run-flow.ts` into `Owns` | 1 | 1 |
-| W141 | Q266, Q283 | 0 | `AGENTS.md` section-20 sentence — YES (A); `scripts/build-browser-tests.mjs` corpus line — YES (B, option 1) | the spec's single-task F1 sentence — corrected as `spec/flow-definition.md` v0.29 (`b9dd0c8`), a spec change of its own | 3 | 2 |
+| W141 | Q266, Q283 | 0 | `AGENTS.md` section-20 sentence — YES (A); `scripts/build-browser-tests.mjs` corpus line — YES (B, option 1) | the spec's single-task F1 sentence — corrected as `spec/flow-definition.md` v0.29 (`8ea902e`), a spec change of its own | 3 | 2 |
 | W145 | Q541 | 0 | — | — | 0 | 0 |
 | W144 | Q142, Q337, Q487 | 0 | `doc/work-items/TEMPLATE.md` note and `scripts/check-spec-selftest.mjs:31` — YES (one ask, two files) | stop-and-ask (c) — **(A) plus M9**; the ADR note — **(a)**, dated notes, no ADR 0089; Q487 — close it here | 4 | 2 |
 | W143 | Q434, Q437, Q536 | 0 | `scripts/selftest-guards.mjs`, a new shared file — YES (option A) | the +22% wall — **(B)**, nine guard cases in process | 2 | 2 |
@@ -333,7 +333,7 @@ when a question went up, only when its answer was written down.
    reversed prediction 6. A decision about the always-read set is the maintainer's anyway, so asking
    was right; it was not *simple*.
 2. **W141's F1 sentence** could not be a rule-6 widening at all: a spec change is its own change
-   (CLAUDE.md, *Working rules*). It was answered the next morning by `b9dd0c8`, and **neither W141's
+   (CLAUDE.md, *Working rules*). It was answered the next morning by `8ea902e`, and **neither W141's
    Record nor P31's recorded the answer** — both still said *outstanding*. This retro corrected both
    (section 9).
 3. **W143's helper** was asked as a widening and was a NEW module that ten self-tests import. The
@@ -358,8 +358,8 @@ W146 2413 s minus 2272 s).
 | W141 | `item.log` | 879.4 s | 4151.6 s | wiring 863.8 |
 | W145 | `item.log` | 850.7 s | 3967.8 s | wiring 836.6 |
 | W144 | `item.log` | **1316.1 s** | 4660.2 s | **markdown 1302.6** |
-| W143, first form | `item.log` (`0b2d8c3`) | **1600.1 s** | 5332.9 s | markdown 1585.4 |
-| W143, after (B) | `item2.log` (`f722ffa`) | 1277.9 s | 4646.8 s | markdown 1263.0 |
+| W143, first form | `item.log` (`4da61d2`) | **1600.1 s** | 5332.9 s | markdown 1585.4 |
+| W143, after (B) | `item2.log` (`d9ff130`) | 1277.9 s | 4646.8 s | markdown 1263.0 |
 | W143, the register lane alone after it | `register.log` | 1720 s | — | — |
 | W146 (`gate:full`) | `full.log` | 2272.1 s | 7184.4 s | register 2257.3 |
 
@@ -409,7 +409,7 @@ binding lane, and 956 s after.**
 
   | `node scripts/check-markdown.mjs` on | median | samples (ms) |
   |---|---|---|
-  | a `git archive` of `fb64b63` (before W144) | **~820 ms** | 1110, 588, 656, 1069, 824 (and 637-1138 in a second set) |
+  | a `git archive` of `ebca55d` (before W144) | **~820 ms** | 1110, 588, 656, 1069, 824 (and 637-1138 in a second set) |
   | a `git archive` of `HEAD` | **~2130 ms** | 2125, 2210, 1808, 2104, 2921 |
   | the same, with ONE read cache and ONE `existsSync` cache shared across the four calls (`cache-probe.mjs`) | **~1170 ms** | 1032, 1899, 1510, 1170, 1045 — **report byte-identical** to HEAD's |
 
@@ -531,7 +531,7 @@ runs `gate:full`, as v0.29 says, not `gate:item` followed by the register lane.*
 ### 6. Refusals
 
 - **A check over `doc/` — the 30th time, P2-P31.** Section 9's first correction is P31's Record and
-  W141's saying an ask was *outstanding* a day after `b9dd0c8` answered it, and this retro is what
+  W141's saying an ask was *outstanding* a day after `8ea902e` answered it, and this retro is what
   found them. W146's six declared survivors (s1-s6) are the same class. The only mechanical observer
   is a check that prose is true, refused on the row's standing ground.
 - **No other ledger row is re-raised.** Every late file in P31 was asked before its edit, so *an

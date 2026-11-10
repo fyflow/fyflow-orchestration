@@ -1,6 +1,6 @@
 # W127 — R9: an open question says what would close it; ADR 0082; Q494 resolved; the self-test and `npm run state` made triage-proof
 
-**Status:** done — declared 2026-10-06 on `1b8b819`, after W126's Record; BUILD, both readers and the fix round done 2026-10-06
+**Status:** done — declared 2026-10-06 on `86dab99`, after W126's Record; BUILD, both readers and the fix round done 2026-10-06
 **Plan:** P29, `doc/plans/p29-which-open-questions-still-matter.md`
 
 *This file carries NO relative link, deliberately* — W126's calibration 16 and Q142's mechanism.
@@ -16,7 +16,7 @@ Owns:       scripts/check-register.mjs, scripts/check-register-selftest.mjs,
             (P29's index row), and — ADDED BY THE MAINTAINER'S ANSWER OF 2026-10-06, P29
             stop-and-ask (m) — scripts/state.mjs, and scripts/check-markdown-selftest.mjs for its
             FIXTURE ANCHORS ONLY (no probe added, removed or re-graded there); and this file
-Inputs:     the tree at `1b8b819` (W121-W126 applied: open 23, deferred 65, icebox 182,
+Inputs:     the tree at `86dab99` (W121-W126 applied: open 23, deferred 65, icebox 182,
             resolved 124, by `npm run q --count`); the diagnosis and logs in dev-dist/p29x-54441/
 Outputs:    (1) R9 in check-register.mjs: every `status: open` question has a non-empty
                 `closes-when` (after trim, as R2's emptiness test reads a field)
@@ -55,15 +55,15 @@ before the first edit (`doc/workflow.md` section 7 rule 2):
 The maintainer's answers of 2026-10-06 (P29 stop-and-ask (m)), on the coordinator's diagnosis in
 `dev-dist/p29x-54441/`:
 
-1. **`scripts/state.mjs` joins Owns.** `npm run state` has EXITed 1 since W123 (`9ad2345`). Its
-   `ASSERTIONS` table (line ~335 at `1b8b819`) floors `questions reading open` at 200 under a comment
+1. **`scripts/state.mjs` joins Owns.** `npm run state` has EXITed 1 since W123 (`54d48af`). Its
+   `ASSERTIONS` table (line ~335 at `86dab99`) floors `questions reading open` at 200 under a comment
    that *ids are never reused, so these quantities only grow*. That is true of files and false of a
    status: triage took `open` from 307 to 23 on purpose. **P29 prediction 6 is reversed**, by its own
    stated condition.
 2. **The live-question fixtures are W127's to re-point.** `check:register:selftest` is RED on HEAD:
-   **META since `81ed979`** (W121), because the mutant *icebox removed from the vocabulary* fails on
+   **META since `1f1fa74`** (W121), because the mutant *icebox removed from the vocabulary* fails on
    the untouched tree once any question is iceboxed (182 now) and `MAX_CORPUS = 0` forbids that; and
-   **STATE since `9ad2345`** (W123), the floor above. W126's Q488 duplicate added a third cause: the
+   **STATE since `54d48af`** (W123), the floor above. W126's Q488 duplicate added a third cause: the
    probes anchored on Q488's `status: open`, `note: ""` and `resolved-by: ""` now abort under rule 7
    (b). `check-markdown-selftest.mjs` anchors on the end fences of `q488.md` and `q490.md`, which no
    verdict has moved yet, and is in Owns so that none can.
@@ -93,7 +93,7 @@ The maintainer's answers of 2026-10-06 (P29 stop-and-ask (m)), on the coordinato
 4. **Re-point every fixture anchored on a live question** to a synthetic question raised inside
    the staged copy (an id above the register's maximum, written by the harness with the fields the
    probe needs) or to a dedicated fixture file, so that **no triage verdict can break a probe
-   again**. At `1b8b819` the anchors are: in `check-register-selftest.mjs`, Q488 (`status: open`,
+   again**. At `86dab99` the anchors are: in `check-register-selftest.mjs`, Q488 (`status: open`,
    `note: ""`, `resolved-by: ""`) and Q490 (`status`, `shared`, `id`, `resolved-by`, and the
    `raise()` template), Q1, Q4, Q12, Q17, Q92, Q300 and Q466; in `check-markdown-selftest.mjs`, the
    end fences of Q488 and Q490. **The BUILD scans every `scripts/*selftest*.mjs` for an anchor on a
@@ -106,7 +106,7 @@ The maintainer's answers of 2026-10-06 (P29 stop-and-ask (m)), on the coordinato
    (*live questions that are open, deferred or iceboxed* equals `liveCount`) already guards a status
    line that changes shape. The comment that *these quantities only grow* is corrected to say it is
    true of file counts and false of a status. **The `live >= 200` floor is reviewed**: live is 270
-   at `1b8b819` and falls with every resolution, so the BUILD keeps it, lowers it or replaces it
+   at `86dab99` and falls with every resolution, so the BUILD keeps it, lowers it or replaces it
    with a relation, and says which in the Record with its margin. `resolved >= 50` is monotonic in
    practice and stays. The STATE pass of `check-register-selftest.mjs` is re-run against the change.
 6. **ADR 0082**: *an open question owes a closing condition, and `owner` is prose*. It amends ADR
@@ -189,7 +189,7 @@ The maintainer's answers of 2026-10-06 (P29 stop-and-ask (m)), on the coordinato
 
 ## BUILD
 
-*The build unit's report, 2026-10-06, on `8ad7db7` plus this item's edits, uncommitted. Scratch
+*The build unit's report, 2026-10-06, on `e02510e` plus this item's edits, uncommitted. Scratch
 `dev-dist/w127b-56423/`, whose `56423` is the build shell's pid. The Reader and Record sections are
 later units'.*
 
@@ -291,7 +291,7 @@ the declared exception, was written at declaration and is unchanged by the build
 
 ### Conformity reader
 
-*Section 6 pass 2, 2026-10-06, on `d2c19ff` with the tree clean. Spec first (P29 decisions 1, 6
+*Section 6 pass 2, 2026-10-06, on `39837eb` with the tree clean. Spec first (P29 decisions 1, 6
 and 7, stop-and-ask (m), the predictions; ADR 0079; ADR 0082; doc/questions/README.md; this file's
 Owns, Gate and Build steps), the verdicts derived on paper, then the diff. Scratch
 `dev-dist/w127c-56876/`, whose `56876` is the reader shell's pid: `construct.mjs`, `statemut.mjs`,
@@ -376,7 +376,7 @@ copies only.
 
 *Section 6 pass 2, mutation, 2026-10-06. I read the spec first (ADR 0082, ADR 0079 decision 2,
 doc/questions/README.md's format and P29 decision 6), then the tests. Isolated copy:
-`git archive d2c19ff` into dev-dist/w127q-56833/tree, with node_modules COPIED (`cp -r`), plus one
+`git archive 39837eb` into dev-dist/w127q-56833/tree, with node_modules COPIED (`cp -r`), plus one
 archive tree for each state.mjs mutant and harness mutant. Node 24.20.0 in every shell. Logs are in
 dev-dist/w127q-56833/res/, where 56833 is the reader shell's pid.*
 
@@ -484,7 +484,7 @@ kept. In the shared tree, only this section changed.
 
 ## Record
 
-*The fix unit, 2026-10-06, on `d2c19ff` plus this round's edits, uncommitted. Scratch
+*The fix unit, 2026-10-06, on `39837eb` plus this round's edits, uncommitted. Scratch
 `dev-dist/w127f-57782/`, whose `57782` is the fix shell's pid. Every command redirected, its EXIT
 read in the same command. The tree was still across the rule 8 re-run, the lanes and `gate:full`:
 this Record and the Status line are the only edits since.*

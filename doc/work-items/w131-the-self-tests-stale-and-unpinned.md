@@ -1,6 +1,6 @@
 # W131 — The self-tests' stale and unpinned: a success line that stops dereferencing (Q144), a header's site counts deleted (Q430, Q454), a floor held one file over (Q439), and a helper pinned (Q490)
 
-**Status:** done — declared 2026-10-06 on `cc9f6e2`, the second item of P30; built, the reader and the fix round done 2026-10-07
+**Status:** done — declared 2026-10-06 on `35b68f5`, the second item of P30; built, the reader and the fix round done 2026-10-07
 **Plan:** P30, `doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md`
 
 *This file carries NO relative link, deliberately*, as W133's does — Q142's mechanism. A linking
@@ -20,7 +20,7 @@ Owns:       scripts/check-policies.mjs, scripts/check-policies-selftest.mjs,
             answered by the maintainer 2026-10-07 (option A again, after the conformity reader's
             finding 7), COMMENT-ONLY: one clause appended to that file's "8 since W101" history
             sentence; and this file (P30's index row)
-Inputs:     the tree at `cc9f6e2` (W133 done); P30 decisions 4, 5, 6, 7, 8; the five questions'
+Inputs:     the tree at `35b68f5` (W133 done); P30 decisions 4, 5, 6, 7, 8; the five questions'
             own files
 Outputs:    (1) a REPLACEMENT `ran:` case in check-policies-selftest.mjs's SELF list, built and
                 shown firing BEFORE line 187 changes: a META entry inert on the clean tree and
@@ -100,7 +100,7 @@ edited outside `Owns` and outside the record step is declared here before its fi
 
 ## Record
 
-*Filled in 2026-10-07 on `79e844a`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-07 on `bf80035`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w131-61120/` (the shell pid that made it): every log and script named below. Node v24.20.0 by
 `fnm use 24` in every shell, Deno 2.9.6; every rung redirected and its EXIT read in the same command,
 never piped. Ids are bare text, as the header says.
@@ -109,12 +109,12 @@ never piped. Ids are bare text, as the header says.
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| `npm run gate:full > dev-dist/w131-61120/full.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | once, on `79e844a`, after the reader's fixes and rule 8's pass 2; `git status --short` empty before (`tree-before-full.txt`) and after; no `FAIL` line |
+| `npm run gate:full > dev-dist/w131-61120/full.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | once, on `bf80035`, after the reader's fixes and rule 8's pass 2; `git status --short` empty before (`tree-before-full.txt`) and after; no `FAIL` line |
 | — L0 (lint, typecheck) and the checks | RAN, ok | inside the chain |
 | — L1-L5 | RAN, ok | **1528** cases in node 24.20.0, deno 2.9.6 and chromium (parity 1528). Unchanged: W131 adds no case (prediction 2) |
 | — L6 | RAN, ok | **2465** assertions, node and deno. Unchanged |
 | — self-tests | RAN, ok | 11/11 lanes ok, 2323.0 s wall; `check:policies:selftest` 41.0 s, `check:docs:selftest` 813.3 s, `check:budget:selftest` 97.3 s |
-| the three owned lanes, alone | RAN, EXIT 0 | policies 13/13, 7/7, 14/14; budget 19 caught + 1 control, 19/19 meta, 15/15 self; docs 47/47, 24/24 (also the reader's own run on `9b643f0`) |
+| the three owned lanes, alone | RAN, EXIT 0 | policies 13/13, 7/7, 14/14; budget 19 caught + 1 control, 19/19 meta, 15/15 self; docs 47/47, 24/24 (also the reader's own run on `2187d54`) |
 | conformity reader | RAN | 8 should-fix, 6 notes, nothing BLOCKING — below |
 | after the record step | RAN, EXIT 0 | it edits `doc/questions/**`, P30's plan and ADR 0073, which `check:register` and `check:markdown` read: both re-run, EXIT 0 (the first `check:register` was RED, *what broke* 5), then `npm run gate > dev-dist/w131-61120/gate-record.log 2>&1` EXIT 0, no `FAIL` line. The self-tests were NOT re-run after the record step |
 | adequacy reader | NOT RUN | P30 decision 8: one reader for W131 |
@@ -122,7 +122,7 @@ never piped. Ids are bare text, as the header says.
 
 ### Decision 4's order, and which mutation carries the guard now
 
-The replacement was built and shown firing BEFORE line 187 moved, and the commit `45e3c20` carries both,
+The replacement was built and shown firing BEFORE line 187 moved, and the commit `e5786a9` carries both,
 so the order is in these logs rather than in `git` (the reader's finding 2):
 
 | time (2026-10-06) | log | what it shows |
@@ -150,7 +150,7 @@ stop-and-ask (a) did not fire.
 | (7) | two probes reaching `B6`'s DECLARED_TARGETS direction, the META entry on the helper; MIN_PROBES 20, MIN_META 19 | `check-budget-selftest.mjs` | p15-p20, r1, r2; S3 (p21) is Q490 as raised |
 | (8) | the five questions resolved | `doc/questions/` | the record step |
 
-**Exceptions, reconciled to `git status --short` and `git diff --name-only 194e945^..HEAD`, to the path.**
+**Exceptions, reconciled to `git status --short` and `git diff --name-only bf2c31c^..HEAD`, to the path.**
 Fifteen paths after the record step. **Owns, 7**: `scripts/check-policies.mjs`,
 `scripts/check-policies-selftest.mjs`, `scripts/check-docs-selftest.mjs`, `scripts/check-budget-selftest.mjs`,
 `scripts/check-markdown-selftest.mjs` and `scripts/check-scheduler-selftest.mjs` (comments only), and this
@@ -171,8 +171,8 @@ byte for byte; a content digest over every tracked and untracked-unignored file;
 CRASH grader (`g-crash`) and a WRONG-REASON grader (`g-wrong`); each `must` matched on one output line.
 
 ```
-pass 1   27 probes, 27 as declared                         digest fcd389f86e25b4ac IDENTICAL   (on 9b643f0)
-pass 2   31 probes, 30 as declared, 1 against (p13)        digest 50b263a3fc6201b2 IDENTICAL   (on 79e844a)
+pass 1   27 probes, 27 as declared                         digest fcd389f86e25b4ac IDENTICAL   (on 2187d54)
+pass 2   31 probes, 30 as declared, 1 against (p13)        digest 50b263a3fc6201b2 IDENTICAL   (on bf80035)
 pass 2b   2 probes,  2 as declared (p13, p13b)             digest 50b263a3fc6201b2 IDENTICAL
 ```
 

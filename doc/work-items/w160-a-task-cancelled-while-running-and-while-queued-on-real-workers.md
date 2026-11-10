@@ -1,7 +1,7 @@
 # W160 — a task cancelled while RUNNING and while QUEUED, on real workers: P33's exit artifact
 
 **Status:** done 2026-10-15 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item;
-declared 2026-10-15 on `db2f4b0`, declaration step RUN the same day in a byte copy; exceptions E1 and E2 ASKED at the
+declared 2026-10-15 on `6f98c5c`, declaration step RUN the same day in a byte copy; exceptions E1 and E2 ASKED at the
 declaration step, ANSWERED YES by the maintainer 2026-10-15 and recorded before their edits; both reader passes RUN,
 neither found a defect, their items R1-R7 directed by the coordinator and recorded before the edits; nothing raised,
 nothing closed
@@ -60,7 +60,7 @@ Gate:       `npm run gate` before the readers (P32-retro C), and L6 in node and 
 Reserves:   Q613-Q614, and NO ADR
 ```
 
-*Reserves: `npm run state` on `db2f4b0` reads the next free ids as **W160, Q607, ADR 0095** from the tree and **W157,
+*Reserves: `npm run state` on `6f98c5c` reads the next free ids as **W160, Q607, ADR 0095** from the tree and **W157,
 Q600, ADR 0094** from the ledger, which DISAGREE because P33 has been declared since that sentence (both printed,
 neither picked). P33 reserves Q600-Q614 and ADR 0094-0095; W158 spent Q605-Q606 and released Q607-Q609, W159 released
 Q610-Q612, all skipped, never reissued. So this item takes **Q613-Q614**. **No ADR**: an exit artifact writes no rule,
@@ -107,7 +107,7 @@ unused** (P33's block).*
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `db2f4b0` (`git archive` into `C:/tmp-w160/m`,
+*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `6f98c5c` (`git archive` into `C:/tmp-w160/m`,
 `node_modules` copied, **zero links** by `find -type l` and by PowerShell's `ReparsePoint` scan), node 24.20.0 and deno
 2.9.6. The change was built there whole, and every lane run.*
 
@@ -182,7 +182,7 @@ checkpoint resumes (R3; W158's L2 and L5 hold a parked task beside a cancel); no
 
 ## Record
 
-**Gate — what ran.** Baseline `db2f4b0`; every number below is the final tree's.
+**Gate — what ran.** Baseline `6f98c5c`; every number below is the final tree's.
 
 | Clause | Verdict | Notes |
 |---|---|---|

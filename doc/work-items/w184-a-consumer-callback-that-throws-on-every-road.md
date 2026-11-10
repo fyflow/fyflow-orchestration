@@ -1,6 +1,6 @@
 # W184 — a consumer callback that THROWS, on every road, before 0.8.0
 
-**Status:** done 2026-10-18 — `npm run gate:item` on the final tree, one command (the Record); both readers RAN, C1 (BLOCKER) and every SHOULD and NIT FIXED in `Owns`; no stop-and-ask; no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-18 (27 probes, all KILLED; `npm run gate` EXIT 0); declared 2026-10-18 on `b0d46a4` (P36 declared, `(a)`-`(q)` answered as recommended); P36's FIRST item: P35's retro (k), stop-and-asks (b) and (c), fact 11; no ADR (P36 decision 9: P35 (k)'s rule is a SPEC row, `OR-R10`'s precedent); not committed
+**Status:** done 2026-10-18 — `npm run gate:item` on the final tree, one command (the Record); both readers RAN, C1 (BLOCKER) and every SHOULD and NIT FIXED in `Owns`; no stop-and-ask; no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-18 (27 probes, all KILLED; `npm run gate` EXIT 0); declared 2026-10-18 on `05b2c11` (P36 declared, `(a)`-`(q)` answered as recommended); P36's FIRST item: P35's retro (k), stop-and-asks (b) and (c), fact 11; no ADR (P36 decision 9: P35 (k)'s rule is a SPEC row, `OR-R10`'s precedent); not committed
 **Plan:** [P36](../plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md) — *which run and attempt does a
 task's activity belong to, without parsing its id, and what of a run survives a crash and a resume?* — its FIRST item
 (decision 4), so every element a later item adds is born under the rule and its sweep. **One rule, three parts, on every
@@ -44,7 +44,7 @@ Outputs:    (1) src/driver/driver.ts: ONE boundary per driver call — `haltOnce
                 census and count.
             (5) AGENTS.md: section 9's sentence and a BREAKING note, sections 6, 7, 8 and 18's throw rows — and whatever
                 else a grep for each premise finds (D′); one `run` snippet in section 9 (RUN_FLOOR 43 -> 44).
-Depends on: nothing (P36's first item; P35 done, `77cf810`)
+Depends on: nothing (P36's first item; P35 done, `d3f65a3`)
 Blocks:     W185
 Tests:      L2, expected values hand-written from the rule and each flow's shape, never from output: the SWEEP —
             every driver call AT REST (`start` of an entry fan-out, `resume` of a quiescent checkpoint and of one cut
@@ -91,7 +91,7 @@ parked task's resolution is a swept road (R4, R5, the mid-step unpause).
 
 ## What the declaration step measured
 
-*Measured 2026-10-18 in a BYTE COPY of `b0d46a4` (`git archive` into `C:/tmp-w184/m`, `node_modules` copied, never
+*Measured 2026-10-18 in a BYTE COPY of `05b2c11` (`git archive` into `C:/tmp-w184/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0, deno 2.9.6.*
 
 | # | fact | measured |
@@ -102,7 +102,7 @@ linked; `find -type l` zero), node 24.20.0, deno 2.9.6.*
 | M4 | the sweep on the changed `src/` | all GREEN, node and deno. Three ONCE roads were added after M3 (mid-step cancels on `resolve()`'s routing, `resume()`'s `resumed`, a taken answer's routing): **green on today's tree too** — they guard `haltOnce` at those boundaries, not a fact 11 road (24 cases) |
 | M5 | **B′ / D′ — the census sites**, each by its lane, on the final tree | `LATE_SUITES` +1 and a per-suite count case (24); `RUN_FLOOR` 43 -> 44 (section 9's snippet; `check:docs` 44 `run` / 6 `check`; `check:docs:selftest` 24/24 noticed); `check:spec` 7 / 81 / 147 UNMOVED (no rule id); `spec/outcome-record.md` v0.18 -> v0.19 and `spec/run-state.md` v0.23 -> v0.24, both `spec/README.md` rows; L1-L5 74 / 1958 -> **75 / 1984** in node, deno and chromium (24 sweep + 1 count + 1 runtime case) — **1988** after the readers' rows. **Unmoved**: `DRIVER_FIELDS` and `NOT_RUN_STATE` (`haltOnce`, `leaveCall`, `takeAtRest` are methods, no field), `RUN_FOR`, `X10` (L6 2743 / 203, no L6 file touched), `check:budget` (`AGENTS.md` is not in the always-read set, so no `check:budget:selftest`) |
 | M6 | **now-false statements**, `git grep` over the tree but `dev-dist/`, `node_modules/` and the history folders for *whoever is on the stack*, *thrown to you instead*, *reaches the caller*, *throws to its caller*, *not halted* | rewritten in `Owns`: `OR-R10` (and outcome-record's status), `RN-R22`, `RN-R31`, `RN-R33`, `RN-R35`, `RN-R37`; `src/driver/driver.ts` — `onRunFailure`'s and `onFoldInput`'s docs, `cancel()`'s step 4, `takeStop`'s `finally`, `takePending`'s and `takeAnswer`'s docblocks; `src/scheduler/runtime.ts` — `RunHandle.stop`'s `@throws`, `Runtime.resume`'s doc; `AGENTS.md` sections 6 (cancel row), 8 (`done`'s stop bullet, a pause-table throw row), 9 (the sentence, the BREAKING note, a `run` snippet), 18 (a stop-table throw row, a resume bullet); the moved tests' titles and messages. **Outside `Owns`, record-step files**: ADR 0104 rule 2, ADR 0105 rule 4 and ADR 0106 rule 5 each say *the throw then reaches whoever is on the stack* — now incomplete, a dated pointer each at the Record (W178's S-3 precedent). History left (v0.21 status lines, W178/W180 items) |
-| M7 | **a real-scheduler probe** — `C:/tmp-w184/m/scratch-w184/probe.ts`, `createRuntime` over a real `FyflowScheduler`, inline pools, not checked in | node 24.20.0 and deno 2.9.6 EXIT 0, **the same JSON byte for byte**: (1) `handle.stop()` at rest throwing on `interrupted` — the consumer's error at the caller, `onRunFailure` `['Boom']`, `done` `halted` at once, the checkpoint refused `halted`; (2) `runtime.resume()` on a fresh runtime throwing on `resumed` — the consumer's error, `['Boom']`, nothing in the new scheduler's `tasks`, the id then `RunIdInUse`; (3) `resolve()` of a really-parked task throwing on `resolution` — `halted`, `y` never dispatched. **On `b0d46a4`'s driver** the same probe: (1) `interrupted`, resumable, nothing reported; (2) nothing reported; (3) **`completed` with `y` never dispatched** — fact 11's false outcome on a real scheduler |
+| M7 | **a real-scheduler probe** — `C:/tmp-w184/m/scratch-w184/probe.ts`, `createRuntime` over a real `FyflowScheduler`, inline pools, not checked in | node 24.20.0 and deno 2.9.6 EXIT 0, **the same JSON byte for byte**: (1) `handle.stop()` at rest throwing on `interrupted` — the consumer's error at the caller, `onRunFailure` `['Boom']`, `done` `halted` at once, the checkpoint refused `halted`; (2) `runtime.resume()` on a fresh runtime throwing on `resumed` — the consumer's error, `['Boom']`, nothing in the new scheduler's `tasks`, the id then `RunIdInUse`; (3) `resolve()` of a really-parked task throwing on `resolution` — `halted`, `y` never dispatched. **On `05b2c11`'s driver** the same probe: (1) `interrupted`, resumable, nothing reported; (2) nothing reported; (3) **`completed` with `y` never dispatched** — fact 11's false outcome on a real scheduler |
 
 ## Readings the plan did not settle — taken here, for the readers
 
@@ -191,7 +191,7 @@ on what follows `halted` (C4 = A4). C1, C5, C6, C7 were the conformity reader's 
 | Clause | Verdict | Notes |
 |---|---|---|
 | `npm run gate` before the readers (sentence C) | RAN — EXIT 0 (second run) | the first EXIT 1 in the browser lane only: the bundle renamed `class Boom`, the assertion read the literal; `Boom.name` since (`C:/tmp-w184/gate2.log`) |
-| L2 the SWEEP | RAN — green | `test/driver/throwing-callback.test.ts`: 23 roads × every element of each step — at rest, mid-step, the scheduler event's road, the ONCE roads and the three C1 rows — the throw at the caller, one report under the consumer's class, `halted` immediately after the element and nothing after it but a silent stop, nothing handed on after it, (b)'s side effects and the cancels-before-halt order hand-written; RED on `b0d46a4` at exactly fact 11's non-halting roads in node and deno (M3) |
+| L2 the SWEEP | RAN — green | `test/driver/throwing-callback.test.ts`: 23 roads × every element of each step — at rest, mid-step, the scheduler event's road, the ONCE roads and the three C1 rows — the throw at the caller, one report under the consumer's class, `halted` immediately after the element and nothing after it but a silent stop, nothing handed on after it, (b)'s side effects and the cancels-before-halt order hand-written; RED on `05b2c11` at exactly fact 11's non-halting roads in node and deno (M3) |
 | (c), ONCE, R3, refusals | RAN — green | the halted resume refused `halted` and an unpause refused; the double throw — the FIRST reported and thrown, a stop taken silently; a scheduler's throw in a cancel and a stop; a refused call halting nothing |
 | through `createRuntime` | RAN — green | its own suite: `handle.stop()` throwing — `done` `halted` at once with the cancels unresolved; `runtime.resume()` throwing on `resumed` — nothing handed on, `RunIdInUse` after |
 | conformity reader | RAN | C1 BLOCKER and C2-C7 — all FIXED (above) |

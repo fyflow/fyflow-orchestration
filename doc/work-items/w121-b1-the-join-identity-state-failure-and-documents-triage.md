@@ -9,7 +9,7 @@ Owns:       the 38 question files listed below; doc/questions/q17.md, q19.md, q2
             `shared` field only); this item's own question files, q513.md-q516.md; and the
             `resolves` field of every ADR an approved resolution names (doc/decisions/**,
             a record-step file, named because it is the joint that makes the batches serial)
-Inputs:     the register and the tree at `988ef5f`, P29's baseline; `npm run q` and
+Inputs:     the register and the tree at `f76bdc8`, P29's baseline; `npm run q` and
             `npm run refs` run against that commit
 Outputs:    (1) the worksheet: one row per question, its verdict, its evidence and its new
                 field values
@@ -39,20 +39,20 @@ spare; an unused id is skipped, never reissued.
 **Exceptions** — every file edited outside `Owns` and outside section 1 rule 5's record step, named
 before the first edit (`doc/workflow.md` section 7 rule 2): **none.** W121 never edits W122's file.
 
-## The item's ids, from the lookup at `988ef5f`
+## The item's ids, from the lookup at `f76bdc8`
 
 **38 questions**: the 13 open in *The join*, the 23 open in *Identity, state, failure*, Q508 from
 *Documents and indexes*, and Q92, deferred in *The join* (P29 stop-and-ask (k)). *Documents and
 indexes* holds two open questions; the other, [Q494](../questions/q494.md), is W127's, resolved by
 ADR 0082 (P29 decision 6). Q499 is the other deferred question and is Out (stop-and-ask (e)).
 
-Run in a `git archive` of `988ef5f`, extracted with no links and with no `node_modules`:
+Run in a `git archive` of `f76bdc8`, extracted with no links and with no `node_modules`:
 `scripts/lookup.mjs` imports only `node:fs`, `node:path` and `node:url`, so the copy needs none.
 
 ```bash
 eval "$(fnm env --shell bash)" && fnm use 24          # v24.20.0
 S=dev-dist/w121d-33160
-mkdir -p $S/base && git archive 988ef5f | tar -x -C $S/base; echo ARCHIVE_EXIT=$?      # 0
+mkdir -p $S/base && git archive f76bdc8 | tar -x -C $S/base; echo ARCHIVE_EXIT=$?      # 0
 cd $S/base
 node scripts/lookup.mjs q --where status=open --count                                   # 307, EXIT 0
 node scripts/lookup.mjs q --where status=open --where "cluster=The join" --fields id                   # 13, EXIT 0
@@ -76,7 +76,7 @@ cd .. && find . -type l | wc -l                                                 
 `q241.md`, `q249.md`, `q307.md`, `q330.md`, `q331.md`, `q354.md`, `q357.md`, `q358.md`, `q365.md`,
 `q371.md`, `q372.md`, `q374.md`, `q386.md`, `q508.md`.
 
-At `988ef5f`, Q17 and Q19 are `resolved` and Q20 is `open`, and all three have `shared: ""`.
+At `f76bdc8`, Q17 and Q19 are `resolved` and Q20 is `open`, and all three have `shared: ""`.
 
 ## Scope
 
@@ -113,8 +113,8 @@ recorded in this item's Record and handed to W122's declaration by the coordinat
 P29 decision 4, in this order. A phase does not start before the one above it is complete.
 
 1. **Propose.** Fill the worksheet: one row per question. The evidence is (a) the `npm run refs`
-   count at `988ef5f`; (b) whether the code, clause, file or rule the question names still exists
-   at `988ef5f`, as a path, or as a grep with its hit count and the exact pattern; (c) any later
+   count at `f76bdc8`; (b) whether the code, clause, file or rule the question names still exists
+   at `f76bdc8`, as a path, or as a grep with its hit count and the exact pattern; (c) any later
    ADR, plan or item that answered it, by id.
 2. **Check.** A fresh-context conformity reader reads each QUESTION first and the worksheet second,
    re-derives each row from the question and the tree, and reports AGREE, DISPUTE or CHANGE per row
@@ -127,14 +127,14 @@ P29 decision 4, in this order. A phase does not start before the one above it is
 ### Worksheet
 
 *Filled in at phase 1.* The evidence cell holds three parts: **refs** (the count), **subject** (path,
-or grep pattern and hit count, at `988ef5f`), **answered by** (ADR, P or W id, or none).
+or grep pattern and hit count, at `f76bdc8`), **answered by** (ADR, P or W id, or none).
 
 | id | verdict | evidence | new `closes-when` / `resolved-by` / `note` |
 |---|---|---|---|
 *How the evidence was taken (phase 1, the propose unit).* **refs** is `node scripts/lookup.mjs refs Q<n>`
-run in a `git archive` of `988ef5f` (`dev-dist/w121p-33276/base`, no links, EXIT 0 for all 38), given as
-*files / mentions*. **subject** is `git grep -c -E '<pattern>' 988ef5f -- <paths>`, summed, or a
-`git show 988ef5f:<path>` line. Nothing was read from the working tree.
+run in a `git archive` of `f76bdc8` (`dev-dist/w121p-33276/base`, no links, EXIT 0 for all 38), given as
+*files / mentions*. **subject** is `git grep -c -E '<pattern>' f76bdc8 -- <paths>`, summed, or a
+`git show f76bdc8:<path>` line. Nothing was read from the working tree.
 
 | id | verdict | evidence | new `closes-when` / `resolved-by` / `note` |
 |---|---|---|---|
@@ -188,7 +188,7 @@ not 15. The applied tally is* Final approved verdicts *below.*
 ### Reader's findings
 
 *Filled in at phase 2* by a fresh-context conformity reader. It read P29 decisions 1-3 and 7, then
-each question at `988ef5f` (`git show`, `git grep` and a `git archive` in `dev-dist/w121r-34191/base`,
+each question at `f76bdc8` (`git show`, `git grep` and a `git archive` in `dev-dist/w121r-34191/base`,
 no links). It wrote its own verdict to `dev-dist/w121r-34191/my-verdicts.md` before reading the
 worksheet. It reports and does not fix.
 
@@ -202,7 +202,7 @@ worksheet. It reports and does not fix.
 | Q26 | AGREE | `OR-R4` fixes today's behaviour and names Q26 as the *whether at all*. See Q365 for the circular trigger |
 | Q27 | AGREE | ADR 0036 lines 118-130 say *Q27 stays open exactly where it was*. The same shape as Q23 |
 | Q28 | AGREE | See the proposer's question below. `RS-R2` fixes today's behaviour, and its own text says the two extensions *are both Q28*, so the spec treats Q28 as where they live. Defer keeps that true |
-| Q29 | AGREE | `spec/outcome-record.md` section 5, the `actor` row (line 433), cites Q29 as a reference, not as a pending point. *Never authenticates* leaves who may resolve to the caller. The resolution exists at `988ef5f` and names no ADR, so `R8` is not involved |
+| Q29 | AGREE | `spec/outcome-record.md` section 5, the `actor` row (line 433), cites Q29 as a reference, not as a pending point. *Never authenticates* leaves who may resolve to the caller. The resolution exists at `f76bdc8` and names no ADR, so `R8` is not involved |
 | Q30 | AGREE | ADR 0004 says in its own words that it is *refused for now* (*What a future reader will try*). A provisional refusal is a defer, not a resolution |
 | Q37 | AGREE | ADR 0058 rules 2-3 answer *who asks*: the runtime, as a caller, and `done` settles on `stuck`. *How often* is rule 6: at every quiescent point, by `queueMicrotask`. Add rule 6 to the `resolved-by` text. A hand-built `Driver` has no `done`, but `chain.test.ts:292` narrowed Q37 to *whether the DRIVER owes a signal*, and rule 2 answers no. `R8`: ADR 0058's `resolves` gains Q37, as the row says |
 | Q38 | CHANGE | **resolve**. `resolved-by`: *Terminal — a stopped run is refused by name with reason `stopped`, because the refusal that stopped it would stop it again (P23 decision 10; ADR 0065 rule 2; RN-R23)*. The heading of P23 decision 10, *A stopped run is NOT resumable and is refused by name*, is the question's answer, and it gives a reason that makes it permanent. *Declared OUT* refers to building a resume for a stopped run. The question asks whether one is resumable or terminal, and decision 10 answers that. `spec/run-state.md` line 547, *does NOT fix: resuming a stopped run*, stays true. `R8`: ADR 0065's `resolves` gains Q38 |
@@ -214,7 +214,7 @@ worksheet. It reports and does not fix.
 | Q82 | AGREE | `driver.ts:3392` and `:3712` hand out `policy.describe(state)` verbatim. W12 finding 4 calls it a decision about where the obligation sits |
 | Q92 | AGREE | The subject is live, `chain.test.ts:216`. P5's *real, not now* stands |
 | Q96 | AGREE | ADR 0025 rule 4 and line 171 say it is *not answerable from* fixtures. Same shape as Q30 |
-| Q97 | AGREE | There is no `0026-*` file at `988ef5f`, and `spec/run-state.md` line 362 and `spec/join-policy.md` line 615 say it is held. The `closes-when` names the decision |
+| Q97 | AGREE | There is no `0026-*` file at `f76bdc8`, and `spec/run-state.md` line 362 and `spec/join-policy.md` line 615 say it is held. The `closes-when` names the decision |
 | Q161 | AGREE | `spec/join-policy.md` line 640 folds the N = 0 case into Q97 (*what this leaves for whoever answers Q97*). Q97 stays open in this batch, so the target survives |
 | Q163 | AGREE | No rule and no consumer. The reader leaned icebox independently |
 | Q241 | DISPUTE | The row is accurate: `OR-R12` says *Recorded rather than decided* (line 442) and *What is NOT decided here*. The kept `closes-when`, *a consumer reporting a `DataCloneError` they could not attribute*, is what would reopen the question, not what would close it. That is P29 decision 1's *defer* reason. The replacement is likely defer with that event in `note`, or keep with *a decision whether OR-R6 and OR-R12 are unified*. The maintainer should decide what `closes-when` means; see Q354 |
@@ -248,7 +248,7 @@ the reader applied is whether the deciding text treats the question as still pen
 **Q386 and Q9, across the batch boundary.** A duplicate whose target the next batch judges cannot be
 checked from this batch. That is why the row changes to keep rather than becoming a DISPUTE.
 
-**Outside the worksheet.** The reader noticed a false claim at `988ef5f`. `AGENTS.md` section 11
+**Outside the worksheet.** The reader noticed a false claim at `f76bdc8`. `AGENTS.md` section 11
 (line 1806) says *durability … nothing … it is not built*, but `runtime.resume` has shipped since P23.
 Triage does not fix it, and no question was raised.
 
@@ -281,7 +281,7 @@ ADR 0058 rule 6 (an AGREE with an amendment).
 
 **The counts, measured from the tables rather than taken from either summary.** The worksheet has
 **37 rows, not 38**: **Q103 has no worksheet row and no Reader row**, although it is one of the 38
-owned files and the lookup at `988ef5f` lists it. The worksheet's tally reads *keep 15*; its table
+owned files and the lookup at `f76bdc8` lists it. The worksheet's tally reads *keep 15*; its table
 holds 14 keeps (14 defer, 3 icebox, 3 resolve, 3 duplicate). The Reader's tally reads *AGREE 33*; its
 table holds 32. **The approved set is therefore keep 12, defer 16, icebox 3, resolve 4, duplicate 2
 — 37 rows — and Q103 unverdicted.** The expected *keep 13* is these 12 plus Q103 counted as a keep.
@@ -417,7 +417,7 @@ The gate's clauses, each run redirected with its exit code read in the same comm
 **What broke.**
 
 1. **The proposer omitted Q103's row, and the reader did not notice.** Q103 is one of the 38 owned
-   files and the lookup at `988ef5f` lists it; it reached a verdict only through the keeps round.
+   files and the lookup at `f76bdc8` lists it; it reached a verdict only through the keeps round.
 2. **Both tallies were off by one.** The worksheet's summary said *keep 15* over a table of 14; the
    reader's said *AGREE 33* over a table of 32. Each counted 38 rows where the table held 37. Found at
    Approval by counting the tables rather than reading the summaries. *No rung covers a tally in an

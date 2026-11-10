@@ -1,6 +1,6 @@
 # W141 — A type's worker that cannot set up fails its tasks instead of hanging them, and the registry's shape is checked by ONE function (Q266, Q283)
 
-**Status:** done — declared 2026-10-07 on `625d98b`, the third item of P31; built, both readers and the fix round done, `gate:item` EXIT 0 on `511a009`, 2026-10-08
+**Status:** done — declared 2026-10-07 on `ccc98eb`, the third item of P31; built, both readers and the fix round done, `gate:item` EXIT 0 on `e762bf0`, 2026-10-08
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, deliberately* — W127's note and Q142's mechanism (`M4`), as in
@@ -28,7 +28,7 @@ Owns:       src/scheduler/envelope-worker.ts (the envelope worker: P31's W141 ro
             row loop as the consumer road is; DECLARED_TOTAL, DECLARED_RUNS, CROSS_ROW and
             CROSS_ROW_SUBJECTS by arithmetic; pairRunCount gains the block's runs);
             and this file
-Inputs:     the tree at 625d98b; Q266, Q283; W61's Record (F1, the stop-and-ask and its road);
+Inputs:     the tree at ccc98eb; Q266, Q283; W61's Record (F1, the stop-and-ask and its road);
             ADR 0051 F1 and rule 5; W65's Record (P1, P2 — checkRegistry missing two checks) and
             W109's (the built-in collision on one road only), the two divergences Q283 names;
             W142's Record (what W141 inherits: ID-R4 tier 1 is L2-only, and runPair refuses a shared
@@ -144,7 +144,7 @@ so the item asks to widen it before any edit, and the answer goes in this table 
 
 ## Record
 
-*Filled in 2026-10-08 on `511a009`, the tree the confirming gate ran on, held still from the final rule-8
+*Filled in 2026-10-08 on `e762bf0`, the tree the confirming gate ran on, held still from the final rule-8
 pass through that gate to this Record.* Scratch is `dev-dist/w141-12912/` (this item's shell pid): the
 measurement scripts and logs, `rule8.mjs` and its three passes, and `item.log`.
 
@@ -159,8 +159,8 @@ measurement scripts and logs, `rule8.mjs` and its three passes, and `item.log`.
 | rule 8 | RAN, three passes | author 48/48; the re-run with both readers' edits 61/65 and then 65/65 on four corrected DECLARATIONS; **final, on the still tree, 65 of 65 at their declared verdict**, digest `1152490c17f3bd67` before and after — below |
 | conformity reader | RAN | 10 findings, 2 blocking — below |
 | adequacy reader | RAN | 24 mutations and an 8-input probe: 14 caught, 10 survived (4 real gaps, 1 real defect, 1 unchecked comment, 3 vacuous) — below |
-| `npm run gate` | RAN, EXIT 0 | on the tree after the two asked edits (`b2ce762`), before the readers |
-| **`npm run gate:item`** | **RAN once, EXIT 0, on `511a009`** | `item.log`; selftests 10/10 ok, 879.4 s wall, `check:register:selftest` left out (P31 decision 4: this item touches no register script) |
+| `npm run gate` | RAN, EXIT 0 | on the tree after the two asked edits (`77e1c70`), before the readers |
+| **`npm run gate:item`** | **RAN once, EXIT 0, on `e762bf0`** | `item.log`; selftests 10/10 ok, 879.4 s wall, `check:register:selftest` left out (P31 decision 4: this item touches no register script) |
 
 **The measurement — output (1).**
 
@@ -182,7 +182,7 @@ single-task sentence** (*"the task stays `pending` with `attempts: 0` … emits 
 record"*, around line 726) — a spec text, so this item did not move it: it is put to the caller as an ask
 (Questions, below).
 
-*Q283, the shape checks each caller made* (read off `625d98b`):
+*Q283, the shape checks each caller made* (read off `ccc98eb`):
 
 | check | `checkRegistry` before | `resolveRegistry` before | after |
 |---|---|---|---|
@@ -219,7 +219,7 @@ kind, which `checkRegistry` calls in sequence and `resolveRegistry` calls where 
 | (7) L1 for (6) | the W141 suite in `test/definition/registry.test.ts` (26 cases): 21 defects refused identically, the source-site membership both ways, a control, two ORDER cases, the prototype-name case | the same probes |
 | (8) Q266, Q283 resolved | the record step | — |
 
-**Exceptions, reconciled** — `git diff --name-only 625d98b..HEAD` before the record step lists 14 paths.
+**Exceptions, reconciled** — `git diff --name-only ccc98eb..HEAD` before the record step lists 14 paths.
 Owned: `src/scheduler/envelope-worker.ts`, `src/definition/registry.ts`, the four test files, `examples/l6.ts`,
 this file. Declared at declaration: `examples/README.md`, `test/definition/l4-corpus.test.ts`. Asked and
 answered YES before their edits: `AGENTS.md` (the one section-20 sentence), `scripts/build-browser-tests.mjs`
@@ -254,7 +254,7 @@ snapshot byte for byte and compared; a digest before and after).
   - **Not re-run here**: the adequacy reader's A10 (the hang under Deno only) — this harness grades node;
     the reader ran it in its copy and both deno rungs caught it (`deno-test` 13 FAIL, `deno-l6` 12 FAIL).
 
-**Readers — fresh contexts, differed briefs, the tree still** (`b2ce762` throughout).
+**Readers — fresh contexts, differed briefs, the tree still** (`77e1c70` throughout).
 
 *Conformity* (spec, ADRs, P31 first; then the code; probes in its own scratch):
 
@@ -325,6 +325,6 @@ check that changes a verdict, not one that adds a refusal.
   single-task F1 sentence (*the task stays `pending` with `attempts: 0` …*) does not reproduce on 0.5.2 —
   correct the sentence to the measured mechanism (several tasks on a failing worker, or a retry), or leave it
   as F1's historical measurement. A spec text, so a change of its own. *Answered on 2026-10-08: the sentence
-  corrected, its old reading kept, as `spec/flow-definition.md` v0.29 (`b9dd0c8`) — P31's retro, which
+  corrected, its old reading kept, as `spec/flow-definition.md` v0.29 (`8ea902e`) — P31's retro, which
   corrected this line under workflow section 6 pass 3 rule 6.*
 - **Stated limits, not questions**: Ri / Rh above.

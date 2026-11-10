@@ -407,7 +407,7 @@ async function scale(runs: number, arity: number, sizeKib: number, shared: boole
  * `runFlow`, which attaches eight listeners of its OWN to the scheduler per run — `noteDone` among
  * them, which records every settlement it hears in that run's sets — and copies `scheduler.tasks` into
  * each report. On one shared scheduler each of those heard and copied every run's, so `scale` measured
- * the harness's N² beside the library's: W142 re-took W55's figure on `7ba87df` and read **879 MiB** of
+ * the harness's N² beside the library's: W142 re-took W55's figure on `f5f85ae` and read **879 MiB** of
  * heap at N = 800 shared, and the same after ADR 0088 routed the drivers. **W142 then routed the
  * harness too** (the maintainer's answer (B) to its prediction-3 stop; `routeHarnessListener` in
  * `run-flow.ts`), and `scale` is linear again — but it still measures a harness with eight listeners a

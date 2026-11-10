@@ -1,6 +1,6 @@
 # W166 — a sample the caller gives
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN, no code defect against the spec, their items acted on (C-F1: `givenVerdict` stated as new public surface and given `tryTransform`'s contract); no exception; no question raised. Declared 2026-10-16 on `da08a1f`; declaration step RUN the same day in a byte copy (M1-M5 below)
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN, no code defect against the spec, their items acted on (C-F1: `givenVerdict` stated as new public surface and given `tryTransform`'s contract); no exception; no question raised. Declared 2026-10-16 on `3b7bb21`; declaration step RUN the same day in a byte copy (M1-M5 below)
 **Plan:** [P37](../plans/p37-a-runtime-is-its-registry.md) — *what may a running runtime be asked to accept, when its
 registry is fixed at `createRuntime`?* — its FIFTH item.
 
@@ -46,7 +46,7 @@ Outputs:    (1) witness.ts: SampleSource = 'example' | 'witness' | 'given' (BREA
                 error), and the BREAKING sentence.
             (6) scripts/check-docs.mjs RUN_FLOOR 36 -> 37.
             (7) L1 tests (below) and their suite in l4-corpus's LATE_SUITES.
-Depends on: W165 (done, da08a1f)
+Depends on: W165 (done, 3b7bb21)
 Blocks:     W167
 Tests:      L1 test/definition/assist.test.ts — the W166 suite, on fact 4's flow shape (a two-task flow `a` -> `b`, one
             worker declaring both schemas and an output example): a given input on the ENTRY node `a` and on the inner
@@ -70,7 +70,7 @@ Gate:       `npm run gate` before the readers (P37 sentence C); then the conform
 Reserves:   Q630-Q632 (P37's W166 row); no ADR (ADR 0100 stays expected unused)
 ```
 
-*Reserves: `npm run state` on `da08a1f` reads the next free ids as **P38, W166, Q627, ADR 0100** from the tree, and W162, Q615,
+*Reserves: `npm run state` on `3b7bb21` reads the next free ids as **P38, W166, Q627, ADR 0100** from the tree, and W162, Q615,
 ADR 0096 from the ledger (P33's Retro) — they DISAGREE because P37 was declared and W162-W165 spent ids since that sentence;
 P37's own reservation governs. Its W166 row gives this item Q630-Q632.*
 
@@ -93,7 +93,7 @@ P37's own reservation governs. Its W166 row gives this item Q630-Q632.*
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `da08a1f` (`git archive` into `C:/tmp-w166/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `3b7bb21` (`git archive` into `C:/tmp-w166/m`,
 `node_modules` copied, never linked), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |

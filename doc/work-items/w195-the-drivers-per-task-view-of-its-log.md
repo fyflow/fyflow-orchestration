@@ -1,6 +1,6 @@
 # W195 — the driver's per-task view of its log: a settlement's reads cost the task, not the run
 
-**Status:** done 2026-10-21 — `npm run gate:item` on the final tree, one command, EXIT 0 (re-run after the maintainer's YES to the stop-and-ask, the Record's last gate row); both readers RAN, every finding acted on; 29 provocations KILLED, none surviving; no question raised. Earlier: declared 2026-10-21 on `7b47f78`; P39's SECOND item: decision 4, 5 and 6's driver half, stop-and-asks (a) and (e) as answered; the declaration step RUN before any `src/` edit (below)
+**Status:** done 2026-10-21 — `npm run gate:item` on the final tree, one command, EXIT 0 (re-run after the maintainer's YES to the stop-and-ask, the Record's last gate row); both readers RAN, every finding acted on; 29 provocations KILLED, none surviving; no question raised. Earlier: declared 2026-10-21 on `c2bb483`; P39's SECOND item: decision 4, 5 and 6's driver half, stop-and-asks (a) and (e) as answered; the declaration step RUN before any `src/` edit (below)
 **Plan:** [P39](../plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) — *what does a step cost on a long
 run, and where may its owner read the run's live state?* — and this is its SECOND item: the driver's own cost, fyflow-app
 pass 2 #4.
@@ -72,7 +72,7 @@ Reserves:   Q725-Q729, ADR 0121
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `7b47f78`, the tree clean. The
+*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `c2bb483`, the tree clean. The
 harness is the session scratchpad's `w195/drv.ts`: the app's repro, driver only, its queue walked by INDEX, each size a
 FRESH process.*
 
@@ -83,7 +83,7 @@ FRESH process.*
 | 3 | every read of `this.log` and every `effectiveOutcome`/`isSuspended` call in `src/driver/` | `advance` (`:3665`), `parked` (`:4860`), `hasParked` (`:4870`, once per DISPATCHED task — O(dispatched × log) a call), `effectiveOutcomeOf` (`:5646`), `outputs()` (`:4372-4427`), **and one P39 did not list: `inFlight` (`:2540`)**, a set built from the whole log at every run-control call and at every `resumed` element a replay feeds; `append` (`:5194`) and `snapshot()` (`:5526`) read it whole by nature. `log.ts` has no other caller in `src/driver/` |
 | 4 | is `this.log` still needed once the view exists | **YES — the view ADDS a field**: `snapshot()` reads the whole log in order, `outputs()`'s catch-up indexes it, and `examples/run-flow.ts`' retention alias check reads `Driver.log` (outside this item's Owns). Kept; DRIVER_FIELDS gains `taskLog` |
 | 5 | `spec/outcome-record.md` sections 6-7 and `RN-R13` | `outcome-record.md` names no scan and no cost — NOT moved. `RN-R13` names `log` and `outputsCache` as holders: its text moves (the view joins every holder set) |
-| 6 | the ladder counts — `npm run gate` on `7b47f78`, EXIT 0 | L1-L5 **85 files / 2,111 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,111); L6 **2,789 assertions / 0 failed** in node and deno; `check:docs` 50 `run` snippets; `check:spec` C4 45 (scratchpad `w195/gate-base.log`) |
+| 6 | the ladder counts — `npm run gate` on `c2bb483`, EXIT 0 | L1-L5 **85 files / 2,111 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,111); L6 **2,789 assertions / 0 failed** in node and deno; `check:docs` 50 `run` snippets; `check:spec` C4 45 (scratchpad `w195/gate-base.log`) |
 
 ## Verification
 
@@ -105,7 +105,7 @@ same day, and the gate re-run after it.*
 |---|---|---|
 | `npm run gate` before the readers (sentence C) | RAN — **EXIT 0** | L1-L5 86 files / 2,119 cases in node 24.20.0, deno 2.9.6 and chromium (parity); L6 2,789 / 0 failed in node and deno; `check:docs` 50 `run` |
 | L2 the per-task reads, `outputs()`, a resume, the view's records, the queues, the count | RAN — green | `test/driver/log-view.test.ts`, 10 cases after the readers (7 before); `retention.test.ts`'s holder sets and identity; no other suite's expected value moved |
-| conformity reader | RAN | C1-C10, no BLOCKER; its own differential (2,415 seeded transcripts, payloads included) byte-identical to `7b47f78` |
+| conformity reader | RAN | C1-C10, no BLOCKER; its own differential (2,415 seeded transcripts, payloads included) byte-identical to `c2bb483` |
 | adequacy reader | RAN | 79 probes; 6 real gaps (G1-G6), 4 NITs; every gap closed and re-cut below |
 | the author's probes | RAN, three times | **after the readers (`C:/tmp-w195/mut3.log`): 29 probes + 3 grader controls — 29 KILLED, 0 SURVIVED**, controls CLEAN / CRASH / WRONG-REASON, digests equal |
 | **`npm run gate:item`** on the final tree, held still | RAN — **EXIT 0**, one command (`C:/tmp-w195/gateitem.log`) | lint; typecheck; every check, `check:docs` 50 `run`, `check:spec` C4 45; L1-L5 **86 files / 2,122 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,122); L6 **2,789 / 0 failed** in node and deno; selftests 10/10 ok (1,014.2 s wall, 9 lanes), `check:register:selftest` left out by `--without`. Written after it: this Record and Status — `check:register`, `check:markdown`, `check:spec`, `check:budget` and `check:wiring` re-run on them, EXIT 0 — and ONE comment line in `driver.ts` (`TaskLog`'s *no public surface reaches it*, withdrawn by C7 and found by the rule-5 grep), `lint`, `check:source` and the suite re-run, EXIT 0 |
@@ -132,7 +132,7 @@ same day, and the gate re-run after it.*
 | 32,000 | 10,015 (9,066); inline pool 8,894 | 465 (507); inline 482 | — | — |
 
 Counted work: 501 / 2,001 visits plain and 1,502 / 6,002 with a `needs` per settlement, at 500 / 2,000 items — 3.99x and
-4.00x, exactly as ADR 0121 rule 7 derives. The fold inputs, snapshots and resumes byte-identical to `7b47f78` over 182 runs.
+4.00x, exactly as ADR 0121 rule 7 derives. The fold inputs, snapshots and resumes byte-identical to `c2bb483` over 182 runs.
 
 **Predictions.** P39 prediction 3 **HOLDS, and more**: the superlinearity is gone WITH `attempted` elements too — fact 4's
 steeper right-hand column did not reproduce with the harness's queue walked by index, and the one `attempted`-road cause

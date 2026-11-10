@@ -1,6 +1,6 @@
 # W174 — stopping a run to resume it elsewhere: `driver.stop`, `RunHandle.stop`, the `interrupted` outcome, and a resume that takes it
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN — five DEFECTS (C1-C5, C5 a throwing callback leaving the stop half-done) FIXED, gaps C6-C8 and C12 closed, notes C9-C11 acted on; exceptions E1-E6 granted by the maintainer (S-1..S-6), and R2 RATIFIED by the maintainer 2026-10-16; no question raised — declared 2026-10-16 on `a707de0`; P34's SIXTH item: stop-and-ask (d), decisions 3 and 9, (h)'s `interrupted` row, (i) for a stop; ADR 0105; built under B′, `npm run gate` run before the readers; readers not yet run, `gate:item` not yet run
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN — five DEFECTS (C1-C5, C5 a throwing callback leaving the stop half-done) FIXED, gaps C6-C8 and C12 closed, notes C9-C11 acted on; exceptions E1-E6 granted by the maintainer (S-1..S-6), and R2 RATIFIED by the maintainer 2026-10-16; no question raised — declared 2026-10-16 on `b398c90`; P34's SIXTH item: stop-and-ask (d), decisions 3 and 9, (h)'s `interrupted` row, (i) for a stop; ADR 0105; built under B′, `npm run gate` run before the readers; readers not yet run, `gate:item` not yet run
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its SIXTH item. **A run's OWNER stops it through ONE call
 on the driver**, forwarded by the runtime's handle: `driver.stop({ actor, reason?, graceMs? })` / `RunHandle.stop()`
@@ -56,7 +56,7 @@ Outputs:    (1) src: `Driver.stop()`, `RunStopOptions`, `RunControlRefused.contr
                 twin), test/driver/checkpoint.test.ts (`RUN_FOR.interrupted`, kinds 11 -> 12), l4-corpus's
                 `LATE_SUITES` (+3) and a count case, `DRIVER_FIELDS` in test/driver/retention.test.ts and examples/l6.ts,
                 the two `RunState` literals in test/fold/fold-rules.test.ts and one in test/fold/cancelling.test.ts.
-Depends on: W173 (done, a707de0)
+Depends on: W173 (done, b398c90)
 Blocks:     W175
 Tests:      L1 — test/fold/interrupted.test.ts, `RN-R32` over hand-written sequences: the element over a running and a
             parked task; `resumed` ending it (`awaiting_action`, `running`, then `completed`); a second element; (h)
@@ -109,7 +109,7 @@ fresh one (asserted by the resume cases).
 
 ## What the declaration step measured
 
-*Measured 2026-10-16 in a BYTE COPY of `a707de0` (`git archive` into `C:/tmp-w174/m`, `node_modules` copied, never
+*Measured 2026-10-16 in a BYTE COPY of `b398c90` (`git archive` into `C:/tmp-w174/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |

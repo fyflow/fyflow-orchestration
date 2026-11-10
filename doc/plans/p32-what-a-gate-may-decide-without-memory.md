@@ -1,9 +1,9 @@
 # P32 — What may a gate decide without memory, and from what the flow declares?
 
-**Status:** complete and retro'd 2026-10-14 — declared 2026-10-13 on `06a45ca`; stop-and-asks (a)-(d) ANSWERED by the
+**Status:** complete and retro'd 2026-10-14 — declared 2026-10-13 on `a5dcc27`; stop-and-asks (a)-(d) ANSWERED by the
 maintainer 2026-10-13, all four as recommended; W153 and W154 done 2026-10-13, W155 done 2026-10-14; the
 exit artifact measured and ACCEPTED as measured (Record below, with the two places the built thing differs
-from the exit sentence's words); the retro ran 2026-10-14 over `7b99fad` and the maintainer approved every
+from the exit sentence's words); the retro ran 2026-10-14 over `643718f` and the maintainer approved every
 recommendation the same day — (t)-(w), and A, B and C, **B and C being sentences for the NEXT plan's
 declaration** (Retro section 9)
 **Question this plan answers:** *can a flow route the value that reaches a node by a declared
@@ -27,7 +27,7 @@ Raises:   Q582 (a loop), Q583 (a join that fires before every branch settles) �
 Baseline: ids derived by `npm run state` at this declaration — P32, W153, Q582, ADR 0092 from the
           tree (the ledger reads W152, Q580; the disagreement is printed, not resolved). The ladder
           counts are NOT taken here and are W153's declaration step's
-Declared: 2026-10-13 on `06a45ca`, once the maintainer answered (a)-(d) as recommended
+Declared: 2026-10-13 on `a5dcc27`, once the maintainer answered (a)-(d) as recommended
 ```
 
 ## Why this plan, and why now
@@ -49,7 +49,7 @@ default, where nothing says a case was forgotten.
 
 ## Four facts measured before drafting, and TWO changed what is written here
 
-Measured on `06a45ca`.
+Measured on `a5dcc27`.
 
 **Fact 1 — an `if` is ALREADY writable by a consumer, and a `switch` is NOT writable by anyone.**
 `evaluateWhen` (`src/driver/routing.ts:120`) and `predicateProblem` (`src/definition/validate.ts:528`)
@@ -214,7 +214,7 @@ not the declaration.
 
 ## Record
 
-*Written 2026-10-14 over `7b99fad`, the tree clean before it. Every figure is read from the three items'
+*Written 2026-10-14 over `643718f`, the tree clean before it. Every figure is read from the three items'
 own files; none is re-measured here. Ids are bare text, as in P31's Record.*
 
 **W153 — done 2026-10-13.** Its own Record covers the re-takes, the gate, the provocations and both
@@ -311,7 +311,7 @@ took no question in. `npm run q -- --where status=open --count` stays **2** (Q20
 
 ## Retro
 
-*Pass 3 ran on 2026-10-14 over `7b99fad`, the working tree clean before it, in a subagent at the maintainer's
+*Pass 3 ran on 2026-10-14 over `643718f`, the working tree clean before it, in a subagent at the maintainer's
 request. Every figure is read from the three items' Records; this retro re-ran no gate, no harness and no
 measurement. **Sections 1-8 are the proposal as it went up; section 9 is the maintainer's answer and the
 bookkeeping it allowed in `doc/workflow.md`**, the only edits made there.*

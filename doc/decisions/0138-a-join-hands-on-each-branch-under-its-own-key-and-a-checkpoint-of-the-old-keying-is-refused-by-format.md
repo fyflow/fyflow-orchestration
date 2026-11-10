@@ -84,7 +84,7 @@ v0.25, `spec/run-state.md` v0.36, `spec/flow-definition.md` v0.54. **BREAKING �
    under `examples/workers/` reads a collection's keys (P44 fact 3); the census of moved tests and claims is W217's Record.
 2. **BREAKING for every checkpoint 0.11.0 wrote**, join or none. **A run in flight across the upgrade cannot be resumed
    by 0.12.0 — drain or abandon it first.** Demonstrated both ways by W217: this driver refuses a format-1 checkpoint
-   `format`, and the 0.11.0 driver (`bdbdb1c`) refuses this driver's format-2 checkpoint `format`.
+   `format`, and the 0.11.0 driver (`98e313d`) refuses this driver's format-2 checkpoint `format`.
 3. **A 0.7.0 checkpoint is refused `format` before `halted`**: ADR 0102 rule 3's `stopped` read is kept and is
    unreachable from any checkpoint a driver writes; ADR 0130 rule 2's *a checkpoint written before 0.11.0 resumes* no
    longer has a checkpoint to apply to — the same refusal comes first — and the rule itself is unmoved. Both ADRs carry

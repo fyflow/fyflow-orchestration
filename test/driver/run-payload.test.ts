@@ -193,7 +193,7 @@ suite(SUITE, (test) => {
     const mapped = flow('fdr4-map', 'split', [
       { id: 'split', kind: 'map', over: 'items', branch: 'each', needs: { items: '$payload' } },
       // `each` declares no `needs` of its own: a map-branch task that does is composed at FD-R4 with no item index and
-      // throws `UnresolvedBranchPath` — on `86b0c7c` too, for a `"."` key (W190's S-1; answered by the maintainer 2026-10-19: W191 fixes it and adds a
+      // throws `UnresolvedBranchPath` — on `f11183a` too, for a `"."` key (W190's S-1; answered by the maintainer 2026-10-19: W191 fixes it and adds a
       // `"."` and a `"$payload"` regression case here).
       { id: 'each', kind: 'task', type: 'PerItem', edges: [{ to: 'collect' }] },
       { id: 'collect', kind: 'join', of: 'split', edges: [{ to: 'done' }] },

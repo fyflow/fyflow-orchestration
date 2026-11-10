@@ -1,6 +1,6 @@
 # W170 — a TRANSFORMING task is not held at `start`, and `tryTransform(…, { input })` is the check before a run
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-16 on `d7553ba`; P34's SECOND item, [Q633](../questions/q633.md)'s road (a) as the maintainer answered it (road 2); both reader passes RAN and their items are acted on (C1 the check-before-a-run recipe corrected everywhere, A1-A6 cases); exception E1 granted by the maintainer 2026-10-16; no question raised, Q633 left OPEN for W176
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-16 on `6c5a845`; P34's SECOND item, [Q633](../questions/q633.md)'s road (a) as the maintainer answered it (road 2); both reader passes RAN and their items are acted on (C1 the check-before-a-run recipe corrected everywhere, A1-A6 cases); exception E1 granted by the maintainer 2026-10-16; no question raised, Q633 left OPEN for W176
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its second item, carrying the defect P37's retro (g) routed
 here to land before 0.8.0: `FD-R4` holds a TRANSFORMING entry's payload to its worker's `inputSchema` BEFORE the
@@ -45,7 +45,7 @@ Outputs:    (1) driver.ts: `start()`'s `FD-R4` walk skips a target task that dec
                 section's opening statement).
             (5) L2 tests (below).
             (6) E1: wiring.ts's two comments and AGENTS.md section 13's two sentences.
-Depends on: W169 (done, d7553ba)
+Depends on: W169 (done, 6c5a845)
 Blocks:     W171
 Tests:      L2 test/driver/boundary.test.ts, inside the existing suites:
             START suite — Q633's own flow (a worker whose inputSchema requires `label`, a string; an entry of its type
@@ -76,7 +76,7 @@ Gate:       `npm run gate` before the readers (P34 sentence C); then the conform
 Reserves:   Q638-Q640 (P34's W170 row); ADR 0101 (P34 decision 11)
 ```
 
-*Reserves: `npm run state` on `d7553ba` reads the next free ids as **P38, W170, Q635, ADR 0101** from the tree and
+*Reserves: `npm run state` on `6c5a845` reads the next free ids as **P38, W170, Q635, ADR 0101** from the tree and
 W169, Q635, ADR 0101 from the ledger (P37's Retro) — they DISAGREE on W only, because P34 was declared since that
 sentence and W169 spent its id; P34's own reservation governs, and gives this item Q638-Q640 and ADR 0101.*
 
@@ -112,7 +112,7 @@ route: this item changes which values one boundary holds at `start`, before anyt
 
 ## What the declaration step measured
 
-*Measured 2026-10-16 in a BYTE COPY of `d7553ba` (`git archive` into `C:/tmp-w170/m`, `node_modules` copied, never
+*Measured 2026-10-16 in a BYTE COPY of `6c5a845` (`git archive` into `C:/tmp-w170/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |

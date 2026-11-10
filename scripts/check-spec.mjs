@@ -416,7 +416,7 @@ if (existsSync(README)) {
 //
 // **What is read: every row `RULE_ROW` declares, all nine prefixes** — the plan row says *a refusal
 // row*, and an `FD-C`/`FD-R`/`RN-R` row's citation goes stale the same way (W223's Scope 1). Three
-// spellings were MEASURED in those rows at `b7f9031` (W223's M2) and each resolves differently:
+// spellings were MEASURED in those rows at `94d9311` (W223's M2) and each resolves differently:
 //   full     `spec/examples/<dir>/<name>`  — against the spec root, as written
 //   bare     `<name>.flow.json` AFTER a full `.flow.json` citation in the same row — against that
 //            citation's directory: the *"Cases: `spec/examples/invalid/A`, `B`, `C`"* spelling

@@ -1,6 +1,6 @@
 # W226 — grants reach a type's worker on real workers; `AGENTS.md`; the reply; P46's Record and retro
 
-**Status:** done 2026-11-06 — `npm run gate:full` EXIT 0 on the final tree; declared 2026-11-05 on `fd6227f`; both readers RUN and acted on (2026-11-06); `npm run gate` on
+**Status:** done 2026-11-06 — `npm run gate:full` EXIT 0 on the final tree; declared 2026-11-05 on `5113a18`; both readers RUN and acted on (2026-11-06); `npm run gate` on
 the tree after their fixes in the Gate table; `gate:full` EXIT 0 (the orchestrator's, below)
 **Plan:** [P46](../plans/p46-what-the-scheduler-0-7-0-admission-rework-lets-a-document-declare.md) — its LAST item.
 
@@ -42,7 +42,7 @@ Reserves:   Q803-Q804, no ADR
 
 ## Record
 
-**Author's record, 2026-11-05, on `fd6227f` plus W224's and W225's uncommitted trees — in review.** Nothing committed.
+**Author's record, 2026-11-05, on `5113a18` plus W224's and W225's uncommitted trees — in review.** Nothing committed.
 Node 24.20.0, deno 2.9.6.
 
 ### Gate

@@ -1,6 +1,6 @@
 # W150 — `check-markdown.mjs` reads each file once: one read cache and one existence cache shared by the walk and its three probe trees
 
-**Status:** done 2026-10-09 — see the Record. Declared on `0bdc329` (committed `50295d9`), before any file under `Owns` was edited.
+**Status:** done 2026-10-09 — see the Record. Declared on `4063abe` (committed `dadae37`), before any file under `Owns` was edited.
 **Plan:** none — an item outside any plan, on W98's and W139's precedent. Its source is P31's Retro,
 proposal B in section 5 (*shares one read and one existence cache across the walk and its three probe
 trees*) and section 10, *the maintainer's answer, 2026-10-09*: **B ADOPTED AS A WORK ITEM**, and the
@@ -30,7 +30,7 @@ Inputs:     P31's Retro sections 2 (the per-lane walls; the check at ~820 ms bef
             ~2130 ms on HEAD), 5 (proposal B) and 10; W144's Record (d6, cmp2, the probe trees);
             the prototype dev-dist/p31r-25787/cache-probe.mjs, which patched a COPY and measured
             ~1170 ms with a byte-identical report; scripts/check-markdown.mjs and its self-test as
-            they stand at 0bdc329
+            they stand at 4063abe
 Outputs:    (1) the measurement, BEFORE any edit, under dev-dist/w150-26316/: the check's run
                 time (median of several runs), check:markdown:selftest alone, the check's full
                 output saved for the byte comparison, and one `npm run gate:item` on a still tree
@@ -83,7 +83,7 @@ first under workflow section 1 rule 6, and its YES written here before the edit.
 
 **In**
 
-1. **Measure first**, output (1), on `0bdc329`, with the tree still.
+1. **Measure first**, output (1), on `4063abe`, with the tree still.
 2. **Build the cache**, output (2): one object, raw text and existence/kind, below `rewrite` and
    below `absent`.
 3. **Provoke it at birth**, output (3): the two META entries, run RED before the cache is right and
@@ -113,21 +113,21 @@ first under workflow section 1 rule 6, and its YES written here before the edit.
 
 ## Record
 
-Built on `50295d9` (the declaration), code at `2b08095`, the conformity reader's findings acted on at
-`64bffc4`. Every command below was redirected and its `$?` read in the same command; logs are under
+Built on `dadae37` (the declaration), code at `6600193`, the conformity reader's findings acted on at
+`addd1d8`. Every command below was redirected and its `$?` read in the same command; logs are under
 dev-dist/w150-26316/.
 
 **Gate — what ran.**
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| check:markdown, byte-identical | RAN, EXIT 0 | `before-md.out` (on `50295d9`) against `after-md.out` (`2b08095`) and `after2-md.out` (`64bffc4`): `cmp` identical both times. A `git archive` copy with the old script gave the same bytes, so the comparison is across the code, not across the tree |
-| check:markdown:selftest alone | RAN, EXIT 0 | before 788 s (`before-st.log`); after 338 s (`after-st.log`, `2b08095`) and 339 s (`after2-st.log`, `64bffc4`): 44/44 probes caught, **56/56 noticed** (33 by the named probe, 23 by the corpus), 7/7 bounded |
+| check:markdown, byte-identical | RAN, EXIT 0 | `before-md.out` (on `dadae37`) against `after-md.out` (`6600193`) and `after2-md.out` (`addd1d8`): `cmp` identical both times. A `git archive` copy with the old script gave the same bytes, so the comparison is across the code, not across the tree |
+| check:markdown:selftest alone | RAN, EXIT 0 | before 788 s (`before-st.log`); after 338 s (`after-st.log`, `6600193`) and 339 s (`after2-st.log`, `addd1d8`): 44/44 probes caught, **56/56 noticed** (33 by the named probe, 23 by the corpus), 7/7 bounded |
 | check-spec (C5's caller) | RAN, EXIT 0 | `spec-after.log`; the reader compared old and new output byte for byte |
 | rule 8 | RAN, 2 passes, 0 harness failures each | see below |
 | conformity reader | RAN, once, on a still tree | 0 blocking, 1 should-fix, 6 notes; see below |
-| `npm run gate:item`, before | RAN, EXIT 0 on `50295d9` | `before.log`: **self-test wall 1351.5 s**, binding lane markdown 1335.2 s; whole command 1492 s |
-| `npm run gate:item`, confirming | RAN, EXIT 0 on `64bffc4`, once, on a still tree | `item.log`: **self-test wall 885.1 s**, markdown 727.8 s, binding lane docs 869.2 s (wiring 867.7 s); whole command 1027 s |
+| `npm run gate:item`, before | RAN, EXIT 0 on `dadae37` | `before.log`: **self-test wall 1351.5 s**, binding lane markdown 1335.2 s; whole command 1492 s |
+| `npm run gate:item`, confirming | RAN, EXIT 0 on `addd1d8`, once, on a still tree | `item.log`: **self-test wall 885.1 s**, markdown 727.8 s, binding lane docs 869.2 s (wiring 867.7 s); whole command 1027 s |
 | adequacy reader | NOT RUN | one reader, as the brief states |
 
 **The measured saving, against P31's estimate.**
@@ -140,7 +140,7 @@ dev-dist/w150-26316/.
 | **gate:item's self-test wall** | **1351.5 s** | **885.1 s** | **−466 s, about 7.8 minutes**, against P31's *about 7 minutes*. Not materially different, so no stop-and-ask |
 
 The estimate's mechanism held: the wall is now set by the next lane (docs 869.2 s, wiring 867.7 s).
-These are single runs on one machine, the before on `50295d9` and the after on `64bffc4`, with only this
+These are single runs on one machine, the before on `dadae37` and the after on `addd1d8`, with only this
 item's two scripts changed between them.
 
 **Where the saving is, measured by rule 8's `s` probes** (median of five, same machine, same session):
@@ -159,7 +159,7 @@ prototype in P31's Retro cached `existsSync` and reads, and measured ~1170 ms. T
 | (3) the birth provocation, checked in | yes: **four** META entries (the declaration said three; the reader's finding 2 added the fourth) and MIN_META 52 → 56. **One** existing META anchor was re-pointed (*counted ALIVE*). The declaration said *two*; the second, *the strip NOT applied*, anchors on a line the edit kept, as the reader's finding 1 says | each entry made vacuous: `t1`. One deleted: `t2`, `t3` (the floor) |
 | (4) the evidence | yes: the Gate table and the measured saving above | — |
 
-**Exceptions, reconciled.** `git diff --name-only 0bdc329 HEAD` before the record step lists exactly the
+**Exceptions, reconciled.** `git diff --name-only 4063abe HEAD` before the record step lists exactly the
 three files in `Owns`, and `git status --short` was empty. The record step adds P31's plan file (its Retro
 section 10, one dated line; a record-step file under workflow section 1 rule 5). **No exception was asked.**
 
@@ -169,8 +169,8 @@ count other than one. It asserts every edit changed its input. It restores to th
 compares the bytes, and it digests the tree before and after. It refuses to grade under any Node but 24.
 Each `must` was copied from a failure line seen in a discovery run on a copy (`discover.log`).
 
-- **Pass 1** (`rule8-pass1.log`, `2b08095`): 25 probes, 0 harness failures, digest equal.
-- **Pass 2** (`rule8-pass2.log`, `64bffc4`): 31 probes. The six new ones are the reader's exact edits (E2b, E4, E5/E6, E7) and the entry its finding 2 checked in (`r3d`, `t3`). 0 harness failures, digest equal.
+- **Pass 1** (`rule8-pass1.log`, `6600193`): 25 probes, 0 harness failures, digest equal.
+- **Pass 2** (`rule8-pass2.log`, `addd1d8`): 31 probes. The six new ones are the reader's exact edits (E2b, E4, E5/E6, E7) and the entry its finding 2 checked in (`r3d`, `t3`). 0 harness failures, digest equal.
 
 Controls and graders:
 - **No-op controls**: `c0` (the corpus, byte-identical) and `c1` (probe 2) are GREEN.
@@ -214,12 +214,12 @@ Its findings, and what was done with each:
 | # | severity | finding | done |
 |---|---|---|---|
 | 1 | should-fix | the declaration says two META anchors were re-pointed; the diff re-points one | corrected in this Record (Outputs row 3); the declaration is left as declared |
-| 2 | note | the write-back form of *ignores `rewrite`* is green, and its observer (`r3b`) was scratch | **checked in** as META entry 4, MIN_META 56, `64bffc4`; rule 8 pass 2's `r3d` and `t3` |
-| 3 | note | the reorder comment said the write-back then reaches *the removed trees*; it reaches one, *decisions removed* | comment corrected, `64bffc4`. Pass 2's `r3d` ran it: RED on that tree's probe, 79 against 63 |
+| 2 | note | the write-back form of *ignores `rewrite`* is green, and its observer (`r3b`) was scratch | **checked in** as META entry 4, MIN_META 56, `addd1d8`; rule 8 pass 2's `r3d` and `t3` |
+| 3 | note | the reorder comment said the write-back then reaches *the removed trees*; it reaches one, *decisions removed* | comment corrected, `addd1d8`. Pass 2's `r3d` ran it: RED on that tree's probe, 79 against 63 |
 | 4 | note | a removal stored only on a miss survives | declared survivor S5, above |
 | 5 | note | the deriveFloors refusal has no checked-in observer | kept as rule 8's `x1`. Removing it together with the argument is S3, because only the time moves |
 | 6 | note | the per-call anchor cache has no observer | declared survivor S4, with `n1b` as the second route |
-| 7 | note | the docstring's name for entry 3 differs from the entry's title | the docstring now names all four entries as titled, `64bffc4` |
+| 7 | note | the docstring's name for entry 3 differs from the entry's title | the docstring now names all four entries as titled, `addd1d8` |
 
 **What broke.**
 - **`x1` came back GREEN on its first run.** The docstring had said deriveFloors with no cache *fails loudly*. The code did not, because a destructured default treats `undefined` as absent. The claim was written before it was run, which is the most common defect in this repository by CLAUDE.md's own count. The rule-8 harness caught it before the code reached the tree.

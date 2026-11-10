@@ -1,6 +1,6 @@
 # W216 — #2: a bracket array index `[n]` in a key path, its grammar, resolution, wiring refinement and schema; ADR 0137
 
-**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; ADR 0137 written, ADR 0068 rule 2 amended; no stop-and-ask, no exception beyond the record step, no question raised. Earlier: declared 2026-10-25 on `07bc379`, P44's THIRD item: (c1); decision 3; fact 6; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; ADR 0137 written, ADR 0068 rule 2 amended; no stop-and-ask, no exception beyond the record step, no question raised. Earlier: declared 2026-10-25 on `47ae094`, P44's THIRD item: (c1); decision 3; fact 6; this file written from the plan's row BEFORE any other edit
 **Plan:** [P44](../plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — *what does a join hand on, and
 how does a key path reach into it?* — and this is its THIRD item: fyflow-app's pass 5 #2, answered by the maintainer's
 (c1).
@@ -49,7 +49,7 @@ Outputs:    (1) the GRAMMAR (ADR 0137, spec v0.53): a key path is dot-separated 
                 `test/driver/key-path-index.test.ts`; both counted in l4-corpus's census; existing cases whose
                 wording says *no index* restated.
             (8) ADR 0137; spec v0.53; spec/README.md; AGENTS.md's every *no index* sentence.
-Depends on: W215 (07bc379)
+Depends on: W215 (47ae094)
 Blocks:     W217
 Tests:      Outputs (7). Expected values from ADR 0137 and spec v0.53 as written before the first run: the grammar
             accepts `xs[0]`, `xs[1].id`, `m[0][2]`, `a.b[999999999].c`, `0[0]`; refuses `[]`, `[-1]`, `[01]`, `[a]`,
@@ -91,7 +91,7 @@ Reserves:   Q784-Q785, ADR 0137
 - **The join's collection keys** — W217.
 - **The version bump, push and publish** — the maintainer's ((e1)).
 
-## Re-takes (P44's *W216 — Re-takes*), at `07bc379`, before any `src/` edit
+## Re-takes (P44's *W216 — Re-takes*), at `47ae094`, before any `src/` edit
 
 1. **Every reader of `KEY_PATH_RE`, `readKeyPath` and `key.split('.')`** — a grep over `src/` and `index.ts`:
    `KEY_PATH_RE` in `keyPathProblem`, `leafProblem` (FD-V43) and `definition-schema.ts` (the gate key's `pattern`, and
@@ -197,6 +197,6 @@ carries an amendment note (the record step). **Exceptions used**: none beyond th
 adequacy reader's comment finding). The two findings on the literal-key claim are adjacent but on two subjects — the
 KEY group (conformity) and the index BOUND (adequacy) — and are not counted as one.
 
-**Leftover worktrees.** `C:/tmp-w216/rc` and `C:/tmp-w216/ra` (git worktrees at `07bc379` with the pre-reader change
+**Leftover worktrees.** `C:/tmp-w216/rc` and `C:/tmp-w216/ra` (git worktrees at `47ae094` with the pre-reader change
 applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w216/rc-scratch` and `ra-scratch` —
 left for the maintainer; not removed with `--force`.

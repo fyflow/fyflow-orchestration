@@ -1,6 +1,6 @@
 # W205 — what a node was handed, read by replaying the run to the target's composition
 
-**Status:** done 2026-10-22 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after ONE asked exception (`RUN_FLOOR` 51 -> 52, answered YES); both readers RAN, every finding acted on or declared; Q760 raised. Earlier: declared 2026-10-22 on `27d73b6`, P42's FIRST item: decisions 1-9, stop-and-asks (a)-(e) as answered; this file written from the plan's row BEFORE any other edit; the declaration step's re-takes below, taken before any `src/` edit
+**Status:** done 2026-10-22 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after ONE asked exception (`RUN_FLOOR` 51 -> 52, answered YES); both readers RAN, every finding acted on or declared; Q760 raised. Earlier: declared 2026-10-22 on `8ade9fb`, P42's FIRST item: decisions 1-9, stop-and-asks (a)-(e) as answered; this file written from the plan's row BEFORE any other edit; the declaration step's re-takes below, taken before any `src/` edit
 **Plan:** [P42](../plans/p42-what-a-node-was-handed-asked-after-the-fact.md) — *what was a node handed, asked after the
 fact?* — and this is its FIRST item: the replay cut, the export and `handle.inputOf`, ADR 0128, the spec, the L2 suite
 and its oracle, the count.
@@ -49,7 +49,7 @@ Outputs:    (1) src/driver/driver.ts — the CUT: a reading's hook the replay co
             (9) ADR 0128; spec/run-state.md v0.34; spec/README.md's rows; AGENTS.md (the reading where a stored run is
                 read back, the handle's member, the snippet-local `inputOf`'s collision measured by check:docs);
                 the post-transform input's register question (Q760, `deferred`).
-Depends on: P42's declaration (27d73b6) — stop-and-asks (a)-(e) answered
+Depends on: P42's declaration (8ade9fb) — stop-and-asks (a)-(e) answered
 Blocks:     W206
 Tests:      Outputs (6)-(8). Expected values from P42 decision 3 and the spec, and from derivations beside each count.
             Measurements, not gate entries (Q179): fact 4's whole-run figures re-taken; the replay's `held` retention
@@ -81,7 +81,7 @@ Reserves:   Q760-Q764, ADR 0128
 
 ## What the declaration step re-took, before anything in `src/` was edited
 
-*P15 decision 5. Taken 2026-10-22 on `27d73b6` in the worktree `C:/tmp-w205/base` (`node_modules` COPIED, 0 links, 0
+*P15 decision 5. Taken 2026-10-22 on `8ade9fb` in the worktree `C:/tmp-w205/base` (`node_modules` COPIED, 0 links, 0
 reparse points), the tree clean; harnesses and logs in the session scratchpad's `w205/`.*
 
 | # | re-take | measured |
@@ -94,7 +94,7 @@ reparse points), the tree clean; harnesses and logs in the session scratchpad's 
 | 6 | a join's arriving paths and its opener's never coincide, at every depth of the corpus (`w205/retakes.ts` (a)) | 26 valid corpus flows driven in order, **51 `branch.arrived` events at depths 1 and 2: 0 whose `branchPath` equals its `regionPath`, 0 whose path is not the opener's plus ONE segment**. Decision 3's *told apart by the path* holds on the corpus |
 | 7 | `AGENTS.md`'s `inputOf` name | a snippet-local `const inputOf` at `:546` and `:637` (`"$payload"` and `"$item"`, each reading a captured task's `payload.input`); `examples/l6.ts:12258` has another, local to a helper. **`check:docs` writes each snippet as its OWN module** (`X3`: `docs-<pid>/<n>-line<m>.ts`) importing named exports, so a root export of the same name meets a snippet-local only where that snippet imports it — prediction 5's *meets* is measured at the build step below |
 | 8 | `resumeRefusal`'s header half | `format` (shape, `header.format`, the three fields' types), `run` (only with a run id), `flow` (`:462-495`), then the `halted`/`stopped` scan (`:499`) and the `cancelled`/`cancelRequested` scan (`:520`) — the header half is the first 34 lines, separable with no change in order or message |
-| 9 | the ladder counts — `npm run gate` on `27d73b6` in `C:/tmp-w205/base`, EXIT 0, 19:26:15 → 19:31:34 (`w205/gate-base.log`) | L1-L5 **91 files / 2,174 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,831 / 0 failed** over 234 real runs in node and deno; `check:docs` 57 snippets, **51 `run`**, 6 `check`; `check:spec` C4 45 |
+| 9 | the ladder counts — `npm run gate` on `8ade9fb` in `C:/tmp-w205/base`, EXIT 0, 19:26:15 → 19:31:34 (`w205/gate-base.log`) | L1-L5 **91 files / 2,174 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,831 / 0 failed** over 234 real runs in node and deno; `check:docs` 57 snippets, **51 `run`**, 6 `check`; `check:spec` C4 45 |
 
 ## Verification
 
@@ -118,7 +118,7 @@ a duplicate task id (Q13) — not applicable: a reading appends nothing and mint
 | adequacy reader (`C:/tmp-w205/ra`) | RAN | 88 mutations: 64 killed, 22 survived (one the no-op control); 1 BLOCKER, 4 SHOULD, 3 NIT, below; survivors argued EQUIVALENT: M03, M70, M04, M69, M27, M33, M64, M65, M72, M38, M40 (the last two by measurement over the corpus, not proof) |
 | the author's sweep (`C:/tmp-w205/m`, `w205/sweep.mjs`) | RAN, before the readers reported | 28 mutations: 25 killed; **3 SURVIVED** — an end's path from the graph (`pathOf`), no default join policy, the options spread whole — each then pinned (a shared end, a reading with no `joinPolicy`, a mid-step prefix and a halted run in the deaf case) and **KILLED** on re-cut; 2 malformed probes (a syntax error and a two-match anchor) re-cut, both KILLED |
 | the re-cut of the readers' survivors (`w205/recut/`, the adequacy reader's own harness and mutations against the final tests) | RAN | **KILLED**: M02, M07, M08, M09, M43, M50, M68, M68G, M87 (the BLOCKER). **SURVIVED**: M73, the reader's no-op control (its right verdict) |
-| prediction 1 (`w205/payloads.ts`) | RAN, on `27d73b6` and on the final tree | every valid corpus flow under four drains, each with a resume from every rest: **685 runs, composed payloads and checkpoints byte-identical** (`cmp` 0). *A first comparison differed — at `observedAt`, the harness's own clock; `now` pinned and both sides re-taken* |
+| prediction 1 (`w205/payloads.ts`) | RAN, on `8ade9fb` and on the final tree | every valid corpus flow under four drains, each with a resume from every rest: **685 runs, composed payloads and checkpoints byte-identical** (`cmp` 0). *A first comparison differed — at `observedAt`, the harness's own clock; `now` pinned and both sides re-taken* |
 | `npm run gate:item`, the first | RAN — **EXIT 1**, one command, 20:39:20 → 20:58:39 (`w205/gateitem.log`) | the LADDER green (lint; typecheck; every check, `check:docs` 52 `run`, C4 45; L1-L5 94 files / 2,197 cases in node, deno and chromium; L6 2,831 / 0 failed over 234 runs in both); selftests 9 of 10 ok — **`check:docs:selftest` EXIT 1**: its probe *a whole `run` snippet deleted* wanted [X4, X8] and got [X8], because `RUN_FLOOR` (`scripts/check-docs.mjs:742`) is 51 and section 8's new snippet makes 52 — B′'s floor, not run before the `Owns` was written, and a file outside it. **STOP-AND-ASK**, uncommitted — answered (a), YES, the one literal moved (Exceptions above) |
 | `check:docs:selftest`, after the edit | RAN — **EXIT 0**, 47/47 probes caught (`w205/docs-selftest.log`) | the deletion probe trips [X4, X8] again |
 | **`npm run gate:item`** on the final tree, held still | RAN — **EXIT 0**, one command, 21:11:33 → 21:39:53 (`w205/gateitem2.log`) | lint; typecheck; every check, `check:docs` 58 snippets / **52 `run`**, C4 45; L1-L5 **94 files / 2,197 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,197); L6 **2,831 / 0 failed** over 234 real runs in node and deno; selftests **10/10 ok** (1,380.9 s wall, 9 lanes), `check:register:selftest` left out by `--without`. Written after it: this row and Status — `check:register`, `check:markdown`, `check:spec`, `check:budget`, `check:wiring` and `check:docs` re-run on them |
@@ -142,7 +142,7 @@ a duplicate task id (Q13) — not applicable: a reading appends nothing and mint
 - **Counted** (the cost suite, EXACT, derived from the stored layout in its header): a map of n items whose instances each reach an end — the first instance's reading fed **2** stimuli and compared **2n + 5** elements (4,005 / 16,005); the last's **n + 1** and **5n + 2** (2,001 / 10,002 and 8,001 / 40,002) of the stored **5n + 5**; the node id alone n + 1 and 5n + 5. The second observer (the reading driver's own log length) equal. **What it does not count**: the composition, the predicates' and gates' re-runs, the header's clone, `new Driver`'s validation, and the work of a fed step beyond its compared elements.
 - **Timed once** (`w205/timing.ts`, a fresh process per size; Q179): `post` reading its own `work`, the LAST instance — **35 / 138 / 263 ms** at 2,000 / 8,000 / 16,000 items in node 24.20.0, **52 / 166 / 352** in deno 2.9.6; the first instance 10 / 39 / 74 and 9 / 46 / 83; the cost flow's `exit` first 15 / 49 / 94 and last 27 / 111 / 202 (node). Beside re-take 1's whole run live: 66 / 198 / 380 (node), 69 / 237 / 491 (deno). **P42 prediction 3 HOLDS for the timing** (263 ms against 442, within 2x) **and for `fed`** (constant for the first instance), and **NOT for `elements`**: the first instance's work is linear — a map opens every instance in one step and a step is replayed whole up to the cut.
 - **Retention** (P42 decision 6's measurement): a resume's replay held **2,001 configs, 157,971 B of payloads at 2,000 items; 8,001 / 631,971 B at 8,000** (re-take 3). **A reading holds NONE** — `held` stays empty (pinned in the cost suite beside the resume's 2,001 as the control). What the reading's driver retains besides is what any replaying driver does (its log, outputs, region state), dropped when the reading returns.
-- **chromium**: the bundle's in-page evaluation 22.8 s on W205's tree (39.5 s on `27d73b6` in the same session — noise-dominated); the three new suites ~3 s of node wall.
+- **chromium**: the bundle's in-page evaluation 22.8 s on W205's tree (39.5 s on `8ade9fb` in the same session — noise-dominated); the three new suites ~3 s of node wall.
 
 **Predictions.** 1 **HOLDS** (685 byte-identical). 2 **MOVED**: the cut is THREE sites plus the confirmation in `append` — a task's envelope is offered where `dispatch` builds it, and an offer is taken only when its node's own element is compared (ADR 0128 rule 2). 3 holds for `fed` and the timing, not for `elements` (above). 4 **HOLDS**: no corpus flow's answer differs from its captured envelope, on the run, at every element prefix, or on a resume from every rest. 5 **FALSE in its first half**: `check:docs` was EXIT 0 with the root export beside the snippet-local `const inputOf` (each snippet is its own module, `X3`); the two were RENAMED `handedInput` all the same, so the reference uses one name in one meaning.
 
@@ -173,4 +173,4 @@ a duplicate task id (Q13) — not applicable: a reading appends nothing and mint
 
 **The readers' overlap.** **ONE** — the reading's run id (conformity 2: a malformed header `runId` throws; adequacy 3: no fixture's run is other than `r1`). Every other finding was one reader's alone. *The tests were extended in the author's tree while the readers read their copies, taken before; no reader measured the author's tree.*
 
-**Leftover worktrees.** `C:/tmp-w205/base`, `rc`, `ra`, `m` (git worktrees at `27d73b6`, the diff applied, `node_modules` COPIED, scanned: 0 links, 0 reparse points) — left for the maintainer; not removed with `--force`.
+**Leftover worktrees.** `C:/tmp-w205/base`, `rc`, `ra`, `m` (git worktrees at `8ade9fb`, the diff applied, `node_modules` COPIED, scanned: 0 links, 0 reparse points) — left for the maintainer; not removed with `--force`.

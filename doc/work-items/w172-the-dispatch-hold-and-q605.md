@@ -1,6 +1,6 @@
 # W172 — the dispatch hold every halt shares, and Q605's two doors shut
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-16 on `24253b2`; P34's FOURTH item, decision 8; both reader passes RAN, no DEFECT, their items acted on (C1, C2, C4-C7, C9, C10; A1-A6); stop-and-asks S-1 and S-2 answered YES by the maintainer 2026-10-16 — S-1 built (decision 8's three places are four), S-2 as exception E1; Q605 RESOLVED by ADR 0103; no question raised
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-16 on `d0d296b`; P34's FOURTH item, decision 8; both reader passes RAN, no DEFECT, their items acted on (C1, C2, C4-C7, C9, C10; A1-A6); stop-and-asks S-1 and S-2 answered YES by the maintainer 2026-10-16 — S-1 built (decision 8's three places are four), S-2 as exception E1; Q605 RESOLVED by ADR 0103; no question raised
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its FOURTH item: decisions 5 and 8. **One hold, re-checked
 at three places** — `dispatch()` before its append, `enter`'s head (Q605's door (a)), and between `appendResolution` and
@@ -37,7 +37,7 @@ Outputs:    (1) src: `Driver.shut()` — the hold for good, `failed || cancelled
             (5) AGENTS.md's one cell (E1).
             (4) tests: test/driver/hold.test.ts (one suite, seventeen cases); l4-corpus.test.ts's census row and the
                 suite's case count.
-Depends on: W171 (done, 24253b2)
+Depends on: W171 (done, d0d296b)
 Blocks:     W173
 Tests:      L2 — test/driver/hold.test.ts, Q605's `closes-when` case per door per halt: a fan-out's FIRST branch and a
             `map`'s FIRST instance (door (a), the halt raised on that task's `dispatched` element) and a resolution's
@@ -93,7 +93,7 @@ route and mints no id.
 
 ## What the declaration step measured
 
-*Measured 2026-10-16 in a BYTE COPY of `24253b2` (`git archive` into `C:/tmp-w172/m`, `node_modules` copied, never
+*Measured 2026-10-16 in a BYTE COPY of `d0d296b` (`git archive` into `C:/tmp-w172/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |

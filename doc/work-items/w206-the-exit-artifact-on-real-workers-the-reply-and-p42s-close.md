@@ -1,6 +1,6 @@
 # W206 — what a node was handed, on real workers; the reading timed; the reply to fyflow-app; P42's close
 
-**Status:** done 2026-10-22 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 10 provocations KILLED, none surviving; the reply written. Earlier: declared 2026-10-22 on `1288209` (W205 committed, the tree clean); P42's LAST item: exit clauses (2) and (3), the reply, P42's Record and retro; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-22 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 10 provocations KILLED, none surviving; the reply written. Earlier: declared 2026-10-22 on `db123a0` (W205 committed, the tree clean); P42's LAST item: exit clauses (2) and (3), the reply, P42's Record and retro; this file written from the plan's row BEFORE any other edit
 **Plan:** [P42](../plans/p42-what-a-node-was-handed-asked-after-the-fact.md) — *what was a node handed, asked after the
 fact?* — and this is its LAST item.
 
@@ -14,7 +14,7 @@ Owns:       from P42's W206 row, exactly: examples/l6.ts (the WHOLE file, senten
             ../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass3.reply.md
             Exceptions (declared BEFORE the edit, workflow section 7 rule 2): doc/workflow.md — the plan's-last-item
             bookkeeping ONLY (the Status line's count of plans run, section 6's overlap ordinal, the ledger rows a retro
-            appends to), P41's close (74c776b) the precedent, P42's W206 row naming it. The record step's four files
+            appends to), P41's close (15d0098) the precedent, P42's W206 row naming it. The record step's four files
             carry P42's Record and retro and any dated note. Anything else found to need an edit is a STOP-AND-ASK.
 Inputs:     P42 decisions 1-9, facts 1-10, stop-and-asks (a)-(e) ANSWERED; W205's Record (its counts, its timing, its
             readers' findings); ADR 0128; RN-R45; W203's and W197's L6 blocks and examples/map-cost.ts as the shapes this
@@ -84,18 +84,18 @@ Reserves:   Q765-Q769, ADR 0129 (expected unused)
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5. Taken 2026-10-22 on `1288209`, the tree clean; harnesses and logs in the session scratchpad's `w206/`.*
+*P15 decision 5. Taken 2026-10-22 on `db123a0`, the tree clean; harnesses and logs in the session scratchpad's `w206/`.*
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the release state (21:44 +0200) | npm `fyflow-orchestration`: `0.0.0-stage`, `0.7.0`, `0.8.0`, `0.9.0`, `0.9.1`, `latest` 0.9.1; JSR `@fyflow/orchestration` latest 0.9.1 (2026-10-22T08:54Z); tags `v0.7.0`-`v0.9.1`, `v0.9.1` at `6957919`; `origin/main` at `6957919` (`git ls-remote`) — P41's and P42's commits (`88059b7` … `1288209`) NOT pushed; manifests 0.9.1 / 0.9.1 |
+| 1 | the release state (21:44 +0200) | npm `fyflow-orchestration`: `0.0.0-stage`, `0.7.0`, `0.8.0`, `0.9.0`, `0.9.1`, `latest` 0.9.1; JSR `@fyflow/orchestration` latest 0.9.1 (2026-10-22T08:54Z); tags `v0.7.0`-`v0.9.1`, `v0.9.1` at `5d1baf6`; `origin/main` at `5d1baf6` (`git ls-remote`) — P41's and P42's commits (`bc813ec` … `db123a0`) NOT pushed; manifests 0.9.1 / 0.9.1 |
 | 2 | `npm run state` | P43 W206 Q765 ADR 0129 from the tree; W205 Q760 ADR 0128 from the ledger — the two DISAGREE until P42's retro writes its sentence (expected); L6 2831 / 234 |
-| 3 | W205's counts on W205's tree — `npm run gate` on `1288209` in `C:/tmp-w206/base` (`node_modules` COPIED, 0 links, 0 reparse points), EXIT 0, 21:44:54 → 21:51:41 (`w206/gate-base.log`) | L1-L5 **94 files / 2,197 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,831 / 0 failed** over 234 real runs in node and deno |
+| 3 | W205's counts on W205's tree — `npm run gate` on `db123a0` in `C:/tmp-w206/base` (`node_modules` COPIED, 0 links, 0 reparse points), EXIT 0, 21:44:54 → 21:51:41 (`w206/gate-base.log`) | L1-L5 **94 files / 2,197 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,831 / 0 failed** over 234 real runs in node and deno |
 | 4 | fact 4 on the final tree — `examples/map-cost.ts "one step back"`, the whole run live, each size a fresh process | node **66 / 205 / 381 ms**, deno **79 / 273 / 513** at 2,000 / 8,000 / 16,000 items (ADR 0124: 68 / 223 / 442 and 79 / 258 / 560) |
 
 ## Verification
 
-`npm run gate` before the readers (sentence C); the two readers in their own worktrees under `C:/tmp-w206/` (`1288209`
+`npm run gate` before the readers (sentence C); the two readers in their own worktrees under `C:/tmp-w206/` (`db123a0`
 plus this diff, `node_modules` copied, scanned for links and reparse points before use); the readers' findings acted on;
 the author's provocations in a third copy, re-run after acting on the readers; then `npm run gate:full` once, on the
 final tree. **Routing coverage**: a nested fan-out (Q6) — not in the block (W205's L2 holds a join's arrivals at depth 2;
@@ -210,6 +210,6 @@ and Retro; `doc/workflow.md`'s bookkeeping (the declared exception).
 each by construction. Every other finding was one reader's alone. The two briefs were written apart and named no common
 specific.
 
-**Leftover worktrees.** `C:/tmp-w206/base` (at `1288209`), `m`, `rc`, `ra` (at `1288209` plus this item's diff) — git
+**Leftover worktrees.** `C:/tmp-w206/base` (at `db123a0`), `m`, `rc`, `ra` (at `db123a0` plus this item's diff) — git
 worktrees, `node_modules` COPIED, scanned before use: 0 links, 0 reparse points; and `rc-scratch`, `ra-scratch` (plain
 directories, the readers'). Left for the maintainer; none removed with `--force`.

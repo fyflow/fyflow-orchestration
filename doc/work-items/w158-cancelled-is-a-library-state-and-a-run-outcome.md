@@ -1,7 +1,7 @@
 # W158 — `cancelled` is a library state and a run outcome: a cancelled task is recorded, halts its run, and refuses its resume
 
 **Status:** done 2026-10-15 — **`npm run gate:item` EXIT 0** on the final tree, one command, after a first run RED on
-`check:docs:selftest` (Record); declared 2026-10-15 on `f73ed3c`, declaration step RUN the same day in a byte copy;
+`check:docs:selftest` (Record); declared 2026-10-15 on `62090d8`, declaration step RUN the same day in a byte copy;
 exceptions E1-E4 ASKED at the declaration step and E5 after the readers, all ANSWERED YES by the maintainer
 2026-10-15 and recorded before their edits; both reader passes RUN; Q605 and Q606 raised, nothing closed
 **Plan:** [P33](../plans/p33-what-a-run-does-when-a-task-ends-cancelled.md) — *what does a run fold to when the
@@ -56,7 +56,7 @@ Gate:       `npm run gate` before the readers (P32-retro C); then the conformity
 Reserves:   Q605-Q609, ADR 0094
 ```
 
-*Reserves: `npm run state` on `f73ed3c` reads the next free ids as **W158, Q600, ADR 0094** from the tree, and
+*Reserves: `npm run state` on `62090d8` reads the next free ids as **W158, Q600, ADR 0094** from the tree, and
 **W157, Q600, ADR 0094** from the ledger, which DISAGREE on W only because P33 has been declared since that sentence
 (both are printed, neither picked). P33 reserves Q600-Q614 and ADR 0094-0095; W157 reserved Q600-Q604 and spent none,
 and ADR 0094 is this item's by the plan's row. So this item takes **Q605-Q609 and ADR 0094**.*
@@ -96,7 +96,7 @@ and ADR 0094 is this item's by the plan's row. So this item takes **Q605-Q609 an
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `f73ed3c` (`git archive` into `C:/tmp-w158/m`,
+*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `62090d8` (`git archive` into `C:/tmp-w158/m`,
 `node_modules` copied, **zero links** by `find -type l` and by PowerShell's `ReparsePoint` scan), node 24.20.0 and
 deno 2.9.6. The change was built there whole, and every lane run.*
 
@@ -154,7 +154,7 @@ a parked task beside a cancel, at L1, L2 and L5; no matching decision edge (Q10)
 
 ## Record
 
-**Gate — what ran.** Baseline `f73ed3c`; every number below is the final tree's, from the confirming `gate:item`.
+**Gate — what ran.** Baseline `62090d8`; every number below is the final tree's, from the confirming `gate:item`.
 
 | Clause | Verdict | Notes |
 |---|---|---|

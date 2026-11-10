@@ -1,6 +1,6 @@
 # W146 — The documents: every stale claim Q542 lists in `doc/README.md` deleted or corrected, and Q508 closed by P31 decision 2 with the glossary's three *gate* rows carrying the distinction
 
-**Status:** done — declared 2026-10-09 on `c9f0918`, the seventh and LAST item of P31; built, the reader and the maintainer's three answers taken, `gate:full` EXIT 0 on `c99e930`, the record step done, 2026-10-09
+**Status:** done — declared 2026-10-09 on `d3619da`, the seventh and LAST item of P31; built, the reader and the maintainer's three answers taken, `gate:full` EXIT 0 on `322a980`, the record step done, 2026-10-09
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, as W140-W145's files do* — Q142's M4 mechanism, which W144 derived
@@ -15,13 +15,13 @@ Spec:       none changes. The rules are P27 decision 4 (a fact the tree COMPUTES
             and never defines), and workflow section 1 rules 5 and 6
 Owns:       doc/README.md; doc/glossary.md (P31's W146 row: touched only if its three gate rows do
             not already carry the distinction, or where a line states Q508 as undecided); this file
-Inputs:     the tree at c9f0918 (W140, W142, W141, W145, W144 and W143 done); Q542's and Q508's own
+Inputs:     the tree at d3619da (W140, W142, W141, W145, W144 and W143 done); Q542's and Q508's own
             files, Q542's list including W134's conformity reader's additions; `npm run state`,
             `npm run adr`, `npm run check:markdown`, `npm run check:register`, check-docs' FENCE as
             the derivations a deletion points at; doc/scheduler-upstream.md (S10's status), each
             plan file's own Status line, AGENTS.md's fence tags
 Outputs:    (1) the measurement, BEFORE any edit: for each claim Q542 lists, whether it is still
-                present and still false on c9f0918, with the command or fact showing it; the three
+                present and still false on d3619da, with the command or fact showing it; the three
                 glossary gate rows as they stand; check:markdown's derived floors and measures
             (2) doc/README.md: each claim of (1) that is still false deleted (where the tree
                 derives it, P27 decision 4, or where it is a status copy, ADR 0077 / Q466) or
@@ -77,7 +77,7 @@ asked first under workflow section 1 rule 6, and its YES written here before the
 
 **In**
 
-1. **Measure first**, output (1), on `c9f0918`, logs under dev-dist/w146-23759/.
+1. **Measure first**, output (1), on `d3619da`, logs under dev-dist/w146-23759/.
 2. **Q542**, output (2): each still-false claim deleted or corrected in doc/README.md.
 3. **Q508**, output (3): the glossary's three gate rows checked; the Not-rows line corrected.
 4. Rule 8 over the checks that hold these files, in a harness under dev-dist/w146-23759/, and prediction 5
@@ -113,7 +113,7 @@ asked first under workflow section 1 rule 6, and its YES written here before the
 
 ## Record
 
-*Filled in 2026-10-09 on `c99e930`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-09 on `322a980`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w146-23759/` (this item's shell pid): every log, harness and edit script named below. Node v24.20.0
 by `fnm use 24` in every shell; every rung redirected and its EXIT read in the same command, never piped.
 Ids and paths here are bare text, as the header says.
@@ -122,13 +122,13 @@ Ids and paths here are bare text, as the header says.
 
 | clause | verdict | notes |
 |---|---|---|
-| `check:markdown` | **RAN, EXIT 0** | before (`4f284ff`) and after each edit commit: `cm-before.log`, `cm-after.log`, `cm-after2.log`, `after4-markdown.log`, `after5-markdown.log` |
-| `check:markdown:selftest` | **RAN, EXIT 0** | twice: on `f08a499` plus sixty ordinary linking documents (prediction 5, below), 44/44 probes caught, 7/7 bounded; and inside `gate:full` on `c99e930`, 1385.4 s |
+| `check:markdown` | **RAN, EXIT 0** | before (`64bd86c`) and after each edit commit: `cm-before.log`, `cm-after.log`, `cm-after2.log`, `after4-markdown.log`, `after5-markdown.log` |
+| `check:markdown:selftest` | **RAN, EXIT 0** | twice: on `2baec1a` plus sixty ordinary linking documents (prediction 5, below), 44/44 probes caught, 7/7 bounded; and inside `gate:full` on `322a980`, 1385.4 s |
 | `check:budget`, `check:register`, `check:docs`, `check:scheduler` | RAN, EXIT 0 | after the maintainer's answers touched CLAUDE.md, doc/scheduler-upstream.md and README.md (`after4-*.log`, `after5-*.log`) |
 | rule 8 | RAN, 18/18, then **28/28** | below |
 | conformity reader | RAN | 0 blocking, 3 should-fix, 6 notes (below) |
 | adequacy reader | NOT RUN | P31 decision 6: one conformity reader for W146 |
-| `npm run gate:full > dev-dist/w146-23759/full.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `c99e930`, `git status --short` empty before and after; 07:19:37Z to 07:59:50Z, 2413 s |
+| `npm run gate:full > dev-dist/w146-23759/full.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `322a980`, `git status --short` empty before and after; 07:19:37Z to 07:59:50Z, 2413 s |
 | — L0-L5 | RAN, 0 | **1580** cases in node 24.20.0, deno 2.9.6 and chromium (`all passed (parity with node: 1580)`): unchanged |
 | — L6 | RAN, 0 | **164** real runs, 2487 assertions, in node and deno: unchanged |
 | — self-tests | RAN, 0 | **11/11 ok** including `check:register:selftest` (2257.3 s); **2272.1 s wall**, 7184.4 s serial-equivalent, 10 lanes |
@@ -136,7 +136,7 @@ Ids and paths here are bare text, as the header says.
 
 L7 did not run. firefox and webkit did not run.
 
-### Q542: each claim, measured on `c9f0918` and after
+### Q542: each claim, measured on `d3619da` and after
 
 Every claim Q542 lists was still present and still false on the tree W146 started from.
 
@@ -162,12 +162,12 @@ plan history is* (the reader's finding 8).
 - every row summarised a plan file that still exists, so the history gets a one-line entry and its commit (decision 2);
 - once this file left the record step (Q466), nothing was obliged to append a row, which is why the table stopped three times.
 
-The paragraph cites the table's last form at `2b48046`, which is public. The reader judged the deletion
+The paragraph cites the table's last form at `1ec308c`, which is public. The reader judged the deletion
 conformant (finding 7).
 
 ### The glossary's three gate rows
 
-| row | before (`c9f0918`) | after |
+| row | before (`d3619da`) | after |
 |---|---|---|
 | PRODUCT `gate` (the node kind) | carries its sense, spec/flow-definition.md's gate section | unchanged |
 | PROCESS `gate` (the commands) | named `gate:item` against ADR 0070's Decision, which never mentions it: a row claiming what its target does not say (ADR 0080, Format rule 4) | **the maintainer's C (b)**: the `gate:item` clause dropped, so the row says exactly what ADR 0070 says; the `confirming gate` row (workflow section 4) carries `gate:item` |
@@ -180,9 +180,9 @@ conformant (finding 7).
 
 | tree | documents / linking / anchored | floors M3 / M4 / M5 |
 |---|---|---|
-| `4f284ff` (before) | 622 / 202 / 85 | 170 / 121 / 71 |
-| `f08a499` (after Q542) | 623 / 202 / 85 | 171 / 121 / 71 |
-| `f08a499` plus sixty ordinary linking documents | 683 / 262 / 145 | 231 / 181 / 131 |
+| `64bd86c` (before) | 622 / 202 / 85 | 170 / 121 / 71 |
+| `2baec1a` (after Q542) | 623 / 202 / 85 | 171 / 121 / 71 |
+| `2baec1a` plus sixty ordinary linking documents | 683 / 262 / 145 | 231 / 181 / 131 |
 
 **Prediction 5 held on W146's own tree.** Every floor moved with its measure. With the sixty documents present,
 `check:markdown` and `check:markdown:selftest` both EXITed 0; the documents were then removed. Deleting the Plan
@@ -193,18 +193,18 @@ history took 114 links out of the walk (5434 to 5320) and crossed no floor.
 | declared output | exists | what would fail without it |
 |---|---|---|
 | (1) the measurement before any edit | the tables above | nothing mechanical; it is the subject of rule 8's probes |
-| (2) doc/README.md's claims | `f08a499`, `01ee67f` | rule 8 p1-p3 and p7b, p8 (M1; the self-test's vacuity guard). The prose itself is s3, s5 and s6, declared survivors |
-| (3) the glossary | `f08a499`, `b58a294` | p4 and p5 (M1, M2); p6 (`term` exits 2) |
+| (2) doc/README.md's claims | `2baec1a`, `a44112d` | rule 8 p1-p3 and p7b, p8 (M1; the self-test's vacuity guard). The prose itself is s3, s5 and s6, declared survivors |
+| (3) the glossary | `2baec1a`, `07b61b7` | p4 and p5 (M1, M2); p6 (`term` exits 2) |
 | (4) Q542 and Q508 resolved | the record step | p9-p11 (R3, R8) hold the form of a resolution |
 | (5) P31's Record and the exit artifact | the record step | the exit artifact's own commands |
 
 ### Exceptions, reconciled
 
-`git diff --name-only 4f284ff~1..c99e930` names six files:
+`git diff --name-only 64bd86c~1..322a980` names six files:
 - doc/README.md and doc/glossary.md: Owns;
 - this file;
-- doc/scheduler-upstream.md and CLAUDE.md: the maintainer's A and B (ii), written into Exceptions in `c5ed9a0` before their edit in `b58a294`;
-- README.md: B (i), a record-step file, edited in `c99e930`.
+- doc/scheduler-upstream.md and CLAUDE.md: the maintainer's A and B (ii), written into Exceptions in `c0e98d2` before their edit in `07b61b7`;
+- README.md: B (i), a record-step file, edited in `322a980`.
 
 The record step adds P31's file (its Status line and its Record) and `doc/questions/**`. `git status --short` is empty.
 
@@ -222,9 +222,9 @@ lookup's *not a three-cell row*, and the self-test's single-probe *the mutation 
 
 | pass | tree | result |
 |---|---|---|
-| 1 | `f08a499` | **18/18** as expected, digest unmoved (908 files `7e329f1d3770f74f`) |
-| guards | `f08a499` | an anchor matching twice ABORTS (`rule8-guard-two.log`); an edit that changes nothing ABORTS (`rule8-guard-noop.log`); both restored, digest unmoved |
-| 2 | `c99e930`, the reader's and the answers' edits as probes | **28/28** as expected, digest unmoved (908 files `9f78fb18e6e1c86d`) |
+| 1 | `2baec1a` | **18/18** as expected, digest unmoved (908 files `7e329f1d3770f74f`) |
+| guards | `2baec1a` | an anchor matching twice ABORTS (`rule8-guard-two.log`); an edit that changes nothing ABORTS (`rule8-guard-noop.log`); both restored, digest unmoved |
+| 2 | `322a980`, the reader's and the answers' edits as probes | **28/28** as expected, digest unmoved (908 files `9f78fb18e6e1c86d`) |
 
 - **Controls**: one no-op per runner (markdown, register, term, the W37 self-test probe, budget, docs).
 - **CRASH grader**: the check given a module that does not exist, graded CRASH, not CAUGHT.
@@ -254,18 +254,18 @@ lookup's *not a three-cell row*, and the self-test's single-probe *the mutation 
 ### The conformity reader
 
 The reader had a fresh context. It read Q542, Q508, P27 decisions 2 and 4, P31, ADR 0077, Q466 and ADR 0080 first,
-then the diff `4f284ff..f08a499`, on a still tree. **0 blocking, 3 should-fix, 6 notes.**
+then the diff `64bd86c..2baec1a`, on a still tree. **0 blocking, 3 should-fix, 6 notes.**
 
 | | finding | done |
 |---|---|---|
-| 1 | SHOULD-FIX: the Plan-history paragraph said each plan carries a Status line, a Record and a Retro; P26 and P27 have no Status line, and P23 has no Record | fixed, `01ee67f` |
-| 2 | SHOULD-FIX: *each want's state is in its own section* is false for S2 and S6, whose state is only in the Index | fixed: both rows point at the Index, `01ee67f` |
-| 3 | SHOULD-FIX: the commands row still names `gate:item` against ADR 0070 | asked (C); the maintainer chose (b), `b58a294` |
+| 1 | SHOULD-FIX: the Plan-history paragraph said each plan carries a Status line, a Record and a Retro; P26 and P27 have no Status line, and P23 has no Record | fixed, `a44112d` |
+| 2 | SHOULD-FIX: *each want's state is in its own section* is false for S2 and S6, whose state is only in the Index | fixed: both rows point at the Index, `a44112d` |
+| 3 | SHOULD-FIX: the commands row still names `gate:item` against ADR 0070 | asked (C); the maintainer chose (b), `07b61b7` |
 | 4 | NOTE: the Not-rows line says Q508 is resolved before the record step | true from the record step |
-| 5 | NOTE: *the last five plans* copies `RECENT_PLANS` | fixed: now *the most recent*, `01ee67f` |
-| 6 | NOTE: `4f284ff` is not public | fixed: the paragraph cites `2b48046`, which is public and whose table is byte-identical |
+| 5 | NOTE: *the last five plans* copies `RECENT_PLANS` | fixed: now *the most recent*, `a44112d` |
+| 6 | NOTE: `64bd86c` is not public | fixed: the paragraph cites `1ec308c`, which is public and whose table is byte-identical |
 | 7 | NOTE: the deletion conforms, and the paragraph is otherwise true | — |
-| 8 | NOTE: the header still promised a plan history; P1-P4's *Complete* rows are true status copies outside Q542 | header fixed, `01ee67f`; the rows left, being true and unlisted |
+| 8 | NOTE: the header still promised a plan history; P1-P4's *Complete* rows are true status copies outside Q542 | header fixed, `a44112d`; the rows left, being true and unlisted |
 | 9 | NOTE: the withdrawn claims live on in CLAUDE.md:18, README.md:309, doc/scheduler-upstream.md:27 and :481, and doc/decisions/README.md:29 | asked (A, B); four fixed by the answers; doc/decisions/README.md:29 left by B (iii) |
 
 Rule 8 was re-run (pass 2) with every edit the reader caused checked in.

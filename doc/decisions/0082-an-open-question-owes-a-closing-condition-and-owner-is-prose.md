@@ -20,7 +20,7 @@ decision 2, which gave `status` its four words and bound only `icebox`.
 
 ## Context
 
-1. **The register's live half had never been judged.** At `988ef5f` 307 questions were open; 233
+1. **The register's live half had never been judged.** At `f76bdc8` 307 questions were open; 233
    had an empty `closes-when` and 277 an `owner` reading `no owner`, so 206 told a reader neither
    who would answer them nor what would close them (P29's table). W121-W126 gave each one verdict,
    and every keep was given a `closes-when` — so the requirement is already true of the tree, and

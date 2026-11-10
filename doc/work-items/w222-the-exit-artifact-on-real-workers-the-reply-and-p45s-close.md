@@ -1,6 +1,6 @@
 # W222 — a comparison's `valueFrom` on real workers; the reply to fyflow-app; P45's close
 
-**Status:** done 2026-10-25 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 14 provocations, every one as declared; the reply written. Earlier: declared 2026-10-25 on `214e1d5` (W223 committed, the tree clean); P45's LAST item: exit clause (3), the reply, P45's Record and retro; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 14 provocations, every one as declared; the reply written. Earlier: declared 2026-10-25 on `84597b6` (W223 committed, the tree clean); P45's LAST item: exit clause (3), the reply, P45's Record and retro; this file written from the plan's row BEFORE any other edit
 **Plan:** [P45](../plans/p45-what-a-comparison-may-compare-against-and-who-may-read-a-key-path.md) — *what may a
 comparison compare against, and who may read a key path the way a gate does?* — and this is its LAST item.
 
@@ -59,7 +59,7 @@ Outputs:    (1) one L6 block in examples/l6.ts, `W222 exit`, node 24 and deno, a
                 record step — moved to 262 and given the W218 and W222 entries.
             (3) the reply to fyflow-app, once this item's gate is green.
             (4) P45's Record and retro; doc/workflow.md's plan-close bookkeeping (the declared exception).
-Depends on: W221 (b7f9031), W223 (214e1d5)
+Depends on: W221 (94d9311), W223 (84597b6)
 Blocks:     nothing — the plan closes with this item
 Tests:      Output (1) is the test: expected values by hand from the flow written in the block, the payloads, the
             settings and spec/flow-definition.md v0.55 (section 3's operators, the `valueFrom` table: compared as the
@@ -124,7 +124,7 @@ would send A to `skip` / `else`.
 
 ## Verification
 
-`npm run gate` on the draft in a byte copy `C:/tmp-w222/m` (a worktree at `214e1d5`, the diff applied, `node_modules`
+`npm run gate` on the draft in a byte copy `C:/tmp-w222/m` (a worktree at `84597b6`, the diff applied, `node_modules`
 COPIED, scanned: no links, no reparse points) before the readers (sentence C); the two readers in their own worktrees
 under `C:/tmp-w222/`; the author's provocations in `m`, re-run after acting on the readers; then `npm run gate:full` once,
 on the final tree, held still. **Routing coverage**: no matching decision edge (Q10) — the subject: run E's edge and its
@@ -160,9 +160,9 @@ FIRST snapshot and its SHA-256 compared. Written to spec/flow-definition.md v0.5
 
 *Filled 2026-10-25, after both readers, the provocations and the confirming gate. Logs in `C:/tmp-w222/`.*
 
-**What the declaration step re-took** (P15 decision 5, on `214e1d5`, the tree clean): the release state, 17:43 local —
+**What the declaration step re-took** (P15 decision 5, on `84597b6`, the tree clean): the release state, 17:43 local —
 npm `fyflow-orchestration` latest **0.12.0**, JSR `@fyflow/orchestration` latest **0.12.0**, `v0.12.0` and `origin/main`
-both `ffcc774` (`git ls-remote`), P45's four commits and Q790's NOT pushed, manifests 0.12.0; L1-L5 106 / 2,321 and L6
+both `877417c` (`git ls-remote`), P45's four commits and Q790's NOT pushed, manifests 0.12.0; L1-L5 106 / 2,321 and L6
 2883 / 252 (W223's figures, re-taken by B′ below); the chromium lane not re-taken — this item adds nothing to the bundle
 (`RT-R10`).
 
@@ -171,7 +171,7 @@ both `ffcc774` (`git ls-remote`), P45's four commits and Q790's NOT pushed, mani
 | Clause | Verdict | Notes |
 |---|---|---|
 | L6 on the author's draft, node and deno | RAN — node EXIT 0 (`l6node-1.log`), deno EXIT 0 (`l6deno-1.log`), **2899 / 262**, 0 failed | the first cut; typecheck, lint, `check:docs` (X10 2 copies) EXIT 0 |
-| B′ — the draft in the byte copy `C:/tmp-w222/m` (a worktree at `214e1d5`, the three files `cmp`-identical, `node_modules` COPIED, 0 links, 0 reparse points), `npm run gate` before the readers (sentence C) | RAN — **EXIT 0**, 17:49:57 → 17:58:08 (`gate-m.log`) | L1-L5 **106 files / 2,321** in node 24.20.0, deno 2.9.6 and chromium; L6 **2899 / 262, 0 failed** in node and deno; every check EXIT 0. P45 prediction 6 and this item's prediction 2 HOLD |
+| B′ — the draft in the byte copy `C:/tmp-w222/m` (a worktree at `84597b6`, the three files `cmp`-identical, `node_modules` COPIED, 0 links, 0 reparse points), `npm run gate` before the readers (sentence C) | RAN — **EXIT 0**, 17:49:57 → 17:58:08 (`gate-m.log`) | L1-L5 **106 files / 2,321** in node 24.20.0, deno 2.9.6 and chromium; L6 **2899 / 262, 0 failed** in node and deno; every check EXIT 0. P45 prediction 6 and this item's prediction 2 HOLD |
 | conformity reader (`C:/tmp-w222/rc`) | RAN | 0 BLOCKER, 0 SHOULD, 4 NIT; re-derived every route before reading the table, all matched; node, deno and `check:docs` green in its copy |
 | adequacy reader (`C:/tmp-w222/ra`, harness and logs in `ra-scratch`) | RAN | 29 mutants in node, 6 re-run in deno, a no-op control green and a CRASH grader right, X10 provoked 4 ways; 0 BLOCKER, 4 SHOULD, 3 NIT; every file restored by digest |
 | L6 after the readers' fixes | RAN — node EXIT 0 (`l6node-2.log`), deno EXIT 0 (`l6deno-2.log`), **2905 / 268**, 0 failed; typecheck, lint, `check:docs` (X10 at 2905 / 268) EXIT 0 | runs F, G, H and the premise reads added |
@@ -228,7 +228,7 @@ an absent value read as anything below the left side (rule 8 (a), followed and s
 separates E from A; the adequacy reader showed it holds only for resolutions ordering ABOVE the left (SHOULD 3). One
 subject, two compatible findings. The briefs were written apart and named no common specific.
 
-**Leftover worktrees.** `C:/tmp-w222/m`, `rc`, `ra` (git worktrees at `214e1d5` plus this item's diff — `rc` and `ra` the
+**Leftover worktrees.** `C:/tmp-w222/m`, `rc`, `ra` (git worktrees at `84597b6` plus this item's diff — `rc` and `ra` the
 first cut, `m` synced to the final block; `node_modules` COPIED; scanned before use: 0 links, 0 reparse points), with
 `C:/tmp-w222/rc-scratch` and `ra-scratch` (the adequacy reader's four byte copies `c1`-`c4` inside it) — left for the
 maintainer; none removed with `--force`.

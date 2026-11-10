@@ -185,7 +185,7 @@ LOOKED UP with `npm run q`, `adr`, `term` and `refs`, which print only the recor
 for. **What checks the answer**: `check:register` holds both registers' front matter and the links
 between them, as the seventeenth gate entry. `M1` and `M2` hold the glossary's links. And
 `lookup:selftest`'s AGREE holds the lookup's own reader to the check's. Every figure below was taken
-at the join on `4a1b2d9`, with Node v24.20.0, unless it names another tree. Logs are under
+at the join on `8379b6f`, with Node v24.20.0, unless it names another tree. Logs are under
 `dev-dist/p28j-31820/`.
 
 ### The exit artifact, run
@@ -238,9 +238,9 @@ at the join on `4a1b2d9`, with Node v24.20.0, unless it names another tree. Logs
 | | verdict |
 |---|---|
 | **1** lossless | **HELD.** W116's round-trip: 383 rows, 4,294 fields, 0 differing. W119's `--table`: 383 rows, 1,834 cells, 0 differing. The join: 383 rows byte-identical (above). The reversal named a status cell with prose after its first word, and `note` held every one, including the three cells that open with `**` (W116). *Bounded by ADR 0079 consequence 2: the encoding is reversible on this corpus only* |
-| **2** no rung of L0-L6 moves | **HELD. No item measured it; measured at the join.** `npm test` EXIT 0 gave **56 files, 1516 cases** on node 24, which is P27's baseline. L6 is declared at 2435 / 161 (`npm run state`), also unchanged. Across `aa43cb3..4a1b2d9`, **every changed line under `src/`, `test/` and `examples/` is a register-link line**, except `test/lookup/adequacy-mutants.json`, which is data no runner reads (W119). Deno and the browser were not re-run at the join; every item's `gate:full` ran both L6 runtimes and `test:browser`. *The declaration's grep ("those two are the only code that opens it") missed one: `check-markdown-selftest`'s `AGENTS.md` probe was anchored on `](doc/open-questions.md)` (W118). That is a self-test, not a rung* |
-| **3** `check:markdown` green through every item | **HELD for `check:markdown`**: every item's Record has it at EXIT 0 at every step. **But `check:markdown:selftest` was RED on `4eac349`, the declaration commit** (W116 *what broke* 1). The declaration's six documents crossed the one-document `M3` margin that P27's retro measured. This is P27 prediction 2's shape for a second plan: the self-test lane is red while the check is green |
-| **4** the always-read set does not grow | **HELD.** W118 measured its own −97. For the whole plan (`git cat-file -s`, `aa43cb3` against `4a1b2d9`): `CLAUDE.md` 23,754 -> 23,667, `doc/workflow.md` 35,780 -> 35,771, `doc/concept.md` 17,125 -> 17,124, so **76,659 -> 76,562**. This join adds 3 bytes to `doc/workflow.md` (Retro §8) |
+| **2** no rung of L0-L6 moves | **HELD. No item measured it; measured at the join.** `npm test` EXIT 0 gave **56 files, 1516 cases** on node 24, which is P27's baseline. L6 is declared at 2435 / 161 (`npm run state`), also unchanged. Across `aa43cb3..8379b6f`, **every changed line under `src/`, `test/` and `examples/` is a register-link line**, except `test/lookup/adequacy-mutants.json`, which is data no runner reads (W119). Deno and the browser were not re-run at the join; every item's `gate:full` ran both L6 runtimes and `test:browser`. *The declaration's grep ("those two are the only code that opens it") missed one: `check-markdown-selftest`'s `AGENTS.md` probe was anchored on `](doc/open-questions.md)` (W118). That is a self-test, not a rung* |
+| **3** `check:markdown` green through every item | **HELD for `check:markdown`**: every item's Record has it at EXIT 0 at every step. **But `check:markdown:selftest` was RED on `b2d68c2`, the declaration commit** (W116 *what broke* 1). The declaration's six documents crossed the one-document `M3` margin that P27's retro measured. This is P27 prediction 2's shape for a second plan: the self-test lane is red while the check is green |
+| **4** the always-read set does not grow | **HELD.** W118 measured its own −97. For the whole plan (`git cat-file -s`, `aa43cb3` against `8379b6f`): `CLAUDE.md` 23,754 -> 23,667, `doc/workflow.md` 35,780 -> 35,771, `doc/concept.md` 17,125 -> 17,124, so **76,659 -> 76,562**. This join adds 3 bytes to `doc/workflow.md` (Retro §8) |
 | **5** `scripts/**` grows | **HELD, and now measured** (`git ls-tree -l`). It went from **22 files and 1,120,581 bytes** to **26 files and 1,371,567 bytes**, +250,986 or +22.4%. Four files are new: `check-register.mjs`, its self-test, `lookup.mjs` and `check-lookup-selftest.mjs`. 18 were modified, many of them only by W118's link rewrite |
 | **6** a lookup costs under 2% of the register | **HELD.** W119 measured it, and the join re-took it. `q -- Q17` is 248 bytes, **0.30%** of 81,498. `--where status=open` prints 44,363 bytes for 307 records by default and 3,033 with `--fields id,status`, which is **6.8%**. *With the citing files, `--fields id,refs` prints 4,451 bytes for Q17 (5.5%). The prediction measured `q -- Q17`, and decision 5 keeps `refs` out of it* |
 
@@ -257,9 +257,9 @@ and `npm run q -- Q512` prints `# not found`. **The next plan starts at W121, Q5
 
 1. **The index row's *3,616 links in 260 files at `aa43cb3`* does not reproduce under one
    predicate on one tree.** W118's predicate is link text that is a Q id and a target that is the
-   register. Under it, `aa43cb3` and `4eac349` each have **3,609 links in 258 files**. 3,616 is
+   register. Under it, `aa43cb3` and `b2d68c2` each have **3,609 links in 258 files**. 3,616 is
    every link into the register at `aa43cb3`, WHATEVER its text. 260 is the file count at
-   `4eac349` under that wider predicate. W118 re-counted **3,602 in 260** on `880221b` with its
+   `b2d68c2` under that wider predicate. W118 re-counted **3,602 in 260** on `5cb9ec5` with its
    stated predicate, and rewrote 3,594 of them (the other 8 were unlinked by hand).
 2. The index row's Owns says *both `TEMPLATE.md`*. Only `doc/work-items/TEMPLATE.md` changed:
    `doc/plans/TEMPLATE.md` names no register path (W118 stop-and-ask 6).
@@ -283,7 +283,7 @@ and `npm run q -- Q512` prints `# not found`. **The next plan starts at W121, Q5
 
 ## Retro
 
-*Pass 3 ran on 2026-10-05 over `4a1b2d9`, and the working tree was clean before the join.
+*Pass 3 ran on 2026-10-05 over `8379b6f`, and the working tree was clean before the join.
 **NO CHANGE ADOPTED. One refusal is appended to the ledger**, and the returning condition of one
 more was checked and not met. `doc/workflow.md` stays v0.27, following P8's and P25's precedent.
 It changes only its Status count, the overlap ordinal and that ledger row's ordinal. No reader ran
@@ -293,7 +293,7 @@ on the join, because none was declared for it.*
 
 | item | what fired | where it runs |
 |---|---|---|
-| W116 | `check:markdown:selftest`, RED on the declaration commit `4eac349` | `gate:full` only |
+| W116 | `check:markdown:selftest`, RED on the declaration commit `b2d68c2` | `gate:full` only |
 | W116 | `G6` refused the self-test's scratch path, which named no pid | `check:wiring`, in `gate` |
 | W116 | the first `gate:full`, RED in `check:register:selftest`: long paths, and `R4` reporting NOT RUN on a real repository | `gate:full` only |
 | W116 | the `closes_when` probe, graded WRONG-REASON | its own self-test |

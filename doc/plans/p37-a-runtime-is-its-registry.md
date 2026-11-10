@@ -1,6 +1,6 @@
 # P37 — A runtime is its registry
 
-**Status:** complete and retro'd 2026-10-16 — declared 2026-10-15 on `da18320`, from the draft carrying the maintainer's decisions of 2026-10-14/15; facts 1-8 measured at this declaration; stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-15, all as recommended; W162-W167 done 2026-10-15/16; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-16 over `a02087f`, and the maintainer answered its stop-and-asks (g)-(l) the same day, all as recommended (Retro section 8)
+**Status:** complete and retro'd 2026-10-16 — declared 2026-10-15 on `f6a2db6`, from the draft carrying the maintainer's decisions of 2026-10-14/15; facts 1-8 measured at this declaration; stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-15, all as recommended; W162-W167 done 2026-10-15/16; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-16 over `1aee189`, and the maintainer answered its stop-and-asks (g)-(l) the same day, all as recommended (Retro section 8)
 **Question this plan answers:** *what may a running runtime be asked to accept — a flow published
 after it started, a transform tried on given input, pool options per instance, annotated schemas —
 when its registry is fixed at `createRuntime`?*
@@ -32,7 +32,7 @@ Raises:   none at this declaration
 Baseline: ids derived by `npm run state` at this declaration — P38, W162, Q615, ADR 0096 from the tree,
           W162, Q615, ADR 0096 from the ledger (P33's Retro), which AGREE. The ladder counts are NOT
           taken here and are W162's declaration step's
-Measured: 2026-10-15 in a byte copy of `da18320` with its `node_modules` copied, never linked; node
+Measured: 2026-10-15 in a byte copy of `f6a2db6` with its `node_modules` copied, never linked; node
           24.20.0 and deno 2.9.6; the copy scanned for links and removed after
 ```
 
@@ -97,7 +97,7 @@ F3, adequacy F7), and **`messages.flushIntervalMs` above 2^31-1**, which `setTim
 
 ## Facts measured at this declaration
 
-On `da18320`, the scheduler read at the pin from `node_modules/fyflow-scheduler` and nowhere else.
+On `f6a2db6`, the scheduler read at the pin from `node_modules/fyflow-scheduler` and nowhere else.
 Each fact's command is a script run in the byte copy under node 24.20.0 and, where stated, deno 2.9.6.
 
 **Fact 1 — #17: a document-declared `KeyedRateLimitGroup` that a node uses makes `addTask` THROW, and
@@ -353,10 +353,10 @@ W165 Q626-Q629, W166 Q630-Q632, W167 Q633-Q634.
 
 ## Record
 
-*Written 2026-10-16 over `a02087f`, the tree clean before it. Every figure is read from the six items' own files; none
+*Written 2026-10-16 over `1aee189`, the tree clean before it. Every figure is read from the six items' own files; none
 is re-measured here. Ids are bare text, as in P33's Record.*
 
-**W162 — done 2026-10-15** (`9769e45`). Its own Record covers the declaration step (M1-M9), both readers and the gate.
+**W162 — done 2026-10-15** (`4921b19`). Its own Record covers the declaration step (M1-M9), both readers and the gate.
 
 - **Built**: ADR 0096 (superseding ADR 0051 rule 4; amending ADR 0022 rule 3 for the runtime road and ADR 0075 in
   part); `bootstrap` writes EVERY registered language into EVERY pool it builds, a copy per pool; `Runtime.check(flow):
@@ -376,7 +376,7 @@ is re-measured here. Ids are bare text, as in P33's Record.*
   `check:spec` **7 / 75 / 134** unmoved.
 - **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 850.1 s self-test wall.
 
-**W163 — done 2026-10-15** (`60c3df6`). Its own Record covers the declaration step, 23 author provocations and both
+**W163 — done 2026-10-15** (`5129d3b`). Its own Record covers the declaration step, 23 author provocations and both
 readers.
 
 - **Built**: ADR 0097 (amending ADR 0096 rules 4 and 5); **`FD-R6`** — a task node REACHING a group the built-in
@@ -396,7 +396,7 @@ readers.
   `check:spec` → **7 / 75 / 135** (`FD-R6`).
 - **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 1212.5 s self-test wall.
 
-**W164 — done 2026-10-16** (`eeea984`). Its own Record covers the declaration step, 48 provocations and both readers.
+**W164 — done 2026-10-16** (`73402f2`). Its own Record covers the declaration step, 48 provocations and both readers.
 
 - **Built**: ADR 0098 (superseding ADR 0053 in part and ADR 0056 in part; amending ADR 0053 rule 2); `title`,
   `description` (a string), `readOnly`, `writeOnly` (a boolean) join `SCHEMA_KEYWORDS`, value shape checked at every
@@ -413,7 +413,7 @@ readers.
 - **Counts**: L1-L5 → **62 / 1718** in all three; L6 **2646 / 174** unmoved; `check:spec` **7 / 75 / 135** unmoved.
 - **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 872.5 s self-test wall.
 
-**W165 — done 2026-10-16** (`da08a1f`). Its own Record covers the declaration step, 32 provocations and both readers.
+**W165 — done 2026-10-16** (`3b7bb21`). Its own Record covers the declaration step, 32 provocations and both readers.
 
 - **Built**: ADR 0099 (amending ADR 0054 decisions 2 and 3); a named instance of a DOCUMENT type may declare `pool`,
   merged SHALLOWLY over its type's, copied, held to `poolSpecProblem` on both roads; an instance of a CLASS type refused
@@ -430,7 +430,7 @@ readers.
 - **Counts**: L1-L5 → **62 / 1747** in all three; L6 **2646 / 174** unmoved; `check:spec` **7 / 75 / 135** unmoved.
 - **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 870.9 s self-test wall.
 
-**W166 — done 2026-10-16** (`0a7aae3`). Its own Record covers the declaration step, 34 provocations and both readers.
+**W166 — done 2026-10-16** (`57c69d0`). Its own Record covers the declaration step, 34 provocations and both readers.
 
 - **Built**: per (d) — `tryTransform(…, { input })` evaluates the transform ONCE on what the node receives and returns
   ONE verdict, shape `given`, no producer, `sample.source: 'given'`, the entry node included; `SampleSource`,
@@ -447,7 +447,7 @@ readers.
   `check:docs` → **43 snippets, 37 run**.
 - **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 986.5 s self-test wall.
 
-**W167 — done 2026-10-16** (`a02087f`). Its own Record covers the declaration step, the 24 author provocations in both
+**W167 — done 2026-10-16** (`1aee189`). Its own Record covers the declaration step, the 24 author provocations in both
 lanes and both readers.
 
 - **Built**: ONE cross-row block in `examples/l6.ts`, its registry DOCUMENT and `data:` workers written in the block:
@@ -530,7 +530,7 @@ Q605, Q606, Q619, Q633**.
 
 ## Retro
 
-*Pass 3 ran on 2026-10-16 over `a02087f`, the working tree clean before it, in a subagent at the maintainer's request.
+*Pass 3 ran on 2026-10-16 over `1aee189`, the working tree clean before it, in a subagent at the maintainer's request.
 Every figure is read from the six items' Records; this retro re-ran no gate, no harness and no measurement. **The
 proposals and the routings were put to the maintainer in section 8, and the answers are recorded there; none moves a
 rule in `doc/workflow.md`.***

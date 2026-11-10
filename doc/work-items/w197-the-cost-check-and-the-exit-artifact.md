@@ -1,6 +1,6 @@
 # W197 — the cost check in the gate, the exit artifact, and the reply to fyflow-app
 
-**Status:** done 2026-10-21 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 19 provocations KILLED, none surviving; Q735 raised. Earlier: declared 2026-10-21 on `4659768` (W196 committed, the tree clean); P39's LAST item: stop-and-ask (e), the exit artifact's three clauses and the reply; the declaration step RUN before any edit (below)
+**Status:** done 2026-10-21 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 19 provocations KILLED, none surviving; Q735 raised. Earlier: declared 2026-10-21 on `4f6eb31` (W196 committed, the tree clean); P39's LAST item: stop-and-ask (e), the exit artifact's three clauses and the reply; the declaration step RUN before any edit (below)
 **Plan:** [P39](../plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) — *what does a step cost on a long
 run, and where may its owner read the run's live state?* — and this is its LAST item: fyflow-app pass 2 #3, the exit
 artifact, and the reply.
@@ -15,7 +15,7 @@ Owns:       from P39's W197 row, exactly: test/fold/map-cost.test.ts (new), test
             ../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass2.reply.md
             Exceptions (declared BEFORE the edit, workflow section 7 rule 2): doc/workflow.md — the plan's-last-item
             bookkeeping (the Status line's count of plans run, section 6's overlap ordinal, the ledger's first row), by the
-            coordinator's brief for this item, P38's close (e928212) the precedent. The record step's four files carry
+            coordinator's brief for this item, P38's close (c63b550) the precedent. The record step's four files carry
             P39's Record and retro, the question this item raises and any dated note. Anything else found to need an edit
             is a STOP-AND-ASK, never an edit.
 Inputs:     P39 stop-and-asks (a)-(f) ANSWERED as recommended; P39's exit artifact and W197 row; W194's, W195's and W196's
@@ -72,11 +72,11 @@ Reserves:   Q735-Q739, ADR 0123 (expected unused)
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `4659768`, the tree clean.*
+*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `4f6eb31`, the tree clean.*
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the ladder counts — `npm run gate` on `4659768`, EXIT 0 (scratchpad `w197/gate-base.log`) | L1-L5 **87 files / 2,134 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,134); L6 **2,789 / 222, 0 failed** in node and deno; `check:docs` 51 `run`; `check:spec` C4 45 |
+| 1 | the ladder counts — `npm run gate` on `4f6eb31`, EXIT 0 (scratchpad `w197/gate-base.log`) | L1-L5 **87 files / 2,134 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,134); L6 **2,789 / 222, 0 failed** in node and deno; `check:docs` 51 `run`; `check:spec` C4 45 |
 | 2 | the counters W194 and W195 placed, and whether either is observable through a public surface (P39 decision 6) | `FoldCounter` is an ARGUMENT of `foldWith` / `stepWith` in `src/fold/accumulator.ts`, which neither `index.ts`, `src/scheduler/index.ts` nor `src/jsonata/index.ts` re-exports and `deno.json`'s `exports` does not name; `taskLog.visits` is a field of `TaskLog`, a class no module exports, held in a TS-`private` field of `Driver` — reachable by a cast, named by no public TYPE (ADR 0121 rule 7, as W195's C7 corrected it). The runtime has none (ADR 0122 consequence 5). **Both read as placed; no counter site edited** |
 | 3 | the three subjects at 2,000 / 8,000 items, counted, before any provocation — the suite AS FIRST BUILT, its fold and runtime arms with no `attempted` element (they gained one after the readers: the Record) | `fold` **22,009 / 88,009** (4.00x); the driver **2,002 / 8,002** plain and **6,004 / 24,004** with `needs` (4.00x each); a runtime **22,014 / 88,014** counted, 8,005 / 32,005 inputs, ONE materialisation each (4.00x); the fold's iteration observer **4,011 / 16,011** (3.99x). Each the value derived beside its assertion |
 | 4 | P39 facts 1 and 4 on the tree that ships — `examples/map-cost.ts`, each size a fresh process | the Record's table, node 24.20.0 and deno 2.9.6 |
@@ -101,7 +101,7 @@ settlement and its resolution, counted 3.
 ## The author's provocations
 
 `mutate.mjs` (kept with its logs in the session scratchpad, `w197/`) in the byte copy `C:/tmp-w197/m` (a worktree of
-`4659768` with this diff applied, `node_modules` copied, `find -type l` 0 and no reparse point, green before use; node
+`4f6eb31` with this diff applied, `node_modules` copied, `find -type l` 0 and no reparse point, green before use; node
 24.20.0 asserted at the head of each run): each probe edits ONE clause of the SOURCE, its anchor checked to occur once in
 the CURRENT text; every file restored from its FIRST snapshot and its SHA-256 compared after every probe and at the end;
 graded on the FAIL lines against the SET of cases (`node test/runner.ts fold/map-cost`) or `W197 exit` claims (`node
@@ -126,7 +126,7 @@ other L6 block that resumes a run (W90's, W94's, W176's, W182's); L04 the cache 
 
 ## Readers (2026-10-21), and what was acted on
 
-*Both readers ran in their own worktrees (`C:/tmp-w197/rc`, `C:/tmp-w197/ra` — `4659768` plus this diff, `node_modules`
+*Both readers ran in their own worktrees (`C:/tmp-w197/rc`, `C:/tmp-w197/ra` — `4f6eb31` plus this diff, `node_modules`
 copied, no links), spec first; each reported and fixed nothing. The author's tree held still while they read; the
 author's own L6 probes ran in the third copy.*
 

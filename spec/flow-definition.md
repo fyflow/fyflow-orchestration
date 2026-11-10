@@ -1818,7 +1818,7 @@ obliges the search and not the edit.)*
 > the CLIFF below. Since ADR 0126 every instance is handed one shared copy, so a reference to a large node costs what
 > one copy of it costs, once. Re-taken at W202 (v0.47): the driver alone on a scheduler double from `start()` to the
 > run's end, a map over a ~126 KiB result holding its items, node 24.20.0, **one case per process**, the median of five
-> processes — the same tree before (`88059b7`, v0.46) and after:
+> processes — the same tree before (`bc813ec`, v0.46) and after:
 >
 > | what the branch entry declares | v0.46, arity 100 | v0.46, arity 1000 | v0.47, arity 100 | v0.47, arity 1000 |
 > |---|---|---|---|---|
@@ -1916,7 +1916,7 @@ outputs settle; a read takes its group. **So a read costs what it is handed**: o
 visible entries for a `["n"]` one. The driver alone, `post` reading its own instance's `work`, `task.running` before each
 settlement, node 24.20.0, each size a fresh process:
 
-| items | before (`6006caa`) | after | the same flow, `post` reading a one-output node |
+| items | before (`b3fae40`) | after | the same flow, `post` reading a one-output node |
 |---|---|---|---|
 | 2,000 | 701 ms | 68 ms | 66 ms |
 | 8,000 | 22,033 ms | 223 ms | 216 ms |

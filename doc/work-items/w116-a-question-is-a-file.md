@@ -107,7 +107,7 @@ precedent: its declaration named four and the fifth was the one that was red.
 - The `M2` same-file-anchor probe is re-pointed from the register, whose `](#live)` leaves with it,
   to `doc/scheduler-upstream.md`'s own S-id anchors.
 - **`M7` and `M8` have no self-test probes to delete** — `grep -c 'M7\|M8'` over
-  `scripts/check-markdown-selftest.mjs` is zero on `4eac349`. Output (5)'s *with their self-test
+  `scripts/check-markdown-selftest.mjs` is zero on `b2d68c2`. Output (5)'s *with their self-test
   probes* is a claim about a set that is empty.
 - Three live status cells open with `**` (Q92, Q407, Q442), so *the first word* is `**open` or
   `**deferred`. The status is the word inside the bold, and the note keeps the opening `**` — so the
@@ -127,7 +127,7 @@ below ran on the uncommitted tree.**
 | the round-trip | **RAN, EXIT 0** | an independent parser of `git show aa43cb3:doc/open-questions.md` (a character scanner, its own front-matter reader, nothing shared with the split): **383 rows compared against 383 files, 4,294 cells compared, 0 differing**. Control: one `owner` edited in a copy came back as **exactly one** difference; one file deleted in a copy came back as one (`Q300: no file`) |
 | `npm run check:register` | **RAN, EXIT 0** | `R1`-`R5` ok; R3 checked 33 ADR/P/W references; **R4 compared 0 files at HEAD** — vacuous on this tree by construction, ADR 0079 consequence 5 |
 | `npm run check:register:selftest` | **RAN, EXIT 0** | 28 probes — **21/21 caught, 7/7 clean**, every probe's declared trip set AND NOT RUN set matched exactly; 4/4 grader controls; **26/26 META noticed by the named probe, 0 by the corpus**; 11/11 SELF bounded; 0 scratch residue; digest unmoved. Green in this checkout AND in an npm-installed copy under a deep path |
-| `npm run check:markdown` + `:selftest` | **RAN, EXIT 0** | 39/39 probes, 39/39 META (30 by the named probe, 9 by the corpus), 7/7 SELF. **The self-test was RED on `4eac349` before this item touched it** (below) |
+| `npm run check:markdown` + `:selftest` | **RAN, EXIT 0** | 39/39 probes, 39/39 META (30 by the named probe, 9 by the corpus), 7/7 SELF. **The self-test was RED on `b2d68c2` before this item touched it** (below) |
 | `npm run state`, before and after | **RAN, EXIT 0 both** | 383; 302 / 81; 301 / 1 — unchanged; `iceboxed 0`; next free Q493 both times |
 | every other `gate` entry, alone, in this checkout | **RAN** | all EXIT 0 except **`check:scheduler` (D1)** and **`test:browser`** — both ENVIRONMENT, below |
 | **`npm run gate:full`** | **RAN TWICE; the second is the verdict: EXIT 0, zero `FAIL` lines** | in an npm-installed byte copy of this tree (below). **3,675 s** (61 min), selftests **3,416.9 s wall** over 9 lanes, 11,648.6 s serial-equivalent, 10/10 ok. **`check:register:selftest` was the slowest lane at 3,400.1 s** — against `check:docs` 2,520.9, `source` 1,951.5, `markdown` 1,769.6, `wiring` 1,246.9 on the same run, every lane about twice its first-run figure, so the machine was loaded. **The first run (1,408 s) was RED in this item's own lane** — finding 3 below — and is why there is a second |
@@ -159,13 +159,13 @@ empty against this tree, excluding `node_modules`, `.git`, `dev-dist`, `dist`), 
 | (2) `doc/questions/README.md` | yes | `R2` — the cluster list is read from its `## Clusters` table; the self-test empties it |
 | (3) `doc/open-questions.md` as a pointer | yes | `M1` on its two links into the folder |
 | (4) `check:register` R1-R5, self-test, gate entry | yes | `S11`, `S12`, `G1`-`G4`, and `check-wiring-selftest`'s `CHECKS` comparison |
-| (5) `M7`/`M8` deleted | yes | nothing — a deletion. **They had no self-test probes**: zero occurrences of either id in `check-markdown-selftest.mjs` on `4eac349` |
+| (5) `M7`/`M8` deleted | yes | nothing — a deletion. **They had no self-test probes**: zero occurrences of either id in `check-markdown-selftest.mjs` on `b2d68c2` |
 | (6) `state.mjs` counting the folder | yes | its own `register` assertions, which refuse an empty reading |
 | (7) ADR 0079 | yes | `X11` against `doc/decisions/README.md` |
 
 **What broke, found by running it.**
 
-1. **`check:markdown:selftest` was RED on `4eac349`**: P28's declaration wrote six documents, probe 1
+1. **`check:markdown:selftest` was RED on `b2d68c2`**: P28's declaration wrote six documents, probe 1
    read 146 files against `M3`'s 142 — Q142's window again, unnoticed because no gate ran after the
    declaration. Fixed here by the retune ADR 0079 consequence 7 records.
 2. **`G6`** refused the self-test's digest walk naming the scratch directory without a pid — the

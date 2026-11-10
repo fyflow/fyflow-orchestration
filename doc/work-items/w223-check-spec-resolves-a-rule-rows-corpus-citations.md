@@ -1,6 +1,6 @@
 # W223 — `check:spec` resolves every corpus file a rule row cites, with its self-test probes
 
-**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no exception, no ADR, no question raised. Earlier: declared 2026-10-25 on `b7f9031`, P45's THIRD item, ISSUED by (h1) (the maintainer,
+**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no exception, no ADR, no question raised. Earlier: declared 2026-10-25 on `94d9311`, P45's THIRD item, ISSUED by (h1) (the maintainer,
 2026-10-25, *as recommended*); serial after W221, before W222; this file written from the plan's row BEFORE any other edit
 **Plan:** [P45](../plans/p45-what-a-comparison-may-compare-against-and-who-may-read-a-key-path.md) — stop-and-ask (h),
 answered (h1); the defect is [P44](../plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md)'s retro (a),
@@ -12,7 +12,7 @@ Spec:       none — this item is a check over spec/, not a change to it. What i
 Owns:       from P45's W223 row, exactly: scripts/check-spec.mjs; scripts/check-spec-selftest.mjs; this file.
             Exceptions: the record step's four files (the plan's Record, README.md, doc/questions/**,
             doc/decisions/**) and nothing else. Anything else found to need an edit is a STOP-AND-ASK.
-Inputs:     P45 (h1); P44 retro (a); W216's adequacy S1; the rule rows of spec/*.md at b7f9031 (W221 left FD-V42 and
+Inputs:     P45 (h1); P44 retro (a); W216's adequacy S1; the rule rows of spec/*.md at 94d9311 (W221 left FD-V42 and
             FD-V43 rows citing three new invalid files).
 Outputs:    (1) C9 in scripts/check-spec.mjs — every corpus file a RULE-DECLARING row cites resolves, the failure
                 naming the rule, the citation and the path it was resolved against; a C9 row in the report. After the
@@ -33,7 +33,7 @@ Gate:       gate:item (workflow v0.29: this item edits no check-register*, state
 Reserves:   Q797-Q798 (P45's per-item block); no ADR (P45 reserves none for W223)
 ```
 
-## Measured before writing a line of the check (on `b7f9031`, read-only)
+## Measured before writing a line of the check (on `94d9311`, read-only)
 
 | | the measurement | the number |
 |---|---|---|

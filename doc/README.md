@@ -97,7 +97,7 @@ ended; `npm run state` reads the most recent plans' state from their own files. 
 kept here.** The one that stood here, one row per closed plan from P1 to P26, stopped behind the plans
 it indexed three times — at P5, at P9 and at P26 — and once this file left the record step
 ([Q466](questions/q466.md)) nothing was obliged to append to it. Every row summarised a plan file that
-still exists, so it is deleted to `git` (its last form is at `2b48046`, already public):
+still exists, so it is deleted to `git` (its last form is at `1ec308c`, already public):
 [P27](plans/p27-what-a-register-row-is.md) decision 2, *a cut thing keeps a one-line entry and its
 commit*, and decision 4, *a fact the tree COMPUTES is not written down* — the list of plans is the
 directory.

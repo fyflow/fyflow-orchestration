@@ -1,7 +1,7 @@
 # W162 — a runtime's languages are its registry's, and `runtime.check`
 
 **Status:** done 2026-10-15 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-15 on
-`bdd1b48`, declaration step RUN the same day in a byte copy; exceptions E1 and E2 ASKED at the declaration step and E3
+`1bd4e8e`, declaration step RUN the same day in a byte copy; exceptions E1 and E2 ASKED at the declaration step and E3
 after the readers, each ANSWERED YES by the maintainer 2026-10-15 and recorded before its edit; both reader passes RUN,
 neither found a code defect; Q285 closed, nothing raised
 **Plan:** [P37](../plans/p37-a-runtime-is-its-registry.md) — *what may a running runtime be asked to accept, when its
@@ -61,7 +61,7 @@ Gate:       `npm run gate` before the readers (P32-retro C); then the conformity
 Reserves:   Q615-Q618, ADR 0096
 ```
 
-*Reserves: `npm run state` on `bdd1b48` reads the next free ids as **W162, Q615, ADR 0096** from the tree and from the
+*Reserves: `npm run state` on `1bd4e8e` reads the next free ids as **W162, Q615, ADR 0096** from the tree and from the
 ledger, which AGREE. P37 reserves Q615-Q634 and ADR 0096-0100; its W162 row gives this item Q615-Q618 and ADR 0096.*
 
 ## Scope
@@ -98,7 +98,7 @@ ledger, which AGREE. P37 reserves Q615-Q634 and ADR 0096-0100; its W162 row give
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-15 in a BYTE COPY of `bdd1b48` (`git archive` into `C:/tmp-w162/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-15 in a BYTE COPY of `1bd4e8e` (`git archive` into `C:/tmp-w162/m`,
 `node_modules` copied, **zero links** by `find -type l` and by PowerShell's `ReparsePoint` scan), node 24.20.0 and deno
 2.9.6. The change was built there whole, and every lane run.*
 
@@ -166,7 +166,7 @@ duplicate task id (Q13) or a nested fan-out (Q6) is this item's — it routes no
 
 ## Record
 
-**Gate — what ran.** Baseline `bdd1b48`; every number below is the final tree's, from the confirming `gate:item`.
+**Gate — what ran.** Baseline `1bd4e8e`; every number below is the final tree's, from the confirming `gate:item`.
 
 | Clause | Verdict | Notes |
 |---|---|---|

@@ -1,6 +1,6 @@
 # W209 — a `needs` reference naming a node's ERROR: `"lookup!error"`
 
-**Status:** done 2026-10-23 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after TWO asked exceptions (`spec/outcome-record.md`'s figure sentence; `examples/l6.ts`'s two reference-form checks, `NOT_YET_AT_L6 = ['error']`), each answered (a), YES; both readers RAN, every finding acted on or declared. Earlier: declared 2026-10-23 on `0c42377`, P43's SECOND item: (c1) as answered; decision 5; fact 5; this file written from the plan's row BEFORE any other edit; the declaration step's re-takes below, taken before the `Owns` were fixed
+**Status:** done 2026-10-23 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after TWO asked exceptions (`spec/outcome-record.md`'s figure sentence; `examples/l6.ts`'s two reference-form checks, `NOT_YET_AT_L6 = ['error']`), each answered (a), YES; both readers RAN, every finding acted on or declared. Earlier: declared 2026-10-23 on `02f8e23`, P43's SECOND item: (c1) as answered; decision 5; fact 5; this file written from the plan's row BEFORE any other edit; the declaration step's re-takes below, taken before the `Owns` were fixed
 **Plan:** [P43](../plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md) — *what do a flow and a run say
 as data rather than as prose?* — and this is its SECOND item: pass 4 #2, a failed task's error reachable by the nodes its
 failed edge leads to.
@@ -50,7 +50,7 @@ Outputs:    (1) the grammar — "n!error", its "?" form "n!error?", its array fo
                 error, and a task after both roads reading it); spec/examples/invalid/FD-V26--* for the "!" refusals.
             (7) ADR 0131 (a reference may name a node's error); spec/flow-definition.md v0.49, spec/README.md;
                 AGENTS.md's needs table, a snippet, and every place it states the grammar.
-Depends on: W208 (0c42377)
+Depends on: W208 (02f8e23)
 Blocks:     W210
 Tests:      Outputs (5). Expected values from P43 decision 5, FD-C1 and spec/outcome-record.md's `error` row, derived
             by hand: a scheduler double settling known error strings, so every resolved value is a literal written
@@ -92,7 +92,7 @@ Reserves:   Q772-Q773, ADR 0131
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the ladder counts — `npm run gate` on `0c42377` in `C:/tmp-w209/base` (`node_modules` COPIED; 0 links, 0 reparse points), EXIT 0, 20:00:39 → 20:08:57 (`w209/gate-base.log`) | L1-L5 **97 files / 2,216 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; `check:docs` **52 `run`** snippets; C4 45 |
+| 1 | the ladder counts — `npm run gate` on `02f8e23` in `C:/tmp-w209/base` (`node_modules` COPIED; 0 links, 0 reparse points), EXIT 0, 20:00:39 → 20:08:57 (`w209/gate-base.log`) | L1-L5 **97 files / 2,216 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; `check:docs` **52 `run`** snippets; C4 45 |
 | 2 | every site `referenceTarget`'s result is switched on (D′) | `validate.ts` (FD-V26 ×2, FD-V27-29's loop), `wiring.ts` (`:395` a map's entry composition — `self`/`payload` only, untouched; `composed` — the error arm added), `driver.ts` (`:1091` `"$item"` only, untouched; `compose`, `resolveNeeds` → `resolveReference`, the error arm added). `src/definition/condition.ts` reads no reference (unmoved). Nothing in `examples/`, `scripts/` or `index.ts` reads one |
 | 3 | whether the index's `OutputEntry` reaches the error | it did NOT: `{ path, result, shared? }`, `result` the effective outcome's alone — the entry gains `error`, set in `place` from the same effective outcome |
 | 4 | what a failed `user_action` resolution and a declined ask put in `error` | `resolveStep` (`driver.ts:3123`): `value.error ?? 'resolved as failed'` for `'failed'`, `null` for `'done'`; `effectiveOutcome` (`log.ts:91`) takes the resolution's `error`. The scheduler clears `task.error` at every dispatch (`_dispatchTask`, and `_settleCancelled`), so a `done` settlement's `error` is `null` |
@@ -177,4 +177,4 @@ moves and no id is minted.
 
 **The readers' overlap.** **ONE** — the `FD-V27` row's *each message spelling the reference as written* (conformity SHOULD, adequacy SHOULD). Every other finding was one reader's alone.
 
-**Leftover worktrees.** `C:/tmp-w209/base` (clean at `0c42377`), `rc`, `ra`, `m` (git worktrees at `0c42377`, the diff applied — `rc` and `ra` before the reader fixes; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w209/rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.
+**Leftover worktrees.** `C:/tmp-w209/base` (clean at `02f8e23`), `rc`, `ra`, `m` (git worktrees at `02f8e23`, the diff applied — `rc` and `ra` before the reader fixes; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w209/rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.

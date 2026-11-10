@@ -79,7 +79,7 @@ const findingsOf = (f: FlowDefinition) => validateDefinition(f, REG).map((x) => 
 const detailsOf = (f: FlowDefinition) => validateDefinition(f, REG).map((x) => x.detail).join(' | ');
 
 /**
- * **`readKeyPath` as v0.52 shipped it** — copied from `src/definition/condition.ts` at `07bc379`, the ORACLE for
+ * **`readKeyPath` as v0.52 shipped it** — copied from `src/definition/condition.ts` at `47ae094`, the ORACLE for
  * *everything that already validates resolves exactly as before* (ADR 0137 rule 2). Never edited with the code.
  */
 function readKeyPathV052(value: unknown, path: string): unknown {

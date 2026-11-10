@@ -1,6 +1,6 @@
 # P44 — What does a join hand on, and how does a key path reach into it?
 
-**Status:** complete and retro'd 2026-10-25 — W214-W218 done, `gate:full` EXIT 0 on W218's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-24 — on `bdbdb1c` (the tree clean, `main` at 0.11.0, tagged `v0.11.0`, `origin/main` equal),
+**Status:** complete and retro'd 2026-10-25 — W214-W218 done, `gate:full` EXIT 0 on W218's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-24 — on `98e313d` (the tree clean, `main` at 0.11.0, tagged `v0.11.0`, `origin/main` equal),
 answering fyflow-app's *pass 5* #1-#2 and P43's two retro stop-and-asks; facts 1-10 read or MEASURED at this declaration;
 stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-24, (b) modified by the maintainer; W215-W218 each wait on the
 item before them.
@@ -29,7 +29,7 @@ Reserves: W214-W219 (W219 expected unused), Q780-Q789, ADR 0135-0139 (ADR 0135, 
 Raises:   no question at this declaration; no S entry. Q774 is RESOLVED by W215's record step ((d1))
 Baseline: ids derived by `npm run state` at this declaration — P44, W214, Q780, ADR 0135 from the tree and W214, Q780,
           ADR 0135 from the ledger, which AGREE
-Measured: in a throwaway worktree C:/tmp-p44/m at `bdbdb1c`, `node_modules` COPIED, scanned for links (none): the five
+Measured: in a throwaway worktree C:/tmp-p44/m at `98e313d`, `node_modules` COPIED, scanned for links (none): the five
           lanes green on the baseline; the chromium wall twice; the map-cost suite at a smaller pair; a draft re-keying
           (driver, then wiring) and a draft CHECKPOINT_FORMAT 2, each run through every lane and `check:docs` (facts 3-6)
 ```
@@ -61,7 +61,7 @@ Read at `../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestrati
 
 ## Facts read at this declaration
 
-**Fact 1 — the collection is built in ONE place, keyed by the full branch path.** At `bdbdb1c`: `collectArrivals`
+**Fact 1 — the collection is built in ONE place, keyed by the full branch path.** At `98e313d`: `collectArrivals`
 (`src/driver/driver.ts:992-997`) sorts the arrived map's keys by `compareBranchPaths` (`:959`) and assigns
 `out[path] = value`; its one call is `settleJoin`'s (`:6106`), right before `releaseArrivals`. The arrival is recorded in
 `enter`'s `join` arm at `:4569-4572` — `this.arrivalsOf(region.fanoutId, rpJoin).set(fromBranch, payload)` — keyed by the
@@ -160,7 +160,7 @@ runtime finds a configuration error at the smaller pair as surely as at the larg
 (`definition-schema.ts:215`, ADR 0132 rule 2); `test/definition/definition-schema.test.ts:301-302` pins both documents
 as accepted by both; `AGENTS.md:815` cites Q774.
 
-**Fact 9 — the release.** `HEAD` = `origin/main` = `bdbdb1c`, tagged `v0.11.0`; `package.json` / `deno.json` 0.11.0.
+**Fact 9 — the release.** `HEAD` = `origin/main` = `98e313d`, tagged `v0.11.0`; `package.json` / `deno.json` 0.11.0.
 Spec versions: `flow-definition.md` v0.51, `join-policy.md` v0.24, `run-state.md` v0.35, `outcome-record.md` v0.21,
 `runtime-targets.md` v0.13, `task-id.md` v0.16. Scheduler pin 0.6.0; L6 2861 / 246; L1-L5 100 files / 2,267 cases.
 
@@ -390,11 +390,11 @@ files, or re-taken by W218 and named so. Ids are bare text, as in P33's-P43's Re
 
 | item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
 |---|---|---|---|---|---|---|---|
-| **W214** `1270502` | the map-cost suite at 500 / 2,000 items in a browser, 2,000 / 8,000 in node and deno, the host read by `document`, a second observer for the guard | runtime-targets v0.14 (`RT-R1`) | — / — ; ADR 0135 SPENT | none | conformity 3 SHOULD, 4 NIT; adequacy 17 probes, 1 SHOULD, NITs. **Overlap 1** | 100 / 2267; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,218.4 s |
-| **W215** `07bc379` | `FD-V21` refuses a non-string join `of` and fanout branch entry; both schema forms hold them to the id charset; two invalid corpus files | flow-definition v0.52 | **Q774 resolved** / — ; ADR 0136 SPENT | none beyond the record step (ADR 0132's amendment note) | conformity 1 SHOULD, 5 NIT; adequacy 36 probes, 2 SHOULD, NITs. **Overlap 0** | 100 / 2274; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,137.3 s |
-| **W216** `5d14a2c` | a bracket index `[n]` in a key path — grammar, `readKeyPath`'s array arm, `FD-V43`'s root, the wiring refinement by `minItems`, the schema's patterns; the FD-V40 corpus file re-cut to a wildcard; ADR 0137 | flow-definition v0.53 | — / — | none beyond the record step (ADR 0068's note) | conformity 2 SHOULD, 4 NIT; adequacy 57 probes, 1 SHOULD, NITs. **Overlap 1** | 102 / 2289; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,159.4 s |
-| **W217** `177234d` | a join's collection keyed by each branch's OWN key (`Object.fromEntries`), the wiring record the same; `CHECKPOINT_FORMAT` 2; 41 L1-L5 cases, 22 L6 claims and 5 snippets re-derived; `own-key.test.ts`; ADR 0138 | join-policy v0.25, run-state v0.36, flow-definition v0.54 | — / — | none beyond the record step (notes in ADR 0037, 0062, 0102, 0130) | conformity 3 SHOULD, 8 NIT; adequacy 29 probes, 3 SHOULD, NITs. **Overlap 1** | 103 / 2295; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,074.1 s |
-| **W218** `3c76c60` | the `W218 exit` L6 block — pass 5's flow on real workers, threaded and inline: the collection by hand, an `if` on `input.prep.1`, `distinct` keys `side.xs[1]` and `prep.1`, an `if` on `input.side.xs[1]`, each with its control, and a format-1 store refused by a fresh runtime's `resume` beside the store as written resuming — twenty-two claims, six runs; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 2 NIT; adequacy 36 probes, 0 SHOULD, 3 NIT; the author's 13 provocations. **Overlap 0** | 103 / 2295; **2883 / 252** | **`gate:full`** EXIT 0, 11/11 self-tests, 2,551 s (a first run EXIT 1 on a half-written close — the Record) |
+| **W214** `352f942` | the map-cost suite at 500 / 2,000 items in a browser, 2,000 / 8,000 in node and deno, the host read by `document`, a second observer for the guard | runtime-targets v0.14 (`RT-R1`) | — / — ; ADR 0135 SPENT | none | conformity 3 SHOULD, 4 NIT; adequacy 17 probes, 1 SHOULD, NITs. **Overlap 1** | 100 / 2267; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,218.4 s |
+| **W215** `47ae094` | `FD-V21` refuses a non-string join `of` and fanout branch entry; both schema forms hold them to the id charset; two invalid corpus files | flow-definition v0.52 | **Q774 resolved** / — ; ADR 0136 SPENT | none beyond the record step (ADR 0132's amendment note) | conformity 1 SHOULD, 5 NIT; adequacy 36 probes, 2 SHOULD, NITs. **Overlap 0** | 100 / 2274; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,137.3 s |
+| **W216** `5ae9b3e` | a bracket index `[n]` in a key path — grammar, `readKeyPath`'s array arm, `FD-V43`'s root, the wiring refinement by `minItems`, the schema's patterns; the FD-V40 corpus file re-cut to a wildcard; ADR 0137 | flow-definition v0.53 | — / — | none beyond the record step (ADR 0068's note) | conformity 2 SHOULD, 4 NIT; adequacy 57 probes, 1 SHOULD, NITs. **Overlap 1** | 102 / 2289; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,159.4 s |
+| **W217** `1c3f470` | a join's collection keyed by each branch's OWN key (`Object.fromEntries`), the wiring record the same; `CHECKPOINT_FORMAT` 2; 41 L1-L5 cases, 22 L6 claims and 5 snippets re-derived; `own-key.test.ts`; ADR 0138 | join-policy v0.25, run-state v0.36, flow-definition v0.54 | — / — | none beyond the record step (notes in ADR 0037, 0062, 0102, 0130) | conformity 3 SHOULD, 8 NIT; adequacy 29 probes, 3 SHOULD, NITs. **Overlap 1** | 103 / 2295; 2861 / 246 | `gate:item` EXIT 0, 10/10, 1,074.1 s |
+| **W218** `96b59e9` | the `W218 exit` L6 block — pass 5's flow on real workers, threaded and inline: the collection by hand, an `if` on `input.prep.1`, `distinct` keys `side.xs[1]` and `prep.1`, an `if` on `input.side.xs[1]`, each with its control, and a format-1 store refused by a fresh runtime's `resume` beside the store as written resuming — twenty-two claims, six runs; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 2 NIT; adequacy 36 probes, 0 SHOULD, 3 NIT; the author's 13 provocations. **Overlap 0** | 103 / 2295; **2883 / 252** | **`gate:full`** EXIT 0, 11/11 self-tests, 2,551 s (a first run EXIT 1 on a half-written close — the Record) |
 
 **One question closed (Q774), none raised. No asked exception; no stop-and-ask inside an item. The readers' overlap, every
 Record stating its own: 1, 0, 1, 1, 0.**

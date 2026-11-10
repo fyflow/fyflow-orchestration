@@ -1,6 +1,6 @@
 # W217 — #1: a join's collection keyed by each branch's own key; `CHECKPOINT_FORMAT` 2; ADR 0138
 
-**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; ADR 0138 written, ADR 0037 and ADR 0062 amended by note; the format-2 refusal measured both ways against the 0.11.0 driver; no stop-and-ask, no exception beyond the record step, no question raised. Earlier: declared 2026-10-25 on `5d14a2c`, P44's FOURTH item: (a1), (b); decisions 4-6; facts 1-5; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; ADR 0138 written, ADR 0037 and ADR 0062 amended by note; the format-2 refusal measured both ways against the 0.11.0 driver; no stop-and-ask, no exception beyond the record step, no question raised. Earlier: declared 2026-10-25 on `5ae9b3e`, P44's FOURTH item: (a1), (b); decisions 4-6; facts 1-5; this file written from the plan's row BEFORE any other edit
 **Plan:** [P44](../plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — *what does a join hand on, and
 how does a key path reach into it?* — and this is its FOURTH item: fyflow-app's pass 5 #1, answered by the maintainer's
 (a1) and, for #1 (d), by the maintainer's modification (b): no backward compatibility.
@@ -52,7 +52,7 @@ Outputs:    (1) the OWN KEY in `collectArrivals` (driver.ts): a map instance's a
             (6) ADR 0138, amending ADR 0037 rule 4 (JP-R12) and ADR 0062 consequence 5; spec/join-policy.md v0.25,
                 spec/run-state.md v0.36, spec/README.md; AGENTS.md section 5 ("What a join carries downstream") and
                 every snippet; README.md's X8 fence.
-Depends on: W216 (5d14a2c)
+Depends on: W216 (5ae9b3e)
 Blocks:     W218
 Tests:      Outputs (4), (5). Expected values from ADR 0138 and the spec as written before the first run, derived by
             hand from each row's own steps, never from the old literal by substitution and never from output.
@@ -66,7 +66,7 @@ Gate:       `npm run gate:item` (not the plan's last item; no edit to scripts/ch
             whole-matrix claims; the wiring record keyed the same, a successor's `inputSchema` naming an entry id
             checked `fits`; `CHECKPOINT_FORMAT` 2; a format-1 checkpoint refused `format` by `resume()`,
             `runtime.resume` and `inputOf`, its control the same run at 2 resuming; L6 green with fact 3's claims
-            re-derived; `RUN_FLOOR` and `check:docs` green; the 0.11.0 driver (`bdbdb1c`, in a worktree) refusing a
+            re-derived; `RUN_FLOOR` and `check:docs` green; the 0.11.0 driver (`98e313d`, in a worktree) refusing a
             format-2 checkpoint `format`; then the conformity reader and the adequacy reader, workflow section 6.
 Reserves:   Q786-Q787, ADR 0138
 ```
@@ -91,7 +91,7 @@ Reserves:   Q786-Q787, ADR 0138
 - **A new L6 block** — W218.
 - **The version bump, push and publish** — the maintainer's ((e1)).
 
-## Re-takes (P44's *W217 — Re-takes*), at `5d14a2c`, before any `src/` edit
+## Re-takes (P44's *W217 — Re-takes*), at `5ae9b3e`, before any `src/` edit
 
 1. **Fact 3's census, built WITH the spec edits (B′)** — the driver's own key, the wiring record and `CHECKPOINT_FORMAT` 2
    applied, then `spec/join-policy.md` v0.25, `spec/run-state.md` v0.36, `spec/flow-definition.md` v0.54 and
@@ -127,7 +127,7 @@ Reserves:   Q786-Q787, ADR 0138
 
 `npm run gate` on the B' draft before the `Owns` are fixed; the two readers in their own worktrees under `C:/tmp-w217/`
 (`node_modules` COPIED, scanned for links and reparse points, never removed with `--force`); the 0.11.0 driver's refusal
-in a worktree at `bdbdb1c`; then `npm run gate:item` once, on the final tree, held still. **Routing coverage**: a nested
+in a worktree at `98e313d`; then `npm run gate:item` once, on the final tree, held still. **Routing coverage**: a nested
 fan-out and a map in a fan-out (Q6) are the subject; a branch routed away (Q4) has no key; `user_action` (Q17), an
 unmatched decision (Q10) and the task id (Q13) are not moved — the matrix's cells keep their verdicts.
 
@@ -149,7 +149,7 @@ unmatched decision (Q10) and the task id (Q13) are not moved — the matrix's ce
 | L5: every cell whose join fires and the four whole-matrix claims | RAN | `matrix.test.ts`, `matrix/ask.test.ts`; no cell's own assertion moved (P44 prediction 5 HOLDS) |
 | the wiring record, a successor naming an entry id `fits` | RAN | own-key case 4 (entry id and item index, `prep.10` `no`, `prep.01` and `0.0` and `0` meet nothing, the fan-out SAMPLE keyed `["__proto__","x"]`, `__proto__` a property); `wiring.test.ts`, `definition/ask.test.ts`, `definition/gate.test.ts` re-keyed |
 | `CHECKPOINT_FORMAT` 2; a format-1 checkpoint refused `format` by `resume()`, `runtime.resume`, `inputOf`, the control at 2 | RAN | own-key case 5 (with a join and without; `runtime.resume` on the join run); `resume.test.ts`, `input-of.test.ts`, `scheduler/resume.test.ts` each keep one format-1 refusal |
-| **the 0.11.0 driver refusing format 2** | RAN — **both ways** (`cross-version.log`, the worktree `C:/tmp-w217/old` at `bdbdb1c`) | each driver writes pass 5's run; the new one refuses the 0.11.0 checkpoint `format` by `resume`, `resumeRefusal`, `inputOf` and `runtime.resume`, nothing dispatched; the 0.11.0 one refuses the new checkpoint the same way (*header.format is 2 … reads format 1 only*); each resumes and reads its OWN (the controls) — the new handing `check` `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}`, the old `{"0":{"0.0":1,"0.1":2},"1":{"xs":[1,2]}}` |
+| **the 0.11.0 driver refusing format 2** | RAN — **both ways** (`cross-version.log`, the worktree `C:/tmp-w217/old` at `98e313d`) | each driver writes pass 5's run; the new one refuses the 0.11.0 checkpoint `format` by `resume`, `resumeRefusal`, `inputOf` and `runtime.resume`, nothing dispatched; the 0.11.0 one refuses the new checkpoint the same way (*header.format is 2 … reads format 1 only*); each resumes and reads its OWN (the controls) — the new handing `check` `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}`, the old `{"0":{"0.0":1,"0.1":2},"1":{"xs":[1,2]}}` |
 | L6 with fact 3's claims re-derived | RAN | 22 claims re-derived from each flow's `branches`; the W206 block's two CONTROLS re-keyed (Re-take 2) |
 | `RUN_FLOOR`, `check:docs` | RAN | `RUN_FLOOR` not moved — no `run` snippet added; `check:docs` EXIT 0 with the five snippets re-derived |
 | conformity reader (`C:/tmp-w217/rc`) | RAN | 0 BLOCKER, 3 SHOULD, 8 NIT, below; every expected value re-derived before the tests, all matched; its own both-ways format check agreed |
@@ -219,7 +219,7 @@ record step's `doc/decisions/**`, as declared.
 (conformity NIT 5, adequacy NIT 3). The two Test-clause findings are on two rules (`RN-R16`, `RN-R23`) and are not
 counted as one.
 
-**Leftover worktrees.** `C:/tmp-w217/old` (at `bdbdb1c`, for the both-ways measurement), `C:/tmp-w217/rc` and
-`C:/tmp-w217/ra` (at `5d14a2c` with the pre-reader change applied), each with `node_modules` COPIED and scanned (0
+**Leftover worktrees.** `C:/tmp-w217/old` (at `98e313d`, for the both-ways measurement), `C:/tmp-w217/rc` and
+`C:/tmp-w217/ra` (at `5ae9b3e` with the pre-reader change applied), each with `node_modules` COPIED and scanned (0
 links, 0 reparse points), and `C:/tmp-w217/rc-scratch`, `ra-scratch` — left for the maintainer; not removed with
 `--force`.

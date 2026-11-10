@@ -147,7 +147,7 @@ suite('FD-V8, FD-V16, FD-V17, FD-V21, FD-V23 — every clause', (test) => {
   });
   // **W215, Q774 resolved — v0.52**: a join's `of` and a fanout's branch ENTRY that are not strings. Before v0.52 each
   // drew no finding naming it — a region-less join's non-string `of` and `["b1", "b2", 5]` drew NONE at all (Q774's
-  // table, re-taken at 1270502). Expected values from the FD-V21 row: one FD-V21 finding naming the key and quoting the
+  // table, re-taken at 352f942). Expected values from the FD-V21 row: one FD-V21 finding naming the key and quoting the
   // value; the STRING form's verdict is 0.11.0's, so each refusal sits beside its control.
   const fdv21 = (d: FlowDefinition) => validateDefinition(d, registry).filter((f) => f.rule === 'FD-V21').map((f) => f.detail);
   const fanJoin = (branches: unknown, of: unknown) => doc([

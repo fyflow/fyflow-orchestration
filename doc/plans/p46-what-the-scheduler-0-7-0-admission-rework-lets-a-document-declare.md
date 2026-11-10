@@ -1,7 +1,7 @@
 # P46 — What may a registry document declare of the scheduler's admission rework, and does a type's worker see which unit it holds?
 
-**Status:** complete and retro'd 2026-11-06 — W224-W226 done; `gate:full` on W226's final tree (the Record); the retro raises THREE stop-and-asks (section 8 (a)-(c)); answered 2026-11-06: (b) b1, (c) commit, bump and push — publish awaiting the maintainer; (a) OPEN. Earlier: declared 2026-11-05 on `fd6227f` (the tree clean, `main` at 0.13.0, tagged `v0.13.0`,
-`origin/main` = `fd6227f`), answering fyflow-app's *pass 7* #1-#5 and the scheduler's 0.7.0 release; facts 1-9 MEASURED at
+**Status:** complete and retro'd 2026-11-06 — W224-W226 done; `gate:full` on W226's final tree (the Record); the retro raises THREE stop-and-asks (section 8 (a)-(c)); answered 2026-11-06: (b) b1, (c) commit, bump and push — publish awaiting the maintainer; (a) OPEN. Earlier: declared 2026-11-05 on `5113a18` (the tree clean, `main` at 0.13.0, tagged `v0.13.0`,
+`origin/main` = `5113a18`), answering fyflow-app's *pass 7* #1-#5 and the scheduler's 0.7.0 release; facts 1-9 MEASURED at
 this declaration in a byte copy; the evaluation's stop-and-asks (a)-(h) ANSWERED by the maintainer 2026-11-05, *"All as
 recommended"*.
 **Question this plan answers:** *with `fyflow-scheduler` 0.7.0 as the peer, may a registry document declare a `UnitGroup`, a
@@ -25,7 +25,7 @@ Items:    W224 (#1 the pin moves to 0.7.0; D7 learns this library's own version;
 Reserves: W224-W227, Q799-Q808, ADR 0143-0144
 Raises:   no question at this declaration; no S entry
 Baseline: `npm run state` at this declaration — P46, W224, Q799, ADR 0143, from the tree and from the ledger, which AGREE
-Measured: in a byte copy of `fd6227f` (`git archive` into C:/tmp-p46/m, node_modules copied, zero links), node 24 and deno;
+Measured: in a byte copy of `5113a18` (`git archive` into C:/tmp-p46/m, node_modules copied, zero links), node 24 and deno;
           the scheduler's 0.6.0 and 0.7.0 npm tarballs unpacked into C:/tmp-p46/pkg
 ```
 
@@ -140,14 +140,14 @@ None at declaration. Q799-Q808 are reserved, two per item and four spare.
 
 ## Ids
 
-`npm run state` on `fd6227f`: P46, W224, Q799, ADR 0143, from the tree and from the ledger, which AGREE. **Reserved here**:
+`npm run state` on `5113a18`: P46, W224, Q799, ADR 0143, from the tree and from the ledger, which AGREE. **Reserved here**:
 W224-W227 (W227 expected unused), Q799-Q808, ADR 0143-0144 (ADR 0144 expected unused). No S id; the next is S13.
 
 ## Record
 
 *Written 2026-11-05 by W226's author over W226's tree, and brought up to date on 2026-11-06 after W226's readers — the
 orchestrator fills `gate:full`'s cells on the final tree. Every figure is read from the three items'
-own files, or measured by W226 and named so. Nothing is committed: W224, W225 and W226 sit uncommitted on `fd6227f`.
+own files, or measured by W226 and named so. Nothing is committed: W224, W225 and W226 sit uncommitted on `5113a18`.
 Ids are bare text, as in P33's-P45's Records.*
 
 **The items.** Each row is its own file's Record, which covers its declaration step, its provocations and its readers.

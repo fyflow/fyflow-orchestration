@@ -1,7 +1,7 @@
 # W159 — what the pin adds that a type reaches: `cancelGraceMs` and `messages` on a type's `pool`, and the task context through the envelope
 
 **Status:** done 2026-10-15 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-15 on
-`c0816d0`, declaration step RUN the same day in a byte copy; exceptions E1 and E2 ASKED at the declaration step,
+`58ddc09`, declaration step RUN the same day in a byte copy; exceptions E1 and E2 ASKED at the declaration step,
 ANSWERED YES by the maintainer 2026-10-15 and recorded before their edits; both reader passes RUN; nothing raised,
 nothing closed
 **Plan:** [P33](../plans/p33-what-a-run-does-when-a-task-ends-cancelled.md) — *what does a run fold to when the
@@ -50,7 +50,7 @@ Gate:       `npm run gate` before the readers (P32-retro C); then the conformity
 Reserves:   Q610-Q612, and NO ADR
 ```
 
-*Reserves: `npm run state` on `c0816d0` reads the next free ids as **W159, Q607, ADR 0095** from the tree and
+*Reserves: `npm run state` on `58ddc09` reads the next free ids as **W159, Q607, ADR 0095** from the tree and
 **W157, Q600, ADR 0094** from the ledger, which DISAGREE because P33 has been declared since that sentence (both are
 printed, neither picked). P33 reserves Q600-Q614 and ADR 0094-0095; W157 reserved Q600-Q604 and spent none, W158
 spent Q605-Q606 and RELEASED Q607-Q609, which stay skipped. So this item takes **Q610-Q612**. **No ADR**: P33
@@ -88,7 +88,7 @@ decision 6 is the decision, and the spec's version carries it — ADR 0095 is le
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `c0816d0` (`git archive` into `C:/tmp-w159/m`,
+*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `58ddc09` (`git archive` into `C:/tmp-w159/m`,
 `node_modules` copied, **zero links** by `find -type l` and by PowerShell's `ReparsePoint` scan), node 24.20.0 and
 deno 2.9.6. The change was built there whole, and every lane run.*
 
@@ -112,7 +112,7 @@ deno 2.9.6. The change was built there whole, and every lane run.*
 |---|---|---|---|---|
 | **E1** | `spec/README.md:21` | the version column `**v0.32**` becomes `**v0.33**`, and the prose cell gains one sentence after v0.32's: *"**v0.33 is W159** (linked to this file): a type's `pool` may declare the scheduler's `cancelGraceMs` and `messages`, held to its own rules, and `FD-C5` states the context the envelope passes through to the inner worker; no rule id moves and the count stays 42."* | `check:spec` `C8` binds the column to the header (M5); a spec change is versioned. **Precedent: W157 and W158**, whose rows OWNED `spec/README.md`; P33's row for this item omits it | **YES** 2026-10-15 |
 | **E2** | `test/definition/l4-corpus.test.ts:426` | `LATE_SUITES` gains the new file's ONE suite name, under a two-line comment naming the file | the census is set-equal by design (M4). **Precedent: W158's E1, W153 and W154** | **YES** 2026-10-15 |
-| — | `src/definition/types.ts`, `AGENTS.md` | **not an exception — the declared overlap with W158** (P33's *serial, never concurrent*). W158 is committed (`c0816d0`); this item edits `PoolSpec` in `types.ts` and section 13 of `AGENTS.md`, neither of which W158 touched | `doc/workflow.md` section 7 rule 2 | — |
+| — | `src/definition/types.ts`, `AGENTS.md` | **not an exception — the declared overlap with W158** (P33's *serial, never concurrent*). W158 is committed (`58ddc09`); this item edits `PoolSpec` in `types.ts` and section 13 of `AGENTS.md`, neither of which W158 touched | `doc/workflow.md` section 7 rule 2 | — |
 
 ## Choices made inside the declaration and not named by P33
 
@@ -145,7 +145,7 @@ task on a bare scheduler with no driver.
 
 ## Record
 
-**Gate — what ran.** Baseline `c0816d0`; every number below is the final tree's, from the confirming `gate:item`.
+**Gate — what ran.** Baseline `58ddc09`; every number below is the final tree's, from the confirming `gate:item`.
 
 | Clause | Verdict | Notes |
 |---|---|---|

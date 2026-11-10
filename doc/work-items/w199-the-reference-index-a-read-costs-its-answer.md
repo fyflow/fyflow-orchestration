@@ -1,6 +1,6 @@
 # W199 — the reference index: a `needs` read inside a map costs its answer, not the map
 
-**Status:** done 2026-10-22 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; the stop-and-ask on `visibilityKey` ANSWERED (a) by the maintainer; Q735 resolved. Earlier: declared 2026-10-22 on `6006caa`; P40's FIRST item: decisions 1-6, stop-and-asks (a)-(e) as answered ((e) as (e1), relayed mid-item); the declaration step RUN before any `src/` edit (below)
+**Status:** done 2026-10-22 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; the stop-and-ask on `visibilityKey` ANSWERED (a) by the maintainer; Q735 resolved. Earlier: declared 2026-10-22 on `b3fae40`; P40's FIRST item: decisions 1-6, stop-and-asks (a)-(e) as answered ((e) as (e1), relayed mid-item); the declaration step RUN before any `src/` edit (below)
 **Plan:** [P40](../plans/p40-what-a-reference-read-costs-inside-a-map.md) — *what does a reference read cost inside a map,
 and can it cost its answer rather than the map?* — and this is its FIRST item: the index, ADR 0124, the count in the gate.
 
@@ -43,12 +43,12 @@ Outputs:    (1) src/definition/regions.ts: `visibilityKey(path, depth)` — the 
             (7) ADR 0124; spec/flow-definition.md v0.46; spec/run-state.md v0.32 (RN-R13's figure re-measured by
                 `v8.serialize`); spec/README.md's two rows; AGENTS.md's *What it costs* and its RN-R13 sentence;
                 test/driver/retention.test.ts's alias claim extended to the index.
-Depends on: P40's declaration (6006caa)
+Depends on: P40's declaration (b3fae40)
 Blocks:     W200
 Tests:      Outputs (5) and (6) are the tests; test/definition/sibling-regions.test.ts run UNMOVED (the restated
             predicate); retention.test.ts's alias claim. Expected values from ADR 0044's predicate (the oracle) and from
             derivations beside each count. Measurements, not gate entries: the driver re-timed (Q735's table), the
-            composed payloads over the corpus byte-identical to 6006caa's, RN-R13's per-entry figure.
+            composed payloads over the corpus byte-identical to b3fae40's, RN-R13's per-entry figure.
 Gate:       `npm run gate:item` (not the plan's last item; no row edits scripts/check-register*.mjs, scripts/state.mjs or
             doc/questions/README.md); `npm run gate` before the readers (sentence C); then the conformity reader and
             the adequacy reader, workflow section 6.
@@ -74,7 +74,7 @@ Reserves:   Q740-Q744, ADR 0124
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5. Taken 2026-10-22 on `6006caa`, the tree clean; harnesses in the session scratchpad's `w199/`.*
+*P15 decision 5. Taken 2026-10-22 on `b3fae40`, the tree clean; harnesses in the session scratchpad's `w199/`.*
 
 | # | re-take | measured |
 |---|---|---|
@@ -84,7 +84,7 @@ Reserves:   Q740-Q744, ADR 0124
 | 4 | the D′ census — every `.filter(`/`.sort(` in `src/driver/driver.ts` | `:574-575` `sameData` (per comparison of two results, per CALL); `:754` `collectArrivals` (once per join firing, over its arrivals — per settlement of a JOIN, not per read); `:2652` `inFlight` (per run-control call); `:3090` (per `stop`); `:3177` `pauseWanted` (over the consumer's pending calls — per call); **`:4662-4663` the per-read reference search, this plan's**. None other is O(run) per read |
 | 5 | the readers of `sharedRegionDepth` / `outputIsVisible` / `regionChainOf` outside `regions.ts` | `src/driver/driver.ts`, `examples/l6.ts` (5 lines), `test/definition/sibling-regions.test.ts`, `test/definition/l4-corpus.test.ts`, `test/driver/needs.test.ts`, `test/driver/nested-regions.test.ts` — no signature moves, so none is edited |
 | 6 | whether any test reads `outputsCache`'s shape beyond `byNode` | `test/driver/retention.test.ts:236-244` types it `{ byNode }`; `test/fold/map-cost.test.ts:728` sets it `null` (the rebuild provocation). Nothing else |
-| 7 | the ladder counts — `npm run gate` on `6006caa` (worktree `C:/tmp-w199/base`, `node_modules` copied, no link), EXIT 0 (scratchpad `w199/gate-base.log`) | L1-L5 **88 files / 2,142 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,805 / 0 failed** in node and deno; `check:docs` 51 `run`; `check:spec` C4 45 |
+| 7 | the ladder counts — `npm run gate` on `b3fae40` (worktree `C:/tmp-w199/base`, `node_modules` copied, no link), EXIT 0 (scratchpad `w199/gate-base.log`) | L1-L5 **88 files / 2,142 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,805 / 0 failed** in node and deno; `check:docs` 51 `run`; `check:spec` C4 45 |
 | 8 | `RN-R13`'s ~88 B by its own method (`w199/bytes.ts`: one `v8.serialize` over `[inputs, log]` and over `[inputs, log, outputsCache]`) | **87.5 / 87.6 / 90.7 B an entry** at 10 / 100 / 1,000 instances — W195's C1 figures reproduced exactly, for `post` reading `ingest` and reading `work` alike |
 | 9 | every composed payload and `ctx.needs` (`w199/payloads.ts`): every valid corpus flow, seven drains, a resume from every rest point | 182 lines captured as `payloads-before.jsonl` — the baseline decision 5 is held to |
 
@@ -126,7 +126,7 @@ applicable beyond fact 3, which the index's no-ties order rests on (re-take 3).
 | (6) the cost subject, four shapes, its provocations | yes | case 6 and case 7; the census counts nine |
 | (7) ADR 0124, spec v0.46 / v0.32, README rows, AGENTS.md, the retention alias | yes | `check:spec`, `check:register` (R8: ADR 0124 resolves Q735), `check:docs`; the alias claim |
 
-**The numbers** (each size a fresh process, the session scratchpad's `w199/drv.ts`; before on `6006caa`, after on this
+**The numbers** (each size a fresh process, the session scratchpad's `w199/drv.ts`; before on `b3fae40`, after on this
 tree):
 
 | shape | items | before, node | after, node | before, deno | after, deno |
@@ -156,7 +156,7 @@ holder sets and `DRIVER_FIELDS` did not move, and the figure rose by well under 
 
 **Payloads** (`w199/payloads.ts`): every composed payload and `ctx.needs` over every valid corpus flow under seven drains
 — the six `log-view` uses and *an uncloneable result first* — each with a resume from every rest point: **182 lines,
-byte-identical** to `6006caa`'s (`cmp`).
+byte-identical** to `b3fae40`'s (`cmp`).
 
 **Predictions.** P40 prediction 1 **HOLDS**: no existing assertion's expected VALUE moved in any lane — what moved is the
 census (two suites' case counts, one suite renamed), and new cases. Prediction 2 **HOLDS**: 223 ms at 8,000 items

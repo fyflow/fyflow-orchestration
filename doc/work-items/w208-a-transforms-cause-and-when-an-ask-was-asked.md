@@ -1,6 +1,6 @@
 # W208 — a transform's cause on `transform-fails`, and when an ask was asked, kept across a replay
 
-**Status:** done 2026-10-23 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after ONE asked exception (`examples/l6.ts`, six W182 comparisons, answered (a), YES); both readers RAN, every finding acted on or declared; Q760 resolved. Earlier: declared 2026-10-23 on `e52348d`, P43's FIRST item: (d1), (e1), (f1) as answered; decisions 6, 7, 9; facts 4, 6, 7; this file written from the plan's row BEFORE any other edit; the declaration step's re-takes below, taken before any `src/` edit
+**Status:** done 2026-10-23 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after ONE asked exception (`examples/l6.ts`, six W182 comparisons, answered (a), YES); both readers RAN, every finding acted on or declared; Q760 resolved. Earlier: declared 2026-10-23 on `86440fb`, P43's FIRST item: (d1), (e1), (f1) as answered; decisions 6, 7, 9; facts 4, 6, 7; this file written from the plan's row BEFORE any other edit; the declaration step's re-takes below, taken before any `src/` edit
 **Plan:** [P43](../plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md) — *what do a flow and a run say
 as data rather than as prose?* — and this is its FIRST item: pass 4 #3 (`cause`), #4 (`observedAt`), #5 (Q760 resolved)
 and #6 (pass 1 #11 recorded withdrawn, in the plan).
@@ -45,12 +45,12 @@ Outputs:    (1) src/definition/wiring.ts — `WiringVerdict.cause?: 'threw' | 's
                 never diverged; the fold's field on a suspended ask, absent on every other entry, kept through the
                 answer; L3 folded twice.
             (6) ADR 0130 (a regenerated asked element keeps the stored run's time), fact 7's older-driver direction
-                MEASURED on a byte copy at e52348d and stated there; spec/run-state.md v0.35,
+                MEASURED on a byte copy at 86440fb and stated there; spec/run-state.md v0.35,
                 spec/flow-definition.md v0.48, spec/README.md; AGENTS.md section 15's cell and snippet (the prefix
                 assertion kept, cause asserted beside it) and every place it states an asked element's shape.
             (7) the record step: Q760 resolved (P43, pass 4 #5); a dated note on Q372 (pass 1 #11 withdrawn by its
                 asker, the question kept for other hosts).
-Depends on: P43's declaration (e52348d) — stop-and-asks (a)-(h) answered
+Depends on: P43's declaration (86440fb) — stop-and-asks (a)-(h) answered
 Blocks:     W209
 Tests:      Outputs (5). Expected values from P43 decisions 6 and 7 and the spec, derived by hand: a clock injected
             with known values, so every observedAt is a literal written before the run.
@@ -78,12 +78,12 @@ Reserves:   Q770-Q771, ADR 0130
 
 ## What the declaration step re-took, before anything in `src/` was edited
 
-*Taken 2026-10-23. The baseline in the worktree `C:/tmp-w208/base` at `e52348d` (`node_modules` COPIED, 0 links, 0
+*Taken 2026-10-23. The baseline in the worktree `C:/tmp-w208/base` at `86440fb` (`node_modules` COPIED, 0 links, 0
 reparse points); logs in the session scratchpad's `w208/`.*
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the ladder counts — `npm run gate` on `e52348d` in `C:/tmp-w208/base`, EXIT 0, 18:12:54 → 18:20:49 (`w208/gate-base.log`) | L1-L5 **94 files / 2,197 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; `check:docs` 58 snippets, **52 `run`**, 6 `check`; C4 45 |
+| 1 | the ladder counts — `npm run gate` on `86440fb` in `C:/tmp-w208/base`, EXIT 0, 18:12:54 → 18:20:49 (`w208/gate-base.log`) | L1-L5 **94 files / 2,197 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; `check:docs` 58 snippets, **52 `run`**, 6 `check`; C4 45 |
 | 2 | every reader of `transform-fails` (D′) | `assist.ts:318-319` (`sampledOutput` selects on the kind and `'result' in sample` — `cause` moves neither); `checkWiring`'s counts (`wiring.ts:918`); `examples/l6.ts` reads `kind`, `why` and `sample.result` field by field (`:10339`, `:11057`) — no whole-verdict comparison; `AGENTS.md` `:4063-4064`, `:4152`, `:4206-4207`, `:4217-4219`; `spec/flow-definition.md:2174`; `test/definition/assist.test.ts` field by field |
 | 3 | every reader of an `asked` element and of an ask's `NodeRun` (D′) | `src/`: `ask()` (the one writer), `freezeInput` (`{ ...i, input }` — carries any other key), the accumulator's arm, `append`/`sameData`. `test/`: six whole-element or whole-entry literals (`test/driver/ask.test.ts` ×4, `test/driver/ask-control.test.ts` ×2), and `test/fold/accumulator.test.ts`'s ORACLE equivalence over the driven corpus — the oracle (`test/fold/oracle-run-state.ts`) is NEVER EDITED (ADR 0120 rule 8). **`examples/l6.ts`: the W182 block compares SIX whole elements / entries through `askCanon` (`:11530`, `:11541`, `:11606` and three `askEntry` reads)** — measured red, below |
 | 4 | B′ — the change built in the working tree and L6 run in node (`w208/l6-node-1.log`) | **L6 EXIT 1: 2,847 assertions, 6 failed**, every one a W182 row whose expected element or entry lacks the new key and whose actual carries `observedAt` (a live `Date.now()`) or `askedAt`: exit (1) ×2, exit (2) ×2, exit (3), exit (5). Nothing else moved. **`examples/l6.ts` is outside this row's `Owns` (it is W212's) — STOP-AND-ASK, below** |
@@ -110,8 +110,8 @@ join (Q4), no matching decision edge (Q10), a nested fan-out (Q6) — not applic
 | the author's sweep (`C:/tmp-w208/m`, `w208/sweep.mjs`, `w208/sweep-1.log`) | RAN, before the readers reported | 20 mutations, one clause at one call site each (sentence E): the control M00 SURVIVED (its right verdict); M01-M04 and M06-M19 **KILLED**; M05 MALFORMED (anchor x2), re-cut on a unique anchor and **SURVIVED** — a `cause` on the `unchecked` road where the transform ran and the consumer has no `inputSchema`: case 3's NAME claimed that road and its body never reached it. Pinned (a consumer schema removed, through `tryTransform` and `checkWiring`), re-cut **KILLED** (`w208/sweep-recut.log`) |
 | conformity reader (`C:/tmp-w208/rc`) | RAN | no BLOCKER; 1 SHOULD, 3 NIT, below. 48 predictions written before running constructions (a fan-out ask, nested maps, a resume of a resume over three hops, stop and pause, `observedAt` 0 / -5 / `null`, a swapped or replaced stored element, `inputOf` on a halted run, a `user_action` task, every arc shape and the given road): 47 held, the miss the reader's own (a jsonata expression it expected to throw) |
 | adequacy reader (`C:/tmp-w208/ra`) | RAN | 31 mutations and a control: 26 KILLED; SURVIVED: D6 (EQUIVALENT — no kind but `asked` carries a top-level `observedAt`, and `sameData` refuses any other element there), W6a, W6b, W7, W8; no BLOCKER, 1 SHOULD, 4 NIT, below |
-| prediction 1 (`w208/pred1.ts`) | RAN, at `e52348d` and on the final tree | every valid corpus flow under three drains, each resumed from EVERY element prefix: **1,372 runs** — composed payloads, fold sequences, folds, checkpoints and every resume **byte-identical** (`cmp` 0) once an `asked` element's `observedAt` and an entry's `askedAt` are removed; the CONTROL, the same output unremoved, differs (`cmp` 1; 1,477 `observedAt: 42` on the new side) |
-| fact 7's older-driver direction (`w208/older.ts`) | RAN | a checkpoint written by this driver resumed on `e52348d`'s: **refused `diverged` at position 2**, the `asked` element; `e52348d`'s checkpoint on this driver: resumed, no time; each on its own: resumed. ADR 0130 consequence 2 |
+| prediction 1 (`w208/pred1.ts`) | RAN, at `86440fb` and on the final tree | every valid corpus flow under three drains, each resumed from EVERY element prefix: **1,372 runs** — composed payloads, fold sequences, folds, checkpoints and every resume **byte-identical** (`cmp` 0) once an `asked` element's `observedAt` and an entry's `askedAt` are removed; the CONTROL, the same output unremoved, differs (`cmp` 1; 1,477 `observedAt: 42` on the new side) |
+| fact 7's older-driver direction (`w208/older.ts`) | RAN | a checkpoint written by this driver resumed on `86440fb`'s: **refused `diverged` at position 2**, the `asked` element; `86440fb`'s checkpoint on this driver: resumed, no time; each on its own: resumed. ADR 0130 consequence 2 |
 | **`npm run gate:item`** on the final tree, held still | RAN — **EXIT 0**, one command, 19:29:05 → 19:55:37 (`w208/gateitem.log`) | lint; typecheck; every check, `check:docs` 58 / **52 `run`**, C4 45; L1-L5 **97 files / 2,216 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; selftests **10/10 ok** (1,131.5 s wall, 9 lanes), `check:register:selftest` left out by `--without`. Written after it: this Record and the Status line — `check:register`, `check:markdown`, `check:spec`, `check:budget`, `check:wiring` and `check:docs` re-run on them |
 
 **Outputs — what was actually built.**
@@ -152,4 +152,4 @@ join (Q4), no matching decision edge (Q10), a nested fan-out (Q6) — not applic
 
 **The readers' overlap.** **ONE** — the no-consumer-schema road (conformity NIT 3: a throw there reads `'threw'`; adequacy SHOULD: `unchecked` there carrying no `cause` was untested). Every other finding was one reader's alone.
 
-**Leftover worktrees.** `C:/tmp-w208/base`, `m`, `rc`, `ra` (git worktrees at `e52348d`; `base` clean, the other three with the diff applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w208/rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.
+**Leftover worktrees.** `C:/tmp-w208/base`, `m`, `rc`, `ra` (git worktrees at `86440fb`; `base` clean, the other three with the diff applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w208/rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.

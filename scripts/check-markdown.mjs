@@ -393,7 +393,7 @@ export function resolveLinks(files, root, { absent = [], rewrite = null, cache =
  * whole tree passes exactly when it measures more than each of them, and a probe tree fails exactly
  * because it IS one of them.
  *
- * **Why no literal can do this, measured.** On `fb64b63` the literals were 362 / 120 / 72 and the
+ * **Why no literal can do this, measured.** On `ebca55d` the literals were 362 / 120 / 72 and the
  * windows `(166, 619]`, `(119, 150]`, `(70, 78]`: ONE ordinary linking document outside the removed
  * directories made probe 2 report `wanted [M1,M3,M4,M5], got [M1,M3,M5]` with `check:markdown` green —
  * Q142 for the thirteenth time. A floor derived from the probe tree rises with every ordinary document
@@ -517,7 +517,7 @@ for (const d of r.deadAnchors) fail('M2', d);
 // `deriveFloors` above carry why, and what it costs. Each floor is the largest measure among the probe
 // trees that must fire it, plus 1: the walk must measure MORE than each tree that removes the floor's
 // subject. **The literals they replace, and every retune of them, are in `git`**: `git show
-// fb64b63:scripts/check-markdown.mjs` has 362 / 120 / 72 and the measured history from P9's
+// ebca55d:scripts/check-markdown.mjs` has 362 / 120 / 72 and the measured history from P9's
 // declaration to W120 — [Q142](../doc/questions/q142.md)'s window, met twelve times and retuned each
 // time, which [ADR 0076](../doc/decisions/0076-a-vacuity-floor-counts-what-a-prose-cut-cannot-move.md)
 // and [ADR 0078](../doc/decisions/0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md)
@@ -597,7 +597,7 @@ for (const path of probeTreePaths()) {
 // COMMITTED deletion is beyond `R4` too — its ceiling is in `check-register.mjs` and Q493.
 // [ADR 0079](../doc/decisions/0079-a-register-is-files-with-front-matter-and-its-index-is-derived.md)
 // amends [ADR 0078](../doc/decisions/0078-a-vacuity-floors-window-is-a-property-of-the-probe-suite.md),
-// which added them; `git show 4eac349:scripts/check-markdown.mjs` has their text. *They had no probe
+// which added them; `git show b2d68c2:scripts/check-markdown.mjs` has their text. *They had no probe
 // in `check-markdown-selftest.mjs` to take with them — zero occurrences of either id there.*
 
 const checks = [

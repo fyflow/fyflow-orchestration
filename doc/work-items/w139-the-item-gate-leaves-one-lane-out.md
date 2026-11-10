@@ -1,6 +1,6 @@
 # W139 — `gate:item`: an item's confirming gate is `gate:full` less the register lane
 
-**Status:** done 2026-10-07 — see the Record. Declared on `ac84c1e`, before any file under `Owns` was edited.
+**Status:** done 2026-10-07 — see the Record. Declared on `9d02bc7`, before any file under `Owns` was edited.
 **Plan:** none — an item outside any plan, on W98's precedent. Its source is P30's Retro section 10,
 *the maintainer's answer, 2026-10-07: proposal A*, which names this mechanism and the five files it
 owns; `doc/workflow.md` v0.29 says the rule is *in force when the `gate:item` mechanism lands*. It
@@ -27,7 +27,7 @@ Owns:       package.json (a gate:item entry, and nothing else in it)
             this file
 Inputs:     P30's Retro sections 1, 3 and 10 (777.2 s without the lane; ~915 s estimated with the
             ladder's ~138 s, against 41 min); doc/workflow.md v0.29 and section 5 rules 7 and 8;
-            scripts/run-selftests.mjs and check-wiring.mjs G4/G5 as they stand at ac84c1e.
+            scripts/run-selftests.mjs and check-wiring.mjs G4/G5 as they stand at 9d02bc7.
 Outputs:    (1) `node scripts/run-selftests.mjs --without <entry>`, repeatable: refuses a missing
                 value, an entry that is not one of the manifest's `:selftest` entries, a duplicate,
                 any argument it does not know, and a set that leaves nothing to run; `--plan` prints
@@ -68,7 +68,7 @@ Reserves:   Q548-Q552; ADR 0087 only if a stop-and-ask answer needs one
 
 ## What the declaration step measured before anything was edited
 
-*On `ac84c1e`, node 24.20.0, in `dev-dist/w139-1638/`.*
+*On `9d02bc7`, node 24.20.0, in `dev-dist/w139-1638/`.*
 
 | # | measured | result |
 |---|---|---|
@@ -79,8 +79,8 @@ Reserves:   Q548-Q552; ADR 0087 only if a stop-and-ask answer needs one
 
 ## Record
 
-*Built and committed 2026-10-07: `bc97922` (declaration), `3fabab0` (the mechanism), `b67db6d` (the
-documents), `f0c5ae6` (the conformity reader's finding 1). Scratch `dev-dist/w139-1638/`. Every rung
+*Built and committed 2026-10-07: `f697e77` (declaration), `1d7ccc9` (the mechanism), `aa73a38` (the
+documents), `c636a40` (the conformity reader's finding 1). Scratch `dev-dist/w139-1638/`. Every rung
 below was RUN with its output redirected and `$?` read in the same command.*
 
 **Gate — what ran.**
@@ -92,10 +92,10 @@ below was RUN with its output redirected and `$?` read in the same command.*
 | `check:wiring:selftest`, alone | RAN, EXIT 0 — 56/56 probes, 24/24 META, 6/6 SELF | its first run was EXIT 1 on one META entry: *What broke* 1 |
 | `check:budget` | RAN, EXIT 0 | `doc/workflow.md` headroom 649 → 666 bytes (the replacement is shorter); `CLAUDE.md` 1933 → 1544 |
 | `check:markdown`, `check:register` | RAN, EXIT 0 | after the declaration and after the document edits |
-| **`npm run gate:item`, measured** | **RAN, EXIT 0, 985 s (16 m 25 s)** | against the retro's ~915 s and 41 min. `selftests` 845.8 s wall, 10/10 completed, *1 left out: check:register:selftest*. **The binding lane is now `check:wiring:selftest` at 832.5 s**, 27 s over `check:docs:selftest` (805.7 s): W139's own probes grew it from ~615 s, which is the ~70 s the estimate did not have. Run on `b67db6d`, one probe short of the final tree |
+| **`npm run gate:item`, measured** | **RAN, EXIT 0, 985 s (16 m 25 s)** | against the retro's ~915 s and 41 min. `selftests` 845.8 s wall, 10/10 completed, *1 left out: check:register:selftest*. **The binding lane is now `check:wiring:selftest` at 832.5 s**, 27 s over `check:docs:selftest` (805.7 s): W139's own probes grew it from ~615 s, which is the ~70 s the estimate did not have. Run on `aa73a38`, one probe short of the final tree |
 | conformity reader | RAN, fresh context, one reader | seven findings, below |
 | rule 8 | RAN, two passes | below |
-| **`npm run gate:full`, CONFIRMING** | **RAN, EXIT 0, 2654 s (44 m 14 s)**, zero lines beginning `FAIL` | on `f0c5ae6`, digest `0bb36524ba8dbd15` over 897 files, IDENTICAL before and after, nothing touched while it ran. `selftests` 11/11, 2515.8 s wall, `check:register:selftest` 2502.4 s the wall; `check:wiring:selftest` 57/57 probes. This item builds the mechanism, so it ran the whole gate |
+| **`npm run gate:full`, CONFIRMING** | **RAN, EXIT 0, 2654 s (44 m 14 s)**, zero lines beginning `FAIL` | on `c636a40`, digest `0bb36524ba8dbd15` over 897 files, IDENTICAL before and after, nothing touched while it ran. `selftests` 11/11, 2515.8 s wall, `check:register:selftest` 2502.4 s the wall; `check:wiring:selftest` 57/57 probes. This item builds the mechanism, so it ran the whole gate |
 
 **Outputs — what was actually built.**
 
@@ -107,7 +107,7 @@ below was RUN with its output redirected and `$?` read in the same command.*
 | (4) `CLAUDE.md`, `doc/workflow.md`, the glossary | yes | nothing: prose, declared survivor S7 |
 | (5) the measurement | yes, the row above | nothing: a number |
 
-**Exceptions, reconciled to `git status --short` and `git diff --name-only ac84c1e`.** Nine files: the
+**Exceptions, reconciled to `git status --short` and `git diff --name-only 9d02bc7`.** Nine files: the
 six of `Owns`, this file, `doc/glossary.md` and the P30 plan file (its dated Retro line), the last two
 declared NEEDED and used. The four UNNEEDED rows are untouched. **No late exception.**
 

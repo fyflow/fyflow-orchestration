@@ -1,6 +1,6 @@
 # W152 — The release path: npm and JSR each carry the library, its types, its licence and `AGENTS.md`
 
-**Status:** done 2026-10-10 — see the Record. Declared on `dbc8996` (committed `cd2bc26`), before any file under `Owns` was edited.
+**Status:** done 2026-10-10 — see the Record. Declared on `4142b96` (committed `19775ab`), before any file under `Owns` was edited.
 **Plan:** none — an item outside any plan, on W98's, W139's, W150's and W151's precedent. Its source is
 the maintainer's release-readiness review of 2026-10-10 and the maintainer's direction that
 **`AGENTS.md` must be part of the released package**, on both registries.
@@ -11,7 +11,7 @@ the maintainer's release-readiness review of 2026-10-10 and the maintainer's dir
 who installs the packed artifact get a library that imports, typechecks and runs, with its licence
 and its reference beside it?*
 
-## Why, measured on `dbc8996`
+## Why, measured on `4142b96`
 
 Neither registry has ever carried the package: `npm view fyflow-orchestration` and
 `https://jsr.io/@fyflow/orchestration/meta.json` both return 404. So 0.7.0 would be the first release.
@@ -24,7 +24,7 @@ Neither registry has ever carried the package: `npm view fyflow-orchestration` a
 | **the README says it is not published** | `README.md:20-26`: *"Not published yet"*, *"Nothing is on a registry yet, so this does not work today"* | false the moment the release happens |
 | **npm metadata missing** | `package.json` has no `repository`, `homepage`, `bugs` or `keywords` | discoverability, and `repository` is required for npm provenance. `fyflow-scheduler`'s manifest carries all four |
 | JSR dry run | `deno publish --dry-run --allow-dirty` EXIT 0. The allowlist matches the tracked source exactly. Three `unanalyzable-dynamic-import` warnings, from `src/scheduler/envelope-worker.ts:306` and `src/definition/wiring.ts:806`, which import a consumer-supplied URL by design | ready, apart from `LICENSE` and `AGENTS.md` |
-| last `gate:full` | `c99e930` (W146). W150 and W151 changed `scripts/` and `src/` since, confirmed by `gate:item` and `gate` | the release tree owes one `gate:full` |
+| last `gate:full` | `322a980` (W146). W150 and W151 changed `scripts/` and `src/` since, confirmed by `gate:item` and `gate` | the release tree owes one `gate:full` |
 
 ```
 Spec:       spec/runtime-targets.md section 1 (what each target is published as and what ships:
@@ -49,7 +49,7 @@ Owns:       package.json (scripts build/prepack, files, repository, homepage, bu
             LICENSE (new), README.md (status, install and licence sections), AGENTS.md (only if a
             sentence states that it does not ship, or states an install line that becomes false),
             this file
-Inputs:     the tree at dbc8996; esbuild and typescript (devDependencies); fyflow-scheduler@0.5.2
+Inputs:     the tree at 4142b96; esbuild and typescript (devDependencies); fyflow-scheduler@0.5.2
             and jsonata@2.2.2 (kept EXTERNAL to the bundles); node_modules/fyflow-scheduler's
             package.json, files and LICENSE as the reference shape
 Outputs:    (1) `npm run build` produces dist/node, dist/browser and dist/types for all three entry
@@ -205,23 +205,23 @@ text, as the header says.*
 
 | command | EXIT | reading |
 |---|---|---|
-| `npm run gate` on `5f32a27` (`gate1.log`) | **0** | the ladder once the build landed. The conformity reader re-ran it on `333d0e6` and got EXIT 0, 2487 assertions, 0 failed |
+| `npm run gate` on `8cad2e0` (`gate1.log`) | **0** | the ladder once the build landed. The conformity reader re-ran it on `1c5c1c0` and got EXIT 0, 2487 assertions, 0 failed |
 | `npm run build`, through `prepack` | 0 | 4 files per platform (three entries and one shared chunk) and 25 declaration files. All 9 paths package.json names exist |
 | `npm pack --dry-run` (`pack-after.log`) | 0 | 37 files (the listing is below) |
 | `deno publish --dry-run --allow-dirty` (`jsr-after.log`) | 0 | 27 files. The only warnings are the three declared `unanalyzable-dynamic-import` ones |
 | `npm run pack:smoke` (`pack3.log`) | 0 | P1-P11 all ok |
 | `deno task jsr:smoke` / `deno task jsr:smoke:test` | 0 / 0 | J1-J6 ok / 10 of 10 tests |
 | actionlint v1.7.12 on the three workflows (`dev-dist/w152-33578/wf-check.mjs`, W1) | 0 | actionlint was not on the PATH, so it was run as `go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck= -pyflakes=`. **No `run:` step names `gate:full`** (W2). Comments name it in order to say why it is not run |
-| `npm run gate:full` on `a7932d2` (`full.log`) | **1** | the ladder passed (2487 assertions, 0 failed). **One lane was red: `check:markdown:selftest`, 16 of 44 probes.** See *What broke* |
+| `npm run gate:full` on `636083f` (`full.log`) | **1** | the ladder passed (2487 assertions, 0 failed). **One lane was red: `check:markdown:selftest`, 16 of 44 probes.** See *What broke* |
 | `npm run check:markdown:selftest`, alone, after the fix | 0 | the red lane re-run by itself, as workflow section 4 says |
-| `npm run gate:full` on `9f7ace3` (`full2.log`) | **0** | **the confirming gate for the release tree, Outputs (8).** The tree was held still from start to EXIT. Node, Deno and Chromium ran 1593 assertions each. L6 ran 2487 assertions with 0 failed, in Node and in Deno. All 11 self-test lanes were ok: 2310.5 s wall over 10 lanes. Only this Record's own lines changed after it. On the tree with them, `check:markdown`, `check:register` and `check:budget` each EXIT 0, and so does `npm run gate` (`gate-final.log`) |
+| `npm run gate:full` on `019f713` (`full2.log`) | **0** | **the confirming gate for the release tree, Outputs (8).** The tree was held still from start to EXIT. Node, Deno and Chromium ran 1593 assertions each. L6 ran 2487 assertions with 0 failed, in Node and in Deno. All 11 self-test lanes were ok: 2310.5 s wall over 10 lanes. Only this Record's own lines changed after it. On the tree with them, `check:markdown`, `check:register` and `check:budget` each EXIT 0, and so does `npm run gate` (`gate-final.log`) |
 
 L7 did not run: no person looked at a trace. **`pack:smoke` is not in the gate**, as Out says. It
 runs here, in `publish.yml`, and by the release step.
 
 ### The listings, before and after
 
-| | before, on `dbc8996`+ (`pack-before.log`, `jsr-before.log`) | after, on `a7932d2` |
+| | before, on `4142b96`+ (`pack-before.log`, `jsr-before.log`) | after, on `636083f` |
 |---|---|---|
 | `npm pack --dry-run` | **2 files**: `README.md`, `package.json`. 8.2 kB packed | **37 files**: `AGENTS.md`, `LICENSE`, `README.md`, `package.json`, `dist/node/{index,scheduler/index,jsonata/index}.js` plus one `chunks/` file, the same four under `dist/browser/`, and 25 under `dist/types/` (the `src/` tree's declarations plus `index.d.ts`, `scheduler/index.d.ts` and `jsonata/index.d.ts`). 350.7 kB packed, 1.2 MB unpacked |
 | `deno publish --dry-run` | 25 files: `README.md`, `deno.json`, `index.ts` and 22 `src/` files | **27 files**: the same, plus `AGENTS.md` and `LICENSE` |
@@ -243,7 +243,7 @@ runs here, in `publish.yml`, and by the release step.
 | (11) | `.github/workflows/publish.yml`: **v\* tag only**. It checks the versions and the tag (and refuses a run that is not a tag push), `npm ci`, chromium, `npm run gate`, the parser tests, `jsr:smoke`, `pack:smoke`, then `deno publish` (OIDC). The npm job `needs: jsr`: it skips a version already on npm, runs `npm pack --dry-run`, then `npm publish --provenance --access public` | R11a, R11d, R11e. **R11b (`needs: jsr` removed) and R11c (the version check made a no-op) are declared survivors**: no rung reads a workflow's job graph or a step's body. They were run against the workflow rung and came back EXIT 0 |
 | (12) | `gate.yml`'s step is `npm run gate`, and its comments say why; `ci.yml` on every push runs the parser tests, the JSR dry run and `jsr:smoke`; ADR 0070 has a dated note | R12a. **R12b (ci.yml loses jsr:smoke) is a declared survivor**, for the same reason |
 
-### Exceptions — reconciled to `git diff --name-only b541d8d..HEAD`, path by path
+### Exceptions — reconciled to `git diff --name-only a7a045b..HEAD`, path by path
 
 Every changed path is in `Owns` or in the record step: the three workflows, `LICENSE`, `README.md`,
 `deno.json`, `package.json`, `scripts/{build,pack-smoke}.mjs`, `scripts/{jsr-smoke,publish-output,publish-output_test}.ts`,
@@ -253,7 +253,7 @@ Every changed path is in `Owns` or in the record step: the three workflows, `LIC
 
 ### Rule 8 — `node scripts/pack-smoke.mjs --provoke --probes dev-dist/w152-33578/rule8-probes.mjs`
 
-**Final pass, on `a7932d2`: 49 of 49 as declared, with the digest `c7e1ebcda901` equal before and after
+**Final pass, on `636083f`: 49 of 49 as declared, with the digest `c7e1ebcda901` equal before and after
 (`rule8-final2.log`).**
 - **The set:** 21 checked-in probes (C0, K1-K6 and their compound variants, J0, JA, JL, JE, JS, GX, GW) and 28 in the item's file (R*, W0).
 - **The harness:**
@@ -273,7 +273,7 @@ Every changed path is in `Owns` or in the record step: the three workflows, `LIC
   - **R11b, R11c, R12b** (workflow structure).
   Each was run against the rung its reason names.
 
-Earlier passes were 45/47 on `333d0e6` and 46/49 on `00a9f8d`. Each miss was a declaration fixed to what the harness saw, not a probe weakened:
+Earlier passes were 45/47 on `1c5c1c0` and 46/49 on `1facaa0`. Each miss was a declaration fixed to what the harness saw, not a probe weakened:
 - **R4d** co-fired P6 because the consumer file hard-coded `m2`; it is now derived from ENTRIES.
 - **R11c** used `if: false`, which actionlint itself refuses.
 - **K5b, R1a, R1b**: once P11 existed it co-fires, correctly.
@@ -283,7 +283,7 @@ Earlier passes were 45/47 on `333d0e6` and 46/49 on `00a9f8d`. Each miss was a d
 | # | finding | what was done |
 |---|---|---|
 | 1 | the `JE` premise in Outputs (10)/Tests is false: envelope-worker.ts is in the module graph, so the dry run itself refuses its exclusion | **measured as the reader said** (JE: dry run EXIT 1). The declaration carries the correction under its amendment. JA and JL are the cases only jsr:smoke sees |
-| 2 | gate.yml and publish.yml cite an ADR 0070 dated note that did not exist | the note was written (`a252b3e`) |
+| 2 | gate.yml and publish.yml cite an ADR 0070 dated note that did not exist | the note was written (`97717c6`) |
 | 3 | W152 made four sentences false: AGENTS.md:2654, bootstrap.ts:53-56, RT-R12's tail, Q261's title for the npm half | stop-and-ask. **The maintainer answered (b), 2026-10-10: leave them and raise questions.** **Q580** carries the three envelope-worker sentences. **AGENTS.md therefore ships on both registries with a sentence that is false for the npm dist (*"like the envelope worker itself — has to be served beside your bundle"*), by the maintainer's choice, and Q580 is the question that carries it.** Q261 gains a dated note: its npm half is settled, and it stays deferred for source bundles |
 | 4 | nothing ran the browser branch (the Blob URL) | **P11**: dist/browser in Chromium, threaded and inline. Provoked by K5d |
 | 5 | gate:full not yet run; rule 8 at 45/47 | done; see Gate and Rule 8 |

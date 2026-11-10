@@ -1,6 +1,6 @@
 # W169 — a built-in keyed group held resident is refused at `createRuntime`, and P37's six stale sites
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN, no defect, their items acted on (A1-A3 cases added, C1 the message held to one hand-written literal, C2-C7 docs and the record step); Q619 resolved; no question raised; no exception. Declared 2026-10-16 on `982a190`; the declaration step RUN the same day in a byte copy (M1-M4 below); P34's FIRST item
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN, no defect, their items acted on (A1-A3 cases added, C1 the message held to one hand-written literal, C2-C7 docs and the record step); Q619 resolved; no question raised; no exception. Declared 2026-10-16 on `f32bc1f`; the declaration step RUN the same day in a byte copy (M1-M4 below); P34's FIRST item
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its FIRST item, carrying the two hand-ons of P37's retro
 that are not run control: [Q619](../questions/q619.md) option B (P37 retro (i), P34 decision 12) and the six stale sites
@@ -57,7 +57,7 @@ Outputs:    (1) registry.ts: `resolveRegistry` refuses, AFTER every pool is deri
             (7) AGENTS.md: the refusal where a type's `pool` and `residentGroups` are described (section 13), where FD-R6's
                 reach is described (section 12, `:2098-2110`), and `fromFindings` beside `.rules` (section 9).
             (8) L1 tests (below).
-Depends on: nothing (P34's first item; P37 done at 985efe6)
+Depends on: nothing (P34's first item; P37 done at dca9414)
 Blocks:     W170
 Tests:      L1 test/definition/registry.test.ts — INSIDE the refusal suite's DerivationRefused test (see Owns): a built-in keyed group
             named resident by (a) a DOCUMENT type's `pool`, (b) a named instance's own `pool` merged over its type's,
@@ -91,7 +91,7 @@ Gate:       `npm run gate` before the readers (P34 sentence C); then the conform
 Reserves:   Q635-Q637 (P34's W169 row); no ADR (P34 reserves none for this row)
 ```
 
-*Reserves: `npm run state` on `982a190` reads the next free ids as **P38, W169, Q635, ADR 0101** from the tree and the same
+*Reserves: `npm run state` on `f32bc1f` reads the next free ids as **P38, W169, Q635, ADR 0101** from the tree and the same
 W169, Q635, ADR 0101 from the ledger (P37's Retro) — they AGREE. P34's own reservation gives this item Q635-Q637.*
 
 ## Scope
@@ -114,13 +114,13 @@ W169, Q635, ADR 0101 from the ledger (P37's Retro) — they AGREE. P34's own res
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `982a190` (`git archive` into `C:/tmp-w169/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `f32bc1f` (`git archive` into `C:/tmp-w169/m`,
 `node_modules` copied, never linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
 |---|---|---|
 | M1 | the baseline, in the copy | `npm run gate` **EXIT 0**: `lint` 146 files; `check:spec` 7 documents / 75 examples / 135 rules; `check:docs` 43 snippets (37 run, 6 check); L1-L5 **62 files / 1763 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2664 assertions / 176 real runs**, 0 failed, in node and deno |
-| M2 | **P34 prediction 1, measured** — the change against the existing tests | exactly ONE existing assertion moved: fact 11's resident control in `test/scheduler/runtime.test.ts` (`rr.check(…)` equal `[]` -> `createRuntime` throwing `DerivationRefused` at `Holds`), flipped in the same diff and bound (K1 turns it red). **The message refactor moved none** — the four existing *to the byte* assertions (`runtime.test.ts` `:605`, `:724`, `:3130`, `:3169` at `982a190`) pass unchanged: the two roads already built one text |
+| M2 | **P34 prediction 1, measured** — the change against the existing tests | exactly ONE existing assertion moved: fact 11's resident control in `test/scheduler/runtime.test.ts` (`rr.check(…)` equal `[]` -> `createRuntime` throwing `DerivationRefused` at `Holds`), flipped in the same diff and bound (K1 turns it red). **The message refactor moved none** — the four existing *to the byte* assertions (`runtime.test.ts` `:605`, `:724`, `:3130`, `:3169` at `f32bc1f`) pass unchanged: the two roads already built one text |
 | M3 | the author's provocations (rule 8, written to the RULE — Q619 option B's clauses and fact 12's one-function clause; ONE clause per mutation, sentence E; harness `C:/tmp-w169/mutate.mjs`, NOT in the tree, run in the byte copy `C:/tmp-w169/m`; each anchor asserted to occur once and to change its file, each file restored from its FIRST snapshot and digest-compared; node 24 asserted; graded on the runner's own `FAIL` lines over `registry.test` and `runtime.test`) | the no-edit CONTROL clean in both; **22 of 22 KILLED**, none compound, none declared equivalent. The refusal: K1 never fires; K2 the wrong built-in (`RateLimitGroup`); K3 the `{ key: cost }` record read as empty; K4 `groups` read too (the `FD-R6` road refused); K5 named instances skipped; K6 the default/instance naming swapped; K7 `at` the type not the pool key; K8-K12 the message losing the group, `residentGroups`, `Q619`, the built-in type; K21 a CODE group type matched by name (`/Keyed/`); K22 every resident group refused but a `RateLimitGroup`. The message: K13 `<document>` -> `null`; K14 `; ` -> `, `; K15 rules unsorted and repeated; K16 the flow id unquoted; K17 the runtime road one finding short; K18 the driver road one finding short; K19 the runtime road handing `FD-R6` to `InvalidDefinition`; K20 the runtime road naming another flow id. **Spec and `AGENTS.md` prose are bound by no test** — no row of either moves a table a test compares (the refusal table is compared by CLASS name, and no class is added) |
 | M4 | the whole ladder on the REAL tree, held still | first run **`GATE EXIT=1`**: one failure, `l4-corpus.test.ts`'s *W110's two suites still REGISTER the cases they declare* — the refusal suite counted **16** against **15**, because the registry cases had been written as a NEW `test`. That file is outside the row, so the cases were folded into the existing `DerivationRefused` test (Owns) rather than the count widened; K1-K12, K21, K22 re-run after the fold, all still KILLED. Second run **`GATE EXIT=0`**: `lint` 146 files; `check:spec` 7 / 75 / **135 rules** (unmoved); `check:docs` 43 snippets, 37 run, 6 check (unmoved — `RUN_FLOOR` 37, `scripts/check-docs.mjs` not edited); L1-L5 **62 files / 1765 cases** in node 24.20.0, deno 2.9.6 and chromium (+2: the W163 suite's two W169 cases); L6 **2664 / 176**, 0 failed, in node and deno — UNMOVED, so `examples/README.md`'s `X10` copies do not move (P34's D′ paragraph lists W169 among the items moving them; it does not). firefox and webkit NOT RUN |
 

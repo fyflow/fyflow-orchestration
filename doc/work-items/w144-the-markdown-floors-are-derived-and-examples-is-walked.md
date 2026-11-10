@@ -1,9 +1,9 @@
 # W144 — check-markdown's M3-M5 floors are derived from the probe trees, and examples/ is walked (Q142, then Q337)
 
-**Status:** done — declared 2026-10-08 on `fb64b63`, the fifth item of P31; built, the reader and the fix round done, `gate:item` EXIT 0 on `8bbb662`, the three asks answered and the record step done, 2026-10-08
+**Status:** done — declared 2026-10-08 on `ebca55d`, the fifth item of P31; built, the reader and the fix round done, `gate:item` EXIT 0 on `f675689`, the three asks answered and the record step done, 2026-10-08
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
-*This file carries NO relative link, deliberately* — Q142's own mechanism: on `fb64b63` ONE more linking
+*This file carries NO relative link, deliberately* — Q142's own mechanism: on `ebca55d` ONE more linking
 document outside doc/decisions, doc/plans and doc/questions turns `check:markdown:selftest` RED (measured
 below). Ids and paths are bare text, as in W140-W145's files.
 
@@ -16,7 +16,7 @@ Spec:       none changes. P31 decision 2 fixes Q142's direction — check-markdo
             either is a stop (ADR 0089 is free)
 Owns:       scripts/check-markdown.mjs, scripts/check-markdown-selftest.mjs (P31's W144 row);
             examples/README.md ONLY where the walk finds a broken link; this file
-Inputs:     the tree at fb64b63 (W140, W142, W141, W145 done); Q142 and Q337's files; ADR 0076,
+Inputs:     the tree at ebca55d (W140, W142, W141, W145 done); Q142 and Q337's files; ADR 0076,
             ADR 0078 and ADR 0080 consequence 4 (M5's 28 -> 72); the floors' own comment history in
             check-markdown.mjs; W123's and P29's M4 measurement (the precedent for how the window is
             shown)
@@ -42,7 +42,7 @@ Outputs:    (1) the measurement, BEFORE any edit: M3, M4 and M5's literals, what
                 asserts that M10 fired; and each tree probe's fixture counts are held to the
                 in-memory tree the floor is derived from (rule 8's d6)
             (4) prediction 5, shown: N ordinary linking documents added to a COPY of the tree, and the
-                check and the self-test's probe pass stay green, where on fb64b63 one document turns
+                check and the self-test's probe pass stay green, where on ebca55d one document turns
                 the probe pass RED
             (5) examples/ in the walk: the check reads examples/README.md (its document count moves by
                 one), and a broken link there is RED — provoked by a checked-in probe
@@ -71,7 +71,7 @@ W144 row. **The drag files, checked up front:**
 | `scripts/check-spec-selftest.mjs` | it reads check-markdown-selftest.mjs for `check: 'C5'` and relocates check-spec's `from './check-markdown.mjs'`; both literals are kept |
 | `scripts/check-wiring.mjs` | its G6 table reads the walk's skip line (`name === 'dev-dist'`) in check-markdown.mjs and two probe literals in the self-test; all three are kept byte for byte, and no new statement names the scratch directory |
 | `scripts/check-docs.mjs` (X10), `scripts/check-scheduler.mjs` | they read examples/README.md's L6-count sentences and its pin sentence; an edit to that file for a broken link leaves those sentences alone |
-| `doc/work-items/TEMPLATE.md` | its italic note says a real link there closes M6's gap in the second removes probe's tree; M6 and that probe tree are kept. *Corrected at the fix round (the conformity reader's finding 10)*: the note was ALREADY false on fb64b63 — that tree's gap was 15, not 0 — so it does not "stay true"; W144 does not make it falser |
+| `doc/work-items/TEMPLATE.md` | its italic note says a real link there closes M6's gap in the second removes probe's tree; M6 and that probe tree are kept. *Corrected at the fix round (the conformity reader's finding 10)*: the note was ALREADY false on ebca55d — that tree's gap was 15, not 0 — so it does not "stay true"; W144 does not make it falser |
 | `package.json` | `check:markdown` and `check:markdown:selftest` are not renamed; nothing new is wired (P31 Out) |
 | documents citing the literals 362, 120 or 72 | dated history stays; a sentence that is FALSE once the floors are derived is un-written at the record step only where it sits in a record-step file, and asked otherwise |
 
@@ -82,7 +82,7 @@ decision 7), and its YES is written here before the edit.
 
 **In**
 
-1. **Measure first**, output (1), on `fb64b63`, in staged copies under dev-dist/w144-16309/.
+1. **Measure first**, output (1), on `ebca55d`, in staged copies under dev-dist/w144-16309/.
 2. **Q142**, outputs (2)-(4). If no derivation from the probe trees is stable — it still lets ordinary
    documents close the window, or it makes a floor vacuous — this is P31's stop-and-ask (c), and it goes up
    with the options before any edit to the floors. **It went up on 2026-10-08 and the maintainer answered
@@ -114,7 +114,7 @@ decision 7), and its YES is written here before the edit.
 
 ## Record
 
-*Filled in 2026-10-08 on `8bbb662`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-08 on `f675689`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w144-16309/` (this item's shell pid): every log and script named below. Node v24.20.0 by
 `fnm use 24` in every shell; every rung redirected and its EXIT read in the same command, never piped. Ids
 and paths here are bare text, as the header says.
@@ -123,7 +123,7 @@ and paths here are bare text, as the header says.
 
 | clause | verdict | notes |
 |---|---|---|
-| `npm run gate:item > dev-dist/w144-16309/item.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `8bbb662`, after the reader's fixes and rule 8's pass 4; `git status --short` empty before; 12:23 to 12:47 |
+| `npm run gate:item > dev-dist/w144-16309/item.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `f675689`, after the reader's fixes and rule 8's pass 4; `git status --short` empty before; 12:23 to 12:47 |
 | — L0-L5 | RAN, 0 | **1580** cases in node 24.20.0, deno 2.9.6 and chromium (`all passed (parity with node: 1580)`): unchanged |
 | — L6 | RAN, 0 | **164** real runs in node and deno: unchanged |
 | — self-tests | RAN, 0 | 10/10 ok, 9 lanes, `check:register:selftest` left out (P31 decision 4), **1316.1 s wall**; `check:markdown:selftest` **1302.6 s** in that arrangement — now the longest lane |
@@ -135,7 +135,7 @@ L7 did not run. firefox and webkit did not run.
 
 ### The floors, before and after
 
-| | before (`fb64b63`) | after (`8bbb662`) |
+| | before (`ebca55d`) | after (`f675689`) |
 |---|---|---|
 | `M3` | literal **362**, files | derived: **169** = the "decisions removed" tree's 168 files + 1 |
 | `M4` | literal **120**, documents carrying a link | derived: **121** = the "decisions and plans removed" tree's 120 + 1 |
@@ -157,7 +157,7 @@ prints. **No literal is left in M3-M5.**
 `window.mjs N`: a copy of the tree with N ordinary linking documents (each one relative link and one
 anchored link) added under doc/work-items, then the check and the self-test's whole probe pass there.
 
-| N | before (`fb64b63`) | after |
+| N | before (`ebca55d`) | after |
 |---|---|---|
 | 0 | check EXIT 0; probe pass 42/42 | — |
 | **1** | check EXIT 0; probe pass **RED**: `wanted [M1,M3,M4,M5], got [M1,M3,M5]`, 38/42 | check EXIT 0; 44/44 |
@@ -180,7 +180,7 @@ sources).
 
 ### Q337 (output 5)
 
-examples/README.md carried **91** relative links on `fb64b63`, **none broken** (0 dead links, 0 dead anchors
+examples/README.md carried **91** relative links on `ebca55d`, **none broken** (0 dead links, 0 dead anchors
 with examples/ in the walk), so examples/README.md was NOT edited. M9's first run found it as the ONE markdown
 file the walk linked to and did not read (two links from AGENTS.md). The probe *a dead link in
 examples/README.md* is caught as `{M1}`; the META entry *examples/ dropped from the walk* is graded `corpus`
@@ -201,7 +201,7 @@ its L6-count and pin sentences — what no check read was its links.
 
 ### Exceptions, reconciled to `git status --short` to the path
 
-`git diff --name-only fb64b63` at `8bbb662`: four paths. **Owns, 3**: scripts/check-markdown.mjs,
+`git diff --name-only ebca55d` at `f675689`: four paths. **Owns, 3**: scripts/check-markdown.mjs,
 scripts/check-markdown-selftest.mjs and this file (examples/README.md, Owns only for a broken link, did not
 move). **Exceptions, 2**, both asked under rule 6 and answered YES before the edit (the header):
 doc/work-items/TEMPLATE.md and scripts/check-spec-selftest.mjs. **Record step, 6**: P31's plan (its
@@ -222,12 +222,12 @@ verdict and the substrings its failure lines must carry. Run types: `check`, `pr
 probe pass), `full` (the whole self-test) and `single` (one META child, as the parent spawns it).
 
 ```
-pass 1        22 probes: 19 as declared, 3 against declaration   digest c338b58f7b1667f2 IDENTICAL  (6cee7a3)
-pass 2         9 probes:  7 as declared, 2 against declaration   digest c338b58f7b1667f2 IDENTICAL  (6cee7a3)
-pass 3         4 probes:  4 as declared                          digest c338b58f7b1667f2 IDENTICAL  (6cee7a3)
-pass 4        30 probes: 30 as declared                          digest db52b927f135957b IDENTICAL  (8bbb662)
-pass 4 full    7 probes:  6 as declared, 1 against declaration   digest db52b927f135957b IDENTICAL  (8bbb662)
-pass 5         2 probes:  1 as declared, 1 against declaration   digest db52b927f135957b IDENTICAL  (8bbb662)
+pass 1        22 probes: 19 as declared, 3 against declaration   digest c338b58f7b1667f2 IDENTICAL  (039e0c1)
+pass 2         9 probes:  7 as declared, 2 against declaration   digest c338b58f7b1667f2 IDENTICAL  (039e0c1)
+pass 3         4 probes:  4 as declared                          digest c338b58f7b1667f2 IDENTICAL  (039e0c1)
+pass 4        30 probes: 30 as declared                          digest db52b927f135957b IDENTICAL  (f675689)
+pass 4 full    7 probes:  6 as declared, 1 against declaration   digest db52b927f135957b IDENTICAL  (f675689)
+pass 5         2 probes:  1 as declared, 1 against declaration   digest db52b927f135957b IDENTICAL  (f675689)
 ```
 
 **Every probe against its declaration was the declaration's**, each re-declared from the line seen: d2 (the
@@ -241,7 +241,7 @@ tree) because the META entries pinned to that definition line matched nothing (r
 
 **One was the code's: `d6`** — links into a removed path counted ALIVE in memory was green at pass 1 (the
 in-memory tree read 73 anchored where the fixture holds 56; the floor moved 71 → 74 and no verdict changed,
-measured by a second route, `d6.mjs`). **Fixed at `9948771`**: the check prints each tree's in-memory measure,
+measured by a second route, `d6.mjs`). **Fixed at `610ae2e`**: the check prints each tree's in-memory measure,
 the self-test holds each tree probe's fixture to it, and the META entry *counted ALIVE* is graded `measured`.
 The reader's exact edits are pass 4's r2, r3, r3g, r4, r4g, s4 and r7, and pass 5's r7b.
 
@@ -254,7 +254,7 @@ each a guard removed together with its case, green by design: the observer named
 **S4** (the reader's finding 7) — the definition's CONTENT has no clause of its own; option (A) accepts it,
 and r7 and r7b were caught only incidentally.
 
-### The reader — fresh context, Q142, Q337, ADRs 0076 and 0078, P31 first; tree still at `9948771`
+### The reader — fresh context, Q142, Q337, ADRs 0076 and 0078, P31 first; tree still at `610ae2e`
 
 It re-derived the three trees and what each floor catches before reading the code, and agreed with the
 code's own statement of the reach; the in-memory trees equal staged copies (168/151/78, 136/120/56,
@@ -263,7 +263,7 @@ code's own statement of the reach; the in-memory trees equal staged copies (168/
 1. **should-fix — ADR 0076 decisions 1-2 and ADR 0078 decision 1 now carry statements false of the code**
    (M3 362 and *not moved*; M5 *28*/72; *the only criterion for lowering a ratchet*), and M9/M10 have no
    ADR; the code's sentence that the suite's quiet probes still set the window overstated. **The comment is
-   corrected** (`8bbb662`): quiet probes constrain nothing on the real tree. **The ADR note went up as a
+   corrected** (`f675689`): quiet probes constrain nothing on the real tree. **The ADR note went up as a
    stop-and-ask** — see *Questions*.
 2. **should-fix — M10 is outside the decision and has no `{M10}` probe; `corpus` read the exit alone.**
    **Fixed**: a META entry graded `corpus` may declare the ids the corpus must trip; the child prints
@@ -288,7 +288,7 @@ code's own statement of the reach; the in-memory trees equal staged copies (168/
    reworded to what a derived floor checks.
 10. **note — drag files**: unchanged and green. **Two pre-existing false claims outside Owns**:
     doc/work-items/TEMPLATE.md's italic note (*one of the FIVE … closes M6's gap*: that tree's gap was 15 on
-    fb64b63) and check-spec-selftest.mjs:31's line references. The declaration's drag row said the note
+    ebca55d) and check-spec-selftest.mjs:31's line references. The declaration's drag row said the note
     *stays true*; corrected in place. **Asked under rule 6** — see *Questions*.
 11. **note — Q487 waits on Q142's decision.** **Asked** — see *Questions*.
 
@@ -325,7 +325,7 @@ code's own statement of the reach; the in-memory trees equal staged copies (168/
 The record step changed files three checks read (doc/questions/**, doc/decisions/**, the plan, this file,
 TEMPLATE.md and the self-test's comments), so each was re-run on the final tree:
 
-| re-run on `b8f6c63` | verdict | notes |
+| re-run on `3ba5c2b` | verdict | notes |
 |---|---|---|
 | `npm run check:markdown` | RAN, **EXIT 0** | `cm-record.log` |
 | `npm run check:register` | RAN, **EXIT 0** | `reg-record.log`; its first run was EXIT 1 on `R8` — Q142's `resolved-by` named ADR 0076 and ADR 0078, whose `resolves` do not list it; the names were taken out of the field (the notes are in the ADRs) |

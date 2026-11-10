@@ -1,6 +1,6 @@
 # W140 — Refusal messages name their class once: the nine classes drop the class name from the message and set their own `name` (Q533)
 
-**Status:** done — declared 2026-10-07 on `5cbfbd0`, the first item of P31; built, both readers and the fix round done 2026-10-07
+**Status:** done — declared 2026-10-07 on `813ef53`, the first item of P31; built, both readers and the fix round done 2026-10-07
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, deliberately* — W127's note and Q142's mechanism (`M4`). A
@@ -20,7 +20,7 @@ Owns:       src/driver/driver.ts — the ONLY file under src/driver, src/definit
             examples/l6.ts (the FD-R2 row, the comments that name Q533, DECLARED_TOTAL);
             AGENTS.md ONLY where a snippet or sentence quotes a message — measured: none does;
             and this file (P31's W140 row)
-Inputs:     the tree at `5cbfbd0`; Q533's note; W133's Record (the same change for UncloneableResult)
+Inputs:     the tree at `813ef53`; Q533's note; W133's Record (the same change for UncloneableResult)
 Outputs:    (1) the nine classes — BoundaryRefused, DuplicateTaskId, MissingJoinPolicy,
                 MultipleRuns, NotStarted, UndeclaredRoute, UndispatchedTask, UnresolvedMapArity,
                 UnresolvedReference — each sets its own `name` (BoundaryRefused already does)
@@ -103,7 +103,7 @@ Reserves:   Q553-Q555. No ADR. No W beyond W140
 
 ## Record
 
-*Filled in 2026-10-07 on `74d3487`. The tree was held still from the confirming gate to this Record:
+*Filled in 2026-10-07 on `54f659d`. The tree was held still from the confirming gate to this Record:
 `git status --short` was empty before and after the gate (`tree-before-item.txt`).* Scratch is
 `dev-dist/w140-2595/` (this item's shell pid), which holds every log and script named below. Node v24.20.0
 by `fnm use 24` in every shell, Deno 2.9.6. Every rung was redirected and its EXIT read in the same command,
@@ -113,7 +113,7 @@ never piped. Ids here are bare text, as the header says.
 
 | command | EXIT | reading |
 |---|---|---|
-| `npm run gate:item > dev-dist/w140-2595/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `74d3487`, after both readers' fixes and rule 8's last pass; 0 `FAIL` lines |
+| `npm run gate:item > dev-dist/w140-2595/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `54f659d`, after both readers' fixes and rule 8's last pass; 0 `FAIL` lines |
 | — L0 (lint, typecheck) | 0 | inside the gate |
 | — L1-L5 | 0 | **1528** cases in node 24.20.0, deno 2.9.6 and chromium (parity 1528): **unchanged**. Every added assertion sits inside an existing case, so prediction 4 held for cases |
 | — L6 | 0 | **2466** assertions over **162** real runs, in node and in deno. The +1 is the FD-R2 row's `stoppedByNamesItOnce` clause. It was derived in `l6.ts`'s comment above `DECLARED_TOTAL` before the file was re-run, and the first run read 2466 |

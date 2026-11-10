@@ -1,7 +1,7 @@
 # P45 — What may a comparison compare against, and who may read a key path the way a gate does?
 
-**Status:** complete and retro'd 2026-10-25 — W220-W223 done, `gate:full` EXIT 0 on W222's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-25 — on `a48b77c` (the tree clean, `main` at 0.12.0, tagged `v0.12.0` on `ffcc774`,
-`origin/main` = `ffcc774`, one local commit ahead: Q790), answering fyflow-app's *pass 6* #1-#2; facts 1-10 read or
+**Status:** complete and retro'd 2026-10-25 — W220-W223 done, `gate:full` EXIT 0 on W222's final tree (the Record); the retro raises TWO stop-and-asks (section 8 (a) and (b)), routings of later work, OPEN for the maintainer and blocking nothing. Earlier: declared 2026-10-25 — on `8c04633` (the tree clean, `main` at 0.12.0, tagged `v0.12.0` on `877417c`,
+`origin/main` = `877417c`, one local commit ahead: Q790), answering fyflow-app's *pass 6* #1-#2; facts 1-10 read or
 MEASURED at this declaration; the evaluation's stop-and-asks (a)-(f) ANSWERED by the maintainer 2026-10-25; **(g) and
 (h) ANSWERED by the maintainer 2026-10-25, *as recommended*** — (g1), built in W221; (h1), W223 ISSUED, serial after W221 and
 before W222 (both recorded at W221's commit, the maintainer's instruction; W221's declared exception).
@@ -33,7 +33,7 @@ Reserves: W220-W223, Q791-Q798, ADR 0140-0142 (ADR 0141, 0142 expected unused)
 Raises:   no question at this declaration; no S entry
 Baseline: `npm run state` at this declaration — P45, W220, Q791, ADR 0140 from the tree; W220, Q790, ADR 0140 from the
           ledger. THE TWO DISAGREE ON Q, and the reason is below (Ids)
-Measured: in the working tree at `a48b77c`, read-only: the validator, the wiring check and the evaluator over pass 6's
+Measured: in the working tree at `8c04633`, read-only: the validator, the wiring check and the evaluator over pass 6's
           own flow (scratchpad/p45/probe.ts); a census of every corpus comparison rooted at `needs`
           (scratchpad/p45/needs-census.mjs); L1-L5 in node (facts 3, 5, 6, 8, 10)
 ```
@@ -143,7 +143,7 @@ docblock: *a list is a claim about another list*), so W221 moves the spec's tabl
 goes red — the intended reader. The corpus' one predicate flow is `spec/examples/valid/declared-predicate.flow.json`; the
 invalid files `FD-V42--…` to `FD-V45--…`, one each.
 
-**Fact 10 — the release and the ladder.** `HEAD` `a48b77c`, one local commit (Q790) past `origin/main` = `ffcc774`
+**Fact 10 — the release and the ladder.** `HEAD` `8c04633`, one local commit (Q790) past `origin/main` = `877417c`
 (`v0.12.0`); `package.json` / `deno.json` 0.12.0. Spec versions: `flow-definition.md` v0.54, `join-policy.md` v0.25,
 `run-state.md` v0.36, `outcome-record.md` v0.21, `runtime-targets.md` v0.14, `task-id.md` v0.16. Scheduler pin 0.6.0. L1-L5
 **103 files / 2,295 cases** in node, measured (`npm test` EXIT 0); L6 **2883 / 252** (`npm run state`); `check:docs`
@@ -373,7 +373,7 @@ measured.
 
 **`npm run state` disagrees on Q, and that is expected**: the tree's next free Q is **Q791**, the ledger's — P44's Retro
 sentence, written before it — **Q790**. [Q790](../questions/q790.md) was raised by the maintainer BETWEEN plans on
-2026-10-25, after P44's close (`a48b77c`, *doc: Q790 deferred - a streaming source*), so P44's ledger could not know it.
+2026-10-25, after P44's close (`8c04633`, *doc: Q790 deferred - a streaming source*), so P44's ledger could not know it.
 **P45's Q block therefore starts at Q791**, and Q790 is the maintainer's, not this plan's. W and ADR agree (W220, ADR
 0140).
 
@@ -389,10 +389,10 @@ files, or re-taken by W222 and named so. Ids are bare text, as in P33's-P44's Re
 
 | item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
 |---|---|---|---|---|---|---|---|
-| **W220** `c170eb0` | `keyPathSteps` and `KeyPathStep` re-exported beside `readKeyPath` (both builds, measured on the built bundles); `condition.ts`' docblock; `key-path-reader.test.ts` with its count held in `l4-corpus`; `AGENTS.md` section 4's subsection and `run` snippet, `RUN_FLOOR` 55 | none | — / — ; ADR 0141 SPENT | none used | conformity 1 SHOULD, 2 NIT; adequacy 36 probes, 2 SHOULD, 3 NIT. **Overlap 1** | 104 / 2301; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,478.5 s |
-| **W221** `b7f9031` | `valueFrom`: `FD-V42` widened (exactly one of `value` / `valueFrom`), `FD-V43` on both keys and (g1)'s undeclared `needs` key, `evalLeaf`'s right side, `PredicateLeaf` a union over `PredicateLeafBase`, `definitionSchema()`; four corpus files; two suites; ADR 0140 | flow-definition v0.55 | — / — | one ASKED (minor, recommended taken): `spec/outcome-record.md`'s figure sentence; P45's plan file for (g)/(h) | conformity 2 SHOULD, 4 NIT; adequacy 51 mutants, 3 survivors, 4 weakenings. **Overlap 0** | 106 / 2321; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,199.5 s |
-| **W223** `214e1d5` | `check:spec` `C9`: every corpus file a rule row cites resolved (full, bare-after-full, bare-alone, directory; a partial spelling refused; a former name marked `until vN.N` skipped); its probes and META entries, floors 44 / 42 | none | — / — | none; scope WIDENED from *refusal rows* to all nine rule prefixes (a minor stop-and-ask, recommended taken — retro section 8 (a)) | conformity 1 SHOULD, 5 NIT; adequacy 15 mutations, 5 survivors. **Overlap 3** | 106 / 2321; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,199.2 s |
-| **W222** `c9bf13f` | the `W222 exit` L6 block — pass 6's flow on real workers, threaded and inline: `outcome.result.size lte needs.limit.max` and an entry `if` on `input.a lt input.b`, each both ways, beside its literal control, its absent control, its boundary, and both comparisons absent under `gt` — twenty-two claims, sixteen runs; the README's copies and its stale tail; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping; and this plan's two stale Reserves lines (the brief's instruction) | conformity 0 SHOULD, 4 NIT; adequacy 29 mutants (+6 in deno), 4 SHOULD, 3 NIT; the author's 14 provocations. **Overlap 1** | 106 / 2321; **2905 / 268** | **`gate:full`** EXIT 0, 11/11 self-tests, 3,215.4 s wall (18:38:42 → 19:40:29) |
+| **W220** `fc84c99` | `keyPathSteps` and `KeyPathStep` re-exported beside `readKeyPath` (both builds, measured on the built bundles); `condition.ts`' docblock; `key-path-reader.test.ts` with its count held in `l4-corpus`; `AGENTS.md` section 4's subsection and `run` snippet, `RUN_FLOOR` 55 | none | — / — ; ADR 0141 SPENT | none used | conformity 1 SHOULD, 2 NIT; adequacy 36 probes, 2 SHOULD, 3 NIT. **Overlap 1** | 104 / 2301; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,478.5 s |
+| **W221** `94d9311` | `valueFrom`: `FD-V42` widened (exactly one of `value` / `valueFrom`), `FD-V43` on both keys and (g1)'s undeclared `needs` key, `evalLeaf`'s right side, `PredicateLeaf` a union over `PredicateLeafBase`, `definitionSchema()`; four corpus files; two suites; ADR 0140 | flow-definition v0.55 | — / — | one ASKED (minor, recommended taken): `spec/outcome-record.md`'s figure sentence; P45's plan file for (g)/(h) | conformity 2 SHOULD, 4 NIT; adequacy 51 mutants, 3 survivors, 4 weakenings. **Overlap 0** | 106 / 2321; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,199.5 s |
+| **W223** `84597b6` | `check:spec` `C9`: every corpus file a rule row cites resolved (full, bare-after-full, bare-alone, directory; a partial spelling refused; a former name marked `until vN.N` skipped); its probes and META entries, floors 44 / 42 | none | — / — | none; scope WIDENED from *refusal rows* to all nine rule prefixes (a minor stop-and-ask, recommended taken — retro section 8 (a)) | conformity 1 SHOULD, 5 NIT; adequacy 15 mutations, 5 survivors. **Overlap 3** | 106 / 2321; 2883 / 252 | `gate:item` EXIT 0, 10/10, 1,199.2 s |
+| **W222** `318821c` | the `W222 exit` L6 block — pass 6's flow on real workers, threaded and inline: `outcome.result.size lte needs.limit.max` and an entry `if` on `input.a lt input.b`, each both ways, beside its literal control, its absent control, its boundary, and both comparisons absent under `gt` — twenty-two claims, sixteen runs; the README's copies and its stale tail; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping; and this plan's two stale Reserves lines (the brief's instruction) | conformity 0 SHOULD, 4 NIT; adequacy 29 mutants (+6 in deno), 4 SHOULD, 3 NIT; the author's 14 provocations. **Overlap 1** | 106 / 2321; **2905 / 268** | **`gate:full`** EXIT 0, 11/11 self-tests, 3,215.4 s wall (18:38:42 → 19:40:29) |
 
 **No question raised or closed. One asked exception (W221). The readers' overlap, every Record stating its own: 1, 0, 3, 1.**
 

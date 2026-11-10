@@ -16,7 +16,7 @@ Spec:       none — P29 decisions 1-5, and doc/questions/README.md's format
 Owns:       the 50 question files listed below; this item's own question files, q521.md-q523.md;
             and the `resolves` field of every ADR an approved resolution names (doc/decisions/**,
             a record-step file, named because it is the joint that makes the batches serial)
-Inputs:     the register and the tree at `988ef5f`, P29's baseline; `npm run q` and
+Inputs:     the register and the tree at `f76bdc8`, P29's baseline; `npm run q` and
             `npm run refs` run against that commit; the calibration of W121 and W122 (below)
 Outputs:    (1) the worksheet: one row per question, its verdict, its evidence and its new
                 field values
@@ -48,24 +48,24 @@ or W124's file. **A re-stamp of an earlier batch's question** (calibration 10) i
 the maintainer's answer that causes it, before it is applied, and the gate's stamp count gains one
 for each.
 
-## The item's ids, from the lookup at `988ef5f`
+## The item's ids, from the lookup at `f76bdc8`
 
 **50 questions**: the open questions in *Verification and fixtures*, sorted by id, the first 50 of
 the 199 (P29: the bands are cut at the 50th, 100th and 150th). The cluster holds no deferred question
-at `988ef5f` (the two deferred are Q92, W121's, and Q499, Out).
+at `f76bdc8` (the two deferred are Q92, W121's, and Q499, Out).
 
 **P29's index row labels this band "Q5-Q189". Q5 is a range BOUND, not the band's first id**: Q5 is
-open at `988ef5f` but in *The join* (W121's), no *Verification and fixtures* question of any status
+open at `f76bdc8` but in *The join* (W121's), no *Verification and fixtures* question of any status
 has an id below Q44, and filtering the open cluster to ids in Q5..Q189 selects exactly these 50. The
 plan is not edited; the join records the label (the coordinator's ruling, 2026-10-06).
 
-Run in a `git archive` of `988ef5f`, extracted with no links and with no `node_modules`:
+Run in a `git archive` of `f76bdc8`, extracted with no links and with no `node_modules`:
 `scripts/lookup.mjs` imports only `node:` modules, so the copy needs none.
 
 ```bash
 eval "$(fnm env --shell bash)" && fnm use 24          # v24.20.0
 S=dev-dist/w123d-38612
-mkdir -p $S/base && git archive 988ef5f | tar -x -C $S/base; echo ARCHIVE_EXIT=$?      # 0
+mkdir -p $S/base && git archive f76bdc8 | tar -x -C $S/base; echo ARCHIVE_EXIT=$?      # 0
 cd $S/base
 node scripts/lookup.mjs q --where status=open --count                                   # 307, EXIT 0
 node scripts/lookup.mjs q --where status=open --where "cluster=Verification and fixtures" --count       # 199, EXIT 0
@@ -168,9 +168,9 @@ retrofitted). Each clause binds the proposer, the reader and the apply unit.
 **This band (B3).** These are **PROCESS questions** — about checks, probes, floors, self-tests,
 harnesses and the method — not about the library. For each row the evidence states:
 
-- **whether the check, clause, probe or script the question names still exists at `988ef5f`**, as a
+- **whether the check, clause, probe or script the question names still exists at `f76bdc8`**, as a
   path (`scripts/<name>.mjs`) or a grep with its pattern and hit count (`git grep -c -F "fail('M1'"
-  988ef5f -- scripts/check-markdown.mjs`, 1 at declaration); a clause id is grepped where it is DEFINED, not where it is cited;
+  f76bdc8 -- scripts/check-markdown.mjs`, 1 at declaration); a clause id is grepped where it is DEFINED, not where it is cited;
 - **whether a later item built it**, by W id, read from that item's file or Record.
 
 **A question asking for a check that now exists is a resolve candidate**, and its `resolved-by`
@@ -189,8 +189,8 @@ P29 decision 4, with the keeps round the calibration adds. A phase does not star
 above it is complete.
 
 1. **Propose.** Fill the worksheet: one row per question, 50 rows. The evidence is (a) the
-   `npm run refs` count at `988ef5f`; (b) whether the check, clause, file or rule the question names
-   still exists at `988ef5f`, as a path, or as a grep with its hit count and the exact pattern; (c)
+   `npm run refs` count at `f76bdc8`; (b) whether the check, clause, file or rule the question names
+   still exists at `f76bdc8`, as a path, or as a grep with its hit count and the exact pattern; (c)
    any later ADR, plan or item that answered or built it, by id. Every row states `closes-when`
    (calibration 9). Rows count against the id list (calibration 6).
 2. **Check.** A fresh-context conformity reader reads each QUESTION first and the worksheet second,
@@ -209,13 +209,13 @@ above it is complete.
 ### Worksheet
 
 *Filled in at phase 1.* The evidence cell holds three parts: **refs** (the count), **subject** (path,
-or grep pattern and hit count, at `988ef5f`), **answered by** (ADR, P or W id, or none). The last
+or grep pattern and hit count, at `f76bdc8`), **answered by** (ADR, P or W id, or none). The last
 cell states `closes-when` in every row. **50 rows.**
 
 *How the evidence was taken (phase 1, the propose unit).* **refs** is `node scripts/lookup.mjs refs Q<n>`
-run in a `git archive` of `988ef5f` (`dev-dist/w123p-38771/base`, 0 links, EXIT 0 for all 50), given as
-*files / mentions*. **subject** is `git grep -c -F '<pattern>' 988ef5f -- <paths>`, summed over files, or
-a `git show 988ef5f:<path>` line; a path that does not exist at `988ef5f` is said to be absent. Nothing was
+run in a `git archive` of `f76bdc8` (`dev-dist/w123p-38771/base`, 0 links, EXIT 0 for all 50), given as
+*files / mentions*. **subject** is `git grep -c -F '<pattern>' f76bdc8 -- <paths>`, summed over files, or
+a `git show f76bdc8:<path>` line; a path that does not exist at `f76bdc8` is said to be absent. Nothing was
 read from the working tree. The last text that speaks to each question was found by reading the
 highest-numbered plan, item and ADR among its citing files (calibration 7). Every row states
 `closes-when` (calibration 9): only Q184 had a value, a trigger that has fired, and it is cleared.
@@ -245,7 +245,7 @@ re-stamp and the gate's stamp count stays 50.
 | Q112 | resolve | **refs** 12 / 27. **subject** `break the PROVENANCE of every value an assertion reads` in `doc/workflow.md`: 1 (section 5 rule 8 obligation (c), v0.8 P6 and v0.9 P7). **answered by** that obligation; P9's retro: *not corrected once in four items*, and W42 *Q112 settles the general form* | `closes-when` unchanged (empty); `resolved-by`: `doc/workflow.md` section 5 rule 8 obligation (c), *break the provenance — the source expression and nothing else* (v0.8, P6; v0.9, P7), held clean through P9 by its retro. No ADR |
 | Q121 | resolve | **refs** 10 / 26. **subject** `fail('M1'` in `scripts/check-markdown.mjs`: 1; its scan reads `doc/`, `spec/`, `README.md`, `AGENTS.md` and `CLAUDE.md`. **answered by** W25 (P8's table: *W25 — RESOLVED*); P29's own *Why* names it | `closes-when` unchanged (empty); `resolved-by`: `M1` in `scripts/check-markdown.mjs` (W25) — every relative link in `doc/`, `spec/` and `AGENTS.md` resolves. No ADR |
 | Q122 | icebox | **refs** 1 / 1. **subject** `Q122` in `test/`: 0. **answered by** none: W22 alone, nothing since P7 | `closes-when` unchanged (empty); note stamp `P29 W123: icebox — one mention (W22); widening the depth-1-only whole-matrix claims has had no taker since P7` |
-| Q123 | keep | **refs** 15 / 26. **subject** `.gitattributes` at `988ef5f`: absent (0); `CLAUDE.md` carries the hand rule and three occurrences. **answered by** none | `closes-when`: the maintainer decides whether to fix line endings in the tree — a `.gitattributes` with `eol=lf`, or a check that refuses a CRLF tracked file — or declines both and keeps the hand rule in `CLAUDE.md` |
+| Q123 | keep | **refs** 15 / 26. **subject** `.gitattributes` at `f76bdc8`: absent (0); `CLAUDE.md` carries the hand rule and three occurrences. **answered by** none | `closes-when`: the maintainer decides whether to fix line endings in the tree — a `.gitattributes` with `eol=lf`, or a check that refuses a CRLF tracked file — or declines both and keeps the hand rule in `CLAUDE.md` |
 | Q124 | icebox | **refs** 2 / 4. **subject** `Q124` in `test/`: 0. **answered by** none: W22 raised it, W23 deferred it to a depth-3 row nobody built | `closes-when` unchanged (empty); note stamp `P29 W123: icebox — needs a depth-3 row no plan has asked for since P7` |
 | Q127 | icebox | **refs** 2 / 2. **subject** `Q127` in `examples/` + `test/`: 0. **answered by** none: W23 alone | `closes-when` unchanged (empty); note stamp `P29 W123: icebox — four depth-2 L6 coverage gaps named by W23 and taken by no plan since P7` |
 | Q132 | icebox | **refs** 8 / 17. **subject** `Q132` in `scripts/`: 5. **answered by** W30 in part (9 of the 16 unprobed clauses, P9's table); the other 7 are named *no probe* in P9 decision 3 | `closes-when` unchanged (empty); note stamp `P29 W123: icebox — W30 probed 9 of 16; P9 decision 3 names the other 7 as no probe, and no plan since has taken them` |
@@ -290,8 +290,8 @@ re-stamp and the gate's stamp count stays 50.
 DISPUTE or CHANGE, with the reason, and the row count confirmed against 50.
 
 *Read 2026-10-06 by a fresh-context conformity reader: each question first (its front matter at
-`988ef5f`, and its long-form body from `git show b665981:doc/open-questions.md`, the last commit
-carrying the bodies), the tree at `988ef5f` second (an archive, `dev-dist/w123r-41352/base`, 0
+`f76bdc8`, and its long-form body from `git show b665981:doc/open-questions.md`, the last commit
+carrying the bodies), the tree at `f76bdc8` second (an archive, `dev-dist/w123r-41352/base`, 0
 links), and the reader's own 50 verdicts written to scratch (`dev-dist/w123r-41352/my-verdicts.tsv`)
 BEFORE this worksheet was opened. Rows counted by script on both tables: worksheet 50 rows over the
 50 ids, none missing or extra, its tally keep 2 / defer 6 / icebox 31 / resolve 10 / duplicate 1
@@ -308,10 +308,10 @@ matching the summary line; this table 50 rows over the same 50 ids.*
 | Q102 | AGREE | icebox. `RUN_FLOOR` is at `scripts/check-docs.mjs:725` and `README_SNIPPET_FLOOR` at 918. ADR 0076 decision 1 exists and is correctly in `note`, not in `resolved-by` |
 | Q104 | AGREE | icebox. `X4a`, `scripts/check-docs.mjs:173-181`, is still a textual `throw` test |
 | Q111 | AGREE | defer, on Q16's flow half (deferred at W121). `spec/task-id.md:187` says the segment is flow-level only |
-| Q112 | AGREE | resolve. P7's retro, change 2, moved the procedure into rule 8: workflow section 5 rule 8 (c), *the source expression and nothing else*, v0.9 P7, line 258 at `988ef5f`. This is exactly the correction the question records |
+| Q112 | AGREE | resolve. P7's retro, change 2, moved the procedure into rule 8: workflow section 5 rule 8 (c), *the source expression and nothing else*, v0.9 P7, line 258 at `f76bdc8`. This is exactly the correction the question records |
 | Q121 | AGREE | resolve. `M1` (file links) and `M2` (anchors, where the question's live defects were) are at `scripts/check-markdown.mjs:344-345`, over `doc/`, `spec/` and `README.md`, `AGENTS.md`, `CLAUDE.md` (lines 337-341). Suggest `resolved-by` names `M2` beside `M1` |
 | Q122 | AGREE | icebox. `test/matrix/matrix.test.ts:198` still builds `ALL` from `SCENARIOS` |
-| Q123 | AGREE | keep. No `.gitattributes` and no CRLF check at `988ef5f`. It is live, it recurs (three occurrences, `CLAUDE.md`), and the decision is cheap and nameable. The `closes-when` names that decision |
+| Q123 | AGREE | keep. No `.gitattributes` and no CRLF check at `f76bdc8`. It is live, it recurs (three occurrences, `CLAUDE.md`), and the decision is cheap and nameable. The `closes-when` names that decision |
 | Q124 | AGREE | icebox |
 | Q127 | AGREE | icebox |
 | Q132 | AGREE | icebox. `check-spec` has a self-test since W30. Probes in `scripts/check-source-selftest.mjs` still declare no `S2`, `S3`, `S5`, `S6` or `S10` |
@@ -326,7 +326,7 @@ matching the summary line; this table 50 rows over the same 50 ids.*
 | Q146 | AGREE | icebox |
 | Q147 | AGREE | icebox. No META entry declares an expected `outcome:`; the field is printed by the child, not declared |
 | Q150 | CHANGE | icebox, but the note is FALSE. `check-source-selftest.mjs` has no `MAX_CORPUS` cap: its one hit is a comment at line 826 (`grep -n "MAX_CORPUS\s*="`: budget 96, policies 405, register 56, spec 598). The figure 27 counts mentions, not caps. Note should read: capped in four (budget, policies, register, spec) and absent in source, docs, markdown, scheduler and workers |
-| Q151 | DISPUTE | resolve → **icebox**. The question names `check-source-selftest.mjs` and `check-markdown-selftest.mjs` as live, with *"one control run per SELF list"* as what closes them. Neither has one at `988ef5f`. Their SELF passes (source 1564-1607, markdown 1255-1283) grade `r.status !== 0 && SELF_RAN(out)`. `SELF_RAN` (`/self-test — /`) is true for a child that starts and whose grandchildren cannot run, which is W31's case. v0.11 is a rule for harnesses; the two files it would apply to were never brought under it |
+| Q151 | DISPUTE | resolve → **icebox**. The question names `check-source-selftest.mjs` and `check-markdown-selftest.mjs` as live, with *"one control run per SELF list"* as what closes them. Neither has one at `f76bdc8`. Their SELF passes (source 1564-1607, markdown 1255-1283) grade `r.status !== 0 && SELF_RAN(out)`. `SELF_RAN` (`/self-test — /`) is true for a child that starts and whose grandchildren cannot run, which is W31's case. v0.11 is a rule for harnesses; the two files it would apply to were never brought under it |
 | Q152 | DISPUTE | resolve → **icebox**. P9's Record row 9 CLASSIFIES the shape and calls it *"the one to carry"*. It does not decide the contract question the row asks, which is whether `ok` should be computed from an explicit verdict, as `check-spec` and `check-scheduler` already do. A taxonomy entry is not a decision by name with a permanent reason (calibration 5) |
 | Q153 | DISPUTE | resolve → **icebox**. The resolution is false for the files the question names. A SELF distinctness bound exists only in `check-policies-selftest.mjs:1204` and `check-wiring-selftest.mjs:1255`. `check-source-selftest.mjs:1252` bounds META, not SELF, and `check-markdown-selftest.mjs` has neither. The *"eight self-tests"* are META or name checks. The live half Q153 names (source, 10 entries; markdown, 7) is unchanged |
 | Q155 | AGREE | icebox. `test/driver/map.test.ts:1616` is the driver-twice case for map arity. Defer on Q9 would also do |
@@ -337,7 +337,7 @@ matching the summary line; this table 50 rows over the same 50 ids.*
 | Q173 | AGREE | defer, on the next pin move. Honest |
 | Q174 | AGREE | defer, as Q173 |
 | Q175 | AGREE | defer, as Q173 |
-| Q176 | DISPUTE | resolve → **icebox**, and **drop the R8 edit to ADR 0070**. The question is that a CLAUSE's price is its run cost times the re-run multiplier of the FILE it is added to, and that the multiplier is written nowhere. It would close when a self-test prints its re-run count. ADR 0070 never cites Q176. It decides which LANE (local or CI) a whole class runs in, not which file a clause goes into, and no self-test prints its multiplier at `988ef5f` (no hit). The last text naming Q176 is ADR 0039:272, which cites it as a LIVE occurrence at a factor of 150. ADR 0070 moved the cost off a person's wait, so icebox, with ADR 0070 in `note` (calibration 8) |
+| Q176 | DISPUTE | resolve → **icebox**, and **drop the R8 edit to ADR 0070**. The question is that a CLAUSE's price is its run cost times the re-run multiplier of the FILE it is added to, and that the multiplier is written nowhere. It would close when a self-test prints its re-run count. ADR 0070 never cites Q176. It decides which LANE (local or CI) a whole class runs in, not which file a clause goes into, and no self-test prints its multiplier at `f76bdc8` (no hit). The last text naming Q176 is ADR 0039:272, which cites it as a LIVE occurrence at a factor of 150. ADR 0070 moved the cost off a person's wait, so icebox, with ADR 0070 in `note` (calibration 8) |
 | Q177 | AGREE | icebox. `lint` is still `deno lint src/ test/ examples/ index.ts`, and no tsconfig reaches `scripts/`. Note: the `deno lint scripts/` half is free |
 | Q178 | AGREE | icebox. It recurs (W38, W105, W112). A rule would cost the always-read budget |
 | Q179 | AGREE | icebox. Workflow section 8 and Q427 and Q433 carry the live form; Q433 is in W125's band, so it cannot be a duplicate target here |
@@ -372,7 +372,7 @@ from the table by script.*
    With it, **no ADR's `resolves` is edited by this item**. The Reader's suggestion on Q121 (name `M2`
    beside `M1` in `resolved-by`) was an AGREE, not one of the seven rows, and is not taken.
 2. **Q144:** *"Keep".* It goes icebox → **keep**, with `closes-when` *the one-line fix at
-   `check-policies.mjs:187` lands, or is refused*. Line 187 at `988ef5f` is the success line,
+   `check-policies.mjs:187` lands, or is refused*. Line 187 at `f76bdc8` is the success line,
    ``console.log(`\nAll checks passed — ${names.join(', ')}.`)``, which dereferences `names` and so
    keeps `P3`'s null clause unprobeable (the Reader's Q144 note). **The maintainer decided this row
    directly, so it is not put to the keeps round**; it is recorded there as answered.
@@ -404,7 +404,7 @@ recommendation first, its plain-language briefing, and the maintainer's answer.*
 
 | | the question, the briefing and the recommendation | answer |
 |---|---|---|
-| Q123 | **Rec: icebox.** *Should the repo stop line-ending conversions mechanically?* Example: a Python text-mode write on Windows turns a three-line edit into a whole-file CRLF rewrite, and no check says so; once `check-wiring`'s `G2` (the check that finds a dispatch block's end by its layout) went red with a message about the wrong thing. At `988ef5f`: no `.gitattributes`, `core.autocrlf` false, and no tracked text file holds a CR. The guard is `CLAUDE.md`'s hand rule (write bytes, or use the Edit tool), and there has been no occurrence since P15's declaration, the third. **Keep**: decide now between `eol=lf` in a `.gitattributes` (normalises on commit, silently) and a check refusing a CRLF tracked file (makes it visible). **Defer**: wait for a fourth occurrence. **Icebox**: the hand rule stands, and a fourth occurrence goes in `note`. **Resolve**: refuse both fixes by name | **icebox** — 2026-10-06, maintainer: *"Accept both recs"*. The hand rule in `CLAUDE.md` stands, nothing has slipped past it since P15, and the note says so; `closes-when` stays empty |
+| Q123 | **Rec: icebox.** *Should the repo stop line-ending conversions mechanically?* Example: a Python text-mode write on Windows turns a three-line edit into a whole-file CRLF rewrite, and no check says so; once `check-wiring`'s `G2` (the check that finds a dispatch block's end by its layout) went red with a message about the wrong thing. At `f76bdc8`: no `.gitattributes`, `core.autocrlf` false, and no tracked text file holds a CR. The guard is `CLAUDE.md`'s hand rule (write bytes, or use the Edit tool), and there has been no occurrence since P15's declaration, the third. **Keep**: decide now between `eol=lf` in a `.gitattributes` (normalises on commit, silently) and a check refusing a CRLF tracked file (makes it visible). **Defer**: wait for a fourth occurrence. **Icebox**: the hand rule stands, and a fourth occurrence goes in `note`. **Resolve**: refuse both fixes by name | **icebox** — 2026-10-06, maintainer: *"Accept both recs"*. The hand rule in `CLAUDE.md` stands, nothing has slipped past it since P15, and the note says so; `closes-when` stays empty |
 | Q142 | **Rec: keep** — it fires again within P29. *Should `check-markdown`'s vacuity floors stay hand-set numbers, or be derived from the tree?* A vacuity floor is a minimum count below which a link check proves nothing: `M3`, at least 362 markdown files scanned; `M4`, at least 120 documents carrying a relative link; `M5`, at least 72 anchored links. Example: this item's own declaration added one linking document, the self-test's cut-down copy of the tree reached 120, `M4` stopped firing there, and `check:markdown:selftest` went red (41/42) while `check:markdown` stayed green. ADR 0076 chose what a floor counts; ADR 0078 says a floor's window belongs to the probe suite. Neither picks literal or derived, and the floors have been retuned at least twelve times. **Keep**: decide literal or derived. **Defer**: wait for the next retune. **Icebox**: retune whenever it is hit. **Resolve**: name ADR 0076 and ADR 0078 as the answer | **keep** — 2026-10-06, maintainer: *"Accept both recs"*, with the worksheet row's `closes-when`: a decision whether `check-markdown`'s vacuity floors stay literal or are derived |
 | Q144 | *Not put to the round* — the maintainer decided it at the approval, icebox → keep | **keep** — 2026-10-06, maintainer: *"Keep"*, `closes-when` *the one-line fix at `check-policies.mjs:187` lands, or is refused* |
 

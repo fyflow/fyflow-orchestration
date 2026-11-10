@@ -1,6 +1,6 @@
 # W194 — the fold is ONE accumulator: `fold` linear, `step` pure
 
-**Status:** done 2026-10-21 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, the conformity reader's one BLOCKER (C1) fixed and provoked; 56 provocations KILLED, none surviving; no question raised. Earlier: declared 2026-10-21 on `c1aefb0` (P39 committed, the tree clean); P39's FIRST item: decisions 1-3, 5 and 6, stop-and-asks (a), (c) and (e) as answered; the declaration step RUN before any `src/` edit (below)
+**Status:** done 2026-10-21 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, the conformity reader's one BLOCKER (C1) fixed and provoked; 56 provocations KILLED, none surviving; no question raised. Earlier: declared 2026-10-21 on `834aecf` (P39 committed, the tree clean); P39's FIRST item: decisions 1-3, 5 and 6, stop-and-asks (a), (c) and (e) as answered; the declaration step RUN before any `src/` edit (below)
 **Plan:** [P39](../plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) — *what does a step cost on a long
 run, and where may its owner read the run's live state?* — and this is its FIRST item: the fold, not the driver or the handle.
 
@@ -68,7 +68,7 @@ Reserves:   Q720-Q724, ADR 0120
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `c1aefb0`, the tree clean.*
+*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `834aecf`, the tree clean.*
 
 | # | re-take | measured |
 |---|---|---|
@@ -77,7 +77,7 @@ Reserves:   Q720-Q724, ADR 0120
 | 3 | whether `withOutcome` equals the stored `outcome` on every fold-REACHABLE state | **equal on every prefix of every corpus sequence** — asserted, not assumed, by the suite's case *the precedence recomputed on every reachable state is the stored one*. The arms that do not recompute (`paused`/`unpaused`, `gated`, `attempted`, `resumed` with no interruption, `halted`) move no cell the precedence reads, so the difference is visible ONLY on a hand-built state whose `outcome` disagrees with its cells — the case decision 2 names |
 | 4 | every test asserting `step`'s IDENTITY | two, both in `test/fold/attempted.test.ts`: `:95` (the SAME object from the empty state) and `:98` (a NEW one from a settled run). Nothing else compares a step's return by identity; `policies.test.ts` and `matrix/variants.test.ts` are the JOIN POLICIES' `step`, not the fold's |
 | 5 | where the fold clones, and what a state shares with an input | `structuredClone` at `asked`'s `input` (`:536`) and `gated`'s `key` (`:581`), once each, when applied; `resumed`'s list copied (`:569`); a settlement's and a resolution's `result` SHARED by reference (`:623`, `:640` — ADR 0058 consequence 3). The accumulator clones at the same two sites, once, and shares `result` |
-| 6 | the ladder counts — `npm run gate` on `c1aefb0`, EXIT 0, 193 s | L1-L5 **84 files / 2,098 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2,789 assertions / 0 failed** in node and deno; `check:docs` 50 `run` snippets; `check:spec` C4 45 |
+| 6 | the ladder counts — `npm run gate` on `834aecf`, EXIT 0, 193 s | L1-L5 **84 files / 2,098 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2,789 assertions / 0 failed** in node and deno; `check:docs` 50 `run` snippets; `check:spec` C4 45 |
 
 ## Verification
 
@@ -119,7 +119,7 @@ instances keep their places (O3); P55 the loaded-continuation loop runs (W4); P5
 
 ## Readers (2026-10-21), and what was acted on
 
-*Both readers ran in their own worktrees (`C:/tmp-w194/rc`, `C:/tmp-w194/ra` — `c1aefb0` plus this diff, `node_modules`
+*Both readers ran in their own worktrees (`C:/tmp-w194/rc`, `C:/tmp-w194/ra` — `834aecf` plus this diff, `node_modules`
 copied, no links), spec first; each reported and fixed nothing. The author's tree held still while they read.*
 
 | reader | finding | kind | acted on |
@@ -130,21 +130,21 @@ copied, no links), spec first; each reported and fixed nothing. The author's tre
 | conformity | C4 SHOULD — `step`'s *Returns a new state* and AGENTS.md's *it copies the one you give it* beside seven arms that return `prev` | doc | **FIXED** in both |
 | conformity | C5 SHOULD — AGENTS.md's *fold incrementally* (the `onFoldInput` paragraph) on nobody's list | doc | **FIXED** — it points at section 8's cost; W196 owns the rest |
 | conformity | C6 NIT — the lists of arms omitted *a request after the run is `cancelled`* and `unpaused` | doc/spec | **FIXED** in `RN-R43` and `step`'s comment |
-| conformity | C7 NIT — stale pointers: `run-state.md` section 3 (*`src/fold/run-state.ts` falls back*), `stuck.test.ts`'s `allRegionRuns`; `test/driver/fold-inputs.test.ts:228` (`parseTaskId` in run-state.ts, stale since before `c1aefb0`) | doc | **FIXED** the two owned; the third is **not in `Owns`** — left, and named for W195 (it owns `test/driver/**`) |
+| conformity | C7 NIT — stale pointers: `run-state.md` section 3 (*`src/fold/run-state.ts` falls back*), `stuck.test.ts`'s `allRegionRuns`; `test/driver/fold-inputs.test.ts:228` (`parseTaskId` in run-state.ts, stale since before `834aecf`) | doc | **FIXED** the two owned; the third is **not in `Owns`** — left, and named for W195 (it owns `test/driver/**`) |
 | adequacy | S4 SHOULD — a RESOLUTION's result shared, untested | test | **FIXED** — case 8; P47 KILLED |
 | adequacy | O3 SHOULD — no corpus held two non-integer instance paths under one opener | test | **FIXED** — `'0.1'` in the generator, and a hand row; P54 KILLED |
 | adequacy | C2/C4/C3 SHOULD — the ratio sees only work that calls `tick`; an uncounted scan stays green | test | **FIXED** in part — a second observer, independent of `tick`: the precedence's SOURCE iterates nothing (node and deno; the browser skip asserted); P51 KILLED. **Left for W197**: a re-tally hidden OUTSIDE `precedence()` with its ticks removed (the reader's compound C4) — W197 owns the standing provocations and the counters |
 | adequacy | C7 SHOULD/NIT — laziness unmeasured | test | **FIXED** — `step` on `paused`, `gated` and an unknown `attempted` costs the same at 500 and 2,000 items; P50 KILLED |
 | adequacy | S9, S5, T1, T2 NIT | test | **FIXED** — an answered ask keeps the SAME input copy; a resumed list is a copy; malformed-id probes over a node keyed `nope`; P48, P49, P52, P53 KILLED |
 | adequacy | W4 SHOULD/NIT — the loaded-continuation loop unguarded, and the SOLE observer of the counts kept over a handed base across more than one apply | test | **FIXED** — counted, equal to the rows' total length; P55 KILLED |
-| adequacy | oracle provenance held by convention | test | **FIXED** — case 1 pins the oracle's body to the SHA-256 of `c1aefb0`'s lines 455-833 (node and deno; the browser skip asserted); P56 KILLED |
+| adequacy | oracle provenance held by convention | test | **FIXED** — case 1 pins the oracle's body to the SHA-256 of `834aecf`'s lines 455-833 (node and deno; the browser skip asserted); P56 KILLED |
 | adequacy | R1c NIT — an absent counter charged to a module-level object is behaviourally invisible | — | **DECLARED** — a source property; no runtime test sees it |
 | adequacy | W8 — the control list read off `fold` | — | equivalent (the list is a hand-written literal) |
 
 ## Notes for the plan's Record
 
 - **For W195**: `test/driver/fold-inputs.test.ts:228` cites `parseTaskId` in `src/fold/run-state.ts`, false since before
-  `c1aefb0` and now there is none there at all (C7).
+  `834aecf` and now there is none there at all (C7).
 - **For W196**: the accumulator is ready to be kept open — `Accumulator.load(state)`, `apply`, `materialise`. ADR 0120 rule
   5: a materialised state SHARES node entries, gate decisions, path ends, resume lists and request records with the
   accumulator (replaced, never mutated), so a later `apply` never changes it — but a caller that mutates it reaches them:

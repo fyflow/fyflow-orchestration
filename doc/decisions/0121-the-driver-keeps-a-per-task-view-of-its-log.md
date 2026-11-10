@@ -22,7 +22,7 @@ answers [Q43](../questions/q43.md)'s concern for this structure by the condition
 
 ## Context
 
-fyflow-app's pass 2, #4: the driver's own cost on a long `map`. Re-taken at W195's declaration on `7b47f78`, the app's
+fyflow-app's pass 2, #4: the driver's own cost on a long `map`. Re-taken at W195's declaration on `c2bb483`, the app's
 repro with its queue walked by INDEX (P39 fact 4), each size a fresh process, node 24.20.0: **106 / 324 / 999 ms at 4,000 /
 8,000 / 16,000 items, and 10,015 ms at 32,000** — 3.1x, 3.1x and 10x per doubling. A CPU profile at 16,000 items, an
 `attempted` element per task: **~60% of the run in `effectiveOutcome(this.log, taskId)`** called from `advance`, the scan of
@@ -74,7 +74,7 @@ disagree with the log"*.
    them, whose cost no clock-free count can see (`Array.prototype.shift`'s move is not a JavaScript step).
 8. **What does NOT move** (P39 decision 5): no `FoldInput` kind, no element, no order, no `RunState` cell, no checkpoint
    field, no value `effectiveOutcome`, `isSuspended`, `snapshot()` or `foldInputs()` returns. Measured: the fold inputs,
-   the snapshot and a resume from every rest point are byte-identical to `7b47f78`'s over every valid corpus flow under
+   the snapshot and a resume from every rest point are byte-identical to `c2bb483`'s over every valid corpus flow under
    seven drains (182 runs: the test's six and *an uncloneable result first*); and so are the conformity reader's 2,415
    seeded transcripts of random settlements, resolutions, pauses, stops, cancels, throwing callbacks and resumes, the
    `createTask` payloads — where `outputs()` surfaces — included.

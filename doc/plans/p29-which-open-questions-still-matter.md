@@ -1,13 +1,13 @@
 # P29 — Which open questions still matter, and what does each one that does owe a reader?
 
-**Status:** complete and retro'd 2026-10-06 — seven items, all done (`a93b767`..`2d94607`);
+**Status:** complete and retro'd 2026-10-06 — seven items, all done (`b347685`..`e69ea8d`);
 `doc/workflow.md` stays v0.27, no change adopted. See the Record and the Retro below
 **Question this plan answers:** *which open questions still matter, and what does each one that does
 owe a reader?*
 **Exit artifact:** *on the final tree, `npm run check:register` EXITs 0 with `R9` live; `npm run q --
 --where status=open --where closes-when=` EXITs 1 and prints `no question matches`; and `npm run q
 -- --include-icebox --where "note~P29 W"` lists every question that was open or deferred at
-`988ef5f`, each with the batch item that judged it — and that item's file holds the worksheet the
+`f76bdc8`, each with the batch item that judged it — and that item's file holds the worksheet the
 maintainer approved.*
 **Reserves:** W121-W130, Q513-Q532, ADR 0082-0084
 
@@ -19,15 +19,15 @@ Items:    W121 (B1: the join, identity/state/failure, documents — the pilot),
           W127 (R9: an open question has a closes-when; ADR 0082; Q494)
 Reserves: W121-W130, Q513-Q532, ADR 0082-0084
 Baseline: plans to p28, work items to w120, ADRs to 0081, register to Q511 — `npm run state`
-          on `988ef5f`, where the tree and the ledger AGREE on W121 / Q513 / ADR 0082
-Declared: 2026-10-05 on `988ef5f`
+          on `f76bdc8`, where the tree and the ledger AGREE on W121 / Q513 / ADR 0082
+Declared: 2026-10-05 on `f76bdc8`
 ```
 
 ## Why this plan, and why now
 
 P28 made the register cheap to look up, and its Out left triage to the maintainer, after W119.
 **The register's live half has grown by accretion and has never been judged.** Measured on
-`988ef5f` with `npm run q`:
+`f76bdc8` with `npm run q`:
 
 | | open | `owner` opens `no owner` | `closes-when` empty | both |
 |---|---|---|---|---|
@@ -42,13 +42,13 @@ P28 made the register cheap to look up, and its Out left triage to the maintaine
 **Two thirds of what is open is about the PROCESS** (checks, probes, floors), not about the
 library. **206 open questions tell a reader neither who will answer them nor what would close them.**
 Some are already answered: [Q121](../questions/q121.md) says nothing checks dead relative links,
-and `check-markdown`'s `M1` checks them, over `doc/`, `spec/` and `AGENTS.md`, on `988ef5f`. That is a
+and `check-markdown`'s `M1` checks them, over `doc/`, `spec/` and `AGENTS.md`, on `f76bdc8`. That is a
 resolution the batch has to evidence, not one this sentence makes. *A question that is answered and still open costs every
 reader who looks it up.*
 
 ## Decisions taken before fan-out
 
-**1. Every question open or deferred at `988ef5f` gets exactly one verdict** (stop-and-asks (a) and
+**1. Every question open or deferred at `f76bdc8` gets exactly one verdict** (stop-and-asks (a) and
 (k)). That is the 307 open questions plus Q92. Q499 is the exception and stays as it is (e).
 
 | verdict | status after | required |
@@ -56,7 +56,7 @@ reader who looks it up.*
 | **keep** | `open` | a non-empty `closes-when`. `owner` is optional prose (decision 6) |
 | **defer** | `deferred` | the reason, in `note` |
 | **icebox** | `icebox` | why it is a what-if, in `note` (R2 already requires a `note`) |
-| **resolve** | `resolved` | `resolved-by` names an answer that EXISTS in the tree at `988ef5f` (decision 3) |
+| **resolve** | `resolved` | `resolved-by` names an answer that EXISTS in the tree at `f76bdc8` (decision 3) |
 | **duplicate** | `resolved` | `resolved-by` opens **`duplicate of Q<n>`**, and Q<n> is a question that stays |
 | **obsolete** | `resolved` | `resolved-by` opens **`obsolete:`** and names what removed the subject (a commit, item or ADR) |
 
@@ -71,7 +71,7 @@ the reason follows the verdict word. **A keep whose other fields do not change i
 (h). That makes the exit artifact's third command a list of every verdict.
 
 **3. Triage cites; it does not answer** (d). A resolve, duplicate or obsolete verdict cites only
-what is in the tree at `988ef5f`. A question whose answer is *"decide now"* is kept, with a
+what is in the tree at `f76bdc8`. A question whose answer is *"decide now"* is kept, with a
 `closes-when` that names the decision. **The batches write no ADR and change nothing under `spec/`
 or `src/`.** The only exception is Q494, which this declaration itself answers (decision 6).
 
@@ -80,7 +80,7 @@ Each batch item runs in this order:
 
 1. **Propose.** The item's file gets a worksheet with one row per question: the id, the verdict,
    the evidence and the new field values. The evidence is the `npm run refs` count; whether the
-   code, clause, file or rule the question names still exists at `988ef5f`, as a path or a grep
+   code, clause, file or rule the question names still exists at `f76bdc8`, as a path or a grep
    with its hit count; and any later ADR, plan or item that answered it, by id.
 2. **Check.** A fresh-context conformity reader reads the QUESTION first and the worksheet second.
    It re-derives each row from the question and the tree, and it reports without fixing.
@@ -118,7 +118,7 @@ it is committed. It is a procedure, and no check changes for it.
 ## Work items
 
 **Owns** is written for section 7 rule 2. A batch owns the question files of its ids, which are the
-questions open or deferred at `988ef5f` (`npm run q -- --where status=open` on that commit). The ADR
+questions open or deferred at `f76bdc8` (`npm run q -- --where status=open` on that commit). The ADR
 front matter it edits under `R8` is `doc/decisions/**`, a record-step file (section 1 rule 5). It is
 named here anyway, because it is the joint that makes the batches serial.
 
@@ -132,7 +132,7 @@ named here anyway, because it is the joint that makes the batches serial.
 | W126 | **B6**: Verification and fixtures, Q439-Q511. 49 verdicts | those 49, as above | W125 | as W121 |
 | W127 | **`R9`**, its self-test probes, ADR 0082, `doc/questions/README.md`'s format and *raising* steps, and Q494 resolved | `scripts/check-register.mjs`, `scripts/check-register-selftest.mjs`, `doc/questions/README.md`, `doc/decisions/0082-*.md`, `q494.md` | W126 | `R9` provoked at birth (section 5 rule 7); `gate:full` EXIT 0 |
 
-The bands are cut by id over the 199 open verification questions on `988ef5f`, at the 50th, 100th
+The bands are cut by id over the 199 open verification questions on `f76bdc8`, at the 50th, 100th
 and 150th. **Item files are not declared yet.** Each is written from its row here when its
 predecessor's Record is done, so that W121's calibration reaches the others.
 
@@ -187,7 +187,7 @@ predecessor's Record is done, so that W121's calibration reaches the others.
 
 ## Record
 
-*Filled in at the join, 2026-10-06, on `2d94607` with the tree still and nothing uncommitted but
+*Filled in at the join, 2026-10-06, on `e69ea8d` with the tree still and nothing uncommitted but
 this file.* Scratch `dev-dist/p29j-58365/` (the join shell's pid): every log and script named below.
 Node v24.20.0 by `fnm use 24` in every shell; every command redirected, its EXIT read in the same
 command. Ids in this Record are bare text, deliberately: Q142's `M4` floor (W123's Record).
@@ -202,19 +202,19 @@ command. Ids in this Record are bare text, deliberately: Q142's `M4` floor (W123
 | `npm run state` | **0** | `state.log`, 3063 B, 52 lines | open 22, deferred 65, iceboxed 182, resolved 125; *all 24 derivations non-empty*. The id ledger DISAGREES (tree W128 / Q514 / ADR 0083, ledger W121 / Q513 / ADR 0082) because no sentence has spent P29's block yet: the retro's |
 
 **The third command, checked by script** (`cmp.mjs`, EXIT 0, `cmp.log`) against the set open or
-deferred at `988ef5f`, taken by the lookup in a `git archive` copy of that commit (`base/`; `find
+deferred at `f76bdc8`, taken by the lookup in a `git archive` copy of that commit (`base/`; `find
 -type l` empty before and after): **307 open plus 2 deferred (Q92, Q499) = 309.** The 308 stamped
 questions are exactly that set **minus Q499** (decision 1(e)), with no stamped question outside it.
 Accounted by id:
 
 - **Q499** — not stamped, still `deferred`, by stop-and-ask (e).
-- **Q494** — open at `988ef5f` and outside the six batches' 307 (38 + 70 + 50 + 50 + 50 + 49): stamped
+- **Q494** — open at `f76bdc8` and outside the six batches' 307 (38 + 70 + 50 + 50 + 50 + 49): stamped
   `P29 W127: resolve — ADR 0082`. W127 has no worksheet table; its approved row is its declaration's
   Scope step 8 and this plan's stop-and-ask (l). It is the one stamp with no *Final approved
   verdicts* row.
 - **Q386** — stamped twice, `P29 W121: defer` and `P29 W122: re-stamped` (the maintainer's *"Own
   trigger"*). The re-stamp carries no verdict word, so Q386 has one verdict.
-- **Q513** — raised by W121, `open`, not stamped: it was not open at `988ef5f`, and R9 binds it.
+- **Q513** — raised by W121, `open`, not stamped: it was not open at `f76bdc8`, and R9 binds it.
 
 **Every other stamp has its row**: each of W121-W126's *Final approved verdicts* table was found,
 with 38, 70, 50, 50, 50 and 49 rows, none twice, and every one of the 307 stamps names an item whose
@@ -240,7 +240,7 @@ now `open` with a `closes-when` that names what would answer it. The rest left `
 
 Counted from the stamps by `cmp.mjs` and equal, row by row, to each item's own Record. The register
 on the final tree: open 22 (the 21 and Q513), deferred 65 (the 64 and Q499), icebox 182, resolved 125
-(the 84 resolved at `988ef5f` and the 41 resolve, duplicate and obsolete verdicts).
+(the 84 resolved at `f76bdc8` and the 41 resolve, duplicate and obsolete verdicts).
 
 *What an open question now owes a reader*: **a non-empty `closes-when` that is a CLOSING condition**,
 an event or decision that answers it, never a trigger that would reopen it. **R9** in
@@ -253,13 +253,13 @@ bound by R9; an `icebox` owes why it is a what-if, in `note` (R2).
 
 | | verdict | measurement |
 |---|---|---|
-| **1** | **HELD** | `git diff 988ef5f..2d94607` touches nothing under `spec/`, `src/`, `test/`, `examples/`, `index.ts` or `package.json`; W127's `gate:full` EXIT 0 (2580 s) on the tree committed as `2d94607`. The join did not run `gate` |
-| **2** | **HELD on its threshold, FAILED on its ranking** | **287 of 308 (93.2%) left `open`** against the 47 (15%) needed: defer 64, icebox 182, resolve 30, duplicate 7, obsolete 4 (`pred2.mjs`, EXIT 0). By cluster at `988ef5f`: The join 14/14 and Decisions and data 42/42 (100%), **Verification and fixtures 185/199 (93.0%)**, Scale and interop 25/28 (89.3%), Identity, state, failure 20/23 (87.0%), Documents and indexes 1/2. Verification and fixtures is **third, and below the other clusters together, 102/109 (93.6%)**. The stated reversal (fewer than 47) did not occur |
+| **1** | **HELD** | `git diff f76bdc8..e69ea8d` touches nothing under `spec/`, `src/`, `test/`, `examples/`, `index.ts` or `package.json`; W127's `gate:full` EXIT 0 (2580 s) on the tree committed as `e69ea8d`. The join did not run `gate` |
+| **2** | **HELD on its threshold, FAILED on its ranking** | **287 of 308 (93.2%) left `open`** against the 47 (15%) needed: defer 64, icebox 182, resolve 30, duplicate 7, obsolete 4 (`pred2.mjs`, EXIT 0). By cluster at `f76bdc8`: The join 14/14 and Decisions and data 42/42 (100%), **Verification and fixtures 185/199 (93.0%)**, Scale and interop 25/28 (89.3%), Identity, state, failure 20/23 (87.0%), Documents and indexes 1/2. Verification and fixtures is **third, and below the other clusters together, 102/109 (93.6%)**. The stated reversal (fewer than 47) did not occur |
 | **3** | **HELD** | reader disputes + changes per batch: W121 3 + 2, W122 3 + 1, W123 6 + 1, W124 4 + 0, W125 **1** + 0, W126 4 + 0. No zero; W125's one is the nearest to the reversal |
 | **4** | **HELD** | `check:register` EXIT 0 at every Record (W121-W126's apply logs, W127's lanes) and at this join; R8 pairings 16, 24, 24, 24, 26, 26, 28. **It is the CHECK that held — its self-test was red from W121 to W127's BUILD** (below) |
 | **5** | **HELD** | `CLAUDE.md`, `doc/workflow.md` and `doc/concept.md` are not in the plan's diff; `doc/questions/README.md` was the one live instruction R9 needed (W127) |
 | **6** | **REVERSED**, by its own condition | stop-and-ask (m): `scripts/state.mjs` changed at W127, and `scripts/check-markdown-selftest.mjs` for its fixture anchors. `lookup.mjs` and `lookup:selftest` did not |
-| **7** | **HELD** | `check:markdown:selftest` on a `git archive` of the declaration tree `a93b767`: EXIT 0 in 258 s, 42/42 caught, 41/41 noticed, 7/7 bounded (`decl-mds.log`) |
+| **7** | **HELD** | `check:markdown:selftest` on a `git archive` of the declaration tree `b347685`: EXIT 0 in 258 s, 42/42 caught, 41/41 noticed, 7/7 bounded (`decl-mds.log`) |
 
 **Ids.** **Issued**: W121, W122, W123, W124, W125, W126, W127; Q513 (W121); ADR 0082 (W127).
 **SPENT, never issued**: W128, W129, W130; Q514-Q516 (W121), Q517-Q520 (W122), Q521-Q523 (W123),
@@ -291,9 +291,9 @@ Q533 and ADR 0085.*
    self-test to 41/42 with `check:markdown` green. W123-W127 and this Record are link-free. That is
    Q142's mechanism, **kept**, so no question was raised for it (Q521 unissued).
 5. **Self-test fixtures anchored on live questions, and the register self-test red from W121 to
-   W127 unnoticed by any batch.** `check:register:selftest` was green at `988ef5f` and went red at
-   `81ed979` (W121: META, the *icebox removed* mutant fails on a tree with iceboxed questions and
-   `MAX_CORPUS = 0` forbade it), again at `9ad2345` (W123: STATE, below), and W126's Q488 duplicate
+   W127 unnoticed by any batch.** `check:register:selftest` was green at `f76bdc8` and went red at
+   `1f1fa74` (W121: META, the *icebox removed* mutant fails on a tree with iceboxed questions and
+   `MAX_CORPUS = 0` forbade it), again at `54d48af` (W123: STATE, below), and W126's Q488 duplicate
    moved a fixture its probes anchor on (`status: open`, `note: ""`); Q490 and the resolved Q1, Q4,
    Q466 were anchors too. **No batch gate ran it**: prediction 1 said no rung moves, so the batches
    declared neither `gate` nor `gate:full`, and the self-test is only on `gate:full`. W126's proposer
@@ -301,7 +301,7 @@ Q533 and ADR 0085.*
    `dev-dist/p29x-54441/`). W127 fixed it by stop-and-ask (m): a by-id `CORPUS_ALLOWED`, synthetic
    fixtures above Q8000, and a guard that aborts a probe writing a register question. *A followed
    gate, declared to the rule, that could not see what its item broke.*
-6. **`state.mjs`'s `open` floor**: `open >= 200` (line ~335 at `1b8b819`), under a comment that
+6. **`state.mjs`'s `open` floor**: `open >= 200` (line ~335 at `86dab99`), under a comment that
    *these quantities only grow*, true of files and false of a status. `npm run state` EXITed 1 from
    W123 (open 68 then) to W127, which removed the floor and replaced a tautological reverse row with a
    live count read by a second route.
@@ -329,7 +329,7 @@ Q533 and ADR 0085.*
 
 ## Retro
 
-*Pass 3 ran on 2026-10-06 over `723403e`, with the working tree clean before it. Scratch
+*Pass 3 ran on 2026-10-06 over `e643491`, with the working tree clean before it. Scratch
 `dev-dist/p29r-58647/` (the retro shell's pid). The coordinator's ledger
 `dev-dist/p29c-33131/ledger.md` was read as data. **NO CHANGE ADOPTED.** One refusal is counted
 in the ledger, and one proposal goes to the maintainer as a question (section 1). `doc/workflow.md`
@@ -446,8 +446,8 @@ because it is the band's denominator and not the ordinal (P27's retro). W121-W12
 each, as declared, so there is no overlap to measure for them.
 
 **Correction (rule 6, applied to this plan's own Record).** Finding 6 says *`npm run state` EXITed 1
-from W123 (open 68 then)*. Counted with `git grep` per commit, open was **160 at W123's `9ad2345`**,
-113 at W124's and **68 at W125's `6eaa270`**, which is the tree the coordinator diagnosed. The EXIT 1
+from W123 (open 68 then)*. Counted with `git grep` per commit, open was **160 at W123's `54d48af`**,
+113 at W124's and **68 at W125's `2ca70eb`**, which is the tree the coordinator diagnosed. The EXIT 1
 from W123 stands, and the 68 belongs to W125. **No item file is corrected**, because none was found
 false.
 

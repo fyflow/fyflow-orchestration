@@ -1,6 +1,6 @@
 # W132 — The test harness: a suite the runner cannot import is one named FAIL (Q272), and the definition gate suite names its cases at the call site (Q382)
 
-**Status:** done — declared 2026-10-07 on `2faf288`, the third item of P30; built, the reader and the fix round done 2026-10-07
+**Status:** done — declared 2026-10-07 on `9c32d06`, the third item of P30; built, the reader and the fix round done 2026-10-07
 **Plan:** P30, `doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md`
 
 *This file carries NO relative link, deliberately*, as W133's and W131's do — Q142's mechanism. A
@@ -15,7 +15,7 @@ Owns:       test/runner.ts, test/definition/gate.test.ts, and the checked-in pro
             test/provocations/throws-on-import.ts (a suite that throws on import) and
             test/provocations/q272.ts (runs the runner on it, clean and provoked, and grades the
             pair); and this file (P30's index row)
-Inputs:     the tree at `2faf288` (W133 and W131 done); P30 decisions 6, 7, 8 and prediction 2;
+Inputs:     the tree at `9c32d06` (W133 and W131 done); P30 decisions 6, 7, 8 and prediction 2;
             Q272's and Q382's own files; test/driver/gate.test.ts as the call-site model
 Outputs:    (1) Scope 1's measurement, recorded BEFORE any edit: what test/runner.ts does today
                 when one suite throws on import, in node and deno — exit code, FAIL lines, and
@@ -110,7 +110,7 @@ first.
 
 ## Record
 
-*Filled in 2026-10-07 on `c72e704`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-07 on `25a960a`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w132-63479/` (this item's shell pid): every log and script named below. Node v24.20.0 by
 `fnm use 24` in every shell, Deno 2.9.6; every rung redirected, its EXIT read in the same command, never
 piped. Ids here are bare text, as the header says.
@@ -119,7 +119,7 @@ piped. Ids here are bare text, as the header says.
 
 | command | EXIT | reading |
 |---|---|---|
-| `npm run gate:full > dev-dist/w132-63479/full.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `c72e704`, after the reader's fixes and rule 8's pass 2; 0 `FAIL` lines; `git status --short` empty before and after (`tree-before-full.txt`); 09:35 to 10:16 |
+| `npm run gate:full > dev-dist/w132-63479/full.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `25a960a`, after the reader's fixes and rule 8's pass 2; 0 `FAIL` lines; `git status --short` empty before and after (`tree-before-full.txt`); 09:35 to 10:16 |
 | — L1-L5 | 0 | **1528** cases in node 24.20.0, deno 2.9.6 and chromium (parity 1528): **unchanged** |
 | — L6 | 0 | **2465** assertions over **162** real runs, node and deno: unchanged |
 | — self-tests | 0 | 11/11 lanes ok, 2328.8 s wall |
@@ -127,17 +127,17 @@ piped. Ids here are bare text, as the header says.
 
 **After the record step** (four doc files a check reads): `npm run gate` EXIT 0 (`gate-record.log`, 1528
 in all three, 162 L6 runs) and `npm run check:markdown:selftest` EXIT 0 (`md-selftest.log`, Q541 being a
-new markdown file); `check:register:selftest` was not re-run alone, `gate:full` having run it at `c72e704`.
+new markdown file); `check:register:selftest` was not re-run alone, `gate:full` having run it at `25a960a`.
 
 L7 did not run; this item changes no trace. **Prediction 2 held**: 1528 L1-L5 cases before (`npm test`,
-`test:deno`, `test:browser` on `2faf288`'s two files, `base-node.log`, `base-deno.log`,
+`test:deno`, `test:browser` on `9c32d06`'s two files, `base-node.log`, `base-deno.log`,
 `browser-before.log`) and after, in all three; the L1 census still counts 17 for the W92 suite.
 
 ### Scope 1 — the measurement, before any edit to the runner
 
 `bash dev-dist/w132-63479/measure.sh before`: the provocation copied into the glob as a temporary
 `.test.ts`, each command run and its EXIT read, the copy removed, the tree's digest identical before and
-after (`measure-before.txt`). Repeated as `measure.sh after` on `c72e704` (`measure-after.txt`).
+after (`measure-before.txt`). Repeated as `measure.sh after` on `25a960a` (`measure-after.txt`).
 
 | command | before W132 | after W132 |
 |---|---|---|

@@ -1,6 +1,6 @@
 # W164 — four annotations in the schema subset
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-15 on `60c3df6`,
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-15 on `5129d3b`,
 declaration step RUN the same day in a byte copy (M1-M5 below); both reader passes RAN, neither found a code defect, their items
 acted on; no exception; stop-and-ask S1 (four stale *thirteen* sentences outside `Owns`) ANSWERED by the maintainer 2026-10-16,
 *"as recommended"* — leave and record (Out); nothing raised, nothing closed
@@ -35,7 +35,7 @@ Outputs:    (1) schema.ts: SCHEMA_KEYWORDS gains title, description, readOnly, w
                 naming each — and a paragraph after it stating the four constrain nothing and writeOnly promises no
                 redaction; section 11 gains a row, *redaction by writeOnly* — no.
             (5) L1 tests (below) and their one suite in l4-corpus's LATE_SUITES.
-Depends on: W163 (done, 60c3df6)
+Depends on: W163 (done, 5129d3b)
 Blocks:     W165
 Tests:      L1 test/definition/schema.test.ts — the W164 suite: each of the four ADMITTED at the top, under properties and
             under items (and false, the empty string, both booleans true, all four at three depths beside examples);
@@ -58,7 +58,7 @@ Gate:       `npm run gate` before the readers (P37 sentence C); then the conform
 Reserves:   Q623-Q625, ADR 0098
 ```
 
-*Reserves: `npm run state` on `60c3df6` reads the next free ids as **W164, Q620, ADR 0098** from the tree, and W162, Q615,
+*Reserves: `npm run state` on `5129d3b` reads the next free ids as **W164, Q620, ADR 0098** from the tree, and W162, Q615,
 ADR 0096 from the ledger (P33's Retro) — they DISAGREE because P37 was declared and W162-W163 spent ids since that
 sentence; P37's own reservation governs. Its W164 row gives this item Q623-Q625 and ADR 0098.*
 
@@ -92,7 +92,7 @@ sentence; P37's own reservation governs. Its W164 row gives this item Q623-Q625 
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-15 in a BYTE COPY of `60c3df6` (`git archive` into `C:/tmp-w164/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-15 in a BYTE COPY of `5129d3b` (`git archive` into `C:/tmp-w164/m`,
 `node_modules` copied, **zero links** by `find -type l`), node 24.20.0 and deno 2.9.6. The change was built there whole and
 every lane run before `Owns` was written.*
 

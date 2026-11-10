@@ -108,7 +108,7 @@ Plus: the index comparison with its differences listed; `npm run gate:full` once
 ## Record
 
 **Status: built, both readers RAN, and the maintainer's full fix round acted on their findings.** Everything here ran on the
-uncommitted tree over `629bd8b`, Node v24.20.0 by `fnm use 24` in every shell.
+uncommitted tree over `bb67ae5`, Node v24.20.0 by `fnm use 24` in every shell.
 
 **Files changed.** Owns: `scripts/lookup.mjs` (new), `package.json` (`q`, `adr`, `term`, `refs`),
 `doc/decisions/README.md` (`## Index` replaced by one line), this file. Exceptions, declared above
@@ -156,7 +156,7 @@ then too, a miscount — `package.json` is one path serving two declarations).
 | the readers' overlap | **4 shared subjects** | `refs --where count`; `--count` naming no filter; the `.git` skip unproved; `--search` reading front matter only. *The two briefs were written to differ — one named spec claims and Record numbers, the other mutation and construction* |
 
 **The index comparison — every difference, and whose it is.** The ADR H1s were checked unchanged
-since `cfe671a` for every title that differs, so a title difference is the hand row's.
+since `2593c0a` for every title that differs, so a title difference is the hand row's.
 
 | class | ids | whose |
 |---|---|---|

@@ -1,6 +1,6 @@
 # W175 — pausing a run: `driver.pause` / `driver.unpause`, `RunState.paused`, and a held dispatch handed on in order
 
-**Status:** done 2026-10-17 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN — two DEFECTS (D1, D2) FIXED, G1 changed and RATIFIED by the maintainer, G2 stated, G3 and notes acted on; exceptions E1-E5 granted by the maintainer (S-1..S-4, S-6), S-5 declined; no question raised — declared 2026-10-16 on `7915005`; P34's SEVENTH item: stop-and-ask (e), decision 5's deferred
+**Status:** done 2026-10-17 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN — two DEFECTS (D1, D2) FIXED, G1 changed and RATIFIED by the maintainer, G2 stated, G3 and notes acted on; exceptions E1-E5 granted by the maintainer (S-1..S-4, S-6), S-5 declined; no question raised — declared 2026-10-16 on `1a7cac1`; P34's SEVENTH item: stop-and-ask (e), decision 5's deferred
 form, prediction 7; ADR 0106; built under B′, `npm run gate` before the readers
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its SEVENTH item. **A run's OWNER pauses it through ONE
@@ -62,7 +62,7 @@ Outputs:    (1) src: `Driver.pause()`, `Driver.unpause()`, `RunPauseOptions`; `R
                 test/driver/checkpoint.test.ts (`RUN_FOR.paused`/`unpaused`, kinds 12 -> 14), l4-corpus's `LATE_SUITES`
                 (+2) and a count case, `DRIVER_FIELDS` in test/driver/retention.test.ts and examples/l6.ts, the `RunState`
                 literals the new cell turns red.
-Depends on: W174 (done, 7915005)
+Depends on: W174 (done, 1a7cac1)
 Blocks:     W176
 Tests:      L1 — test/fold/paused.test.ts, `RN-R34` over hand-written sequences: `paused` sets the cell and moves no
             outcome — over a running task, a parked one, a completed run; `unpaused` clears it; a second `paused` and an
@@ -115,7 +115,7 @@ re-holds the SAME ids (asserted by the resume case).
 
 ## What the declaration step measured
 
-*Measured 2026-10-16. M1 in a BYTE COPY of `7915005` (`git archive` into `C:/tmp-w175/m`, `node_modules` copied, never
+*Measured 2026-10-16. M1 in a BYTE COPY of `1a7cac1` (`git archive` into `C:/tmp-w175/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6; M2-M5 on the real tree as the item was built.*
 
 | # | fact | measured |

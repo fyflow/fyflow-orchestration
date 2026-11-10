@@ -1,6 +1,6 @@
 # W190 — the run's payload as a reference: `"$payload"`, on every `needs` site, from the definition to the driver to the wiring check
 
-**Status:** done 2026-10-19 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, no BLOCKER; S-1 answered by the maintainer (W191 fixes it); no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-18; declared 2026-10-18 on `86b0c7c` (P38 declared, the tree clean); P38's FIRST item: stop-and-asks
+**Status:** done 2026-10-19 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, no BLOCKER; S-1 answered by the maintainer (W191 fixes it); no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-18; declared 2026-10-18 on `f11183a` (P38 declared, the tree clean); P38's FIRST item: stop-and-asks
 (a), (b), (d), (f)-(j), (l) and (m) as answered, facts 1, 4 and 7-11; ADR 0117 (reserved for it); not committed
 **Plan:** [P38](../plans/p38-may-a-reference-name-what-reached-the-run-and-its-map-instance.md) — *may a `needs` reference
 name the value that reached the RUN and, inside a `map` instance, the item that opened it — always there, copied like any
@@ -58,7 +58,7 @@ Outputs:    (1) src/definition/validate.ts: `referenceTarget` returns `{ form: '
                 the app's entry-ask worked example — and the BREAKING paragraph; sections 4, 7, 9 (FD-R4) and 15 where
                 they state a premise this falsifies; `RUN_FLOOR` 47 -> 48.
             (9) doc/decisions/0117-a-reference-may-name-what-reached-the-run.md.
-Depends on: nothing (P38's first item; the tree at 86b0c7c)
+Depends on: nothing (P38's first item; the tree at f11183a)
 Blocks:     W191
 Tests:      L1, expected values hand-written from (b), (d), (g), (h), (i) and section 3's grammar, never from output:
             `referenceTarget` on every form, the two new variants included, and null for ["$payload"], "$payload?",
@@ -108,7 +108,7 @@ rule or id moves; "$payload" composes a value and changes no route.
 
 ## What the declaration step measured
 
-*Measured 2026-10-18 in the BYTE COPY `C:/tmp-w190/m` (`git archive` of `86b0c7c`, `node_modules` copied, never linked;
+*Measured 2026-10-18 in the BYTE COPY `C:/tmp-w190/m` (`git archive` of `f11183a`, `node_modules` copied, never linked;
 `find -type l` 0), node 24.20.0, deno 2.9.6.*
 
 | # | fact | measured |
@@ -116,7 +116,7 @@ rule or id moves; "$payload" composes a value and changes no route.
 | M1 | the baseline, in the copy | `node test/runner.ts` EXIT 0: **80 files / 2047 cases** |
 | M2 | **P38 prediction 1 — the `src/` change ALONE** (the five `src/` files copied in; no test, spec or example touched) | **NOTHING moves**: L0 `npm run typecheck` EXIT 0 (tests and examples included — no caller typed on the old union narrows it); L1-L5 EXIT 0, **2047 / 2047**; L6 node **2767, 0 failed**; `check:docs` and `check:spec` EXIT 0. No fold input and no dispatched payload of any existing flow moved, and no assertion reads `FD-V26`'s old message text |
 | M3 | **prediction 2 — the spec's new table ROW, the censuses untouched** | `test/definition/needs.test.ts`'s table bound RED and **L6 2 of 2767 RED**, both `cross-row`: *one reference form per row* (4 vs 5) and *one more SPELLING than rows* (5 vs 6 — `spellingOf` read `"$payload"` as `"n"`). No `EXPECTED` flow uses the token: the move is the census reading the TABLE (fact 9's `:6459`, `:12566`). **A NEW L6 clause moves `X10`** (`examples/README.md`, not in `Owns`) — measured, three added checks took L6 to 2771 against its declared 2767 — so the not-yet list is held both ways by the two EXISTING clauses (R4) and `X10` is unmoved |
-| M4 | the two new suites against `86b0c7c`'s `src/` (written from the plan before any run) | L1: **7 of 9 RED** (green: FD-V16, true before, and the membership). L2: **10 of 11 RED** (green: the membership) |
+| M4 | the two new suites against `f11183a`'s `src/` (written from the plan before any run) | L1: **7 of 9 RED** (green: FD-V16, true before, and the membership). L2: **10 of 11 RED** (green: the membership) |
 | M5 | **B′ / D′ — the census sites**, each by its lane | `RUN_FLOOR` 47 -> 48 (`check:docs` 48 `run` / 6 `check`); `LATE_SUITES` +2 and a count case (9, 11); `spec/examples/invalid/` 47 -> 50 (`l4-corpus` +3 cases; `check:spec` C4 still *44 definition refusals*); `needs.test.ts`'s table bound +1 row; `DRIVER_FIELDS` and `NOT_RUN_STATE` UNMOVED (`runPayload()` is a METHOD, no own property); `X10` unmoved (2767 / 214); spec v0.44 and its `spec/README.md` row; no rule id. **82 files / 2071 cases** in node, deno and chromium (+2 files, +24: 9 + 11 + 1 count + 3 invalid examples) |
 | M6 | **now-false statements** — `git grep` (not `dev-dist/`) for each changed name and PREMISE (*the only invented token(s)*, *a "." is the only reference an entry can carry*, *at an entry FD-V27 admits no reference but "."*, *the run's own outputs*, *no derivation at all*, *reachable by naming whatever produced it*, *at an entry only "."*, `node === null`) | rewritten in `Owns`: validate.ts, types.ts, wiring.ts, driver.ts, routing.ts; spec (section 3's row and prose, the token count, FD-C1, FD-C3, the EDGE subsection, the wiring row, FD-V26, FD-R4, *A sample the caller GIVES*); AGENTS.md sections 3, 4, 7, 15. **Outside `Owns`, record-step files**: ADR 0040 rules 2 and 5, ADR 0041's *not derivable* row, and **ADR 0101 line 50** (*at an entry only `"."`*, not named by the plan) — a dated pointer each at the record step. **Still true, left**: spec's v0.11/v0.12 history paragraphs; `test/definition/needs.test.ts:863` (the FD-V29 measurement skips node-less references by `t.node === null` — the right predicate there, it counts AIMED references); `spec/run-state.md:556` |
 | M7 | **a real-scheduler probe** — `C:/tmp-w190/m/scratch-w190/probe.ts`, `createRuntime` over a real `FyflowScheduler`, `pay` on a THREADED pool and `audit` on an INLINE one; not checked in (W192 owns L6) | node 24.20.0 and deno 2.9.6 EXIT 0, **the same JSON byte for byte**: an entry ask answered, `pay` received `{ invoice: <payload>, answer: { approved: true } }`, the caller's post-`start()` nested write absent; its edge on `needs.run.amount` routed 120 to `audit` (`{ run: <payload>, prev: <pay's result> }`) and 50 to `done`; a run STOPPED at the ask, resumed on a fresh runtime and answered there: the same values, the header the five keys at `format` 1, the stored kinds `asked` and `interrupted` alone |
@@ -209,7 +209,7 @@ ABORTED; every file restored, digests equal.** R1-R3, R5, R11, R12 are the reade
 ## Stop-and-asks
 
 **S-1 — a PRE-EXISTING `FD-R4` crash, found by this item's L2 case: `start()` throws a raw `UnresolvedBranchPath` for an
-ENTRY `map` whose branch task declares ANY `needs` and whose worker declares an `inputSchema`.** Measured on `86b0c7c`'s
+ENTRY `map` whose branch task declares ANY `needs` and whose worker declares an `inputSchema`.** Measured on `f11183a`'s
 `src/` with `needs: { item: "." }` (no `$` anywhere): `compose` computes `this.pathOf(node.id, itemIndices)` eagerly
 whenever a node declares `needs`, and `FD-R4` hands it `new Map()` — no item index — for a target inside a map region
 (P38 fact 8's *with EMPTY item indices*). The run never starts; the error is not `BoundaryRefused` and names a branch
@@ -249,8 +249,8 @@ entry map's branch task whose worker declares an `inputSchema` throws `Unresolve
 |---|---|---|
 | `npm run gate` before the readers (sentence C) | RAN — EXIT 0 | `C:/tmp-w190/gate2.log`: lint; typecheck; every check, `check:docs` 48 `run` / 6 `check`; L1-L5 82 files / 2071 cases in node, deno and chromium; L6 2767 / 0 failed, node 24.20.0 and deno 2.9.6 |
 | `check:docs:selftest` (B′: a snippet added) | RAN — EXIT 0, 24/24 noticed | `C:/tmp-w190/docs-self.log`. `check:budget:selftest` NOT RUN: no always-read document moved |
-| L1 the grammar, FD-V26 at both sites, the five sites, FD-V16, the wiring check, the walk | RAN — green | `test/definition/run-payload.test.ts` (9 cases; 7 RED on `86b0c7c`, M4) |
-| L2 the composition at every site, FD-R4, a resume, the copy claim, a flow unchanged | RAN — green | `test/driver/run-payload.test.ts` (11 cases; 10 RED on `86b0c7c`) — and after the readers, two keys per node and per edge, a store write after a resume, a null payload, `"."` off the entry |
+| L1 the grammar, FD-V26 at both sites, the five sites, FD-V16, the wiring check, the walk | RAN — green | `test/definition/run-payload.test.ts` (9 cases; 7 RED on `f11183a`, M4) |
+| L2 the composition at every site, FD-R4, a resume, the copy claim, a flow unchanged | RAN — green | `test/driver/run-payload.test.ts` (11 cases; 10 RED on `f11183a`) — and after the readers, two keys per node and per edge, a store write after a resume, a null payload, `"."` off the entry |
 | real-scheduler probe (M7) | RAN — before the readers | node and deno byte-identical; not re-run: the readers' fixes are tests and text, and S-1's fix was reverted |
 | conformity reader | RAN | C1-C5, no BLOCKER; C1-C3, C5 fixed; C4 left (below); S-1 widened |
 | adequacy reader | RAN | A1-A6, no BLOCKER; A1-A4, A6 fixed and re-cut as R1-R3, R5, R11, R12 (KILLED); A5 declared (R6) |

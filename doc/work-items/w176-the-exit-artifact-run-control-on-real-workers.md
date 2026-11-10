@@ -1,6 +1,6 @@
 # W176 — the exit artifact: cancelling, stopping and pausing a run, on real workers in both runtimes
 
-**Status:** done 2026-10-17 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN — conformity: all seven clauses CONFORM, one DEFECT fixed, the R1 GAP closed, two notes acted on; adequacy: six gaps closed, equivalents agreed; Q633 closed; no question raised; no exception — declared 2026-10-17 on `4758862`; P34's LAST item, its exit
+**Status:** done 2026-10-17 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN — conformity: all seven clauses CONFORM, one DEFECT fixed, the R1 GAP closed, two notes acted on; adequacy: six gaps closed, equivalents agreed; Q633 closed; no question raised; no exception — declared 2026-10-17 on `e41ec1f`; P34's LAST item, its exit
 artifact
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it — and what does each leave in the log?* — its LAST item and its
@@ -67,7 +67,7 @@ Outputs:    (1) ONE cross-row block in examples/l6.ts — `W176 exit` — its re
                 DECLARED_RUNS 176 -> 187 *(378, 2711 and 190 after the readers)*, CROSS_ROW_SUBJECTS, pairRunCount, the file header (P34 in the exit-artifact list,
                 one table row); examples/README.md's two X10 copies, and its section 2 sentence (W173's F6).
             (4) Q633 closed — its closes-when's L6 run on real workers is clause (6).
-Depends on: W175 (done, 4758862)
+Depends on: W175 (done, e41ec1f)
 Blocks:     nothing — P34's Record and retro follow
 Tests:      examples/l6.ts at ladder L6 in node 24.20.0 and deno 2.9.6. Every expected value hand-written from the spec and
             the fixture — never from a run's output: each sequence from RN-R4/JP-R5 and the flow's own shape; each outcome
@@ -108,7 +108,7 @@ refuses the resume.
 
 ## What the declaration step measured
 
-*Measured 2026-10-17 on `4758862`, node 24.20.0 and deno 2.9.6.*
+*Measured 2026-10-17 on `e41ec1f`, node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
 |---|---|---|

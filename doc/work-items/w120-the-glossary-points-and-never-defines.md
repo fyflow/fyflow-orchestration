@@ -63,7 +63,7 @@ before the first edit (`doc/workflow.md` section 7 rule 2):
 
 **Status: built to its gate; the conformity reader RAN, and its four defects were acted on at the fix round**
 — the maintainer asked for it on 2026-10-05, after W119; the first commit carried them unacted. Everything here ran on the uncommitted tree over
-`839d83a`, committed as `629bd8b`; the fix round's rows ran over `6705ff7`.
+`2a8262f`, committed as `bb67ae5`; the fix round's rows ran over `a2c2ea0`.
 
 **Files changed.** Owns: `doc/glossary.md`, `doc/questions/q508.md`-`q511.md`,
 `doc/decisions/0080-the-glossary-points-and-never-defines.md`, this file. Exceptions, declared above
@@ -140,8 +140,8 @@ moved — the exceptions table says what and why. Nothing else: `git diff --name
 **The term counts, measured before citing them.** `git grep -oiw gate` — case-insensitive, whole
 word, tracked files only, so `dev-dist/` is excluded twice over. At `aa43cb3`: **229** under
 `spec/**/*.md` and **2,588** under `doc/`, which are P28's figures and the predicate that reproduces
-them (`spec/` with its JSON examples reads 233). On `839d83a`: 229 and **2,666**. ADR 0080 and Q508
-cite the `839d83a` figures with their predicate and commit.
+them (`spec/` with its JSON examples reads 233). On `2a8262f`: 229 and **2,666**. ADR 0080 and Q508
+cite the `2a8262f` figures with their predicate and commit.
 
 **Questions raised**: [Q508](../questions/q508.md), [Q509](../questions/q509.md),
 [Q510](../questions/q510.md), [Q511](../questions/q511.md), all open with no owner. **Q512 is

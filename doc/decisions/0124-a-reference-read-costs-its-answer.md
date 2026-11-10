@@ -30,7 +30,7 @@ amended**: its predicate stays the definition of visibility. It resolves [Q735](
 inside a `map`, one per instance — asked ADR 0044's predicate of each, and sorted the survivors. A branch task reading an
 earlier task of its OWN instance found one entry at the cost of the node's whole list, so the map cost O(items²).
 fyflow-app's flows read their own branch's nodes (its `needs` editor offers every upstream task), and `"."` reaches only
-the predecessor. Re-taken at W199's declaration on `6006caa`, the driver alone, `post` reading its own instance's `work`,
+the predecessor. Re-taken at W199's declaration on `b3fae40`, the driver alone, `post` reading its own instance's `work`,
 `task.running` before each settlement, each size a fresh process: **701 / 22,033 / 99,029 ms** at 2,000 / 8,000 / 16,000
 items in node 24.20.0 and **474 / 12,006 / 64,208** in deno 2.9.6; two steps back (`work` → `mid` → `post`) 1,310 /
 41,622 / 176,628 in node; a reader in a NESTED map 18,251 / 290,697 ms at 2,000 / 8,000. A CPU profile at 8,000 items:
@@ -66,7 +66,7 @@ region chains share — a graph fact — and then on equality of the first `dept
    2,000 / 8,000 items: `2n` one step back, `2n` two steps back, `7n` in a nested map, `4n` from a sibling map whose
    READING map has three slots (P40 (e1)).
 5. **What does NOT move** (P40 decision 5): what any reference resolves to — every composed payload and `ctx.needs`
-   byte-identical to `6006caa`'s over every valid corpus flow under seven drains — `log-view.test.ts`'s six and *an uncloneable result first* — each with
+   byte-identical to `b3fae40`'s over every valid corpus flow under seven drains — `log-view.test.ts`'s six and *an uncloneable result first* — each with
    a resume from every rest point (182 runs, the session scratchpad's `w199/payloads.ts`; a measurement, not a gate entry) — the order of an `all` answer, `FD-R3`, `FD-C4`, ADR 0014's append order, `FoldInput`, `RunState`,
    `snapshot()`, a checkpoint, `CHECKPOINT_FORMAT` 1, `DRIVER_FIELDS`, the holder sets. **The invariant holds**: the index
    is the driver's read-side structure over its own projection.

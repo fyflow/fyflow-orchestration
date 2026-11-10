@@ -1,7 +1,7 @@
 # W224 — the pin moves to `fyflow-scheduler` 0.7.0; D7 learns this library's own version; the claims 0.7.0 makes false
 
 **Status:** done 2026-11-05 — **`npm run gate:item` EXIT 0** on the final tree, one command, run by the orchestrator;
-declared 2026-11-05 on `fd6227f`; both readers RUN and acted on; nothing raised, F6 closed in place (rule 6)
+declared 2026-11-05 on `5113a18`; both readers RUN and acted on; nothing raised, F6 closed in place (rule 6)
 **Plan:** [P46](../plans/p46-what-the-scheduler-0-7-0-admission-rework-lets-a-document-declare.md) — its FIRST item.
 
 ```
@@ -62,7 +62,7 @@ not applicable — no routing code moves.
 
 ## Record
 
-**Gate — what ran.** Baseline `fd6227f`; node 24.20.0, deno 2.9.6.
+**Gate — what ran.** Baseline `5113a18`; node 24.20.0, deno 2.9.6.
 
 | Clause | Verdict | Notes |
 |---|---|---|

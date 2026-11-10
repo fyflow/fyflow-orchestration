@@ -1,6 +1,6 @@
 # W154 — the built-in `if` and `switch`: a gate that decides by a declared condition or a declared value table
 
-**Status:** done 2026-10-13 — both reader passes RUN (Record) and their items R1-R4 acted on, `gate:item` EXIT 0 after them; implemented on `afd91e6`; stop-and-asks (j)-(o) ANSWERED and (p) approved 2026-10-13, acted on (Exceptions); (q) ANSWERED YES and acted on; **`npm run gate:item` EXIT 0** on the final tree, one command (Record); declared 2026-10-13 on `afd91e6`; declaration step RUN the same day, written before any `src/` edit
+**Status:** done 2026-10-13 — both reader passes RUN (Record) and their items R1-R4 acted on, `gate:item` EXIT 0 after them; implemented on `9f3204a`; stop-and-asks (j)-(o) ANSWERED and (p) approved 2026-10-13, acted on (Exceptions); (q) ANSWERED YES and acted on; **`npm run gate:item` EXIT 0** on the final tree, one command (Record); declared 2026-10-13 on `9f3204a`; declaration step RUN the same day, written before any `src/` edit
 **Plan:** [P32](../plans/p32-what-a-gate-may-decide-without-memory.md) — *may a gate decide by a
 declared condition or a declared value table, without memory?* — and this is its SECOND item: the two
 built-ins, on the interface W153 shipped.
@@ -66,7 +66,7 @@ Gate:       `npm run gate:item` (doc/workflow.md v0.26 / v0.29); then the confor
 Reserves:   Q589-Q593, ADR 0093
 ```
 
-*Reserves: `npm run state` on `afd91e6` reads the tree's next free question as **Q584**; W153 reserved
+*Reserves: `npm run state` on `9f3204a` reads the tree's next free question as **Q584**; W153 reserved
 Q584-Q588 and issued none, so they are skipped, never reissued (`doc/workflow.md` section 3), and this item
 takes **Q589-Q593**. P32 reserved ADR 0092-0093; 0092 is W153's and this item reserves **0093** (see (k)).*
 
@@ -102,11 +102,11 @@ takes **Q589-Q593**. P32 reserved ADR 0092-0093; 0092 is W153's and this item re
 | 5 | every census the new built-ins and the new corpus files move, before an edit | `test/**`, `examples/l6.ts`, `spec/**` |
 | 6 | the price of the wiring refinement along an `if`'s path | `src/definition/wiring.ts` |
 | 7 | what `check:spec` and `check:docs` demand of new corpus files, a new `FD-C` row and new snippets | `scripts/check-spec.mjs`, `scripts/check-docs.mjs` |
-| 8 | the baseline | the ladder at `afd91e6` |
+| 8 | the baseline | the ladder at `9f3204a` |
 
-## What the re-takes found — RUN 2026-10-13 on `afd91e6`, before any `src/` edit
+## What the re-takes found — RUN 2026-10-13 on `9f3204a`, before any `src/` edit
 
-*The tree was clean at `afd91e6` but for this file.*
+*The tree was clean at `9f3204a` but for this file.*
 
 **Re-take 1 — fact 1's first half holds and its second half is FALSE, by W153's design.** `evaluateWhen`
 (`routing.ts:120`) and `predicateProblem` (`validate.ts:434`) are exported, and `index.ts` re-exports both
@@ -183,8 +183,8 @@ id is added, so no case is REQUIRED, and a second case per rule is legal (`FD-V2
 section 7 row (`l4-corpus`, both ways). `check:docs`: a `run` snippet must `throw` (`X4`), and every
 snippet typechecks against `index.ts` with and without the DOM lib (`X3`, `X5`).
 
-**Re-take 8 — the baseline.** `node test/runner.ts` on `afd91e6`: **EXIT 0, 56 files / 1617 cases**, node
-24.20.0. The other lanes are W153's final `gate:item` on the same source tree (`afd91e6` committed it):
+**Re-take 8 — the baseline.** `node test/runner.ts` on `9f3204a`: **EXIT 0, 56 files / 1617 cases**, node
+24.20.0. The other lanes are W153's final `gate:item` on the same source tree (`9f3204a` committed it):
 L1-L5 56 / 1617 in deno 2.9.6 and chromium, L6 2487 / 164 in node and deno, `check:spec` 7 / 72 / 132.
 **Those were not re-run here** — read from W153's Record, not measured by this item.
 
@@ -258,7 +258,7 @@ has no task id; a nested fan-out (Q6) — not applicable.
 
 ## Record
 
-*Written 2026-10-13 on `afd91e6` with the item's changes UNCOMMITTED, after the Exceptions' edits. The reader
+*Written 2026-10-13 on `9f3204a` with the item's changes UNCOMMITTED, after the Exceptions' edits. The reader
 passes have NOT run.* *(P32's retro, 2026-10-14, pass 3 rule 6: both readers RAN later the same day — the
 gate table's rows and items R1-R4. This line and* What this taught *are as first written.)*
 
@@ -290,7 +290,7 @@ decisions 4-6 and spec v0.31 are the record, and ADR 0093 goes unused. **One NEW
 | the public surface | RAN | `index.ts`' runtime export names at `HEAD` (a `git archive` under `dev-dist/w154-surface-<pid>/`, removed after) against the tree: **148 and 148, none only on either side**. `condition.ts` is not re-exported; `readKeyPath` stays public through `validate.ts`' re-export |
 | W154's provocations | RAN, **31 of 31 as declared** | below |
 | corpus and snippet provocations | RAN on the pre-(p) tree, 4 of 4 RED for the reason named | not re-run after (p): the corpus and snippet did not change |
-| conformity reader | RAN 2026-10-13, fresh context, worktree `C:/tmp-w154/rc` on `afd91e6` plus this item's diff and new files, spec first and a route table written before the code was opened; constructed probes, nothing edited | **No blocking finding; 1 should-fix, 5 notes.** 31 `if` and 11 `switch` cases in real `Driver` runs, plus an entry `switch`, all as its spec-derived table said; 21 `if` and 26 `switch` refusals, each the rule the spec names. **The evaluator's move measured byte-identical for a TASK edge** against HEAD's code: `predicateProblem` over 9,617 generated `when` values and `evaluateWhen` over 15,176 evaluations, **0 differ**; `index.ts`'s names unchanged; no `src/definition/**` import of `src/driver/**`; the driver's per-decision path unchanged (one comment in `driver.ts`). C1 (should-fix): `switch`'s routes were NOT in the document's order for integer-like case names (`Object.keys` lists them first, ascending, and `JSON.parse` has already lost the order) — the spec sentence and Choice 4 were false for an HTTP-status `switch`, routing unaffected. C2 the declaration's Output (2) stale after (p); C3 the `0`/`-0` message; C4-C6 no change (a double FD-V40 as `distinct` gives; W153's NaN-as-null prefix; unreachable error paths). C1-C3 acted on as R1, R3, R4 |
+| conformity reader | RAN 2026-10-13, fresh context, worktree `C:/tmp-w154/rc` on `9f3204a` plus this item's diff and new files, spec first and a route table written before the code was opened; constructed probes, nothing edited | **No blocking finding; 1 should-fix, 5 notes.** 31 `if` and 11 `switch` cases in real `Driver` runs, plus an entry `switch`, all as its spec-derived table said; 21 `if` and 26 `switch` refusals, each the rule the spec names. **The evaluator's move measured byte-identical for a TASK edge** against HEAD's code: `predicateProblem` over 9,617 generated `when` values and `evaluateWhen` over 15,176 evaluations, **0 differ**; `index.ts`'s names unchanged; no `src/definition/**` import of `src/driver/**`; the driver's per-decision path unchanged (one comment in `driver.ts`). C1 (should-fix): `switch`'s routes were NOT in the document's order for integer-like case names (`Object.keys` lists them first, ascending, and `JSON.parse` has already lost the order) — the spec sentence and Choice 4 were false for an HTTP-status `switch`, routing unaffected. C2 the declaration's Output (2) stale after (p); C3 the `0`/`-0` message; C4-C6 no change (a double FD-V40 as `distinct` gives; W153's NaN-as-null prefix; unreachable error paths). C1-C3 acted on as R1, R3, R4 |
 | adequacy reader | RAN 2026-10-13, fresh context, worktree `C:/tmp-w154/ra`, spec first then tests, mutations walked by clause, every file restored by sha256 | **83 mutations, 71 killed, 12 survived: 4 real gaps, 7 equivalent, 1 unspecified** (S30, a `switch`'s `routesFor` over invalid settings reached only by the wiring check). The four gaps sat at JavaScript's number edges and nowhere the author probed: `ne` as loose `!=` (C02 — a gap since W108 that `if` inherited, so the if-table's *every operator* was overstated), `-0` against `0` both in matching (S26) and in the two-cases refusal (S12), and non-finite case values (S13). **The evaluator's move is pinned from both sides** (C22-C24, R01, R03 killed). `FD-C8`'s test clause satisfied. Its results agree with all 31 provocations. The four gaps acted on as R2, each row red on its mutant |
 | reader overlap | **1** shared subject | `-0` against `0` (conformity C3, adequacy S12/S26) — inside section 6's 0-4 band, with the briefs differed (only the conformity reader was handed the stop-and-asks and the undeclared choices, and asked for the move's byte-identity; only the adequacy reader was asked whether the move is PINNED) |
 

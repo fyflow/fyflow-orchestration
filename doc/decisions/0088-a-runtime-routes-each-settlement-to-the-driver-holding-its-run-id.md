@@ -29,8 +29,8 @@ rule 3 working exactly as written, N times per settlement. N runs settle `N x k`
 runtime does `N² x k` deliveries. [W55](../work-items/w55-a-run-at-scale-on-real-workers.md) measured
 it and raised Q244; this is the topology `createRuntime` builds and `AGENTS.md` recommends.
 
-**Re-taken by W142 on `ba90b5a`'s library source**, with the measuring mode added and not yet committed
-(it landed in `6ed7c7d`, with the routing), `examples/retention.ts topology N 4 1 [own]` under
+**Re-taken by W142 on `0b79f11`'s library source**, with the measuring mode added and not yet committed
+(it landed in `ddc71c8`, with the routing), `examples/retention.ts topology N 4 1 [own]` under
 `node --expose-gc` — N runs of `map-alias` (six tasks each) through `runtime.start` and `await done`,
 with nothing of the harness subscribed to the scheduler:
 

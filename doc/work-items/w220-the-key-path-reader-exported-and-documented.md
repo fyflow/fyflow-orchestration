@@ -1,6 +1,6 @@
 # W220 — The key path reader exported and documented: `keyPathSteps` and `KeyPathStep` from the root entry, all five in `AGENTS.md`
 
-**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no stop-and-ask, no exception used, no ADR, no question raised. Earlier: declared 2026-10-25 on `ab9a035`, P45's FIRST item: (c1); decision 1; fact 2; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no stop-and-ask, no exception used, no ADR, no question raised. Earlier: declared 2026-10-25 on `e507121`, P45's FIRST item: (c1); decision 1; fact 2; this file written from the plan's row BEFORE any other edit
 **Plan:** [P45](../plans/p45-what-a-comparison-may-compare-against-and-who-may-read-a-key-path.md) — *what may a
 comparison compare against, and who may read a key path the way a gate does?* — and this is its FIRST item: fyflow-app's
 pass 6 #2, answered (c1) by the maintainer.
@@ -116,7 +116,7 @@ final tree, held still. **Routing coverage**: not applicable — the item export
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| B′ — the change built in the byte copy `C:/tmp-w220/m` (a worktree at `ab9a035`, the diff applied, `node_modules` COPIED, 0 links, 0 reparse points) and `npm run gate` run before the `Owns` were fixed | RAN — **EXIT 1**, then the one red lane re-run alone **EXIT 0** (`gate-m.log`, `l6deno-m-rerun.log`) | L1-L5 **104 files / 2,300 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); every check EXIT 0; L6 node 2,883 / 0. **The one red was L6 deno, `cross-row` W94 (2h) / W97's ARRANGEMENT row, `failing: ["K=2"]`** — a timing row this item cannot reach (no `src/` logic moved); `npm run test:l6:deno` alone, same copy, **2,883 / 0, EXIT 0**. The `Owns` held as declared |
+| B′ — the change built in the byte copy `C:/tmp-w220/m` (a worktree at `e507121`, the diff applied, `node_modules` COPIED, 0 links, 0 reparse points) and `npm run gate` run before the `Owns` were fixed | RAN — **EXIT 1**, then the one red lane re-run alone **EXIT 0** (`gate-m.log`, `l6deno-m-rerun.log`) | L1-L5 **104 files / 2,300 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); every check EXIT 0; L6 node 2,883 / 0. **The one red was L6 deno, `cross-row` W94 (2h) / W97's ARRANGEMENT row, `failing: ["K=2"]`** — a timing row this item cannot reach (no `src/` logic moved); `npm run test:l6:deno` alone, same copy, **2,883 / 0, EXIT 0**. The `Owns` held as declared |
 | `check:docs:selftest` in the copy (B′: a `run` snippet added) | RAN — **EXIT 0**, 24/24 noticed | |
 | sentence C — `npm run gate` before the readers | the B′ run above, on content **byte-identical** to the author's tree (`cmp` over every changed file) | not re-run on the author's tree before the readers: the same bytes, and a second ~20 min ladder under the readers' load would have measured the machine |
 | Output (5) — the built bundles | RAN — `npm run build` EXIT 0 (no build-script edit), then `bundles.mjs` importing each | `dist/node/index.js` and `dist/browser/index.js` each: `keyPathSteps` and `readKeyPath` functions, `KEY_PATH_RE` and `PREDICATE_ROOTS` objects, **`evalLeaf` and `evaluateDeclared` undefined**; `keyPathSteps('files[0].name')` = `[{"key":"files"},{"index":0},{"key":"name"}]` from both; each bundle's `export { … }` clause names both (a second observer). `dist/types/src/definition/validate.d.ts` carries the value and type re-exports. Re-measured independently by both readers |
@@ -189,5 +189,5 @@ adequacy NIT 3): one subject, compatible findings. Distinct otherwise: the confo
 (`evaluateWhen`, the docblock's history, `edgePath` under (g1)); the adequacy reader's the suite's own observers.
 
 **Leftover worktrees.** `C:/tmp-w220/m` (the B′ copy, synced to the final tree for rule 8), `rc` and `ra` (git worktrees
-at `ab9a035` with the pre-reader change applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with
+at `e507121` with the pre-reader change applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with
 `C:/tmp-w220/rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.

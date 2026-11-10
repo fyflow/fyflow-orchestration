@@ -19,7 +19,7 @@ driver stays in the routing for the runtime's life*.
 
 ## Context
 
-**One long-lived runtime keeps every run it ever finished.** Measured on `bb612da` by the main session and
+**One long-lived runtime keeps every run it ever finished.** Measured on `9e325ac` by the main session and
 re-taken by W151 with the same script (`dev-dist/w151-27362/q513-measure.ts`, a copy of
 `dev-dist/w133-59497/`'s): `map-alias` run sequentially on one runtime, arity 4, ~4 KiB results, **no handle
 kept**, heap after two forced collections, node 24:

@@ -8,7 +8,7 @@ Spec:       none — P29 decisions 1-5 and 7, and doc/questions/README.md's form
 Owns:       the 70 question files listed below; this item's own question files, q517.md-q520.md;
             and the `resolves` field of every ADR an approved resolution names (doc/decisions/**,
             a record-step file, named because it is the joint that makes the batches serial)
-Inputs:     the register and the tree at `988ef5f`, P29's baseline; `npm run q` and
+Inputs:     the register and the tree at `f76bdc8`, P29's baseline; `npm run q` and
             `npm run refs` run against that commit; W121's calibration (below)
 Outputs:    (1) the worksheet: one row per question, its verdict, its evidence and its new
                 field values
@@ -41,19 +41,19 @@ answer of 2026-10-06 (*"Own trigger"*)** — its `note` gains a re-stamp and not
 outside the 70 owned files and is a record-step file (`doc/workflow.md` section 1 rule 5,
 `doc/questions/**`), so it is named here rather than added to `Owns` (see *Dependencies* below).
 
-## The item's ids, from the lookup at `988ef5f`
+## The item's ids, from the lookup at `f76bdc8`
 
 **70 questions**: the 42 open in *Decisions and data* and the 28 open in *Scale and interop*,
-[Q20](../questions/q20.md) included. Neither cluster holds a deferred question at `988ef5f` (the two
+[Q20](../questions/q20.md) included. Neither cluster holds a deferred question at `f76bdc8` (the two
 deferred are Q92, W121's, and Q499, Out).
 
-Run in a `git archive` of `988ef5f`, extracted with no links and with no `node_modules`, as W121
+Run in a `git archive` of `f76bdc8`, extracted with no links and with no `node_modules`, as W121
 did: `scripts/lookup.mjs` imports only `node:` modules, so the copy needs none.
 
 ```bash
 eval "$(fnm env --shell bash)" && fnm use 24          # v24.20.0
 S=dev-dist/w122d-35418
-mkdir -p $S/base && git archive 988ef5f | tar -x -C $S/base; echo ARCHIVE_EXIT=$?      # 0
+mkdir -p $S/base && git archive f76bdc8 | tar -x -C $S/base; echo ARCHIVE_EXIT=$?      # 0
 cd $S/base
 node scripts/lookup.mjs q --where status=open --count                                   # 307, EXIT 0
 node scripts/lookup.mjs q --where status=open --where "cluster=Decisions and data" --count      # 42, EXIT 0
@@ -153,8 +153,8 @@ P29 decision 4, with the keeps round the calibration adds. A phase does not star
 above it is complete.
 
 1. **Propose.** Fill the worksheet: one row per question, 70 rows. The evidence is (a) the
-   `npm run refs` count at `988ef5f`; (b) whether the code, clause, file or rule the question names
-   still exists at `988ef5f`, as a path, or as a grep with its hit count and the exact pattern; (c)
+   `npm run refs` count at `f76bdc8`; (b) whether the code, clause, file or rule the question names
+   still exists at `f76bdc8`, as a path, or as a grep with its hit count and the exact pattern; (c)
    any later ADR, plan or item that answered it, by id. Rows count against the id list (calibration 6).
 2. **Check.** A fresh-context conformity reader reads each QUESTION first and the worksheet second,
    re-derives each row from the question and the tree, and reports AGREE, DISPUTE or CHANGE per row
@@ -169,12 +169,12 @@ above it is complete.
 ### Worksheet
 
 *Filled in at phase 1.* The evidence cell holds three parts: **refs** (the count), **subject** (path,
-or grep pattern and hit count, at `988ef5f`), **answered by** (ADR, P or W id, or none). **70 rows.**
+or grep pattern and hit count, at `f76bdc8`), **answered by** (ADR, P or W id, or none). **70 rows.**
 
 *How the evidence was taken (phase 1, the propose unit).* **refs** is `node scripts/lookup.mjs refs Q<n>`
-run in a `git archive` of `988ef5f` (`dev-dist/w122p-35501/base`, no links, EXIT 0 for all 70), given as
-*files / mentions*. **subject** is `git grep -c -F '<pattern>' 988ef5f -- <paths>`, summed, or a
-`git show 988ef5f:<path>` line. Nothing was read from the working tree. Where a keep or trigger
+run in a `git archive` of `f76bdc8` (`dev-dist/w122p-35501/base`, no links, EXIT 0 for all 70), given as
+*files / mentions*. **subject** is `git grep -c -F '<pattern>' f76bdc8 -- <paths>`, summed, or a
+`git show f76bdc8:<path>` line. Nothing was read from the working tree. Where a keep or trigger
 `closes-when` is only a reopening trigger, the row is a defer and the trigger moves into `note`, with
 `closes-when` cleared (calibration 1).
 
@@ -198,7 +198,7 @@ q386.md's `note`, still `deferred` — see Exceptions.)*
 | Q21 | defer | **refs** 24 / 30. **subject** `Q21` in ADR 0064: 2 (*Q21's stream half*); P23's table says *the STREAM half is W88's; REDACTION is declared out*, the maintainer's *not needed yet, maybe never*. **answered by** ADR 0064 / W88 for the stream half; the UI event family by none | `status: deferred`; note stamp `P29 W122: defer — the stream half landed as ADR 0064's positioned event sequence (W88); an event family and redaction for a UI wait on fyflow-react-components asking for one` |
 | Q34 | duplicate | **refs** 6 / 6. **subject** `crypto.getRandomValues` in `spec/runtime-targets.md`: 2 (the portable default); ADR 0022 *the driver generates no run id, deliberately*; `createRuntime`'s `start()` mints run ids from a counter (P18 decision 10, `RunIdInUse` since W89). P23 sends *minting globally unique ids* to Q34 and Q85 together. **answered by** the portable half by the runtime's counter; the rest is Q20's | `resolved-by`: duplicate of Q20 — the portable half is answered (the runtime mints run ids from a counter and the driver mints none, ADR 0022); what remains is whether a run id is global, which is Q20's question |
 | Q52 | defer | **refs** 11 / 17. **subject** `Q52` in `spec/runtime-targets.md` + `examples/README.md`: 2; L6 runs in Node and Deno only (Q33, resolved). **answered by** none; owner *before release* | `status: deferred`; note stamp `P29 W122: defer — waits on a release decision; L6 runs in Node and Deno, and the browser runs L0-L5 (Q33)` |
-| Q64 | resolve | **refs** 4 / 4. **subject** `git show 988ef5f:AGENTS.md`: 3717 lines, the consumer reference; `Every snippet` in `CLAUDE.md`: 1 (*every snippet in it is extracted and executed by npm run gate*, `scripts/check-docs.mjs`). **answered by** P3 and W9 (the consumer reference and its extractor) | `resolved-by`: AGENTS.md is the consumer reference, and every snippet in it is executed by `npm run gate` through `scripts/check-docs.mjs` (P3, W9). Names no ADR |
+| Q64 | resolve | **refs** 4 / 4. **subject** `git show f76bdc8:AGENTS.md`: 3717 lines, the consumer reference; `Every snippet` in `CLAUDE.md`: 1 (*every snippet in it is extracted and executed by npm run gate*, `scripts/check-docs.mjs`). **answered by** P3 and W9 (the consumer reference and its extractor) | `resolved-by`: AGENTS.md is the consumer reference, and every snippet in it is executed by `npm run gate` through `scripts/check-docs.mjs` (P3, W9). Names no ADR |
 | Q83 | icebox | **refs** 1 / 5. **subject** `Q83` in `test` + `scripts`: 0. W12 ran `node test/runner.ts` 15 consecutive times green after the one unreproduced red. **answered by** none | `status: icebox`; note stamp `P29 W122: icebox — one unreproduced failure, 15 green re-runs at W12, and nothing since` |
 | Q85 | duplicate | **refs** 4 / 5. **subject** its title reads *Q20 is now a design question rather than a note: is a run id global?*; P23 names Q34 and Q85 together for global ids. **answered by** none | `resolved-by`: duplicate of Q20 — the same question, *is a run id global*, raised again as a design question; Q20 stays (keep) |
 | Q87 | defer | **refs** 27 / 60. **subject** `RunIdInUse` in `src/scheduler/runtime.ts`: 4 — since W89 a runtime refuses a `start` or `resume` naming a run id a driver of it holds (RN-R25); W18 fixed the message. Drivers built by hand around one shared scheduler are still unchecked. **answered by** W18 (message) and W89 (one runtime); the hand-built pair by none | `status: deferred`; note stamp `P29 W122: defer — RunIdInUse (W89) enforces it for every run one runtime starts; drivers built by hand on one shared scheduler wait on Q20` |
@@ -276,7 +276,7 @@ DISPUTE or CHANGE, with the reason, and the row count confirmed against 70.
 | Q21 | AGREE | ADR 0064 took the stream half; P23 Out: redaction *not needed yet, maybe never*; the envelope waits on the sibling |
 | Q34 | CHANGE | duplicate → **resolve**. Q34 asks only how a run id is generated PORTABLY, and that is answered: P18 decision 10 (the runtime mints `r<n>` from a counter) and `RT-R6` (a caller-supplied id, no `crypto.randomUUID()`). *Is a run id global* is Q20's and Q85's question, not Q34's, so the duplicate target is not the same question. Status is `resolved` either way; only `resolved-by` changes, and it names no ADR |
 | Q52 | AGREE | no release decision exists; L6 is Node and Deno (`RT-R10`) |
-| Q64 | AGREE | resolve checked: AGENTS.md exists at 988ef5f as the consumer reference and `scripts/check-docs.mjs` executes its snippets (P3, W9). The answer exists and answers the title |
+| Q64 | AGREE | resolve checked: AGENTS.md exists at f76bdc8 as the consumer reference and `scripts/check-docs.mjs` executes its snippets (P3, W9). The answer exists and answers the title |
 | Q83 | AGREE | one unreproduced red at W12, 15 green re-runs; the runner still imports every suite in one process (`test/runner.ts:38`) but nothing has recurred |
 | Q85 | AGREE | its title is Q20's question restated; Q20 stays open (keep, decision 7) |
 | Q87 | DISPUTE | defer → **resolve**. P5's ruling decides it BY NAME with a permanent reason: *a genuine precondition*, two runs sharing an id *are the same run*, and in-library enforcement is refused as disproportionate (the first mutable module-level state in `src/`); ADR 0023 section 2 states it as the one remaining precondition, and W89's `RunIdInUse` covers one runtime. Calibration 5 makes that a resolve. Tying it to Q20 parks a decided precondition on a question held for the sibling repo |
@@ -294,7 +294,7 @@ DISPUTE or CHANGE, with the reason, and the row count confirmed against 70.
 | Q200 | AGREE | ADR 0042 states the cost; the old `closes-when` (a fourth policy) is a trigger |
 | Q201 | AGREE | resolve checked: ADR 0042's consequences accept it by name on Q190's precedent, with the reason; R8 adds Q201 to ADR 0042 |
 | Q205 | AGREE | no flow or consumer has needed the distinction |
-| Q211 | AGREE | resolve checked: spec/flow-definition.md lines 1292-1296 at 988ef5f carry 71x, 80x and 112x with their bases (W46) |
+| Q211 | AGREE | resolve checked: spec/flow-definition.md lines 1292-1296 at f76bdc8 carry 71x, 80x and 112x with their bases (W46) |
 | Q218 | AGREE | `FD-R3` is the run-time backstop; *a third narrowing* is a trigger |
 | Q219 | AGREE | P15's named follow-on, never taken; trigger moved to `note` |
 | Q238 | AGREE | defer with a consumer trigger; icebox equally honest |
@@ -315,7 +315,7 @@ DISPUTE or CHANGE, with the reason, and the row count confirmed against 70.
 | Q266 | DISPUTE | defer → **keep**. A live consumer hazard, not a what-if: a type's worker whose `setup()` throws leaves every task `pending` for ever, and AGENTS.md's own section-20 snippet warns that a wrong `base` does exactly this (*the tasks stay pending for ever (Q266)*). The fix is nameable and has a precedent: W61 made a transform's load failure throw from `run()`. `closes-when`: a decision whether the envelope worker remembers an inner `setup()` failure and fails each task from `run()` (W61's road), or the hang stays documented |
 | Q270 | AGREE | the shipped adapter strips its marker; the clause matters only for a second adapter |
 | Q271 | AGREE | a property of Deno's lockfile format |
-| Q275 | AGREE | resolve checked, with a note: the cited FD-V30 paragraph exists at 988ef5f and states that an omitted policy means no retries and that `maxRetries: 0` says so explicitly. It **pre-dates the question** (W58, 2026-09-12, against Q275 raised at W63, 2026-09-15), so the title's *stated nowhere in spec/* was false when raised; the scheduler-reference half is upstream's |
+| Q275 | AGREE | resolve checked, with a note: the cited FD-V30 paragraph exists at f76bdc8 and states that an omitted policy means no retries and that `maxRetries: 0` says so explicitly. It **pre-dates the question** (W58, 2026-09-12, against Q275 raised at W63, 2026-09-15), so the title's *stated nowhere in spec/* was false when raised; the scheduler-reference half is upstream's |
 | Q278 | AGREE | resolve checked: ADR 0053 rule 3 refuses an unknown keyword at construction, naming it; R8 adds Q278 to ADR 0053 |
 | Q280 | AGREE | no AGENTS.md sentence states it; defer on a consumer adding its own tasks is honest |
 | Q281 | AGREE | resolve checked: W65 itself said W66's `runtime.registry` decides which shape a consumer holds, and P18 decision 14 plus W66 settle it (the document in, the driver's registry derived and exposed) |
@@ -347,7 +347,7 @@ Q266, Q387), CHANGE 1 (Q34).** The worksheet was confirmed the same way: **70 ro
 the id list exactly** (no missing and no extra id), and its tally recounted from its own table
 matches its summary — keep 2, defer 27, icebox 27, resolve 11, duplicate 3, obsolete 0; *Decisions
 and data* defer 16, icebox 17, resolve 9; *Scale and interop* keep 2, defer 11, icebox 10, resolve
-2, duplicate 3. Every verdict was formed from the question and `988ef5f` (an archive, no links)
+2, duplicate 3. Every verdict was formed from the question and `f76bdc8` (an archive, no links)
 before the worksheet was opened. If all four rows are taken: resolve 12 (Q87 and Q34 in, Q387 out),
 duplicate 2, keep 3, defer 25, icebox 28.
 
@@ -386,9 +386,9 @@ recommendation first, its plain-language briefing, and the maintainer's answer.*
 
 | | the question, the briefing and the recommendation | answer |
 |---|---|---|
-| Q20 | **Rec: keep** — fixed by P29 decision 7. *Can one orchestrator drive several schedulers, and is a run id unique everywhere?* Example: two runtimes, each on its own scheduler, both start a run called `r1`. Is that one run or two? At `988ef5f` each runtime counts its own ids (`r1`, `r2`, ...) and refuses a second live run with an id already in use on *that* runtime (`RunIdInUse`, W89); nothing checks across runtimes, and the driver never makes up an id itself (ADR 0022). The sibling repo asks the same as fyflow-react-components Q15 (one collector, one scheduler). P29 decision 7: Q20 closes only when Q15 is answered there and the answer is recorded here. **Keep**: wait for that. **Defer, icebox or resolve**: each overrules decision 7, which is a plan change, not a triage verdict | **keep** — 2026-10-06, maintainer: *"Accept all recs"* |
-| Q244 | **Rec: keep** — bites at the project's own stated scale. *Runs sharing one scheduler slow down quadratically.* Example: 100 runs on one shared scheduler took 115 ms; 800 took 3304 ms (W55's measurement). On separate schedulers, time grows in step with the run count. Why: every task completion reaches every run's driver, and each throws away the ones that are not its own (`ID-R4` tier 1, the rule ignoring task ids this driver did not send). At `988ef5f` `createRuntime` puts every run on one scheduler, the setup AGENTS.md teaches, and the project's goal is thousands of runs at once. **Keep**: decide the setup (shared, one scheduler per run, or each completion sent only to its own driver). **Defer**: wait for a consumer who hits it. **Icebox or resolve**: no grounds | **keep** — 2026-10-06, maintainer: *"Accept all recs"* |
-| Q266 | **Rec: keep** — small, and can be decided now. *A worker that fails to start hangs the run silently.* Example: a node type's worker cannot start (a wrong `base` URL, or a database down during `setup()`); every task of that type stays `pending` for ever and the run never finishes. AGENTS.md section 20 warns about exactly this. At `988ef5f` the envelope worker already handles it for a JSONata language module that fails to load: it remembers the failure and throws it from `run()`, so each task fails the normal way (W61's road). A failed inner worker is not remembered. **Keep**: decide whether that road covers the inner worker. **Defer**: wait for a consumer who hits it. **Icebox or resolve**: no grounds, because the hang is real | **keep** — 2026-10-06, maintainer: *"Accept all recs"* |
+| Q20 | **Rec: keep** — fixed by P29 decision 7. *Can one orchestrator drive several schedulers, and is a run id unique everywhere?* Example: two runtimes, each on its own scheduler, both start a run called `r1`. Is that one run or two? At `f76bdc8` each runtime counts its own ids (`r1`, `r2`, ...) and refuses a second live run with an id already in use on *that* runtime (`RunIdInUse`, W89); nothing checks across runtimes, and the driver never makes up an id itself (ADR 0022). The sibling repo asks the same as fyflow-react-components Q15 (one collector, one scheduler). P29 decision 7: Q20 closes only when Q15 is answered there and the answer is recorded here. **Keep**: wait for that. **Defer, icebox or resolve**: each overrules decision 7, which is a plan change, not a triage verdict | **keep** — 2026-10-06, maintainer: *"Accept all recs"* |
+| Q244 | **Rec: keep** — bites at the project's own stated scale. *Runs sharing one scheduler slow down quadratically.* Example: 100 runs on one shared scheduler took 115 ms; 800 took 3304 ms (W55's measurement). On separate schedulers, time grows in step with the run count. Why: every task completion reaches every run's driver, and each throws away the ones that are not its own (`ID-R4` tier 1, the rule ignoring task ids this driver did not send). At `f76bdc8` `createRuntime` puts every run on one scheduler, the setup AGENTS.md teaches, and the project's goal is thousands of runs at once. **Keep**: decide the setup (shared, one scheduler per run, or each completion sent only to its own driver). **Defer**: wait for a consumer who hits it. **Icebox or resolve**: no grounds | **keep** — 2026-10-06, maintainer: *"Accept all recs"* |
+| Q266 | **Rec: keep** — small, and can be decided now. *A worker that fails to start hangs the run silently.* Example: a node type's worker cannot start (a wrong `base` URL, or a database down during `setup()`); every task of that type stays `pending` for ever and the run never finishes. AGENTS.md section 20 warns about exactly this. At `f76bdc8` the envelope worker already handles it for a JSONata language module that fails to load: it remembers the failure and throws it from `run()`, so each task fails the normal way (W61's road). A failed inner worker is not remembered. **Keep**: decide whether that road covers the inner worker. **Defer**: wait for a consumer who hits it. **Icebox or resolve**: no grounds, because the hang is real | **keep** — 2026-10-06, maintainer: *"Accept all recs"* |
 | Q386 | *Not a keep, and not in this item's `Owns`* — W121's question, deferred there with the stamp *waits on Q9's verdict in W122*. Q9 is approved here as a **defer**, so that trigger names nothing that will happen | **own trigger** — 2026-10-06, maintainer: *"Own trigger"*. W122's apply step re-stamps Q386 as deferred until a predicate with closure memory is reported; q386.md is not edited before then |
 
 #### Final approved verdicts

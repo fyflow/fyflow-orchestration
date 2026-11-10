@@ -1,6 +1,6 @@
 # W188 — the exit artifact: a task's attribution and what survives a resume, on real workers in both runtimes
 
-**Status:** done 2026-10-18 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, no BLOCKER — conformity: the six clauses CONFORM, C1-C5 acted on; adequacy: A1-A3 SHOULDs fixed or recorded, A4 narrowed; readers' overlap ONE; no question raised; no exception. Earlier: READY-FOR-READERS 2026-10-18 (`npm run gate` EXIT 0, L6 6/6 in node and deno) — declared 2026-10-18 on `382cf3e` (W187 committed); P36's LAST item, its exit artifact; not committed
+**Status:** done 2026-10-18 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, no BLOCKER — conformity: the six clauses CONFORM, C1-C5 acted on; adequacy: A1-A3 SHOULDs fixed or recorded, A4 narrowed; readers' overlap ONE; no question raised; no exception. Earlier: READY-FOR-READERS 2026-10-18 (`npm run gate` EXIT 0, L6 6/6 in node and deno) — declared 2026-10-18 on `690ece2` (W187 committed); P36's LAST item, its exit artifact; not committed
 **Plan:** [P36](../plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md) — *which run and attempt does a
 task's activity belong to, without parsing its id, and what of a run — its header, its attempts — survives a crash and a
 resume?* — its LAST item and its EXIT ARTIFACT: the header's six clauses, one cross-row block in `examples/l6.ts`, green in
@@ -76,7 +76,7 @@ Outputs:    (1) ONE cross-row block in examples/l6.ts — `W188 exit` — its re
                 examples/README.md's two X10 copies and the l6.ts row's run tail and block list.
             (4) the stale comments: DRIVER_FIELDS' `gateMemory` comment (P35 (l), fact 13); the two `RN-R18 at L6` texts (the
                 CROSS_ROW_SUBJECTS entry and its assertion's label) reworded to *the HANDLE's header* (W185's hand-on).
-Depends on: W187 (done, `382cf3e`)
+Depends on: W187 (done, `690ece2`)
 Blocks:     nothing — P36's Record and retro follow
 Tests:      examples/l6.ts at ladder L6 in node 24 and deno. Every expected value hand-written from the spec, the scheduler's
             AGENTS.md at the pin and the fixture, never from a run's output: each id from spec/task-id.md section 1; each
@@ -122,7 +122,7 @@ scheduler, and the two runs of clause (1) share one scheduler with distinct ids.
 
 ## What the declaration step measured
 
-*Measured 2026-10-18 in a BYTE COPY of `382cf3e` (`git archive` into `C:/tmp-w188/m`, `node_modules` copied, never
+*Measured 2026-10-18 in a BYTE COPY of `690ece2` (`git archive` into `C:/tmp-w188/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
@@ -184,7 +184,7 @@ attempt left out of the control) are the readings a reader may weigh.
 
 ## The author's provocations (before the readers)
 
-`C:/tmp-w188/mutate.mjs` with `C:/tmp-w188/probes.mjs`, in the byte copy `C:/tmp-w188/m` (`git archive` of `382cf3e`,
+`C:/tmp-w188/mutate.mjs` with `C:/tmp-w188/probes.mjs`, in the byte copy `C:/tmp-w188/m` (`git archive` of `690ece2`,
 `node_modules` copied, never linked — `find -type l` zero; this item's three files copied in and `cmp`-equal). Before each
 first touch the copy's file is asserted byte-equal to the real tree's; each anchor asserted to occur ONCE and the edit to
 change the file; every touched file restored from its FIRST snapshot and its SHA-256 compared after each probe and on any

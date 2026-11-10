@@ -1,6 +1,6 @@
 # W178 — the throwing-callback fixes before 0.8.0, and (m)'s three titles
 
-**Status:** done 2026-10-17 — `npm run gate:item` EXIT 0 on the final tree, one command; both readers RAN — D1 fixed by S-1 (YES), G1, G2 and adequacy finding 1 FIXED; exception E1 granted (S-2); no question raised; not committed — declared 2026-10-17 on `dd5821f`; P35's FIRST item: decision 4 (o), stop-and-ask (j) (p), fact 11 (m); no ADR (ADR 0110 stays unused, (j) as answered)
+**Status:** done 2026-10-17 — `npm run gate:item` EXIT 0 on the final tree, one command; both readers RAN — D1 fixed by S-1 (YES), G1, G2 and adequacy finding 1 FIXED; exception E1 granted (S-2); no question raised; not committed — declared 2026-10-17 on `879e6ee`; P35's FIRST item: decision 4 (o), stop-and-ask (j) (p), fact 11 (m); no ADR (ADR 0110 stays unused, (j) as answered)
 **Plan:** [P35](../plans/p35-may-a-node-wait-for-a-person-by-design.md) — *may a flow declare a node that waits for a
 person, keeps what reached it, and holds the person's answer to a schema?* — its FIRST item, and the one that carries
 P34's retro hand-offs (m), (o) and (p) before 0.8.0 is published. **Two defects of one class** (P34 retro section 4 (f):
@@ -52,7 +52,7 @@ Outputs:    (1) src: `Driver.cancel()` — the held tasks released before the `c
                 (the title), test/fold/stuck.test.ts and test/definition/l4-corpus.test.ts (`RN-R12`'s title; the
                 per-suite counts the new cases move).
             (4) AGENTS.md: whatever sentence the change makes false, found by grep over the whole file (D′).
-Depends on: nothing (P35's first item; P34 done, `d67138f`)
+Depends on: nothing (P35's first item; P34 done, `923fe9b`)
 Blocks:     W179
 Tests:      L2 — expected values hand-written from `RN-R31` and (j) and the flows' shapes, never from output:
             (o) over `test/driver/cancel.test.ts`'s fake (whose `cancel` of a RUNNING task never settles until the test
@@ -102,7 +102,7 @@ parked task is sent nothing by a cancel, `RN-R31`'s existing case).
 
 ## What the declaration step measured
 
-*Measured 2026-10-17. M1 in a BYTE COPY of `dd5821f` (`git archive` into `C:/tmp-w178/m`, `node_modules` copied, never
+*Measured 2026-10-17. M1 in a BYTE COPY of `879e6ee` (`git archive` into `C:/tmp-w178/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0, deno 2.9.6, chromium; M2-M6 as the item was built.*
 
 | # | fact | measured |
@@ -226,8 +226,8 @@ committed.*
 | Clause | Verdict | Notes |
 |---|---|---|
 | `npm run gate` before the readers (sentence C) | RAN — EXIT 0 | lint 153 files; `check:spec` 7 / 75 / 142; `check:docs` 40 `run` snippets; L1-L5 69 files / 1881 cases in node, deno and chromium; L6 2711 assertions, 0 failed, node and deno (`C:/tmp-w178/gate2.log`) |
-| L2 fact 9's three rows, and mid-step (o) | RAN — green | `test/driver/cancel.test.ts` cases 12 and 13: the control; a throw on `cancelRequested` at rest — the throw at the caller, `a` and `b` sent, `cancelling`, a second call appending nothing and re-sending, `cancelled` once both stop; the same on a PAUSED run with `a2` held — `a2` handed on then cancelled, `cancelled` once the last stops; mid-step from a settlement's element — caught by the calling callback, and uncaught (OR-R10's halt, the cancels still sent). Red on `dd5821f`'s `src/` in node and deno (M3) |
-| L2 (j): `paused`, `unpaused`, `interrupted` from a scheduler event's step | RAN — green | `pause.test.ts` case 13, `stop.test.ts` case 15: nothing leaves the event, `onRunFailure` once with the consumer's error, `halted` after the element, the run `halted` (a stopped one refused `halted` on resume), each beside its control. Red on `dd5821f` (M3) |
+| L2 fact 9's three rows, and mid-step (o) | RAN — green | `test/driver/cancel.test.ts` cases 12 and 13: the control; a throw on `cancelRequested` at rest — the throw at the caller, `a` and `b` sent, `cancelling`, a second call appending nothing and re-sending, `cancelled` once both stop; the same on a PAUSED run with `a2` held — `a2` handed on then cancelled, `cancelled` once the last stops; mid-step from a settlement's element — caught by the calling callback, and uncaught (OR-R10's halt, the cancels still sent). Red on `879e6ee`'s `src/` in node and deno (M3) |
+| L2 (j): `paused`, `unpaused`, `interrupted` from a scheduler event's step | RAN — green | `pause.test.ts` case 13, `stop.test.ts` case 15: nothing leaves the event, `onRunFailure` once with the consumer's error, `halted` after the element, the run `halted` (a stopped one refused `halted` on resume), each beside its control. Red on `879e6ee` (M3) |
 | S-1 rows at both boundaries | RAN — green | `pause.test.ts` case 13: a throw on `paused` then on `halted` (the step's end), on a settlement's element then on `halted` (`onEventStep`), and a THROWING `onRunFailure` on each road — nothing escapes, reported once, `halted`; the driver-call road (`start()`) unchanged — reported once, the throw at the caller |
 | through `createRuntime` (adequacy finding 1) | RAN — green | the W174 runtime suite's new case: (j) `done` `halted`, reported once, nothing escaping the routed event; (o) both cancels through the per-run view, `done` `cancelled` after the last |
 | the three titles, the two `RN-R12` titles together | RAN — green | `stuck.test.ts` and `l4-corpus`'s `LATE_SUITES` (*… neither running, awaiting_action nor cancelling*); `runtime.test.ts` (*five of the nine outcomes …*, R5); M-T1 kills the pair split |
@@ -245,7 +245,7 @@ committed.*
 | (1) `onEvent()`'s step-end boundary | yes | J1-J6 — pause 13, stop 15, the runtime case |
 | (1) S-1: `failRun` reports in a `finally`; both boundaries discard a throw out of it | yes | S1a, S1b, S1c — pause 13's S-1 rows |
 | (2) run-state v0.21, outcome-record v0.17, `spec/README.md` | yes | `check:spec`, `check:markdown` (links to this file) |
-| (3) the tests | yes | M3: four cases red on `dd5821f`; the probe table |
+| (3) the tests | yes | M3: four cases red on `879e6ee`; the probe table |
 | (4) `AGENTS.md` | yes | section 6's row, section 9's corrected sentences and the two must-not-throw callbacks — prose, no snippet (`RUN_FLOOR` 40) |
 | E1: `src/scheduler/runtime.ts`'s comment | yes | a comment; no check reads it |
 

@@ -1,6 +1,6 @@
 # W142 — A settlement reaches only its own run's driver: the runtime routes each settlement by run id, and N runs on one scheduler are linear (Q244, ADR 0088)
 
-**Status:** done — declared 2026-10-07 on `7ba87df`, the second item of P31; built, both readers and the fix round done 2026-10-07
+**Status:** done — declared 2026-10-07 on `f5f85ae`, the second item of P31; built, both readers and the fix round done 2026-10-07
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, deliberately* — W127's note and Q142's mechanism (`M4`). A
@@ -29,7 +29,7 @@ Owns:       src/scheduler/runtime.ts — the runtime's event delivery (P31's W14
             harness listener on the scheduler — the scale measurement);
             doc/decisions/0088-*.md; AGENTS.md section 12 (the topology guidance);
             and this file
-Inputs:     the tree at `7ba87df`; Q244; W55's Record (the O(N²), 115 / 277 / 884 / 3304 ms at
+Inputs:     the tree at `f5f85ae`; Q244; W55's Record (the O(N²), 115 / 277 / 884 / 3304 ms at
             N = 100 / 200 / 400 / 800 shared, linear own); W122's triage row for Q244; ADR 0022,
             0023, 0027, 0058; spec/task-id.md ID-R3 to ID-R5; RN-R25; createRuntime's openRun and
             Driver's constructor subscription and onEventOrThrow
@@ -136,7 +136,7 @@ Reserves:   Q556-Q558, ADR 0088. No W beyond W142
 
 ## Record
 
-*Filled in 2026-10-07 on `81b0ed9`, the tree the confirming gate ran on, which was held still from that gate to
+*Filled in 2026-10-07 on `ac1b4c4`, the tree the confirming gate ran on, which was held still from that gate to
 this Record (`tree-before-item.txt`).* Scratch is `dev-dist/w142-4000/` (this item's shell pid). It holds every log
 and script named below. Node v24.20.0 by `fnm use 24` in every shell, Deno 2.9.6. Every rung was redirected and its
 EXIT read in the same command, never piped. Ids are bare text, as the header says.
@@ -145,7 +145,7 @@ EXIT read in the same command, never piped. Ids are bare text, as the header say
 
 | command | EXIT | reading |
 |---|---|---|
-| `npm run gate:item > dev-dist/w142-4000/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `81b0ed9`, after both readers' fixes and rule 8's last pass; 0 `FAIL` lines |
+| `npm run gate:item > dev-dist/w142-4000/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `ac1b4c4`, after both readers' fixes and rule 8's last pass; 0 `FAIL` lines |
 | — L0 (lint, typecheck) | 0 | inside the gate |
 | — L1-L5 | 0 | **1538** cases in node, deno and chromium (parity 1538), from 1528: the W142 suite's **ten**, all inside one new suite named in `LATE_SUITES` |
 | — L6 | 0 | **2474** assertions over **162** real runs, in node and deno, from 2466. That is +8, derived in `l6.ts`'s comment above `DECLARED_TOTAL` before the file was re-run: two clauses per run on the two pair rows. No run moved |
@@ -161,8 +161,8 @@ COUNT is clock-free, and it is the figure that shows the shape.
 **Command 1, the library alone** — `node --expose-gc examples/retention.ts topology N 4 1 [own]`, by
 `dev-dist/w142-4000/measure-topology.sh`. It runs N runs of `map-alias` (six tasks each) through `runtime.start`
 and `await done`, with no harness listener on the scheduler.
-- **Before** ran on `ba90b5a`'s source, with the mode added and not yet committed.
-- **After** ran on `81b0ed9`, the tree the gate ran on, after the gate.
+- **Before** ran on `0b79f11`'s source, with the mode added and not yet committed.
+- **After** ran on `ac1b4c4`, the tree the gate ran on, after the gate.
 
 | N | shared wall ms | shared heap MiB | events handed to drivers | own wall ms | own heap MiB |
 |---|---|---|---|---|---|
@@ -175,9 +175,9 @@ and `await done`, with no harness listener on the scheduler.
 **Command 2, W55's own** — `node --expose-gc examples/retention.ts scale N 4 1 [own]`, by
 `dev-dist/w142-4000/before-retention.sh`. It runs each run through `runFlow` and the L6 harness. Each cell gives
 three figures, separated by slashes:
-1. before, on `7ba87df`;
-2. after ADR 0088 alone, on `6ed7c7d`'s content;
-3. after the harness fix, on `81b0ed9`.
+1. before, on `f5f85ae`;
+2. after ADR 0088 alone, on `ddc71c8`'s content;
+3. after the harness fix, on `ac1b4c4`.
 
 | N | shared wall ms | shared heap MiB | own wall ms | own heap MiB |
 |---|---|---|---|---|
@@ -210,9 +210,9 @@ three figures, separated by slashes:
 | (7) | AGENTS.md section 12 | `AGENTS.md` | `check:docs` EXIT 0 (prose only; no snippet added) |
 | (8) | Q244 resolved | `doc/questions/q244.md` | the record step; `check:register` R8 both ways with ADR 0088's `resolves` |
 
-### Exceptions, reconciled to `git status --short` and `git diff --name-only 7ba87df..HEAD` to the path
+### Exceptions, reconciled to `git status --short` and `git diff --name-only f5f85ae..HEAD` to the path
 
-**Ten paths** in `git diff --name-only 7ba87df..HEAD` before the record step, and `git status --short` was empty.
+**Ten paths** in `git diff --name-only f5f85ae..HEAD` before the record step, and `git status --short` was empty.
 - **Owns: 8.** `src/scheduler/runtime.ts`, `test/scheduler/runtime.test.ts`, `examples/l6.ts`,
   `examples/run-flow.ts` (its routed listeners under answer (B), written into Owns before the edit),
   `examples/retention.ts`, `doc/decisions/0088-*.md`, `AGENTS.md` (section 12 only) and this file.
@@ -291,7 +291,7 @@ pass 2b    7 probes:  7 as declared,  0 against declaration   digest c048cf2c5e0
 
 ### The readers — both fresh contexts, spec and ADR first, tree still, briefs written apart
 
-`brief-conformity.md` and `brief-adequacy.md`. Both ran on `b09d49e` while the tree was watched for movement for
+`brief-conformity.md` and `brief-adequacy.md`. Both ran on `2742066` while the tree was watched for movement for
 30 minutes; it did not move.
 
 **Conformity** (12 findings: 4 should-fix, 8 notes; no blocking). It re-derived every expected value

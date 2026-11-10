@@ -1,6 +1,6 @@
 # W171 — the driver's halt on a defect is RENAMED `halted`, and a stored `stopped` is read as one
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-16 on `7c88a20`; P34's THIRD item, decision 2 and stop-and-ask (f) as answered; both reader passes RAN, no DEFECT, their items acted on (C1-C4, C7; A1-A3); no exception; no question raised; P34 prediction 3 FALSIFIED (M4, made loud)
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-16 on `a868ee8`; P34's THIRD item, decision 2 and stop-and-ask (f) as answered; both reader passes RAN, no DEFECT, their items acted on (C1-C4, C7; A1-A3); no exception; no question raised; P34 prediction 3 FALSIFIED (M4, made loud)
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its THIRD item: decision 2 and stop-and-ask (f) as the
 maintainer answered them 2026-10-16 (*"as recommended"*). Today's `stopped` is the driver's halt on a defect (`failRun`,
@@ -52,7 +52,7 @@ Outputs:    (1) src: `RunOutcome` `'halted'`, `FoldInput` `{ kind: 'halted'; rea
             (7) examples/l6.ts, examples/run-flow.ts, examples/README.md renamed; l6.ts's `outcomesSeen` /
                 `outcomesNotSeen` typed `RunOutcome[]` (M4 — the one site B′ found GREEN under the old literal).
             (8) AGENTS.md and README.md renamed — every snippet typechecked and run by `check:docs`.
-Depends on: W170 (done, 7c88a20)
+Depends on: W170 (done, a868ee8)
 Blocks:     W172
 Tests:      L0 — test/fold/fold-rules.test.ts, a checked-in typecheck probe: `@ts-expect-error` on a consumer's
             `outcome === 'stopped'`, `reason === 'stopped'`, `RunOutcome`/`ResumeRefusalReason` = `'stopped'`, a
@@ -110,7 +110,7 @@ outcome and reads one stored kind; it changes no route.
 
 ## What the declaration step measured
 
-*Measured 2026-10-16 in a BYTE COPY of `7c88a20` (`git archive` into `C:/tmp-w171/m`, `node_modules` copied, never
+*Measured 2026-10-16 in a BYTE COPY of `a868ee8` (`git archive` into `C:/tmp-w171/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |

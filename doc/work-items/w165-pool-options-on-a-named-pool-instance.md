@@ -1,6 +1,6 @@
 # W165 — pool options on a named pool instance
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN, their items acted on, one code defect fixed (C-F1); Q626 raised; exception E1 granted. Declared 2026-10-16 on `eeea984`; declaration step RUN the same day in a byte copy (M1-M5 below); stop-and-ask S1
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN, their items acted on, one code defect fixed (C-F1); Q626 raised; exception E1 granted. Declared 2026-10-16 on `73402f2`; declaration step RUN the same day in a byte copy (M1-M5 below); stop-and-ask S1
 (one line of `src/scheduler/runtime.ts`, outside `Owns`) ASKED and ANSWERED by the maintainer 2026-10-16, YES — exception E1
 **Plan:** [P37](../plans/p37-a-runtime-is-its-registry.md) — *what may a running runtime be asked to accept, when its
 registry is fixed at `createRuntime`?* — its FOURTH item.
@@ -48,7 +48,7 @@ Outputs:    (1) registry.ts: POOL_INSTANCE_KEYS (type, config, pool) beside INST
             (7) AGENTS.md section 13: the pool-options paragraph gains the per-instance rule and the bound; the existing
                 `run` snippet gains an executed block.
             (8) L1 tests (below) and their suite in l4-corpus's LATE_SUITES.
-Depends on: W164 (done, eeea984)
+Depends on: W164 (done, 73402f2)
 Blocks:     W166
 Tests:      L1 test/definition/registry.test.ts — the W165 suite: each DECLARED_POOL_KEYS member overridden per instance
             (the merged spec carries the instance's value, the type's default instance the type's, and every other key
@@ -74,7 +74,7 @@ Gate:       `npm run gate` before the readers (P37 sentence C); then the conform
 Reserves:   Q626-Q629, ADR 0099, S11
 ```
 
-*Reserves: `npm run state` on `eeea984` reads the next free ids as **W165, Q620, ADR 0099** from the tree, and W162, Q615,
+*Reserves: `npm run state` on `73402f2` reads the next free ids as **W165, Q620, ADR 0099** from the tree, and W162, Q615,
 ADR 0096 from the ledger (P33's Retro) — they DISAGREE because P37 was declared and W162-W164 spent ids since that
 sentence; P37's own reservation governs. Its W165 row gives this item Q626-Q629, ADR 0099 and S11.*
 
@@ -96,7 +96,7 @@ sentence; P37's own reservation governs. Its W165 row gives this item Q626-Q629,
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `eeea984` (`git archive` into `C:/tmp-w165/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `73402f2` (`git archive` into `C:/tmp-w165/m`,
 `node_modules` copied, **zero links** by `find -type l`), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
@@ -114,7 +114,7 @@ type annotation and the one-line comment, nothing else in `runtime.ts`. The real
 until the answer.
 
 - **What forces it.** `createRuntime` hands `bootstrap` the named instances it resolved as `{ type, config }`
-  (`src/scheduler/runtime.ts:493` on `eeea984`), so an instance's `pool` would be resolved and checked by
+  (`src/scheduler/runtime.ts:493` on `73402f2`), so an instance's `pool` would be resolved and checked by
   `resolveRegistry` and then DROPPED: the pool the scheduler is handed would be built with the type's options, in
   silence, while every resolver assertion stayed green. That is the runtime road — the one fyflow-app's #19 is on.
   Measured in the copy: with the line reverted (M4's K17), the createRuntime case in `test/scheduler/bootstrap.test.ts`

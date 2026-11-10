@@ -4,7 +4,7 @@
  * [W194](../../doc/work-items/w194-the-fold-is-one-accumulator.md), P39 decisions 1-3, 5 and 6.
  *
  * **The expected value is the ORACLE's** — `test/fold/oracle-run-state.ts`, the fold as it was before W194, sliced
- * verbatim from `c1aefb0` and never edited again (`doc/workflow.md` section 5 rule 4: not the code under test). P39
+ * verbatim from `834aecf` and never edited again (`doc/workflow.md` section 5 rule 4: not the code under test). P39
  * decision 5 says what `fold` returns moves on NO sequence, so the oracle's value IS the spec's here, and every claim
  * below compares against it — deep AND key order, since `deepEqual` alone would let a re-ordered `nodes` record through.
  * The identities (the SAME object back) and the cost (`RN-R43`) are the spec's own sentences, hand-written.
@@ -411,8 +411,8 @@ suite(SUITE, (test) => {
     // The loaded-continuation loop RAN: one comparison per element of every row (the only observer of the counts kept
     // over a handed base across more than one apply — the adequacy reader's W5, W6).
     equal(loadedComparisons - before, Object.values(HAND).reduce((n, seq) => n + seq.length, 0), 'an accumulator loaded from EVERY prefix of every row was fed the rest');
-    // The ORACLE is the c1aefb0 slice, byte for byte (ADR 0120 rule 8, *never edited again* — held, not trusted). Re-derive:
-    // `git show c1aefb0:src/fold/run-state.ts | sed -n 455,833p | sha256sum`. Node and deno read the file; the browser
+    // The ORACLE is the 834aecf slice, byte for byte (ADR 0120 rule 8, *never edited again* — held, not trusted). Re-derive:
+    // `git show 834aecf:src/fold/run-state.ts | sed -n 455,833p | sha256sum`. Node and deno read the file; the browser
     // bundle does not carry it, and the skip is asserted rather than left to a silent difference.
     if (ROOT === '/__repo__/') {
       ok(typeof (globalThis as Record<string, unknown>).Deno === 'undefined', 'the oracle digest is skipped ONLY in the browser bundle');
@@ -420,7 +420,7 @@ suite(SUITE, (test) => {
       const text = await readText(`${ROOT}test/fold/oracle-run-state.ts`);
       const body = text.slice(text.indexOf('export function emptyState(): RunState {'), text.lastIndexOf('\n\nexport { withOutcome as oracleWithOutcome };')) + '\n';
       const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body)))].map((b) => b.toString(16).padStart(2, '0')).join('');
-      equal(digest, '044480b72b3933c9d0ae73ab06bf2014e06e280cb8376b62ca360418b6ebc906', 'the oracle is lines 455-833 of src/fold/run-state.ts at c1aefb0, unedited');
+      equal(digest, '044480b72b3933c9d0ae73ab06bf2014e06e280cb8376b62ca360418b6ebc906', 'the oracle is lines 455-833 of src/fold/run-state.ts at 834aecf, unedited');
     }
   });
 
@@ -485,7 +485,7 @@ suite(SUITE, (test) => {
   });
 
   test(DECLARED_CASES[4]!, () => {
-    // `src/fold/run-state.ts` at c1aefb0, the seven arms that `return prev` (P39 decision 2), each from a state that
+    // `src/fold/run-state.ts` at 834aecf, the seven arms that `return prev` (P39 decision 2), each from a state that
     // takes it — and its CONTROL, the same arm from a state that does not, which must be a NEW object.
     const settledRun = fold([dispatched(A), settled(A, 'done')]);
     const cancelledRun = fold([dispatched(A), settled(A, 'cancelled')]);

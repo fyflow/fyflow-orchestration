@@ -1,6 +1,6 @@
 # W133 — Two spec sentences and one message: OR-R6 on a thread pool (Q61), RN-R6's `suspended` is current (Q62), `UncloneableResult` names itself once (Q63)
 
-**Status:** done — declared 2026-10-06 on `f6d1dbf`, the first item of P30; built, both readers and the fix round done 2026-10-06
+**Status:** done — declared 2026-10-06 on `c0f1d58`, the first item of P30; built, both readers and the fix round done 2026-10-06
 **Plan:** P30, `doc/plans/p30-which-open-questions-close-by-a-fix-already-named.md`
 
 *This file carries NO relative link, deliberately* — W127's note and Q142's mechanism. A linking
@@ -16,7 +16,7 @@ Owns:       spec/outcome-record.md, spec/run-state.md, src/driver/listener.ts,
             test/driver/log.test.ts, test/driver/driver.test.ts, examples/l6.ts,
             AGENTS.md ONLY if a snippet or sentence quotes the message text, and this file
             (P30's index row)
-Inputs:     the tree at `f6d1dbf`; fyflow-scheduler 0.5.2 (npm) and jsr:@fyflow/scheduler@0.5.2;
+Inputs:     the tree at `c0f1d58`; fyflow-scheduler 0.5.2 (npm) and jsr:@fyflow/scheduler@0.5.2;
             P2's measurement (doc/plans/p2-the-non-success-half-on-a-real-scheduler.md, decision 2)
 Outputs:    (1) OR-R6 gains the thread-pool sentence, written FROM this item's 0.5.2 measurement;
                 outcome-record v0.10 -> v0.11, its version block stating why
@@ -110,7 +110,7 @@ found by a gate run, as their rows say (`doc/workflow.md` section 7 rule 2). Out
 
 ## Record
 
-*Filled in 2026-10-06 on `9d73ab1` plus this item's uncommitted tree, held still from the confirming gate
+*Filled in 2026-10-06 on `528389b` plus this item's uncommitted tree, held still from the confirming gate
 to this Record.* Scratch `dev-dist/w133-59497/` (this item's shell pid): every log and script named below.
 Node v24.20.0 by `fnm use 24` in every shell, Deno 2.9.6; every rung redirected, its EXIT read in the same
 command, never piped. Ids here are bare text, as the header says.

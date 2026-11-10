@@ -1,14 +1,14 @@
 # P30 — Which open questions close by a fix their own `closes-when` already names?
 
-**Status:** complete and retro'd 2026-10-07 — declared 2026-10-06 on `e61df81`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); proposal A adopted by the maintainer the same day as `doc/workflow.md` v0.29 (Retro below)
+**Status:** complete and retro'd 2026-10-07 — declared 2026-10-06 on `717a804`; W133 done 2026-10-06, W131, W132 and W134 done 2026-10-07 (Record below); proposal A adopted by the maintainer the same day as `doc/workflow.md` v0.29 (Retro below)
 **Question this plan answers:** *which open questions close by a fix their own `closes-when` already
 names, and does each one close when that fix lands?*
 **Exit artifact:** *on the final tree, `npm run gate:full` EXITs 0; `npm run q -- --where
 "resolved-by~P30" --fields id,status,resolved-by` lists exactly the thirteen questions of decision 1 (its twelve plus Q534),
 each `resolved` and each naming the item that closed it; and `npm run q -- --where status=open
---count` prints **10**, down from 22 at `e61df81` by the twelve, plus any question an item raises open, each
+--count` prints **10**, down from 22 at `717a804` by the twelve, plus any question an item raises open, each
 named in that item's Record.* *(Read thirteen and **9** at declaration, then fourteen and **8** after Q534
-joined at W133's record step, stop-and-ask (g); both were wrong.)* *(Corrected 2026-10-07, by the maintainer's answer to W134's Record: decision 1's table always listed twelve, not thirteen, and Q534 was raised after `e61df81`, so it was never among the 22.)*
+joined at W133's record step, stop-and-ask (g); both were wrong.)* *(Corrected 2026-10-07, by the maintainer's answer to W134's Record: decision 1's table always listed twelve, not thirteen, and Q534 was raised after `717a804`, so it was never among the 22.)*
 **Reserves:** W131-W138, Q533-Q547, ADR 0085-0086
 
 ```
@@ -19,21 +19,21 @@ Items:    W131 (the self-tests: Q144, Q430, Q439, Q454, Q490),
           W134 (the repository's own files: Q235, Q484, Q534)
 Reserves: W131-W138, Q533-Q547, ADR 0085-0086
 Baseline: plans to p29, work items to w127, ADRs to 0084, register to Q532 — `npm run state`
-          on `e61df81`, where the tree and the ledger AGREE on W131 / Q533 / ADR 0085
-Declared: 2026-10-06 on `e61df81`
+          on `717a804`, where the tree and the ledger AGREE on W131 / Q533 / ADR 0085
+Declared: 2026-10-06 on `717a804`
 ```
 
 ## Why this plan, and why now
 
-P29 gave every open question a `closes-when` (`R9`, ADR 0082). **Twenty-two are open on `e61df81`,
+P29 gave every open question a `closes-when` (`R9`, ADR 0082). **Twenty-two are open on `717a804`,
 and for twelve of them the `closes-when` names a fix of a few lines in one or two files**,
 most of them written as *"one commit outside P29"*. P29 decision 3 forbade it from answering
 anything, so those fixes were left for a later plan. This is that plan.
 
-Every claim below was **re-checked on `e61df81`**, not inherited from P29's notes, which are dated
-`988ef5f`:
+Every claim below was **re-checked on `717a804`**, not inherited from P29's notes, which are dated
+`f76bdc8`:
 
-| Q | the claim in its note | on `e61df81` |
+| Q | the claim in its note | on `717a804` |
 |---|---|---|
 | Q235 | `.gitignore` has no `.claude` entry | true: 6 entries, none under `.claude/` |
 | Q144 | `scripts/check-policies.mjs` ends on `names.join` | true, line 187 |
@@ -48,7 +48,7 @@ Every claim below was **re-checked on `e61df81`**, not inherited from P29's note
 ## Decisions taken before fan-out
 
 **1. Twelve questions are in. Ten are Out**, by the maintainer's choice on 2026-10-06 (*"A + B"*).
-*(Corrected 2026-10-07, by the maintainer's answer to W134's Record: decision 1's table always listed twelve, not thirteen, and Q534 was raised after `e61df81`, so it was never among the 22.)*
+*(Corrected 2026-10-07, by the maintainer's answer to W134's Record: decision 1's table always listed twelve, not thirteen, and Q534 was raised after `717a804`, so it was never among the 22.)*
 **Q534 is the thirteenth**, raised by W133 and added to W134 by the maintainer on the same day
 (stop-and-ask (g)):
 
@@ -82,7 +82,7 @@ bumps the document's own version (`outcome-record` v0.10 → v0.11, `run-state` 
 never a side effect of a test.
 
 **3. Q484 is a DELETION, not a re-take** — P27 decision 4. The question names four sections of
-`doc/README.md`. Measured on `e61df81`, its *Reading order* and *Document status* tables carry
+`doc/README.md`. Measured on `717a804`, its *Reading order* and *Document status* tables carry
 dozens of derived figures: register counts, ADR counts, spec example and rule counts, workflow
 versions and plan counts, and a parenthetical history of each one going stale. **W134 deletes every
 figure that `npm run state` or a check derives**, and the parentheticals that record that figure's
@@ -204,7 +204,7 @@ rule-8 passes; this section names what the PLAN needs from it.
   `test/definition/l4-corpus.test.ts`); W133's Record lists them and why. A spec bump and a new suite
   each drag one of those two files, every time: the next item that does either can name them up front.
 
-**W131 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `79e844a`), the reader
+**W131 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `bf80035`), the reader
 and three rule-8 passes; this section names what the PLAN needs from it.
 
 - **Closed: Q144, Q430, Q439, Q454, Q490**, each `resolved-by` naming P30 W131. **Raised: Q536** (open) — the
@@ -228,7 +228,7 @@ and three rule-8 passes; this section names what the PLAN needs from it.
 - **Exceptions: one path, two widenings, none late.** Neither of W133's drag files applied: W131 added no
   suite and bumped no spec.
 
-**W132 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `c72e704`), the
+**W132 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `25a960a`), the
 measurement, the reader and two rule-8 passes; this section names what the PLAN needs from it.
 
 - **Closed: Q272, Q382**, each `resolved-by` naming P30 W132. **Raised: Q541** (open) — `test:browser`
@@ -250,7 +250,7 @@ measurement, the reader and two rule-8 passes; this section names what the PLAN 
   `node test/provocations/q272.ts` and its deno form; it is not a gate entry, since `package.json` is
   outside W132's `Owns`.
 
-**W134 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `2b48046`), the
+**W134 — done 2026-10-07.** Its own Record carries the gate (`gate:full` EXIT 0 on `1ec308c`), the
 measurement, the reader and two rule-8 passes; this section names what the PLAN needs from it.
 
 - **Closed: Q235, Q484, Q534**, each `resolved-by` naming P30 W134. **Raised: Q542** (open) — the stale
@@ -276,7 +276,7 @@ measurement, the reader and two rule-8 passes; this section names what the PLAN 
 
 | clause | measured | |
 |---|---|---|
-| `npm run gate:full` EXIT 0 | **0**, on `2b48046`, the last commit before W134's record step; the record step changed only four documents a check reads, and `npm run gate` and `check:markdown:selftest` were re-run after it (W134's Record) | met |
+| `npm run gate:full` EXIT 0 | **0**, on `1ec308c`, the last commit before W134's record step; the record step changed only four documents a check reads, and `npm run gate` and `check:markdown:selftest` were re-run after it (W134's Record) | met |
 | `npm run q -- --where "resolved-by~P30" --fields id,status,resolved-by` lists the fourteen questions of decision 1, each resolved | **thirteen**, each `resolved` and naming its item: Q61, Q62, Q63 (W133); Q144, Q430, Q439, Q454, Q490 (W131); Q272, Q382 (W132); Q235, Q484, Q534 (W134) | met on the questions; **the figure fourteen was wrong** — below |
 | `npm run q -- --where status=open --count` prints 8, plus any question an item raised open | **14** | accounted below |
 
@@ -285,17 +285,17 @@ tier A is nine (Q144, Q235, Q272, Q382, Q430, Q439, Q454, Q484, Q490) and tier B
 The W-row index agrees with the table — five, two, three and two, plus Q534 — so thirteen were closed,
 which is every question the plan took. The *Why* section's *thirteen of them* carries the same error, and
 so does *nine are Out*: the Out rows hold **ten** (Q337, Q434, Q437; Q20, Q513, Q142, Q244, Q266, Q283,
-Q508), and 12 + 10 is the 22 open on `e61df81`.
+Q508), and 12 + 10 is the 22 open on `717a804`.
 
 **The open count, by id.** 14 = the ten Out questions above, still open as decided, **plus four raised
 by P30's own items and left open**: Q533 (W133), Q536 (W131), Q541 (W132), Q542 (W134). The declared **8**
 was 22 less fourteen, and it is wrong twice: the plan took twelve of the 22, not thirteen, and Q534 was
-raised after `e61df81`, so closing it does not lower the count from 22. The arithmetic the plan meant:
+raised after `717a804`, so closing it does not lower the count from 22. The arithmetic the plan meant:
 22 − 12 = **10**, plus the four raised = **14**, as measured.
 
 ## Retro
 
-*Pass 3 ran on 2026-10-07 over `5108345`, with the working tree clean before it. Scratch
+*Pass 3 ran on 2026-10-07 over `a524773`, with the working tree clean before it. Scratch
 `dev-dist/p30r-1122/` (the retro shell's pid). **PROPOSAL A ADOPTED by the maintainer, 2026-10-07, as `doc/workflow.md`
 v0.29** — section 10. Sections 1-9 are the proposal as it went up, unedited but for section 7's
 heading. Ids in this Retro are bare text, as in the Record.*
@@ -343,7 +343,7 @@ all four runs and **2.9x the next lane**. The other nine concurrent lanes finish
 of the wall, W104 halved it, and the register lane has since grown past it* — W127 measured it
 1828 s alone.
 
-**Measured without it**, on `5108345` with nothing else moving, through the runner's own
+**Measured without it**, on `a524773` with nothing else moving, through the runner's own
 `CHECK_SELFTESTS_PKG` override pointed at a copy of `package.json` with that one entry removed
 (`dev-dist/p30r-1122/selftests-no-register.log`): `selftests` EXIT 0, 10/10 ok, **777.2 s wall** (3604.9 s serial-equivalent, 9 lanes), from 13:40:05 to 13:53:02. The wall is now `check:docs:selftest`'s 763.3 s, within 14 s, so **the next binding lane is docs, as ADR 0070 consequence 3 left it**. Every other lane ran 4-10% faster with one fewer competitor. With the ladder's ~138 s, a `gate:full` without the register lane is **about 915 s, 15 minutes, against 41**.
 
@@ -563,7 +563,7 @@ Ran, each redirected with `$?` read in the same command: `npm run state` (before
 confirming gate is `gate:full` less that lane; an item that edits `scripts/check-register*.mjs`,
 `scripts/state.mjs` or `doc/questions/README.md` still runs it; the plan's LAST item runs the whole
 `gate:full`. Written into `doc/workflow.md` section 4 as **v0.29**, replacing the v0.26 and v0.28
-paragraphs, with section 7's edits, in `7ebd377`. `check:budget` EXIT 0 after it, with 649 bytes of
+paragraphs, with section 7's edits, in `d9ac027`. `check:budget` EXIT 0 after it, with 649 bytes of
 headroom against 567 before: the replacement is shorter than what it replaced.
 
 **The rule is NOT in force yet.** Section 3's cost stands: nothing today runs the self-tests less one

@@ -26,7 +26,7 @@ app folded every run a SECOND time in its own `onFoldInput`, paying #1's cost tw
 is handed), and the runtime still kept ONE `RunState` and `step`ped it per input (ADR 0058 rule 5): a 4,000-item `map`
 stepped 16,003 times, O(run²).
 
-Three facts re-taken at W196's declaration step on `e2b62c8`:
+Three facts re-taken at W196's declaration step on `b9fe9fd`:
 
 1. **One literal builds a handle** — `openRun`'s return. Adding three members costs one typecheck error in each of the five
    lanes, all at that literal; no `AGENTS.md` snippet builds one.

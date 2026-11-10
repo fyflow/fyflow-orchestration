@@ -1,7 +1,7 @@
 # W163 — what `start` refuses that the flow does not decide
 
 **Status:** done 2026-10-15 — **`npm run gate:item` EXIT 0** on the final tree, one command; declared 2026-10-15 on
-`9769e45`, declaration step RUN the same day in a byte copy; stop-and-ask S1 and exceptions E1 and E2 ASKED at the declaration
+`4921b19`, declaration step RUN the same day in a byte copy; stop-and-ask S1 and exceptions E1 and E2 ASKED at the declaration
 step and ANSWERED by the maintainer 2026-10-15, *"as recommended"* — S1 option A, E1 YES, E2 YES — recorded before any edit
 outside this file; both reader passes RUN, neither found a code defect; Q619 raised, nothing closed
 **Plan:** [P37](../plans/p37-a-runtime-is-its-registry.md) — *what may a running runtime be asked to accept, when its
@@ -36,7 +36,7 @@ Outputs:    (1) runtime.ts: `LimitKeyMissing extends RuntimeError`; `check` = va
             (6) L1 tests (below) and their two suites in l4-corpus's LATE_SUITES.
             (7) L6: the keyed block in examples/l6.ts — one run; CROSS_ROW, DECLARED_TOTAL, DECLARED_RUNS,
                 CROSS_ROW_SUBJECTS and pairRunCount moved; examples/README.md's two X10 copies and its run tally.
-Depends on: W162 (done, 9769e45)
+Depends on: W162 (done, 4921b19)
 Blocks:     W164
 Tests:      L1 test/scheduler/runtime.test.ts — P37 fact 1's three refused roads (the type's pool, the node's
             workerGroups, the keyed node second), each: check returns exactly [FD-R6 at the node] naming the group, both
@@ -68,7 +68,7 @@ Gate:       `npm run gate` before the readers (P37 sentence C); then the conform
 Reserves:   Q619-Q622, ADR 0097
 ```
 
-*Reserves: `npm run state` on `9769e45` reads the next free ids as **W163, Q615, ADR 0097** from the tree, and W162, Q615,
+*Reserves: `npm run state` on `4921b19` reads the next free ids as **W163, Q615, ADR 0097** from the tree, and W162, Q615,
 ADR 0096 from the ledger (P33's Retro) — they DISAGREE because P37 was declared and W162 spent ADR 0096 since that
 sentence; P37's own reservation governs. Its W163 row gives this item Q619-Q622 and ADR 0097.*
 
@@ -136,7 +136,7 @@ document-declared key derivation handed to the group as its `keyFrom`, which the
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-15 in a BYTE COPY of `9769e45` (`git archive` into `C:/tmp-w163/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-15 in a BYTE COPY of `4921b19` (`git archive` into `C:/tmp-w163/m`,
 `node_modules` copied, **zero links** by `find -type l`), node 24.20.0 and deno 2.9.6. The change was built there whole,
 under S1's A with E1 and E2 applied, and every lane run.*
 
@@ -181,7 +181,7 @@ exists, and the L6 run is a two-task sequence.
 
 ## Record
 
-**Gate — what ran.** Baseline `9769e45`; every number below is the final tree's.
+**Gate — what ran.** Baseline `4921b19`; every number below is the final tree's.
 
 | Clause | Verdict | Notes |
 |---|---|---|

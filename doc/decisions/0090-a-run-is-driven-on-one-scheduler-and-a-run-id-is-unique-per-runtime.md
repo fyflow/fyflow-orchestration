@@ -21,7 +21,7 @@ tree already does and moves no code.
 [Q20](../questions/q20.md) asked *"does one orchestrator ever drive more than one scheduler, and is a run
 id global?"* It bundles three questions, and the tree answered two of them without saying so:
 
-| | the question | the tree, measured on `30d2d65` |
+| | the question | the tree, measured on `93c09d6` |
 |---|---|---|
 | **a** | can ONE RUN span several schedulers? | no, by construction: a `Driver` takes exactly one `scheduler` (`src/driver/driver.ts`, `DriverOptions.scheduler`) and its run at construction ([ADR 0022](0022-a-driver-takes-its-run-at-construction.md)) |
 | **b** | can ONE PROCESS hold several runtimes, each with its own scheduler? | yes: `createRuntime` builds its own `FyflowScheduler`, and [W142](../work-items/w142-a-settlement-reaches-only-its-own-runs-driver.md) measured "one runtime per run" as a supported topology beside a shared one ([ADR 0088](0088-a-runtime-routes-each-settlement-to-the-driver-holding-its-run-id.md)) |

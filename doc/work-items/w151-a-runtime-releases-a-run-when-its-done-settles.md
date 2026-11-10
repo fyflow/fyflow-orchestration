@@ -1,6 +1,6 @@
 # W151 — A runtime releases a run when its `done` settles: the driver and its routing entries go, the run id stays (Q513, ADR 0091)
 
-**Status:** done 2026-10-09 — see the Record. Declared on `bb612da` (committed `282427a`), before any file under `Owns` was edited.
+**Status:** done 2026-10-09 — see the Record. Declared on `9e325ac` (committed `70360d7`), before any file under `Owns` was edited.
 **Plan:** none — an item outside any plan, on W98's, W139's and W150's precedent. Its source is the
 maintainer's decision of 2026-10-09 on Q513 (*release on done*), taken after the main session measured
 one long-lived runtime keeping every finished run.
@@ -38,7 +38,7 @@ Owns:       src/scheduler/runtime.ts (the router's release, openRun's settle, th
             spec/run-state.md (RN-R25's text and the status line) and spec/README.md's version
             column for it;
             this file
-Inputs:     the tree at bb612da; Q513, Q19; ADR 0046, 0058, 0065, 0088, 0090; RN-R23, RN-R25,
+Inputs:     the tree at 9e325ac; Q513, Q19; ADR 0046, 0058, 0065, 0088, 0090; RN-R23, RN-R25,
             ID-R4, ID-R5; createRuntime's openRun, inUse, mint and settlementRouter (byRun,
             every); the main session's script dev-dist/w133-59497/q513-measure.ts and its figures
             (+17.5 / +81.3 / +160.9 / +319.8 MiB at 100 / 500 / 1000 / 2000 runs)
@@ -142,7 +142,7 @@ and `README.md` if it carries a copy of anything moved.
 
 ## Record
 
-*Filled in 2026-10-09 on `1159ccb`, the tree the confirming gate ran on, held still from rule 8's last pass to the gate.*
+*Filled in 2026-10-09 on `4b43434`, the tree the confirming gate ran on, held still from rule 8's last pass to the gate.*
 Scratch is dev-dist/w151-27362/ (this item's shell pid); every log and script named below is there. Node v24.20.0 by
 `fnm use 24` in every shell. Every rung was redirected and its EXIT read in the same command, never piped. Ids are bare
 text, as the header says.
@@ -151,7 +151,7 @@ text, as the header says.
 
 | command | EXIT | reading |
 |---|---|---|
-| `npm run gate:item > dev-dist/w151-27362/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `1159ccb`, after both readers' fixes and rule 8's last pass |
+| `npm run gate:item > dev-dist/w151-27362/item.log 2>&1; echo "EXIT=$?"` | **0** | run ONCE, on `4b43434`, after both readers' fixes and rule 8's last pass |
 | — L0 (lint, typecheck) | 0 | inside the gate |
 | — L1-L5 | 0 | node, deno and chromium; the W151 suite's **twelve** cases in one new suite named in `LATE_SUITES`, and two existing cases rewritten (below) |
 | — L6 | 0 | **2487** assertions, unchanged: no L6 row reads a finished run through the runtime, so `DECLARED_TOTAL`, `DECLARED_RUNS` and examples/README.md were not touched (the declared exception row was not used) |
@@ -167,8 +167,8 @@ forced collections.
 
 | finished runs | 100 | 250 | 500 | 1000 | 1500 | 2000 |
 |---|---|---|---|---|---|---|
-| **before**, `bb612da` (`before.log`) | 17.51 | 41.53 | 81.34 | 160.91 | 240.57 | 319.81 MiB |
-| **after**, `e45646e` (`after.log`) | 5.19 | 10.56 | 19.42 | 37.04 | 54.96 | 72.54 MiB |
+| **before**, `9e325ac` (`before.log`) | 17.51 | 41.53 | 81.34 | 160.91 | 240.57 | 319.81 MiB |
+| **after**, `dbbd47e` (`after.log`) | 5.19 | 10.56 | 19.42 | 37.04 | 54.96 | 72.54 MiB |
 
 **About 160 KiB a run before; about 37 KiB a run after, and the 37 KiB is the SCHEDULER's**, not this library's: a
 `FyflowScheduler` keeps every completed task in `scheduler.tasks` unless `maxCompletedTasks` caps it, and
@@ -199,9 +199,9 @@ Context, AGENTS.md section 12 and below as an ask.
 | (6) | RN-R25 v0.14, spec/README.md's column; AGENTS.md sections 9, 12 and 18 | spec/, AGENTS.md | `check:spec` C8 (version column) and `check:docs` EXIT 0 |
 | (7) | Q513 resolved | doc/questions/q513.md; ADR 0091's `resolves` | `check:register` R8 both ways |
 
-### Exceptions, reconciled to `git status --short` and `git diff --name-only bb612da..HEAD` to the path
+### Exceptions, reconciled to `git status --short` and `git diff --name-only 9e325ac..HEAD` to the path
 
-**Eleven paths** in `git diff --name-only bb612da..1159ccb`, and `git status --short` was empty when the gate ran.
+**Eleven paths** in `git diff --name-only 9e325ac..4b43434`, and `git status --short` was empty when the gate ran.
 - **Owns: 10.** src/scheduler/runtime.ts, test/scheduler/runtime.test.ts, test/scheduler/resume.test.ts,
   examples/retention.ts, doc/decisions/0091-*.md, doc/decisions/0088-*.md (the dated notes), AGENTS.md (sections 9, 12
   and 18 — what a runtime keeps and how long a run's id lives), spec/run-state.md and spec/README.md (v0.14, its own
@@ -250,10 +250,10 @@ adequacy reader's own grading).
 
 ### The readers — fresh contexts, ADR and spec first, the tree still, briefs written apart
 
-brief-conformity.md and brief-adequacy.md. Both ran on `e45646e`, after rule 8's pass 1; `git status` stayed clean.
+brief-conformity.md and brief-adequacy.md. Both ran on `dbbd47e`, after rule 8's pass 1; `git status` stayed clean.
 
 **Conformity** (8 findings: 3 should-fix, 5 notes, no blocking; ID-R4, ID-R5, OR-R10 and RN-R23 byte-identical to
-`bb612da`, RN-R25's refusal set unchanged; every expected value it checked derives from ADR 0091 or the spec).
+`9e325ac`, RN-R25's refusal set unchanged; every expected value it checked derives from ADR 0091 or the spec).
 1. ADR 0091 credited the router with the whole ~160 KiB; ~37 KiB is `scheduler.tasks`. **Fixed** in the Context and
    rule 2, and the Q19 consequence qualified.
 2. ADR 0091 named W89's collision as tier 2; it was `ID-R1` (`DuplicateTaskId`). **Fixed.**
@@ -304,14 +304,14 @@ obligation.
 
 ### After the maintainer's three answers (2026-10-09) — the asks, acted on
 
-The Record above was written on `1159ccb`. The three asks went up through the coordinator; the maintainer answered
+The Record above was written on `4b43434`. The three asks went up through the coordinator; the maintainer answered
 all three the same day.
 
 1. **Q371: close it on ADR 0091.** Done — `resolved-by` names ADR 0091 (W151); ADR 0091's `resolves` is
    `Q513, Q371`. `check:register` EXIT 0 (R8 both ways; the first try wrote `Q513; Q371` and R7 refused the
    separator, which is `, `).
-2. **The RN-R23 deviation: fix it.** The YES is in Exceptions above, committed (`cf76f19`) before the edit.
-   - **The fix** (`cc23eaf`): a `deaf` flag on `Driver`, set where `resume()` refuses a stop regenerated in the lost
+2. **The RN-R23 deviation: fix it.** The YES is in Exceptions above, committed (`aa947da`) before the edit.
+   - **The fix** (`1de526a`): a `deaf` flag on `Driver`, set where `resume()` refuses a stop regenerated in the lost
      tail, and read in `onEvent` beside the old *started with no header* test. That refusal keeps its header — the
      stopped run's checkpoint is one a store may take — so the old test could not see it.
    - **The test**, in test/driver/resume.test.ts: `RN-R23 — a run STOPPED in the lost tail, once refused, is DEAF:
@@ -332,7 +332,7 @@ all three the same day.
 3. **The scheduler's cap: document only, no change.** As left: ADR 0091's Context and rule 2, and AGENTS.md section
    12, name `scheduler.tasks` and `RuntimeOptions.createScheduler`.
 
-**Gate after the answers:** `npm run gate > dev-dist/w151-27362/gate-answers.log 2>&1` on `27671b3` read **EXIT 1** — the L6 cross-row byte-walk clause alone, its `DRIVER_FIELDS` missing `deaf`. Fixed in `2d51bc2`, and the same command, once, on a still tree at `2d51bc2` (`gate-answers2.log`) read **EXIT 0**: L1-L5 1593 cases in node, deno and chromium (+1, the DEAF case), L6 2487 in node and deno (unchanged). `check:register` re-run after this paragraph: EXIT 0. `gate:item` was not re-run: the maintainer asked for `npm run gate`.
+**Gate after the answers:** `npm run gate > dev-dist/w151-27362/gate-answers.log 2>&1` on `b111928` read **EXIT 1** — the L6 cross-row byte-walk clause alone, its `DRIVER_FIELDS` missing `deaf`. Fixed in `8dccb6f`, and the same command, once, on a still tree at `8dccb6f` (`gate-answers2.log`) read **EXIT 0**: L1-L5 1593 cases in node, deno and chromium (+1, the DEAF case), L6 2487 in node and deno (unchanged). `check:register` re-run after this paragraph: EXIT 0. `gate:item` was not re-run: the maintainer asked for `npm run gate`.
 
 ### Questions closed and raised (workflow section 1 rule 6)
 

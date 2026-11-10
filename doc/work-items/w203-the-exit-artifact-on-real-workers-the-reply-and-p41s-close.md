@@ -1,6 +1,6 @@
 # W203 — the shared copy on real workers, the driver re-timed, the reply to fyflow-app, and P41's close
 
-**Status:** done 2026-10-22 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 7 provocations KILLED, none surviving; the reply written. Earlier: declared 2026-10-22 on `f46abfc` (W202 committed, the tree clean); P41's LAST item: exit clauses (2) and (3), the reply, P41's Record and retro; the declaration step's re-takes below, run before any other edit
+**Status:** done 2026-10-22 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 7 provocations KILLED, none surviving; the reply written. Earlier: declared 2026-10-22 on `6e0df63` (W202 committed, the tree clean); P41's LAST item: exit clauses (2) and (3), the reply, P41's Record and retro; the declaration step's re-takes below, run before any other edit
 **Plan:** [P41](../plans/p41-what-a-reference-to-a-large-value-costs-inside-a-map.md) — *what does a reference to a large
 value cost inside a map, and can every instance read one shared copy?* — and this is its LAST item.
 
@@ -14,7 +14,7 @@ Owns:       from P41's W203 row, exactly: examples/l6.ts (the WHOLE file, senten
             ../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass2-followup-2.reply.md
             Exceptions (declared BEFORE the edit, workflow section 7 rule 2): doc/workflow.md — the plan's-last-item
             bookkeeping ONLY (the Status line's count of plans run, section 6's overlap ordinal, the ledger rows a retro
-            appends to), P40's close (7046745) the precedent, P41's W203 row naming it. The record step's four files
+            appends to), P40's close (d4b510a) the precedent, P41's W203 row naming it. The record step's four files
             carry P41's Record and retro and any dated note. Anything else found to need an edit is a STOP-AND-ASK.
 Inputs:     P41 decisions 1-8, facts 1-10, stop-and-asks (a)-(g) ANSWERED ((f) as (f2), (g) as (g1)); W202's Record
             (its numbers, its readers' RegExp finding taken as recommended — a RegExp shared UNFROZEN and named in the
@@ -47,7 +47,7 @@ Outputs:    (1) one L6 block in examples/l6.ts, `W203 exit`, node 24 and deno, a
                     pool the same writes land on the worker's clone and the later reader sees the value as fetched.
             (2) examples/map-cost.ts — the LARGE-READ subjects (the fetch-then-map shape, fetch's result ~100 KB, and
                 the same flow reading a SMALL node), the driver alone, at 1,000 / 2,000 / 4,000 items, each size a
-                fresh process, time and peak heap over baseline, BEFORE on `88059b7` (W202's re-take, the same
+                fresh process, time and peak heap over baseline, BEFORE on `bc813ec` (W202's re-take, the same
                 harness) and AFTER on the final tree, node 24 and deno. A measurement, NOT a gate entry (Q179).
             (3) examples/README.md — X10's copies of the L6 counts moved by this block alone; the map-cost row.
             (4) the reply to fyflow-app, once this item's gate is green.
@@ -82,16 +82,16 @@ Reserves:   Q755-Q759, ADR 0127 (expected unused)
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5. Taken 2026-10-22 on `f46abfc`, the tree clean; harnesses and logs in the session scratchpad's `w203/`.*
+*P15 decision 5. Taken 2026-10-22 on `6e0df63`, the tree clean; harnesses and logs in the session scratchpad's `w203/`.*
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the release state | npm `fyflow-orchestration`: `0.0.0-stage`, `0.7.0`, `0.8.0`, `0.9.0`, `0.9.1`, `latest` 0.9.1; JSR `@fyflow/orchestration` latest 0.9.1 (2026-10-22T08:54Z); tags `v0.7.0`-`v0.9.1`, `v0.9.1` at `6957919`; `origin/main` at `6957919` (`git ls-remote`) — P41's `88059b7` and `f46abfc` NOT pushed; manifests 0.9.1 / 0.9.1 |
+| 1 | the release state | npm `fyflow-orchestration`: `0.0.0-stage`, `0.7.0`, `0.8.0`, `0.9.0`, `0.9.1`, `latest` 0.9.1; JSR `@fyflow/orchestration` latest 0.9.1 (2026-10-22T08:54Z); tags `v0.7.0`-`v0.9.1`, `v0.9.1` at `5d1baf6`; `origin/main` at `5d1baf6` (`git ls-remote`) — P41's `bc813ec` and `6e0df63` NOT pushed; manifests 0.9.1 / 0.9.1 |
 | 2 | `npm run state` | P42 W203 Q755 ADR 0127 from the tree; W202 Q750 ADR 0126 from the ledger — the two DISAGREE until P41's retro writes its sentence (expected); L6 2815 / 230 |
 
 ## Verification
 
-`npm run gate` before the readers (sentence C); the two readers in their own worktrees under `C:/tmp-w203/` (`f46abfc`
+`npm run gate` before the readers (sentence C); the two readers in their own worktrees under `C:/tmp-w203/` (`6e0df63`
 plus this diff, `node_modules` copied, scanned for links and reparse points before use); the readers' findings acted on;
 the author's provocations in a third copy; then `npm run gate:full` once, on the final tree. **Routing coverage**: a
 nested fan-out (Q6) — not in the block (W202's L2 case 9 holds the shared copy two maps deep); `user_action` (Q17) — the
@@ -173,7 +173,7 @@ scratchpad's `w203/`.*
 | (5) P41's Record and retro; `doc/workflow.md`'s bookkeeping | yes | `check:register`, `check:budget`, `npm run state` (the two id derivations AGREE) |
 
 **The numbers** — `examples/map-cost.ts`' large-read subjects, the driver alone, each size a fresh process started with
-`--expose-gc`, time / peak heap over a post-GC baseline. BEFORE on `88059b7` (worktree `C:/tmp-w203/base`, this harness
+`--expose-gc`, time / peak heap over a post-GC baseline. BEFORE on `bc813ec` (worktree `C:/tmp-w203/base`, this harness
 copied in; `w203/large-before.jsonl`), AFTER on this item's tree (`w203/large-after.jsonl`; no `src/` edit since W202),
 node 24.20.0 / deno 2.9.6:
 
@@ -214,7 +214,7 @@ sole sensor of a vacuous `shCanon`*), and no real-worker witness that an edge's 
 reader's first construction; the adequacy reader's construction, D12). Every other finding was one reader's alone. The
 two briefs were written apart and named no common specific.
 
-**Leftover worktrees.** `C:/tmp-w203/base` (at `88059b7`, `examples/map-cost.ts` replaced by this item's with its BEFORE
-placeholders zeroed), `rc`, `ra`, `m` (at `f46abfc` plus this item's diff) — git worktrees, `node_modules` COPIED, scanned
+**Leftover worktrees.** `C:/tmp-w203/base` (at `bc813ec`, `examples/map-cost.ts` replaced by this item's with its BEFORE
+placeholders zeroed), `rc`, `ra`, `m` (at `6e0df63` plus this item's diff) — git worktrees, `node_modules` COPIED, scanned
 before use: 0 links, 0 reparse points; and `ra-scratch`, `rc-scratch` (plain directories, the readers'). Left for the
 maintainer; none removed with `--force`.

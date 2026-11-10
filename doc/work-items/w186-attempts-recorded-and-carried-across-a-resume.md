@@ -1,6 +1,6 @@
 # W186 — a task's ATTEMPTS, recorded and carried across a resume: `attempted` and `attemptsSpent`
 
-**Status:** done 2026-10-18 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, no BLOCKER, A1-A4, C3, C4 and C6 acted on, A5, C1, C2 and C7 noted for the plan; R1 and R4 confirmed by the coordinator; Q365 and Q26 closed; no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-18 (`npm run gate` EXIT 0); declared 2026-10-18 on `d2f724d` (W185 done); P36's THIRD item: fyflow-app's #10 with #18's answer, stop-and-asks (f)-(i) as answered, facts 3 and 6-8; ADR 0113 (reserved for it); not committed
+**Status:** done 2026-10-18 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, no BLOCKER, A1-A4, C3, C4 and C6 acted on, A5, C1, C2 and C7 noted for the plan; R1 and R4 confirmed by the coordinator; Q365 and Q26 closed; no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-18 (`npm run gate` EXIT 0); declared 2026-10-18 on `a4d8301` (W185 done); P36's THIRD item: fyflow-app's #10 with #18's answer, stop-and-asks (f)-(i) as answered, facts 3 and 6-8; ADR 0113 (reserved for it); not committed
 **Plan:** [P36](../plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md) — *which run and attempt does a
 task's activity belong to, without parsing its id, and what of a run survives a crash and a resume?* — the fyflow-app asks
 **#10** (a resumed task starts at a fresh retry budget) and **#18** (does a stopped attempt count as spent?). **As
@@ -67,7 +67,7 @@ Outputs:    (1) src/driver/driver.ts: `task.running` subscribed (`SUBSCRIBED_EVE
                 bullet rewritten, the TRUSTED-store bullet, the stop table's attempt row, a new subsection with one `run`
                 snippet, the BREAKING paragraph); `RUN_FLOOR` 45 -> 46.
             (7) doc/decisions/0113-a-tasks-attempts-are-recorded-and-carried-across-a-resume.md.
-Depends on: W185 (done, `d2f724d`)
+Depends on: W185 (done, `a4d8301`)
 Blocks:     W187
 Tests:      L2, expected values hand-written from (f)-(i), `RN-R19`-`RN-R21` and each flow's shape, never from output, over a
             double that plays the scheduler's numbering (an INLINE mode firing `task.running` inside `addTask` with
@@ -87,7 +87,7 @@ Tests:      L2, expected values hand-written from (f)-(i), `RN-R19`-`RN-R21` and
             `createRuntime`: two runs on one runtime each recording only its own attempts, an unminted id's recorded by
             neither (the control: its settlement reaches both); `runtime.resume` with the DEFAULT factory handing the
             scheduler a `FyflowTask` carrying `attemptsSpent` 2 and the other its own 0. `RUN_FOR`'s sixteenth run. RED on
-            `d2f724d`'s `src/` where a behaviour is claimed (M3). A real-scheduler probe (M7), not checked in: P36's exit
+            `a4d8301`'s `src/` where a behaviour is claimed (M3). A real-scheduler probe (M7), not checked in: P36's exit
             clause 4's shape in node and deno. One-clause mutations (sentence E) in the byte copy C:/tmp-w186/m, graded on
             each suite's failure lines, grader controls (clean, crash); a time-out is NO VERDICT.
 Gate:       `npm run gate` before the readers (sentence C); the conformity and adequacy readers, NOT this item's author;
@@ -130,7 +130,7 @@ number under one id, which is (f)'s *nothing appended*, and no id is minted.
 
 ## What the declaration step measured
 
-*Measured 2026-10-18 in a BYTE COPY of `d2f724d` (`git archive` into `C:/tmp-w186/m`, `node_modules` copied, never linked;
+*Measured 2026-10-18 in a BYTE COPY of `a4d8301` (`git archive` into `C:/tmp-w186/m`, `node_modules` copied, never linked;
 `find -type l` zero), node 24.20.0, deno 2.9.6.*
 
 | # | fact | measured |
@@ -138,7 +138,7 @@ number under one id, which is (f)'s *nothing appended*, and no id is minted.
 | M1 | the baseline, in the copy | `node test/runner.ts` EXIT 0: 76 files / 2002 cases |
 | M2 | **P36 prediction 3, L1-L5 half**: the `src/` change ALONE (no test touched), `node test/runner.ts` | **5 cases RED and none a sequence**: `test/driver/cancelled.test.ts`'s subscription list, `test/driver/retention.test.ts`'s `DRIVER_FIELDS` ratchet (the two new fields, by name), and `test/scheduler/runtime.test.ts`'s three subscription counts (rule 2's list, rule 7's count, the release's count — `4` -> `5`, W158's E2 precedent). Every other case of 76 files green: NO fold-input sequence on a double moved — no double in `test/**` fires `task.running` with an `attemptNumber` (`cancel.test.ts` and `stop.test.ts` fire it with none, which records nothing). `RUN_FOR` is `typecheck:tests`'s alone (L0), as at W93 and W180 |
 | M3 | **`task.running` at the pin, inline and threaded** — `scratch-w186/probe-sync.ts`, a real `FyflowScheduler`, two `addTask`s | node and deno byte-identical: on an INLINE pool `task.running` fires SYNCHRONOUSLY INSIDE `addTask` (`add a begin`, `running a #1`, `add a end`); on a THREADED pool after both `addTask`s returned, on a later turn. **So an `attempted` element appended where it is heard sits between two elements of the driver's own step** — reading R1 |
-| M4 | the new suites against `d2f724d`'s `src/` (written from (f)-(i) before any run; `src/` swapped and restored, SHA-256 equal) | `attempts.test.ts`: **11 of 13 RED** (re-taken after the forgery case gained its arrangement — on the first take it was GREEN: an unfed `attempted` is refused `diverged` by the regenerated-element check anyway, so it claimed nothing `d2f724d` lacks until it held the stored run to carry a real `attempted` element); GREEN: the *no `task.running`, unmoved* case (it claims nothing moves) and the membership. `attempted.test.ts`: 3 of 4 RED (the fold threw on the kind). `runtime.test.ts`: W186's two and the three counts RED |
+| M4 | the new suites against `a4d8301`'s `src/` (written from (f)-(i) before any run; `src/` swapped and restored, SHA-256 equal) | `attempts.test.ts`: **11 of 13 RED** (re-taken after the forgery case gained its arrangement — on the first take it was GREEN: an unfed `attempted` is refused `diverged` by the regenerated-element check anyway, so it claimed nothing `a4d8301` lacks until it held the stored run to carry a real `attempted` element); GREEN: the *no `task.running`, unmoved* case (it claims nothing moves) and the membership. `attempted.test.ts`: 3 of 4 RED (the fold threw on the kind). `runtime.test.ts`: W186's two and the three counts RED |
 | M5 | **P36 prediction 3, L6 half** — the `src/` change alone, `node examples/l6.ts` | **39 of 2743 assertions RED, 203 runs** — every one a value the new elements move, none a run refused or a crash: the four pair rows' *what this driver was HANDED* (`task.running` delivered too — `onDelivery`, reading R4); block (2g)'s claims (2), (3), (4), (5), (7), the cuts claim and the K = 1 control — its *next stimulus past the cut* was a settlement and the replay now stops at the next FED element, an `attempted` one (reading R5); block (2h)'s re-dispatch claim (the same); W160's three per running road and its control; W176's (1) c3/c4/c11, (2) s2, (3) k1/k2, (4) u1 ×2, (5) four; W182's (1) a3, (4) d2/d3, (5) e1/e3, (6) f2/f4; and `DRIVER_FIELDS`. After the edits (R4, R5 and each row's expected values written from the scheduler events each row already reads): node and deno **EXIT 0, 2743 assertions, 203 runs** — `X10` unmoved |
 | M6 | **B′ / D′ — the census sites**, each by its lane | `RUN_FOR` +1 and its count 15 -> 16 (`checkpoint.test.ts`); `isFed` 6 -> 7; `DRIVER_FIELDS` +2 in BOTH lists (`lastAttempt`, `attemptsPending` — WALKED, no result); `NOT_RUN_STATE` unmoved; `LATE_SUITES` +3 and a per-suite count case (13, 4, 2); the subscription counts 4 -> 5 (three cases) and a list (one); `RUN_FLOOR` 45 -> 46 (`check:docs`; `check:docs:selftest` run, the Record); spec versions run-state v0.26, outcome-record v0.20, task-id v0.15 and their three `spec/README.md` rows; next free rule id `RN-R41`. **Unmoved**: `X10` (2743 / 203), the `StartOptions` binding (no member), `check:budget` (no always-read document edited). Node: **78 files / 2022 cases** (+2 files, +20 cases) |
 | M7 | **a real-scheduler probe — P36 exit clause 4's shape** — `scratch-w186/probe-resume.ts` + `fail-worker.ts`, `createRuntime` over a real `FyflowScheduler`, an inline pool counting worker calls on `globalThis`; not checked in | node 24.20.0 and deno 2.9.6 EXIT 0, **the same JSON byte for byte**: a task of `retryPolicy: { maxRetries: 2, backoffMs: 300 }` whose worker always fails, its store frozen at its SECOND attempt's `attempted` element, the runtime shut down (it drained attempt 2; the retry's backoff was discarded), resumed on a FRESH runtime: handed `attemptsSpent: 2`, the tail `resumed`, `attempted #3`, `outcome user_action attempts=2` — **three worker calls across both processes**. **The CONTROL** — the same store with its `attempted` elements removed: handed `attemptsSpent` 0, the tail `attempted #1, #2, #3` — **five** |
@@ -269,7 +269,7 @@ Every other finding was one reader's alone. *(P36's brief sentence; the ordinal 
 |---|---|---|
 | `npm run gate` before the readers (sentence C) | RAN — EXIT 0 | `C:/tmp-w186/gate2.log`: lint; typecheck; every check, `check:docs` 46 `run` / 6 `check`; L1-L5 78 files / 2022 cases in node, deno and chromium; L6 2743 assertions / 203 runs, 0 failed, node and deno. The first run was RED in chromium only (the `Boom` class name, *What broke*) |
 | `check:docs:selftest` (B′: a snippet added) | RAN — EXIT 0, 24/24 noticed | `C:/tmp-w186/docs-self.log` |
-| L2 one `attempted` per `task.running` of a dispatched task; none for a repeat (a requeue), another run's, or after a stop | RAN — green | `test/driver/attempts.test.ts` cases 1, 2, 6; RED on `d2f724d` (M4) |
+| L2 one `attempted` per `task.running` of a dispatched task; none for a repeat (a requeue), another run's, or after a stop | RAN — green | `test/driver/attempts.test.ts` cases 1, 2, 6; RED on `a4d8301` (M4) |
 | fed at its position by the replay, refused `diverged` nowhere it was stored | RAN — green | the inline run's checkpoint resumed, the fed resume, A -> B -> C; the forged ones refused at their positions |
 | a resume re-hands `attemptsSpent` the highest, ABSENT where none, a spent budget handed on | RAN — green | cases 7, 8, 10, 12; through `createRuntime`, a `FyflowTask` carrying it |
 | a stopped attempt counted ((h)) | RAN — green | case 6, beside the control that the deaf driver was sent the later attempt |

@@ -59,7 +59,7 @@ regenerates it within the stored prefix takes the stored element's time.**
    (hand-edited to 501, 502, 503, each its own), each past the tail the later clock, and `inputOf` was never `diverged`.
 2. **The OTHER direction is a refusal this ADR does not add but does cause** (P43 fact 7), MEASURED by W208 on
    `ask-after-a-task.flow.json` (the session scratchpad's `w208/older.ts`): a checkpoint written by this driver, its
-   `asked` element carrying `observedAt: 200`, resumed by the driver at `e52348d` (0.10.0) is **refused `diverged` at
+   `asked` element carrying `observedAt: 200`, resumed by the driver at `86440fb` (0.10.0) is **refused `diverged` at
    position 2**, the `asked` element — that driver regenerates no time. The 0.10.0 checkpoint resumes on this driver,
    carrying none, and on its own. This is the same consequence every element kind added since format 1 (`interrupted`,
    `paused`, `asked`, `attempted`) has for a driver that predates it: **a run is resumed by a driver at least as new as the

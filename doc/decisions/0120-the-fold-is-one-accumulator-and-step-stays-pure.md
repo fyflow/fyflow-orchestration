@@ -20,7 +20,7 @@ text of `RN-R1` and `RN-R2`). It amends no decision and resolves no question.
 ## Context
 
 fyflow-app's pass 2, #1: a `map` over a few thousand items is unusable, and at 4,000 items 97% of the app's CPU was our
-`step` and `withOutcome` (P39). Measured at W194's declaration on `c1aefb0`, each size in a fresh process: `fold` took
+`step` and `withOutcome` (P39). Measured at W194's declaration on `834aecf`, each size in a fresh process: `fold` took
 134 / 3,387 / 30,073 ms at 1,000 / 2,000 / 4,000 items in node 24.20.0, and 138 / 2,800 / 26,868 ms in deno 2.9.6. The
 cause is in the shape (P39 facts 2-3): `fold` was a `step` per input, every `step` returned a new state by spreading the
 old one — `nodes` on every dispatch and settlement, a region instance's `opened`, `settled` and `suspended` on every region
@@ -73,7 +73,7 @@ and the runtime and consumers call it: its signature, its purity and its result 
    surface moves but `step`'s documented cost. The new file is published source — `run-state.ts` imports it — and is on
    `deno.json`'s publish list.
 8. **The pre-change fold is the ORACLE**: `test/fold/oracle-run-state.ts`, lines 455-833 of `src/fold/run-state.ts` at
-   `c1aefb0` sliced verbatim, never edited again. `RN-R2`'s test is the equivalence: at every prefix of every corpus
+   `834aecf` sliced verbatim, never edited again. `RN-R2`'s test is the equivalence: at every prefix of every corpus
    sequence, `fold`, the `step` reduction and the oracle's fold are equal, key order included; and `step` over every
    oracle state, its outcome forced to each of the nine, equals the oracle's `step`, the same object exactly where the
    oracle's is.

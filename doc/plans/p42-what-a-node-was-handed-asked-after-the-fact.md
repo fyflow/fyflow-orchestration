@@ -1,6 +1,6 @@
 # P42 — What was a node handed, asked after the fact?
 
-**Status:** complete and retro'd 2026-10-22 — W205-W206 done, `gate:full` EXIT 0 on W206's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)), ANSWERED by the maintainer 2026-10-23 as (a1). Earlier: declared 2026-10-22 — on `40560bd` (the tree clean, `main` at 0.9.1 with P41's unpublished 0.10.0 work on it), answering fyflow-app's *pass 3* #1 and #2; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; W206 waits on W205.
+**Status:** complete and retro'd 2026-10-22 — W205-W206 done, `gate:full` EXIT 0 on W206's final tree (the Record); the retro raises ONE stop-and-ask (section 8 (a)), ANSWERED by the maintainer 2026-10-23 as (a1). Earlier: declared 2026-10-22 — on `5761f0e` (the tree clean, `main` at 0.9.1 with P41's unpublished 0.10.0 work on it), answering fyflow-app's *pass 3* #1 and #2; facts 1-10 read at this declaration; stop-and-asks (a)-(e) ANSWERED by the maintainer 2026-10-22, all as recommended; W206 waits on W205.
 **Question this plan answers:** *what was a node handed — a task's envelope, or the value any other node kind received, on
 a named branch path — asked after the fact of a run that is finished, live, or whose runtime is gone, answered by the
 driver's OWN composition rather than a second one, exactly, or with the reason it cannot be?*
@@ -29,7 +29,7 @@ Reserves: W205-W207 (W207 expected unused), Q760-Q769, ADR 0128-0129 (ADR 0129 e
 Raises:   no question at this declaration; no S entry. W205 raises ONE, (b1)'s post-transform input, from its block
 Baseline: ids derived by `npm run state` at this declaration — P42, W205, Q760, ADR 0128 from the tree and W205, Q760,
           ADR 0128 from the ledger, which AGREE. The ladder counts are NOT taken here and are W205's declaration step's
-Measured: NOTHING re-run at this declaration. Facts 1-10 are READ, at `40560bd`, with file:line; fact 4's figures are
+Measured: NOTHING re-run at this declaration. Facts 1-10 are READ, at `5761f0e`, with file:line; fact 4's figures are
           ADR 0124 consequence 1's (the whole run, node), cited, not re-taken. W205's declaration step re-takes them on
           this tree before any `src/` edit (P15 decision 5)
 ```
@@ -68,7 +68,7 @@ Read at `../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestrati
 ## Facts read at this declaration
 
 **Fact 1 — the driver composes FORWARD, hop by hop, and keeps nothing it composed.** All in `src/driver/driver.ts` at
-`40560bd`:
+`5761f0e`:
 
 | site | what is handed on |
 |---|---|
@@ -400,8 +400,8 @@ files; none is re-measured here. Ids are bare text, as in P33's-P41's Records.*
 
 | item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
 |---|---|---|---|---|---|---|---|
-| **W205** `1288209` | the cut (`Reading`, `offer`, `take`, three sites and the confirmation in `append`), `Driver.read` / `readStep`, `DEAF_SCHEDULER`, `headerRefusal` split out of `resumeRefusal`; the root `inputOf` and its types; `RunHandle.inputOf`; the private count `replay.reading.fed` / `.elements`; `test/driver/input-of.test.ts` (the corpus-and-every-prefix oracle), `test/fold/input-of-cost.test.ts` (EXACT at 2,000 / 8,000), `test/scheduler/input-of.test.ts`; `AGENTS.md` section 8; ADR 0128 | run-state v0.34 (`RN-R45`, `RN-R25`); `FD-C1`'s dated pointer | — / **Q760** | ONE asked exception, `RUN_FLOOR` 51 → 52 in `scripts/check-docs.mjs`, answered YES; the row's `examples/l6.ts` exception UNUSED | conformity 2 SHOULD, 2 NIT; adequacy 88 mutations, 1 BLOCKER, 4 SHOULD, 3 NIT — every one acted on or declared. **Overlap 1** | 94 / 2197; 2831 / 234 | `gate:item` EXIT 0 on its second run (the first EXIT 1 at `check:docs:selftest`, the exception's cause) |
-| **W206** `bb17100` | the `W206 exit` L6 block — a flow whose every task's worker ECHOES its envelope, on a threaded and an inline pool, node and deno: every task answered equal to its echo live (a parked ask, one task in flight) and from what a store kept once the runtime is gone; an end inside a map by its node id alone, a gate, a join's arrivals (a late one included) and collection, an ask, each by hand; a halted run read up to its halt, at the halt's index; a changed registry refused `diverged` — sixteen claims, four runs; `examples/map-cost.ts`' two READING subjects; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 4 NIT, no BLOCKER; adequacy 71 mutants, 3 SHOULD, 3 NIT, no BLOCKER — every one acted on or declared; 10 probes. **Overlap 1** | 94 / 2197; **2847 / 238** | **`gate:full`** EXIT 0, 11/11 self-tests, 2,398 s |
+| **W205** `db123a0` | the cut (`Reading`, `offer`, `take`, three sites and the confirmation in `append`), `Driver.read` / `readStep`, `DEAF_SCHEDULER`, `headerRefusal` split out of `resumeRefusal`; the root `inputOf` and its types; `RunHandle.inputOf`; the private count `replay.reading.fed` / `.elements`; `test/driver/input-of.test.ts` (the corpus-and-every-prefix oracle), `test/fold/input-of-cost.test.ts` (EXACT at 2,000 / 8,000), `test/scheduler/input-of.test.ts`; `AGENTS.md` section 8; ADR 0128 | run-state v0.34 (`RN-R45`, `RN-R25`); `FD-C1`'s dated pointer | — / **Q760** | ONE asked exception, `RUN_FLOOR` 51 → 52 in `scripts/check-docs.mjs`, answered YES; the row's `examples/l6.ts` exception UNUSED | conformity 2 SHOULD, 2 NIT; adequacy 88 mutations, 1 BLOCKER, 4 SHOULD, 3 NIT — every one acted on or declared. **Overlap 1** | 94 / 2197; 2831 / 234 | `gate:item` EXIT 0 on its second run (the first EXIT 1 at `check:docs:selftest`, the exception's cause) |
+| **W206** `c656f38` | the `W206 exit` L6 block — a flow whose every task's worker ECHOES its envelope, on a threaded and an inline pool, node and deno: every task answered equal to its echo live (a parked ask, one task in flight) and from what a store kept once the runtime is gone; an end inside a map by its node id alone, a gate, a join's arrivals (a late one included) and collection, an ask, each by hand; a halted run read up to its halt, at the halt's index; a changed registry refused `diverged` — sixteen claims, four runs; `examples/map-cost.ts`' two READING subjects; the README's copies; the reply | none | — / — | one, declared before the edit: `doc/workflow.md`'s plan-close bookkeeping | conformity 2 SHOULD, 4 NIT, no BLOCKER; adequacy 71 mutants, 3 SHOULD, 3 NIT, no BLOCKER — every one acted on or declared; 10 probes. **Overlap 1** | 94 / 2197; **2847 / 238** | **`gate:full`** EXIT 0, 11/11 self-tests, 2,398 s |
 
 **One question raised (Q760), none closed. One asked exception (W205's `RUN_FLOOR`), answered YES. The readers' overlap,
 every Record stating its own: 1, 1.**
@@ -503,7 +503,7 @@ W206's declared exception.
 |---|---|---|---|
 | **(a) a claim pinned through a form that cannot observe it** — W205's `diverged` case asked the node id alone, which replays to the end and diverges whether or not the cut confirms; W206's halt claim asserted `not-reached`, which a REGENERATED halt yields whether or not the prefix ends there | **FOLLOWED** — each claim had a control and each control could fail; the claim was right and its OBSERVER blind to the clause | W205's adequacy reader (BLOCKER); W206's conformity reader (SHOULD 1), each by construction | **TWO occurrences, in DIFFERENT items** — pass 3 rule 2's bar. It is section 5 rule 8 (a)'s *the SHAPES the clause quantifies over* applied to the OBSERVER: the target's form, the refusal's index. Recorded as an observation for the next plan's brief, not proposed as a rule: rule 8 (a) already covers it, and both were caught by the pass that exists for it |
 | **(b) a spec sentence's REASON false while its rule holds** — *a replay cannot regenerate `halted`* | the spec was written from fact 4 and W205's re-take 2, which measured a halt and saw nothing AFTER it — not whether the halt itself is regenerated | W206's conformity reader | One occurrence. Section 8 (a) |
-| **(c) a stray tool-call tail committed into a plan** — P42's declaration (`27d73b6`) ended with two lines of markup (`</content>`, `</invoke>`) after its last table row | — | W206, writing this Record; no check reads a plan's tail | corrected here (pass 3 rule 6, this plan's own file). W206's item file had the same tail at birth and it was removed before any commit. One occurrence committed; recorded |
+| **(c) a stray tool-call tail committed into a plan** — P42's declaration (`8ade9fb`) ended with two lines of markup (`</content>`, `</invoke>`) after its last table row | — | W206, writing this Record; no check reads a plan's tail | corrected here (pass 3 rule 6, this plan's own file). W206's item file had the same tail at birth and it was removed before any commit. One occurrence committed; recorded |
 
 **Pass 3 rule 5 over P42's defects**, by what caught them: **a rung in `gate`** — `check:docs:selftest` (W205's
 `RUN_FLOOR`), the only one; **the authors** — W205's sweep (three survivors), W206's first L6 runs; **the conformity

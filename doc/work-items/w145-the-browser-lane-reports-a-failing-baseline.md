@@ -1,6 +1,6 @@
 # W145 — The browser lane reports a Node baseline that RAN and failed as that, naming its failures (Q541)
 
-**Status:** done — declared 2026-10-08 on `b9dd0c8`, the fourth item of P31; built, the reader and the fix round done, `gate:item` EXIT 0 on `ff61ff6`, 2026-10-08
+**Status:** done — declared 2026-10-08 on `8ea902e`, the fourth item of P31; built, the reader and the fix round done, `gate:item` EXIT 0 on `1620d1b`, 2026-10-08
 **Plan:** P31, `doc/plans/p31-which-open-questions-close-by-a-decision-taken-now.md`
 
 *This file carries NO relative link, deliberately* — W127's note and Q142's mechanism (`M4`), as in
@@ -15,7 +15,7 @@ Spec:       none changes. P31 decision 3 fixes the direction: Q541's own closes-
 Owns:       scripts/run-browser-tests.mjs (P31's W145 row); its provocation,
             test/provocations/q541.ts — OUTSIDE the runner's glob and the browser bundle's (not a
             `.test.ts`), as W132's q272.ts is; and this file
-Inputs:     the tree at b9dd0c8 (W140, W142, W141 done); Q541's file; W132's Record (its Scope 1
+Inputs:     the tree at 8ea902e (W140, W142, W141 done); Q541's file; W132's Record (its Scope 1
             measurement and its conformity reader's finding 5, which raised Q541);
             test/runner.ts's count line and failure list, read and NOT edited;
             test/provocations/throws-on-import.ts, reused and NOT edited
@@ -77,14 +77,14 @@ Reserves:   Q562-Q564. No ADR. No W beyond W145
 
 Any file edited outside `Owns` and outside the record step is asked first (workflow section 1 rule 6;
 P31 decision 7), and its YES is written here before the edit. **No check reads run-browser-tests.mjs's
-message text** (a grep over `scripts/`, `test/` and `examples/` on `b9dd0c8`); one that did would be a
+message text** (a grep over `scripts/`, `test/` and `examples/` on `8ea902e`); one that did would be a
 stop.
 
 ## Scope
 
 **In**
 
-1. **Measure first**, output (1), on `b9dd0c8`, and show the tree back byte for byte.
+1. **Measure first**, output (1), on `8ea902e`, and show the tree back byte for byte.
 2. **The baseline**, output (2).
 3. **Q541's second clause**, output (3): measured, and fixed only if small and inside `Owns`.
 4. **The provocation**, output (4), and rule 8 on every output in a harness under
@@ -120,7 +120,7 @@ stop.
 
 ## Record
 
-*Filled in 2026-10-08 on `ff61ff6`, held still from the confirming gate to this Record.* Scratch
+*Filled in 2026-10-08 on `1620d1b`, held still from the confirming gate to this Record.* Scratch
 `dev-dist/w145-14690/` (this item's shell pid): every log and script named below. Node v24.20.0 by
 `fnm use 24` in every shell, Deno 2.9.6; every rung redirected, its EXIT read in the same command, never
 piped. Ids here are bare text, as the header says.
@@ -129,7 +129,7 @@ piped. Ids here are bare text, as the header says.
 
 | clause | verdict | notes |
 |---|---|---|
-| `npm run gate:item > dev-dist/w145-14690/item.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `ff61ff6`, after the reader's fixes and rule 8's pass 2; `git status --short` empty before; 08:35 to 08:51 |
+| `npm run gate:item > dev-dist/w145-14690/item.log 2>&1; echo "EXIT=$?"` | **RAN, EXIT 0** | ONCE, on `1620d1b`, after the reader's fixes and rule 8's pass 2; `git status --short` empty before; 08:35 to 08:51 |
 | — L0-L5 | RAN, 0 | **1580** cases in node 24.20.0, deno 2.9.6 and chromium (`all passed (parity with node: 1580)`): **unchanged** — q541.ts is not a `.test.ts` |
 | — L6 | RAN, 0 | **164** real runs in node and deno: unchanged |
 | — self-tests | RAN, 0 | 10/10 ok, 9 lanes, `check:register:selftest` left out (P31 decision 4), 850.7 s wall |
@@ -145,8 +145,8 @@ L7 did not run. firefox and webkit did not run (`test:browser:all`); output (3) 
 
 ### The measurement, before and after (output 1)
 
-`node dev-dist/w145-14690/measure.mjs before` on `3c3aa06` (the declaration; run-browser-tests.mjs as on
-`b9dd0c8`) and `measure.mjs after` on the first fix (`measure-before.txt`, `measure-after.txt`). Case (a)
+`node dev-dist/w145-14690/measure.mjs before` on `bbbd45b` (the declaration; run-browser-tests.mjs as on
+`8ea902e`) and `measure.mjs after` on the first fix (`measure-before.txt`, `measure-after.txt`). Case (a)
 copies throws-on-import.ts into the glob as a temporary `.test.ts` and removes it; the tree digest was
 IDENTICAL before and after both runs. Cases (b)-(d) run a byte copy of the script under a scratch root.
 
@@ -154,7 +154,7 @@ IDENTICAL before and after both runs. Cases (b)-(d) run a byte copy of the scrip
 |---|---|---|
 | (a) `npm run test:browser`, a baseline that RAN and exited 1 | EXIT 1, the one line `could not establish the Node baseline — run node test/runner.ts first`; nothing named | EXIT 1, `the Node baseline RAN and exited 1: node test/runner.ts failed, so no browser was started. Its own report names each failure:` then the runner's report — `57 file(s), 1580 assertions, on node 24.20.0`, `1 file(s) could not be imported`, `test/provocations/w145-temp.test.ts › could not be imported` with its `SyntaxError`, `1 FAILURE(S)`; no advice |
 | (b) no test/runner.ts | EXIT 1, node's `MODULE_NOT_FOUND` on stderr, then the advice | **the same** — the advice stays for a baseline that could not run at all |
-| (c) a green baseline, a bundle that throws on import, chromium | EXIT 1 in **61 843 ms**: `FAIL the suite never reported: page.waitForFunction: Timeout 60000ms exceeded.`, the `PAGE ERROR` naming the JSON `SyntaxError`, `PARITY FAIL` | EXIT 1 in **1 608 ms** on the first fix; **~6.2 s** on `ff61ff6` (the reader's finding 1 added a 5 s grace): `FAIL the suite never reported: a page error stopped it (PAGE ERROR below)`, the same `PAGE ERROR` and `PARITY FAIL` |
+| (c) a green baseline, a bundle that throws on import, chromium | EXIT 1 in **61 843 ms**: `FAIL the suite never reported: page.waitForFunction: Timeout 60000ms exceeded.`, the `PAGE ERROR` naming the JSON `SyntaxError`, `PARITY FAIL` | EXIT 1 in **1 608 ms** on the first fix; **~6.2 s** on `1620d1b` (the reader's finding 1 added a 5 s grace): `FAIL the suite never reported: a page error stopped it (PAGE ERROR below)`, the same `PAGE ERROR` and `PARITY FAIL` |
 | (d) control: a green baseline, a bundle that reports | EXIT 0, `all passed (parity with node: 2)` | the same |
 
 **Q541's second clause, answered.** The baseline fix does NOT reach a bundle that throws on import: after a
@@ -182,7 +182,7 @@ signal now names the signal (`exited SIGKILL`) rather than `null`.
 
 ### Exceptions, reconciled to `git status --short` to the path
 
-Five paths across the item's commits and the record step (`git diff --name-only b9dd0c8`). **Owns, 3**:
+Five paths across the item's commits and the record step (`git diff --name-only 8ea902e`). **Owns, 3**:
 `scripts/run-browser-tests.mjs`, `test/provocations/q541.ts` and this file. **Exceptions, 0**: none of the
 declared drag files moved, and section 1 rule 6 did not fire — no fix needed a file outside `Owns`.
 **Record step, 2**: P31's plan (its Status and Record) and `doc/questions/q541.md` (resolved).
@@ -199,9 +199,9 @@ WRONG-REASON grader (`g-wrong`, p5's edit declared against case B); each probe d
 `FAIL` clause prefixes it must trip, compared both ways, each `must` a prefix of a line q541.ts prints.
 
 ```
-pass 1    21 probes: 17 as declared, 4 against declaration   digest d3a0e50daee1441f IDENTICAL   (250f1d1 plus case G, uncommitted)
-pass 2    23 probes: 20 as declared, 3 against declaration   digest 13be7eeb460b7fd3 IDENTICAL   (ff61ff6)
-pass 2b    4 probes:  4 as declared, 0 against declaration   digest 13be7eeb460b7fd3 IDENTICAL   (ff61ff6: c0, p9, r2, t2)
+pass 1    21 probes: 17 as declared, 4 against declaration   digest d3a0e50daee1441f IDENTICAL   (48f88f7 plus case G, uncommitted)
+pass 2    23 probes: 20 as declared, 3 against declaration   digest 13be7eeb460b7fd3 IDENTICAL   (1620d1b)
+pass 2b    4 probes:  4 as declared, 0 against declaration   digest 13be7eeb460b7fd3 IDENTICAL   (1620d1b: c0, p9, r2, t2)
 ```
 
 **Every probe against its declaration was the declaration's**, each re-declared from that run's output
@@ -211,24 +211,24 @@ runner still fails — on the L1 census, as W132's p11 found — so A is still R
 clauses fail), r2 (the grace as long as the wait keeps the right message and fails only on time). **One
 was the code's**: pass 1's p14 — the losing wait left without a rejection handler — was GREEN because
 `Promise.race` subscribes to both inputs. The handler and its comment were false protection and were
-removed at `a38a852`; the reader confirmed it (finding 5). The reader's exact edits are pass 2's r1 (its
+removed at `d379b67`; the reader confirmed it (finding 5). The reader's exact edits are pass 2's r1 (its
 finding 1 reverted: CAUGHT on H) and r2.
 
-**Declared survivors, by id**: **S1** (p14 on `ff61ff6`) — a timeout swallowed into the page-error message
+**Declared survivors, by id**: **S1** (p14 on `1620d1b`) — a timeout swallowed into the page-error message
 is green: no case reaches a plain 60 s timeout, and adding one costs every run of the provocation 60 s.
 **S2** (t3) — the kinds comparison made a subset, with p6, is green: the exact-set comparison is p6's only
 observer. **S3** (r3) — the signal dropped from `exited` is green: on Windows a killed runner has a status,
 never `null` (the reader's finding 3, not checkable here).
 
-### The reader — fresh context, P31 and Q541 first, tree still at `a38a852`
+### The reader — fresh context, P31 and Q541 first, tree still at `d379b67`
 
 It re-derived A-D and F from the decision before reading the provocation, and agreed.
 
 1. **should-fix — a page error ENDED the wait, losing the report of a suite that goes on to report** (an
    unhandled rejection, a throw in a timer), and its `FAIL` line then said falsely that the suite never
-   reported. **Fixed** (`dad4c0c`): a bounded 5 s grace after the first page error; case H (a rejection,
+   reported. **Fixed** (`ca8aefb`): a bounded 5 s grace after the first page error; case H (a rejection,
    then a report) checked in; the comment that called a page error proof of a stop corrected. G's report
-   was moved past the grace (`ff61ff6`) so p13 still sees a console error that shortened the wait.
+   was moved past the grace (`1620d1b`) so p13 still sees a console error that shortened the wait.
 2. **should-fix — the declaration's output (4) named cases A-D that no longer matched the file.**
    **Fixed**: output (4) amended in place, marked as amended.
 3. **note — the RAN predicate**: right for the runner's real output (one match in 172 KB); a count line

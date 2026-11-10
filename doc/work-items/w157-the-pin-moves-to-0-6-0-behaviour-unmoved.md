@@ -1,7 +1,7 @@
 # W157 — the pin moves to `fyflow-scheduler` 0.6.0, behaviour unmoved; the exact version is written only where something resolves it
 
 **Status:** done 2026-10-15 — **`npm run gate:item` EXIT 0** on the final tree, one command, after a first run RED on
-`check:budget:selftest` (Record); declared 2026-10-15 on `3ae2738`, declaration step RUN the same day in a byte copy;
+`check:budget:selftest` (Record); declared 2026-10-15 on `3c190aa`, declaration step RUN the same day in a byte copy;
 stop-and-asks (1)-(7) ANSWERED by the maintainer 2026-10-15 and recorded before their edits; both reader passes RUN;
 Q174 resolved, nothing raised
 **Plan:** [P33](../plans/p33-what-a-run-does-when-a-task-ends-cancelled.md) — *what does a run fold to when the
@@ -52,7 +52,7 @@ Gate:       `npm run gate` before the readers (P32-retro C); then the conformity
 Reserves:   Q600-Q604, and NO ADR
 ```
 
-*Reserves: `npm run state` on `3ae2738` reads the next free ids as **W157, Q600, ADR 0094**, from the tree and from
+*Reserves: `npm run state` on `3c190aa` reads the next free ids as **W157, Q600, ADR 0094**, from the tree and from
 the ledger, which AGREE. P33 reserves Q600-Q614 and ADR 0094-0095; ADR 0094 is W158's by the plan, so this item
 takes **Q600-Q604** and no ADR. A pin move writes no rule (W36's and W37's precedent).*
 
@@ -84,7 +84,7 @@ takes **Q600-Q604** and no ADR. A pin move writes no rule (W36's and W37's prece
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `3ae2738` (`git archive` into `C:/tmp-w157/m`,
+*P15 decision 5 and P32-retro B: measured 2026-10-15 in a BYTE COPY of `3c190aa` (`git archive` into `C:/tmp-w157/m`,
 `node_modules` copied, **zero links** by `find -type l` and by PowerShell's `ReparsePoint` scan), node 24.20.0 and
 deno 2.9.6. The JSR sources of 0.5.2 and 0.6.0 were fetched into `C:/tmp-w157/jsr`, never into `node_modules`.*
 
@@ -108,7 +108,7 @@ deno 2.9.6. The JSR sources of 0.5.2 and 0.6.0 were fetched into `C:/tmp-w157/js
 
 ## The census — every `0.5.2` outside `doc/work-items`, `doc/plans`, `doc/decisions` and `doc/questions`
 
-*`git grep -n "0\.5\.2"` on `3ae2738`, `dev-dist/` excluded. The four record directories are dated by construction
+*`git grep -n "0\.5\.2"` on `3c190aa`, `dev-dist/` excluded. The four record directories are dated by construction
 and are not classified line by line.*
 
 **RESOLVING — the number stays, moved to 0.6.0:** `package.json` (dev, peer), `package-lock.json`, `deno.json:11`,
@@ -261,7 +261,7 @@ by every existing L6 user_action row at 0.6.0.
 
 ## Record
 
-**Gate — what ran.** Baseline `3ae2738`; every number below is the final tree's, re-taken by the confirming gate.
+**Gate — what ran.** Baseline `3c190aa`; every number below is the final tree's, re-taken by the confirming gate.
 
 | Clause | Verdict | Notes |
 |---|---|---|

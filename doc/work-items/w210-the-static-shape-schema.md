@@ -1,6 +1,6 @@
 # W210 — `definitionSchema()`: a definition's static shape as a JSON Schema, a test-only validator, ADR 0132
 
-**Status:** done 2026-10-24 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after THREE asked stop-and-asks ((a) `deno.lock`'s one line, (b) `validate.ts`' four further constants, (c) a missing description an L1 throw), each answered as recommended by the coordinator under P43 (h); both readers RAN, every finding acted on or declared; Q774 raised. Earlier: declared 2026-10-23 on `ceecb90`, P43's THIRD item: (a1), (b1) as answered; decisions 1-4, 9; facts 1-3; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-24 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record), after THREE asked stop-and-asks ((a) `deno.lock`'s one line, (b) `validate.ts`' four further constants, (c) a missing description an L1 throw), each answered as recommended by the coordinator under P43 (h); both readers RAN, every finding acted on or declared; Q774 raised. Earlier: declared 2026-10-23 on `cade007`, P43's THIRD item: (a1), (b1) as answered; decisions 1-4, 9; facts 1-3; this file written from the plan's row BEFORE any other edit
 **Plan:** [P43](../plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md) — *what do a flow and a run say
 as data rather than as prose?* — and this is its THIRD item: pass 4 #1, the static half — a definition's shape as a
 JSON Schema an agent, a host and the app's guide can read.
@@ -45,7 +45,7 @@ Outputs:    (1) src/definition/definition-schema.ts — `definitionSchema(): Def
                 2020-12 meta-schema inside it (re-take 5).
             (6) ADR 0132; spec/flow-definition.md v0.50, spec/README.md; AGENTS.md section 3's *The definition's
                 SHAPE, as data* with a `run` snippet, RUN_FLOOR 53 -> 54.
-Depends on: W209 (ceecb90)
+Depends on: W209 (cade007)
 Blocks:     W211
 Tests:      Outputs (5). Expected verdicts from spec/flow-definition.md section 5's rule table and P43 fact 2 (re-taken
             file by file, re-take 4), written before the first run; every refusal beside its one-clause repair,
@@ -81,19 +81,19 @@ Reserves:   Q774-Q775, ADR 0132
 
 ## What the declaration step re-took, before the `Owns` were fixed
 
-*Taken 2026-10-23; logs in the session scratchpad's `w210/`. Byte copies: `C:/tmp-w210/base` (clean at `ceecb90`) and
+*Taken 2026-10-23; logs in the session scratchpad's `w210/`. Byte copies: `C:/tmp-w210/base` (clean at `cade007`) and
 `C:/tmp-w210/m3` (the draft), git worktrees with `node_modules` COPIED; 0 links, 0 reparse points.*
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the ladder counts — `npm run gate` on `ceecb90` in `C:/tmp-w210/base`, EXIT 0, 22:17:17 → 22:25:21 (`w210/gate-base.log`) | L1-L5 **99 files / 2,242 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; `check:docs` **59 snippets, 53 `run`**, 6 `check`; C4 45 |
+| 1 | the ladder counts — `npm run gate` on `cade007` in `C:/tmp-w210/base`, EXIT 0, 22:17:17 → 22:25:21 (`w210/gate-base.log`) | L1-L5 **99 files / 2,242 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; `check:docs` **59 snippets, 53 `run`**, 6 `check`; C4 45 |
 | 2 | fact 3's bundle figure at the pin — `@cfworker/json-schema` 4.1.1 (the latest, 2025-01-31; no dependencies), installed `-D -E` in `m3`, a one-case probe suite importing it | the chromium bundle **4,911,312 → 4,954,114 bytes, +42,802** (ADR 0053 priced 42,516 for the library alone); it bundles with no change to `scripts/build-browser-tests.mjs` |
 | 3 | deno's route (decision 3) | **Deno resolves the bare specifier from `package.json` and `node_modules` with NO `deno.json` `imports` entry** — the probe ran green on deno 2.9.6. `deno publish --dry-run --allow-dirty`: EXIT 0, the 29 files the `publish` list names and no other, no mention of the package — **nothing JSR publishes reaches it**. No lane it cannot run in. **But every `deno` command then WRITES `deno.lock`**: its `packageJson.dependencies` list gains `"npm:@cfworker/json-schema@4.1.1"` — a file outside the row (stop-and-ask (a)) |
 | 4 | fact 2's classification, file by file (55 invalid files, 27 valid) | as fact 2 says, with ONE file moving class: `FD-V40--gate-key-path-with-an-index` is REFUSED by the static schema — the library resolves `key` on every gate, so its grammar needs no registry; fact 2 left `FD-V40` unclassified. `FD-V8`'s and `FD-V9`'s files are refused by their rules' shape clauses (fact 2's *partly shape*). 25 refused: the 22 files of the fifteen shape-only rules and those three |
 | 5 | the 2020-12 meta-schema check the row names | **cfworker 4.1.1 ships NO meta-schema.** The eight published documents (10,183 bytes) are vendored as test data; and with them as published cfworker does not follow `$dynamicRef: "#meta"` into a nested schema — `{ properties: { a: { type: "strin" } } }` and `{ $defs: { d: { enum: 3 } } }` ACCEPTED, a top-level `{ type: 5 }` refused. Read as a `$ref` to the dialect's own schema (what it names when nothing extends the meta-schema), both are refused |
 | 6 | every check reading `package.json`'s dependency lists (`check:scheduler`, `check:source`, `pack-smoke`'s `P5`) | re-read: `check:scheduler` D1-D3 refuse a `file:` dependency, an import-map path and a link — none here; `S7` reads `src/` and `index.ts` only; `P5` compares the installed package's exports with the entry's both ways and so moves no literal |
 | 7 | B′ — the change built in `m3` (code, suite, spec v0.50, ADR 0132, `AGENTS.md` with a `run` snippet, `RUN_FLOOR` 54, this file) and every lane run | first `gate` **EXIT 2** at `typecheck:tests` (two casts in the suite, fixed); second **EXIT 1 at chromium**: `the suite never reported: Timeout 60000ms` — re-take 8; after it, `npm run gate` **EXIT 0**, 22:49:30 → 22:57:17 (`w210/gate-m3-3.log`): L1-L5 **100 files / 2,254 cases** in node, deno and chromium (parity); every check EXIT 0; `check:docs` **60 snippets, 54 `run`**; C4 45; L6 **2,847 / 0** in node and deno. Then the self-tests less the register lane, **EXIT 0, 10/10 ok**, 22:57:30 → 23:16:00 (`w210/self-m3.log`). **Outside the row**: `deno.lock` (re-take 3) and four `validate.ts` exports beyond the row's two — stop-and-ask (a), (b) |
-| 8 | the chromium lane's wall — the WHOLE bundle has 60 s (`scripts/run-browser-tests.mjs`'s wait), measured in the page per suite (`w210/chromium-wall.mjs`, `w210/wall-*.txt`) | **the lane was ALREADY at 53.6-54.1 s on `ceecb90`** (three runs), the P39/P40 map-cost suite alone 33.6 s. The first draft's suite took **2.8 s** and pushed later suites **~5 s** slower (GC), **61.6 s — over the budget**. Short-circuiting the validator, three wrong values in place of six, the validator asked only where the schema refused, and the sweep asking the schema of the mutated NODE alone: the suite **0.46 s**, the lane **55.2 s** — held, with **4.8 s** left for W211 and every later item |
+| 8 | the chromium lane's wall — the WHOLE bundle has 60 s (`scripts/run-browser-tests.mjs`'s wait), measured in the page per suite (`w210/chromium-wall.mjs`, `w210/wall-*.txt`) | **the lane was ALREADY at 53.6-54.1 s on `cade007`** (three runs), the P39/P40 map-cost suite alone 33.6 s. The first draft's suite took **2.8 s** and pushed later suites **~5 s** slower (GC), **61.6 s — over the budget**. Short-circuiting the validator, three wrong values in place of six, the validator asked only where the schema refused, and the sweep asking the schema of the mutated NODE alone: the suite **0.46 s**, the lane **55.2 s** — held, with **4.8 s** left for W211 and every later item |
 
 ### Stop-and-ask — before the edit (re-takes 3, 7 and the row's Gate)
 
@@ -130,7 +130,7 @@ the readers' in `C:/tmp-w210/rc-scratch` and `C:/tmp-w210/ra-scratch` (the autho
 | the author's re-cut, after acting (`ra-scratch/mutations3.mjs`, `w210/recut-3.log`, `recut-4.log`) | RAN, on the acted-on module and suite | 42 probes and a control (`mutations3.mjs`, `mutations4.mjs`): **40 KILLED**, the control SURVIVED; SURVIVED `B1-of-any` (declared: `of`'s charset is `FD-V2`/`FD-V6`'s, not carried) and `T18` (declared: the partition's claim has a second observer, which holds it); every reader survivor below re-cut KILLED or declared |
 | **`npm run gate:item`** on the final tree, held still | RAN — **EXIT 0**, one command, 23:56:22 → 00:23:01 (`w210/gateitem.log`) | lint; typecheck; every check, `check:docs` 60 snippets, **54 `run`**, 6 `check`, C4 45; L1-L5 **100 files / 2,256 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; selftests **10/10 ok** (1,129.8 s wall, 9 lanes), `check:register:selftest` left out by `--without`. Written after it: this Record and the Status line — `check:register`, `check:markdown`, `check:spec`, `check:budget`, `check:wiring` and `check:docs` re-run on them |
 
-**The chromium lane's wall** (the whole bundle has 60 s): **53.6-54.1 s on `ceecb90`**, the P39/P40 map-cost suite alone
+**The chromium lane's wall** (the whole bundle has 60 s): **53.6-54.1 s on `cade007`**, the P39/P40 map-cost suite alone
 33.6 s; **55.0 s on the final tree**, this suite **0.57 s** (`w210/chromium-wall.mjs`). **Headroom left for W211 and every
 later item: ~5.0 s.** The first draft's suite, 2.8 s, made later suites ~5 s slower in GC and took the lane to 61.6 s —
 over; the cut is a short-circuiting validator, three wrong values, the validator asked only where the schema refused, and
@@ -198,7 +198,7 @@ constants — both USED.
 **The readers' overlap.** **ONE** — the soundness claim (conformity B1, by construction; adequacy BLOCKER 1, by mutation):
 one subject, two findings, as section 6 says an overlap may be. Every other finding was one reader's alone.
 
-**Leftover worktrees.** `C:/tmp-w210/base` (clean at `ceecb90`), `m3` (the B′ draft), `rc` and `ra` (git worktrees at
-`ceecb90` with the change applied — `rc` before the reader fixes, `ra` with the final module and suite copied in for the
+**Leftover worktrees.** `C:/tmp-w210/base` (clean at `cade007`), `m3` (the B′ draft), `rc` and `ra` (git worktrees at
+`cade007` with the change applied — `rc` before the reader fixes, `ra` with the final module and suite copied in for the
 re-cut; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w210/rc-scratch` and `ra-scratch` — left
 for the maintainer; not removed with `--force`.

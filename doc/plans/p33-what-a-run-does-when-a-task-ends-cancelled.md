@@ -1,9 +1,9 @@
 # P33 — What does a run do on `fyflow-scheduler` 0.6.0, where a task can end CANCELLED?
 
-**Status:** complete and retro'd 2026-10-15 — drafted 2026-10-14 on `581d0e5`, declared in `3ae2738`; stop-and-asks
+**Status:** complete and retro'd 2026-10-15 — drafted 2026-10-14 on `2a10f82`, declared in `3c190aa`; stop-and-asks
 (a)-(e) ANSWERED by the maintainer 2026-10-15, all as recommended, (d) with decision 4's stop clause; refined 2026-10-15
 against fyflow-app's ADRs (fact 9, decisions 1 and 3, scope 4) and P34-P37 drafted beside it; W157, W158, W159 and W160
-done 2026-10-15; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-15 over `0fcccca`,
+done 2026-10-15; the exit artifact measured on the final tree (Record below); the retro ran 2026-10-15 over `72d8b4f`,
 and the maintainer answered its stop-and-asks (f)-(i) the same day, all as recommended but (i) (Retro section 8)
 **Question this plan answers:** *what must change so a run driven on `fyflow-scheduler` 0.6.0 folds
 every task state that scheduler can report — including the new terminal `cancelled` — and what does a
@@ -26,7 +26,7 @@ Raises:   none at this declaration
 Baseline: ids derived by `npm run state` at this declaration — P33, W157, Q600, ADR 0094, from the
           tree and from the ledger, which AGREE. The ladder counts are NOT taken here and are W157's
           declaration step's
-Drafted:  2026-10-14 on `581d0e5`
+Drafted:  2026-10-14 on `2a10f82`
 ```
 
 ## Why this plan, and why now
@@ -76,12 +76,12 @@ maintainer's decisions to date — no ids reserved, no facts taken — and each 
 The `AGENTS.md` section 3 gate-row doc fix is already done on `main` (W153; fyflow-app read 0.7.0's
 reference) and is owned by nobody.
 
-**P33 is first because the bump alone opens a hang**, measured by reading on `581d0e5` — fact 1. Every
+**P33 is first because the bump alone opens a hang**, measured by reading on `2a10f82` — fact 1. Every
 later plan builds on 0.6.0, and the bump is not a pin move.
 
 ## Facts measured before drafting
 
-On `581d0e5`, and on `fyflow-scheduler@0.6.0` unpacked from npm into scratch (never into
+On `2a10f82`, and on `fyflow-scheduler@0.6.0` unpacked from npm into scratch (never into
 `node_modules`).
 
 **Fact 1 — a task cancelled under a run today is DROPPED, and the run never ends.**
@@ -308,10 +308,10 @@ declaration.
 
 ## Record
 
-*Written 2026-10-15 over `0fcccca`, the tree clean before it. Every figure is read from the four items' own files;
+*Written 2026-10-15 over `72d8b4f`, the tree clean before it. Every figure is read from the four items' own files;
 none is re-measured here. Ids are bare text, as in P32's Record.*
 
-**W157 — done 2026-10-15** (`f73ed3c`). Its own Record covers the census, the re-takes, both readers and the gate.
+**W157 — done 2026-10-15** (`62090d8`). Its own Record covers the census, the re-takes, both readers and the gate.
 
 - **Built**: both pins at the new version, exact, in both registries; `deno.lock` written ONCE by `deno check
   --min-dep-age=0 index.ts src/`, and `test:l6:deno` shown to resolve the pin THROUGH THE LOCK with no flag, its control
@@ -333,7 +333,7 @@ none is re-measured here. Ids are bare text, as in P32's Record.*
 - **The confirming gate**: `gate:item` RED once on `check:budget:selftest` (the `B7` probe read concept.md's REAL size —
   E7), then **`gate:item` EXIT 0** on the final tree, 868.7 s.
 
-**W158 — done 2026-10-15** (`c0816d0`). Its own Record covers the declaration step, 14 author provocations and both readers.
+**W158 — done 2026-10-15** (`58ddc09`). Its own Record covers the declaration step, 14 author provocations and both readers.
 
 - **Built**: ADR 0094; `task.cancelled` subscribed and recorded verbatim (`OR-R3`), `task.cancelling` recorded nowhere
   (`OR-R4`); `TerminalState`, `NodeState`, `RunOutcome` and `ResumeRefusalReason` widened, each stated BREAKING where it
@@ -351,7 +351,7 @@ none is re-measured here. Ids are bare text, as in P32's Record.*
 - **The confirming gate**: `gate:item` RED once on `check:docs:selftest` (X4 — section 6's new `run` snippet made
   `RUN_FLOOR` stale), then **`gate:item` EXIT 0** on the final tree, 787.5 s.
 
-**W159 — done 2026-10-15** (`db2f4b0`). Its own Record covers the declaration step, 28 provocations and both readers.
+**W159 — done 2026-10-15** (`6f98c5c`). Its own Record covers the declaration step, 28 provocations and both readers.
 
 - **Built**: `POOL_SPEC_KEYS` gains `cancelGraceMs` and `messages`, held by `poolSpecProblem` to the scheduler's own
   rules and stricter in two silent places (a non-PLAIN `messages`, `cancelGraceMs: null`), a stray `messages` key refused
@@ -367,7 +367,7 @@ none is re-measured here. Ids are bare text, as in P32's Record.*
 - **Counts**: L1-L5 → **62 / 1689** in all three; L6 **2602 / 168** unmoved; `check:spec` **7 / 75 / 134** unmoved.
 - **The confirming gate**: **`gate:item` EXIT 0** on the final tree, the first run, 824.0 s self-test wall.
 
-**W160 — done 2026-10-15** (`0fcccca`). Its own Record covers the declaration step, 15 provocations in both lanes and both
+**W160 — done 2026-10-15** (`72d8b4f`). Its own Record covers the declaration step, 15 provocations in both lanes and both
 readers.
 
 - **Built**: ONE cross-row block in `examples/l6.ts`, W141's shape, on a registry written in the block: a linear flow
@@ -437,7 +437,7 @@ answer moved to the new pin. Q18 stays P34's. `npm run q -- --where status=open`
 
 ## Retro
 
-*Pass 3 ran on 2026-10-15 over `0fcccca`, the working tree clean before it, in a subagent at the maintainer's request.
+*Pass 3 ran on 2026-10-15 over `72d8b4f`, the working tree clean before it, in a subagent at the maintainer's request.
 Every figure is read from the four items' Records; this retro re-ran no gate, no harness and no measurement. **The
 proposals were put to the maintainer in section 8, and the answers are recorded there; none moves a rule in
 `doc/workflow.md`.***

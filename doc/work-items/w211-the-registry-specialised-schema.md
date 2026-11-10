@@ -1,6 +1,6 @@
 # W211 — `definitionSchema(registry)`: a definition's shape specialised to one registry
 
-**Status:** done 2026-10-24 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no stop-and-ask, no exception used, no ADR, no question raised. Earlier: declared 2026-10-24 on `d155bed`, P43's FOURTH item: (a1), (b1) as answered; decisions 1-4; fact 2; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-24 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no stop-and-ask, no exception used, no ADR, no question raised. Earlier: declared 2026-10-24 on `6f75721`, P43's FOURTH item: (a1), (b1) as answered; decisions 1-4; fact 2; this file written from the plan's row BEFORE any other edit
 **Plan:** [P43](../plans/p43-what-a-flow-and-a-run-say-as-data-rather-than-as-prose.md) — *what do a flow and a run say
 as data rather than as prose?* — and this is its FOURTH item: pass 4 #1's second bullet, *"ideally, one specialised to a
 registry (Node Types with their settings and input schemas, gate types and their routes), for example
@@ -36,7 +36,7 @@ Outputs:    (1) src/definition/definition-schema.ts — `definitionSchema(regist
             (2) tests: L1 cases added to test/definition/definition-schema.test.ts (no new suite).
             (3) spec/flow-definition.md v0.51, spec/README.md; AGENTS.md section 3's *The definition's SHAPE, as data*.
             ADR 0133 or the statement that none is needed.
-Depends on: W210 (d155bed)
+Depends on: W210 (6f75721)
 Blocks:     W212
 Tests:      Outputs (2). Against spec/examples/registry.json: every valid corpus flow ACCEPTED; every registry-
             specialisable invalid file REFUSED beside its one-clause repair ACCEPTED, and the STATIC form not refusing
@@ -102,7 +102,7 @@ map (Q6), routed-away branch (Q4), unmatched decision (Q10) or task id (Q13) mov
 | the readers' survivors re-cut on the acted-on tree (`mutate.mjs`'s `R-` probes, `w211/mut-3.log`) | RAN | **14 of 14 KILLED** — V33c, ML7, ML8, V40c, V39c, V31c, V4c, IN3c, D3, D4, Z2, T9, T5, T6 |
 | **`npm run gate:item`** on the final tree, held still | RAN — **EXIT 0**, one command, 01:09:07 → 01:36:04 (`w211/gateitem.log`) | lint; typecheck; every check, `check:docs` 54 `run` snippets, C4 45; L1-L5 **100 files / 2,267 cases** in node 24.20.0, deno 2.9.6 and chromium (parity); L6 **2,847 / 0 failed** over 238 real runs in node and deno; selftests **10/10 ok** (1,142.3 s wall, 9 lanes), `check:register:selftest` left out by `--without`. Written after it: this Record and the Status line — `check:register`, `check:markdown`, `check:spec`, `check:budget`, `check:wiring` and `check:docs` re-run on them |
 
-**The chromium lane's wall** (the whole bundle has 60 s; `w210/chromium-wall.mjs`, in the page): **56.1 s on `d155bed`**
+**The chromium lane's wall** (the whole bundle has 60 s; `w210/chromium-wall.mjs`, in the page): **56.1 s on `6f75721`**
 this session (W210 recorded 55.0 s on the same tree — the lane moves ~1 s between runs), the suite 0.59 s; **56.7 s and
 57.5 s on the final tree** (two runs), the suite **0.79-0.89 s**. **Headroom left for W212 and every later item: ~2.5-3.3 s.**
 The P39/P40 map-cost suite alone is 34.0 s of it.
@@ -119,7 +119,7 @@ The P39/P40 map-cost suite alone is 34.0 s of it.
 **Predictions.** 1 **FAILS as the plan wrote it, HOLDS as this item read it**: `FD-V33`'s file IS refused (a type's
 `settings` schema is fact 2's registry-specialisable row); `FD-V36`'s and both `FD-V41` files are not. 2 **HOLDS**: `FD-V4`'s
 and `FD-V46`'s files refused, `FD-V40`'s `if`-condition file not. 3 **HOLDS**: no verdict moved; `definitionSchema()`
-byte-identical to `d155bed`'s (22,082 bytes, the conformity reader); L6 2,847 / 0. 4 **HOLDS**, with ~3 s left.
+byte-identical to `6f75721`'s (22,082 bytes, the conformity reader); L6 2,847 / 0. 4 **HOLDS**, with ~3 s left.
 
 **Fact 2, re-taken file by file.** As the plan says, with no file moving class: eight files refused by the registry
 form and accepted by the static one (`FD-V4`, `31`, `32`, `33`, `35`, `38`, `39`, `46`); every other invalid file as the
@@ -141,7 +141,7 @@ instance value as another's enum. *(`FD-V41`'s exactly-once wiring for a STATIC 
 | conformity NIT 5 | `FD-V39`'s settings-revealed clauses not named | **FIXED** — the spec's not-cleanly row names them |
 | adequacy SHOULD 1 | the soundness claim's constructed half rests on one closed settingsSchema and three built-in gate types (V33c, ML7, ML8, V40c, IN3c survived) | **FIXED** — a new case over five registry shapes (an open settingsSchema, a consumer gate type accepting `{}` with no settings in object and Map form, settings beside an `inputSchema`, lists), with a same-observer control; `maxLength` and depth-2 rows; re-cut **KILLED** |
 | adequacy SHOULD 2 | gateTypes as a Map, groups and predicates as lists untested (V39c, V31c, V4c) | **FIXED** — both forms held to the same schema; re-cut **KILLED** |
-| adequacy SHOULD 3 | *definitionSchema() unmoved* compared the function with itself | **FIXED** — the static form held to carry none of the additions and W210's own description; Z2 re-cut **KILLED**. Z1 (a `$comment` added, no verdict moved) is DECLARED: the conformity reader measured the result byte-identical to `d155bed`'s, and the suite does not pin bytes |
+| adequacy SHOULD 3 | *definitionSchema() unmoved* compared the function with itself | **FIXED** — the static form held to carry none of the additions and W210's own description; Z2 re-cut **KILLED**. Z1 (a `$comment` added, no verdict moved) is DECLARED: the conformity reader measured the result byte-identical to `6f75721`'s, and the suite does not pin bytes |
 | adequacy SHOULD 4 | three uncounted loops (T9, T5, T6) | **FIXED** — each counts its iterations; re-cut **KILLED** |
 | adequacy NIT 2 | the corpus registry's control was identity between two calls | **FIXED** — equal to the first result, with a type enum |
 | adequacy NIT 3 | the uncopied gate settings caught by an import CRASH | **DECLARED** — the shallow-copy re-cut is KILLED by the sharing case |
@@ -170,6 +170,6 @@ exceptions**: none used.
 SHOULD 2, an untested list form), and the top-level-keyword clause (conformity NIT 4 in `AGENTS.md`; adequacy NIT 1 in the
 description's checked phrases): two subjects, each with two different findings.
 
-**Leftover worktrees.** `C:/tmp-w211/m` (the B′ draft, with the acted-on change), `rc` and `ra` (git worktrees at `d155bed`
+**Leftover worktrees.** `C:/tmp-w211/m` (the B′ draft, with the acted-on change), `rc` and `ra` (git worktrees at `6f75721`
 with the pre-reader change applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with
 `C:/tmp-w211/rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.

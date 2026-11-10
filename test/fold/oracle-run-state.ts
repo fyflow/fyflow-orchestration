@@ -4,7 +4,7 @@
  * [W194](../../doc/work-items/w194-the-fold-is-one-accumulator.md), P39 decision 3,
  * [ADR 0120](../../doc/decisions/0120-the-fold-is-one-accumulator-and-step-stays-pure.md).
  *
- * **Lines 455-833 of `src/fold/run-state.ts` at `c1aefb0`, VERBATIM** — `emptyState` through `foldLog`, comments and all —
+ * **Lines 455-833 of `src/fold/run-state.ts` at `834aecf`, VERBATIM** — `emptyState` through `foldLog`, comments and all —
  * written by a script that slices that commit's file and checks both ends, so nothing here was retyped. The types are
  * imported from the live module: they are the contract, unchanged by W194 (P39 decision 5), and not behaviour.
  * `withOutcome` is exported by the LAST line, which is the only line this file adds below the import block.

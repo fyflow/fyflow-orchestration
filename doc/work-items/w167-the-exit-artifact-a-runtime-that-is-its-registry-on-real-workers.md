@@ -1,6 +1,6 @@
 # W167 — the exit artifact: a runtime that is its registry, on real workers
 
-**Status:** done 2026-10-16 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, all seven exit clauses MET, their items R1-R8 acted on; Q633 raised (DEFECT, the maintainer's answer to F-1), Q634 released; no exception. Declared 2026-10-16 on `0a7aae3`; the declaration step RUN the same day in a byte copy (M1-M5 below); P37's LAST item
+**Status:** done 2026-10-16 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, all seven exit clauses MET, their items R1-R8 acted on; Q633 raised (DEFECT, the maintainer's answer to F-1), Q634 released; no exception. Declared 2026-10-16 on `57c69d0`; the declaration step RUN the same day in a byte copy (M1-M5 below); P37's LAST item
 **Plan:** [P37](../plans/p37-a-runtime-is-its-registry.md) — *what may a running runtime be asked to accept, when its
 registry is fixed at `createRuntime`?* — and this is its LAST item and its EXIT ARTIFACT.
 
@@ -55,7 +55,7 @@ Outputs:    (1) ONE cross-row block in examples/l6.ts, W163's shape: its registr
             (3) every L6 census the block moves, moved in the same diff: CROSS_ROW, DECLARED_TOTAL, DECLARED_RUNS,
                 CROSS_ROW_SUBJECTS, pairRunCount, the file header (P37 in the exit-artifact list, one table row); and
                 examples/README.md's two X10 copies and the run tally in its l6.ts cell.
-Depends on: W166 (done, 0a7aae3)
+Depends on: W166 (done, 57c69d0)
 Blocks:     nothing — P37's Record and retro follow
 Tests:      examples/l6.ts at ladder L6 in node 24.20.0 and deno 2.9.6. Every expected value written from the spec, the
             fixture's own literals (payload, expressions, pool options, the given input) and the JSONata expressions
@@ -67,7 +67,7 @@ Gate:       `npm run gate` before the readers (P37 sentence C); then the conform
 Reserves:   Q633-Q634 (P37's W167 row); no ADR (ADR 0100 expected unused); W168 stays reserved and expected unused
 ```
 
-*Reserves: `npm run state` on `0a7aae3` (in the byte copy) reads the next free ids as **P38, W167, Q627, ADR 0100** from the
+*Reserves: `npm run state` on `57c69d0` (in the byte copy) reads the next free ids as **P38, W167, Q627, ADR 0100** from the
 tree and W162, Q615, ADR 0096 from the ledger (P33's Retro) — they DISAGREE because P37 was declared and W162-W166 spent ids
 since that sentence; P37's own reservation governs. Its W167 row gives this item Q633-Q634.*
 
@@ -84,7 +84,7 @@ since that sentence; P37's own reservation governs. Its W167 row gives this item
 
 ## What the declaration step measured before anything was edited
 
-*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `0a7aae3` (`git archive` into `C:/tmp-w167/m`,
+*P15 decision 5 and sentence B′: measured 2026-10-16 in a BYTE COPY of `57c69d0` (`git archive` into `C:/tmp-w167/m`,
 `node_modules` copied, **zero links** by `find -type l` and by PowerShell's `ReparsePoint` scan), node 24.20.0 and deno
 2.9.6.*
 
@@ -144,7 +144,7 @@ survivors, no exit clause broken; A1-A3 and four minor notes. Every edit below i
 
 ## Record
 
-**Gate — what ran.** Baseline `0a7aae3`; every number below is the final tree's. Node 24.20.0, deno 2.9.6.
+**Gate — what ran.** Baseline `57c69d0`; every number below is the final tree's. Node 24.20.0, deno 2.9.6.
 
 | Clause | Verdict | Notes |
 |---|---|---|

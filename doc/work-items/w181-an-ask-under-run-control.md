@@ -1,6 +1,6 @@
 # W181 — an ask under cancel, stop, pause and resume
 
-**Status:** done 2026-10-17 — `npm run gate:item` on the final tree, one command (the Record); both readers RAN (conforms; ADEQUATE), their findings FIXED in `Owns`; no stop-and-ask; no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-17 (18 one-clause probes all KILLED, `npm run gate` EXIT 0) — declared 2026-10-17 on `7b62af1` (W180 committed); P35's FOURTH item: stop-and-ask (g) as answered, fact 5, prediction 4, with W180's departure D1 already on the tree; not committed
+**Status:** done 2026-10-17 — `npm run gate:item` on the final tree, one command (the Record); both readers RAN (conforms; ADEQUATE), their findings FIXED in `Owns`; no stop-and-ask; no question raised; not committed. Earlier: READY-FOR-READERS 2026-10-17 (18 one-clause probes all KILLED, `npm run gate` EXIT 0) — declared 2026-10-17 on `329b1bf` (W180 committed); P35's FOURTH item: stop-and-ask (g) as answered, fact 5, prediction 4, with W180's departure D1 already on the tree; not committed
 **Plan:** [P35](../plans/p35-may-a-node-wait-for-a-person-by-design.md) — *may a flow declare a node that waits for a
 person, keeps what reached it, and holds the person's answer to a schema?* — its fourth item. A run PARKED on an ask
 under the owner's run control: **a parked ask is a parked task** — a cancel sends nothing for it and the run reads
@@ -36,7 +36,7 @@ Outputs:    (1) the measurement: each W181 gate clause, already held by W180 (ci
                 bullet and a `run` snippet, section 11's row; the census sites the change moves.
             (4) src/driver/driver.ts: comments made false by this item only — unless a defect is found (then stated
                 as a departure, prediction 4's verdict moving with it).
-Depends on: W180 (done, `7b62af1`)
+Depends on: W180 (done, `329b1bf`)
 Blocks:     W182
 Tests:      expected values hand-written from RN-R31/R33/R35/R37 and P35 (g), never from output; every claim beside a
             CONTROL that differs by the one thing claimed (most often the ask replaced by a task, or the run not
@@ -81,7 +81,7 @@ branch under cancel.
 
 ## What the declaration step measured
 
-*Measured 2026-10-17 on the real tree at `7b62af1`, node 24.20.0.*
+*Measured 2026-10-17 on the real tree at `329b1bf`, node 24.20.0.*
 
 | # | fact | measured |
 |---|---|---|

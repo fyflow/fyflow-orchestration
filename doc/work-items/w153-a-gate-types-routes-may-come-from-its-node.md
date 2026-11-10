@@ -1,6 +1,6 @@
 # W153 — a gate type's routes may come from its NODE
 
-**Status:** done 2026-10-13 — implemented on `5adf7ec`; both reader passes RUN and their eight items acted on (Record); declared 2026-10-13 on `06a45ca`; declaration step RUN the same day, its findings below, written before any `src/` edit. stop-and-asks (e), (e′), (f), (g) and (h) answered YES 2026-10-13 and acted on (Exceptions); **`npm run gate:item` EXIT 0** on the final tree, after the reader items
+**Status:** done 2026-10-13 — implemented on `5bbfd25`; both reader passes RUN and their eight items acted on (Record); declared 2026-10-13 on `a5dcc27`; declaration step RUN the same day, its findings below, written before any `src/` edit. stop-and-asks (e), (e′), (f), (g) and (h) answered YES 2026-10-13 and acted on (Exceptions); **`npm run gate:item` EXIT 0** on the final tree, after the reader items
 **Plan:** [P32](../plans/p32-what-a-gate-may-decide-without-memory.md) — *may a gate decide by a
 declared condition or a declared value table, without memory?* — and this is its FIRST item: the
 interface, not the built-ins.
@@ -116,10 +116,10 @@ and it is corrected in place. P32's own text is the coordinator's to correct.*
 | 3 | `checkRegistry`'s `GateTypeRefused` road: is a type held to `gateTypeProblem` before any node names it | whether a `routesFor` defect can be refused at the REGISTRY (no settings yet) or only at the gate |
 | 4 | the ladder counts — L1-L5 cases in three runtimes, L6 assertions and runs | the baseline P32 did not take |
 
-## What the re-takes found — RUN 2026-10-13 on `06a45ca`, before any `src/` edit
+## What the re-takes found — RUN 2026-10-13 on `a5dcc27`, before any `src/` edit
 
 *The tree carried P32, Q582, Q583 and this file uncommitted, all under `doc/`; nothing under `src/`,
-`test/`, `spec/` or `examples/` differed from `06a45ca`.*
+`test/`, `spec/` or `examples/` differed from `a5dcc27`.*
 
 **Re-take 1 — the TEN sites CONFIRMED by grep, and the compiler names EIGHT of them.** P32 fact 2
 said *nine* and listed ten; the plan is corrected in place. Making `routes` and `defaultRoute` optional
@@ -175,7 +175,7 @@ a gate never settles; no matching decision edge (Q10) — FD-R5's road is in Tes
 
 ## Record
 
-*Written 2026-10-13 on `5adf7ec` with the item's changes UNCOMMITTED. The reader passes have not run.*
+*Written 2026-10-13 on `5bbfd25` with the item's changes UNCOMMITTED. The reader passes have not run.*
 *(P32's retro, 2026-10-14, pass 3 rule 6: both readers RAN later the same day — the gate table's rows and
 the reader items below. This line and* What this taught *are as first written.)*
 
@@ -198,7 +198,7 @@ the reader items below. This line and* What this taught *are as first written.)*
 | L0-L6 lane by lane, BEFORE the Exceptions | RAN | the table below: what made (e), (e′) and (g) stop-and-asks. Superseded by the row above |
 | W153's own provocations | RAN, 15 of 15 RED, 3 controls green | each one reverts or narrows one clause and runs the suite file it names. Every edit was checked to change its file, and every file was restored and its digest compared. Listed below |
 | `check:docs` provocation on the new AGENTS.md lines | RAN, RED | `forgot.length !== 1` → `!== 2`: `X4: AGENTS.md:3303 — the snippet does not run … the unwired case is refused at load`. Restored |
-| conformity reader | RAN 2026-10-13, fresh context, worktree `C:/tmp-w153/rc` on `5adf7ec` plus this item's diff, spec first and expected values written before the code was opened; three constructed probes, nothing edited | **1 should-fix and 7 notes.** C1 *routesOf is not total*: messages ran `JSON.stringify` over what a type returned, so a BigInt or a circular value threw a raw `TypeError` out of `validateDefinition`, `new Driver` and `checkWiring`, against ADR 0092 rule 3's *never throws* — **Output (4)'s "total" was FALSE**. C2 uncloneable settings blamed on the type; C3 the wiring check resolves over settings `FD-V40` would refuse, where the spec said *once FD-V40 found nothing*; C4 a throwing `settingsProblem` blocking resolution, unstated; C5 an empty message; C6 `FD-V41`'s wording; C7 AGENTS.md section 3's gate row; C8 `routesOf`'s static/derived asymmetry over non-object settings (unreachable from the validator and driver; no change). Confirmed TRUE: Outputs (2), (3), (5), (6), the Exceptions' diffs and four of the five undeclared choices. C1-C7 acted on (the reader items table below) |
+| conformity reader | RAN 2026-10-13, fresh context, worktree `C:/tmp-w153/rc` on `5bbfd25` plus this item's diff, spec first and expected values written before the code was opened; three constructed probes, nothing edited | **1 should-fix and 7 notes.** C1 *routesOf is not total*: messages ran `JSON.stringify` over what a type returned, so a BigInt or a circular value threw a raw `TypeError` out of `validateDefinition`, `new Driver` and `checkWiring`, against ADR 0092 rule 3's *never throws* — **Output (4)'s "total" was FALSE**. C2 uncloneable settings blamed on the type; C3 the wiring check resolves over settings `FD-V40` would refuse, where the spec said *once FD-V40 found nothing*; C4 a throwing `settingsProblem` blocking resolution, unstated; C5 an empty message; C6 `FD-V41`'s wording; C7 AGENTS.md section 3's gate row; C8 `routesOf`'s static/derived asymmetry over non-object settings (unreachable from the validator and driver; no change). Confirmed TRUE: Outputs (2), (3), (5), (6), the Exceptions' diffs and four of the five undeclared choices. C1-C7 acted on (the reader items table below) |
 | adequacy reader | RAN 2026-10-13, fresh context, worktree `C:/tmp-w153/ra`, spec first then tests, mutations walked by rule id, every file restored by sha256 | **63 mutations, 44 killed, 19 survived: 14 real gaps, 5 equivalent** (M16 message wording; M38, M56 a static type's members equal its resolved set; M44 a stored problem reads as nothing stored; M53 reachable only by an impure `routesFor`). The gaps sat where the author's 15 provocations never reached: `boundaryEdges`' entry walk (M51, M52 — so Output (5)'s *pinned* was overstated), `{}` when absent (M36, M43, M46), the copies (M27, M58, M60), `settingsProblem`'s `undefined` and `''` (M30, M31), the exactly-one rule's other members on a derived type (M07, M08, M09), a VACUOUS routesOf case (M11), the wiring check per gate (M45), M63 and M32. Its results agree with all 15 provocations. Each gap killed by a new assertion (item 2 below) |
 | reader overlap | **3** shared subjects | C4/M32 (a throwing `settingsProblem`), C5/M31 (the empty message), C8/M11 (non-object settings to `routesOf`) — inside section 6's 0-4 band, with the two briefs deliberately differed (only the conformity reader was handed the author's undeclared choices) |
 
@@ -268,7 +268,7 @@ what it did at the gate:item before the reader items. It reads the type from `ga
 node. It clones the value and the settings and resolves the key. It calls `fn` in a `try`. Then it does ONE
 `Map.get` of the gate's cached set and one `includes`. The gate arm still does one `gateEdge` over the cached
 default. `git diff` of `driver.ts` across the reader items is empty: every reader-item change is in `validate.ts`,
-at instantiation or on an error path (a message being built). Against the baseline `5adf7ec`, the per-decision
+at instantiation or on an error path (a message being built). Against the baseline `5bbfd25`, the per-decision
 path differs by that `Map.get` in place of reading `type.routes`/`type.defaultRoute`. That is W153's own design,
 re-take 2.
 

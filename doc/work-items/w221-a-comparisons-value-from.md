@@ -1,6 +1,6 @@
 # W221 — A comparison's `valueFrom`: a key path in place of the literal, an absent one no match, and `needs` held to the edge's declaration
 
-**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; one asked exception (`spec/outcome-record.md`'s figure sentence), ADR 0140, no question raised. Earlier: declared 2026-10-25 on `c170eb0`, P45's SECOND item: (a1), (b1), (d1), (g1); decisions 2-9; facts 3-9; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; one asked exception (`spec/outcome-record.md`'s figure sentence), ADR 0140, no question raised. Earlier: declared 2026-10-25 on `fc84c99`, P45's SECOND item: (a1), (b1), (d1), (g1); decisions 2-9; facts 3-9; this file written from the plan's row BEFORE any other edit
 **Plan:** [P45](../plans/p45-what-a-comparison-may-compare-against-and-who-may-read-a-key-path.md) — *what may a
 comparison compare against, and who may read a key path the way a gate does?* — fyflow-app's pass 6 #1, answered (a1),
 (b1) and (d1) by the maintainer; (g) and (h) answered by the maintainer 2026-10-25, *as recommended*: (g1) and (h1).
@@ -142,7 +142,7 @@ An entry `if` `{ path: 'input.a', op: 'lt', valueFrom: 'input.b' }`: `{a:1,b:2}`
 
 ## Verification
 
-The B′ draft built in `C:/tmp-w221/m` (a worktree at `c170eb0`, the diff applied, `node_modules` COPIED) and `npm run
+The B′ draft built in `C:/tmp-w221/m` (a worktree at `fc84c99`, the diff applied, `node_modules` COPIED) and `npm run
 gate` run there before the `Owns` are fixed; the readers in `C:/tmp-w221/rc` and `C:/tmp-w221/ra`; rule 8 on any fix;
 `npm run gate:item` once on the final tree, held still. **Routing coverage**: an unmatched decision (Q10) — an absent
 `valueFrom` routes to the default edge at L2; a branch routed away (Q4), `user_action` (Q17), a duplicate task id (Q13)
@@ -158,7 +158,7 @@ and a nested fan-out (Q6) — not applicable, no join, terminal state or id move
 
 | Clause | Verdict | Notes |
 |---|---|---|
-| B′ — the draft built in the byte copy `C:/tmp-w221/m` (a worktree at `c170eb0`, the diff applied, `node_modules` COPIED, 0 links, 0 reparse points, every changed file `cmp`-identical to the author's) and `npm run gate` run there | RAN — **EXIT 0**, 14:59 → 15:04 (`gate-m.log`) | L1-L5 **106 files / 2,321 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2,883 / 0** over 252 real runs in node and deno; every check EXIT 0. Before it, `npm test` in the working tree found what B′ exists for — see *What broke* |
+| B′ — the draft built in the byte copy `C:/tmp-w221/m` (a worktree at `fc84c99`, the diff applied, `node_modules` COPIED, 0 links, 0 reparse points, every changed file `cmp`-identical to the author's) and `npm run gate` run there | RAN — **EXIT 0**, 14:59 → 15:04 (`gate-m.log`) | L1-L5 **106 files / 2,321 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2,883 / 0** over 252 real runs in node and deno; every check EXIT 0. Before it, `npm test` in the working tree found what B′ exists for — see *What broke* |
 | sentence C — `npm run gate` before the readers | the B′ run above, on content byte-identical to the author's tree | |
 | conformity reader (`C:/tmp-w221/rc`) | RAN | 0 BLOCKER, 2 SHOULD, 4 NIT; re-derived every one of this file's 76 hand-derived verdicts from the spec and agreed on all 76; its own constructed cases agreed 49/53 on validation (the four its own fixture's or underived), 103/103 on the evaluator, 15/15 on the schema |
 | adequacy reader (`C:/tmp-w221/ra`) | RAN | 51 mutants plus a no-op control (green) and a CRASH grader (red for the import reason): 47 killed by `npm test`, 2 (the type union) by `tsc` at the `@ts-expect-error` lines, 1 equivalent (E-eqne), **3 survivors** (E-rightlength, E-leftdefault-null, V43-order) and 4 test weakenings `npm test` did not see (W-objects, W-absent, W-g1table, W-taut); every file restored, digests before = after |
@@ -231,5 +231,5 @@ figure sentence. `src/driver/routing.ts` not edited.
 ADR's rule list; the adequacy reader's were the evaluator's right-side modifiers, a clause order and the suite's tables.
 
 **Leftover worktrees.** `C:/tmp-w221/m` (the B′ copy, synced to the final tree for rule 8), `rc` and `ra` (git worktrees at
-`c170eb0` with the pre-reader change applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with
+`fc84c99` with the pre-reader change applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with
 `rc-scratch` and `ra-scratch` — left for the maintainer; not removed with `--force`.

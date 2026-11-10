@@ -1,6 +1,6 @@
 # W214 — The chromium lane's headroom: the map-cost suite's smaller pair in the browser
 
-**Status:** done 2026-10-24 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no stop-and-ask, no exception used, no ADR, no question raised. Earlier: declared 2026-10-24 on `61b0344`, P44's FIRST item: (d1); decision 1; fact 7; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-24 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; no stop-and-ask, no exception used, no ADR, no question raised. Earlier: declared 2026-10-24 on `5cf2023`, P44's FIRST item: (d1); decision 1; fact 7; this file written from the plan's row BEFORE any other edit
 **Plan:** [P44](../plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — *what does a join hand on, and
 how does a key path reach into it?* — and this is its FIRST item: P43's retro (b), *the chromium lane at ~57 of 60 s*,
 routed here by the maintainer's (d1).
@@ -113,13 +113,13 @@ tree, held still. **Routing coverage**: not applicable — the item moves a test
 
 **The chromium wall — and the finding under it: the lane's wall is a STATE OF THE MACHINE, not a constant.** On this
 laptop (i7-12700H) the same bundle at the same commit measured **51.3 s, 30.2 s, 21.8 s and 21.3 s** in four consecutive
-runs on `61b0344`, with nothing else running; later the provoked bundle measured 22.7 s, 24.0 s and then **58.1 s**. Fact
+runs on `5cf2023`, with nothing else running; later the provoked bundle measured 22.7 s, 24.0 s and then **58.1 s**. Fact
 7's 57 s and W211's 56-57 s are the SLOW state; the fast one is ~21 s. **The suite's SHARE is the quantity that holds**:
 
 | tree | state | in-page wall | the map-cost suite | its share |
 |---|---|---|---|---|
-| `61b0344`, before | slow | 51.3 s | 36.0 s | 70% |
-| `61b0344`, before | fast (six runs) | 20.6-21.8 s | 10.2-11.1 s | ~50% |
+| `5cf2023`, before | slow | 51.3 s | 36.0 s | 70% |
+| `5cf2023`, before | fast (six runs) | 20.6-21.8 s | 10.2-11.1 s | ~50% |
 | the change, after | fast (three runs) | 13.5-16.4 s | 2.9-3.4 s | ~21% |
 | the change, after | mixed (one run) | 23.5 s | 8.8 s | 38% |
 | the change, after — P44 fact 7's own measurement of the same pair at the declaration | slow | 31.9 s | 8.8 s | 27% |
@@ -183,6 +183,6 @@ exceptions**: none used — `l4-corpus.test.ts` and the sibling suites read, not
 **The readers' overlap.** **ONE** — the titles that print the node and deno pair in a browser (conformity SHOULD 2,
 adequacy NIT 1): one subject, the same finding.
 
-**Leftover worktrees.** `C:/tmp-w214/m` (the B′ copy), `rc` and `ra` (git worktrees at `61b0344` with the pre-reader
+**Leftover worktrees.** `C:/tmp-w214/m` (the B′ copy), `rc` and `ra` (git worktrees at `5cf2023` with the pre-reader
 change applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w214/rc-scratch` and
 `ra-scratch` — left for the maintainer; not removed with `--force`.

@@ -1,6 +1,6 @@
 # W215 — Q774: `FD-V21` refuses a non-string join `of` and fanout branch entry, and the schema with it
 
-**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; Q774 resolved; no stop-and-ask, no exception beyond the record step, no ADR, no question raised. Earlier: declared 2026-10-25 on `1270502`, P44's SECOND item: (d1); decision 2; fact 8; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; Q774 resolved; no stop-and-ask, no exception beyond the record step, no ADR, no question raised. Earlier: declared 2026-10-25 on `352f942`, P44's SECOND item: (d1); decision 2; fact 8; this file written from the plan's row BEFORE any other edit
 **Plan:** [P44](../plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — *what does a join hand on, and
 how does a key path reach into it?* — and this is its SECOND item: P43's retro (a), [Q774](../questions/q774.md), routed
 here by the maintainer's (d1).
@@ -34,7 +34,7 @@ Outputs:    (1) src/definition/validate.ts — two FD-V21 clauses: a join's `of`
             (4) spec/examples/invalid/ — two new files, `FD-V21--join-of-is-not-a-string.flow.json` and
                 `FD-V21--fanout-branch-entry-is-not-a-string.flow.json`, each verdict re-taken at HEAD before the change.
             (5) spec/flow-definition.md v0.52, spec/README.md; AGENTS.md's Q774 sentence; Q774 resolved.
-Depends on: W214 (1270502)
+Depends on: W214 (352f942)
 Blocks:     W216
 Tests:      Outputs (3) and (4). Expected verdicts from spec/flow-definition.md section 5's FD-V21 row as v0.52 words
             it and Q774's table, written before the first run: each non-string `of` / branch entry REFUSED FD-V21
@@ -67,7 +67,7 @@ Reserves:   Q782-Q783, ADR 0136 (expected unused, decision 2)
 - **The version bump, push and publish** — the maintainer's ((e1)).
 - **W216-W218** — the plan's later rows.
 
-## Re-takes (P44's *W215 — Re-takes*), at `1270502`, before any `src/` edit
+## Re-takes (P44's *W215 — Re-takes*), at `352f942`, before any `src/` edit
 
 1. **Whether a valid corpus or example flow holds a non-string `of` or branch entry**: read by a script over
    `spec/examples/{valid,invalid,wiring}` and `examples/flows` — **119 files, 0 hits** (expected none: holds). A grep over
@@ -155,6 +155,6 @@ rewrote *held to the id charset* in four places and inherited W210's untested ha
 
 **The readers' overlap.** **ZERO** — no subject is in both reports.
 
-**Leftover worktrees.** `C:/tmp-w215/rc` and `C:/tmp-w215/ra` (git worktrees at `1270502` with the pre-reader change
+**Leftover worktrees.** `C:/tmp-w215/rc` and `C:/tmp-w215/ra` (git worktrees at `352f942` with the pre-reader change
 applied; `node_modules` COPIED; scanned: 0 links, 0 reparse points), with `C:/tmp-w215/rc-scratch` and `ra-scratch` —
 left for the maintainer; not removed with `--force`.

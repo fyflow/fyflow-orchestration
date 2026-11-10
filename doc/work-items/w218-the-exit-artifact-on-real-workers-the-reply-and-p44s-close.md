@@ -1,6 +1,6 @@
 # W218 — a join's own keys, a bracket index and format 2, on real workers; the reply to fyflow-app; P44's close
 
-**Status:** done 2026-10-25 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record), after a first run red on a half-written close; both readers RAN, every finding acted on or declared; 13 provocations, every one KILLED or CLEAN as declared; the reply written. Earlier: declared 2026-10-25 on `177234d` (W217 committed, the tree clean); P44's LAST item: exit clause (3), the reply, P44's Record and retro; this file written from the plan's row BEFORE any other edit
+**Status:** done 2026-10-25 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record), after a first run red on a half-written close; both readers RAN, every finding acted on or declared; 13 provocations, every one KILLED or CLEAN as declared; the reply written. Earlier: declared 2026-10-25 on `1c3f470` (W217 committed, the tree clean); P44's LAST item: exit clause (3), the reply, P44's Record and retro; this file written from the plan's row BEFORE any other edit
 **Plan:** [P44](../plans/p44-what-a-join-hands-on-and-how-a-key-path-reaches-into-it.md) — *what does a join hand on,
 and how does a key path reach into it?* — and this is its LAST item.
 
@@ -15,7 +15,7 @@ Owns:       from P44's W218 row, exactly: examples/l6.ts (the WHOLE file, senten
             ../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass5.reply.md
             Exceptions (declared BEFORE the edit, workflow section 7 rule 2): doc/workflow.md — the plan's-last-item
             bookkeeping ONLY (the Status line's count of plans run, section 6's overlap ordinal, the ledger rows a retro
-            appends to), P43's close (4531616) the precedent, P44's W218 row and its always-read-set sentence naming it.
+            appends to), P43's close (fee3c87) the precedent, P44's W218 row and its always-read-set sentence naming it.
             The record step's four files carry P44's Record and retro. Anything else found to need an edit is a
             STOP-AND-ASK.
 Inputs:     P44 decisions 3-5, facts 2-6, (a1), (b), (c1), (e1), (f1); ADR 0137, ADR 0138; W214-W217's Records (their
@@ -62,7 +62,7 @@ Outputs:    (1) one L6 block in examples/l6.ts, `W218 exit`, node 24 and deno, a
                 row and its list of plans.
             (3) the reply to fyflow-app, once this item's gate is green.
             (4) P44's Record and retro; doc/workflow.md's plan-close bookkeeping (the declared exception).
-Depends on: W217 (177234d)
+Depends on: W217 (1c3f470)
 Blocks:     nothing — the plan closes with this item
 Tests:      Output (1) is the test: expected values by hand from the flow written in the block, the payload, JP-R12 v0.25
             (each branch under its own key; a map's inserted ascending, a fan-out's in `branches` order; the object's own
@@ -94,20 +94,20 @@ Reserves:   Q788-Q789, ADR 0139 (expected unused)
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5. Taken 2026-10-25 on `177234d`, the tree clean; harnesses and logs in the session scratchpad's `w218/`.*
+*P15 decision 5. Taken 2026-10-25 on `1c3f470`, the tree clean; harnesses and logs in the session scratchpad's `w218/`.*
 
 | # | re-take | measured |
 |---|---|---|
-| 1 | the release state (2026-10-25 03:53 local) | npm `fyflow-orchestration`: `0.0.0-stage`, `0.7.0`-`0.9.1`, `0.10.0`, `0.11.0`, `latest` **0.11.0**; JSR `@fyflow/orchestration` latest **0.11.0** (2026-10-24T06:14Z); `v0.11.0` and `origin/main` both at `bdbdb1c` (`git ls-remote`) — P44's commits (`61b0344` … `177234d`) NOT pushed; manifests 0.11.0 / 0.11.0 |
+| 1 | the release state (2026-10-25 03:53 local) | npm `fyflow-orchestration`: `0.0.0-stage`, `0.7.0`-`0.9.1`, `0.10.0`, `0.11.0`, `latest` **0.11.0**; JSR `@fyflow/orchestration` latest **0.11.0** (2026-10-24T06:14Z); `v0.11.0` and `origin/main` both at `98e313d` (`git ls-remote`) — P44's commits (`5cf2023` … `1c3f470`) NOT pushed; manifests 0.11.0 / 0.11.0 |
 | 2 | `npm run state` | P45 W218 Q788 ADR 0139 from the tree; W214 Q780 ADR 0135 from the ledger — the two DISAGREE until this retro writes its sentence (expected); L6 2861 / 246 |
-| 3 | the shape, on a scratch prototype (`w218/proto.ts`) over `177234d`, node 24 — the gates and the format refusal | the flow validates; `check`'s result `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}` on both pools; `byIf` `then` / `else`, the two `distinct` gates `first` key 2 / `nokey`; format 1 refused `format` at `null` on a fresh runtime, the store as written resuming `awaiting_action` and completing. A feasibility check, never the expected side |
+| 3 | the shape, on a scratch prototype (`w218/proto.ts`) over `1c3f470`, node 24 — the gates and the format refusal | the flow validates; `check`'s result `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}` on both pools; `byIf` `then` / `else`, the two `distinct` gates `first` key 2 / `nokey`; format 1 refused `format` at `null` on a fresh runtime, the store as written resuming `awaiting_action` and completing. A feasibility check, never the expected side |
 | 4 | W214-W217's counts on this item's draft — `npm run gate` (sentence C), 03:58:33 → 04:03:39, **EXIT 0** (`w218/gate-1.log`) | L1-L5 **103 files / 2,295 cases** in node 24.20.0, deno 2.9.6 and chromium (parity) — W217's figure, this item touching no suite; every check EXIT 0, `check:docs` X10 2 copies; L6 **2,879 / 0** over 252 real runs in node and deno (the block's first cut, eighteen claims) |
 | 5 | the chromium lane | **this item adds nothing to the bundle** (L6 is `examples/**`, `RT-R10`), so W214's share stands; not re-taken |
 
 ## Verification
 
 `npm run gate` on the draft before the readers (sentence C); the two readers in their own worktrees under `C:/tmp-w218/`
-(`177234d` plus this diff, `node_modules` copied, scanned before use: 0 links, 0 reparse points); the author's provocations
+(`1c3f470` plus this diff, `node_modules` copied, scanned before use: 0 links, 0 reparse points); the author's provocations
 in a third copy, re-run after acting on the readers; then `npm run gate:full` once, on the final tree. **Routing coverage**:
 a nested fan-out and a map inside a fan-out (Q6) — the subject; a branch routed away (Q4) — no (W217's L2 holds it);
 `user_action` (Q17) — not reached; no matching decision edge (Q10) — not reached (every route has an edge, every `if` a
@@ -202,6 +202,6 @@ and Retro; `doc/workflow.md`'s bookkeeping (the declared exception).
 `if`-control's label, the sort coincidence) and the adequacy reader's (the hold's reliability, the control's throw, the
 three refusal doors) share none. The two briefs were written apart and named no common specific.
 
-**Leftover worktrees.** `C:/tmp-w218/m`, `rc`, `ra` (git worktrees at `177234d` plus this item's diff — `rc` and `ra` the
+**Leftover worktrees.** `C:/tmp-w218/m`, `rc`, `ra` (git worktrees at `1c3f470` plus this item's diff — `rc` and `ra` the
 first cut, `m` the final block; `node_modules` COPIED; scanned before use: 0 links, 0 reparse points), with
 `C:/tmp-w218/rc-scratch` and `ra-scratch` — left for the maintainer; none removed with `--force`.

@@ -1,6 +1,6 @@
 # W185 — the header BEFORE the first event: `onHeader`
 
-**Status:** done 2026-10-18 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, no BLOCKER, C1-C4, C6 and A1-A3 acted on, C5 outside `Owns` (recorded for the retro); no stop-and-ask; no question raised; not committed. Earlier: earlier READY-FOR-READERS 2026-10-18 (`npm run gate` EXIT 0); declared 2026-10-18 on `890e243` (W184 done); P36's SECOND item: decision 1, stop-and-asks (d) and (e) as answered, fact 5; ADR 0112 (reserved for it); not committed
+**Status:** done 2026-10-18 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, no BLOCKER, C1-C4, C6 and A1-A3 acted on, C5 outside `Owns` (recorded for the retro); no stop-and-ask; no question raised; not committed. Earlier: earlier READY-FOR-READERS 2026-10-18 (`npm run gate` EXIT 0); declared 2026-10-18 on `141f599` (W184 done); P36's SECOND item: decision 1, stop-and-asks (d) and (e) as answered, fact 5; ADR 0112 (reserved for it); not committed
 **Plan:** [P36](../plans/p36-what-is-a-tasks-attribution-and-what-survives-a-resume.md) — *which run and attempt does a
 task's activity belong to, without parsing its id, and what of a run survives a crash and a resume?* — the fyflow-app ask
 **#9**: a run whose events were written before its header can be lost. **As answered** ((d), (e)): `onHeader(header)` is a
@@ -49,7 +49,7 @@ Outputs:    (1) src/driver/driver.ts: `DriverOptions.onHeader?: (header: Checkpo
                 section 10's member count — and whatever else the premise grep finds (D′); one `run` snippet in section 18
                 (RUN_FLOOR 44 -> 45).
             (6) doc/decisions/0112-a-run-delivers-its-header-before-its-first-event.md.
-Depends on: W184 (done, `890e243`)
+Depends on: W184 (done, `141f599`)
 Blocks:     W186
 Tests:      L2, expected values hand-written from (e), `RN-R15` and each flow's shape, never from output: `onHeader` called
             ONCE, its position in ONE log the double, `onFoldInput` and the callback all write to, held BEFORE the first
@@ -63,7 +63,7 @@ Tests:      L2, expected values hand-written from (e), `RN-R15` and each flow's 
             and the run started once; a run with no `onHeader` unmoved (prediction 2). L1 through `createRuntime`: equal to
             `handle.header`, before the composed `onFoldInput`'s first element and the view's first `addTask`, on the
             runtime's second minted run; a throw spending the run id (`RunIdInUse`), nothing handed on, beside a control run;
-            `runtime.resume()` never calling one passed past the type. RED on `890e243`'s `src/` where a call is claimed.
+            `runtime.resume()` never calling one passed past the type. RED on `141f599`'s `src/` where a call is claimed.
             One-clause mutations (sentence E) in the byte copy C:/tmp-w185/m, graded on each suite's failure lines, grader
             controls (clean, crash); a time-out is NO VERDICT.
 Gate:       `npm run gate` before the readers (sentence C); the conformity and adequacy readers, NOT this item's author;
@@ -103,14 +103,14 @@ delivered before the run's first routing step and the fan-out case is an entry r
 
 ## What the declaration step measured
 
-*Measured 2026-10-18 in a BYTE COPY of `890e243` (`git archive` into `C:/tmp-w185/m`, `node_modules` copied, never
+*Measured 2026-10-18 in a BYTE COPY of `141f599` (`git archive` into `C:/tmp-w185/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0, deno 2.9.6.*
 
 | # | fact | measured |
 |---|---|---|
 | M1 | the baseline, in the copy | `node test/runner.ts` EXIT 0: 75 files / 1988 cases |
 | M2 | **P36 prediction 2**, the `src/` change ALONE (no test touched), `node test/runner.ts` | **3 cases RED, all three the binding test's pins and none a sequence**: `test/scheduler/runtime.test.ts`'s *ORPHAN COUNT 0* (its COUNT, `expected: 20 actual: 21` — the orphan clause itself green, the road added in the same edit), *the observer list IS StartOptions` membership* (`onHeader` with no observer) and *every StartOptions member but runId has a resume() observer* (the `Omit` now takes `onHeader` too). Every other case of 75 files green: no fold-input sequence moved |
-| M3 | **the new suites against `890e243`'s `src/`** (written from (e) before any run) | `test/driver/on-header.test.ts`: **7 of 9 RED** — every case claiming a call, the refusal case by its control; GREEN `resume()` (it claims none) and the membership case. `test/scheduler/runtime.test.ts`: the three pins, the `onHeader` start observer, and W185's order and throw cases RED (6); its resume case GREEN (claims none) |
+| M3 | **the new suites against `141f599`'s `src/`** (written from (e) before any run) | `test/driver/on-header.test.ts`: **7 of 9 RED** — every case claiming a call, the refusal case by its control; GREEN `resume()` (it claims none) and the membership case. `test/scheduler/runtime.test.ts`: the three pins, the `onHeader` start observer, and W185's order and throw cases RED (6); its resume case GREEN (claims none) |
 | M4 | the suites on the changed `src/` | all GREEN: node **76 files / 2002 cases**, deno 76 / 2002 (+9 L2, +3 L1, +1 start observer, +1 l4-corpus count) |
 | M5 | **B′ / D′ — the census sites**, each by its lane | `LATE_SUITES` +2 and a per-suite count case (9 and 3); the binding test's pins moved BY NAME (`DriverOptions` 20 -> 21, an `onHeader` observer, the resume loop's filter `RESUME_OMITS` held to the source's `Omit` both ways — its case renamed from *but runId*); `RUN_FLOOR` 44 -> 45 (section 18's new snippet; `check:docs` 45 `run` / 6 `check`; `check:docs:selftest` run, below); `spec/run-state.md` v0.24 -> v0.25 and its `spec/README.md` row; next free rule id `RN-R40`. **Unmoved**: `DRIVER_FIELDS` and `NOT_RUN_STATE` (no field: `started` and `header` carry the states), `RUN_FOR` and `isFed` (no kind), `X10` (no L6 file touched), `check:budget` (`AGENTS.md` is not in the always-read set) |
 | M6 | **now-false statements** — `git grep` over the tree but `dev-dist/` and `node_modules/` for each changed name (`onHeader`, `StartOptions`, `ResumeOptions`, `DriverOptions`) and each PREMISE (*the header arrives after the first events*, *a store that must write its header first cannot*, *measured rather than avoidable*, *every StartOptions member but runId*, *the driver's twenty*, *the header cannot be written strictly first*) | rewritten in `Owns`: `RunHandle.header`'s comment and `StartOptions`'/`ResumeOptions`' docs (`src/scheduler/runtime.ts`); `RN-R15`, `RN-R18` and — found by the premise grep, NOT named in the row's parenthetical — **`RN-R25`'s *`options` every `StartOptions` member but `runId`***, same file (reading R3); `AGENTS.md` sections 8 and 12 (the handle's header sentence), 9 (a throw row and the *refused before accepted* sentence), 10 (the snippet comment's *the driver's twenty*), 18 (the table, the paragraph, the snippet's *a store that had to write its header first could not* — the snippet now writes the header through `onHeader` and holds it equal to the handle's — and a new snippet); `test/scheduler/checkpoint.test.ts`'s message *the header cannot be written strictly first*. **Outside `Owns`, record-step files**: ADR 0064's last rejected-alternative row and consequence 1 — a dated pointer each, written (P36 decision 1). **Still true, left**: `examples/l6.ts`'s *RN-R18 at L6: the HEADER arrives AFTER the first events* (the HANDLE's — W188's file), ADR 0064 fact 5, ADR 0058's *before `start` returns* |
@@ -209,7 +209,7 @@ Every other finding was one reader's alone. *(P36's brief sentence; the ordinal 
 |---|---|---|
 | `npm run gate` before the readers (sentence C) | RAN — EXIT 0 | lint 160 files; `check:spec` 7 / 81 / 148; `check:docs` 45 `run` / 6 `check`; L1-L5 76 files / 2002 cases in node, deno and chromium; L6 2743 assertions, 0 failed, node and deno (`C:/tmp-w185/gate.log`) |
 | `check:docs:selftest` (B′: a snippet added) | RAN — EXIT 0, 24/24 noticed | `C:/tmp-w185/docs-self.log` |
-| L2 `onHeader` once, before the first `onFoldInput` AND before `addTask` — an entry task, an entry fan-out of three before all seven elements — a frozen copy equal to `checkpoint().header` | RAN — green | `test/driver/on-header.test.ts`, each order beside its control; RED on `890e243`'s `src/` (M3) |
+| L2 `onHeader` once, before the first `onFoldInput` AND before `addTask` — an entry task, an entry fan-out of three before all seven elements — a frozen copy equal to `checkpoint().header` | RAN — green | `test/driver/on-header.test.ts`, each order beside its control; RED on `141f599`'s `src/` (M3) |
 | a throw: nothing appended, nothing handed on, unstarted, a second `start()` accepted | RAN — green | the log exactly `['header']`, then the retry's element and hand-off on the same log |
 | `FD-R4`'s refusal and an uncloneable payload never called; `resume()` never called | RAN — green | each beside the control that the callback is wired / the resume re-dispatched |
 | L1 through `createRuntime`: equal to `handle.header`; after a throw the run id `RunIdInUse` | RAN — green | W185's runtime suite, its control run's observers shown live (A3) |

@@ -29,7 +29,7 @@ NODE reference and for `"$payload"`; `"."` and `"$item"` keep it as written. It 
 node OUTSIDE it cloned that node's whole result once per instance per key — ADR 0040 rule 6's per-key copy, which is
 `JP-R11`'s *no two nodes ever receive the same object* applied to a reference. A map enters every instance in one step, so
 every copy is live at once (P41 fact 3) and the peak is N × the referenced value. Re-taken at W202's declaration on
-`88059b7`, the driver alone on a scheduler double, fyflow-app's fetch-then-map shape (`fetch`'s result ~100 KB holding the
+`bc813ec`, the driver alone on a scheduler double, fyflow-app's fetch-then-map shape (`fetch`'s result ~100 KB holding the
 items; the branch `needs: { item: "$item", all: "fetch" }`), each size a fresh process: **529 / 1,993 / 15,475 ms and
 178 / 468 / 1,448 MB** peak heap over baseline at 1,000 / 2,000 / 4,000 items in node 24.20.0; 1,442 / 2,068 / 16,598 ms
 in deno 2.9.6. fyflow-app measured 1.6 s / 160 MB and 18.0 s / 800 MB at 1,000 / 4,000 on its Host, and cannot guard it:

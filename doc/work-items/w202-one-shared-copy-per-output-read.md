@@ -1,6 +1,6 @@
 # W202 — one shared copy per output read: a reference costs one copy, not one per reader
 
-**Status:** done 2026-10-22 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; Q186 resolved by ADR 0126. Earlier: declared 2026-10-22 on `88059b7`; P41's FIRST item: decisions 1-8, stop-and-asks (a)-(c), (f2), (g1) as answered; the declaration step's re-takes RUN before any `src/` edit (below) — **this FILE was written just after the first `src/` edit**, not before it: a deviation from *write the item file when you start*, recorded rather than hidden
+**Status:** done 2026-10-22 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; Q186 resolved by ADR 0126. Earlier: declared 2026-10-22 on `bc813ec`; P41's FIRST item: decisions 1-8, stop-and-asks (a)-(c), (f2), (g1) as answered; the declaration step's re-takes RUN before any `src/` edit (below) — **this FILE was written just after the first `src/` edit**, not before it: a deviation from *write the item file when you start*, recorded rather than hidden
 **Plan:** [P41](../plans/p41-what-a-reference-to-a-large-value-costs-inside-a-map.md) — *what does a reference to a large
 value cost inside a map, and can every instance read one shared copy?* — and this is its FIRST item: the shared copy,
 ADR 0126, the spec change, the count in the gate.
@@ -43,11 +43,11 @@ Outputs:    (1) src/driver/driver.ts: `deepFreeze` (P41 decision 1's walk: plain
             (8) ADR 0126; spec/flow-definition.md v0.47; spec/run-state.md v0.33; spec/join-policy.md v0.24;
                 spec/README.md's rows; AGENTS.md's reference rows, *What it costs*, the `"$payload"` table and every line
                 saying a referenced value is the reader's own; X6's anchors and probes.
-Depends on: P41's declaration (88059b7)
+Depends on: P41's declaration (bc813ec)
 Blocks:     W203
 Tests:      Outputs (5)-(7). Expected values from ADR 0126 and P41's decisions, and from derivations beside each count.
             Measurements, not gate entries (Q179): the driver re-timed (fact 4's table), the composed payloads over the
-            corpus byte-identical to 88059b7's, RN-R13's figure by its own method, section 3's cost table re-taken.
+            corpus byte-identical to bc813ec's, RN-R13's figure by its own method, section 3's cost table re-taken.
 Gate:       `npm run gate:item` (not the plan's last item; no row edits scripts/check-register*.mjs,
             scripts/state.mjs or doc/questions/README.md); `npm run gate` before the readers (sentence C); then the
             conformity reader and the adequacy reader, workflow section 6.
@@ -73,14 +73,14 @@ Reserves:   Q750-Q754, ADR 0126
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5. Taken 2026-10-22 on `88059b7`, the tree clean; harnesses in the session scratchpad's `w202/` and `perf/`.*
+*P15 decision 5. Taken 2026-10-22 on `bc813ec`, the tree clean; harnesses in the session scratchpad's `w202/` and `perf/`.*
 
 | # | re-take | measured |
 |---|---|---|
 | 1 | fact 4's table, `perf/q186.ts`, each size a fresh process, `--expose-gc` | node 24.20.0: **529 ms / 178 MB, 1,993 ms / 468 MB, 15,475 ms / 1,448 MB** at 1,000 / 2,000 / 4,000 items (fact 4: 579 / 2,123 / 22,903 ms, 178 / 468 / 1,445 MB — the heap reproduced, the 4,000-item time 32% lower); deno 2.9.6: **1,442 ms / 173 MB, 2,068 / 468, 16,598 / 1,438**. The same flow whose `all` names a SMALL node (`perf/q186small.ts`): 28 / 45 / 80 ms, 5 / 11 / 15 MB (node) |
 | 2 | fact 5's freeze probe (`w202/freeze-probe.js`), node 24.20.0, deno 2.9.6, chromium 151.0.7922.34 (playwright) | **identical in all three**: `Object.freeze` on a `Uint8Array` with elements THROWS `TypeError`; on an empty one and on a `DataView` it succeeds — and a frozen `DataView` still writes its bytes (`setUint8`, node); a frozen `Map` takes `set`, `Set` `add`, `Date` `setTime`, and a frozen `ArrayBuffer`'s bytes are written through a view; a frozen plain object's write throws `TypeError` (the control). **Prediction 7 HOLDS — no runtime differs** |
-| 3 | the composed payloads (W199's `payloads.ts`, copied to `w202/`): every valid corpus flow, seven drains, a resume from every rest point | 182 lines, `payloads-before.jsonl` on `88059b7` (worktree `C:/tmp-w202/base`) |
-| 4 | the ladder counts — `npm run gate` on `88059b7` (worktree `C:/tmp-w202/base`, `node_modules` copied, no link, 0 reparse points), EXIT 0, 14:07:08 → 14:14:04 (`w202/gate-base.log`) | L1-L5 **89 files / 2,155 cases** in node, deno and chromium (parity); L6 **2,815 / 0 failed** over 230 real runs in node and deno; `check:docs` 51 `run`; `check:spec` C4 45 |
+| 3 | the composed payloads (W199's `payloads.ts`, copied to `w202/`): every valid corpus flow, seven drains, a resume from every rest point | 182 lines, `payloads-before.jsonl` on `bc813ec` (worktree `C:/tmp-w202/base`) |
+| 4 | the ladder counts — `npm run gate` on `bc813ec` (worktree `C:/tmp-w202/base`, `node_modules` copied, no link, 0 reparse points), EXIT 0, 14:07:08 → 14:14:04 (`w202/gate-base.log`) | L1-L5 **89 files / 2,155 cases** in node, deno and chromium (parity); L6 **2,815 / 0 failed** over 230 real runs in node and deno; `check:docs` 51 `run`; `check:spec` C4 45 |
 
 ## Verification
 
@@ -115,13 +115,13 @@ applicable.
 | (2) `OutputEntry.shared`, `sharedOf`, both sites | yes | cases 0, 3-6, 9; S1-S3, R1-R16 killed; the cost suite's compose and resolveNeeds probes |
 | (3) `outputsCache.payload`, `sharedPayload`; `FD-R4`'s clone | yes | case 1, case 7; S7-S11b, S15-S15d killed; run-payload's FD-R4 cases |
 | (4) `outputsCache.copies` | yes | the cost suite's exact pins; S5, S6, S14c killed |
-| (5) `test/driver/shared-reference.test.ts` | yes | eleven cases; the census counts them; 9 of its first 10 red on `88059b7` (the membership the expected survivor) |
+| (5) `test/driver/shared-reference.test.ts` | yes | eleven cases; the census counts them; 9 of its first 10 red on `bc813ec` (the membership the expected survivor) |
 | (6) `test/fold/reference-copy-cost.test.ts` | yes | seven cases, seven shapes; each probe red on its exact clause set; the census counts them |
 | (7) the moved claims | yes | fact 8's four L2 cases, re-stated; W192's three L6 claims — exactly those three red with the old driver under the new `l6.ts` |
 | (8) ADR 0126, the spec, AGENTS.md, X6 | yes | `check:register` (R8: ADR 0126 resolves Q186), `check:spec`, `check:docs` X6 both ways, `check:docs:selftest` |
 
 **The numbers** — the driver alone, `perf/q186.ts` (fetch-then-map, ~100 KB fetched), each size a fresh process,
-`--expose-gc`: before on `88059b7`, after on the final tree.
+`--expose-gc`: before on `bc813ec`, after on the final tree.
 
 | items | node before | node after | deno before | deno after | the same flow reading a SMALL node, node after |
 |---|---|---|---|---|---|
@@ -153,7 +153,7 @@ holder sets, `DRIVER_FIELDS` and `NOT_RUN_STATE` did not move (retention and L6 
 `FoldInput`, `RunState`, `snapshot()` or signature moved.
 
 **Payloads** (W199's `payloads.ts`): every composed payload and `ctx.needs` over every valid corpus flow under seven
-drains, each with a resume from every rest point: **182 lines, byte-identical** to `88059b7`'s (`cmp`), re-run by the
+drains, each with a resume from every rest point: **182 lines, byte-identical** to `bc813ec`'s (`cmp`), re-run by the
 conformity reader. The corpus holds no `"$payload"`; its values are held at L2 (`run-payload.test.ts`, green).
 
 **Predictions.** 1 **HOLDS** — no composed VALUE moved; what moved is fact 8's identity claims and fact 7's writability

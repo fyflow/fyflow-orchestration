@@ -1,6 +1,6 @@
 # P34 — What do cancelling, stopping and pausing a run do?
 
-**Status:** complete and retro'd 2026-10-17 — declared 2026-10-16 on `985efe6`, from the draft carrying the maintainer's decisions 1-7 of 2026-10-14/15 and the hand-offs of P33's Record and P37's retro (g)-(k); facts 1-12 measured at this declaration; stop-and-asks (a)-(j) ANSWERED by the maintainer 2026-10-16, all as recommended; W169-W176 done 2026-10-16/17; the exit artifact met on W176's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-17 over `d67138f`, and the maintainer answered its stop-and-asks (k)-(r) the same day, all as recommended (Retro section 8)
+**Status:** complete and retro'd 2026-10-17 — declared 2026-10-16 on `dca9414`, from the draft carrying the maintainer's decisions 1-7 of 2026-10-14/15 and the hand-offs of P33's Record and P37's retro (g)-(k); facts 1-12 measured at this declaration; stop-and-asks (a)-(j) ANSWERED by the maintainer 2026-10-16, all as recommended; W169-W176 done 2026-10-16/17; the exit artifact met on W176's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-17 over `923fe9b`, and the maintainer answered its stop-and-asks (k)-(r) the same day, all as recommended (Retro section 8)
 **Question this plan answers:** *what does a run do when its owner cancels it, stops it to resume it
 elsewhere, or pauses it — and what does each leave in the log?*
 **Exit artifact:** *on the final tree, one cross-row block in `examples/l6.ts`, green in node 24 and in deno, in which:
@@ -31,7 +31,7 @@ Raises:   no question; S12 WRITTEN, NOT RAISED (fact 9, (g)) in doc/scheduler-up
 Baseline: ids derived by `npm run state` at this declaration — P38, W169, Q635, ADR 0101 from the tree,
           W169, Q635, ADR 0101 from the ledger (P37's Retro), which AGREE. The ladder counts are NOT
           taken here and are W169's declaration step's
-Measured: 2026-10-16 in a byte copy of `985efe6` at C:/tmp-p34/tree, its `node_modules` copied, never
+Measured: 2026-10-16 in a byte copy of `dca9414` at C:/tmp-p34/tree, its `node_modules` copied, never
           linked, scanned for links (none); node 24.20.0 and deno 2.9.6. The copy is left in place
 ```
 
@@ -106,7 +106,7 @@ and (k), 2026-10-16:*
 
 ## Facts measured at this declaration
 
-On `985efe6`, the scheduler read at the pin from `node_modules/fyflow-scheduler` (its `AGENTS.md` and `dist/`) and
+On `dca9414`, the scheduler read at the pin from `node_modules/fyflow-scheduler` (its `AGENTS.md` and `dist/`) and
 nowhere else. Each fact's command is a script in `C:/tmp-p34/` run under node 24.20.0 and, where stated, deno 2.9.6.
 
 **Fact 1 — [Q605](../questions/q605.md)'s two doors leak today, for a cancel AND for a halt, exactly as raised.**
@@ -423,21 +423,21 @@ W173 Q647-Q650, W174 Q651-Q654, W175 Q655-Q657, W176 Q658-Q659.
 
 ## Record
 
-*Written 2026-10-17 over `d67138f`, the tree clean before it. Every figure is read from the eight items' own files; none
+*Written 2026-10-17 over `923fe9b`, the tree clean before it. Every figure is read from the eight items' own files; none
 is re-measured here. Ids are bare text, as in P33's and P37's Records.*
 
 **The items.** Each row is its own file's Record, which covers its declaration step, its provocations and both readers.
 
 | item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
 |---|---|---|---|---|---|---|---|
-| **W169** `d7553ba` | Q619 option B — a built-in `KeyedRateLimitGroup` in any derived pool's `residentGroups` `DerivationRefused` at `createRuntime`, naming the pool and the group; `InvalidDefinition.fromFindings`, ONE message both roads build; P37's six stale sites | flow-definition v0.39, outcome-record v0.14 | Q619 / — | none | no defect; conformity C1 an expected value taken from output (fixed); adequacy 25, 3 survivors, each a case. **Overlap 0** | 62 / 1765; 2664 / 176 | `gate:item` EXIT 0, 955.4 s |
-| **W170** `7c88a20` | Q633 road (2) — a TRANSFORMING target unchecked at `start`, `tryTransform(…, { input })` the check before a run; ADR 0101 | flow-definition v0.40 | — / — (Q633 left open for W176) | **E1** (S1, YES after the readers): `src/definition/wiring.ts` twice, `AGENTS.md` section 13 | **conformity C1 DEFECT** — the published *check, then start* recipe answered the wrong question on four shapes; adequacy 19, 3 survivors. **Overlap 1** | 62 / 1776; 2664 / 176 | `gate:item` EXIT 0, 1079.5 s |
-| **W171** `24253b2` | `stopped` RENAMED `halted` in `RunOutcome`, `FoldInput`, `RunState.haltedBy`, `ResumeRefusalReason`; a stored `stopped` read as `halted`, never written; `CHECKPOINT_FORMAT` 1; ADR 0102 | flow-definition v0.41, outcome-record v0.15, run-state v0.16 | — / — | none | no defect; adequacy 33, 29 killed, B7-B9 closed. Overlap not stated | 62 / 1780; 2664 / 176 | `gate:item` EXIT 0, 906.6 s |
-| **W172** `43cdd7d` | `shut()` — one dispatch hold every halt shares, checked at FOUR places; ADR 0103 | run-state v0.17 | Q605 / — | **S-1 YES** — decision 8's three places are four (`resume()`'s re-dispatch), built in `Owns`; **S-2 YES → E1**, `AGENTS.md` section 6's cell | no defect in `src/`; adequacy A1 — a check called unreachable was reachable. Overlap not stated | 63 / 1798; 2664 / 176 | `gate:item` EXIT 0, 1085.3 s |
-| **W173** `a707de0` | `driver.cancel`, `SchedulerLike.cancel?`, `RunControlRefused`, `cancelRequested`, `cancelling`, `stepping`; `doc/concept.md` section 7 amended; ADR 0104 | run-state v0.18, outcome-record v0.16, join-policy v0.21 | Q18, Q606 / — | **S-1..S-5 YES → E1-E5**: `AGENTS.md` sections 9, 18, 1 and 7; `CLAUDE.md` twice; `listener.ts` and `schema.test.ts` comments | **two DEFECTS**: D-1 a mid-step cancel refused `ended`, D-2 a second call resolving early — fixed. Overlap not stated | 65 / 1826; 2664 / 176 | `gate:item` EXIT 0, 914.2 s |
-| **W174** `7915005` | `driver.stop` / `RunHandle.stop`, `interrupted`, TAKEN AT REST, deaf with the hold BEFORE the element; a resume feeds it; ADR 0105 | run-state v0.19, join-policy v0.22 | — / — | **S-1..S-6 YES → E1-E6**: `AGENTS.md` sections 6, 9, 12; `CLAUDE.md`; `src/definition/types.ts`; `JP-R12`. **R2 RATIFIED** (deaf before the element, reversing (d)'s listed order) | **five DEFECTS** C1-C5 — C5 a THROWING callback leaving the stop half-done, constructible — fixed. Overlap not stated | 67 / 1854; 2664 / 176 | `gate:item` EXIT 0, 894.2 s |
-| **W175** `4758862` | `driver.pause` / `unpause`, `RunState.paused`, a held dispatch handed on in dispatch order; S6 not needed; ADR 0106 | run-state v0.20 | — / — | **S-1..S-4 and S-6 YES → E1-E5**: `AGENTS.md` sections 9, 6, 18 (twice); `doc/scheduler-upstream.md:36`. **S-5 NO** (no `RunHandle.pause()`). **Three departures RATIFIED** — R1 taken at rest, `RN-R13` among the moved rules, R11 the note inside S6's section — **and G1** (a call whose step halted or cancelled the run DROPPED) | **two DEFECTS** D1, D2, each at a seam with an earlier item's mechanism — fixed. Overlap not stated | 69 / 1877; 2664 | `gate:item` EXIT 0, 845.0 s |
-| **W176** `d67138f` | the exit block — seven clauses, 47 claims over 14 runs | none | Q633 / — | none | conformity: seven clauses CONFORM, one DEFECT (a stale comment), the R1 GAP; adequacy: six gaps (M1, M5, M6/M7, M8, M11, M12d) — *do not record until the first three are tightened* — all closed. Overlap not stated | 69 / 1877; **2711 / 190** | **`gate:full` EXIT 0**, 11/11 self-tests, 2113.5 s |
+| **W169** `6c5a845` | Q619 option B — a built-in `KeyedRateLimitGroup` in any derived pool's `residentGroups` `DerivationRefused` at `createRuntime`, naming the pool and the group; `InvalidDefinition.fromFindings`, ONE message both roads build; P37's six stale sites | flow-definition v0.39, outcome-record v0.14 | Q619 / — | none | no defect; conformity C1 an expected value taken from output (fixed); adequacy 25, 3 survivors, each a case. **Overlap 0** | 62 / 1765; 2664 / 176 | `gate:item` EXIT 0, 955.4 s |
+| **W170** `a868ee8` | Q633 road (2) — a TRANSFORMING target unchecked at `start`, `tryTransform(…, { input })` the check before a run; ADR 0101 | flow-definition v0.40 | — / — (Q633 left open for W176) | **E1** (S1, YES after the readers): `src/definition/wiring.ts` twice, `AGENTS.md` section 13 | **conformity C1 DEFECT** — the published *check, then start* recipe answered the wrong question on four shapes; adequacy 19, 3 survivors. **Overlap 1** | 62 / 1776; 2664 / 176 | `gate:item` EXIT 0, 1079.5 s |
+| **W171** `d0d296b` | `stopped` RENAMED `halted` in `RunOutcome`, `FoldInput`, `RunState.haltedBy`, `ResumeRefusalReason`; a stored `stopped` read as `halted`, never written; `CHECKPOINT_FORMAT` 1; ADR 0102 | flow-definition v0.41, outcome-record v0.15, run-state v0.16 | — / — | none | no defect; adequacy 33, 29 killed, B7-B9 closed. Overlap not stated | 62 / 1780; 2664 / 176 | `gate:item` EXIT 0, 906.6 s |
+| **W172** `6a2f4f0` | `shut()` — one dispatch hold every halt shares, checked at FOUR places; ADR 0103 | run-state v0.17 | Q605 / — | **S-1 YES** — decision 8's three places are four (`resume()`'s re-dispatch), built in `Owns`; **S-2 YES → E1**, `AGENTS.md` section 6's cell | no defect in `src/`; adequacy A1 — a check called unreachable was reachable. Overlap not stated | 63 / 1798; 2664 / 176 | `gate:item` EXIT 0, 1085.3 s |
+| **W173** `b398c90` | `driver.cancel`, `SchedulerLike.cancel?`, `RunControlRefused`, `cancelRequested`, `cancelling`, `stepping`; `doc/concept.md` section 7 amended; ADR 0104 | run-state v0.18, outcome-record v0.16, join-policy v0.21 | Q18, Q606 / — | **S-1..S-5 YES → E1-E5**: `AGENTS.md` sections 9, 18, 1 and 7; `CLAUDE.md` twice; `listener.ts` and `schema.test.ts` comments | **two DEFECTS**: D-1 a mid-step cancel refused `ended`, D-2 a second call resolving early — fixed. Overlap not stated | 65 / 1826; 2664 / 176 | `gate:item` EXIT 0, 914.2 s |
+| **W174** `1a7cac1` | `driver.stop` / `RunHandle.stop`, `interrupted`, TAKEN AT REST, deaf with the hold BEFORE the element; a resume feeds it; ADR 0105 | run-state v0.19, join-policy v0.22 | — / — | **S-1..S-6 YES → E1-E6**: `AGENTS.md` sections 6, 9, 12; `CLAUDE.md`; `src/definition/types.ts`; `JP-R12`. **R2 RATIFIED** (deaf before the element, reversing (d)'s listed order) | **five DEFECTS** C1-C5 — C5 a THROWING callback leaving the stop half-done, constructible — fixed. Overlap not stated | 67 / 1854; 2664 / 176 | `gate:item` EXIT 0, 894.2 s |
+| **W175** `e41ec1f` | `driver.pause` / `unpause`, `RunState.paused`, a held dispatch handed on in dispatch order; S6 not needed; ADR 0106 | run-state v0.20 | — / — | **S-1..S-4 and S-6 YES → E1-E5**: `AGENTS.md` sections 9, 6, 18 (twice); `doc/scheduler-upstream.md:36`. **S-5 NO** (no `RunHandle.pause()`). **Three departures RATIFIED** — R1 taken at rest, `RN-R13` among the moved rules, R11 the note inside S6's section — **and G1** (a call whose step halted or cancelled the run DROPPED) | **two DEFECTS** D1, D2, each at a seam with an earlier item's mechanism — fixed. Overlap not stated | 69 / 1877; 2664 | `gate:item` EXIT 0, 845.0 s |
+| **W176** `923fe9b` | the exit block — seven clauses, 47 claims over 14 runs | none | Q633 / — | none | conformity: seven clauses CONFORM, one DEFECT (a stale comment), the R1 GAP; adequacy: six gaps (M1, M5, M6/M7, M8, M11, M12d) — *do not record until the first three are tightened* — all closed. Overlap not stated | 69 / 1877; **2711 / 190** | **`gate:full` EXIT 0**, 11/11 self-tests, 2113.5 s |
 
 **Every confirming gate was green on its FIRST run, one command each** (sentence C), firefox and webkit NOT RUN in any.
 **No item raised a question.**
@@ -513,7 +513,7 @@ and W176, ADR 0101); **raised none**. [Q599](../questions/q599.md) gains a dated
 
 ## Retro
 
-*Pass 3 ran on 2026-10-17 over `d67138f`, the working tree clean before it, in a subagent at the maintainer's request.
+*Pass 3 ran on 2026-10-17 over `923fe9b`, the working tree clean before it, in a subagent at the maintainer's request.
 Every figure is read from the eight items' Records; this retro re-ran no gate, no harness and no measurement. **The
 routings and proposals were put to the maintainer in section 8, and the answers are recorded there; none moves a rule
 in `doc/workflow.md`.***

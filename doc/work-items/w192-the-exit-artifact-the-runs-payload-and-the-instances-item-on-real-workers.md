@@ -1,6 +1,6 @@
 # W192 — the exit artifact: the run's payload and the map instance's item as references, on real workers in both runtimes
 
-**Status:** done 2026-10-19 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, no BLOCKER — C1 and A1 SHOULDs and C2-C4, A2-A4 NITs acted on; readers' overlap ONE (clause (6)'s instance-1 race); no question raised; no exception. Earlier: READY-FOR-READERS 2026-10-19 (`npm run gate` EXIT 0, L6 4/4 in node and 4/4 in deno, 33 of 34 one-clause probes KILLED and D17 SURVIVED as declared, grader controls as declared); declared 2026-10-19 on `9aa51b1` (W191 committed, the tree clean); P38's LAST item and its EXIT
+**Status:** done 2026-10-19 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, no BLOCKER — C1 and A1 SHOULDs and C2-C4, A2-A4 NITs acted on; readers' overlap ONE (clause (6)'s instance-1 race); no question raised; no exception. Earlier: READY-FOR-READERS 2026-10-19 (`npm run gate` EXIT 0, L6 4/4 in node and 4/4 in deno, 33 of 34 one-clause probes KILLED and D17 SURVIVED as declared, grader controls as declared); declared 2026-10-19 on `326a253` (W191 committed, the tree clean); P38's LAST item and its EXIT
 ARTIFACT; not committed
 **Plan:** [P38](../plans/p38-may-a-reference-name-what-reached-the-run-and-its-map-instance.md) — *may a `needs` reference
 name the value that reached the RUN and, inside a `map` instance, the item that opened it — always there, copied like any
@@ -77,7 +77,7 @@ Outputs:    (1) ONE cross-row block in examples/l6.ts — `W192 exit` — its re
             (4) NOT_YET_AT_L6 REMOVED (W190's R4, W191's hand-on): the reference censuses read the flows this block
                 STARTED beside EXPECTED's (W182's precedent for the every-kind clause), so "$payload" and "$item" are
                 L6's own forms and spellings; the comments naming the list rewritten.
-Depends on: W191 (done, `9aa51b1`)
+Depends on: W191 (done, `326a253`)
 Blocks:     nothing — P38's Record and retro follow
 Tests:      examples/l6.ts at ladder L6 in node 24 and deno. Every expected value hand-written from the spec and the fixture,
             never from a run's output: each id from spec/task-id.md section 1; each value a node receives from FD-C1 / FD-C3
@@ -121,7 +121,7 @@ at the SAME ids on a fresh scheduler.
 
 ## What the declaration step measured
 
-*Measured 2026-10-19 in the BYTE COPY `C:/tmp-w192/m` (`git archive` of `9aa51b1`, `node_modules` copied, never linked;
+*Measured 2026-10-19 in the BYTE COPY `C:/tmp-w192/m` (`git archive` of `326a253`, `node_modules` copied, never linked;
 `find -type l` 0), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
@@ -160,7 +160,7 @@ it); the predicate's own record of `ctx.needs` before and after its write; the c
 
 ## What the build measured
 
-*Measured 2026-10-19 on `9aa51b1` plus this item's diff, node 24.20.0 and deno 2.9.6.*
+*Measured 2026-10-19 on `326a253` plus this item's diff, node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
 |---|---|---|
@@ -172,7 +172,7 @@ it); the predicate's own record of `ctx.needs` before and after its write; the c
 ## The author's provocations (before the readers)
 
 `C:/tmp-w192/mutate.mjs` with `C:/tmp-w192/probes.mjs`, in three byte copies `C:/tmp-w192/m`, `m2`, `m3` (`git archive` of
-`9aa51b1`, `node_modules` copied, never linked — `find -type l` zero in each; this item's `examples/l6.ts` and
+`326a253`, `node_modules` copied, never linked — `find -type l` zero in each; this item's `examples/l6.ts` and
 `examples/README.md` copied in and `cmp`-equal). Before each file's first touch the copy's file is asserted byte-equal to the
 real tree's; each anchor asserted to occur ONCE in the CURRENT text and the edit to change the file; every touched file
 restored from its FIRST snapshot and its SHA-256 compared after each probe, and against the real tree at the end; node 24

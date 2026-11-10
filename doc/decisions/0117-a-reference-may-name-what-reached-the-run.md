@@ -30,7 +30,7 @@ fyflow-app adopts the `ask` kind as P35 built it — the answer IS the ask's res
 own merge of input into the answer. P35 (e) rested on *the value that reached the ask stays reachable by naming whatever
 produced it*, which is true only where the ask HAS a producer (P38 fact 3): an ask at the ENTRY has none, and a node two
 hops after the entry that wants a run-level parameter relies on every node between passing it through. Measured at P38's
-declaration on `c43566f`: an entry ask's successor declaring `needs: { invoice: '.', answer: 'approve' }` receives the
+declaration on `6efc419`: an entry ask's successor declaring `needs: { invoice: '.', answer: 'approve' }` receives the
 answer twice (fact 2); the road that exists is a pass-through task before the ask, at +1 dispatch, +4 clones and +2 log
 records per node (fact 3). And the value the app asks for is already RETAINED: the driver takes `structuredClone(payload)`
 at `start()` into the checkpoint header and holds it for the life of the run, and a resume restores it (fact 4, `RN-R15`,

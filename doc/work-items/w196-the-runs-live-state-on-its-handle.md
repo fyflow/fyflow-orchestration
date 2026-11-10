@@ -1,6 +1,6 @@
 # W196 — the run's live state on its handle: `state()`, `outcome()`, `node()`
 
-**Status:** done 2026-10-21 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, the conformity reader's one BLOCKER (C1) fixed as a stated exception and provoked; 29 provocations KILLED, 2 declared survivors (unreachable through a driver); no question raised. Earlier: declared 2026-10-21 on `e2b62c8` (W195 committed, the tree clean); P39's THIRD item: stop-and-asks (b), (c), (d) and (f) as answered; the declaration step RUN before any `src/` edit (below)
+**Status:** done 2026-10-21 — `npm run gate:item` on the final tree, one command, EXIT 0 (the Record); both readers RAN, the conformity reader's one BLOCKER (C1) fixed as a stated exception and provoked; 29 provocations KILLED, 2 declared survivors (unreachable through a driver); no question raised. Earlier: declared 2026-10-21 on `b9fe9fd` (W195 committed, the tree clean); P39's THIRD item: stop-and-asks (b), (c), (d) and (f) as answered; the declaration step RUN before any `src/` edit (below)
 **Plan:** [P39](../plans/p39-what-a-step-costs-and-where-a-live-run-state-is-read.md) — *what does a step cost on a long
 run, and where may its owner read the run's live state?* — and this is its THIRD item: the surface, fyflow-app pass 2 #2.
 
@@ -79,12 +79,12 @@ Reserves:   Q730-Q734, ADR 0122
   the answer, and the reply says so (W197).
 - **A counter in the runtime** — none placed; W197 reads the runtime's work by wrapping the accumulator's prototype in a
   test, as this item's own count case does.
-- **The version bump to 0.9.0** — the maintainer's `chore:` commit after the plan, as 0.8.0's was (`581d0e5`).
+- **The version bump to 0.9.0** — the maintainer's `chore:` commit after the plan, as 0.8.0's was (`2a10f82`).
 - **L6** — W197.
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `e2b62c8`, the tree clean. The
+*P15 decision 5: every fact is re-run by the item that acts on it. Taken 2026-10-21 on `b9fe9fd`, the tree clean. The
 script is the session scratchpad's `w196/retake3.ts` (its output `w196/retake3.log`), importing the tree by file URL.*
 
 | # | re-take | measured |
@@ -93,7 +93,7 @@ script is the session scratchpad's `w196/retake3.ts` (its output `w196/retake3.l
 | 2 | the resume road's `seed` (`runtime.ts:771`, `:845-848`) | the stored events are stepped at the FIRST delivered element; **`resume()` delivers at least one before it returns** — 1 on a three-element store (the `resumed` element, `RN-R22`: appended always) — so through the public API no read of the handle can precede the first delivered input. The reads catch up anyway, so they are total |
 | 3 | what `freezeInput` and `foldInputs()` share with the kept state | **the kept state's `result` IS the object the consumer's `onFoldInput` was handed** (`input.record.result`, `===`), which `freezeInput` cloned from the scheduler's and froze one level deep — the input and its record frozen, the result NOT; `foldInputs()` clones again and shares nothing with it |
 | 4 | P39 (f)'s answer, and every test reading `await done` by identity or mutating it | (f) answered 2026-10-21 as recommended. **A consumer writing the NESTED result its `onFoldInput` was handed moves `await done`'s value** (measured: `true`), and `await done` is mutable at every depth today (`outcome` written). No test or example compares `await done` by identity except the W77 suite's `!==` against a caller's own fold, which still holds; none writes into it (grep over `test/`, `examples/`, `AGENTS.md`) |
-| 5 | the ladder counts — `npm run gate` on `e2b62c8`, EXIT 0 (scratchpad `w196/gate-base.log`) | L1-L5 **2,122 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,122); L6 **2,789 assertions / 0 failed** in node and deno; `check:docs` **50** `run` snippets; `check:spec` C4 45 |
+| 5 | the ladder counts — `npm run gate` on `b9fe9fd`, EXIT 0 (scratchpad `w196/gate-base.log`) | L1-L5 **2,122 cases** in node 24.20.0, deno 2.9.6 and chromium (parity 2,122); L6 **2,789 assertions / 0 failed** in node and deno; `check:docs` **50** `run` snippets; `check:spec` C4 45 |
 
 ## Verification
 
@@ -107,7 +107,7 @@ applicable, the handle reads what the fold holds.
 ## The author's provocations
 
 `mutate.mjs` (kept with its logs in the session scratchpad, `w196/`) in the byte copy `C:/tmp-w196/m` (a worktree of
-`e2b62c8` with this diff applied, `node_modules` copied, `find -type l` 0 and no reparse point, green before use; node
+`b9fe9fd` with this diff applied, `node_modules` copied, `find -type l` 0 and no reparse point, green before use; node
 24.20.0 asserted at the head of each run): each probe edits ONE clause, its anchor checked to occur once in the CURRENT
 text; every file restored from its FIRST snapshot and its SHA-256 compared after every probe and at the end; graded on the
 FAIL lines of the cases each probe DECLARES in `node test/runner.ts scheduler/live-state` and `scheduler/runtime`.
@@ -164,7 +164,7 @@ the reads are total.
 **The numbers** — a runtime's own cost, `start` to `done`, over a `map` on a scheduler double, every settlement in one
 burst, each size a fresh process, node 24.20.0 (the session scratchpad's `w196/rt-cost.ts`, `rt-cost.log`):
 
-| items | inputs | `e2b62c8` (stepped per input) | W196 | W196, `outcome()` read after every input |
+| items | inputs | `b9fe9fd` (stepped per input) | W196 | W196, `outcome()` read after every input |
 |---|---|---|---|---|
 | 1,000 | 4,005 | 987 ms | 54 ms | 57 ms |
 | 2,000 | 8,005 | 8,284 ms | 75 ms | 75 ms |

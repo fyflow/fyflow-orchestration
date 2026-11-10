@@ -1,7 +1,7 @@
 # W182 — the exit artifact: a node that waits for a person, on real workers in both runtimes
 
 **Status:** done 2026-10-18 — **`npm run gate:full` EXIT 0** on the final tree, one command, the plan's last item; both reader passes RAN, no BLOCKER — conformity: the seven clauses CONFORM, three NITs fixed; adequacy: one SHOULD (A1) and two NITs fixed, a note acted on; readers' overlap ZERO; no question raised; no exception. Earlier: READY-FOR-READERS 2026-10-17 (`npm run gate` EXIT 0, L6 5/5 in node and
-5/5 in deno, 41 of 42 one-clause probes KILLED) — declared 2026-10-17 on `adb453e`
+5/5 in deno, 41 of 42 one-clause probes KILLED) — declared 2026-10-17 on `c6d3a05`
 (W181 committed); P35's LAST item, its exit artifact; not committed
 **Plan:** [P35](../plans/p35-may-a-node-wait-for-a-person-by-design.md) — *may a flow declare a node that waits for a
 person, keeps what reached it, and holds the person's answer to a schema — without a task failing to get there?* — its
@@ -70,7 +70,7 @@ Outputs:    (1) ONE cross-row block in examples/l6.ts — `W182 exit` — its re
                 re-cut to the un-exempt form (W94's precedent for `gate`).
             (5) the stale comments: examples/l6.ts's exemption comment (:6916), DRIVER_FIELDS' `asked` comment
                 (:12628), examples/workers/shard.ts:5.
-Depends on: W181 (done, `adb453e`)
+Depends on: W181 (done, `c6d3a05`)
 Blocks:     nothing — P35's Record and retro follow
 Tests:      examples/l6.ts at ladder L6 in node 24 and deno. Every expected value hand-written from the spec and the
             fixture, never from a run's output: each id from spec/task-id.md section 1; each sequence from RN-R4,
@@ -113,7 +113,7 @@ refuses the resume; a nested fan-out (Q6) — not exercised.
 
 ## What the build measured
 
-*Measured 2026-10-17 on `adb453e` plus this item's diff, node 24.20.0 and deno 2.9.6.*
+*Measured 2026-10-17 on `c6d3a05` plus this item's diff, node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
 |---|---|---|

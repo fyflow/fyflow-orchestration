@@ -12,7 +12,7 @@
  * `map` whose branch READS another node by `needs` — one step back (`post` reading its own instance's `work`, Q735's own
  * shape), two steps back (`work` → `mid` → `post`), a NESTED map (`tail` reading the outer instance's `prep` and its own
  * inner instance's `leaf`) and a SIBLING map of three slots (`publish` reading `["score"]`, every output) — at 2,000 /
- * 8,000 / 16,000 items, printed beside what W199's declaration step measured on `6006caa`, the tree before
+ * 8,000 / 16,000 items, printed beside what W199's declaration step measured on `b3fae40`, the tree before
  * [ADR 0124](../doc/decisions/0124-a-reference-read-costs-its-answer.md)'s index, in node 24.20.0 or deno 2.9.6 by the
  * runtime running this file. Their work is COUNTED in `test/fold/map-cost.test.ts` too (`outputsCache.examined`).
  *
@@ -23,7 +23,7 @@
  * before `fetch`), the floor the large read is held against (P41 prediction 2). The driver alone at 1,000 / 2,000 /
  * 4,000 items, `task.running` before every settlement, the queue walked by index, each size a fresh process — TIME and
  * PEAK HEAP over a post-GC baseline (sampled every 256 settlements and at the end), printed beside what W203 measured
- * with this same harness on `88059b7`, the tree before
+ * with this same harness on `bc813ec`, the tree before
  * [ADR 0126](../doc/decisions/0126-a-references-value-is-one-frozen-copy-shared-by-every-reader.md)'s shared copy, in
  * node 24.20.0 or deno 2.9.6 by the runtime running this file. Their copies are COUNTED in
  * `test/fold/reference-copy-cost.test.ts` (`outputsCache.copies`). *(W202's declaration step re-took P41 fact 4 with
@@ -104,9 +104,9 @@ const isRead = (s: Subject): s is ReadShape => (READ_SHAPES as readonly string[]
 
 /**
  * **What was measured BEFORE the plan, by size** — node 24.20.0, each from the document named (the large-read rows from
- * W203's Record, which carries the `88059b7` figures and their log). `fold`: P39 fact 1 (one
+ * W203's Record, which carries the `bc813ec` figures and their log). `fold`: P39 fact 1 (one
  * process, sizes in turn; 8,000 and 16,000 not run, the 4,000 already 33 s). The driver: P39 fact 4 (its queue walked by
- * index; 1,000 and 2,000 are fact 1's driver column). The runtime: W196's Record, on `e2b62c8` — the runtime stepping a
+ * index; 1,000 and 2,000 are fact 1's driver column). The runtime: W196's Record, on `b9fe9fd` — the runtime stepping a
  * `RunState` per input, every settlement in one burst, nobody reading the run.
  */
 const BEFORE: Record<Subject, Record<number, number>> = {
@@ -114,13 +114,13 @@ const BEFORE: Record<Subject, Record<number, number>> = {
   driver: { 1_000: 28, 2_000: 33, 4_000: 98, 8_000: 351, 16_000: 988 },
   running: { 4_000: 113, 8_000: 517, 16_000: 2_870 },
   runtime: { 1_000: 987, 2_000: 8_284, 4_000: 34_311, 8_000: 157_679, 16_000: 683_151 },
-  // **W199's declaration step, on `6006caa`** (its re-take 1): the driver alone, `task.running` before each settlement, each
+  // **W199's declaration step, on `b3fae40`** (its re-take 1): the driver alone, `task.running` before each settlement, each
   // size a fresh process, node 24.20.0. The nested map and the sibling were not run at 16,000 before the index.
   'one step back': { 2_000: 701, 8_000: 22_033, 16_000: 99_029 },
   'two steps back': { 2_000: 1_310, 8_000: 41_622, 16_000: 176_628 },
   'nested map': { 2_000: 18_251, 8_000: 290_697 },
   'sibling map': { 2_000: 52, 8_000: 178 },
-  // **W203, this file's harness on `88059b7`** (the tree before ADR 0126's shared copy), each size a fresh process,
+  // **W203, this file's harness on `bc813ec`** (the tree before ADR 0126's shared copy), each size a fresh process,
   // node 24.20.0: ms here, and the peak heap over baseline in `BEFORE_MB`.
   'large read': { 1_000: 543, 2_000: 1_949, 4_000: 7_936 },
   'large read, small node': { 1_000: 62, 2_000: 73, 4_000: 118 },
@@ -140,7 +140,7 @@ const BEFORE_DENO: Partial<Record<Subject, Record<number, number>>> = {
   'reading, first instance': { 2_000: 79, 8_000: 258, 16_000: 560 },
   'reading, last instance': { 2_000: 79, 8_000: 258, 16_000: 560 },
 };
-/** The large-read subjects' peak heap over baseline BEFORE, in MB — node 24.20.0 and deno 2.9.6, on `88059b7`. */
+/** The large-read subjects' peak heap over baseline BEFORE, in MB — node 24.20.0 and deno 2.9.6, on `bc813ec`. */
 const BEFORE_MB: Record<'node' | 'deno', Record<LargeShape, Record<number, number>>> = {
   node: {
     'large read': { 1_000: 179, 2_000: 470, 4_000: 1_440 },
@@ -459,8 +459,8 @@ if (args[0] === '--one') {
   const only = args[0] === undefined ? SUBJECTS : SUBJECTS.filter((s) => s === args[0]);
   const fmt = (ms: number | undefined) => (ms === undefined ? '—' : `${Math.round(ms).toLocaleString('en-US')} ms`);
   console.log(`\n  what a long map costs — ${runtimeName}, each size in a fresh process; BEFORE is node 24.20.0 on the tree before P39,` +
-    ` for a needs read inside a map ${g.Deno ? 'deno 2.9.6' : 'node 24.20.0'} on the tree before ADR 0124's index (6006caa),` +
-    ` and for a large read the same runtime on the tree before ADR 0126's shared copy (88059b7)\n`);
+    ` for a needs read inside a map ${g.Deno ? 'deno 2.9.6' : 'node 24.20.0'} on the tree before ADR 0124's index (b3fae40),` +
+    ` and for a large read the same runtime on the tree before ADR 0126's shared copy (bc813ec)\n`);
   for (const subject of only) {
     console.log(`  ${subject === 'fold' ? 'fold' : subject === 'driver' ? 'driver, no task.running' : subject === 'running' ? 'driver, task.running (attemptNumber 1) before each settlement' : subject === 'runtime' ? 'runtime, start to done, outcome() after every input' : subject === 'large read' ? 'driver, fetch-then-map: each instance reads the ~100 KB fetch result, task.running before each settlement — time and peak heap' : subject === 'large read, small node' ? 'driver, the same flow reading a SMALL node, task.running before each settlement — time and peak heap' : isRead(subject) ? `inputOf over one step back's stored run, the ${subject === 'reading, last instance' ? 'LAST' : 'FIRST'} instance's post — the reading alone, in a JIT-warm process; WHOLE RUN is ADR 0124's whole run live, not a before` : `driver, a needs read inside a map: ${subject}, task.running before each settlement`}`);
     const large = isLarge(subject);

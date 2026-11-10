@@ -1,6 +1,6 @@
 # P35 — May a node wait for a person by design?
 
-**Status:** complete and retro'd 2026-10-18 — declared 2026-10-17 on `a4a1a18`, from the draft carrying the maintainer's decisions 1-3 of 2026-10-14/15 and the hand-offs of P34's retro (m), (o), (p) and (q); facts 1-13 measured at this declaration; stop-and-asks (a)-(j) ANSWERED by the maintainer 2026-10-17, all as recommended; W178-W182 done 2026-10-17/18; the exit artifact met on W182's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-18 over `5bfd4b5`, and the maintainer answered its stop-and-asks (k)-(o) the same day, all as recommended (Retro section 8)
+**Status:** complete and retro'd 2026-10-18 — declared 2026-10-17 on `265917a`, from the draft carrying the maintainer's decisions 1-3 of 2026-10-14/15 and the hand-offs of P34's retro (m), (o), (p) and (q); facts 1-13 measured at this declaration; stop-and-asks (a)-(j) ANSWERED by the maintainer 2026-10-17, all as recommended; W178-W182 done 2026-10-17/18; the exit artifact met on W182's final tree, `gate:full` EXIT 0 (Record below); the retro ran 2026-10-18 over `72a3b7e`, and the maintainer answered its stop-and-asks (k)-(o) the same day, all as recommended (Retro section 8)
 **Question this plan answers:** *may a flow declare a node that waits for a person, keeps what reached
 it, and holds the person's answer to a schema — without a task failing to get there?*
 **Exit artifact:** *on the final tree, one cross-row block in `examples/l6.ts`, green in node 24 and in deno, in which:
@@ -28,7 +28,7 @@ Raises:   no question; no S entry (fact 10's throw is the runtimes' documented E
 Baseline: ids derived by `npm run state` at this declaration — P38, W178, Q660, ADR 0108 from the tree, W178, Q660,
           ADR 0108 from the ledger (P34's Retro), which AGREE. The ladder counts are NOT taken here and are W178's
           declaration step's
-Measured: 2026-10-17 in a byte copy of `a4a1a18` at C:/tmp-p35/tree (`git archive` of the clean HEAD, its
+Measured: 2026-10-17 in a byte copy of `265917a` at C:/tmp-p35/tree (`git archive` of the clean HEAD, its
           `node_modules` copied, never linked; `find -type l` empty); node 24.20.0 and deno 2.9.6. The copy is left in place
 ```
 
@@ -85,7 +85,7 @@ answer** — all P1. Fact 8 has the app's code, read at this declaration.
 
 ## Facts measured at this declaration
 
-On `a4a1a18`, the scheduler read at the pin from `node_modules/fyflow-scheduler` and nowhere else. Each probe is a script
+On `265917a`, the scheduler read at the pin from `node_modules/fyflow-scheduler` and nowhere else. Each probe is a script
 in `C:/tmp-p35/tree/scratch-me/` run under node 24.20.0 and, where stated, deno 2.9.6.
 
 **Fact 1 — six node kinds, an unknown one refused by name, and only a `task` has a task id.** `spec/flow-definition.md`
@@ -362,18 +362,18 @@ W182 Q675-Q677; Q678-Q679 the plan's, expected unused.
 
 ## Record
 
-*Written 2026-10-18 over `5bfd4b5`, the tree clean before it. Every figure is read from the five items' own files; none
+*Written 2026-10-18 over `72a3b7e`, the tree clean before it. Every figure is read from the five items' own files; none
 is re-measured here. Ids are bare text, as in P33's, P34's and P37's Records.*
 
 **The items.** Each row is its own file's Record, which covers its declaration step, its provocations and both readers.
 
 | item | built | spec | closed / raised | exceptions and rulings | the readers | L1-L5 / L6 after | confirming gate |
 |---|---|---|---|---|---|---|---|
-| **W178** `e375849` | (o): `cancel()`'s held tasks taken out before `cancelRequested`, the element in a `try`, every cancel and hand-off in its `finally`; (p): a throw at a scheduler event's step END caught at the listener boundary, reported, the run halted ((j)); S-1: `failRun` reports in a `finally`, both boundaries discard a throw out of it; (m)'s three titles | run-state v0.21, outcome-record v0.17 | — / — | **E1** (S-2): `src/scheduler/runtime.ts`'s comment; S-2's three assertion MESSAGES LEFT; **S-1 YES**; **S-3 YES** (dated lines under ADR 0104, 0105, 0106). **R1** — the in-flight set read AFTER the element, a departure from decision 4's letter, held sound by the conformity reader | conformity **D1** (`OR-R10`'s text false at `halted` itself — the pre-existing hole S-1 fixed), G1, G2 fixed, G3 to S-2; adequacy 29 probes, 26 killed, finding 1 (no runtime-level test) fixed. **Overlap 1** | 69 / 1882; 2711 / 190 | `gate:item` EXIT 0, selftests 912 s |
-| **W179** `b71fc8e` | `AskNode` in `FlowNode` (BREAKING), `ASK_REFUSED_KEYS`; the seventh kind, `FD-V47`, `FD-V48`, ten enumerating rules widened by name; the wiring check's ask (a producer, never a consumer); the driver refusing an ask at `enter` until W180; ADR 0108 | flow-definition v0.42, task-id v0.13 | — / — | none; **S-1** left to W180; **S-2** the corpus's ask flow task-free, the realistic flows W180's | conformity **D1-D7** — the `map` v0.8 family again, seven sentences restating *a branch entry is a task* — fixed, two more by the author's re-grep; G1 to W180, G2-G4 fixed; adequacy 46 probes, 45 killed, the survivor fixed. **Overlap 1** | 70 / 1898; 2711 / 190 | `gate:item` EXIT 0, selftests 971 s |
-| **W180** `7b62af1` | the `asked` fold input (BREAKING), `NodeRun.input`; the park, nothing handed to the scheduler; `RS-R1` widened at all five readers, the three `ended` refusals with them (D1); `FD-R4` at the answer; an ask's effective outcome derived, `schedulerTimestamp: number \| null` (BREAKING); `sameData` over structured-clone data; every mid-step resolution taken at rest (S-4); `doc/concept.md` section 7; ADR 0109 | run-state v0.22, outcome-record v0.18, flow-definition v0.43, join-policy v0.23, task-id v0.14 | — / — | **E1** (W179's S-2 ruling), **E2-E5** (S-1, S-2, S-3, S-5 YES); **S-4 RATIFIED** — a design change | conformity **DEFECT R4** (a mid-step answer made a checkpoint unresumable) and **GAP R13** (`sameData` by own keys) fixed; adequacy 47 probes, 43 killed, T09, T10 and the driver-call roads fixed. **Overlap 1** | 73 / 1935; 2711 / 190 | `gate:item` EXIT 0, selftests 955.1 s |
-| **W181** `adb453e` | `RN-R38` — a parked ask under cancel, stop, pause and resume; `test/driver/ask-control.test.ts` (20 cases) and a runtime suite (2); no executable line of `src/` | run-state v0.23 | — / — | none; no stop-and-ask | conformity: conforms, one GAP (a shape claimed and not tested) and NOTES 1-4 fixed; adequacy 31 probes, 30 killed by W181 cases and A25 by W180's, ADEQUATE. **Overlap 1** | 74 / 1958; 2711 / 190 | `gate:item` EXIT 0, selftests 970.8 s |
-| **W182** `5bfd4b5` | the `W182 exit` block — seven clauses, 32 claims over 13 runs; the L6 kind clause's `ask` exemption REMOVED | none | — / — | none | conformity: the seven clauses CONFORM, NITs C1-C3 fixed, C4 handed on; adequacy: A1 SHOULD, A2, A3 NITs and the A4 note fixed. **Overlap 0** | 74 / 1958; **2743 / 203** | **`gate:full` EXIT 0**, 11/11 self-tests, 2217.9 s |
+| **W178** `0e1f340` | (o): `cancel()`'s held tasks taken out before `cancelRequested`, the element in a `try`, every cancel and hand-off in its `finally`; (p): a throw at a scheduler event's step END caught at the listener boundary, reported, the run halted ((j)); S-1: `failRun` reports in a `finally`, both boundaries discard a throw out of it; (m)'s three titles | run-state v0.21, outcome-record v0.17 | — / — | **E1** (S-2): `src/scheduler/runtime.ts`'s comment; S-2's three assertion MESSAGES LEFT; **S-1 YES**; **S-3 YES** (dated lines under ADR 0104, 0105, 0106). **R1** — the in-flight set read AFTER the element, a departure from decision 4's letter, held sound by the conformity reader | conformity **D1** (`OR-R10`'s text false at `halted` itself — the pre-existing hole S-1 fixed), G1, G2 fixed, G3 to S-2; adequacy 29 probes, 26 killed, finding 1 (no runtime-level test) fixed. **Overlap 1** | 69 / 1882; 2711 / 190 | `gate:item` EXIT 0, selftests 912 s |
+| **W179** `9e35190` | `AskNode` in `FlowNode` (BREAKING), `ASK_REFUSED_KEYS`; the seventh kind, `FD-V47`, `FD-V48`, ten enumerating rules widened by name; the wiring check's ask (a producer, never a consumer); the driver refusing an ask at `enter` until W180; ADR 0108 | flow-definition v0.42, task-id v0.13 | — / — | none; **S-1** left to W180; **S-2** the corpus's ask flow task-free, the realistic flows W180's | conformity **D1-D7** — the `map` v0.8 family again, seven sentences restating *a branch entry is a task* — fixed, two more by the author's re-grep; G1 to W180, G2-G4 fixed; adequacy 46 probes, 45 killed, the survivor fixed. **Overlap 1** | 70 / 1898; 2711 / 190 | `gate:item` EXIT 0, selftests 971 s |
+| **W180** `329b1bf` | the `asked` fold input (BREAKING), `NodeRun.input`; the park, nothing handed to the scheduler; `RS-R1` widened at all five readers, the three `ended` refusals with them (D1); `FD-R4` at the answer; an ask's effective outcome derived, `schedulerTimestamp: number \| null` (BREAKING); `sameData` over structured-clone data; every mid-step resolution taken at rest (S-4); `doc/concept.md` section 7; ADR 0109 | run-state v0.22, outcome-record v0.18, flow-definition v0.43, join-policy v0.23, task-id v0.14 | — / — | **E1** (W179's S-2 ruling), **E2-E5** (S-1, S-2, S-3, S-5 YES); **S-4 RATIFIED** — a design change | conformity **DEFECT R4** (a mid-step answer made a checkpoint unresumable) and **GAP R13** (`sameData` by own keys) fixed; adequacy 47 probes, 43 killed, T09, T10 and the driver-call roads fixed. **Overlap 1** | 73 / 1935; 2711 / 190 | `gate:item` EXIT 0, selftests 955.1 s |
+| **W181** `c6d3a05` | `RN-R38` — a parked ask under cancel, stop, pause and resume; `test/driver/ask-control.test.ts` (20 cases) and a runtime suite (2); no executable line of `src/` | run-state v0.23 | — / — | none; no stop-and-ask | conformity: conforms, one GAP (a shape claimed and not tested) and NOTES 1-4 fixed; adequacy 31 probes, 30 killed by W181 cases and A25 by W180's, ADEQUATE. **Overlap 1** | 74 / 1958; 2711 / 190 | `gate:item` EXIT 0, selftests 970.8 s |
+| **W182** `72a3b7e` | the `W182 exit` block — seven clauses, 32 claims over 13 runs; the L6 kind clause's `ask` exemption REMOVED | none | — / — | none | conformity: the seven clauses CONFORM, NITs C1-C3 fixed, C4 handed on; adequacy: A1 SHOULD, A2, A3 NITs and the A4 note fixed. **Overlap 0** | 74 / 1958; **2743 / 203** | **`gate:full` EXIT 0**, 11/11 self-tests, 2217.9 s |
 
 **Every confirming gate was green on its FIRST run, one command each** (sentence C), firefox and webkit NOT RUN in any.
 W180's `npm run gate` BEFORE its readers was EXIT 1 on the real tree, at exactly its two then out-of-`Owns` cases (S-1,
@@ -451,7 +451,7 @@ deferred. `npm run q -- --where status=open` lists **Q580, Q581**.
 
 ## Retro
 
-*Pass 3 ran on 2026-10-18 over `5bfd4b5`, the working tree clean before it, in a subagent at the coordinator's request.
+*Pass 3 ran on 2026-10-18 over `72a3b7e`, the working tree clean before it, in a subagent at the coordinator's request.
 Every figure is read from the five items' Records; this retro re-ran no harness and no measurement, and `npm run gate`
 only to confirm its own edits. **Its routings and proposals were put to the maintainer in section 8, and the answers are
 recorded there; none moves a rule in `doc/workflow.md`.***

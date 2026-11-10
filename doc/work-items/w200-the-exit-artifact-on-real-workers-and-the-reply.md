@@ -1,6 +1,6 @@
 # W200 — the exit artifact on real workers, the driver re-timed, and the reply to fyflow-app
 
-**Status:** done 2026-10-22 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 5 provocations KILLED, none surviving; the reply written. Earlier: declared 2026-10-22 on `a2c7ec1` (W199 committed, the tree clean); P40's LAST item: exit clauses (2) and (3), the reply, P40's Record and retro; the declaration step RUN before any edit (below)
+**Status:** done 2026-10-22 — `npm run gate:full` on the final tree, one command, EXIT 0 (the Record); both readers RAN, every finding acted on or declared; 5 provocations KILLED, none surviving; the reply written. Earlier: declared 2026-10-22 on `a6256a7` (W199 committed, the tree clean); P40's LAST item: exit clauses (2) and (3), the reply, P40's Record and retro; the declaration step RUN before any edit (below)
 **Plan:** [P40](../plans/p40-what-a-reference-read-costs-inside-a-map.md) — *what does a reference read cost inside a map,
 and can it cost its answer rather than the map?* — and this is its LAST item.
 
@@ -14,7 +14,7 @@ Owns:       from P40's W200 row, exactly: examples/l6.ts (the WHOLE file, senten
             ../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass2-followup.reply.md
             Exceptions (declared BEFORE the edit, workflow section 7 rule 2): doc/workflow.md — the plan's-last-item
             bookkeeping ONLY (the Status line's count of plans run, section 6's overlap ordinal, the ledger rows a retro
-            appends to), P39's close (9c5bd81) the precedent, P40's W200 row naming it. The record step's four files
+            appends to), P39's close (0ebb623) the precedent, P40's W200 row naming it. The record step's four files
             carry P40's Record and retro and any dated note. Anything else found to need an edit is a STOP-AND-ASK.
 Inputs:     P40 decisions 1-7, facts 1-10, stop-and-asks (a)-(e) ANSWERED ((e) as (e1)); W199's Record (its numbers
             table, its "for the retro" notes) and its stop-and-ask, ANSWERED (a): `visibilityKey` an additive export,
@@ -35,7 +35,7 @@ Outputs:    (1) one L6 block in examples/l6.ts, `W200 exit`, node 24 and deno, a
             (2) examples/map-cost.ts — four REFERENCE subjects (one step back, two steps back, a nested map, a sibling
                 map of three slots), the driver alone, `task.running` (attemptNumber 1) before each settlement, the
                 queue walked by index, at 2,000 / 8,000 / 16,000 items, each size a fresh process, printed beside the
-                BEFORE figures W199's declaration step took on `6006caa` (node 24.20.0 and deno 2.9.6, by the runtime
+                BEFORE figures W199's declaration step took on `b3fae40` (node 24.20.0 and deno 2.9.6, by the runtime
                 running). A measurement, NOT a gate entry (Q179).
             (3) examples/README.md — X10's two copies of the L6 counts moved by this block alone.
             (4) the reply to fyflow-app (P40's "The reply" paragraph), once this item's gate is green.
@@ -69,19 +69,19 @@ Reserves:   Q745-Q749, ADR 0125 (expected unused)
 
 ## What the declaration step re-took, before anything was edited
 
-*P15 decision 5. Taken 2026-10-22 on `a2c7ec1`, the tree clean; harnesses and logs in the session scratchpad's `w200/`.*
+*P15 decision 5. Taken 2026-10-22 on `a6256a7`, the tree clean; harnesses and logs in the session scratchpad's `w200/`.*
 
 | # | re-take | measured |
 |---|---|---|
 | 1 | the four cost shapes' counts on W199's tree — `node test/runner.ts fold/map-cost` and the same under deno (`w200/mc-node.log`, `mc-deno.log`) | EXIT 0 in both: 9 cases, every EXACT pin (`2n`, `2n`, `7n`, `4n` at 2,000 / 8,000) and every provocation green; the suite's wall **30.6 s node, 38.7 s deno**. Chromium: W199's `gate:item` on this tree (the bundle in one page under its 60 s limit, EXIT 0) — not re-run here; this item's `npm run gate` re-runs it |
-| 2 | the ladder counts — W199's `gate:item` on the tree `a2c7ec1` commits (its Record) | L1-L5 **89 files / 2,155 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2,805 / 228, 0 failed** in node and deno; `npm run state` agrees: 2805 / 228 |
-| 3 | the release state | npm `fyflow-orchestration`: versions `0.0.0-stage`, `0.7.0`, `0.8.0`, `0.9.0`, `latest` 0.9.0; JSR `@fyflow/orchestration` latest 0.9.0; tags `v0.7.0`-`v0.9.0`, `v0.9.0` at `4f21bba`; `origin/main` at `4f21bba` — P40's `6006caa` and `a2c7ec1` NOT pushed; manifests 0.9.0 / 0.9.0 |
+| 2 | the ladder counts — W199's `gate:item` on the tree `a6256a7` commits (its Record) | L1-L5 **89 files / 2,155 cases** in node 24.20.0, deno 2.9.6 and chromium; L6 **2,805 / 228, 0 failed** in node and deno; `npm run state` agrees: 2805 / 228 |
+| 3 | the release state | npm `fyflow-orchestration`: versions `0.0.0-stage`, `0.7.0`, `0.8.0`, `0.9.0`, `latest` 0.9.0; JSR `@fyflow/orchestration` latest 0.9.0; tags `v0.7.0`-`v0.9.0`, `v0.9.0` at `fdf409b`; `origin/main` at `fdf409b` — P40's `b3fae40` and `a6256a7` NOT pushed; manifests 0.9.0 / 0.9.0 |
 | 4 | `outputIsVisible`, `allRegions`, `buildGraph`, `parseTaskId` reachable through the package root (`index.ts` re-exports `regions.ts` whole) | yes — the block reads ADR 0044's predicate the way a consumer would |
 
 ## Verification
 
 `npm run gate` before the readers (sentence C); the two readers in their own worktrees (`C:/tmp-w200/rc`, `C:/tmp-w200/ra`
-— `a2c7ec1` plus this diff, `node_modules` copied, `find -type l` empty and no reparse point, `node examples/l6.ts` and
+— `a6256a7` plus this diff, `node_modules` copied, `find -type l` empty and no reparse point, `node examples/l6.ts` and
 `check:docs` green in each before use); the readers' findings acted on; the author's provocations in the third copy
 (`C:/tmp-w200/m`); then `npm run gate:full` once, on the final tree. **Routing coverage**: a nested fan-out (Q6) — the
 block's map inside a map, reads at depths 1 and 2; a branch routed away from its join (Q4), `user_action` (Q17), no
@@ -152,7 +152,7 @@ Written to the RULE (ADR 0044 rules 1-3, ADR 0124 decisions 1-2), not to the blo
 | (5) P40's Record and retro; `doc/workflow.md`'s bookkeeping | yes | `check:register`, `check:budget` |
 
 **The numbers** — `examples/map-cost.ts` on the final tree (no `src/` edit since W199), each size a fresh process
-(scratchpad `w200/mapcost-node.log`, `-deno.log`), node 24.20.0 / deno 2.9.6, against W199's BEFORE on `6006caa`:
+(scratchpad `w200/mapcost-node.log`, `-deno.log`), node 24.20.0 / deno 2.9.6, against W199's BEFORE on `b3fae40`:
 
 | shape | items | before, node | **now, node** | before, deno | **now, deno** |
 |---|---|---|---|---|---|

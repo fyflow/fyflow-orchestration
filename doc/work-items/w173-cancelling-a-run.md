@@ -1,6 +1,6 @@
 # W173 — cancelling a run: `driver.cancel`, the `cancelling` outcome, and `done` after the last task has stopped
 
-**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN — two DEFECTS (D-1 a mid-step cancel refused `ended`, D-2 a second call resolving early) FIXED, SHOULD-FIXes S-a..S-g acted on; exceptions E1-E5 granted by the maintainer (S-1..S-5); Q18 and Q606 RESOLVED by ADR 0104; no question raised — declared 2026-10-16 on `43cdd7d`; P34's FIFTH item: stop-and-asks (b), (c), (h), (i), (j) and the `AGENTS.md` half of (g); ADR 0104; `doc/concept.md` section 7 amended; Q18 and Q606's runtime row; P33's pre-pickup and backoff roads at L2
+**Status:** done 2026-10-16 — **`npm run gate:item` EXIT 0** on the final tree, one command; both reader passes RAN — two DEFECTS (D-1 a mid-step cancel refused `ended`, D-2 a second call resolving early) FIXED, SHOULD-FIXes S-a..S-g acted on; exceptions E1-E5 granted by the maintainer (S-1..S-5); Q18 and Q606 RESOLVED by ADR 0104; no question raised — declared 2026-10-16 on `6a2f4f0`; P34's FIFTH item: stop-and-asks (b), (c), (h), (i), (j) and the `AGENTS.md` half of (g); ADR 0104; `doc/concept.md` section 7 amended; Q18 and Q606's runtime row; P33's pre-pickup and backoff roads at L2
 **Plan:** [P34](../plans/p34-what-cancelling-stopping-and-pausing-a-run-do.md) — *what does a run do when its owner
 cancels it, stops it to resume it elsewhere, or pauses it?* — its FIFTH item. **A run's OWNER cancels it through ONE
 call on the driver**: `SchedulerLike` gains an OPTIONAL `cancel?(taskId, options?)` that the runtime's per-run view
@@ -59,7 +59,7 @@ Outputs:    (1) src: `SchedulerLike.cancel?` (optional; the `_Q71` assertion unm
                 test/matrix/cancelled.test.ts (L5, the `cancelling` row), test/scheduler/runtime.test.ts (Q606: two
                 cases in W151's suite), l4-corpus's `LATE_SUITES` and case counts, `DRIVER_FIELDS` in
                 test/driver/retention.test.ts and examples/l6.ts.
-Depends on: W172 (done, 43cdd7d)
+Depends on: W172 (done, 6a2f4f0)
 Blocks:     W174
 Tests:      L1 — test/fold/cancelling.test.ts, `RN-R30` over hand-written sequences: `cancelling` -> `cancelled` by
             the fold alone; the last wait ended by `cancelled`, `done` and `failed`; a parked node not waited on and
@@ -113,7 +113,7 @@ and mints no id.
 
 ## What the declaration step measured
 
-*Measured 2026-10-16 in a BYTE COPY of `43cdd7d` (`git archive` into `C:/tmp-w173/m`, `node_modules` copied, never
+*Measured 2026-10-16 in a BYTE COPY of `6a2f4f0` (`git archive` into `C:/tmp-w173/m`, `node_modules` copied, never
 linked; `find -type l` zero), node 24.20.0 and deno 2.9.6.*
 
 | # | fact | measured |
