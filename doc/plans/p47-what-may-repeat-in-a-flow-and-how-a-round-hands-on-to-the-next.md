@@ -1,9 +1,11 @@
 # P47 — What may repeat in a flow, and how does one round hand on to the next?
 
-**Status:** planning — DRAFTED 2026-11-13, not yet declared. Decisions 1-7 are the maintainer's, taken one by one on
-2026-11-13 against fyflow-app's *pass 8* #2, each *"as recommended"*. **Nothing below is MEASURED yet**: every fact is
-READ, with its source, and the declaration measures them in a byte copy before any item file is written (section
-*Before declaration*). The app's pass 8 #1 is not evaluated here.
+**Status:** planning — drafted 2026-11-13 on `65111af` and committed as `df60b9e`; declared 2026-11-14 on `df60b9e`
+(the tree clean, `main` at 0.14.0) with facts 12-16 MEASURED in a byte copy (section *Measured at this declaration*),
+Q809 and Q810 raised, [Q582](../questions/q582.md) reopened and W228-W230's files written. Decisions 1-7 are the
+maintainer's, taken one by one on 2026-11-13 against fyflow-app's *pass 8* #2, each *"as recommended"*; decision 1
+was REVISED by the maintainer on 2026-11-14, before declaration, from (a) to (b′) (its own text says why). The app's
+pass 8 #1 is not evaluated here.
 **Question this plan answers:** *may a flow run one region's branch again and again, one round after another, until a
 declared comparison holds, the body breaks, or a declared bound is reached — with the outer graph and the body both
 staying acyclic, every task id unique by its branch path, and a resume replaying the rounds from their settlements
@@ -13,18 +15,19 @@ alone?*
 the items write, never from output; (2) L5's matrix extended by a loop × lost / break / park / cancel / stop / pause;
 (3) a resume of a loop checkpointed mid-round replaying to the same fold with no new `FoldInput` kind and
 `CHECKPOINT_FORMAT` unchanged — or the measurement that refutes that, as a stop-and-ask; (4) one block in
-`examples/l6.ts`, green in node 24 and deno: a training-shaped loop (a `map` inside the body, `collect`, `until`) and a
-polling loop that breaks; (5) the retained footprint of a loop MEASURED beside a `map` of the same task count, against
+`examples/l6.ts`, green in node 24 and deno: a training-shaped loop (a `map` inside the body, `until`, a reader after
+the loop naming a body node's every round) and a polling loop that breaks; (5) the retained footprint of a loop MEASURED beside a `map` of the same task count, against
 `RN-R13`; and `npm run gate:full` EXIT 0 — the LAST item runs it (workflow v0.29).*
 **Reserves:** W228-W231, Q809-Q818, ADR 0145-0147; no S id
 
 ```
 Question: what may repeat in a flow, and how does one round hand on to the next?
 Items:    W228 (the definition: the `loop` kind, its refusals, the schema and the wiring check's arcs),
-          W229 (the driver: a round opened, carried, decided, broken and lost; the join value; `collect`),
+          W229 (the driver: a round opened, carried, decided, broken and lost; the join value; every round read from outside),
           W230 (resume, retention and real workers: L5, L6, AGENTS.md, the measured footprint, the reply, P47's Record)
 Reserves: W228-W231, Q809-Q818, ADR 0145-0147
-Raises:   at declaration, the compaction question (decision 3) and the seed-constant question (decision 4)
+Raises:   Q809 (compaction, deferred; decision 3) and Q810 (a constant in `needs`, open, W228's; decision 4)
+Measured: in a byte copy of `df60b9e` (`git archive` into C:/tmp-p47/m, node_modules copied, zero links), node 24
 Baseline: `npm run state` on 2026-11-13 prints P47 / W227 / Q809 / ADR 0145 from the tree and W228 from the ledger.
           The disagreement is P46's: it reserved W224-W227 and SKIPPED W227 unissued (P46's Reserves line), and
           its Record says *"the next plan starts at W228, Q809 and ADR 0145"*. W227 is never reissued, so P47 starts at W228
@@ -64,7 +67,7 @@ W230.
 | #2 Q5 `delayMs` | agreed out of scope; decision 7 | — |
 | #2 *"the join fires the next round"* sketch, `branch: "collect"` (a `map`) | the entry is a `task` or an `ask`, as a map's is; decision 4 | W228 |
 
-## Facts read for this draft — NOT measured
+## Facts read for this draft — READ, not measured; 12-16 below are measured
 
 | # | fact | source |
 |---|---|---|
@@ -84,12 +87,13 @@ W230.
 
 **In**
 
-1. A `loop` node kind: `branch`, `until`, `maxIterations`, optional `maxIterationsFrom`, `needs` and `collect`; its
-   join is an ordinary `join` declaring `of`.
+1. A `loop` node kind: `branch`, `until`, `maxIterations`, optional `maxIterationsFrom` and `needs`; its join is an
+   ordinary `join` declaring `of`.
 2. Every validation refusal it needs, `definitionSchema` and `definitionSchema(registry)`, and the wiring check's new
    arcs.
 3. The driver: opening round *i* at its own branch-path segment, carrying the state, deciding continue / done /
-   exhausted / break / lost, the join value, `collect`, and `"$iteration"`.
+   exhausted / break / lost, the join value, a reader after the loop resolving a body node over every round, and
+   `"$iteration"`.
 4. Nesting both ways: a `map` inside a loop's body and a loop inside a `map` instance, and a loop inside a loop.
 5. Run control in a loop: cancel, stop, pause, an ask's park, `retryPolicy` in a body task.
 6. Resume of a loop checkpointed mid-round; the retained footprint measured.
@@ -98,7 +102,9 @@ W230.
 **Out** — named rather than left implicit
 
 - **Arbitrary back-edges.** `FD-V10` stays exactly as it is.
-- **A reference from outside a loop into its body** — refused, decision 1.
+- **A `collect` key** — not needed: the array form of `needs` after the loop is it, decision 1.
+- **A "last round" reading of a body node from outside** — `last` in the join value is the loop's state; a body node's
+  own last output is not offered, decision 1.
 - **Compaction** of finished rounds — a deferred question, decision 3.
 - **`onLost: "exit"`** — decision 2's opt-in, additive later.
 - **A `map` or `fanout` as a loop's entry** — decision 4, additive later once measured.
@@ -112,21 +118,29 @@ W230.
 scoped out above. ADR 0145 records decisions 1-5 as one decision about what a round is; whether 6 and 7 need their own
 is W228's to say.*
 
-1. **What leaves a loop is its join value, and nothing else.**
-   - **(a)** A reference from a node OUTSIDE a loop to a node of its body is REFUSED at validation (a new `FD-V`). A
-     map's ADR 0044 reading — *a reader outside sees every instance's output* — would make a reader anywhere hold every
-     round of a body node, a retention nobody declared; resolving to the last round instead fails exactly when the last
-     round routed around the node.
+1. **A body node is read from outside a loop as a map instance's is — (b′).**
+   - A reference from a node OUTSIDE a loop to a node of its body follows a map's ADR 0044 reading: the ARRAY form
+     (`needs: { trained: ["train"] }`) receives that node's output from every round, in ROUND order, a round that routed
+     around the node contributing nothing, as a map instance that did not reach it does; the SINGULAR form is refused
+     where more than one output could exist (`FD-V28`), as after a map. No new `FD-V`, no new key. A value that must
+     carry its round number includes `"$iteration"` in its own result. *(That a map leaves out an instance that did not
+     reach the node is the reading this rests on; W228 confirms it against ADR 0044 and the code, and stops and asks if
+     it does not hold.)*
    - Inside the body a reference resolves within the reader's OWN round, as within a map instance. An earlier round is
      reached only through the carried value. A node upstream of the loop is reached by `needs` as anywhere, and resolves
      the same in every round.
-   - **(d)** A loop may declare **`collect`**: one body node, or a key path into it (ADR 0137's grammar). The join value
-     then carries `collected: [{ iteration, value }, …]`, one entry per round in which that node ran, a round where it
-     did not having NO entry (not `null`, which a result may be). Collecting is opt-in and written in the document.
+   - **Why (b′) and not (a), the refusal decided on 2026-11-13.** (a)'s reasons were retention, ambiguity and
+     compaction, and none holds: `RN` section 7 keeps every round's settlement whether or not anything reads it, and a
+     reader's composed copy is shared by every reader (ADR 0126), the same cost as a declared `collect`; "every round" is
+     not ambiguous, only "the last round" is, and the singular is already refused; and compaction needs to know which
+     body nodes are read from outside, which the document states (decision 3). What (a) bought was one exit — everything
+     leaving a loop in its join value — and the price was a rule a `map` does not have, plus a `collect` key duplicating
+     the array form. A loop is a map run one round after another; reading it the same way is the smaller thing to learn
+     and to build.
    - **Why not reduce through the carried value**: a carried state of FIXED size (best so far, a count, a handle) costs
      rounds x c and is free; a carried HISTORY costs round *i* a copy of *i* summaries, every one kept by `RN` section 7,
-     so about N²·r/2 over N rounds — 500 rounds of 1 KiB is ~125 MB where `collect` is ~500 KiB. *(Estimated from the
-     formula, not measured; W230 measures it.)*
+     so about N²·r/2 over N rounds — 500 rounds of 1 KiB is ~125 MB where reading the rounds from outside is ~500 KiB.
+     *(Estimated from the formula, not measured; W230 measures it.)*
 2. **A round that is LOST loses the loop.** `branch.lost` in round *i* — a node settled with no eligible edge, or an
    inner region `unsatisfiable` (`JP-R10`) — makes the loop's join `unsatisfiable`, as for every region. A failure the
    author wants to survive is routed inside the body (`optional` and `on: ["failed"]`) into the state, where the next
@@ -136,10 +150,11 @@ is W228's to say.*
 3. **A loop releases nothing.** Its footprint is `RN-R13`'s: rounds x tasks per round x bytes each returned — the same
    law as a `map` of that many tasks, so the lever is a result that is a REFERENCE rather than the data, in a loop as in
    a map. No live-state release: the log is the floor (`RN` section 7), and a second retention rule for loops alone would
-   buy only the per-task view (ADR 0121). **Compaction is raised as a deferred question**: decision 1(a) makes it SOUND,
-   because once round *i + 1* has opened, everything the run can still need of rounds 0…*i* is the carried value and
-   `collected` — so a fold input such as `loop.compacted { carried, collected, through }` would let the fold say it was
-   handed less, which is `RN` section 7's condition for any eviction. Not built: it moves what a Host must keep to show
+   buy only the per-task view (ADR 0121). **Compaction is raised as a deferred question**, and it stays SOUND under
+   decision 1 (b′): the set of body nodes read from outside the loop is stated by the document, so once round *i + 1*
+   has opened, everything the run can still need of rounds 0…*i* is the carried value and those nodes' outputs — a
+   fold input such as `loop.compacted { carried, read, through }` would let the fold say it was handed less, which is
+   `RN` section 7's condition for any eviction. Not built: it moves what a Host must keep to show
    a compacted round and to answer `inputOf` for one (ADR 0128).
 4. **State in is state out.** The body's entry `E` receives, in round 0, the LOOP'S value — what reached it, or the
    object its own `needs` describes, which is the SEED — and in round *i > 0* what round *i − 1* arrived at the join
@@ -161,11 +176,12 @@ is W228's to say.*
 
    *"Leaving the region"* to a node after the join stays refused (`FD-V13`, `FD-V22`) — an `end` has no edges, so the
    app's *"the run going on from the exit"* has no reading. `until` is a comparison from the declared subset over what
-   ARRIVED, checked by the driver on each arrival, so it replays as a decision edge does; the loop is do-while — a round
+   ARRIVED — over the ONE root `input`, an `if` gate's scope (fact 15) — checked by the driver on each arrival, so it
+   replays as a decision edge does; the loop is do-while — a round
    always runs before `until` is read, and a check-first loop is an `if` in front of it. **The join value**:
 
    ```ts
-   { last, iterations, exhausted, broke?: { at, value }, collected?: [{ iteration, value }] }
+   { last, iterations, exhausted, broke?: { at, value } }
    ```
 
    `last` is the loop's most recent STATE — the arrival `until` held on, the final arrival when exhausted, and on a break
@@ -196,32 +212,39 @@ if it does not hold:
 
 | Id | Item | Owns | Depends on | Gate |
 |---|---|---|---|---|
-| W228 | the definition: the `loop` kind and its keys; the refusals of decisions 1, 4 and 6; `"$iteration"`; `definitionSchema`; the wiring check's arcs; ADR 0145 | `spec/flow-definition.md`, `spec/task-id.md`, `src/definition/**`, its L1/L3/L4 tests, `spec/examples/` loop fixtures | — | `gate:item` |
-| W229 | the driver: a round opened, carried, decided and broken; lost; the join value; `collect`; `maxIterationsFrom`'s refusal; L2 and L5 | `spec/join-policy.md`, `src/driver/**`, `src/fold/**` as needed, its L2/L5 tests | W228 | `gate:item` |
-| W230 | resume and retention measured; L6 in node 24 and deno; `AGENTS.md`; the reply to fyflow-app; P47's Record | `spec/run-state.md`, `examples/**`, `AGENTS.md`, the reply file | W229 | `gate:full` |
+| [W228](../work-items/w228-the-loop-in-the-definition.md) | the definition: the `loop` kind and its keys; decision 1's map reading; the refusals of decisions 4 and 6; `"$iteration"`; `definitionSchema`; the wiring check's arcs; ADR 0145 | `spec/flow-definition.md`, `spec/task-id.md`, `src/definition/**`, its L1/L3/L4 tests, `spec/examples/` loop fixtures | — | `gate:item` |
+| [W229](../work-items/w229-a-loop-at-run-time.md) | the driver: a round opened, carried, decided and broken; lost; the join value; every round read from outside; `maxIterationsFrom`'s refusal; L2 and L5 | `spec/join-policy.md`, `spec/flow-definition.md` section 6 (a declared late exception), `src/driver/**`, `src/fold/**` only if measured necessary, its L2/L5 tests | W228 | `gate:item` |
+| [W230](../work-items/w230-a-loop-resumed-measured-and-on-real-workers.md) | resume and retention measured; L6 in node 24 and deno; `AGENTS.md`; the reply to fyflow-app; P47's Record | `spec/run-state.md`, `examples/**`, `AGENTS.md`, the reply file | W229 | `gate:full` |
 
-W231 is reserved spare. Each item's file is written at the declaration; this table is an index, not the declaration.
-The `Owns` column is a draft to be checked against the tree at declaration — in particular whether the fold changes at
-all (decision 3 and exit artifact (3) expect not).
+W231 is reserved spare. Each item's file is the declaration; this table is an index.
 
-## Before declaration
+## Measured at this declaration
 
-1. In a byte copy of the tree at `HEAD`: measure facts 3 and 9 for a loop rather than a map — a one-branch region's
-   findings, and whether replay regenerates every round's `branch.opened` from the settlements — by hand-built fixture
-   or spike, recorded as this plan's measured facts.
-2. Check decision 1(a)'s refusal against every reference form a reader can write (`needs`, an edge's `needs`, a
-   comparison's `valueFrom` (ADR 0140), a key path) and list them in W228's declaration.
-3. Raise the two questions at Q809 onward and move [Q582](../questions/q582.md) from `deferred` to `open` with this plan
-   as owner, under `doc/questions/README.md`'s procedure.
-4. Write W228-W230's files from `doc/work-items/TEMPLATE.md`.
+*In the byte copy named above; the two spikes are scratch, not in the tree, and each states its command. A `loop`
+does not exist, so 12 and 13 measure a PROXY: the loop's region modelled as a `map` whose one branch is the body.*
+
+| # | fact | measured |
+|---|---|---|
+| 12 | **fact 3 holds for both of the app's shapes.** A training body — entry `plan`, a nested `map` over `envs` and its join, `train`, an `optional` `evaluate` with `on: ["failed"]` to an `end` inside the body (a break), `fold`, the region's join, `promote` after it — gives **0 findings** from `validateDefinition`. A polling body — `check` with a `{ predicate }` decision edge to an `end` (a break) and a default edge to the join — gives **0** | `validateDefinition(d, corpusRegistry(spec/examples/registry.json))` |
+| 13 | **decision 1 (b′)'s reading is a map's, and the document for it is in hand.** The training proxy with `promote` declaring `needs: { trained: ["train"] }` — a reader after the region naming a body node — gives **0 findings**: a `map` accepts it (ADR 0044). W228 keeps that same document green for a `loop`, and its singular twin (`needs: { trained: "train" }`) red by `FD-V28` for both. *(Measured under (a), when it was the control for a refusal; the measurement is unchanged)* | the same |
+| 14 | **a node is named from another at exactly TWO sites**: a node's `needs` and an edge's `needs`, both read through `referenceTarget` (`src/definition/validate.ts`, the `needs` blocks and the one loop over both sites). A comparison's `path` and `valueFrom` reach another node only through its edge's `needs` (`PREDICATE_ROOTS`); `"$payload"` and `"$item"` name no node. So the set of body nodes read from outside a loop — what decision 3's compaction would keep — is derived from two sites, not four | read in `src/definition/validate.ts` at `df60b9e` |
+| 15 | **`until` has a scope to reuse.** An `if` gate's condition has ONE root, `input` — what reached the gate (`GATE_CONDITION_ROOTS`, `GATE_SCOPE`) — which is what the app's sketch writes (`input.score`) and what decision 5 says `until` reads: what ARRIVED | the same |
+| 16 | **the window a loop adds between round *i* ARRIVING and round *i + 1* OPENING is not a new kind of prefix.** A one-item `map` run, every prefix folded: after `branch.opened` the prefix reads **`stuck`**, after the branch's outcome **`stuck`**, after `branch.arrived` **`stuck`**, and only `joinSettled` turns it **`completed`** — so a prefix inside ONE routing step already reads `stuck` today, which `RN-R12` allows because it claims its predicate at a quiescent point. A loop's window is the same as long as arrival, the `until` decision and the next round's `branch.opened` happen in the SAME synchronous routing step; W229 holds that, and needs no ordering rule beyond it | 9 inputs: `dispatched` `running`, `outcome` `completed`, `regionEntered` `stuck`, `branch.opened` `stuck`, `dispatched` `running`, `outcome` `stuck`, `branch.arrived` `stuck`, `joinSettled` `completed`, `pathEnded` `completed` |
+
+**And one READ fact made precise by measuring**: `needs` has no literal form — every value is a reference (fact 14's
+grammar) — which is why [Q810](../questions/q810.md) is open rather than assumed answered.
+
+**Not measured here, and said so**: whether replay regenerates every round's `branch.opened` from the settlements
+alone (fact 9 for a loop). It needs the driver arm that does not exist yet; it is exit artifact (3), W230's, and
+P23 fact 1 is the measurement it rests on for every region that exists today.
 
 ## Open questions this plan carries
 
 | Q | | Owner |
 |---|---|---|
 | [Q582](../questions/q582.md) | a loop — the question this plan answers; resolved by W230 if the exit artifact stands | P47 |
-| Q809 (to raise) | compaction of a loop's finished rounds: a fold input that lets the fold say it was handed less; sound by decision 1(a) | no owner — deferred |
-| Q810 (to raise) | may `needs` state a constant, so a loop's seed needs no transforming node before it? | W228 |
+| [Q809](../questions/q809.md) | compaction of a loop's finished rounds: a fold input that lets the fold say it was handed less; sound because the document states which body nodes are read from outside | no owner — deferred |
+| [Q810](../questions/q810.md) | may `needs` state a constant, so a loop's seed needs no transforming node before it? | W228 |
 | [Q16](../questions/q16.md) | flow-level retry — scoped out; a loop does not answer it | no owner |
 
 ## Record
