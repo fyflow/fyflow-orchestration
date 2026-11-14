@@ -1,0 +1,23 @@
+{
+  "flowId": "loop-training",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",     "kind": "task", "type": "IngestWorker", "edges": [ { "to": "train" } ] },
+    { "id": "train",      "kind": "loop", "branch": "plan", "until": { "path": "input.score", "op": "gte", "value": 0.9 },
+      "maxIterations": 50, "maxIterationsFrom": "budget.rounds" },
+    { "id": "plan",       "kind": "task", "type": "ExtractWorker", "needs": { "state": ".", "round": "$iteration" },
+      "edges": [ { "to": "envs" } ] },
+    { "id": "envs",       "kind": "map",  "over": "items", "branch": "rollout" },
+    { "id": "rollout",    "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "collected" } ] },
+    { "id": "collected",  "kind": "join", "of": "envs", "edges": [ { "to": "fit" } ] },
+    { "id": "fit",        "kind": "task", "type": "MergeWorker", "edges": [ { "to": "evaluate" } ] },
+    { "id": "evaluate",   "kind": "task", "type": "ReviewWorker", "optional": true,
+      "edges": [ { "to": "trained" }, { "to": "broken", "on": ["failed"] } ] },
+    { "id": "broken",     "kind": "end",  "outcome": "evaluation-failed" },
+    { "id": "trained",    "kind": "join", "of": "train", "edges": [ { "to": "promote" } ] },
+    { "id": "promote",    "kind": "task", "type": "PublishWorker", "needs": { "result": ".", "fits": ["fit"] },
+      "edges": [ { "to": "done" } ] },
+    { "id": "done",       "kind": "end",  "outcome": "completed" }
+  ]
+}

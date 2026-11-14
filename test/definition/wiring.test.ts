@@ -168,8 +168,8 @@ suite('W73 — the two enumerations are the spec`s tables, both ways', (test) =>
     equal(VERDICT_KINDS.length, 5, 'five: the plan`s four and `unchecked`');
   });
   test('WIRING_SHAPES is exactly the arc table', () => {
-    equal([...WIRING_SHAPES].sort(), tableIds(subsection, 'arc').sort(), 'the six shapes, both ways — the five arcs and `given` (v0.38, W166)');
-    equal(WIRING_SHAPES.length, 6, 'six: the five arc shapes and `given`, which is no arc — a count beside the membership');
+    equal([...WIRING_SHAPES].sort(), tableIds(subsection, 'arc').sort(), 'the eight shapes, both ways — the seven arcs and `given` (v0.38, W166; `round` and `carry` v0.57, W228)');
+    equal(WIRING_SHAPES.length, 8, 'eight: the seven arc shapes and `given`, which is no arc — a count beside the membership');
     ok(WIRING_SHAPES.includes('given'), 'and `given` is one of them, so the arc table`s `given` row is bound to the enumeration (W166)');
   });
 });
@@ -329,7 +329,12 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     for (const r of reports) for (const v of r.verdicts) seen.add(v.shape);
     // **Every shape but `given`** (W166): `given` is the value a caller hands `tryTransform`, which `checkWiring`
     // never produces — so the census reaches the five ARC shapes and that one is asserted absent by name.
-    equal([...seen].sort(), WIRING_SHAPES.filter((s) => s !== 'given').sort(), 'the five arc shapes, both ways');
+    // **And but a LOOP's two** (v0.57, W228): `round` and `carry` are reached by the L4 corpus's loop flows (asserted
+    // there, below), and the L6 corpus holds no loop until W230's — which REMOVES this list, as W192 and W212 removed
+    // `examples/l6.ts`'s `NOT_YET_AT_L6`, and is red here until it does, because a shape it reaches is then listed twice.
+    const NOT_YET_IN_L6: readonly WiringShape[] = ['round', 'carry'];
+    for (const s of NOT_YET_IN_L6) ok(!seen.has(s), `${s} is not in the L6 census yet - W230 adds the loop flow and removes it from this list`);
+    equal([...seen].sort(), WIRING_SHAPES.filter((s) => s !== 'given' && !NOT_YET_IN_L6.includes(s)).sort(), 'the five arc shapes L6 reaches, both ways');
     ok(!seen.has('given'), 'and never `given`, which is not an arc');
     // And no arc's sample carries the caller's source: every transformed arc of the census (5 passes, 2 fails,
     // asserted by the census test above) names a source a SCHEMA supplies (P37 fact 4, prediction 6).
@@ -445,8 +450,10 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     const registry = { workers: l4.workers, nodeTypes: l4.nodeTypes, languages: CORPUS_LANGUAGES };
     const names = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort();
     let total = 0;
+    const shapes = new Set<WiringShape>();
     for (const n of names) {
       const report = await checkWiring(registry, JSON.parse(await readText(`${EX}/valid/${n}`)) as FlowDefinition);
+      for (const v of report.verdicts) shapes.add(v.shape);
       equal(report.counts.unchecked, report.verdicts.length, `${n}: every arc unchecked, by name`);
       for (const v of report.verdicts) ok(v.why.includes('declares no outputSchema') || v.why.includes('declares no inputSchema') || v.why.includes('which'), `${n}: ${v.why}`);
       total += report.verdicts.length;
@@ -471,7 +478,15 @@ suite('W73 — constructed shapes: needs, a fan-out`s record, a map`s arity, the
     // first named a review -> publish arc the flow does not have); the entry is an `if` gate over the
     // payload, so the arc out of it into `limits` has no producer and gets no verdict, as every entry's does not; and the
     // edge's `needs: {"limit": "limits"}` feeds a PREDICATE, not a consumer.
-    equal(total, 80, 'the L4 corpus`s 80 arcs — 76 until W221 added value-from.flow.json, four arcs; 74 until W209 added ask-after-a-failure.flow.json, two arcs; 70 until W180 added the two ask flows, four arcs; 68 until W109 added transform-only-node.flow.json, whose two arcs are both unchecked — the one INTO it, because the CONSUMING side (the transform-only node) declares no inputSchema, and the one LEAVING it, because the PRODUCING side (the same node) declares no outputSchema (Q446). This comment gave the producer`s reason for the arc into it; W109`s conformity reader, 15');
+    // **89 since W228 added `loop-training.flow.json` and `loop-polling.flow.json`** (v0.57): polling's `round`
+    // ingest -> check and `carry` check -> check through `poll`, and the loop join's `record` into publish; training's
+    // branch entry `plan` declares `needs`, so its round and its carry (evaluate -> plan) compose through it and read as
+    // `needs` arcs through `train`, beside the map's `item` plan -> rollout, `record` collected -> fit, `edge`
+    // fit -> evaluate and the outer `needs` into promote — nine, each unchecked. **91 with the maintainer's (d1)**: both loop
+    // bodies can BREAK (`broken`, `gaveUp`), so each loop join's successor gets a SECOND `record` arc, `last` the seed —
+    // trained -> promote and polled -> publish, through the loop.
+    ok(shapes.has('round') && shapes.has('carry'), `a loop's two arc shapes are reached by the L4 corpus: ${[...shapes].sort().join(', ')}`);
+    equal(total, 91, 'the L4 corpus`s 91 arcs — 80 until W228 added the two loop flows, eleven arcs (two of them a breakable loop`s seed record); 76 until W221 added value-from.flow.json, four arcs; 74 until W209 added ask-after-a-failure.flow.json, two arcs; 70 until W180 added the two ask flows, four arcs; 68 until W109 added transform-only-node.flow.json, whose two arcs are both unchecked — the one INTO it, because the CONSUMING side (the transform-only node) declares no inputSchema, and the one LEAVING it, because the PRODUCING side (the same node) declares no outputSchema (Q446). This comment gave the producer`s reason for the arc into it; W109`s conformity reader, 15');
   });
 
   test('a map`s record is BUILT with the branch-path marker: a successor naming "0" as a number is `no`, naming it as an object fits, naming `confidence` is never met (rule 8 probe s4 survived until this existed)', async () => {

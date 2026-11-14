@@ -12,7 +12,7 @@
  * driver turns out to need a second copy of run truth, that is a finding about the
  * spec rather than a thing to build.
  */
-import type { Edge, Finding, FlowDefinition, FlowNode, GateNode, GateType, GateTypes, LanguageAdapter, Languages, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
+import type { Edge, Finding, FlowDefinition, FlowNode, GateNode, GateType, GateTypes, LanguageAdapter, Languages, LoopNode, NodeTypeDeclaration, NodeTypeEntry, NodeTypes, Pools, Registry, TerminalState, WorkerEntry, Workers } from '../definition/types.ts';
 import { checkRegistry, isDerivation } from '../definition/registry.ts';
 // W73 (P19 decision 5, `FD-R4`): the two boundaries no static check can reach are held to the
 // workers' declared schemas ONCE each, and the targets of the first are the wiring check's own walk.
@@ -4734,7 +4734,12 @@ export class Driver {
         // and the assignment is legal, so **a sixth kind added to `FlowNode` without
         // an arm is now a COMPILE error in five typecheck projects** rather than a
         // silent stop found by a reader. That is the guarantee this arm was for.
-        const exhaustive: never = node;
+        // **`LoopNode` rather than `never` — W228's declared late exception, W32's precedent for `map`** (P47,
+        // `spec/flow-definition.md` v0.57): the definition admits a `loop` and the driver that RUNS one is W229's, so
+        // until then a loop lands HERE and is reported, never a silent stop. Any kind but `loop` without an arm is
+        // still a compile error: `node` narrows to `LoopNode` exactly when every other kind is handled. W229
+        // restores `never`.
+        const exhaustive: LoopNode = node;
         void exhaustive;
         const kind = (node as { kind?: unknown }).kind;
         this.failRun(
@@ -5112,6 +5117,11 @@ export class Driver {
         out[key] = runPayload();
         continue;
       }
+      if (t.form === 'iteration') {
+        // **Unreachable until W229** (W228's declared late exception): a `"$iteration"` reader is inside a loop's body
+        // (`FD-V51`), and entering a loop is reported `InvalidDefinition` by `enter`'s default arm before any body node runs.
+        throw new Error(`node "${node.id}" reads "$iteration", and this driver does not run a loop yet (W229)`);
+      }
       if (t.form === 'item') {
         // **The instance's item, its own copy per key per read** — `FD-C1` v0.45, ADR 0118: the item the map handed
         // this instance, read from what the instance KEEPS (`itemOf`) and cloned here, so two `"$item"` keys on one
@@ -5320,6 +5330,10 @@ export class Driver {
         // — and a predicate's write into it THROWS, which stops the run (`FD-C3`, ADR 0002 rule 4 now partly enforced).
         out[key] = this.sharedPayload();
         continue;
+      }
+      if (t.form === 'iteration') {
+        // **Unreachable until W229**, as in `compose` (W228's declared late exception).
+        throw new Error(`node "${node.id}"'s edge reads "$iteration", and this driver does not run a loop yet (W229)`);
       }
       if (t.form === 'item') {
         // **The instance's item, its own copy per key per read** — `FD-C3` v0.45, by `compose`'s expression, so

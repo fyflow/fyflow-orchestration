@@ -36,6 +36,7 @@ const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Reco
 // W59: the corpus's node types, for the census over the region-bearing corpus — `typed.flow.json`
 // names one, and a driver given no `nodeTypes` reads that as NONE registered (`FD-V32`).
 import { CORPUS_LANGUAGES } from '../definition/corpus-types.ts';
+import { holdsLoop, loopRefusal } from './loop-not-yet-run.ts';
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -383,12 +384,23 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // with its expectation above. What stays is the ARRANGEMENT, because the census is only a statement about gates
     // while the corpus holds one: the gate flows below are counted, and must be more than none.
     const gated: string[] = [];
+    // **A LOOP is a region opener since v0.57 and the driver runs none until W229** — W228's declared late exception,
+    // W92's arrangement again: a flow holding one is split off BY KIND before the census and its REFUSAL asserted, so
+    // W229's lift fails that assertion naming the flow rather than leave this census silently short of it.
+    const looped: string[] = [];
     for (const f of (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort()) {
       const d = JSON.parse(await readText(`${EX}/valid/${f}`)) as FlowDefinition;
+      if (holdsLoop(d)) {
+        looped.push(f);
+        const r = loopRefusal(d);
+        equal(r.kinds, ['InvalidDefinition'], `${f}: holds a loop, so it is refused once, as InvalidDefinition, until W229 runs one`);
+        continue;
+      }
       if (!d.nodes.some((n) => REGION_KINDS.has(n.kind))) continue;
       onDisk.push(f.replace(/\.flow\.json$/, ''));
       if (d.nodes.some((n) => n.kind === 'gate')) gated.push(f.replace(/\.flow\.json$/, ''));
     }
+    ok(looped.length > 0, `the corpus holds a loop flow, so the split is not vacuous: ${looped.join(', ')}`);
     ok(gated.length > 0 && gated.every((g) => onDisk.includes(g)),
       `the ARRANGEMENT: the corpus holds a region-bearing gate flow, and it is censused — RUN — like the rest: ${gated.join(', ')}`);
     equal(entries.map((e) => e[0]).sort(), onDisk,

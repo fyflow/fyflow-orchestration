@@ -87,7 +87,9 @@ function rowOf(v: unknown): string {
 // moved by it — which is what the bound is for. **v0.45 added a sixth row, `"$item"`** (W191, ADR 0118), and a seventh
 // spelling: the bound moved by it again, measured at W191 before the list did. *(Until W191 `"$item"` PARSED and was
 // refused by `FD-V26`, so it was in no row and in neither list here.)* Where it is LEGAL — inside a map instance — is
-// `FD-V49`'s, and `test/definition/map-item.test.ts` holds it; this suite reads the grammar.
+// `FD-V49`'s, and `test/definition/map-item.test.ts` holds it; this suite reads the grammar. **v0.57 added a seventh row,
+// `"$iteration"`** (W228, ADR 0145), and an eighth spelling — the bound moved by it, measured before this list did; where
+// it is LEGAL — inside a loop round — is `FD-V51`'s.
 
 /** `ingest -> subject -> done`, with `subject` carrying whatever `needs` is given. */
 const linear = (needs: unknown) =>
@@ -108,7 +110,7 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     // a `?` are the ways the suffix can be written wrong: it goes on the END of a
     // node id, and what is left after stripping it must still be an id, so `"?"`,
     // `".?"` and `"ingest??"` need no clause of their own.
-    const accepted: unknown[] = ['.', '$payload', '$item', 'ingest', ['ingest'], 'ingest?', ['ingest?'], 'ingest!error'];
+    const accepted: unknown[] = ['.', '$payload', '$item', '$iteration', 'ingest', ['ingest'], 'ingest?', ['ingest?'], 'ingest!error'];
     const refusedBy = new Map<string, unknown>([
       ['an object', { node: 'ingest' }],
       ['a number', 7],
@@ -149,9 +151,9 @@ suite('L1 — FD-V26: the reference GRAMMAR', (test) => {
     equal(rowsHit.length, referenceTableRows(),
       'every ROW of section 3`s `needs` reference table is exercised by a spelling in this list — ' +
       'the count is read from the normative document, so satisfying it needs an edit there');
-    equal(rowsHit.sort(), ['all', 'error', 'item', 'one', 'payload', 'self', 'suffix'],
-      'and the seven rows are the ones this file names, so an eighth appearing is a finding rather ' +
-      'than a silently absorbed bucket — `payload` since v0.44 (W190), `item` since v0.45 (W191), `error` since v0.49 (W209)');
+    equal(rowsHit.sort(), ['all', 'error', 'item', 'iteration', 'one', 'payload', 'self', 'suffix'],
+      'and the eight rows are the ones this file names, so a ninth appearing is a finding rather ' +
+      'than a silently absorbed bucket — `payload` since v0.44 (W190), `item` since v0.45 (W191), `error` since v0.49 (W209), `iteration` since v0.57 (W228)');
     // **And every AIMED form appears with AND without the suffix** - rule 8 found
     // that the row bound above cannot see a missing spelling *within* a row:
     // dropping `['ingest?']` still hits all four rows, for **0**. The suffix is a
@@ -795,6 +797,8 @@ suite('L1 — FD-V29 is not dominance, and that is a measurement over the corpus
         for (const e of (n.edges ?? []) as { to: string }[]) push(e.to);
       } else if (n.kind === 'fanout') for (const b of (n.branches ?? []) as string[]) push(b);
       else if (n.kind === 'map') push(n.branch as string);
+      // A LOOP's `branch` (v0.57, W228) — section 4's fifth opener arc; the CARRY back to the branch is not an arc.
+      else if (n.kind === 'loop') push(n.branch as string);
     }
     return out;
   };
@@ -814,8 +818,33 @@ suite('L1 — FD-V29 is not dominance, and that is a measurement over the corpus
     const openerOf = new Map<string, string>();
     for (const n of d.nodes) {
       if (n.kind === 'fanout') entriesOf.set(n.id, n.branches as string[]);
-      if (n.kind === 'map') entriesOf.set(n.id, [n.branch as string]);
+      if (n.kind === 'map' || n.kind === 'loop') entriesOf.set(n.id, [n.branch as string]);
       if (n.kind === 'join') openerOf.set(n.id, n.of as string);
+    }
+    // **A loop's join is certain of LESS** (FD-V29's v0.57 clause, section 4's *What a loop changes*, consequence 2): it
+    // fires on a BREAK too, so certainty there is also intersected with certainty at every `end` whose INNERMOST region
+    // is the loop's (the maintainer's (b1), W228). Written here as REGION MEMBERSHIP — each opener's region is what its
+    // entries reach without passing its join; an `end` breaks loop L when it is in L's region and in the region of no
+    // opener that is itself in L's region — rather than as `regions.ts`'s walk over nested openers, so the oracle stays a
+    // second expression of the spec rather than a copy of the code it checks. *The two differ on an `end` reached both
+    // inside a nested region and on L's own path (section 4's shared `end`): this reading drops it, the code keeps it —
+    // the safe direction — and no corpus flow has one, which the measurement below would show as a disagreement.*
+    const regionOf = (op: string): Set<string> => {
+      const j = [...openerOf].find(([, o]) => o === op)?.[0];
+      const seen = new Set<string>(entriesOf.get(op) ?? []);
+      const st2 = [...seen];
+      while (st2.length) {
+        const x = st2.pop()!;
+        for (const y of succ.get(x) ?? []) if (y !== j && !seen.has(y)) { seen.add(y); st2.push(y); }
+      }
+      return seen;
+    };
+    const breakEndsOf = new Map<string, string[]>();
+    for (const [j, op] of openerOf) {
+      if (d.nodes.find((n) => n.id === op)?.kind !== 'loop') continue;
+      const own = regionOf(op);
+      const nested = [...entriesOf.keys()].filter((o) => o !== op && own.has(o)).map(regionOf);
+      breakEndsOf.set(j, [...own].filter((x) => d.nodes.find((n) => n.id === x)?.kind === 'end' && reach.has(x) && !nested.some((r) => r.has(x))));
     }
     const m = new Map<string, Set<string>>(
       [...reach].map((i) => [i, i === d.entry ? new Set<string>() : new Set(reach)]),
@@ -829,6 +858,12 @@ suite('L1 — FD-V29 is not dominance, and that is a measurement over the corpus
         for (const q of ps.slice(1)) {
           const t = new Set([...m.get(q)!, q]);
           nx = new Set([...nx].filter((x) => t.has(x)));
+        }
+        if (conjunctive) {
+          for (const e of breakEndsOf.get(i) ?? []) {
+            const atEnd = m.get(e)!;
+            nx = new Set([...nx].filter((x) => atEnd.has(x)));
+          }
         }
         const op = openerOf.get(i);
         if (conjunctive && op !== undefined && reach.has(op)) {

@@ -20,7 +20,7 @@
 import type { DerivedGateType, Edge, Finding, FlowDefinition, FlowNode, GateContext, GateType, GateTypes, JsonSchema, StaticGateType, LanguageAdapter, Languages, NodeTypeEntry, NodeTypes, Pools, Registry, Transform, When, WorkerEntry, Workers } from './types.ts';
 import { PREDICATE_OPS, PREDICATE_ROOTS } from './types.ts';
 import { describeFindings, findings, schemaProblem } from './schema.ts';
-import { allRegions, buildGraph, certainlySettled, innermostMapOf } from './regions.ts';
+import { allRegions, buildGraph, certainlySettled, innermostLoopOf, innermostMapOf } from './regions.ts';
 // **The built-in `if` gate answers by the evaluator a task edge's `when` uses** (P32 decision 4) — the pure
 // declared-comparison evaluator, in `./condition.ts` since W154's exception (p), where `routing.ts`' `evaluateWhen` reaches
 // it too. Nothing in `src/definition` imports `src/driver`.
@@ -36,7 +36,8 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 // below found no row, a `TypeError` all five typecheck lanes pass, because the table is a `Record<string, …>`.
 // Measured at W92's declaration step, which is why the two tables below and this list move together.
 // `ask` since v0.42 (W179, ADR 0108) — and the three move together again, for the same measured reason.
-const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'] as const;
+// `loop` since v0.57 (W228, ADR 0145): the eighth, and the three move together a third time.
+const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask', 'loop'] as const;
 /**
  * **`FD-V16`'s charset — a flow's and a node's id** ([spec/task-id.md](../../spec/task-id.md)'s) — v0.50 (W210,
  * [ADR 0132](../../doc/decisions/0132-a-definitions-shape-is-a-schema-built-from-the-validator.md)), so
@@ -44,7 +45,7 @@ const KINDS = ['task', 'fanout', 'map', 'join', 'end', 'gate', 'ask'] as const;
  * consumer's edit, moves no verdict (W210's conformity reader, S2: the live object did).
  */
 const ID_RE_COPY: RegExp = new RegExp(ID_RE.source, ID_RE.flags);
-/** **The seven node kinds `FD-V24` admits** — v0.50 (W210, ADR 0132), for `definitionSchema()`'s `kind` enum; a FROZEN copy. */
+/** **The eight node kinds `FD-V24` admits** (seven until v0.57) — v0.50 (W210, ADR 0132), for `definitionSchema()`'s `kind` enum; a FROZEN copy. */
 const KINDS_COPY: readonly (typeof KINDS)[number][] = Object.freeze([...KINDS]);
 export { ID_RE_COPY as ID_RE, KINDS_COPY as KINDS };
 const ROUTABLE = ['done', 'failed'] as const;
@@ -67,6 +68,10 @@ const NODE_KEYS: Record<string, { req: string[]; opt: string[] }> = {
   // required: a map that does not say where its arity comes from is one that
   // silently means nothing, which is `FD-V23`'s own argument for `version`.
   map: { req: ['id', 'kind', 'over', 'branch'], opt: ['needs'] },
+  // v0.57 (W228, ADR 0145, P47 decisions 4-6): a LOOP declares its one body entry, when it is done and its bound —
+  // all three required, the bound because rounds x tasks per round must be known before a run starts — and, as a map,
+  // may compose its own value (the SEED). No `edges`: its one arc is `branch` and its exit is the join (`FD-V50`).
+  loop: { req: ['id', 'kind', 'branch', 'until', 'maxIterations'], opt: ['maxIterationsFrom', 'needs'] },
   join: { req: ['id', 'kind', 'of', 'edges'], opt: [] },
   end: { req: ['id', 'kind', 'outcome'], opt: [] },
   // v0.23 (W92, ADR 0066): a gate names a GATE type and carries settings, as a task names a node type — and
@@ -770,6 +775,16 @@ const GATE_SCOPE: ComparisonScope = {
 };
 
 /**
+ * **A loop's `until` has an `if` gate's ROOTS and its own WORDS** (v0.57, W228; its conformity reader's F3): the one root
+ * `input` is what the round ARRIVED AT THE JOIN with, and a message naming a gate sent an author looking for one.
+ */
+const LOOP_SCOPE: ComparisonScope = {
+  roots: GATE_CONDITION_ROOTS,
+  foreignRoot: () => 'which a loop\'s until cannot see — its one root is "input", what the round arrived at the join with; a loop has no outcome and no edge needs, and any other first segment would resolve to nothing in silence',
+  rootAlone: () => 'and names no key — until\'s path names a key INSIDE what the round arrived with; a value that must be compared whole is wrapped by the body node before the join',
+};
+
+/**
  * **`FD-V43` over ONE key of a comparison — `path`, or since v0.55 `valueFrom`** (ADR 0140, P45 decision 2): the
  * key-path grammar, the scope's roots, an index on the root, a root alone, and under (g1) a `needs` key the edge does
  * not declare. ONE function both keys go through, so the right side cannot be held to a different grammar than the left.
@@ -978,7 +993,14 @@ function groupProblem(o: Record<string, unknown>, label: string, scope: Comparis
  * edge's `needs` — and a gate has neither; a decision that needs code is a gate type of its own (P32 Scope/Out).
  */
 function gateConditionProblem(v: unknown): { rule: string; message: string } | null {
-  const label = 'settings.when';
+  return conditionProblem(v, 'settings.when', 'an if gate');
+}
+
+/**
+ * **A condition over the ONE root `input`** — an `if` gate's `settings.when` and, since v0.57, a loop's `until`
+ * (P47 fact 15, W228): one grammar at two sites, so the two cannot drift. `who` names the site in the NAME clause.
+ */
+function conditionProblem(v: unknown, label: string, who: string): { rule: string; message: string } | null {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) {
     return { rule: 'FD-V42', message: `${label} is ${scalarName(v)}; it is an object — a comparison { ${PREDICATE_LEAF_KEYS.join(', ')} } or a flat group { all } or { any }, over the root "input"` };
   }
@@ -991,10 +1013,11 @@ function gateConditionProblem(v: unknown): { rule: string; message: string } | n
     return { rule: 'FD-V42', message: `${label} carries ${Object.keys(o).map((k) => JSON.stringify(k)).join(', ')} and matches more than one shape — a comparison and a group are told apart by which keys are present, so an object may mark only one` };
   }
   if (shape === 'name') {
-    return { rule: 'FD-V42', message: `${label} names a registered predicate, which an if gate cannot ask — a predicate is handed a decision's outcome and its edge's needs, and a gate has neither. Write a comparison over "input", or register a gate type of your own` };
+    return { rule: 'FD-V42', message: `${label} names a registered predicate, which ${who} cannot ask — a predicate is handed a decision's outcome and its edge's needs, and ${who === 'an if gate' ? 'a gate has neither. Write a comparison over "input", or register a gate type of your own' : 'a loop has neither. Write a comparison over "input", what the round arrived at the join with'}` };
   }
-  if (shape === 'leaf') return leafProblem(o, label, GATE_SCOPE);
-  return groupProblem(o, label, GATE_SCOPE);
+  const scope = who === 'a loop' ? LOOP_SCOPE : GATE_SCOPE;
+  if (shape === 'leaf') return leafProblem(o, label, scope);
+  return groupProblem(o, label, scope);
 }
 
 /** Every registered predicate NAME a `when` reaches, so `FD-V4` can be asked of each — `[]` for a declared one. */
@@ -1179,11 +1202,13 @@ export function referenceTarget(
   // with a two-literal discriminant is not split by a `===`, and every caller below would need a cast.
   | { form: 'payload'; node: null; conditional: false }
   | { form: 'item'; node: null; conditional: false }
+  | { form: 'iteration'; node: null; conditional: false }
   | AimedReference
   | null {
   if (ref === '.') return { form: 'self', node: null, conditional: false };
   if (ref === PAYLOAD_TOKEN) return { form: 'payload', node: null, conditional: false };
   if (ref === ITEM_TOKEN) return { form: 'item', node: null, conditional: false };
+  if (ref === ITERATION_TOKEN) return { form: 'iteration', node: null, conditional: false };
   if (typeof ref === 'string') return aimed(ref, 'one');
   if (Array.isArray(ref) && ref.length === 1 && typeof ref[0] === 'string') {
     return aimed(ref[0], 'all');
@@ -1253,6 +1278,8 @@ function bangProblem(ref: unknown): string | null {
 const PAYLOAD_TOKEN = '$payload';
 /** A map instance's item as a reference — PARSED since v0.44 (P38 (h)), composed since v0.45 (W191). */
 const ITEM_TOKEN = '$item';
+/** A loop round's index as a reference — v0.57, P47 decision 4: the innermost loop region containing the reader. */
+const ITERATION_TOKEN = '$iteration';
 
 /**
  * **What `FD-V26` says about a `$` spelling that is not a reference** — P38 (g): the whole `$` prefix is
@@ -1265,12 +1292,12 @@ function dollarProblem(ref: unknown): string | null {
   const one = Array.isArray(ref) && ref.length === 1 ? ref[0] : ref;
   if (typeof one !== 'string' || !one.startsWith('$')) return null;
   const bare = one.endsWith('?') ? one.slice(0, -1) : one;
-  const known = bare === PAYLOAD_TOKEN || bare === ITEM_TOKEN;
+  const known = bare === PAYLOAD_TOKEN || bare === ITEM_TOKEN || bare === ITERATION_TOKEN;
   if (known && Array.isArray(ref)) {
-    return `${JSON.stringify(ref)} is an array form, and there is ONE ${bare === PAYLOAD_TOKEN ? 'run payload' : 'item per map instance'}: write ${JSON.stringify(bare)}`;
+    return `${JSON.stringify(ref)} is an array form, and there is ONE ${bare === PAYLOAD_TOKEN ? 'run payload' : bare === ITEM_TOKEN ? 'item per map instance' : 'index per loop round'}: write ${JSON.stringify(bare)}`;
   }
   if (known) return `${JSON.stringify(one)} carries "?", and ${JSON.stringify(bare)} is always there: write ${JSON.stringify(bare)} without "?"`;
-  return `${JSON.stringify(ref)} is not a reference: the "$" prefix is reserved, and its references are "$payload" (the run's payload) and "$item" (a map instance's item)`;
+  return `${JSON.stringify(ref)} is not a reference: the "$" prefix is reserved, and its references are "$payload" (the run's payload), "$item" (a map instance's item) and "$iteration" (a loop round's index)`;
 }
 
 /**
@@ -1279,6 +1306,10 @@ function dollarProblem(ref: unknown): string | null {
  * the reference, and this one's is to move the READER. The message names both roads. *(Until W191 `FD-V26` refused
  * `"$item"` everywhere, naming `"."` on the branch entry — W190's reading R1.)*
  */
+/** **`FD-V51` — `"$iteration"` where no loop contains the reader** (v0.57, P47 decision 4), on `FD-V49`'s pattern. */
+const iterationOutside = (site: string, k: string, nodeId: string): string =>
+  `${site}[${JSON.stringify(k)}] is "$iteration", and "${nodeId}" is not inside a loop: pass the round down from a node inside the loop, or move this node inside it`;
+
 const itemOutside = (site: string, k: string, nodeId: string): string =>
   `${site}[${JSON.stringify(k)}] is "$item", and "${nodeId}" is not inside a map instance: name the item where a map's branch receives it ("."), or move this node inside the map`;
 
@@ -1343,7 +1374,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // FD-V24. The rule the other three could not reach: `kind` is present so
       // FD-V23 is silent, it is a string so FD-V21 is silent, and FD-V17 has no
       // declared key set to compare against for an unknown kind.
-      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end|gate|ask`);
+      add('FD-V24', where, `node kind ${JSON.stringify(nd.kind)} is not task|fanout|map|join|end|gate|ask|loop`);
       continue;
     }
 
@@ -1704,6 +1735,31 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         add('FD-V25', where, `map over ${JSON.stringify(nd.over)} is not [A-Za-z0-9_-]{1,64}`);
       }
     }
+    // ---- FD-V50: the loop's own rule, on FD-V25's precedent ----
+    // `spec/flow-definition.md` v0.57, ADR 0145, P47 decisions 4 and 6. The type and range of `maxIterations` are this
+    // rule's, as `over`'s are `FD-V25`'s: a bound the run cannot use is a loop that silently means something else.
+    if (nd.kind === 'loop') {
+      if (nd.edges !== undefined) add('FD-V50', where, 'loop has edges — its one arc is `branch`, and its exit is the join');
+      if (nd.branch !== undefined && typeof nd.branch !== 'string') {
+        // `FD-V21`'s, as a map's non-string `branch` is: it names no node to have a kind.
+        add('FD-V21', where, `loop branch must be a string, got ${JSON.stringify(nd.branch)}`);
+      }
+      const max = (nd as { maxIterations?: unknown }).maxIterations;
+      if (max !== undefined && (typeof max !== 'number' || !Number.isInteger(max) || max < 1)) {
+        add('FD-V50', where, `loop maxIterations ${JSON.stringify(max)} is not an integer >= 1 — the bound is in the document, so rounds x tasks per round is known before a run starts`);
+      }
+      const from = (nd as { maxIterationsFrom?: unknown }).maxIterationsFrom;
+      if (from !== undefined && (typeof from !== 'string' || !KEY_PATH_RE.test(from))) {
+        add('FD-V50', where, `loop maxIterationsFrom ${JSON.stringify(from)} is not a key path — ${KEY_PATH_WORDS}`);
+      }
+      // **`until` is section 3's comparison grammar at a NEW SITE, an `if` gate's scope** (P47 fact 15): the one root
+      // `input`, what the round ARRIVED at the join with. Reported under the grammar's own ids, `FD-V42`-`FD-V45`.
+      const until = (nd as { until?: unknown }).until;
+      if (until !== undefined) {
+        const problem = conditionProblem(until, 'until', 'a loop');
+        if (problem !== null) add(problem.rule, where, problem.message);
+      }
+    }
     // ---- FD-V26: `needs`' own shape ----
     // `spec/flow-definition.md` section 3, v0.11, and ADR 0040.
     //
@@ -1737,7 +1793,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           } else if (bang !== null) {
             add('FD-V26', where, `needs[${JSON.stringify(k)}]: ${bang}`);
           } else if (target === null) {
-            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", "$item", a node id with an optional "!error" and an optional "?" suffix, or a one-element array holding one`);
+            add('FD-V26', where, `needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "." , "$payload", "$item", "$iteration", a node id with an optional "!error" and an optional "?" suffix, or a one-element array holding one`);
           }
         }
       }
@@ -1844,7 +1900,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
             } else if (bang !== null) {
               add('FD-V26', at, `edge needs[${JSON.stringify(k)}]: ${bang}`);
             } else if (target === null) {
-              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", "$item", a node id with an optional "!error" and an optional "?" suffix or a one-element array holding one`);
+              add('FD-V26', at, `edge needs[${JSON.stringify(k)}] is ${JSON.stringify(ref)}, which is not "$payload", "$item", "$iteration", a node id with an optional "!error" and an optional "?" suffix or a one-element array holding one`);
             } else if (target.form === 'self') {
               // **On `form`, never on `node === null`** (P38 fact 9): `"$payload"` and `"$item"` have no node either, and
               // an edge MAY name them — a predicate has no `ctx.payload` and no `ctx.item` (decision 3). Read as
@@ -1875,7 +1931,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // FD-V2 owns "names a node that does not exist"; FD-V6 owns "does not name a
       // fanout", and a node that does not exist is not a fanout. Both are reported.
       add('FD-V2', n.id, `join.of names "${n.of}", which does not exist`);
-      add('FD-V6', n.id, `join.of names "${n.of}", which is not a fanout`);
+      add('FD-V6', n.id, `join.of names "${n.of}", which is not a fanout, map or loop`);
     }
   }
 
@@ -1889,14 +1945,15 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   // ---- FD-V6: pairing ----
   const fanouts = nodes.filter((n) => n?.kind === 'fanout');
   const maps = nodes.filter((n) => n?.kind === 'map');
-  // **A region opener is a `fanout` or a `map`** — spec section 4, v0.8. Everything
+  const loops = nodes.filter((n) => n?.kind === 'loop');
+  // **A region opener is a `fanout`, a `map` or — v0.57 — a `loop`** — spec section 4. Everything
   // downstream is about a region and does not care which opened it, so this is the
-  // one place the two are unioned.
-  const openers = [...fanouts, ...maps];
+  // one place the three are unioned.
+  const openers = [...fanouts, ...maps, ...loops];
   const joins = nodes.filter((n) => n?.kind === 'join');
   for (const j of joins) {
-    if (typeof j.of === 'string' && g.byId.has(j.of) && kindOf(j.of) !== 'fanout' && kindOf(j.of) !== 'map') {
-      add('FD-V6', j.id, `join.of names a ${kindOf(j.of)}, not a fanout or map`);
+    if (typeof j.of === 'string' && g.byId.has(j.of) && kindOf(j.of) !== 'fanout' && kindOf(j.of) !== 'map' && kindOf(j.of) !== 'loop') {
+      add('FD-V6', j.id, `join.of names a ${kindOf(j.of)}, not a fanout, map or loop`);
     }
   }
   for (const opener of openers) {
@@ -1963,6 +2020,14 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
   for (const m of maps) {
     if (typeof m.branch === 'string' && g.byId.has(m.branch) && kindOf(m.branch) !== 'task' && kindOf(m.branch) !== 'ask') {
       add('FD-V25', m.id, `branch "${m.branch}" is a ${kindOf(m.branch)}, not a task or an ask`);
+    }
+  }
+  // **`FD-V50`'s kind clause — a loop's body entry is a task or an ask** (v0.57, P47 decision 4), `FD-V25`'s for a
+  // map's branch and for its reason: one entry, one task id per round. A body opening with a region puts a small
+  // transforming node first.
+  for (const l of loops) {
+    if (typeof l.branch === 'string' && g.byId.has(l.branch) && kindOf(l.branch) !== 'task' && kindOf(l.branch) !== 'ask') {
+      add('FD-V50', l.id, `branch "${l.branch}" is a ${kindOf(l.branch)}, not a task or an ask — a body that opens with a region puts a small transforming node first`);
     }
   }
 
@@ -2101,6 +2166,12 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
           if (innermostMapOf(regions, n.id) === undefined) add('FD-V49', at, itemOutside(site, k, n.id));
           continue;
         }
+        // **`"$iteration"` has an aim of its own, `FD-V51`** (v0.57, P47 decision 4), by `FD-V49`'s walk: the innermost
+        // LOOP region containing the reader as a member, or there is no round to name.
+        if (t.form === 'iteration') {
+          if (innermostLoopOf(regions, n.id) === undefined) add('FD-V51', at, iterationOutside(site, k, n.id));
+          continue;
+        }
         if (t.form === 'self' || t.form === 'payload') continue;
         const target = t.node;
         if (!g.byId.has(target)) {
@@ -2192,11 +2263,13 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
         // and 7/7, and the node ids collapse in **exactly** those with a map
         // region and in none with only `fanout`s. Same document, nine lines
         // apart, and the code followed the wrong half.
-        const many = regions.some((r) => r.opensWith === 'map' && r.members.has(target) && !r.members.has(n.id));
+        // **A `loop` region counts as a map region does** (v0.57, P47 decision 1 (b′), ADR 0044): a reader outside it sees
+        // one output of a body node per ROUND, so the bare form is refused there and the array form is every round.
+        const many = regions.some((r) => (r.opensWith === 'map' || r.opensWith === 'loop') && r.members.has(target) && !r.members.has(n.id));
         // **The fix spelled as the author wrote the reference** (v0.49): `!error` kept; the `?` left out, as before v0.49 —
         // `FD-V28` reads the form with the suffix stripped, so the form to write is the same reference in the other form.
         if (many && t.form === 'one') {
-          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names "${spelled(t, false)}" as one value, but it is inside a map region this node is outside of, so it produces one output per ITEM; write ["${spelled(t, false)}"]`);
+          add('FD-V28', at, `${site}[${JSON.stringify(k)}] names "${spelled(t, false)}" as one value, but it is inside a ${regions.some((r) => r.opensWith === 'loop' && r.members.has(target) && !r.members.has(n.id)) ? 'loop region this node is outside of, so it produces one output per ROUND' : 'map region this node is outside of, so it produces one output per ITEM'}; write ["${spelled(t, false)}"]`);
         } else if (!many && t.form === 'all') {
           add('FD-V28', at, `${site}[${JSON.stringify(k)}] names ["${spelled(t, false)}"] as a list, but it produces exactly one output on this node's branch path; write "${spelled(t, false)}"`);
         }

@@ -1,0 +1,15 @@
+{
+  "flowId": "loop-branch-is-a-map",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "poll" } ] },
+    { "id": "poll", "kind": "loop", "branch": "split", "until": { "path": "input.ready", "op": "eq", "value": true }, "maxIterations": 20 },
+    { "id": "split",   "kind": "map",  "over": "items", "branch": "check" },
+    { "id": "check",   "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "checked" } ] },
+    { "id": "checked", "kind": "join", "of": "split", "edges": [ { "to": "polled" } ] },
+    { "id": "polled",  "kind": "join", "of": "poll", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

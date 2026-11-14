@@ -62,6 +62,9 @@ export function buildGraph(doc: FlowDefinition): Graph {
     // entry whatever the run-time arity turns out to be**, which is why a map can
     // never reach `FD-V11` for an arity reason.
     if (n.kind === 'map') return isId(n.branch) ? [n.branch] : [];
+    // **A `loop`'s one arc is `branch` too** (v0.57, ADR 0145) — the FOURTH arc shape. The carry from its join back to
+    // `branch` is a VALUE handed to the next round and never an arc, so `FD-V10` sees no cycle and the walk is unchanged.
+    if (n.kind === 'loop') return isId(n.branch) ? [n.branch] : [];
     const edges = (n as { edges?: unknown }).edges;
     return Array.isArray(edges) ? edges.map((e) => (e as { to?: unknown })?.to).filter(isId) : [];
   };
@@ -105,7 +108,7 @@ export interface RegionSets {
    * item's. W32's job is to make the distinction derivable; deciding what a policy
    * sees is W33's.
    */
-  opensWith: 'fanout' | 'map';
+  opensWith: 'fanout' | 'map' | 'loop';
   /**
    * Branch entries in declaration order. The index is the `branchPath` segment
    * **for a `fanout` region only** — for a `map` this is the one declared branch
@@ -132,11 +135,13 @@ export interface RegionSets {
  */
 export function regionSets(g: Graph, fanoutId: string, joinId: string): RegionSets {
   const fan = g.byId.get(fanoutId);
-  const opensWith: 'fanout' | 'map' = fan?.kind === 'map' ? 'map' : 'fanout';
+  // **A `loop` is the third opener (v0.57)** and contributes one branch entry, as a map does — so its four sets are a
+  // map's, which P47 fact 12 measured before the kind existed.
+  const opensWith: 'fanout' | 'map' | 'loop' = fan?.kind === 'map' ? 'map' : fan?.kind === 'loop' ? 'loop' : 'fanout';
   const branches =
     fan && fan.kind === 'fanout' && Array.isArray(fan.branches)
       ? fan.branches.filter((b) => g.byId.has(b))
-      : fan && fan.kind === 'map' && isId(fan.branch) && g.byId.has(fan.branch)
+      : fan && (fan.kind === 'map' || fan.kind === 'loop') && isId(fan.branch) && g.byId.has(fan.branch)
         ? [fan.branch]
         : [];
 
@@ -169,7 +174,7 @@ export function regionSets(g: Graph, fanoutId: string, joinId: string): RegionSe
 export function allRegions(g: Graph, doc: FlowDefinition): RegionSets[] {
   const out: RegionSets[] = [];
   for (const n of doc.nodes ?? []) {
-    if (n?.kind !== 'fanout' && n?.kind !== 'map') continue;
+    if (n?.kind !== 'fanout' && n?.kind !== 'map' && n?.kind !== 'loop') continue;
     const joins = (doc.nodes ?? []).filter((j) => j?.kind === 'join' && j.of === n.id);
     if (joins.length !== 1) continue; // FD-V6 reports it; the maths stays out of it
     out.push(regionSets(g, n.id, joins[0]!.id));
@@ -325,7 +330,9 @@ export function branchPathOf(
     if (!r || seen.has(r.fanoutId)) break;
     seen.add(r.fanoutId);
     let i: number | null;
-    if (r.opensWith === 'map') {
+    // **A `loop` region's segment is its ROUND index, a property of the dispatch as a map's item index is** — `ID-R6`
+    // widened at `spec/task-id.md` v0.17 (W228): supplied in the same per-region map, keyed by the loop node's id.
+    if (r.opensWith === 'map' || r.opensWith === 'loop') {
       // **`ID-R6`.** The graph cannot answer this and neither can the caller's
       // silence. Refusing here rather than falling through to `break` is the
       // point: a `break` would return the OUTER prefix as though it were the
@@ -335,8 +342,8 @@ export function branchPathOf(
       const supplied = itemIndices?.get(r.fanoutId);
       if (supplied === undefined) {
         throw new UnresolvedBranchPath(
-          `branchPath of "${nodeId}" crosses map region "${r.fanoutId}", whose branch index is a ` +
-            `property of the dispatch rather than of the node (ID-R6): supply its item index`,
+          `branchPath of "${nodeId}" crosses ${r.opensWith} region "${r.fanoutId}", whose branch index is a ` +
+            `property of the dispatch rather than of the node (ID-R6): supply its ${r.opensWith === 'loop' ? 'round' : 'item'} index`,
         );
       }
       // The same predicate `buildTaskId` applies to a segment, applied where the
@@ -344,7 +351,7 @@ export function branchPathOf(
       // rather than the id. `spec/task-id.md` section 1's own grammar.
       if (!INDEX.test(String(supplied))) {
         throw new UnresolvedBranchPath(
-          `item index ${JSON.stringify(supplied)} for map region "${r.fanoutId}" is not a ` +
+          `${r.opensWith === 'loop' ? 'round' : 'item'} index ${JSON.stringify(supplied)} for ${r.opensWith} region "${r.fanoutId}" is not a ` +
             `non-negative integer, so it is not a branchPath segment (ID-R6)`,
         );
       }
@@ -427,6 +434,21 @@ export function innermostMapOf(regions: RegionSets[], nodeId: string): RegionSet
   for (let i = chain.length - 1; i >= 0; i--) {
     const r = regions.find((x) => x.fanoutId === chain[i]);
     if (r?.opensWith === 'map') return r;
+  }
+  return undefined;
+}
+
+/**
+ * **The loop round a node is IN — the innermost `loop` region containing it as a MEMBER** — `spec/flow-definition.md`
+ * v0.57, P47 decision 4: what `"$iteration"` names, by `innermostMapOf`'s own walk and for its reasons. A `loop` NODE
+ * names its ENCLOSING round; a node in a `map` inside a round names the round. `undefined` for a node no loop region
+ * contains — `FD-V51`'s refusal.
+ */
+export function innermostLoopOf(regions: RegionSets[], nodeId: string): RegionSets | undefined {
+  const chain = regionChainOf(regions, nodeId);
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const r = regions.find((x) => x.fanoutId === chain[i]);
+    if (r?.opensWith === 'loop') return r;
   }
   return undefined;
 }
@@ -588,10 +610,10 @@ export function branchIndexOf(regions: RegionSets[], nodeId: string): number | n
   //
   // ADR 0036 rule 5 is the rule and it is not qualified by which derivation:
   // *a derivation that cannot answer REFUSES rather than guessing.*
-  if (r.opensWith === 'map') {
+  if (r.opensWith === 'map' || r.opensWith === 'loop') {
     throw new UnresolvedBranchPath(
       `branch index of "${nodeId}" is a property of the dispatch rather than of the node: it is ` +
-        `inside map region "${r.fanoutId}" (ID-R6). Use branchPathOf with an item index; \`null\` ` +
+        `inside ${r.opensWith} region "${r.fanoutId}" (ID-R6). Use branchPathOf with an item index; \`null\` ` +
         'here would mean "no enclosing region", which is a different thing and a different id',
     );
   }
@@ -646,6 +668,45 @@ export function branchIndexOf(regions: RegionSets[], nodeId: string): number | n
  *   node maps to the empty set; a node unreachable from `entry` (`FD-V11`) has no
  *   key at all.
  */
+/**
+ * **Each loop join's BREAK ENDS** — the `end` nodes whose INNERMOST region is that loop's, keyed by the loop's JOIN id
+ * (v0.57, `spec/flow-definition.md` section 4's *What a loop changes*, consequence 2; the maintainer's (b1) to W228's
+ * conformity reader, F2). Walked from the loop's `branch`, cut at its join, stepping OVER every nested opener to that
+ * opener's own join rather than into its branches: an `end` in a nested map or fanout branch loses that branch, and one
+ * in an inner loop's body breaks the INNER loop. An `end` reached both ways is found — the safe direction. An opener with
+ * no join (`FD-V6`'s) is walked INTO, for the same reason. Joins and openers are read off the NODES, as
+ * `certainlySettled`'s are and for its reason. **Two readers**: `FD-V29`'s certainty walk, and the wiring check, which
+ * gives a breakable loop's join a second `record` arc — `last` the SEED (the maintainer's (d1)).
+ */
+export function loopBreakEnds(g: Graph, doc: FlowDefinition): Map<string, string[]> {
+  const openerOfJoin = new Map<string, string>();
+  const joinOfOpener = new Map<string, string>();
+  for (const n of doc.nodes ?? []) {
+    if (n?.kind === 'join' && isId((n as { of?: unknown }).of)) {
+      const of = (n as { of: string }).of;
+      openerOfJoin.set(n.id, of);
+      if (!joinOfOpener.has(of)) joinOfOpener.set(of, n.id);
+    }
+  }
+  const out = new Map<string, string[]>();
+  for (const [joinId, openerId] of openerOfJoin) {
+    const opener = g.byId.get(openerId);
+    if (opener?.kind !== 'loop' || !isId(opener.branch) || !g.byId.has(opener.branch)) continue;
+    const own = new Set<string>();
+    const stack = [opener.branch];
+    while (stack.length) {
+      const x = stack.pop() as string;
+      if (!g.byId.has(x) || own.has(x) || x === joinId) continue;
+      own.add(x);
+      const k = g.byId.get(x)?.kind;
+      const nestedJoin = k === 'fanout' || k === 'map' || k === 'loop' ? joinOfOpener.get(x) : undefined;
+      stack.push(...(nestedJoin !== undefined ? [nestedJoin] : g.succ(x)));
+    }
+    out.set(joinId, [...own].filter((id) => g.byId.get(id)?.kind === 'end').sort());
+  }
+  return out;
+}
+
 export function certainlySettled(g: Graph, doc: FlowDefinition): Map<string, Set<string>> {
   const entry = (doc as { entry?: unknown }).entry;
   if (typeof entry !== 'string' || !g.byId.has(entry)) return new Map();
@@ -685,12 +746,23 @@ export function certainlySettled(g: Graph, doc: FlowDefinition): Map<string, Set
   for (const n of doc.nodes ?? []) {
     if (n?.kind === 'fanout') {
       entriesOf.set(n.id, (Array.isArray(n.branches) ? n.branches : []).filter(isId));
-    } else if (n?.kind === 'map') {
+    } else if (n?.kind === 'map' || n?.kind === 'loop') {
       entriesOf.set(n.id, isId(n.branch) ? [n.branch] : []);
     } else if (n?.kind === 'join' && isId((n as { of?: unknown }).of)) {
       openerOfJoin.set(n.id, (n as { of: string }).of);
     }
   }
+
+  // **A loop's BREAK ENDS, per loop join** — v0.57, `spec/flow-definition.md` section 4's *What a loop changes*,
+  // consequence 2 (W228). A loop's join fires on a break too — a round reaching an `end` inside the body — after only a
+  // PREFIX of that round, so what is certain at the join is also what is certain at every `end` that BREAKS it: an `end`
+  // whose INNERMOST region is the loop's (the maintainer's (b1) to W228's conformity reader, F2). An `end` inside a
+  // region NESTED in the body loses that region's branch or breaks the inner loop, and the outer round goes on — so the
+  // walk from the loop's `branch` (cut at its join) steps OVER every nested opener to that opener's own join rather than
+  // into its branches. An `end` reached BOTH ways — inside a nested region and on the loop's own path — is still found,
+  // which only makes the intersection smaller: the safe direction. An opener with no join (`FD-V6`'s to report) is
+  // walked INTO, for the same reason.
+  const breakEndsOf = new Map([...loopBreakEnds(g, doc)].map(([j, ends]) => [j, ends.filter((id) => reach.has(id))]));
 
   // Intersection dataflow: start every non-entry node at EVERYTHING and shrink.
   // A `Set` per node is affordable because `nodes` is an authored list.
@@ -738,6 +810,11 @@ export function certainlySettled(g: Graph, doc: FlowDefinition): Map<string, Set
       // opened the region* because `FD-V29` is one rule over both — writing the
       // `fanout` half alone would make the code say something narrower than the
       // document does. [Q207](../../doc/questions/q207.md).
+      // The break clause FIRST, so the branch entry added below survives it: round 0 always dispatches it (do-while).
+      for (const e of breakEndsOf.get(id) ?? []) {
+        const atEnd = out.get(e)!;
+        next = new Set([...next].filter((x) => atEnd.has(x)));
+      }
       const opener = openerOfJoin.get(id);
       if (opener !== undefined && reach.has(opener)) {
         for (const b of entriesOf.get(opener) ?? []) if (reach.has(b)) next.add(b);

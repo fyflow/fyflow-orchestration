@@ -1,0 +1,14 @@
+{
+  "flowId": "iteration-on-an-edge-outside-a-loop",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "poll" } ] },
+    { "id": "poll", "kind": "loop", "branch": "check", "until": { "path": "input.ready", "op": "eq", "value": true }, "maxIterations": 20 },
+    { "id": "check",   "kind": "task", "type": "ScoreWorker", "edges": [ { "to": "polled" } ] },
+    { "id": "polled",  "kind": "join", "of": "poll", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "late", "needs": { "round": "$iteration" }, "when": { "path": "needs.round", "op": "gt", "value": 3 } }, { "to": "done" } ] },
+    { "id": "late",    "kind": "end",  "outcome": "late" },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

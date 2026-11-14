@@ -6680,12 +6680,26 @@ const spellingOf = (ref: unknown): string => {
     case 'self': return '.';
     case 'payload': return '"$payload"';
     case 'item': return '"$item"';
+    // **`"$iteration"`, v0.57 (W228)** — a loop round's index; run at L6 by W230.
+    case 'iteration': return '"$iteration"';
     // **The `!error` part, v0.49 (W209)**: spelled apart, so section 3's `!error` row is its own spellings and not
     // `"n"`'s again — by `part`, the parse's own field.
     case 'one': return `"n${t.part === 'error' ? '!error' : ''}"${t.conditional ? '?' : ''}`;
     case 'all': return `["n${t.part === 'error' ? '!error' : ''}"]${t.conditional ? '?' : ''}`;
   }
 };
+
+/**
+ * **`NOT_YET_AT_L6` is BACK a third time — W228, by the maintainer's (a) to its stop-and-ask** (2026-11-14), as W209 held
+ * it: the rows of section 3's table no L6 run names yet, by the census BUCKET. `'iteration'` is v0.57's `"$iteration"` row
+ * ([ADR 0145](../doc/decisions/0145-a-loop-is-a-region-that-runs-its-one-branch-round-after-round.md)), whose L6 run is
+ * P47's exit artifact (4). **W230's L6 block must RUN the form and REMOVE this list again**, as W192 and W212 did — the
+ * two reference censuses below set it aside on the table's side, and the set clause names it, so a form L6 starts running
+ * while still listed appears twice and is red.
+ */
+const NOT_YET_AT_L6: readonly string[] = ['iteration'];
+/** A spelling of a row `NOT_YET_AT_L6` exempts — the `"$iteration"` row's one. */
+const exemptSpelling = (s: string): boolean => NOT_YET_AT_L6.includes('iteration') && s === '"$iteration"';
 
 // **`NOT_YET_AT_L6` stood here from W190 to W192, and again from W209 to W212** — the rows of section 3's table no L6 run
 // named: `"$payload"` (v0.44) and `"$item"` (v0.45), then `"n!error"` (v0.49, ADR 0131), held both ways by the two
@@ -7234,11 +7248,21 @@ const everyKindAtL6 = async (alsoRan: readonly FlowDefinition[]): Promise<void> 
   // input's meaning changed with it, as the third's did at W94 — now `ask` taken back OUT of L6 must be named — and the
   // fifth went with the disjunct it tested. W182's block is not a ROW, so this clause reads the flows it STARTED
   // (`alsoRan`, the header above).
-  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) => [...corpus].sort().filter((k) => !atL6.has(k));
+  //
+  // **`loop` IS exempt from W228 to W230, a THIRD time in W92's form** — W228 (`spec/flow-definition.md` v0.57, ADR 0145) put
+  // two valid loop documents into the corpus while no `Driver` can run one (W229 builds the rounds) and no L6 block runs
+  // one (W230, P47's exit artifact (4)). So the exemption is back with BOTH its expiry inputs: a kind exempt and PRESENT at
+  // L6 is flagged — W230's block makes this red on its first run and removes the list — and a kind exempt and in NO corpus
+  // flow is flagged, so the list cannot outlive the kind's corpus documents either.
+  const KINDS_NOT_YET_AT_L6: readonly string[] = ['loop'];
+  const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) =>
+    [...new Set([...corpus, ...KINDS_NOT_YET_AT_L6])].sort()
+      .filter((k) => KINDS_NOT_YET_AT_L6.includes(k) ? atL6.has(k) || !corpus.has(k) : !atL6.has(k));
   check('cross-row', 'L6 runs a flow containing every node kind the spec corpus expresses',
     [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'gate'))),
-      flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'ask')))],
-    [[], ['phantom'], ['gate'], ['ask']]);
+      flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'ask'))),
+      flagged(kindsInCorpus, new Set([...kindsAtL6, 'loop'])), flagged(new Set([...kindsInCorpus].filter((k) => k !== 'loop')), kindsAtL6)],
+    [[], ['phantom'], ['gate'], ['ask'], ['loop'], ['loop']]);
   // The negative control: the set is non-empty, so the clause above is not vacuous
   // on an empty corpus read. Without it a `listDir` that returns nothing passes.
   assertThat('cross-row', 'and the corpus read found node kinds at all — the clause`s own negative control',
@@ -15345,12 +15369,12 @@ if (rowCosts.length !== EXPECTED.length) {
   // against it. The claim is corrected rather than the bound removed, because the
   // bound is right for the reason that survives.
   check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
-    [...forms].length, referenceFormsInSpec());
+    [...forms].length + NOT_YET_AT_L6.length, referenceFormsInSpec());
   // And WHICH seven (six until v0.49's `!error` row), so an eighth bucket appearing is a finding rather than a silently
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
   check('cross-row', 'and they are the table`s rows, not seven of something else — `payload` since v0.44 (W190) and `item` since v0.45 (W191), run since W192; `error` since v0.49 (W209), run since W212',
-    [...forms].sort(), ['all', 'error', 'item', 'one', 'payload', 'self', 'suffix']);
+    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'error', 'item', 'iteration', 'one', 'payload', 'self', 'suffix']);
   // **`NOT_YET_AT_L6` is GONE — W192.** W190 named `"$payload"`'s row there and W191 `"$item"`'s, each held both ways by the
   // two clauses above (the count added the list, the set compared the concatenation, so a form L6 started running while still
   // listed appeared twice), because no L6 run named either until P38's exit artifact. W192's block runs both — on nodes and
@@ -15480,9 +15504,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // **Since v0.49 (W209) a SECOND row carries more than one spelling**: the `!error` row names FOUR — the part on each of
     // the plain row's and the `?` row's — so `+ 1` for the `?` modifier and `+ 3` for the `!error` row. Set aside on both
     // sides from W209 to W212 (`NOT_YET_AT_L6`); compared whole since W212, whose block runs all four.
-    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC;
+    // Over the rows L6 runs: `NOT_YET_AT_L6`'s row and its one spelling (W228's `"$iteration"`) set aside on both sides.
+    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC.filter((s) => !exemptSpelling(s));
     check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows for the `?` modifier, and three more for the `!error` row`s four',
-      runSpellings.length, referenceFormsInSpec() + 1 + 3);
+      runSpellings.length, referenceFormsInSpec() - NOT_YET_AT_L6.length + 1 + 3);
     assertThat('cross-row', 'and the conditional ARRAY spelling is one the table actually NAMES, ' +
       'so the set equality below is over every spelling and not one fewer',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),

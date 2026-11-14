@@ -693,12 +693,37 @@ export interface MapNode {
   needs?: Needs;
 }
 
+/**
+ * **A region whose one branch runs ROUND AFTER ROUND** — `spec/flow-definition.md` section 2, v0.57,
+ * [ADR 0145](../../doc/decisions/0145-a-loop-is-a-region-that-runs-its-one-branch-round-after-round.md), P47. A `map`
+ * whose instances run one after another, each round opened once the last has arrived, until `until` holds, the bound is
+ * reached or the body breaks through an `end`. The carry from the join back to `branch` is a VALUE, never an arc, so the
+ * graph stays acyclic (`FD-V10` unmoved).
+ */
+export interface LoopNode {
+  id: string;
+  kind: 'loop';
+  /** **One** body entry id, whose kind is a `task` or an `ask` (`FD-V50`). Not a list. */
+  branch: string;
+  /**
+   * **When the loop is DONE** — a comparison or a flat group from section 3's declared subset over the ONE root
+   * `input`, what the round ARRIVED at the join with: an `if` gate's condition's scope. Held to `FD-V42`-`FD-V45`.
+   */
+  until: PredicateLeaf | PredicateGroup;
+  /** The bound, an integer `>= 1` (`FD-V50`): rounds × tasks per round is known before a run starts. */
+  maxIterations: number;
+  /** A key path on this node's value, read ONCE as round 0 opens; the bound used is the smaller (`FD-V50`, W229). */
+  maxIterationsFrom?: string;
+  /** **What this node receives** — `FD-C1`, as on a `map`: the SEED, round 0's input. */
+  needs?: Needs;
+}
+
 export interface JoinNode {
   id: string;
   kind: 'join';
   /**
-   * The `fanout` **or `map`** this join closes. The pairing is declared once, here
-   * (spec section 4). Widened at v0.8 — `FD-V6`.
+   * The `fanout`, **`map` or `loop`** this join closes. The pairing is declared once, here
+   * (spec section 4). Widened at v0.8 and v0.57 — `FD-V6`.
    */
   of: string;
   /** Exactly one edge, carrying neither `when` nor `on` (FD-V7). */
@@ -899,7 +924,7 @@ export interface AskNode {
  * **Seven kinds since v0.42** (`ask`, W179). **BREAKING for an exhaustive consumer `switch`** each time a member
  * is added — `gate` at 0.6.0, `ask` at 0.8.0.
  */
-export type FlowNode = TaskNode | FanoutNode | MapNode | JoinNode | EndNode | GateNode | AskNode;
+export type FlowNode = TaskNode | FanoutNode | MapNode | LoopNode | JoinNode | EndNode | GateNode | AskNode;
 
 export interface FlowDefinition {
   flowId: string;

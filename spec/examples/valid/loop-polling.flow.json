@@ -1,0 +1,16 @@
+{
+  "flowId": "loop-polling",
+  "version": 1,
+  "entry": "ingest",
+  "nodes": [
+    { "id": "ingest",  "kind": "task", "type": "IngestWorker", "edges": [ { "to": "poll" } ] },
+    { "id": "poll",    "kind": "loop", "branch": "check", "until": { "path": "input.ready", "op": "eq", "value": true },
+      "maxIterations": 20 },
+    { "id": "check",   "kind": "task", "type": "ScoreWorker",
+      "edges": [ { "to": "gaveUp", "when": { "predicate": "isLowConfidence" } }, { "to": "polled" } ] },
+    { "id": "gaveUp",  "kind": "end",  "outcome": "gave-up" },
+    { "id": "polled",  "kind": "join", "of": "poll", "edges": [ { "to": "publish" } ] },
+    { "id": "publish", "kind": "task", "type": "PublishWorker", "edges": [ { "to": "done" } ] },
+    { "id": "done",    "kind": "end",  "outcome": "completed" }
+  ]
+}

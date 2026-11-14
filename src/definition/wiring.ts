@@ -90,10 +90,10 @@
  * `checkWiring` returns a Promise; no `node:` import, no clock (`RT-R3`, `RT-R4`).
  */
 import { describeFindings, findings, schemaProblem, type JsonSchema } from './schema.ts';
-import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, MapNode, Registry, TaskNode } from './types.ts';
+import type { Edge, FanoutNode, FlowDefinition, FlowNode, GateNode, GateType, JoinNode, LoopNode, MapNode, Registry, TaskNode } from './types.ts';
 import { effectiveSettings, gateTypesOf, languagesOf, nodeTypesOf, referenceTarget, routesOf, workersOf } from './validate.ts';
 import { keyPathSteps } from './condition.ts';
-import { allRegions, buildGraph, innermostMapOf, type Graph, type RegionSets } from './regions.ts';
+import { allRegions, buildGraph, innermostLoopOf, innermostMapOf, loopBreakEnds, type Graph, type RegionSets } from './regions.ts';
 import { sampleOf, type SampleSource } from './witness.ts';
 
 // ---- the verdict -----------------------------------------------------------------------------
@@ -101,9 +101,10 @@ import { sampleOf, type SampleSource } from './witness.ts';
 /**
  * The five shapes of *what a node receives* — `FD-C1`, `JP-R11`, `JP-R12` — **and `given`, which is
  * not an arc** (v0.38, W166): the value a caller hands `tryTransform(…, { input })`. `checkWiring` never
- * produces it. **BREAKING in 0.8.0**: a `switch` exhaustive over the five is not exhaustive over six.
+ * produces it. **BREAKING in 0.8.0**: a `switch` exhaustive over the five is not exhaustive over six. **And since
+ * v0.57 (W228) a `loop` adds two**, `round` and `carry` — again a widening a consumer's exhaustive `switch` sees.
  */
-export type WiringShape = 'edge' | 'branch' | 'item' | 'record' | 'needs' | 'given';
+export type WiringShape = 'edge' | 'branch' | 'item' | 'round' | 'carry' | 'record' | 'needs' | 'given';
 /** The shapes an ARC has — every one but `given`, which only the given road produces. */
 type ArcShape = Exclude<WiringShape, 'given'>;
 /**
@@ -403,6 +404,18 @@ function entryWalk(
       const arr = (composed as Record<string, unknown> | null | undefined)?.[n.over];
       if (Array.isArray(arr)) for (const v of arr) walk(n.branch, v);
     }
+    // **A loop hands ROUND 0's entry its whole value** (v0.57, W228, P47 decision 4) — composed as a map's is, and
+    // never split: the payload reaches the body entry once, as the state. Later rounds receive an arrival, which no
+    // walk from the payload reaches.
+    if (n.kind === 'loop') {
+      if (!sampled) { walk(n.branch, undefined); return; }
+      const composed = n.needs === undefined ? value
+        : Object.fromEntries(Object.entries(n.needs).flatMap(([k, r]) => {
+          const form = referenceTarget(r)?.form;
+          return form === 'self' ? [[k, value]] : form === 'payload' ? [[k, payload]] : [];
+        }));
+      walk(n.branch, composed);
+    }
   };
   walk(flow.entry, payload);
   return out;
@@ -412,8 +425,10 @@ class Wiring {
   private readonly byId: ReadonlyMap<string, FlowNode>;
   private readonly graph: Graph;
   private readonly regions: RegionSets[];
-  private readonly inbound = new Map<string, { from: string; kind: 'edge' | 'branch' | 'item' | 'join' | 'gate'; route?: string }[]>();
+  private readonly inbound = new Map<string, { from: string; kind: 'edge' | 'branch' | 'item' | 'round' | 'carry' | 'join' | 'gate'; route?: string; loop?: string }[]>();
   private readonly memo = new Map<string, Arrival[]>();
+  /** Each loop join's BREAK ENDS (`loopBreakEnds`): a loop with any gives its join's successor a second `record` arc. */
+  private readonly breaks: Map<string, string[]>;
   private readonly workers: ReturnType<typeof workersOf>;
   private readonly types: ReturnType<typeof nodeTypesOf>;
   private readonly gateTypes: ReadonlyMap<string, GateType>;
@@ -438,8 +453,9 @@ class Wiring {
     this.byId = new Map(flow.nodes.map((n) => [n.id, n] as const));
     this.graph = buildGraph(flow);
     this.regions = allRegions(this.graph, flow);
-    const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'join' | 'gate', route?: string) =>
-      this.inbound.set(to, [...(this.inbound.get(to) ?? []), { from, kind, route }]);
+    this.breaks = loopBreakEnds(this.graph, flow);
+    const add = (to: string, from: string, kind: 'edge' | 'branch' | 'item' | 'round' | 'carry' | 'join' | 'gate', route?: string, loop?: string) =>
+      this.inbound.set(to, [...(this.inbound.get(to) ?? []), { from, kind, route, ...(loop !== undefined ? { loop } : {}) }]);
     for (const n of flow.nodes) {
       // An ASK's edges are a task's (v0.42, W179): what leaves it is its output, the person's answer.
       if (n.kind === 'task' || n.kind === 'ask' || n.kind === 'join') for (const e of n.edges ?? []) add(e.to, n.id, n.kind === 'join' ? 'join' : 'edge');
@@ -465,6 +481,14 @@ class Wiring {
       }
       if (n.kind === 'fanout') for (const b of n.branches) add(b, n.id, 'branch');
       if (n.kind === 'map') add(n.branch, n.id, 'item');
+      // **A loop: round 0's arc from the loop, and one `carry` arc per body node with an edge to its join** (v0.57,
+      // W228, P47 decision 4) — the state in is the state out, so the body entry is held against both.
+      if (n.kind === 'loop') add(n.branch, n.id, 'round');
+    }
+    for (const r of this.regions) {
+      if (r.opensWith !== 'loop' || r.branches.length !== 1) continue;
+      const entry = r.branches[0]!;
+      for (const n of this.arrivingAt(r, entry)) add(entry, n.id, 'carry', undefined, r.fanoutId);
     }
   }
 
@@ -666,6 +690,18 @@ class Wiring {
       if (kind === 'edge') raw.push({ shape: 'edge', producer: from, ...this.produced(from) });
       else if (kind === 'branch') for (const a of this.arrivals(from)) raw.push({ ...a, shape: 'branch', through: from });
       else if (kind === 'item') for (const a of this.arrivals(from)) raw.push(this.item(a, this.byId.get(from) as MapNode));
+      // **`round`: what the LOOP received, unchanged — round 0's input** (v0.57). As a `branch` arc's.
+      else if (kind === 'round') for (const a of this.arrivals(from)) raw.push({ ...a, shape: 'round', through: from });
+      // **`carry`: what a round ARRIVES at the loop's join with, at the body entry again** (v0.57) — the producer's
+      // output. **Only a task's or an ask's**: through a GATE or an inner JOIN the carried value is, one step back,
+      // what reaches the body entry — which this arc is part of — so it is `unchecked`, naming why, never a recursion.
+      else if (kind === 'carry') {
+        const p = this.byId.get(from);
+        const loop = this.inbound.get(nodeId)?.find((x) => x.kind === 'carry' && x.from === from)?.loop;
+        const via = loop !== undefined ? { through: loop } : {};
+        if (p?.kind === 'task' || p?.kind === 'ask') raw.push({ shape: 'carry', producer: from, ...via, ...this.produced(from) });
+        else raw.push({ shape: 'carry', producer: from, ...via, unchecked: `"${from}" is a ${p?.kind ?? 'node'} carrying a round into the loop's join, and what reaches it is — one step back — what reaches "${nodeId}", so no shape is checked on this arc` });
+      }
       // **A gate: every arrival AT the gate arrives after it, REFINED by what this route guarantees.** Same
       // shape, same producer, same sample — the value is the one that reached the gate — and where the
       // type declares this route key-resolved the SCHEMA gains `required` along the node's key
@@ -696,7 +732,7 @@ class Wiring {
           raw.push({ ...a, schema: this.requireAlong(a.schema, key) });
         }
       }
-      else raw.push(this.record(this.byId.get(from) as JoinNode));
+      else raw.push(...this.records(this.byId.get(from) as JoinNode));
     }
     const needs = (node as { needs?: Readonly<Record<string, unknown>> } | undefined)?.needs;
     // **The ENTRY has no arc** (the spec's subsection): an entry task's `needs` composes the run's PAYLOAD,
@@ -738,7 +774,8 @@ class Wiring {
     const region = this.regions.find((r) => r.joinId === j.id);
     const base = { shape: 'record' as const, producer: j.id };
     if (!region) return { ...base, unchecked: `join "${j.id}" closes no region` };
-    const opener = this.byId.get(region.fanoutId) as FanoutNode | MapNode;
+    const opener = this.byId.get(region.fanoutId) as FanoutNode | MapNode | LoopNode;
+    if (opener.kind === 'loop') return this.loopValue(j, opener);
     const branches = opener.kind === 'map' ? [opener.branch] : opener.branches;
     const values: { branch: string; schema: JsonSchema; sample: { value: unknown; source: ArcSampleSource } }[] = [];
     for (const b of branches) {
@@ -747,7 +784,7 @@ class Wiring {
       // A GATE routing into the join carries in what reached it — one shape per arrival at the gate (v0.23).
       // Without it the branch had no arriving node, and the record LOST that branch's key (W92's census).
       type From = { node: FlowNode; shape: Pick<Arrival, 'schema' | 'sample' | 'unchecked'> };
-      const from = arriving.flatMap((n): From[] => n.kind === 'join' ? [{ node: n, shape: this.record(n) as Pick<Arrival, 'schema' | 'sample' | 'unchecked'> }]
+      const from = arriving.flatMap((n): From[] => n.kind === 'join' ? this.records(n).map((r) => ({ node: n, shape: r as Pick<Arrival, 'schema' | 'sample' | 'unchecked'> }))
         : n.kind === 'gate' ? this.arrivals(n.id).map((a) => ({ node: n, shape: a as Pick<Arrival, 'schema' | 'sample' | 'unchecked'> }))
         : [{ node: n, shape: { ...this.produced(n.id) } }]);
       if (from.length === 0) continue;                                      // a gate nothing reaches; no key
@@ -805,6 +842,72 @@ class Wiring {
   }
 
   /**
+   * **A loop's JOIN VALUE, `{ last, iterations, exhausted, broke? }`** — `spec/flow-definition.md` v0.57, section 2's `loop`
+   * (P47 decision 5). `last` is the loop's STATE — **what the last round ARRIVED AT THE JOIN with** (the maintainer's (a1) to
+   * W228's conformity reader, F1: this was the body entry's `inputSchema`, a different value wherever the entry declares
+   * `needs`): the output of the ONE body node with an edge to the join, the producer the `carry` arc names; `iterations`
+   * an integer `>= 1`; `exhausted` a boolean; `broke` optional. **`unchecked`** where SEVERAL body nodes reach the join (no
+   * single shape), where the one is a gate or an inner join (what reaches it is one step back, the `carry` row's reason),
+   * or where it declares no schema.
+   */
+  /**
+   * **What a join hands its successor: its record — and, for a loop whose body can BREAK, a SECOND** (the maintainer's (d1)
+   * to W228). On a break `last` is the state the breaking round STARTED with (P47 decision 5): an earlier round's join
+   * arrival, or — if round 0 broke — the SEED, what reached the loop. So a breakable loop's join gives one `record` arc per
+   * seed besides the arrival's, `last` that seed's shape, each its own verdict and marked `through` the loop (the value
+   * passed through it unchanged, as a `round` arc's does). A loop with no break, and every other join, gives one.
+   */
+  private records(j: JoinNode): Arrival[] {
+    const first = this.record(j);
+    const region = this.regions.find((r) => r.joinId === j.id);
+    const opener = region === undefined ? undefined : this.byId.get(region.fanoutId);
+    if (opener?.kind !== 'loop' || (this.breaks.get(j.id) ?? []).length === 0) return [first];
+    const base = { shape: 'record' as const, producer: j.id, through: opener.id };
+    const seeds = this.arrivals(opener.id);
+    const onBreak = `on a break (${this.breaks.get(j.id)!.map((e) => `"${e}"`).join(', ')}) loop "${opener.id}" hands on the state the breaking round started with — in round 0 the SEED`;
+    if (seeds.length === 0) return [first, { ...base, unchecked: `${onBreak}, and an ENTRY loop's seed is the run's payload, which no schema declares` }];
+    return [first, ...seeds.map((s): Arrival => {
+      if (s.schema === undefined) return { ...base, unchecked: `${onBreak}, from "${s.producer}", which ${s.unchecked ?? 'declares nothing'}` };
+      return this.loopValueOf(j, s.schema, base);
+    })];
+  }
+
+  private loopValue(j: JoinNode, loop: LoopNode): Arrival {
+    const base = { shape: 'record' as const, producer: j.id };
+    const region = this.regions.find((r) => r.joinId === j.id);
+    const arriving = region === undefined ? [] : this.arrivingAt(region, loop.branch);
+    const carries = `loop "${loop.id}"'s join value carries its state as \`last\``;
+    if (arriving.length !== 1) {
+      return { ...base, unchecked: `${carries}, and ${arriving.length === 0 ? 'no body node' : `${arriving.length} body nodes (${arriving.map((n) => `"${n.id}"`).sort().join(', ')})`} reach "${j.id}", so no single shape` };
+    }
+    const at = arriving[0]!;
+    if (at.kind !== 'task' && at.kind !== 'ask') {
+      return { ...base, unchecked: `${carries}, and "${at.id}" is a ${at.kind} — what reaches it is, one step back, what reaches the body entry` };
+    }
+    const produced = this.produced(at.id);
+    const last = produced.schema;
+    if (last === undefined) return { ...base, unchecked: `${carries}, and ${produced.unchecked}` };
+    return this.loopValueOf(j, last, base);
+  }
+
+  /** The join value's schema around one `last` — closed, `iterations` >= 1, `broke` optional — and its sample. */
+  private loopValueOf(_j: JoinNode, last: JsonSchema, base: Pick<Arrival, 'shape' | 'producer' | 'through'>): Arrival {
+    const schema: JsonSchema = {
+      type: 'object',
+      required: ['last', 'iterations', 'exhausted'],
+      properties: {
+        last,
+        iterations: { type: 'integer', minimum: 1 },
+        exhausted: { type: 'boolean' },
+        broke: { type: 'object', required: ['at', 'value'], properties: { at: { type: 'string' }, value: {} }, additionalProperties: false },
+      },
+      additionalProperties: false,
+    };
+    const s = sampleOf(schema)!;
+    return { ...base, schema, sample: { value: s.value, source: s.source } };
+  }
+
+  /**
    * **What a `"$item"` key composes from: the enclosing map's ITEM arrival** — P38 (i), v0.45. The map is the innermost
    * one containing `nodeId` (`innermostMapOf`, P38 (c)), and its item is `item()` over the map's OWN arrival — the
    * `items` sub-schema of what it receives under `over`, with the per-element sample. **One arrival or none at all**: a
@@ -843,6 +946,15 @@ class Wiring {
       // hold and reads `unchecked`, never a false `fits`. On `form`, never on `t.node === null`, which read it as
       // `"."` and gave the key the EDGE's schema (P38 fact 8).
       if (t.form === 'payload') return { ...base, unchecked: `needs.${key} is "$payload" — the run's payload, which no schema declares` };
+      // **`"$iteration"` is the round's index, an integer `>= 0`** (v0.57, W228): checked wherever a loop contains the
+      // reader, its sample `0` — round 0's; outside one it is `FD-V51`'s and the arc says so rather than guessing.
+      if (t.form === 'iteration') {
+        if (innermostLoopOf(this.regions, nodeId) === undefined) return { ...base, unchecked: `needs.${key} is "$iteration", and "${nodeId}" is inside no loop (FD-V51)` };
+        props[key] = { type: 'integer', minimum: 0 };
+        sample[key] = 0;
+        required.push(key);
+        continue;
+      }
       // **`"$item"` is the enclosing map's ITEM arrival** (P38 (i), v0.45): its schema, and its sample ONE ELEMENT PER
       // ITEM under the `"."` keys' per-element rule below — so a node two hops into an instance is composed once per
       // item, as the run composes it, and not over the whole `over` array. `unchecked` where the map has no single
@@ -1106,6 +1218,8 @@ export function describeVerdict(v: WiringVerdict): string {
     : v.shape === 'edge' ? `${v.producer} -> ${v.consumer}`
     : v.shape === 'branch' ? `${v.producer} -> (${v.through}) -> ${v.consumer}`
     : v.shape === 'item' ? `${v.producer} -> (${v.through}, one item) -> ${v.consumer}`
+    : v.shape === 'round' ? `${v.producer} -> (${v.through}, round 0) -> ${v.consumer}`
+    : v.shape === 'carry' ? `${v.producer} -> (${v.through}, the next round) -> ${v.consumer}`
     : v.shape === 'record' ? `${v.producer} (the record) -> ${v.consumer}`
     : `${v.producer} -> needs -> ${v.consumer}`;
   const s = v.sample ? ` [on the ${sourceWord(v.sample.source)}${v.sample.arity !== undefined ? `, arity ${v.sample.arity}` : ''}]` : '';
@@ -1114,5 +1228,5 @@ export function describeVerdict(v: WiringVerdict): string {
 
 /** The verdict kinds, enumerated — what a report's `counts` is keyed by, bound to the spec's table by a test. */
 export const VERDICT_KINDS: readonly VerdictKind[] = ['fits', 'no', 'transform-passes', 'transform-fails', 'unchecked'];
-/** The shapes, enumerated — the five arc shapes and `given` (W166), bound to the spec's arc table by a test. */
-export const WIRING_SHAPES: readonly WiringShape[] = ['edge', 'branch', 'item', 'record', 'needs', 'given'];
+/** The shapes, enumerated — the seven arc shapes (five until v0.57) and `given` (W166), bound to the spec's arc table by a test. */
+export const WIRING_SHAPES: readonly WiringShape[] = ['edge', 'branch', 'item', 'round', 'carry', 'record', 'needs', 'given'];

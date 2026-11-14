@@ -9,7 +9,7 @@
  * `ROUTABLE_STATES`, `KINDS`, `ID_RE`, `KEY_PATH_RE`, `PREDICATE_OPS`, `PREDICATE_ROOTS`, and the schema subset's
  * `SCHEMA_KEYWORDS` / `SCHEMA_TYPES` — so a key the validator gains is a key this schema gains. **Three things are
  * WRITTEN here, because the validator keeps them private** (W210's conformity reader, S1): the reference grammar's
- * tokens (`"."`, `"$payload"`, `"$item"`, `"!error"`), the operator partition `FD-V44` reads, and which edge keys each
+ * tokens (`"."`, `"$payload"`, `"$item"`, `"$iteration"` since v0.57, `"!error"`), the operator partition `FD-V44` reads, and which edge keys each
  * kind's edges admit (`FD-V7`, `FD-V41`). W210's suite holds each to the validator — every spelling against
  * `referenceTarget`, every operator against `validateDefinition`, each edge site's refusals — so a token the validator
  * gains is a red test rather than a silent refusal. **A key with no
@@ -124,9 +124,17 @@ const KIND_DESCRIPTIONS: Readonly<Record<string, Readonly<Record<string, string>
     branch: 'The id of the one node each item\'s instance starts at — a task or an ask (FD-V25, validateDefinition\'s).',
     needs: 'What the map receives before it reads `over` (spec/flow-definition.md section 3, FD-V26).',
   },
+  loop: {
+    kind: 'A `loop`: opens a region of ONE branch, run ROUND AFTER ROUND — each round handed what the last arrived at the join with — until `until` holds, the bound is reached or the body breaks through an `end`; closed by the one `join` naming it, whose value is { last, iterations, exhausted, broke? }. Dispatches nothing. (spec/flow-definition.md v0.57.)',
+    branch: 'The id of the body\'s entry node, which every round starts at — a task or an ask (FD-V50, validateDefinition\'s).',
+    until: 'When the loop is DONE: a declared comparison { path, op, value or valueFrom, default?, length? } or a flat group { all } or { any } of them, over the ONE root "input" — what the round arrived at the join with (FD-V42-FD-V45). Never a predicate name.',
+    maxIterations: 'The bound: an integer >= 1 (FD-V50). Rounds x tasks per round is known before a run starts.',
+    maxIterationsFrom: 'A key path on the value that reaches the loop, read once as round 0 opens; the bound used is the SMALLER of it and maxIterations (FD-V50). What a run does when it does not hold an integer >= 1 is a run-time refusal.',
+    needs: 'What the loop receives — the SEED, round 0\'s input (spec/flow-definition.md section 3, FD-V26).',
+  },
   join: {
     kind: 'A `join`: closes the region its `of` opened, by the join policy the driver is given. Dispatches nothing.',
-    of: 'The id of the `fanout` or `map` whose region this closes: a string (FD-V21); that it names an existing node (FD-V2) and that the node is one (FD-V6) are validateDefinition\'s.',
+    of: 'The id of the `fanout`, `map` or `loop` whose region this closes: a string (FD-V21); that it names an existing node (FD-V2) and that the node is one (FD-V6) are validateDefinition\'s.',
     edges: 'Exactly one edge, carrying neither `when` nor `on` (FD-V7): a join has no outcome for either to read.',
   },
   end: {
@@ -230,6 +238,11 @@ function nodeKeySchema(kind: string, key: string): Schema {
     case 'branches': return { type: 'array', minItems: 2, uniqueItems: true, items: ref('id') };
     case 'of': return ref('id');
     case 'over': case 'branch': return ref('id');
+    // **A loop's own keys** (v0.57, W228): `FD-V50`'s shape clauses, and `until` held to the comparison and group shapes
+    // over the ONE root `input` — an `if` gate's scope (P47 fact 15).
+    case 'until': return { oneOf: [ref('untilComparison'), ref('untilGroup')] };
+    case 'maxIterations': return { type: 'integer', minimum: 1 };
+    case 'maxIterationsFrom': return { type: 'string', pattern: KEY_PATH_RE.source };
     case 'outcome': return { type: 'string', minLength: 1 };
     case 'answerSchema': return ref('subsetSchema');
     case 'edges': {
@@ -326,13 +339,13 @@ function needsSchema(withSelf: boolean, description: string): Schema {
   };
 }
 
-/** One reference's grammar — `"."` (a node's site only), `"$payload"`, `"$item"`, `"n"`, `"n!error"`, each node form with `?` and as a one-element array. */
+/** One reference's grammar — `"."` (a node's site only), `"$payload"`, `"$item"`, `"$iteration"`, `"n"`, `"n!error"`, each node form with `?` and as a one-element array. */
 function referenceSchema(withSelf: boolean, id: string): Schema {
   const aimed = `${id}(?:${ERROR_PART})?\\??`;
-  const tokens = [...(withSelf ? ['\\.'] : []), '\\$payload', '\\$item', aimed];
+  const tokens = [...(withSelf ? ['\\.'] : []), '\\$payload', '\\$item', '\\$iteration', aimed];
   return {
     description: (withSelf ? '"." (what this node would have received), ' : '') +
-      '"$payload" (what the run entered with), "$item" (the item of the map instance containing this node), a node id ' +
+      '"$payload" (what the run entered with), "$item" (the item of the map instance containing this node), "$iteration" (the index of the loop round containing this node), a node id ' +
       '(that node\'s output), or a node id followed by "!error" (that node\'s error, null where it succeeded) — each node form ' +
       'with an optional "?" last (the node may not have run: absent, not refused), and as a one-element array (every output of that node visible on this node\'s path, in branch-path order; where each form is legal is FD-V28\'s) (FD-V26).',
     anyOf: [
@@ -342,11 +355,14 @@ function referenceSchema(withSelf: boolean, id: string): Schema {
   };
 }
 
-/** A declared comparison — `FD-V42`'s shape, `FD-V43`'s path, `FD-V44`'s operator and value. */
-function leafSchema(id: string): Schema {
+/**
+ * A declared comparison — `FD-V42`'s shape, `FD-V43`'s path, `FD-V44`'s operator and value. `roots` are the scope's:
+ * an edge's decision context, or (v0.57) a loop's `until`, whose one root is `input`.
+ */
+function leafSchema(id: string, roots: readonly string[] = PREDICATE_ROOTS, description = 'A declared comparison over the decision\'s context.'): Schema {
   // **A segment past the root may carry array indexes; the root may not** (v0.53, ADR 0137; `FD-V43`'s root rule). The
   // segment is `KEY_PATH_RE`'s own, which `keyPathSegment` asserts against that expression's source.
-  const path = `^(?:${PREDICATE_ROOTS.join('|')})(?:\\.${keyPathSegment(id)})+$`;
+  const path = `^(?:${roots.join('|')})(?:\\.${keyPathSegment(id)})+$`;
   // A function, not one shared object: each use gets its own, so no part of a result aliases another.
   const scalar = (): Schema => ({ type: ['null', 'boolean', 'number', 'string'] });
   const keySchemas: Record<string, Schema> = {
@@ -360,7 +376,7 @@ function leafSchema(id: string): Schema {
     length: { const: true },
   };
   return {
-    description: 'A declared comparison over the decision\'s context.',
+    description,
     type: 'object',
     required: [...PREDICATE_LEAF_REQUIRED],
     // **Exactly one of `value` / `valueFrom`** (`FD-V42`, v0.55): both satisfy both branches and neither satisfies none.
@@ -466,6 +482,16 @@ function staticSchema(): DefinitionSchema {
       additionalProperties: false,
     },
     comparison: leafSchema(id),
+    untilComparison: leafSchema(id, ['input'], 'A declared comparison over what a loop round ARRIVED at the join with — its one root is "input" (v0.57).'),
+    untilGroup: {
+      description: 'A loop\'s `until` as a FLAT group — `all` or `any`, never both, never nested, its members comparisons over "input" (FD-V45).',
+      oneOf: PREDICATE_GROUP_KEYS.map((k) => ({
+        type: 'object',
+        required: [k],
+        properties: { [k]: { type: 'array', minItems: 1, items: ref('untilComparison'), description: described(PREDICATE_DESCRIPTIONS, k, 'a group') } },
+        additionalProperties: false,
+      })),
+    },
     group: {
       description: 'A FLAT group — `all` or `any`, never both, never nested, its members comparisons (FD-V45).',
       oneOf: PREDICATE_GROUP_KEYS.map((k) => ({

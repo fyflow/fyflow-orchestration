@@ -82,12 +82,18 @@ const SHAPE_ONLY = ['FD-V16', 'FD-V17', 'FD-V18', 'FD-V21', 'FD-V23', 'FD-V24', 
  * key set refuses it), `FD-V9`'s *fewer than two `branches`* (a `minItems`) — both *partly shape* in fact 2, whose shape
  * clause their corpus file happens to be — and `FD-V40`'s *`key` is not a KEY PATH*, which fact 2 left unclassified and
  * which W210's re-take moves to shape: the library resolves `key` on EVERY gate, whatever its type (`FD-V40`, P24 (d)),
- * so it needs no registry. **Every other invalid file is ACCEPTED** — its rule needs another node or the registry.
+ * so it needs no registry. **And three of `FD-V50`'s** (v0.57, W228), the loop's OWN-KEY clauses section 1's *carries* row
+ * names — a loop declares no `edges`, `maxIterations` an integer `>= 1` (a `minimum`), `maxIterationsFrom` a key path (a
+ * `pattern`); its fourth file, *the branch is a map*, is the KIND clause, which reads another node and is accepted.
+ * **Every other invalid file is ACCEPTED** — its rule needs another node or the registry.
  */
 const SHAPE_FILES_OF_OTHER_RULES = [
   'FD-V8--end-node-with-edges.flow.json',
   'FD-V9--fanout-with-one-branch.flow.json',
   'FD-V40--gate-key-path-with-a-wildcard.flow.json',
+  'FD-V50--loop-with-edges.flow.json',
+  'FD-V50--loop-max-iterations-zero.flow.json',
+  'FD-V50--loop-max-iterations-from-not-a-key-path.flow.json',
 ];
 /**
  * **One file of a SHAPE-ONLY rule that the schema does NOT refuse, because its clause is not a shape** — W221, P45 (g1),
@@ -139,6 +145,10 @@ const REPAIRS: Record<string, (d: Doc) => void> = {
     d.nodes.push({ id: 'scoreB', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'collect' }] });
   },
   'FD-V40--gate-key-path-with-a-wildcard.flow.json': (d) => { (nodeOf(d, 'dedupe').settings as Record<string, unknown>).key = 'files[0].series'; },
+  'FD-V43--loop-until-off-the-input-root.flow.json': (d) => { (nodeOf(d, 'poll').until as Record<string, unknown>).path = 'input.ready'; },
+  'FD-V50--loop-with-edges.flow.json': (d) => { delete nodeOf(d, 'poll').edges; },
+  'FD-V50--loop-max-iterations-zero.flow.json': (d) => { nodeOf(d, 'poll').maxIterations = 1; },
+  'FD-V50--loop-max-iterations-from-not-a-key-path.flow.json': (d) => { nodeOf(d, 'poll').maxIterationsFrom = 'budget.rounds'; },
 };
 
 /** A hand-built base flow with every structural kind — the control for the constructed clauses below. */
@@ -566,12 +576,12 @@ suite(SUITE, (test) => {
     equal(refused, [], 'no valid flow is refused');
   });
 
-  test('the invalid corpus PARTITIONS as section 5 says — every shape-only file refused, the three shape-clause files refused, every other file accepted', async () => {
+  test('the invalid corpus PARTITIONS as section 5 says — every shape-only file refused, the shape-clause files of other rules refused, every other file accepted', async () => {
     const refused: string[] = [];
     const accepted: string[] = [];
     for (const n of invalidNames) (accepts(await load(`${EX}/invalid/${n}`)) ? accepted : refused).push(n);
     const expectRefused = invalidNames.filter(staticRefuses);
-    equal(refused, expectRefused, 'the refused files are exactly the shape-only rules\' and the three named');
+    equal(refused, expectRefused, 'the refused files are exactly the shape-only rules\' and the shape-clause files named');
     equal(accepted, invalidNames.filter((n) => !expectRefused.includes(n)), 'and every other file is accepted');
     // Every name the two lists carry is a file on disk, and every shape-only rule has one — so neither list is vacuous.
     for (const n of [...SHAPE_FILES_OF_OTHER_RULES, ...CROSS_KEY_FILES_OF_SHAPE_RULES]) ok(invalidNames.includes(n), `${n} is in the corpus`);

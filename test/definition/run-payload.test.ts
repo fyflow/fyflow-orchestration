@@ -78,7 +78,8 @@ suite(SUITE, (test) => {
       [['$payload'], 'is an array form, and there is ONE run payload: write "$payload"'],
       ['$payload?', 'write "$payload" without "?"'],
       [['$payload?'], 'is an array form, and there is ONE run payload: write "$payload"'],
-      ['$other', '"$payload" (the run\'s payload) and "$item" (a map instance\'s item)'],
+      // v0.57 (W228): the reserved list gains `"$iteration"`, so the fix names three tokens.
+      ['$other', '"$payload" (the run\'s payload), "$item" (a map instance\'s item) and "$iteration" (a loop round\'s index)'],
       [['$item'], 'is an array form, and there is ONE item per map instance: write "$item"'],
       ['$item?', 'write "$item" without "?"'],
     ];
@@ -92,7 +93,7 @@ suite(SUITE, (test) => {
     // The CONTROL the messages are read against: a non-`$` non-reference still gets the GRAMMAR message, which now
     // lists "$payload" among the forms — so the `$` messages above are not the one message every refusal gets.
     const plain = findingsOf(atNode({ k: 'in:gest' }))[0]!;
-    ok(plain.detail.includes('which is not "." , "$payload", "$item", a node id') && !plain.detail.includes('reserved'),
+    ok(plain.detail.includes('which is not "." , "$payload", "$item", "$iteration", a node id') && !plain.detail.includes('reserved'),
       `a non-"$" refusal is worded as the grammar, not as a "$" clause — got ${plain.detail}`);
   });
 

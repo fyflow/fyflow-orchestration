@@ -106,9 +106,9 @@ suite(SUITE, (test) => {
     }
     // The grammar's own wording names the new form beside the others, at both sites.
     const node = findingsOf(inMap({ needs: { it: 'in:gest' } }))[0]!;
-    ok(node.detail.includes('which is not "." , "$payload", "$item", a node id'), `the node message lists "$item" — got ${node.detail}`);
+    ok(node.detail.includes('which is not "." , "$payload", "$item", "$iteration", a node id'), `the node message lists "$item" — got ${node.detail}`);
     const onEdge = findingsOf(inMap({ edges: [{ when: { path: 'needs.it', op: 'eq', value: 1 }, to: 'collect', needs: { it: 'in:gest' } }, { to: 'collect' }] }))[0]!;
-    ok(onEdge.detail.includes('which is not "$payload", "$item", a node id'), `the edge message lists it too — got ${onEdge.detail}`);
+    ok(onEdge.detail.includes('which is not "$payload", "$item", "$iteration", a node id'), `the edge message lists it too — got ${onEdge.detail}`);
   });
 
   test('"$item" is ACCEPTED inside a map instance: the branch entry, two hops in after an ask, an edge, a fanout inside the instance, a map node inside a map', () => {

@@ -31,6 +31,7 @@ import type { DecisionContext } from '../../src/driver/routing.ts';
 import type { FlowDefinition, GateType } from '../../src/definition/types.ts';
 import type { FoldInput } from '../../src/fold/run-state.ts';
 import { CORPUS_LANGUAGES } from '../definition/corpus-types.ts';
+import { holdsLoop, loopRefusal } from './loop-not-yet-run.ts';
 
 const SUITE = 'L2 — W205, RN-R45: what a node was HANDED, read by replaying the run to its composition — the corpus oracle on every rest and every resume, every kind by hand, every refusal, every halt read up to the halt, deaf';
 
@@ -120,7 +121,16 @@ const CORPUS_OPTS: InputOfOptions = {
   workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, groups: Object.keys(reg.groups ?? {}), languages: CORPUS_LANGUAGES,
   joinPolicy: liveToken as JoinPolicy, validateBoundaries: false,
 };
-const validNames = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort();
+const allValidNames = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort();
+// **The LOOP flows are split off until W229 runs one** — W228's declared late exception; asserted REFUSED at the end of this file.
+const LOOP_DEFS: Record<string, FlowDefinition> = {};
+for (const name of allValidNames) {
+  const d = JSON.parse(await readText(`${EX}/valid/${name}`)) as FlowDefinition;
+  if (holdsLoop(d)) LOOP_DEFS[name] = d;
+}
+const LOOP_FLOWS = Object.keys(LOOP_DEFS);
+const LINEAR = await readText(`${EX}/valid/linear.flow.json`);
+const validNames = allValidNames.filter((n) => !LOOP_FLOWS.includes(n));
 const DEFS: [string, FlowDefinition][] = [];
 for (const name of validNames) DEFS.push([name, JSON.parse(await readText(`${EX}/valid/${name}`)) as FlowDefinition]);
 
@@ -773,5 +783,20 @@ suite(SUITE, (test) => {
     equal(declared.filter((n) => !ran.includes(n)), [], 'a declared case did not run');
     equal(ran.filter((n) => !declared.includes(n)), [], 'a case ran that this list does not name');
     equal(ran.length, DECLARED_CASES.length, 'and the COUNT beside the membership');
+  });
+});
+
+// **W228's declared late exception** (`test/driver/loop-not-yet-run.ts`): the corpus's LOOP flows are split off above and
+// their refusal asserted here, so W229's lift fails this case naming each flow — and W229 deletes the split.
+suite('W228 — a corpus flow holding a LOOP is split off input-of.test.ts`s corpus, and the driver REFUSES it until W229 runs one', (test) => {
+  test('every split flow reaches its loop and is reported InvalidDefinition naming it; a flow holding none, the control, reports nothing', () => {
+    ok(LOOP_FLOWS.length > 0, `the corpus holds a loop flow, so the split is not vacuous: ${LOOP_FLOWS.join(', ')}`);
+    for (const name of LOOP_FLOWS) {
+      const r = loopRefusal(LOOP_DEFS[name]!);
+      equal(r.kinds, ['InvalidDefinition'], `${name}: refused once, as InvalidDefinition, until W229 runs one`);
+      ok(r.messages[0]!.includes('whose kind "loop" this driver cannot execute'), `${name}: the refusal names the kind — ${r.messages[0]}`);
+    }
+    const control = loopRefusal(JSON.parse(LINEAR) as FlowDefinition);
+    equal(control.kinds, [], 'the control, a flow with no loop, is not refused');
   });
 });
