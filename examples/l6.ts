@@ -16675,6 +16675,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // measurement counts its grouping (a Map entry and an array per task) and never a record twice — `retainedBytes` is ONE
     // serialize call over every walked field. examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W195's row.
     'taskLog',
+    // `loops` since W229 (`spec/join-policy.md` v0.26): each loop instance's round, bound and status, and while its join
+    // waits the state and arrival it holds — copies, released where a region's collection is. WALKED. No row here runs a
+    // loop until W230.
+    'loops',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

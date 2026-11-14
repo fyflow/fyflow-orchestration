@@ -31,7 +31,6 @@ import type { JoinPolicy } from '../../src/driver/policy.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import type { Checkpoint } from '../../src/driver/driver.ts';
 import { CORPUS_LANGUAGES } from '../definition/corpus-types.ts';
-import { holdsLoop, loopRefusal } from './loop-not-yet-run.ts';
 
 const EX = `${ROOT}spec/examples`;
 const reg = JSON.parse(await readText(`${EX}/registry.json`)) as {
@@ -53,7 +52,7 @@ class Double {
 /** What every task returns — `test/fold/accumulator.test.ts`'s value, which every corpus flow's `over`, `needs` and gate key can read. */
 const RESULT = (id: string) => ({
   by: id, from: 'ingest', items: ['a', 'b', 'c'], rows: ['p', 'q'], files: ['a', 'b', 'c'], slots: ['x', 'y'],
-  config: { threshold: 7 }, runLabel: 'nightly', series: { id: ['s1', 's1', 's2'][Number(id.split(':')[2]) % 3] ?? 's1' },
+  config: { threshold: 7 }, runLabel: 'nightly', series: { id: ['s1', 's1', 's2'][Number(id.split(':')[2]) % 3] ?? 's1' }, budget: { rounds: 2 },
 });
 
 type Entry = { path: string; result: unknown };
@@ -247,16 +246,7 @@ function drive(def: FlowDefinition, drain: Drain, readEvery: boolean): Driven {
   return out;
 }
 
-const allValidNames = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort();
-// **The LOOP flows are split off until W229 runs one** — W228's declared late exception; asserted REFUSED at the end of this file.
-const LOOP_DEFS: Record<string, FlowDefinition> = {};
-for (const name of allValidNames) {
-  const d = JSON.parse(await readText(`${EX}/valid/${name}`)) as FlowDefinition;
-  if (holdsLoop(d)) LOOP_DEFS[name] = d;
-}
-const LOOP_FLOWS = Object.keys(LOOP_DEFS);
-const LINEAR = await readText(`${EX}/valid/linear.flow.json`);
-const validNames = allValidNames.filter((n) => !LOOP_FLOWS.includes(n));
+const validNames = (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort();
 const DEFS: Record<string, FlowDefinition> = {};
 for (const name of validNames) DEFS[name] = JSON.parse(await readText(`${EX}/valid/${name}`)) as FlowDefinition;
 
@@ -563,20 +553,5 @@ suite('L2 — RN-R13 v0.30: the driver`s per-task view of its log — every per-
     equal((code.match(/\bthis\.log\b(\.\w+|\[[^\]]*\])?/g) ?? []).sort(),
       ['this.log.length', 'this.log.map', 'this.log.push', 'this.log[c.at]'],
       '`this.log` is read whole only by snapshot() (map), pushed by append, and indexed by outputs()`s catch-up (length, [c.at]) — ADR 0121 rule 5');
-  });
-});
-
-// **W228's declared late exception** (`test/driver/loop-not-yet-run.ts`): the corpus's LOOP flows are split off above and
-// their refusal asserted here, so W229's lift fails this case naming each flow — and W229 deletes the split.
-suite('W228 — a corpus flow holding a LOOP is split off log-view.test.ts`s corpus, and the driver REFUSES it until W229 runs one', (test) => {
-  test('every split flow reaches its loop and is reported InvalidDefinition naming it; a flow holding none, the control, reports nothing', () => {
-    ok(LOOP_FLOWS.length > 0, `the corpus holds a loop flow, so the split is not vacuous: ${LOOP_FLOWS.join(', ')}`);
-    for (const name of LOOP_FLOWS) {
-      const r = loopRefusal(LOOP_DEFS[name]!);
-      equal(r.kinds, ['InvalidDefinition'], `${name}: refused once, as InvalidDefinition, until W229 runs one`);
-      ok(r.messages[0]!.includes('whose kind "loop" this driver cannot execute'), `${name}: the refusal names the kind — ${r.messages[0]}`);
-    }
-    const control = loopRefusal(JSON.parse(LINEAR) as FlowDefinition);
-    equal(control.kinds, [], 'the control, a flow with no loop, is not refused');
   });
 });

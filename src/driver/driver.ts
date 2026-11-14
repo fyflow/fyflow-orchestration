@@ -19,7 +19,7 @@ import { checkRegistry, isDerivation } from '../definition/registry.ts';
 import { describeFindings, findings, type SchemaFinding } from '../definition/schema.ts';
 import { boundaryTargets } from '../definition/wiring.ts';
 import {
-  allRegions, branchPathOf, buildGraph, innermostMapOf, innermostRegionOf, regionChainOf, sharedRegionDepth, toRegion,
+  allRegions, branchPathOf, buildGraph, innermostLoopOf, innermostMapOf, innermostRegionOf, regionChainOf, sharedRegionDepth, toRegion,
   visibilityKey,
   type Graph, type RegionSets,
 } from '../definition/regions.ts';
@@ -30,8 +30,9 @@ import {
 import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord, type ResolutionRecord } from './log.ts';
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { gateEdge, selectEdge, type PredicateRegistry } from './routing.ts';
+import { evaluateDeclared } from '../definition/condition.ts';
 import { isTerminalEvent, type RegionEvent } from './events.ts';
-import type { JoinPolicy, Region, UnsatisfiableJoin } from './policy.ts';
+import type { JoinPolicy, JsonValue, Region, UnsatisfiableJoin } from './policy.ts';
 // W205 — a reading's default join policy, `runtime.resume`'s own (`RN-R25`, `RN-R45`).
 import { liveToken } from '../fold/policies.ts';
 // Type-only, so it is erased and there is no runtime cycle with `src/fold/`.
@@ -134,6 +135,37 @@ export class UnresolvedMapArity extends Error {
     super(message, options);
     this.name = 'UnresolvedMapArity';
   }
+}
+
+/**
+ * **`FD-R7` — a `loop`'s `maxIterationsFrom` names no positive INTEGER on the loop's value** — `spec/flow-definition.md`
+ * v0.58, P47 decision 6, [W229](../../doc/work-items/w229-a-loop-at-run-time.md). `UnresolvedMapArity`'s pattern and its
+ * reason: the definition is valid and the value is not what the flow says it is, a producer's bug — never a silent
+ * fall-back to `maxIterations`. Read ONCE, before round 0 opens, so nothing of the loop is appended. Reported through
+ * `OR-R10` from a listener, and reported AND rethrown from `start()` (an entry loop) and `resolve()`.
+ */
+export class UnresolvedLoopBound extends Error {
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'UnresolvedLoopBound';
+  }
+}
+
+/**
+ * **One loop region instance's run** — `spec/join-policy.md` v0.26, `JP-R13`-`JP-R15` (W229). `round` is the round live, or
+ * the last opened; `bound` the bound in use (`JP-R14`); `state` what that round STARTED with — the join value's `last` on a
+ * break; `arrival` and `exit` what its terminal event carried, written by `enter`'s `join` and `end` arms BEFORE the event
+ * is emitted; `ended` the round's terminal event, recorded by `emit`. `status` is what `joinStatusOf` answers, and it
+ * outlives the three values, which are released where `JP-R12`'s collection is.
+ */
+interface LoopRun {
+  round: number;
+  readonly bound: number;
+  status: 'waiting' | 'satisfied' | 'unsatisfiable';
+  state?: unknown;
+  arrival?: unknown;
+  exit?: { readonly at: string; readonly value: unknown };
+  ended: RegionEvent['type'] | null;
 }
 
 /**
@@ -1029,6 +1061,18 @@ function collectArrivals(
     const segment = path.slice(path.lastIndexOf('.') + 1);
     return [region.opensWith === 'fanout' ? region.branches[Number(segment)]! : segment, arrived.get(path)] as const;
   }));
+}
+
+/** `JP-R15`'s lifetime: a loop instance's held values go when its join is terminal; `joinStatusOf`'s counts stay. */
+function releaseLoopValues(run: LoopRun): void {
+  delete run.state;
+  delete run.arrival;
+  delete run.exit;
+}
+
+/** What `joinStatusOf` and `onUnsatisfiableJoin` say of a loop instance (`JP-R14`): the rounds opened, and the bound. */
+function loopDescribe(run: LoopRun): JsonValue {
+  return { iterations: run.round + 1, bound: run.bound };
 }
 
 /**
@@ -1930,6 +1974,8 @@ export class Driver {
    * nesting is flattened in ONE place rather than at each of the five call sites.)*
    */
   private readonly joinState = new Map<string, Map<string, unknown>>();
+  /** **Each loop region instance's run**, keyed by loop id and then `regionPath`, as `joinState` is — `LoopRun` (W229). */
+  private readonly loops = new Map<string, Map<string, LoopRun>>();
   /**
    * A join fires at most once, however many terminal events follow it — **per
    * region INSTANCE**, keyed `openerId -> {openerPath}` (ADR 0062).
@@ -2445,9 +2491,11 @@ export class Driver {
     const kept = itemMaps(definition, this.regions);
     this.items = { kept, within: itemWithin(kept, this.regions), held: new Map(), nested: new Map(), ended: new Set() };
 
-    if (this.regions.length > 0 && !opts.joinPolicy) {
+    // **A loop region is not counted** — its join takes no policy (`spec/join-policy.md` v0.26, `JP-R14`, W229).
+    const policed = this.regions.filter((r) => r.opensWith !== 'loop').length;
+    if (policed > 0 && !opts.joinPolicy) {
       throw new MissingJoinPolicy(
-        `definition "${definition.flowId}" has ${this.regions.length} ` +
+        `definition "${definition.flowId}" has ${policed} ` +
           `fan-out region(s) and no joinPolicy. ` +
           'Without one every branch would arrive and the join would never fire, which is ' +
           'indistinguishable from the case P1 exists to measure.',
@@ -3331,6 +3379,7 @@ export class Driver {
     };
     this.arrivals.clear();
     this.releaseAllItems();
+    this.releaseLoops();
     // **A PAUSED run's held tasks are handed on and THEN cancelled** (P34 (c), `RN-R35`, W175): each is `dispatched`
     // and unsettled, so the run reads `cancelling` until the scheduler settles it — and only the scheduler writes a
     // settlement (ADR 0007). Taken out of the hold and marked `unhanded` BEFORE the element (P35 decision 4, `takeStop`'s
@@ -3483,6 +3532,7 @@ export class Driver {
     req.took = null;
     this.arrivals.clear();
     this.releaseAllItems();
+    this.releaseLoops();
     // 3. DEAF — BEFORE the first cancel (P34 decision 3): a waiting task's `task.cancelled` fires INSIDE its `cancel()`
     // call (P34 fact 8), and it must reach a driver that no longer hears. **And before the element, with the hold**
     // (W174's reading of decision 3's order): a settlement a consumer's callback on the element provokes would otherwise
@@ -3918,6 +3968,7 @@ export class Driver {
         // drops only the structure no `FoldInput` carries.
         this.arrivals.clear();
         this.releaseAllItems();
+        this.releaseLoops();
         report();
       }
       return;
@@ -4074,6 +4125,7 @@ export class Driver {
       this.cancelled = true;
       this.arrivals.clear();
       this.releaseAllItems();
+      this.releaseLoops();
       return;
     }
     if (record.terminalState === 'user_action') {
@@ -4603,7 +4655,12 @@ export class Driver {
         // opens at the first arrival and closes when the join becomes terminal, and
         // outside it nothing is recorded and nothing is held.
         const rpJoin = this.rpathOf(region, itemIndices);
-        if (!this.firedHas(region.fanoutId, rpJoin)) {
+        // **A loop's join keeps its round's ARRIVAL, not a collection** (`JP-R15`): read by `settleLoop` for `until`, the
+        // next round's input and `last`.
+        if (region.opensWith === 'loop') {
+          const run = this.loopRunOf(region, itemIndices);
+          if (run?.status === 'waiting') run.arrival = payload;
+        } else if (!this.firedHas(region.fanoutId, rpJoin)) {
           this.arrivalsOf(region.fanoutId, rpJoin).set(fromBranch, payload);
         }
         this.emit({ type: 'branch.arrived', regionId: region.fanoutId,
@@ -4625,6 +4682,11 @@ export class Driver {
         if (region && fromBranch !== '-') {
           // NOT "left the region" — the `end` is inside region(F). The condition is
           // "reached a node of kind `end`", which is local and computable.
+          // **In a loop's round it is a BREAK** (`JP-R14`): the join value's `broke` carries this `end` and what reached it.
+          if (region.opensWith === 'loop') {
+            const run = this.loopRunOf(region, itemIndices);
+            if (run?.status === 'waiting') run.exit = { at: nodeId, value: received };
+          }
           this.emit({ type: 'branch.exited', regionId: region.fanoutId,
             regionPath: this.rpathOf(region, itemIndices), branchPath: fromBranch, at: nodeId });
         }
@@ -4690,6 +4752,29 @@ export class Driver {
       case 'ask':
         return this.ask(runId, node, received, itemIndices);
 
+      // **A LOOP opens its FIRST round, and nothing else** — `spec/join-policy.md` v0.26 `JP-R13`-`JP-R15`, P47 decisions
+      // 4-6, [W229](../../doc/work-items/w229-a-loop-at-run-time.md). Clause for clause the `map` arm with ONE instance
+      // opened now and the rest opened by `settleLoop`, one per arrival:
+      //
+      //   1. the BOUND, read once, before anything is appended — `FD-R7` THROWS here, uncaught, for `mapItems`'s reason
+      //      (`start()` must both report and rethrow for an entry loop);
+      //   2. NO policy is opened — a loop's join takes none (`JP-R14`);
+      //   3. the region is ENTERED, once for every round it will run;
+      //   4. round 0 opens at its own path with `branch.opened` before its entry is entered (`JP-R13`), handed its OWN copy
+      //      of the loop's value — the SEED (`JP-R15`) — which the run keeps as the state round 0 started with.
+      case 'loop': {
+        const region = this.regions.find((r) => r.fanoutId === nodeId);
+        if (!region) return;
+        const bound = this.loopBound(node, received);
+        const rp = this.rpathOf(region, itemIndices);
+        const byPath = this.loops.get(nodeId) ?? new Map<string, LoopRun>();
+        this.loops.set(nodeId, byPath);
+        byPath.set(rp, { round: 0, bound, status: 'waiting', state: received, ended: null });
+        this.append({ kind: 'regionEntered', regionId: nodeId, regionPath: rp });
+        this.openRound(runId, region, itemIndices, 0, received);
+        return;
+      }
+
       // **A node kind this driver cannot execute REFUSES rather than returning.**
       // Added by [W32](../../doc/work-items/w32-what-a-map-fanout-is.md) as a
       // declared late exception, after its conformity reader measured what the
@@ -4734,12 +4819,9 @@ export class Driver {
         // and the assignment is legal, so **a sixth kind added to `FlowNode` without
         // an arm is now a COMPILE error in five typecheck projects** rather than a
         // silent stop found by a reader. That is the guarantee this arm was for.
-        // **`LoopNode` rather than `never` — W228's declared late exception, W32's precedent for `map`** (P47,
-        // `spec/flow-definition.md` v0.57): the definition admits a `loop` and the driver that RUNS one is W229's, so
-        // until then a loop lands HERE and is reported, never a silent stop. Any kind but `loop` without an arm is
-        // still a compile error: `node` narrows to `LoopNode` exactly when every other kind is handled. W229
-        // restores `never`.
-        const exhaustive: LoopNode = node;
+        // *(W228 held this at `LoopNode` while a loop had no arm, W32's precedent for `map`; W229's arm above restores
+        // `never`.)*
+        const exhaustive: never = node;
         void exhaustive;
         const kind = (node as { kind?: unknown }).kind;
         this.failRun(
@@ -5118,9 +5200,9 @@ export class Driver {
         continue;
       }
       if (t.form === 'iteration') {
-        // **Unreachable until W229** (W228's declared late exception): a `"$iteration"` reader is inside a loop's body
-        // (`FD-V51`), and entering a loop is reported `InvalidDefinition` by `enter`'s default arm before any body node runs.
-        throw new Error(`node "${node.id}" reads "$iteration", and this driver does not run a loop yet (W229)`);
+        // **The reader's ROUND index in its innermost loop** (`JP-R15`, W229): `FD-V51` puts every reader in a body.
+        out[key] = this.iterationOf(node.id, itemIndices);
+        continue;
       }
       if (t.form === 'item') {
         // **The instance's item, its own copy per key per read** — `FD-C1` v0.45, ADR 0118: the item the map handed
@@ -5279,6 +5361,14 @@ export class Driver {
    * instance's item is released only once nothing of it may still be entered (`trackItems`), so a reader with nothing held is a driver
    * defect — reported as a halt (`OR-R10`) rather than handed `undefined`, which an item may legitimately be.
    */
+  /** **`"$iteration"`** — the reader's round index in its innermost loop (`JP-R15`), read from the indices its path carries. */
+  private iterationOf(nodeId: string, itemIndices: ReadonlyMap<string, number>): number {
+    const loop = innermostLoopOf(this.regions, nodeId);
+    const i = loop === undefined ? undefined : itemIndices.get(loop.fanoutId);
+    if (i === undefined) throw new Error(`node "${nodeId}" reads "$iteration" outside any loop round — FD-V51 should have refused this definition`);
+    return i;
+  }
+
   private itemOf(nodeId: string, itemIndices: ReadonlyMap<string, number>): unknown {
     const m = innermostMapOf(this.regions, nodeId)!;
     const path = this.pathOf(m.branches[0]!, itemIndices);
@@ -5332,8 +5422,9 @@ export class Driver {
         continue;
       }
       if (t.form === 'iteration') {
-        // **Unreachable until W229**, as in `compose` (W228's declared late exception).
-        throw new Error(`node "${node.id}"'s edge reads "$iteration", and this driver does not run a loop yet (W229)`);
+        // **The round index**, by `compose`'s expression, so `ctx.needs.i` and a worker's `input.i` mean one thing.
+        out[key] = this.iterationOf(node.id, itemIndices);
+        continue;
       }
       if (t.form === 'item') {
         // **The instance's item, its own copy per key per read** — `FD-C3` v0.45, by `compose`'s expression, so
@@ -5717,6 +5808,124 @@ export class Driver {
     this.items.ended.clear();
   }
 
+  /**
+   * **The loop's BOUND** — `JP-R14`, `spec/flow-definition.md` section 2: `maxIterations`, lowered by `maxIterationsFrom`
+   * read on the loop's value by `FD-V40`'s key-path reading, the SMALLER used. **`FD-R7`** where that key holds no integer
+   * `>= 1` — absent included: thrown, as `mapItems` throws `FD-R2`.
+   */
+  private loopBound(node: LoopNode, received: unknown): number {
+    if (node.maxIterationsFrom === undefined) return node.maxIterations;
+    const v = readKeyPath(received, node.maxIterationsFrom);
+    if (typeof v === 'number' && Number.isInteger(v) && v >= 1) return Math.min(v, node.maxIterations);
+    throw new UnresolvedLoopBound(
+      `FD-R7 — loop node "${node.id}" declares \`maxIterationsFrom: ${JSON.stringify(node.maxIterationsFrom)}\`, and the ` +
+        `value it received holds ${describeShape(v)} there — not an integer >= 1. A loop's bound is read once, before its ` +
+        'first round, and the run stops rather than falling back to `maxIterations` in silence: the node before the loop ' +
+        'did not produce what this flow says it does.',
+    );
+  }
+
+  /**
+   * **Open round `round` of a loop instance** — `JP-R13`: `branch.opened` at the round's own path (the loop's index in the
+   * per-region map, `ID-R6`), THEN the body's entry, handed its own copy of the state (`JP-R15`). `enter` checks the hold
+   * at its head (`RN-R29`), so a halted run's round dispatches nothing.
+   */
+  private openRound(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, round: number, state: unknown): void {
+    const branch = region.branches[0];
+    if (branch === undefined) return; // FD-V50 makes this unreachable
+    const m = withIndex(itemIndices, region.fanoutId, round);
+    const path = this.pathOf(branch, m);
+    this.emit({ type: 'branch.opened', regionId: region.fanoutId, regionPath: this.rpathOf(region, itemIndices), branchPath: path });
+    this.enter(runId, branch, cloneValue(state), path, region.fanoutId, m);
+  }
+
+  private loopRunOf(region: RegionSets, itemIndices: ReadonlyMap<string, number>): LoopRun | undefined {
+    return this.loops.get(region.fanoutId)?.get(this.rpathOf(region, itemIndices));
+  }
+
+  /**
+   * **A round's terminal event, decided** — `JP-R14`, in the routing step that emitted it (P47 fact 16): an ARRIVAL reads
+   * `until` over what arrived, then the bound, and fires the join or opens the next round; an EXIT is a break and fires it;
+   * a LOSS makes it `unsatisfiable`. Nothing is recorded for the decision — it is a pure function of the arrival.
+   *
+   * **A HALTED run decides nothing** (`JP-R14`, `RN-R29`) — checked at the head, before anything is read: a cancel or a
+   * failure taken in the step of the round's terminal event has already released the loop's values (`releaseLoops`), so
+   * a decision taken past that point reads what is no longer there (W229's readers, F1 and D1). No round opens, no
+   * `joinSettled` is appended either way, nothing is reported unsatisfiable, and the loop stays `waiting`.
+   */
+  private settleLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>): void {
+    if (this.shut()) return;
+    const run = this.loopRunOf(region, itemIndices);
+    if (run === undefined || run.status !== 'waiting' || run.ended === null) return;
+    const ended = run.ended;
+    run.ended = null;
+    const iterations = run.round + 1;
+    if (ended === 'branch.lost') return this.loseLoop(runId, region, itemIndices, run);
+    if (ended === 'branch.exited') {
+      const exit = run.exit!;
+      return this.fireLoop(runId, region, itemIndices, run, { last: run.state, iterations, exhausted: false, broke: { at: exit.at, value: exit.value } });
+    }
+    const loop = this.graph.byId.get(region.fanoutId) as LoopNode;
+    const arrival = run.arrival;
+    const holds = evaluateDeclared(loop.until as Parameters<typeof evaluateDeclared>[0], { input: arrival },
+      (message) => new InvalidDefinition(['FD-V44'], message));
+    if (holds) return this.fireLoop(runId, region, itemIndices, run, { last: arrival, iterations, exhausted: false });
+    if (iterations >= run.bound) return this.fireLoop(runId, region, itemIndices, run, { last: arrival, iterations, exhausted: true });
+    run.round = iterations;
+    run.state = arrival;
+    run.arrival = undefined;
+    this.openRound(runId, region, itemIndices, run.round, arrival);
+  }
+
+  /** **The loop's join FIRES** — `JP-R14`, handing its one edge the join value (`JP-R15`), at most once per instance. */
+  private fireLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, run: LoopRun, value: Record<string, unknown>): void {
+    const rp = this.rpathOf(region, itemIndices);
+    run.status = 'satisfied';
+    this.firedAdd(region.fanoutId, rp);
+    const firedAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp, joinId: region.joinId, fired: true });
+    releaseLoopValues(run);
+    if (this.shut()) return;
+    // **A READING's cut** (`RN-R45`), as `settleJoin`'s: what a loop's join hands on is its join value.
+    const reading = this.replay?.reading ?? null;
+    if (reading !== null && region.joinId === reading.nodeId) {
+      this.offer(reading, { nodeId: region.joinId, kind: 'join', branchPath: rp, handed: 'collection', value }, firedAt);
+    }
+    const join = this.graph.byId.get(region.joinId);
+    const edge = join?.kind === 'join' ? join.edges?.[0] : undefined;
+    if (edge) this.enter(runId, edge.to, value, this.pathOf(region.fanoutId, itemIndices), this.regionOf(region.fanoutId)?.fanoutId, itemIndices);
+  }
+
+  /**
+   * **A round LOST loses the loop** — `JP-R14`, P47 decision 2: `settleJoin`'s `unsatisfiable` arm with the DRIVER's answer
+   * in the policy's place — `policyId: "loop"` — and `JP-R10`'s emission for the branch the loop sits in.
+   */
+  private loseLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, run: LoopRun): void {
+    const rp = this.rpathOf(region, itemIndices);
+    run.status = 'unsatisfiable';
+    this.firedAdd(region.fanoutId, rp);
+    releaseLoopValues(run);
+    const settledAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp, joinId: region.joinId, fired: false });
+    if (this.delivers(settledAt)) {
+      this.opts.onUnsatisfiableJoin?.({ fanoutId: region.fanoutId, regionPath: rp, joinId: region.joinId, describe: loopDescribe(run), policyId: 'loop' });
+    }
+    const enclosing = this.regionOf(region.fanoutId);
+    if (enclosing) {
+      this.emit({
+        type: 'branch.lost',
+        regionId: enclosing.fanoutId,
+        regionPath: this.rpathOf(enclosing, itemIndices),
+        branchPath: this.pathOf(region.fanoutId, itemIndices),
+        reason: 'failed',
+      });
+      this.settleJoin(runId, enclosing, itemIndices);
+    }
+  }
+
+  /** **Every loop's held values, dropped** — the run-level moments `JP-R12`'s lifetime names; the counts stay. */
+  private releaseLoops(): void {
+    for (const byPath of this.loops.values()) for (const run of byPath.values()) releaseLoopValues(run);
+  }
+
   /** The arrival map for one region, created on first arrival. */
   private arrivalsOf(fanoutId: string, rp: string): Map<string, unknown> {
     const byPath = this.arrivals.get(fanoutId) ?? new Map<string, Map<string, unknown>>();
@@ -5772,7 +5981,7 @@ export class Driver {
       const r = innermostRegionOf(this.regions, at);
       if (!r || seen.has(r.fanoutId)) break;
       seen.add(r.fanoutId);
-      if (r.opensWith === 'map') {
+      if (r.opensWith === 'map' || r.opensWith === 'loop') {
         const n = Number(segs[k]);
         // A non-segment cannot reach here through `parseTaskId`, which applies
         // `spec/task-id.md` section 1's grammar. Skipping rather than throwing
@@ -5959,6 +6168,11 @@ export class Driver {
     // lets the instance's branch arrive while a nested branch still runs and may read the item (W191's conformity reader,
     // C1). Before the append, so a consumer's callback on the element already sees it gone.
     this.trackItems(e);
+    // **A loop round's terminal event is RECORDED for `settleLoop`** (`JP-R14`), which decides on it in this same step.
+    if (isTerminalEvent(e)) {
+      const run = this.loops.get(e.regionId)?.get(e.regionPath);
+      if (run !== undefined && run.status === 'waiting') run.ended = e.type;
+    }
     // The policy is stepped first and the sequence records second, so that a
     // `onFoldInput` listener asking `joinStatusOf` sees the status this event
     // produced rather than the one before it.
@@ -5985,6 +6199,8 @@ export class Driver {
     region: RegionSets,
     itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
   ): void {
+    // **A loop's join is the DRIVER's** (`JP-R14`, W229): no policy is asked.
+    if (region.opensWith === 'loop') return this.settleLoop(runId, region, itemIndices);
     const policy = this.opts.joinPolicy;
     const rp = this.rpathOf(region, itemIndices);
     if (!policy || this.firedHas(region.fanoutId, rp)) return;
@@ -6310,7 +6526,8 @@ export class Driver {
    * `src/definition/regions.ts` exists to keep in one place.
    */
   regionsForPolicies(): Region[] {
-    return this.regions.map((r) => toRegion(r) as Region);
+    // A loop's join takes no policy (`JP-R14`), so no policy is handed a loop region.
+    return this.regions.filter((r) => r.opensWith !== 'loop').map((r) => toRegion(r) as Region);
   }
 
   /**
@@ -6337,6 +6554,13 @@ export class Driver {
    * was measured to have, and the sharpest single argument for this one.)*
    */
   joinStatusOf(fanoutId: string, regionPath?: string): { status: string; describe: unknown } | null {
+    // **A loop instance is answered by the DRIVER** (`JP-R14`, the maintainer's (a1) to W229): its join takes no policy.
+    const loopRuns = this.loops.get(fanoutId);
+    if (loopRuns !== undefined) {
+      const lp = regionPath ?? (loopRuns.size === 1 ? [...loopRuns.keys()][0]! : undefined);
+      const run = lp === undefined ? undefined : loopRuns.get(lp);
+      return run === undefined ? null : { status: run.status, describe: loopDescribe(run) };
+    }
     const policy = this.opts.joinPolicy;
     const byPath = this.joinState.get(fanoutId);
     if (!policy || !byPath) return null;

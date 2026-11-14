@@ -193,7 +193,7 @@ class Double {
 /** What every task returns: a value every corpus flow's `over`, `needs` and gate key can read (needs.test.ts's per-flow results, merged). */
 const RESULT = (id: string) => ({
   by: id, from: 'ingest', items: ['a', 'b', 'c'], rows: ['p', 'q'], files: ['a', 'b', 'c'], slots: ['x', 'y'],
-  config: { threshold: 7 }, runLabel: 'nightly', series: { id: ['s1', 's1', 's2'][Number(id.split(':')[2]) % 3] ?? 's1' },
+  config: { threshold: 7 }, runLabel: 'nightly', series: { id: ['s1', 's1', 's2'][Number(id.split(':')[2]) % 3] ?? 's1' }, budget: { rounds: 2 },
 });
 
 type Drain = 'in order' | 'reverse' | 'alternate failures' | 'parked, attempted, resolved' | 'parked and left' | 'an uncloneable result first';

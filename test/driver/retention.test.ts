@@ -337,6 +337,11 @@ const DRIVER_FIELDS = [
   // reachability sense and not a second copy: the identity check below says which. WALKED. The ratchet fired by name on
   // W195's first L1 run, beside the four holder sets it moved.
   'taskLog',
+  // W229 — `loops`: each loop region instance's run (`spec/join-policy.md` v0.26, `JP-R13`-`JP-R15`) — the round, the bound
+  // and the status, and while its join waits the STATE the live round started with, its arrival and a break's `end`
+  // value: edge-hop COPIES of results, a second copy as a region's collection is, and released where that one is (when the
+  // join becomes terminal, or at a run-level halt). WALKED. The ratchet fired by name on W229's first L2 run.
+  'loops',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

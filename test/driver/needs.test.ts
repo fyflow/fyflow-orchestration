@@ -36,7 +36,6 @@ const reg = JSON.parse(await readText(`${EX}/registry.json`)) as { workers: Reco
 // W59: the corpus's node types, for the census over the region-bearing corpus — `typed.flow.json`
 // names one, and a driver given no `nodeTypes` reads that as NONE registered (`FD-V32`).
 import { CORPUS_LANGUAGES } from '../definition/corpus-types.ts';
-import { holdsLoop, loopRefusal } from './loop-not-yet-run.ts';
 
 /** The whole scheduler, for level 2. It queues nothing and runs nothing. */
 class FakeScheduler {
@@ -326,6 +325,16 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
       // waits (`branch.suspended`, Q7) and `publish` is never dispatched = **2 ids / 2 node ids / 0 lost**. An ask's id is
       // a task id but not a DISPATCHED one, which is what this census counts.
       ['ask-in-a-fanout', { ids: 2, nodes: 2, lost: 0, map: false }],
+      // **W228's two LOOP documents, RUN since W229** — `map` here reads *a map OR A LOOP region*: a round's segment is a
+      // property of the dispatch exactly as an item's is (`ID-R6`), so a node id collapses inside a loop as inside a map.
+      // `loop-training`, derived by reading its nodes and the stimuli below (budget 3, `evaluate` scoring 0.5 in round 0
+      // and 0.95 in round 1, so `until` holds on round 1's arrival): ingest, then per round plan, rollout x2, fit and
+      // evaluate, two rounds, then promote = **12 ids / 6 node ids / 6 lost** — plan, fit and evaluate once each across
+      // the two rounds, rollout three times (two instances x two rounds, one name).
+      ['loop-training', { ids: 12, nodes: 6, lost: 6, map: true }],
+      // `loop-polling`: `check` reports `ready: false` in round 0 and `true` in round 1, `isLowConfidence` false, so the
+      // loop is done on round 1's arrival: ingest, check x2, publish = **4 ids / 3 node ids / 1 lost**.
+      ['loop-polling', { ids: 4, nodes: 3, lost: 1, map: true }],
     ]);
     const entries: [string, unknown, (id: string) => unknown][] = [
       ['ask-in-a-fanout', { from: 'ingest' }, (id) => ({ by: id })],
@@ -361,6 +370,16 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
           : id.includes(':identify:')
             ? { series: { id: ['s1', 's1', 's2'][Number(id.split(':')[2])] } }
             : { by: id })],
+      // W229: `ingest` carries the bound and `plan` the map's `items`; `evaluate` decides `until` (score >= 0.9) per round.
+      ['loop-training', {},
+        (id) => (id.includes(':ingest:')
+          ? { budget: { rounds: 3 } }
+          : id.includes(':plan:')
+            ? { items: ['a', 'b'] }
+            : id.includes(':evaluate:')
+              ? { score: id.includes(':evaluate:1:') ? 0.95 : 0.5 }
+              : { by: id })],
+      ['loop-polling', {}, (id) => (id.includes(':check:') ? { ready: id.includes(':check:1:') } : { by: id })],
     ];
     // **The list is bound to a source this file does not own** — W41's adequacy
     // reader, whose sharpest measurement is that every bound in these two files was
@@ -375,7 +394,7 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // leaves the corpus is red; and neither edit is inside this file. *A magic
     // number beside its own list is [Q102](../../doc/questions/q102.md)'s shape, and
     // this item wrote three before the reader found them.*
-    const REGION_KINDS = new Set(['fanout', 'map']);
+    const REGION_KINDS = new Set(['fanout', 'map', 'loop']);
     const onDisk: string[] = [];
     // **A region-bearing flow holding a GATE is RUN here since W93, as every other one is** — ADR 0066 rule 7's
     // construction refusal is LIFTED (ADR 0067). W92 split such flows off by KIND and asserted their REFUSAL, so that
@@ -384,23 +403,12 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // with its expectation above. What stays is the ARRANGEMENT, because the census is only a statement about gates
     // while the corpus holds one: the gate flows below are counted, and must be more than none.
     const gated: string[] = [];
-    // **A LOOP is a region opener since v0.57 and the driver runs none until W229** — W228's declared late exception,
-    // W92's arrangement again: a flow holding one is split off BY KIND before the census and its REFUSAL asserted, so
-    // W229's lift fails that assertion naming the flow rather than leave this census silently short of it.
-    const looped: string[] = [];
     for (const f of (await listDir(`${EX}/valid`)).filter((n) => n.endsWith('.flow.json')).sort()) {
       const d = JSON.parse(await readText(`${EX}/valid/${f}`)) as FlowDefinition;
-      if (holdsLoop(d)) {
-        looped.push(f);
-        const r = loopRefusal(d);
-        equal(r.kinds, ['InvalidDefinition'], `${f}: holds a loop, so it is refused once, as InvalidDefinition, until W229 runs one`);
-        continue;
-      }
       if (!d.nodes.some((n) => REGION_KINDS.has(n.kind))) continue;
       onDisk.push(f.replace(/\.flow\.json$/, ''));
       if (d.nodes.some((n) => n.kind === 'gate')) gated.push(f.replace(/\.flow\.json$/, ''));
     }
-    ok(looped.length > 0, `the corpus holds a loop flow, so the split is not vacuous: ${looped.join(', ')}`);
     ok(gated.length > 0 && gated.every((g) => onDisk.includes(g)),
       `the ARRANGEMENT: the corpus holds a region-bearing gate flow, and it is censused — RUN — like the rest: ${gated.join(', ')}`);
     equal(entries.map((e) => e[0]).sort(), onDisk,
@@ -433,9 +441,10 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
         ids.map((i) => i.split(':')[1]!).filter((n, _k, a) => a.filter((x) => x === n).length > 1),
       )].sort();
       const graph = buildGraph(await load(`valid/${name}.flow.json`));
+      // **A loop region collapses ids as a map region does** (W229): its rounds are dispatches of one node id.
       const insideAMap = [...new Set(
         allRegions(graph, await load(`valid/${name}.flow.json`))
-          .filter((r) => r.opensWith === 'map')
+          .filter((r) => r.opensWith === 'map' || r.opensWith === 'loop')
           .flatMap((r) => [...r.members]),
       )].filter((n) => graph.byId.get(n)?.kind === 'task' && ids.some((i) => i.split(':')[1] === n)).sort();
       equal(dispatchedMoreThanOnce, insideAMap,
@@ -474,8 +483,9 @@ suite('L2 — FD-C2: what NAMES an output', (test) => {
     // directory both ways, so this line is the count a human writes and the two above are what
     // stop it being the only bound.
     // **NINE since W93**: `gated-map` carries a map region and RUNS here now that ADR 0066 rule 7 is lifted.
-    equal([...expected.values()].filter((v) => v.lost > 0).length, 9,
-      'and exactly the NINE flows with a map region lose an output');
+    // **ELEVEN since W229**: `loop-training` and `loop-polling`, whose rounds collapse as a map's instances do.
+    equal([...expected.values()].filter((v) => v.lost > 0).length, 11,
+      'and exactly the ELEVEN flows with a map or a loop region lose an output');
     // **SIX fanout-only since W180, from five**: `ask-in-a-fanout`, whose ask branch entry parks and mints no dispatch.
     equal([...expected.values()].filter((v) => !v.map).length, 6,
       'while SIX carry only `fanout` regions and lose NOTHING — at depth 1, at depth 2, with an ' +

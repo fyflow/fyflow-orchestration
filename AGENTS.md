@@ -2951,7 +2951,7 @@ import {
   ConfigRefused, DerivationRefused, DuplicateTaskId, GateTypeRefused, GroupConfigRefused, GroupTypeMissing, InvalidDefinition,
   InvalidRunId, InvalidTaskId, MissingJoinPolicy, MultipleRuns, NameCollision, NameMissing, NoMatchingEdge, NotStarted,
   PoolTypeMissing, RegistryError, ResumeRefused, RunControlRefused, SchemaRefused, TypeDefaultRefused, UncloneableResult, UndeclaredKey,
-  UndeclaredRoute, UndispatchedTask, UnresolvedBranchPath, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
+  UndeclaredRoute, UndispatchedTask, UnresolvedBranchPath, UnresolvedLoopBound, UnresolvedMapArity, UnresolvedReference, WorkerMissing,
 } from 'fyflow-orchestration';
 
 const documented = [
@@ -2964,6 +2964,7 @@ const documented = [
   GroupConfigRefused, NameCollision, SchemaRefused, UndeclaredKey, NameMissing, DerivationRefused,       // the base class and its twelve (section 13)
   GateTypeRefused,                           // a registered GATE type that is not a GateType — checkRegistry (v0.23)
   UnresolvedMapArity, UnresolvedReference,   // reported in a listener; reported AND thrown from start()/resolve()
+  UnresolvedLoopBound,                       // the same two roads — a loop's maxIterationsFrom named no positive integer (FD-R7, W229)
   UndeclaredRoute,                           // the same two roads — a GATE's type returned a route it does not declare (FD-R5, W93)
   BoundaryRefused,                           // thrown at you from start()/resolve() with the run UNTOUCHED — a rejected command (FD-R4)
   InvalidTaskId, UnresolvedBranchPath,                                   // neither — see above

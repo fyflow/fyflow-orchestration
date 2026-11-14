@@ -425,13 +425,13 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
-  // W228 — P47 decisions 1, 4-6, ADR 0145: the `loop` node kind in the definition — L1/L3/L4 in `test/definition/loop.test.ts`;
-  // and its declared late exception, a loop flow split off three driver suites' corpora with its REFUSAL asserted until
-  // W229 runs one (`test/driver/loop-not-yet-run.ts`) — W229 deletes those three, and their lines here.
+  // W229 — P47 decisions 2, 4-6 and fact 16: a loop at RUN time — L2 in `test/driver/loop.test.ts`, L5 in
+  // `test/matrix/loop.test.ts`; both counted below. (W228's three driver splits, which asserted the driver's refusal until
+  // this item, are deleted with their lines here — W229's declared exception.)
+  'W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7',
+  'W229 — L5: a loop × lost, break, park-then-done, park-then-failed, cancel, stop and pause',
+  // W228 — P47 decisions 1, 4-6, ADR 0145: the `loop` node kind in the definition — L1/L3/L4 in `test/definition/loop.test.ts`.
   'W228 — the loop node kind in the definition: FD-V50, FD-V51, read from outside as after a map, the break clause, ID-R6 for a round, the round and carry arcs, the schema',
-  'W228 — a corpus flow holding a LOOP is split off input-of.test.ts`s corpus, and the driver REFUSES it until W229 runs one',
-  'W228 — a corpus flow holding a LOOP is split off log-view.test.ts`s corpus, and the driver REFUSES it until W229 runs one',
-  'W228 — a corpus flow holding a LOOP is split off reference-index.test.ts`s corpus, and the driver REFUSES it until W229 runs one',
   // W225 — P46 decisions 3-5, ADR 0143: UnitGroup and KeyedConcurrentLimitGroup as built-ins and a resident request — L1 in
   // `test/definition/registry.test.ts` and, through `createRuntime` and against the real scheduler's construction, in
   // `test/scheduler/runtime.test.ts`; both counted below.
@@ -1067,14 +1067,20 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W221's two suites, counted the same way and for the same reason** — W220's adequacy reader's D4b/D4c/D5 class: a
   // case deleted WITH its `DECLARED_CASES` line, or a suite emptied at load, leaves `npm test` at exit 0 without a count.
   // **W225's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
-  // **W228's four suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
-  test('W228`s four suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+  // **W229's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
+  test('W229`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7'), 16,
+      'test/driver/loop.test.ts registers its eleven: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, and the membership');
+    equal(count('W229 — L5: a loop × lost, break, park-then-done, park-then-failed, cancel, stop and pause'), 2,
+      'test/matrix/loop.test.ts registers its two: seven rows × three policies, and the membership');
+  });
+  // **W228's suite, counted the same way and for the same reason** — a suite emptied at load is still a suite. (Its three
+  // driver splits went with W229.)
+  test('W228`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W228 — the loop node kind in the definition: FD-V50, FD-V51, read from outside as after a map, the break clause, ID-R6 for a round, the round and carry arcs, the schema'), 14,
       'test/definition/loop.test.ts registers its fourteen: FD-V50`s own keys, its kind clause, FD-V23/FD-V21 and until, "$iteration" accepted, FD-V51 and FD-V26, fact 13, the break, the acceptances, branchPathOf, the wiring arcs, the schema, FD-V2/FD-V6/FD-V12, the entry loop`s boundary walk, and the membership');
-    equal(count('W228 — a corpus flow holding a LOOP is split off input-of.test.ts`s corpus, and the driver REFUSES it until W229 runs one'), 1, 'test/driver/input-of.test.ts registers its one refusal case');
-    equal(count('W228 — a corpus flow holding a LOOP is split off log-view.test.ts`s corpus, and the driver REFUSES it until W229 runs one'), 1, 'test/driver/log-view.test.ts registers its one refusal case');
-    equal(count('W228 — a corpus flow holding a LOOP is split off reference-index.test.ts`s corpus, and the driver REFUSES it until W229 runs one'), 1, 'test/driver/reference-index.test.ts registers its one refusal case');
   });
   test('W225`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
