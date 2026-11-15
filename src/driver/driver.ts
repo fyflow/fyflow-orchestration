@@ -31,7 +31,7 @@ import { effectiveOutcome, isSuspended, type LogRecord, type OutcomeRecord, type
 import { normalizeEvent, type TaskDetailLike } from './listener.ts';
 import { gateEdge, selectEdge, type PredicateRegistry } from './routing.ts';
 import { evaluateDeclared } from '../definition/condition.ts';
-import { isTerminalEvent, type RegionEvent } from './events.ts';
+import { isTerminalEvent, type RegionEvent, type TERMINAL_EVENTS } from './events.ts';
 import type { JoinPolicy, JsonValue, Region, UnsatisfiableJoin } from './policy.ts';
 // W205 — a reading's default join policy, `runtime.resume`'s own (`RN-R25`, `RN-R45`).
 import { liveToken } from '../fold/policies.ts';
@@ -155,7 +155,8 @@ export class UnresolvedLoopBound extends Error {
  * **One loop region instance's run** — `spec/join-policy.md` v0.26, `JP-R13`-`JP-R15` (W229). `round` is the round live, or
  * the last opened; `bound` the bound in use (`JP-R14`); `state` what that round STARTED with — the join value's `last` on a
  * break; `arrival` and `exit` what its terminal event carried, written by `enter`'s `join` and `end` arms BEFORE the event
- * is emitted; `ended` the round's terminal event, recorded by `emit`. `status` is what `joinStatusOf` answers, and it
+ * is emitted. *(The round's terminal event TYPE was a fourth field, `ended`, written by `emit`, until W233: it is
+ * `settleJoin`'s argument now.)* `status` is what `joinStatusOf` answers, and it
  * outlives the three values, which are released where `JP-R12`'s collection is.
  */
 interface LoopRun {
@@ -165,8 +166,10 @@ interface LoopRun {
   state?: unknown;
   arrival?: unknown;
   exit?: { readonly at: string; readonly value: unknown };
-  ended: RegionEvent['type'] | null;
 }
+
+/** The terminal event a call to `settleJoin` follows — every call follows one, for the region instance it names. */
+type BranchEnd = (typeof TERMINAL_EVENTS)[number];
 
 /**
  * **`FD-R3` — a `needs` reference that names a node this run did not produce an
@@ -2242,6 +2245,8 @@ export class Driver {
   private readonly settlementsPending = new Fifo<{ readonly record: OutcomeRecord; readonly runId: string; readonly nodeId: string; readonly branchPath: string }>();
   /** `takeSettlements` is on the stack: a nested step's end leaves the queue to its loop. */
   private takingSettlements = false;
+  /** `takeCalls` is on the stack: a take's own step ends by leaving the calls it queued, and the stop, to that loop (W233). */
+  private takingCalls = false;
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -2294,18 +2299,61 @@ export class Driver {
    */
   private leaveStep(): void {
     this.stepping -= 1;
+    if (this.stepping === 0) this.atRest();
+  }
+
+  /**
+   * **The driver is AT REST again, and takes what its step left pending** — `leaveStep`'s body, and what `pause()` and
+   * `unpause()` run for a call made at rest: the attempts, then the calls and the stop (`takeCalls`), then the settlements.
+   */
+  private atRest(): void {
     try {
-      if (this.stepping === 0 && this.attemptsPending.length > 0) this.takeAttempts();
-      while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
-      if (this.stepping === 0 && this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
+      if (this.attemptsPending.length > 0) this.takeAttempts();
+      if (!this.takingCalls) this.takeCalls();
     } finally {
       // **In a `finally`** (`RN-R46`, W232's conformity reader): a take above that THROWS — a consumer's callback on an
       // `attempted`, a `paused` or an `interrupted` element — has halted the run and is on its way to the caller, and the
       // settlements heard on this step are still owed their elements: appended, routed nowhere, as a later-settling
       // scheduler's would be on a halted run — or dropped, where the stop left the driver deaf. Without this they stayed
       // queued for good. `takeSettlements` never throws, so the throw above leaves as it came.
-      if (this.stepping === 0 && !this.takingSettlements && this.settlementsPending.length > 0) this.takeSettlements();
+      // **And never from inside `takeCalls`** (W233): a settlement heard on a take's step waits for every call still
+      // pending and for the stop, as it did when each take's own end took the next call before it reached this line.
+      if (!this.takingCalls && !this.takingSettlements && this.settlementsPending.length > 0) this.takeSettlements();
     }
+  }
+
+  /**
+   * **Every pause, unpause and resolution pending, taken in call order — then a pending stop** (`RN-R35`, `RN-R37`,
+   * `RN-R33`), in ONE loop — [W233](../../doc/work-items/w233-the-three-questions-the-loops-review-left.md),
+   * [Q813](../../doc/questions/q813.md). Each take is a step of its own, and a call a callback queues on it is taken
+   * after it. Until W233 that was a recursion: the take's own end ran this `while`, so a loop whose body is an ask
+   * answered on its `asked` element nested three frames a round and overflowed within a few thousand rounds — as did a
+   * pause whose element unpauses, whose element pauses, from `pause()` at rest. Here the take's end
+   * finds this loop on the stack (`takingCalls`) and leaves it the queue — `takeSettlements`' shape — and the order of
+   * the log is the one the recursion appended: every call, transitively, before the stop, and both before a settlement.
+   *
+   * **A take that THROWS has halted the run** (`OR-R10` v0.19): the calls behind it are still shifted — each dropped by
+   * its own halted guard — and the stop still taken, silently (`takeStop`), exactly as the throwing take's own end did;
+   * then the throw goes on to whoever is on the stack. *(The FIRST throw is kept. A second cannot happen — every take
+   * behind a halt returns at its guard — so first and last are one error: the adequacy reader's A11.)*
+   */
+  private takeCalls(): void {
+    let threw = false;
+    let thrown: unknown;
+    this.takingCalls = true;
+    try {
+      while (this.pausePending.length > 0) {
+        try {
+          this.takePending(this.pausePending.shift()!);
+        } catch (e) {
+          if (!threw) { threw = true; thrown = e; }
+        }
+      }
+    } finally {
+      this.takingCalls = false;
+    }
+    if (this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
+    if (threw) throw thrown;
   }
 
   /**
@@ -3682,7 +3730,7 @@ export class Driver {
           'and there is nothing left to hold. Nothing was recorded.');
     }
     this.pausePending.push({ kind: 'paused', actor: options.actor });
-    while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
+    if (this.stepping === 0) this.atRest();
   }
 
   /**
@@ -3700,7 +3748,7 @@ export class Driver {
           '(RN-R35, P34 (e)). Nothing was recorded and nothing was handed on.');
     }
     this.pausePending.push({ kind: 'unpaused', actor: options.actor });
-    while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
+    if (this.stepping === 0) this.atRest();
   }
 
   /** The pause the owner has ASKED for: the last call still to be taken, else the pause taken (`RN-R35`). */
@@ -4378,7 +4426,7 @@ export class Driver {
       // dispatch happens inside that call and must not precede the path end that
       // led to it.
       this.append({ kind: 'pathEnded', reason: 'no-eligible-edge', at: nodeId });
-      if (region) this.settleJoin(runId, region, itemIndices);
+      if (region) this.settleJoin(runId, region, itemIndices, 'branch.lost');
       return;
     }
     // **Deep-copied on the way to the next task.** `outcome.result` is the stored
@@ -4695,7 +4743,7 @@ export class Driver {
             branchPath: this.pathOf(region.fanoutId, itemIndices),
             reason: 'failed',
           });
-          this.settleJoin(runId, enclosing, itemIndices);
+          this.settleJoin(runId, enclosing, itemIndices, 'branch.lost');
         }
         return;
       }
@@ -4752,7 +4800,7 @@ export class Driver {
         }
         this.emit({ type: 'branch.arrived', regionId: region.fanoutId,
           regionPath: rpJoin, branchPath: fromBranch });
-        this.settleJoin(runId, region, itemIndices);
+        this.settleJoin(runId, region, itemIndices, 'branch.arrived');
         return;
       }
 
@@ -4782,7 +4830,7 @@ export class Driver {
         // which is the half nothing reported before: outside one there was no
         // region event either, so `pathEnded` had no producer anywhere (Q41).
         this.append({ kind: 'pathEnded', reason: 'end', at: nodeId });
-        if (region && fromBranch !== '-') this.settleJoin(runId, region, itemIndices);
+        if (region && fromBranch !== '-') this.settleJoin(runId, region, itemIndices, 'branch.exited');
         return;
       }
 
@@ -4864,7 +4912,7 @@ export class Driver {
         const rp = this.rpathOf(region, itemIndices);
         const byPath = this.loops.get(nodeId) ?? new Map<string, LoopRun>();
         this.loops.set(nodeId, byPath);
-        byPath.set(rp, { round: 0, bound, status: 'waiting', state: seed, ended: null });
+        byPath.set(rp, { round: 0, bound, status: 'waiting', state: seed });
         this.append({ kind: 'regionEntered', regionId: nodeId, regionPath: rp });
         this.openRound(runId, region, itemIndices, 0, seed);
         return;
@@ -5948,12 +5996,10 @@ export class Driver {
    * a decision taken past that point reads what is no longer there (W229's readers, F1 and D1). No round opens, no
    * `joinSettled` is appended either way, nothing is reported unsatisfiable, and the loop stays `waiting`.
    */
-  private settleLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>): void {
+  private settleLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, ended: BranchEnd): void {
     if (this.shut()) return;
     const run = this.loopRunOf(region, itemIndices);
-    if (run === undefined || run.status !== 'waiting' || run.ended === null) return;
-    const ended = run.ended;
-    run.ended = null;
+    if (run === undefined || run.status !== 'waiting') return;
     const iterations = run.round + 1;
     if (ended === 'branch.lost') return this.loseLoop(runId, region, itemIndices, run);
     if (ended === 'branch.exited') {
@@ -5972,48 +6018,29 @@ export class Driver {
     this.openRound(runId, region, itemIndices, run.round, arrival);
   }
 
-  /** **The loop's join FIRES** — `JP-R14`, handing its one edge the join value (`JP-R15`), at most once per instance. */
+  /**
+   * **The loop's join FIRES** — `JP-R14`, handing its one edge the join value (`JP-R15`), at most once per instance:
+   * `settleJoin`'s satisfied arm (`joinFires`, `leaveJoin`) with the loop's value in the collection's place.
+   */
   private fireLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, run: LoopRun, value: Record<string, unknown>): void {
     const rp = this.rpathOf(region, itemIndices);
     run.status = 'satisfied';
-    this.firedAdd(region.fanoutId, rp);
-    const firedAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp, joinId: region.joinId, fired: true });
+    const firedAt = this.joinFires(region, rp);
     releaseLoopValues(run);
     if (this.shut()) return;
-    // **A READING's cut** (`RN-R45`), as `settleJoin`'s: what a loop's join hands on is its join value.
-    const reading = this.replay?.reading ?? null;
-    if (reading !== null && region.joinId === reading.nodeId) {
-      this.offer(reading, { nodeId: region.joinId, kind: 'join', branchPath: rp, handed: 'collection', value }, firedAt);
-    }
-    const join = this.graph.byId.get(region.joinId);
-    const edge = join?.kind === 'join' ? join.edges?.[0] : undefined;
-    if (edge) this.enter(runId, edge.to, value, this.pathOf(region.fanoutId, itemIndices), this.regionOf(region.fanoutId)?.fanoutId, itemIndices);
+    this.leaveJoin(runId, region, itemIndices, rp, firedAt, value);
   }
 
   /**
-   * **A round LOST loses the loop** — `JP-R14`, P47 decision 2: `settleJoin`'s `unsatisfiable` arm with the DRIVER's answer
-   * in the policy's place — `policyId: "loop"` — and `JP-R10`'s emission for the branch the loop sits in.
+   * **A round LOST loses the loop** — `JP-R14`, P47 decision 2: `settleJoin`'s `unsatisfiable` arm (`joinDies`) with the
+   * DRIVER's answer in the policy's place — `policyId: "loop"`.
    */
   private loseLoop(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, run: LoopRun): void {
     const rp = this.rpathOf(region, itemIndices);
     run.status = 'unsatisfiable';
     this.firedAdd(region.fanoutId, rp);
     releaseLoopValues(run);
-    const settledAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp, joinId: region.joinId, fired: false });
-    if (this.delivers(settledAt)) {
-      this.opts.onUnsatisfiableJoin?.({ fanoutId: region.fanoutId, regionPath: rp, joinId: region.joinId, describe: loopDescribe(run), policyId: 'loop' });
-    }
-    const enclosing = this.regionOf(region.fanoutId);
-    if (enclosing) {
-      this.emit({
-        type: 'branch.lost',
-        regionId: enclosing.fanoutId,
-        regionPath: this.rpathOf(enclosing, itemIndices),
-        branchPath: this.pathOf(region.fanoutId, itemIndices),
-        reason: 'failed',
-      });
-      this.settleJoin(runId, enclosing, itemIndices);
-    }
+    this.joinDies(runId, region, itemIndices, rp, loopDescribe(run), 'loop');
   }
 
   /** **Every loop's held values, dropped** — the run-level moments `JP-R12`'s lifetime names; the counts stay. */
@@ -6263,11 +6290,6 @@ export class Driver {
     // lets the instance's branch arrive while a nested branch still runs and may read the item (W191's conformity reader,
     // C1). Before the append, so a consumer's callback on the element already sees it gone.
     this.trackItems(e);
-    // **A loop round's terminal event is RECORDED for `settleLoop`** (`JP-R14`), which decides on it in this same step.
-    if (isTerminalEvent(e)) {
-      const run = this.loops.get(e.regionId)?.get(e.regionPath);
-      if (run !== undefined && run.status === 'waiting') run.ended = e.type;
-    }
     // The policy is stepped first and the sequence records second, so that a
     // `onFoldInput` listener asking `joinStatusOf` sees the status this event
     // produced rather than the one before it.
@@ -6283,7 +6305,7 @@ export class Driver {
    * without anything arriving at it, which is exactly P1's case.
    */
   /**
-   * Deliberately takes NO payload. `settleJoin` is reached from three sites and
+   * Deliberately takes NO payload. `settleJoin` is reached from five sites (three when this was written) and
    * which one arrives is decided by fan-out completion order — so a signature
    * that accepted one would make the join's downstream data order-dependent by
    * construction. Removing the parameter is what makes Q36 a question rather
@@ -6292,10 +6314,13 @@ export class Driver {
   private settleJoin(
     runId: string,
     region: RegionSets,
-    itemIndices: ReadonlyMap<string, number> = EMPTY_INDICES,
+    itemIndices: ReadonlyMap<string, number>,
+    ended: BranchEnd,
   ): void {
-    // **A loop's join is the DRIVER's** (`JP-R14`, W229): no policy is asked.
-    if (region.opensWith === 'loop') return this.settleLoop(runId, region, itemIndices);
+    // **A loop's join is the DRIVER's** (`JP-R14`, W229): no policy is asked. **`ended` is the terminal event this call
+    // follows, and a loop is its only reader** (W233, Q811): the round arrived, exited or was lost. A policy is told by
+    // `step` and needs no second telling. It names an EVENT TYPE and is no payload — the paragraph above stands.
+    if (region.opensWith === 'loop') return this.settleLoop(runId, region, itemIndices, ended);
     const policy = this.opts.joinPolicy;
     const rp = this.rpathOf(region, itemIndices);
     if (!policy || this.firedHas(region.fanoutId, rp)) return;
@@ -6336,77 +6361,11 @@ export class Driver {
       // TOLD about. The rest — a region nothing ever settles — is the bound rather
       // than a leak, and ADR 0046 rule 5 says why the driver cannot know.
       this.releaseArrivals(region.fanoutId, rp);
-      // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of
-      // it will ever be dispatched, which is what makes the run `stuck` rather
-      // than `completed`.
-      const settledAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
-        joinId: region.joinId, fired: false });
-      if (this.delivers(settledAt)) this.opts.onUnsatisfiableJoin?.({
-        fanoutId: region.fanoutId,
-        // **The INSTANCE, not just the opener** - W84. Under nesting one
-        // `fanoutId` names N joins and a report carrying only the id cannot say
-        // which of them died. That is `RegionEvent`'s own argument at the one
-        // other place a region is named to a consumer, and W33's comment named
-        // `onUnsatisfiableJoin` beside `joinStatusOf` as a thing this decision
-        // reaches. Additive: a consumer reading the four fields it had is unmoved.
-        regionPath: rp,
-        joinId: region.joinId,
-        describe,
-        policyId: policy.id,
-      });
-      // **A dead join ends the branch it sits in — [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
-      // rule 4, and this arm emitted nothing at all before W22.**
-      //
-      // At depth 1 there was nothing to emit: the region's `fanout` is in no
-      // region, `regionOf` returns `undefined`, and this block does not run. So
-      // the gap was **unobservable rather than absent** — the same shape as
-      // [Q114](../../doc/questions/q114.md) one item earlier, where the join's
-      // successor carried no path and depth 1 could not tell.
-      //
-      // **What it cost, measured on a nested flow before the fix:** the outer
-      // branch emitted `branch.opened` and **no terminal event**, in a run that
-      // was neither suspended nor in flight — `verdict: 'stuck'`, every task
-      // settled. `JP-R5` enumerates the two states in which a branch may have no
-      // terminal event, and this is neither, so the old behaviour broke a rule
-      // this document has had since W1. `RunState.regions.outer.settled` was
-      // `{"0":"arrived"}` with branch 1 simply missing.
-      //
-      // **`branch.lost` rather than a new event**, because
-      // `spec/join-policy.md` section 2 already defines it as *"the path ended
-      // inside the region without reaching an `end` node"*, which is what a join
-      // that can never fire is. `JP-R6` says adding an event is a spec change
-      // with its own rationale; not adding one needed this sentence instead.
-      //
-      // **The driver reports the fact and the POLICY decides what it means** —
-      // section 4's owner table, and it is why this is not a walk outward marking
-      // enclosing joins dead. The cascade is emergent: measured at depth 3, one
-      // emission takes `inner` → `lost(mid)` → `mid` also `unsatisfiable` →
-      // `lost(outer)` → `outer` **satisfied**, because `a` arrived there and
-      // nothing arrived at `mid`. Three different verdicts from one line, none of
-      // them the driver's.
-      //
-      // **No `pathEnded` is appended, deliberately.** Both of its reasons are
-      // false here: `'end'` plainly, and `'no-eligible-edge'` because the join
-      // *has* an eligible edge and simply never fires. A third reason is a
-      // `spec/run-state.md` change W22 does not own, and the `joinSettled`
-      // record above already says the path stopped here — `RN-R10` derives
-      // `stuck` from it whatever this branch does.
-      const enclosing = this.regionOf(region.fanoutId);
-      if (enclosing) {
-        this.emit({
-          type: 'branch.lost',
-          regionId: enclosing.fanoutId,
-          regionPath: this.rpathOf(enclosing, itemIndices),
-          branchPath: this.pathOf(region.fanoutId, itemIndices),
-          reason: 'failed',
-        });
-        this.settleJoin(runId, enclosing, itemIndices);
-      }
+      this.joinDies(runId, region, itemIndices, rp, describe, policy.id);
       return;
     }
 
     // satisfied — route out of the join, exactly once.
-    this.firedAdd(region.fanoutId, rp);
     // **ADR 0015.** Appended before the routing it authorises, so a fold that
     // reads the sequence sees the join fire and *then* sees what it dispatched.
     //
@@ -6419,8 +6378,7 @@ export class Driver {
     // It records what the DRIVER did, not what a policy concluded, which is why it
     // does not violate `RN-R6`: `fired` is "routing left the join", an action, and
     // the same two policies over the same events still produce identical `regions`.
-    const firedAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
-      joinId: region.joinId, fired: true });
+    const firedAt = this.joinFires(region, rp);
     // **`OR-R10` on the one door into this function that is already OPEN — W53's
     // conformity reader.** The three doors into `settleJoin` are all shut behind
     // `this.failed`, and the argument in `failRun` enumerates them correctly; what it
@@ -6466,12 +6424,30 @@ export class Driver {
     // or refill what is dropped here.
     const collected = collectArrivals(this.arrivals.get(region.fanoutId)?.get(rp), region);
     this.releaseArrivals(region.fanoutId, rp);
+    this.leaveJoin(runId, region, itemIndices, rp, firedAt, collected);
+  }
+
+  /**
+   * **A join FIRES: the latch, then its `joinSettled` element** — the head of `settleJoin`'s satisfied arm, shared with a
+   * loop's join (`fireLoop`) since W233 ([Q811](../../doc/questions/q811.md), finding 7) so the two cannot drift.
+   * Returns the element's position, which a reading's cut compares (`leaveJoin`). The caller checks the hold after it.
+   */
+  private joinFires(region: RegionSets, rp: string): number {
+    this.firedAdd(region.fanoutId, rp);
+    return this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp, joinId: region.joinId, fired: true });
+  }
+
+  /**
+   * **Routing LEAVES a fired join, carrying `value`** — the tail of `settleJoin`'s satisfied arm, shared with a loop's
+   * join since W233: a reading's cut, then the join's one edge. `value` is `JP-R12`'s collection, or `JP-R15`'s loop value.
+   */
+  private leaveJoin(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, rp: string, firedAt: number, value: unknown): void {
     // **A READING's cut — the COLLECTION this join hands on** (`RN-R45`, W205, P42 decision 3): at its OPENER's path, the
     // value a policy selected at firing time, its `joinSettled` element already compared at `firedAt`. Not its successor's
     // answer: a successor declaring `needs` without `"."` composes it away.
     const reading = this.replay?.reading ?? null;
     if (reading !== null && region.joinId === reading.nodeId) {
-      this.offer(reading, { nodeId: region.joinId, kind: 'join', branchPath: rp, handed: 'collection', value: collected }, firedAt);
+      this.offer(reading, { nodeId: region.joinId, kind: 'join', branchPath: rp, handed: 'collection', value }, firedAt);
     }
     const join = this.graph.byId.get(region.joinId);
     if (!join || join.kind !== 'join') return;
@@ -6539,10 +6515,85 @@ export class Driver {
     // region CONTAINING it is that node's region.
     if (edge) {
       this.enter(
-        runId, edge.to, collected,
+        runId, edge.to, value,
         this.pathOf(region.fanoutId, itemIndices),
         this.regionOf(region.fanoutId)?.fanoutId, itemIndices,
       );
+    }
+  }
+
+  /**
+   * **A join that will never fire: recorded, reported, and the branch it sits in LOST** — the tail of `settleJoin`'s
+   * `unsatisfiable` arm, shared with a lost loop (`loseLoop`) since W233 ([Q811](../../doc/questions/q811.md), finding 7).
+   * The caller has latched the instance and released what it held; `describe` and `policyId` are the policy's, or the
+   * driver's own for a loop (`JP-R14`).
+   */
+  private joinDies(runId: string, region: RegionSets, itemIndices: ReadonlyMap<string, number>, rp: string, describe: JsonValue, policyId: string): void {
+    // ADR 0015 — the join is settled and it did NOT fire. Nothing downstream of
+    // it will ever be dispatched, which is what makes the run `stuck` rather
+    // than `completed`.
+    const settledAt = this.append({ kind: 'joinSettled', regionId: region.fanoutId, regionPath: rp,
+      joinId: region.joinId, fired: false });
+    if (this.delivers(settledAt)) this.opts.onUnsatisfiableJoin?.({
+      fanoutId: region.fanoutId,
+      // **The INSTANCE, not just the opener** - W84. Under nesting one
+      // `fanoutId` names N joins and a report carrying only the id cannot say
+      // which of them died. That is `RegionEvent`'s own argument at the one
+      // other place a region is named to a consumer, and W33's comment named
+      // `onUnsatisfiableJoin` beside `joinStatusOf` as a thing this decision
+      // reaches. Additive: a consumer reading the four fields it had is unmoved.
+      regionPath: rp,
+      joinId: region.joinId,
+      describe,
+      policyId,
+    });
+    // **A dead join ends the branch it sits in — [ADR 0030](../../doc/decisions/0030-a-join-is-transitive-and-a-dead-join-ends-the-branch-it-sits-in.md)
+    // rule 4, and this arm emitted nothing at all before W22.**
+    //
+    // At depth 1 there was nothing to emit: the region's `fanout` is in no
+    // region, `regionOf` returns `undefined`, and this block does not run. So
+    // the gap was **unobservable rather than absent** — the same shape as
+    // [Q114](../../doc/questions/q114.md) one item earlier, where the join's
+    // successor carried no path and depth 1 could not tell.
+    //
+    // **What it cost, measured on a nested flow before the fix:** the outer
+    // branch emitted `branch.opened` and **no terminal event**, in a run that
+    // was neither suspended nor in flight — `verdict: 'stuck'`, every task
+    // settled. `JP-R5` enumerates the two states in which a branch may have no
+    // terminal event, and this is neither, so the old behaviour broke a rule
+    // this document has had since W1. `RunState.regions.outer.settled` was
+    // `{"0":"arrived"}` with branch 1 simply missing.
+    //
+    // **`branch.lost` rather than a new event**, because
+    // `spec/join-policy.md` section 2 already defines it as *"the path ended
+    // inside the region without reaching an `end` node"*, which is what a join
+    // that can never fire is. `JP-R6` says adding an event is a spec change
+    // with its own rationale; not adding one needed this sentence instead.
+    //
+    // **The driver reports the fact and the POLICY decides what it means** —
+    // section 4's owner table, and it is why this is not a walk outward marking
+    // enclosing joins dead. The cascade is emergent: measured at depth 3, one
+    // emission takes `inner` → `lost(mid)` → `mid` also `unsatisfiable` →
+    // `lost(outer)` → `outer` **satisfied**, because `a` arrived there and
+    // nothing arrived at `mid`. Three different verdicts from one line, none of
+    // them the driver's.
+    //
+    // **No `pathEnded` is appended, deliberately.** Both of its reasons are
+    // false here: `'end'` plainly, and `'no-eligible-edge'` because the join
+    // *has* an eligible edge and simply never fires. A third reason is a
+    // `spec/run-state.md` change W22 does not own, and the `joinSettled`
+    // record above already says the path stopped here — `RN-R10` derives
+    // `stuck` from it whatever this branch does.
+    const enclosing = this.regionOf(region.fanoutId);
+    if (enclosing) {
+      this.emit({
+        type: 'branch.lost',
+        regionId: enclosing.fanoutId,
+        regionPath: this.rpathOf(enclosing, itemIndices),
+        branchPath: this.pathOf(region.fanoutId, itemIndices),
+        reason: 'failed',
+      });
+      this.settleJoin(runId, enclosing, itemIndices, 'branch.lost');
     }
   }
 

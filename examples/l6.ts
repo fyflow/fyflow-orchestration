@@ -4680,9 +4680,14 @@ for (const [i, e] of EXPECTED.entries()) {
       refuseAtStart: e.refuseAtStart?.payload,
       // Short only for the row whose result IS the backstop. Nothing can change
       // after the branch suspends, so a longer wait would measure the same thing
-      // more slowly — and if it were ever too short the row fails loudly, with the
-      // outcome reading `running` rather than `awaiting_action`.
+      // more slowly. **Counted from the PARK since W233** ([Q812](../doc/questions/q812.md)): this comment read *if it
+      // were ever too short the row fails loudly, with the outcome reading `running`* — and under deno, after three
+      // runtimes' suites, the threaded `uncloneable` row did exactly that, once: 400 ms from the run's START had to
+      // cover a worker thread starting and the task's retries. From the park, the interval measures only what the row
+      // asserts — a parked run does not finish — and a run that never parks waits out the harness's default and reads
+      // `running`, loudly still.
       backstopMs: e.backstopMs,
+      backstopFromParked: e.expectBackstop === true,
       holdGroup: e.holdGroup,
       // **W82: the PRESENCE of this is the switch** — `RunOptions.checkResults` is spread into
       // `StartOptions` only where a row asks, so every row that omits it runs with the check OFF
@@ -16898,6 +16903,8 @@ if (rowCosts.length !== EXPECTED.length) {
     // false at rest, and on every run here — `fyflow-scheduler` settles no task inside `addTask`. No second copy; both
     // WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged.
     'settlementsPending', 'takingSettlements',
+    // `takingCalls` since W233: whether the pending calls' drain is on the stack. One boolean, false at rest; WALKED.
+    'takingCalls',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +

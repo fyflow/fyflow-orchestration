@@ -868,7 +868,7 @@ class Wiring {
     if (seeds.length === 0) return [first, { ...base, unchecked: `${onBreak}, and an ENTRY loop's seed is the run's payload, which no schema declares` }];
     return [first, ...seeds.map((s): Arrival => {
       if (s.schema === undefined) return { ...base, unchecked: `${onBreak}, from "${s.producer}", which ${s.unchecked ?? 'declares nothing'}` };
-      return this.loopValueOf(j, s.schema, base);
+      return this.loopValueOf(s.schema, base);
     })];
   }
 
@@ -887,11 +887,11 @@ class Wiring {
     const produced = this.produced(at.id);
     const last = produced.schema;
     if (last === undefined) return { ...base, unchecked: `${carries}, and ${produced.unchecked}` };
-    return this.loopValueOf(j, last, base);
+    return this.loopValueOf(last, base);
   }
 
   /** The join value's schema around one `last` — closed, `iterations` >= 1, `broke` optional — and its sample. */
-  private loopValueOf(_j: JoinNode, last: JsonSchema, base: Pick<Arrival, 'shape' | 'producer' | 'through'>): Arrival {
+  private loopValueOf(last: JsonSchema, base: Pick<Arrival, 'shape' | 'producer' | 'through'>): Arrival {
     const schema: JsonSchema = {
       type: 'object',
       required: ['last', 'iterations', 'exhausted'],

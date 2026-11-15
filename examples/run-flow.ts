@@ -1023,6 +1023,17 @@ export interface RunOptions {
   /** Backstop only. Reaching it fails the run; it never decides that a run finished. */
   backstopMs?: number;
   /**
+   * **`backstopMs` is counted from the quiescent point where the run first reads `awaiting_action`, not from its
+   * start** — W233, [Q812](../doc/questions/q812.md). For the row whose RESULT is the backstop: it asserts that a parked
+   * run does not finish, and a clock started with the run also has to outlast everything that happens BEFORE the park —
+   * on a thread pool, a worker thread started and the task's retries spent. Deno once took longer than the row's 400 ms
+   * to get there, and the row read `running`. Until the run parks the harness's DEFAULT backstop stands, so a run that
+   * never parks still ends the wait, reading whatever it reads. **The park is the FIRST quiescent `awaiting_action`,
+   * and that outranks `running`** (`RN-R7`): a sibling branch may still be in flight then, so the interval still has to
+   * cover whatever the row asserts of the siblings — it no longer has to cover the road TO the park.
+   */
+  backstopFromParked?: boolean;
+  /**
    * **The inbound step — W6, and the one piece of design P2 named before it was
    * hit.** Keyed by branch path: when that branch suspends, resolve it this way.
    *
@@ -1717,7 +1728,11 @@ export function violations(r: RunReport, arity: number): string[] {
 
 export async function runFlow(opts: RunOptions): Promise<RunReport> {
   const { definition, policy, payload } = opts;
-  const backstopMs = opts.backstopMs ?? 10_000;
+  const DEFAULT_BACKSTOP_MS = 10_000;
+  const backstopMs = opts.backstopMs ?? DEFAULT_BACKSTOP_MS;
+  // W233: the run has read `awaiting_action` at a quiescent point, and what to do when it first does (`backstopFromParked`).
+  let parked = false;
+  let onParked: (() => void) | undefined;
 
   // **ONE call, from a DOCUMENT — W67.** Everything below reads the runtime's scheduler exactly as
   // it read a hand-built one; what changed is that nothing here builds a pool, a group or a driver.
@@ -2119,6 +2134,10 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
         // inclusion, so a row can now say which outcomes a run must never have
         // been in.
         if (!outcomesSeen.includes(state.outcome)) outcomesSeen.push(state.outcome);
+        if (state.outcome === 'awaiting_action' && !parked) {
+          parked = true;
+          onParked?.();
+        }
         if (!isTerminal(state)) return;
         // **The whole record of "the run was declared finished", and there is no
         // longer a boolean beside it.** `declaredFinished` was deleted here: with
@@ -2265,11 +2284,23 @@ export async function runFlow(opts: RunOptions): Promise<RunReport> {
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const backstop = new Promise<'backstop'>((resolve) => {
-    timer = setTimeout(() => resolve('backstop'), backstopMs);
+    const fire = () => resolve('backstop');
+    // **From the PARK where the row asks** (`backstopFromParked`, W233): the default stands until the run parks, and the
+    // row's own interval is counted from there. `parked` covers a run that parked before this line was reached.
+    if (opts.backstopFromParked === true && !parked) {
+      timer = setTimeout(fire, DEFAULT_BACKSTOP_MS);
+      onParked = () => {
+        if (timer !== undefined) clearTimeout(timer);
+        timer = setTimeout(fire, backstopMs);
+      };
+    } else {
+      timer = setTimeout(fire, backstopMs);
+    }
   });
   // **The winner names itself.** See the declaration of `finished` above for why
   // this is not `declaredFinished ? … : …` any more.
   const finishedBy: 'run-state' | 'backstop' = await Promise.race([finished, backstop]);
+  onParked = undefined; // the wait is over: a park read after it arms nothing
   if (timer !== undefined) clearTimeout(timer);
   // **Derived from the sequence, not tracked beside it.** On the backstop row the
   // predicate never fired, so there is no "after" to be late relative to and the

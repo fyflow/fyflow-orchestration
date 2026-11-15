@@ -1076,8 +1076,8 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W232's suite, counted the same way and for the same reason** — a suite emptied at load is still a suite.
   test('W232`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('W232 — L2: a settlement heard inside the driver`s own step is copied there and taken when that step ends (RN-R46)'), 16,
-      'test/driver/settle-inside.test.ts registers its sixteen: the log equal on seven shapes and a failed and a parked branch, the two shapes the first attempt moved, what each task is handed, resume at every cut, the flat stack, pause stop and cancel, the copy where it is heard, a throw at a listener`s boundary, a cancelled settlement in place, the user_action pair, a driver drained twice, a halt heard where it is heard, a cancel and a stop with settlements waiting, a halt with settlements waiting, a throwing take, and the membership');
+    equal(count('W232 — L2: a settlement heard inside the driver`s own step is copied there and taken when that step ends (RN-R46)'), 20,
+      'test/driver/settle-inside.test.ts registers its twenty: the log equal on seven shapes and a failed and a parked branch, the two shapes the first attempt moved, what each task is handed, resume at every cut, the flat stack, pause stop and cancel, the copy where it is heard, a throw at a listener`s boundary, a cancelled settlement in place, the user_action pair, a driver drained twice, a halt heard where it is heard, a cancel and a stop with settlements waiting, a halt with settlements waiting, a throwing take, W233`s four for the calls a step`s end takes (20,000 ask-only rounds at a flat stack, an answer on the element landing where one at rest lands, the order of one step`s takes, a take that throws), and the membership');
   });
   // **W230's suite, counted the same way and for the same reason** — a suite emptied at load is still a suite.
   test('W230`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
@@ -1088,8 +1088,8 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W229's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
   test('W229`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7'), 22,
-      'test/driver/loop.test.ts registers its twenty-two: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, a halt on every road, the lifetime, a join to an end, a lost loop resumed, "$iteration" nested, W231`s three for a loop the payload reaches (FD-R4 at round 0, the seed its own copy, the bound read from it), W232`s three on a scheduler that settles inside addTask (5000 rounds, the log and each round`s input, a cancel opening no round), and the membership');
+    equal(count('W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7'), 23,
+      'test/driver/loop.test.ts registers its twenty-three: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, a halt on every road, the lifetime, a join to an end, a lost loop resumed, "$iteration" nested, W231`s three for a loop the payload reaches (FD-R4 at round 0, the seed its own copy, the bound read from it), W232`s three on a scheduler that settles inside addTask (5000 rounds, the log and each round`s input, a cancel opening no round), W233`s one for a dead join and an empty map in a round`s body, and the membership');
     equal(count('W229 — L5: a loop × lost, break, park-then-done, park-then-failed, cancel, stop and pause'), 2,
       'test/matrix/loop.test.ts registers its two: seven rows × three policies, and the membership');
   });

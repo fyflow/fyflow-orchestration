@@ -205,7 +205,8 @@ suite(SUITE, (test) => {
     const offRoot = findingsOf(polling({ loop: { until: { path: 'outcome.result.ready', op: 'eq', value: true } } }))[0]!;
     ok(offRoot.detail.includes("which a loop's until cannot see") && !offRoot.detail.includes('gate'), `the off-root message is the LOOP's — got ${offRoot.detail}`);
     const named = findingsOf(polling({ loop: { until: { predicate: 'isLowConfidence' } } }))[0]!;
-    ok(named.detail.includes('a loop has neither'), `the predicate-name message is the LOOP's, not the gate's — got ${named.detail}`);
+    ok(named.detail.includes('which a loop cannot ask') && named.detail.includes('a loop has neither') && !named.detail.includes('gate'),
+      `the predicate-name message is the LOOP's from its first clause to its last, not the gate's (W233's adequacy reader, C04) — got ${named.detail}`);
     // The CONTROLS: a flat group, and a comparison with valueFrom over the same root.
     equal(rulesOf(polling({ loop: { until: { any: [UNTIL, { path: 'input.tries', op: 'gte', value: 3 }] } } })), [], 'a flat group over input is accepted');
     equal(rulesOf(polling({ loop: { until: { path: 'input.score', op: 'gte', valueFrom: 'input.target' } } })), [], 'a valueFrom over input is accepted');

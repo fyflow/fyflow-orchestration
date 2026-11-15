@@ -17,7 +17,7 @@ import type { JoinPolicy, UnsatisfiableJoin } from '../../src/driver/policy.ts';
 import type { Predicate } from '../../src/driver/routing.ts';
 import type { FlowDefinition } from '../../src/definition/types.ts';
 import { fold, type FoldInput } from '../../src/fold/run-state.ts';
-import { liveToken } from '../../src/fold/policies.ts';
+import { liveToken, liveTokenRequiringArrival } from '../../src/fold/policies.ts';
 import { Fake } from '../matrix/run.ts';
 
 const SUITE = 'W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7';
@@ -170,6 +170,9 @@ const DECLARED_CASES = [
   'W232 a scheduler that settles INSIDE addTask runs 5000 rounds: every round dispatched, the join fired, the run completed, nothing reported',
   'W232 RN-R46 on such a scheduler: a loop`s log IS the log of one that settles later, and each round is handed what JP-R15 says — done, exhausted, a break, a lost round, a loop in a loop, a loop in a map',
   'W232 a cancel taken on a round`s own settlement, on such a scheduler, opens no next round',
+  // W233 — Q811's finding 7: a dead join's tail is ONE function for a policy's join and a loop's, and it tells the
+  // enclosing region its branch was LOST. The adequacy reader told it `arrived` and `exited` and nothing went red.
+  'W233 JP-R10 into a loop: a join that dies in a round`s body, and a map over nothing there, each LOSE the round — and the loop',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -831,6 +834,53 @@ suite(SUITE, (test) => {
     equal(ids(r), ['r1:ingest:-:0', 'r1:work:0:0', 'r1:work:1:0'], 'rounds 0 and 1 ran; the cancel on round 1`s arrival opened no round 2');
     equal(evs(r), ['opened(L:0)', 'arrived(L:0)', 'opened(L:1)', 'arrived(L:1)'], 'and no further region event (JP-R14: a halted run decides nothing)');
     ok(!r.d.foldInputs().some((e) => e.kind === 'joinSettled'), 'nor a joinSettled');
+  });
+
+  test(DECLARED_CASES[21]!, () => {
+    const body = (nodes: unknown[], branch: string): FlowDefinition => ({
+      flowId: 'w233-dead-in-a-round', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'L' }] },
+        { id: 'L', kind: 'loop', branch, until: { path: 'input.ok', op: 'eq', value: true }, maxIterations: 3 },
+        ...nodes,
+        { id: 'J', kind: 'join', of: 'L', edges: [{ to: 'after' }] },
+        { id: 'after', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    }) as unknown as FlowDefinition;
+    const LOOP_LOST = { fanoutId: 'L', regionPath: '-', joinId: 'J', describe: { iterations: 1, bound: 3 }, policyId: 'loop' };
+
+    // `L(pre → F[a, b] → FJ)`: both branches of the fan-out are lost, and under a policy that requires an arrival its join
+    // is unsatisfiable (JP-R10) — which ends the branch it sits in, round 0, as LOST; and a lost round loses the loop (JP-R14).
+    const dead = runLater(body([
+      { id: 'pre', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'F' }] },
+      { id: 'F', kind: 'fanout', branches: ['a', 'b'] },
+      { id: 'a', kind: 'task', type: 'ScoreWorker', optional: true, edges: [{ to: 'FJ' }] },
+      { id: 'b', kind: 'task', type: 'ReviewWorker', optional: true, edges: [{ to: 'FJ' }] },
+      { id: 'FJ', kind: 'join', of: 'F', edges: [{ to: 'J' }] },
+    ], 'pre'), (id) => id.startsWith('r1:a:') || id.startsWith('r1:b:') ? { state: 'failed', result: null } : { state: 'done', result: { seed: 1 } },
+    { policy: liveTokenRequiringArrival as JoinPolicy });
+    equal(ids(dead), ['r1:ingest:-:0', 'r1:pre:0:0', 'r1:a:0.0:0', 'r1:b:0.1:0'], 'a dead join in round 0: no round 1 and no after');
+    equal(evs(dead), ['opened(L:0)', 'opened(F:0.0)', 'opened(F:0.1)', 'lost(F:0.0)', 'lost(F:0.1)', 'lost(L:0)'],
+      'the round is LOST — not arrived, not exited — and nothing follows it');
+    equal(dead.unsat.map((u) => `${u.joinId}@${u.regionPath} ${u.policyId}`), ['FJ@0 live-token-requiring-arrival', 'J@- loop'], 'two reports: the fan-out`s join, then the loop`s');
+    equal(dead.unsat[1], LOOP_LOST, 'the loop`s: one round opened, the driver`s answer');
+    equal(fold(dead.d.foldInputs()).outcome, 'stuck', 'the fold: stuck (RN-R10)');
+    equal(dead.failures, [], 'not a run failure');
+
+    // `L(plan → M(over nothing) → MJ → fit)`: a map over an empty list opens no branch, so nothing can arrive at its
+    // join — the driver reports the branch it sits in LOST, and no policy is asked (`spec/join-policy.md` section 5).
+    const empty = runLater(body([
+      { id: 'plan', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'M' }] },
+      { id: 'M', kind: 'map', over: 'items', branch: 'roll' },
+      { id: 'roll', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'MJ' }] },
+      { id: 'MJ', kind: 'join', of: 'M', edges: [{ to: 'fit' }] },
+      { id: 'fit', kind: 'task', type: 'MergeWorker', edges: [{ to: 'J' }] },
+    ], 'plan'), () => ({ state: 'done', result: { items: [] } }));
+    equal(ids(empty), ['r1:ingest:-:0', 'r1:plan:0:0'], 'a map over nothing in round 0: no round 1, no fit and no after');
+    equal(evs(empty), ['opened(L:0)', 'lost(L:0)'], 'the round is LOST');
+    equal(empty.unsat, [LOOP_LOST], 'and the loop reported once — the map`s own join is not, no policy having answered');
+    equal(fold(empty.d.foldInputs()).outcome, 'stuck', 'the fold: stuck');
   });
 
   test(DECLARED_CASES[DECLARED_CASES.length - 1]!, () => {

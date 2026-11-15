@@ -154,6 +154,17 @@ suite(SUITE, (test) => {
       const rule = label === 'a NAME inside a group' ? 'FD-V45' : grammarRule[says];
       if (rule !== undefined) ok(fs[0]!.detail.includes(`(${rule}'s grammar`), `${label}: and it names ${rule}, whose grammar it is — ${fs[0]!.detail}`);
     }
+    // **Each message is the GATE's, not a loop's** (W233's adequacy reader, C01 and C05): `until` shares this grammar since
+    // v0.57 and has its own words, and `its one root is "input"` above is in BOTH sites' sentences — so a gate handed the
+    // loop's scope, or the loop's advice, passed every line of the table.
+    const gateSays = (settings: unknown) => findingsAt(ifFlow(settings), 'g')[0]!.detail;
+    const offRoot = gateSays({ when: { path: 'outcome.result.p', op: 'eq', value: 1 } });
+    ok(offRoot.includes('which an if gate cannot see') && !offRoot.includes('loop'), `FD-V43, a foreign root: the gate's sentence — ${offRoot}`);
+    const alone = gateSays({ when: { path: 'input', op: 'eq', value: 1 } });
+    ok(alone.includes("a gate's path names a key") && !alone.includes('until'), `FD-V43, a root alone: the gate's sentence — ${alone}`);
+    const named = gateSays({ when: { predicate: 'isHigh' } });
+    ok(named.includes('a gate has neither') && named.includes('register a gate type of your own') && !named.includes('loop'),
+      `FD-V42, a name: the gate's advice — ${named}`);
     // **The TASK edge's grammar is UNMOVED** (Output (4)): `input` is not a root there, and `outcome`/`needs` still are —
     // two lists, not one wider one, because `input.x` on an edge would resolve to nothing in silence (re-take 3).
     const edgeFlow = (when: unknown) => ({

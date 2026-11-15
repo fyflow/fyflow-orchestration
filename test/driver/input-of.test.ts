@@ -399,6 +399,13 @@ suite(SUITE, (test) => {
     equal(view(read({ nodeId: 'mj' })), [['2', 'arrival', K(2)], ['1', 'arrival', K(1)], ['-', 'collection', { 1: K(1), 2: K(2) }]],
       'the join: two arrivals in arrival order, then what it handed on');
     equal(Object.keys((one(read({ nodeId: 'mj', branchPath: '-' }), 'mj collection').value as object)), ['1', '2'], 'the collection`s keys in branch-path order');
+    // A store cut just BEFORE the join's `joinSettled` (W233's adequacy reader, B41): the collection is handed on AT that
+    // element (`RN-R45`), so a store without it answers the arrivals and no collection. `checkpoint-loop.test.ts` holds
+    // this for a loop's join; since W233 both joins hand on through one function, and nothing held it for this one.
+    const settledAt = cp.events.findIndex((e) => e.kind === 'joinSettled' && e.joinId === 'mj');
+    ok(settledAt > 0, 'the ARRANGEMENT: the store holds mj`s joinSettled');
+    equal(view(inputOf(MAP_GATE, m.opts, { header: cp.header, events: cp.events.slice(0, settledAt) }, { nodeId: 'mj' })),
+      [['2', 'arrival', K(2)], ['1', 'arrival', K(1)]], 'a store cut BEFORE the join settled: the two arrivals, no collection');
     // `s`: `["keep?"]` in branch-path order, and `"."` the collection.
     equal(one(read({ taskId: 'r1:s:-:0' }), 's').value, { settings: {}, input: { all: [K(1), K(2)], got: { 1: K(1), 2: K(2) } } }, 's composes both keeps and the collection');
     const sEnv = one(read({ taskId: 'r1:s:-:0' }), 's').value as { settings: object; input: { all: object[] } };

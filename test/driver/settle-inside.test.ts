@@ -184,6 +184,58 @@ const COMMON: Script = (id) => {
   return DONE({ n, at: path(id) });
 };
 
+// --- W233, Q813: what a step's END takes, when a consumer's callback is what queued it --------------------------------
+
+/** `ingest → L(approve: an ASK) → J → after`: a loop whose body dispatches nothing. */
+const ASK_LOOP = (maxIterations: number) => flow('w233-ask-loop', 'ingest', [
+  task('ingest', 'IngestWorker', 'L'), { id: 'L', kind: 'loop', branch: 'approve', until: UNTIL, maxIterations },
+  { id: 'approve', kind: 'ask', edges: [{ to: 'J' }] }, { id: 'J', kind: 'join', of: 'L', edges: [{ to: 'after' }] }, task('after', 'PublishWorker', 'done'),
+]);
+/** `ingest → F[p: an ask, b] → J → after`. */
+const ASK_BESIDE_TASK = flow('w233-ask-beside-task', 'ingest', [
+  task('ingest', 'IngestWorker', 'F'), { id: 'F', kind: 'fanout', branches: ['p', 'b'] },
+  { id: 'p', kind: 'ask', edges: [{ to: 'J' }] }, task('b', 'ScoreWorker', 'J'),
+  { id: 'J', kind: 'join', of: 'F', edges: [{ to: 'after' }] }, task('after', 'PublishWorker', 'done'),
+]);
+/** `F[p: an ask, q: an ask] → J → after`, the fan-out the ENTRY: both asks are asked on start()'s own step. */
+const TWO_ASKS = flow('w233-two-asks', 'F', [
+  { id: 'F', kind: 'fanout', branches: ['p', 'q'] }, { id: 'p', kind: 'ask', edges: [{ to: 'J' }] }, { id: 'q', kind: 'ask', edges: [{ to: 'J' }] },
+  { id: 'J', kind: 'join', of: 'F', edges: [{ to: 'after' }] }, task('after', 'PublishWorker', 'done'),
+]);
+/** The loop's answer for a round: `ok` only in the last one, so `until` holds exactly there. */
+const answerOf = (rounds: number) => (id: string) => ({ ok: path(id) === String(rounds - 1), r: path(id) });
+/** Every ask answered ON its own `asked` element — a resolution given mid-step, taken when the step ends (`RN-R37`). */
+const answering = (answer: (id: string) => unknown, seen?: (id: string) => void) => (i: FoldInput, _s: number, d: Driver) => {
+  if (i.kind !== 'asked') return;
+  seen?.(i.taskId);
+  d.resolve(i.taskId, 'done', { result: answer(i.taskId), actor: 'bot' });
+};
+/** The asks asked and not answered, in the order asked. */
+const parkedAsks = (r: Run): string[] => {
+  const f = r.d.foldInputs();
+  const answered = new Set(f.flatMap((e) => e.kind === 'resolution' ? [e.record.taskId] : []));
+  return f.flatMap((e) => e.kind === 'asked' && !answered.has(e.taskId) ? [e.taskId] : []);
+};
+/** Drive a run to its end AT REST: each task settled in dispatch order, each ask answered in the order asked. */
+function finish(r: Run, script: Script, answer: (id: string) => unknown): void {
+  const settled = new Set<string>();
+  for (let moved = true; moved;) {
+    moved = false;
+    for (const t of [...r.sch.added]) {
+      if (settled.has(t.id)) continue;
+      settled.add(t.id);
+      const s = script(t.id);
+      if (s !== undefined) { r.sch.settle(t.id, s.state, s.result); moved = true; }
+    }
+    for (const id of parkedAsks(r)) if (r.d.resolve(id, 'done', { result: answer(id), actor: 'bot' })) moved = true;
+  }
+}
+/** `kinds`, with the task an `asked` or a `resolution` element is for. */
+const marks = (r: Run): string[] => {
+  const k = kinds(r);
+  return r.d.foldInputs().map((e, at) => e.kind === 'asked' ? `asked ${e.taskId}` : e.kind === 'resolution' ? `resolution ${e.record.taskId}` : k[at]!);
+};
+
 const DECLARED_CASES = [
   'the log on a scheduler that settles inside addTask IS the log of one that settles later, in dispatch order — a sequence, a fan-out, a map, a fan-out in a fan-out, a loop, a loop in a map, a map in a loop',
   'the two shapes W232`s first attempt moved: a fan-out in a loop`s body under a policy that fires on the first arrival, and a scheduler that settles a held task inside another`s addTask',
@@ -201,6 +253,11 @@ const DECLARED_CASES = [
   'an owner`s cancel and a stop with settlements waiting: a cancel still appends them, a stop drops them, and nothing is left queued',
   'settlements waiting when the run halts are appended in the order heard, and the failure is reported ONCE however many follow',
   'a throw from a take at the step`s end — a callback on `paused`, on `interrupted` — still leaves nothing queued',
+  // W233, Q813 — the PENDING CALLS a step's end takes, as the settlements above: one loop, the same log.
+  'W233: a loop of 20,000 ask-only rounds, each answered on its own `asked` element, completes — and round 2400 is asked at the depth round 1 was',
+  'W233, a control: an ask answered on its `asked` element lands where one answered at rest lands (RN-R37) — the two logs are equal, and every cut resumes',
+  'W233, a control: one step`s end takes its attempts, then a pause and an answer in call order, then a stop (RN-R40, RN-R35, RN-R33) — and its settlements after them, or never once deaf',
+  'W233, a control: a take that throws halts the run once and reaches the caller; the answer behind it is dropped and the stop pending beside it is still taken (OR-R10)',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -590,6 +647,133 @@ suite(SUITE, (test) => {
     ok(z.thrown instanceof Error && z.thrown.message === 'on interrupted', `the throw reaches start()'s caller — ${String(z.thrown)}`);
     equal(kinds(z).slice(0, 2), ['dispatched r1:ingest:-:0', 'interrupted'], 'the stop was taken');
     equal(waiting(z.d), 0, 'and ingest`s settlement, heard inside that addTask, is not left queued');
+  });
+
+  test(DECLARED_CASES[15]!, () => {
+    const limit = (Error as { stackTraceLimit?: number }).stackTraceLimit;
+    (Error as { stackTraceLimit?: number }).stackTraceLimit = Infinity;
+    try {
+      const ROUNDS = 20000;
+      const depth = new Map<string, number>();
+      const probe = new Set(['r1:approve:0:0', 'r1:approve:1:0', 'r1:approve:2400:0']);
+      const script: Script = () => DONE({ seed: 1 });
+      const r = runLater(ASK_LOOP(ROUNDS), script, {
+        onFoldInput: answering(answerOf(ROUNDS), (id) => { if (probe.has(id)) depth.set(id, (new Error().stack ?? '').split('\n').length); }),
+      });
+      equal(r.thrown, null, 'nothing thrown');
+      equal(r.failures.map((f) => f.message), [], 'and nothing reported: the run is not halted by its own stack');
+      equal(r.d.foldInputs().filter((e) => e.kind === 'resolution').length, ROUNDS, 'every round was asked and answered');
+      equal(input(r, 'r1:after:-:0'), { last: { ok: true, r: String(ROUNDS - 1) }, iterations: ROUNDS, exhausted: false },
+        'and the loop`s join hands on the last answer (JP-R15): `until` held on the bound`s own round, so not exhausted (JP-R14)');
+      ok(depth.get('r1:approve:0:0')! > 11, `the ARRANGEMENT: the limit is lifted and the probe reads the real stack — ${depth.get('r1:approve:0:0')} lines at round 0`);
+      // Round 0 is asked on the step of `ingest`'s settlement; round 1 on, each on the step of the answer before it.
+      equal(depth.get('r1:approve:2400:0'), depth.get('r1:approve:1:0'), 'round 2400 is asked at the depth round 1 was');
+
+      // The same queue's other calls (the conformity reader): a pause whose element unpauses, whose element pauses … from
+      // a pause() AT REST. Each take queues the next; until W233 the 2,500th overflowed into pause()'s caller.
+      const FLIPS = 20000;
+      const at = new Map<number, number>();
+      let flips = 0;
+      const p = build(SEQUENCE, new Fake(), {
+        onFoldInput: (i, _s, d) => {
+          if (i.kind !== 'paused' && i.kind !== 'unpaused') return;
+          flips += 1;
+          if (flips === 2 || flips === 2400) at.set(flips, (new Error().stack ?? '').split('\n').length);
+          if (flips === FLIPS) return;
+          if (i.kind === 'paused') d.unpause({ actor: 'ana' }); else d.pause({ actor: 'ana' });
+        },
+      });
+      p.d.start({});
+      try { p.d.pause({ actor: 'ana' }); } catch (e) { p.thrown = e; }
+      equal(p.thrown, null, 'a chain of 20,000 pauses and unpauses, each called on the one before: nothing thrown to pause()`s caller');
+      equal(p.d.foldInputs().filter((e) => e.kind === 'paused' || e.kind === 'unpaused').length, FLIPS, 'every one recorded');
+      equal(at.get(2400), at.get(2), 'and the 2400th is taken at the depth the 2nd was');
+    } finally {
+      (Error as { stackTraceLimit?: number }).stackTraceLimit = limit;
+    }
+  });
+
+  test(DECLARED_CASES[16]!, () => {
+    const ROUNDS = 6;
+    const script: Script = () => DONE({ seed: 1 });
+    const answer = answerOf(ROUNDS);
+    const mid = runLater(ASK_LOOP(ROUNDS), script, { onFoldInput: answering(answer) });
+    const rest = build(ASK_LOOP(ROUNDS), new Fake());
+    rest.d.start({});
+    finish(rest, script, answer);
+    equal(marks(rest).filter((m) => m.startsWith('resolution')).length, ROUNDS, 'the ARRANGEMENT: at rest, six answers, each a step of its own');
+    equal(mid.d.foldInputs(), rest.d.foldInputs(), 'answered on the element, the sequence IS the one answered at rest: each resolution between two steps');
+    const cp: Checkpoint = mid.d.checkpoint();
+    for (let k = 0; k <= cp.events.length; k += 1) {
+      const r = build(ASK_LOOP(ROUNDS), new Fake());
+      let refused: unknown = null;
+      try { r.d.resume({ header: cp.header, events: cp.events.slice(0, k) }); } catch (e) { refused = e; }
+      equal(refused, null, `cut at ${k}: the resume is accepted`);
+      finish(r, script, answer);
+      equal(r.d.foldInputs().filter((e) => e.kind !== 'resumed'), cp.events, `cut at ${k}: the sequence, \`resumed\` aside, IS the uninterrupted run's`);
+    }
+  });
+
+  test(DECLARED_CASES[17]!, () => {
+    // `ingest` settles at rest; on that ONE step the fan-out asks `p` and hands `b` over, and the scheduler starts `b`
+    // and settles it inside `addTask`. On `asked`: a pause, then the answer — and, in the second run, a stop.
+    const go = (stop: boolean) => {
+      const sch = new Hooked((id, h) => { if (node(id) === 'b') { h.running(id, 1); h.settle(id, 'done', { n: 'b' }); } });
+      const r = build(ASK_BESIDE_TASK, sch, {
+        onFoldInput: (i, _s, d) => {
+          if (i.kind !== 'asked') return;
+          d.pause({ actor: 'ana' });
+          d.resolve(i.taskId, 'done', { result: { n: 'p' }, actor: 'bot' });
+          if (stop) void d.stop({ actor: 'ana' });
+        },
+      });
+      r.d.start({});
+      sch.settle('r1:ingest:-:0', 'done', { seed: 1 });
+      return r;
+    };
+    const tail = (r: Run) => { const m = marks(r); return m.slice(m.indexOf('dispatched r1:b:1:0') + 1); };
+    equal(tail(go(false)), [
+      'attempted r1:b:1:0 #1',                         // RN-R40: FIRST — the attempt started before anything taken here
+      'paused',                                        // RN-R35: the pause, called first
+      'resolution r1:p:0:0', 'branch.resumed F:0', 'branch.arrived F:0',   // RN-R37: the answer, called second, routed to the join
+      'outcome r1:b:1:0', 'branch.arrived F:1',        // RN-R46: the settlement heard inside addTask, after every call
+      'joinSettled', 'dispatched r1:after:-:0',        // and the join fires; `after` is HELD by the pause, appended (RN-R35)
+    ], 'no stop: attempts, the calls in call order, then the settlement');
+    equal(tail(go(true)), [
+      'attempted r1:b:1:0 #1', 'paused',
+      'resolution r1:p:0:0', 'branch.resumed F:0', 'branch.arrived F:0',
+      'interrupted',                                   // RN-R33: the stop, after every call made before it — and the driver is deaf
+    ], 'with a stop: it is taken last, and the settlement that waited is never heard');
+
+    // A pause() called AT REST is the same end of a step (the adequacy reader's A14): a settlement heard on the take's own
+    // element waits for that take to end and is then taken — routed, its successor held by the pause, appended (RN-R35).
+    const r = build(SEQUENCE, new Fake(), { onFoldInput: (i) => { if (i.kind === 'paused') r.sch.settle('r1:ingest:-:0', 'done', { seed: 1 }); } });
+    r.d.start({});
+    r.d.pause({ actor: 'ana' });
+    equal(marks(r), ['dispatched r1:ingest:-:0', 'paused', 'outcome r1:ingest:-:0', 'dispatched r1:a:-:0'], 'pause() at rest: the settlement heard on `paused` is taken when the take ends');
+    equal(waiting(r.d), 0, 'and nothing is left waiting');
+  });
+
+  test(DECLARED_CASES[18]!, () => {
+    // Both asks are asked on start()'s own step. `p` and `q` are each answered on their element, and a stop is called on
+    // `q`'s. The first answer's own element throws.
+    const r = build(TWO_ASKS, new Fake(), {
+      onFoldInput: (i, _s, d) => {
+        if (i.kind === 'asked') {
+          d.resolve(i.taskId, 'done', { result: { n: node(i.taskId) }, actor: 'bot' });
+          if (node(i.taskId) === 'q') void d.stop({ actor: 'ana' });
+        }
+        if (i.kind === 'resolution') throw new Error('on resolution');
+      },
+    });
+    try { r.d.start({}); } catch (e) { r.thrown = e; }
+    ok(r.thrown instanceof Error && r.thrown.message === 'on resolution', `the throw reaches start()'s caller — ${String(r.thrown)}`);
+    equal(r.failures.map((f) => f.message), ['on resolution'], 'reported ONCE');
+    const m = marks(r);
+    equal(m.slice(m.indexOf('asked r1:q:1:0') + 1), ['branch.suspended F:1', 'resolution r1:p:0:0', 'halted', 'interrupted'],
+      'the step ends whole — `q` parked — and then: the first answer is appended and the run halted on it; the second is dropped (RN-R37); the stop is taken even so, silently (RN-R33)');
+    equal(parkedAsks(r), ['r1:q:1:0'], 'and `q` is still parked: its answer was never recorded');
+    equal((r.d as unknown as { pausePending: { length: number } }).pausePending.length, 0, 'DROPPED, not kept: no call is left pending behind the throw (white-box, as `waiting`)');
   });
 
   test(DECLARED_CASES[DECLARED_CASES.length - 1]!, () => {

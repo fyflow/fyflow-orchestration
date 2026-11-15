@@ -3654,6 +3654,13 @@ then appended after it, routed nowhere — the one place the log is not the late
 deferred settlement is routed reaches `onRunFailure`, never your call** — `start()`, `resume()`, `resolve()` or
 `unpause()` returns (section 9).
 
+**The calls YOU make from a callback are taken the same way** (`RN-R46` v0.40). A `pause()`, an `unpause()` or a
+`resolve()` called inside `onFoldInput` is accepted there and taken when the driver's step ends, in call order, before a
+pending `stop()` — and a call made on a take's own element is taken after that take, in one loop. So an approver that
+answers every ask on its `asked` element can drive a loop of any number of rounds: the stack does not grow with them.
+*(Until this release it grew three frames a round, and such a loop halted on `Maximum call stack size exceeded` within
+a few thousand rounds.)*
+
 **A worker file can be TypeScript.** Node 24 runs it by stripping types, and Deno natively, so **one
 `.ts` worker serves Node and Deno**. *(The scheduler's own reference **used to say** a Node worker
 must be JavaScript, which was stale at Node 24 — [S9](doc/scheduler-upstream.md), raised 2026-09-07

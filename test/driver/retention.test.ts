@@ -347,6 +347,9 @@ const DRIVER_FIELDS = [
   // the length of one step and never a second copy; empty at rest. `takingSettlements`: one boolean, that queue's drain on
   // the stack. Both WALKED. The ratchet fired by name on W232's first full run, naming both.
   'settlementsPending', 'takingSettlements',
+  // W233 - `takingCalls`: one boolean, `takeCalls` on the stack - the pending calls' drain, as `takingSettlements` is the
+  // settlements'. Holds nothing. WALKED. The ratchet was fed by hand this time: W232's Record says it fires.
+  'takingCalls',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

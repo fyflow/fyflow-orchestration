@@ -993,14 +993,26 @@ function groupProblem(o: Record<string, unknown>, label: string, scope: Comparis
  * edge's `needs` — and a gate has neither; a decision that needs code is a gate type of its own (P32 Scope/Out).
  */
 function gateConditionProblem(v: unknown): { rule: string; message: string } | null {
-  return conditionProblem(v, 'settings.when', 'an if gate');
+  return conditionProblem(v, 'settings.when', 'gate');
 }
 
 /**
- * **A condition over the ONE root `input`** — an `if` gate's `settings.when` and, since v0.57, a loop's `until`
- * (P47 fact 15, W228): one grammar at two sites, so the two cannot drift. `who` names the site in the NAME clause.
+ * **The two SITES a condition over the one root `input` is written at**, each with what `conditionProblem` says and reads
+ * for it: its name in the NAME clause, what to write instead, and the scope its paths are held to. One row per site —
+ * until W233 ([Q811](../../doc/questions/q811.md), finding 10) the site was passed as its DISPLAY string and the scope
+ * and the advice were each chosen by comparing that string, so a third site, or a reworded name, took the gate's.
  */
-function conditionProblem(v: unknown, label: string, who: string): { rule: string; message: string } | null {
+const CONDITION_SITES = {
+  gate: { who: 'an if gate', scope: GATE_SCOPE, instead: 'a gate has neither. Write a comparison over "input", or register a gate type of your own' },
+  loop: { who: 'a loop', scope: LOOP_SCOPE, instead: 'a loop has neither. Write a comparison over "input", what the round arrived at the join with' },
+} as const;
+
+/**
+ * **A condition over the ONE root `input`** — an `if` gate's `settings.when` and, since v0.57, a loop's `until`
+ * (P47 fact 15, W228): one grammar at two sites, so the two cannot drift. `site` names which (`CONDITION_SITES`).
+ */
+function conditionProblem(v: unknown, label: string, site: keyof typeof CONDITION_SITES): { rule: string; message: string } | null {
+  const { who, scope, instead } = CONDITION_SITES[site];
   if (typeof v !== 'object' || v === null || Array.isArray(v)) {
     return { rule: 'FD-V42', message: `${label} is ${scalarName(v)}; it is an object — a comparison { ${PREDICATE_LEAF_KEYS.join(', ')} } or a flat group { all } or { any }, over the root "input"` };
   }
@@ -1013,9 +1025,8 @@ function conditionProblem(v: unknown, label: string, who: string): { rule: strin
     return { rule: 'FD-V42', message: `${label} carries ${Object.keys(o).map((k) => JSON.stringify(k)).join(', ')} and matches more than one shape — a comparison and a group are told apart by which keys are present, so an object may mark only one` };
   }
   if (shape === 'name') {
-    return { rule: 'FD-V42', message: `${label} names a registered predicate, which ${who} cannot ask — a predicate is handed a decision's outcome and its edge's needs, and ${who === 'an if gate' ? 'a gate has neither. Write a comparison over "input", or register a gate type of your own' : 'a loop has neither. Write a comparison over "input", what the round arrived at the join with'}` };
+    return { rule: 'FD-V42', message: `${label} names a registered predicate, which ${who} cannot ask — a predicate is handed a decision's outcome and its edge's needs, and ${instead}` };
   }
-  const scope = who === 'a loop' ? LOOP_SCOPE : GATE_SCOPE;
   if (shape === 'leaf') return leafProblem(o, label, scope);
   return groupProblem(o, label, scope);
 }
@@ -1756,7 +1767,7 @@ export function validateDefinition(doc: FlowDefinition, registry: Registry): Fin
       // `input`, what the round ARRIVED at the join with. Reported under the grammar's own ids, `FD-V42`-`FD-V45`.
       const until = (nd as { until?: unknown }).until;
       if (until !== undefined) {
-        const problem = conditionProblem(until, 'until', 'a loop');
+        const problem = conditionProblem(until, 'until', 'loop');
         if (problem !== null) add(problem.rule, where, problem.message);
       }
     }
