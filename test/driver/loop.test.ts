@@ -1,6 +1,6 @@
 /**
- * **L2 — a loop at RUN time, one way out at a time** — `spec/join-policy.md` v0.26 `JP-R13`-`JP-R15`,
- * `spec/flow-definition.md` v0.58 `FD-R7`, P47 decisions 1, 2 and 4-6 and fact 16,
+ * **L2 — a loop at RUN time, one way out at a time** — `spec/join-policy.md` v0.26-v0.27 `JP-R13`-`JP-R15`,
+ * `spec/flow-definition.md` v0.58-v0.59 `FD-R4` and `FD-R7`, P47 decisions 1, 2 and 4-6 and fact 16,
  * [W229](../../doc/work-items/w229-a-loop-at-run-time.md).
  *
  * From fixture outcome logs with no scheduler (`../matrix/run.ts`'s `Fake`). **Every expected value is written by hand
@@ -11,7 +11,7 @@
  * depends on completion order; the one map inside a body is settled in DESCENDING order and asserted the same.
  */
 import { collected, equal, ok, readText, ROOT, suite, throws } from '../harness.ts';
-import { Driver, MissingJoinPolicy, UnresolvedLoopBound, type Checkpoint, type RunFailure } from '../../src/driver/driver.ts';
+import { BoundaryRefused, Driver, MissingJoinPolicy, UnresolvedLoopBound, type Checkpoint, type RunFailure } from '../../src/driver/driver.ts';
 import type { RegionEvent } from '../../src/driver/events.ts';
 import type { JoinPolicy, UnsatisfiableJoin } from '../../src/driver/policy.ts';
 import type { Predicate } from '../../src/driver/routing.ts';
@@ -36,6 +36,8 @@ interface Run {
 
 function drive(flow: FlowDefinition, o: {
   policy?: boolean | JoinPolicy; predicates?: Record<string, Predicate>; onEvent?: (e: RegionEvent, d: Driver) => void;
+  /** W231: a worker table of the case's own, and FD-R4's check left ON (the default) — every earlier case turns it off. */
+  workers?: unknown; boundaries?: boolean;
 } = {}): Run {
   const sch = new Fake();
   const events: RegionEvent[] = [];
@@ -45,8 +47,8 @@ function drive(flow: FlowDefinition, o: {
   ref.d = new Driver(flow, {
     runId: 'r1', scheduler: sch, createTask: (c) => c as never,
     predicates: new Map(Object.entries(o.predicates ?? {})),
-    workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, groups: Object.keys(reg.groups ?? {}),
-    validateBoundaries: false, now: () => 1,
+    workers: (o.workers ?? reg.workers) as never, nodeTypes: reg.nodeTypes, pools: reg.pools, groups: Object.keys(reg.groups ?? {}),
+    validateBoundaries: o.boundaries ?? false, now: () => 1,
     ...(o.policy === false ? {} : { joinPolicy: (typeof o.policy === 'object' ? o.policy : liveToken) as JoinPolicy }),
     onRegionEvent: (e) => { events.push(e); o.onEvent?.(e, ref.d); },
     onUnsatisfiableJoin: (u) => unsat.push(u),
@@ -68,14 +70,19 @@ const done = (r: Run, id: string, result: unknown): void => r.sch.settle(id, 'do
 function pollFlow(o: {
   maxIterations?: number; from?: string; optional?: boolean; breakable?: boolean; needs?: Record<string, unknown>;
   edgeNeeds?: Record<string, unknown>; entryLoop?: boolean;
+  /** W231: the entry is an `if` gate whose `then` leads to the loop — the payload reaches the loop with no worker between. */
+  gated?: boolean;
 } = {}): FlowDefinition {
   const workEdges = o.breakable
     ? [{ to: 'stop', when: { predicate: 'isLowConfidence' }, ...(o.edgeNeeds ? { needs: o.edgeNeeds } : {}) }, { to: 'J' }]
     : [{ to: 'J' }];
   return {
-    flowId: 'w229-poll', version: 1, entry: o.entryLoop ? 'L' : 'ingest',
+    flowId: 'w229-poll', version: 1, entry: o.gated ? 'g' : o.entryLoop ? 'L' : 'ingest',
     nodes: [
-      ...(o.entryLoop ? [] : [{ id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'L' }] }]),
+      ...(o.gated ? [
+        { id: 'g', kind: 'gate', type: 'if', settings: { when: { path: 'input.go', op: 'eq', value: true } }, edges: [{ route: 'then', to: 'L' }, { to: 'other' }] },
+        { id: 'other', kind: 'task', type: 'IngestWorker', edges: [{ to: 'done' }] },
+      ] : o.entryLoop ? [] : [{ id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'L' }] }]),
       { id: 'L', kind: 'loop', branch: 'work', until: { path: 'input.ok', op: 'eq', value: true },
         maxIterations: o.maxIterations ?? 3, ...(o.from ? { maxIterationsFrom: o.from } : {}) },
       { id: 'work', kind: 'task', type: 'ScoreWorker', ...(o.optional ? { optional: true } : {}), ...(o.needs ? { needs: o.needs } : {}), edges: workEdges },
@@ -108,6 +115,11 @@ const DECLARED_CASES = [
   'a loop`s join leading to an END inside an enclosing fan-out: the join value is entered IN that region, so its branch exits',
   'a LOST loop resumed: replayed as a decision edge is, reported only past the stored length',
   '"$iteration" under NESTING is the INNERMOST loop`s round — under a map in the body, and under an inner loop',
+  // W231 — the review of the pull request carrying P47: a loop the PAYLOAD reaches. Every case above either puts a task
+  // before the loop or turns FD-R4's check off, so none of the three was reachable.
+  'W231 FD-R4 through an ENTRY loop: the body entry reading "$iteration" is held at start() with round 0 composed, and a schema round 0 cannot satisfy refuses',
+  'W231 JP-R15 for a loop the payload reaches: the seed is the loop`s OWN copy — a caller`s later write reaches nothing it hands on, live or resumed',
+  'W231 FD-R7 for a loop the payload reaches: the bound is read from the copy the run holds, so a class instance in the payload resolves as its clone does',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -582,6 +594,101 @@ suite(SUITE, (test) => {
     done(n, 'r1:pre:1:0', {});
     equal([input(n, 'r1:w:0.0:0'), input(n, 'r1:w:0.1:0'), input(n, 'r1:w:1.0:0')], [{ it: 0 }, { it: 1 }, { it: 0 }],
       'outer round 0`s inner rounds 0 and 1, then outer round 1`s inner round 0 — each the INNER round');
+  });
+
+  /** `score` with an `inputSchema` of the case's own: `round` an integer `>= min`. The corpus registry declares none. */
+  const scoreHeldTo = (min: number): unknown => ({
+    ...(reg.workers as unknown as Record<string, unknown>),
+    score: { url: 'corpus://score', inputSchema: { type: 'object', required: ['state', 'round'], properties: { round: { type: 'integer', minimum: min } } } },
+  });
+
+  /** The two roads by which a PAYLOAD reaches a loop with no worker between: the loop IS the entry, or an entry gate leads to it. */
+  const ROADS: [string, { entryLoop?: boolean; gated?: boolean }, Record<string, unknown>][] = [
+    ['an ENTRY loop', { entryLoop: true }, {}],
+    ['a loop behind an entry GATE', { gated: true }, { go: true }],
+  ];
+
+  test(DECLARED_CASES[15]!, () => {
+    for (const [road, shape, base] of ROADS) {
+      const flow = pollFlow({ ...shape, needs: { state: '.', round: '$iteration' } });
+      const r = drive(flow, { workers: scoreHeldTo(0), boundaries: true });
+      r.d.start({ ...base, a: 1 });
+      equal(ids(r), ['r1:work:0:0'], `${road}: start() returns and round 0's entry is dispatched — FD-R4 held it and it passed`);
+      equal(input(r, 'r1:work:0:0'), { state: { ...base, a: 1 }, round: 0 }, `${road}: round 0's entry receives the payload and "$iteration" 0 (JP-R13, JP-R15)`);
+
+      // The check RAN: the same flow, a schema round 0 cannot satisfy. Without this, the lines above pass with FD-R4 skipped.
+      const z = drive(flow, { workers: scoreHeldTo(1), boundaries: true });
+      let thrown: unknown = null;
+      try { z.d.start({ ...base, a: 1 }); } catch (e) { thrown = e; }
+      ok(thrown instanceof BoundaryRefused, `${road}: round 0 composed as 0 fails \`minimum: 1\`: a BoundaryRefused, at start() — got ${String(thrown)}`);
+      equal(ids(z), [], `${road}: and nothing was dispatched`);
+    }
+
+    // The index is the TARGET's loop's, not the flow's first: a second loop declared AHEAD of the entry one (the adequacy
+    // reader's M06, which survived every case while each flow held one loop).
+    const two = {
+      flowId: 'w231-two-loops', version: 1, entry: 'LA',
+      nodes: [
+        { id: 'LB', kind: 'loop', branch: 'workB', until: { path: 'input.ok', op: 'eq', value: true }, maxIterations: 2 },
+        { id: 'workB', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'JB' }] },
+        { id: 'JB', kind: 'join', of: 'LB', edges: [{ to: 'done' }] },
+        { id: 'LA', kind: 'loop', branch: 'workA', until: { path: 'input.ok', op: 'eq', value: true }, maxIterations: 2 },
+        { id: 'workA', kind: 'task', type: 'ScoreWorker', needs: { state: '.', round: '$iteration' }, edges: [{ to: 'JA' }] },
+        { id: 'JA', kind: 'join', of: 'LA', edges: [{ to: 'LB' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const t2 = drive(two, { workers: scoreHeldTo(0), boundaries: true });
+    t2.d.start({ a: 1 });
+    equal(input(t2, 'r1:workA:0:0'), { state: { a: 1 }, round: 0 }, 'two loops, the entry one declared SECOND: its body entry is held under its OWN loop`s round 0');
+  });
+
+  test(DECLARED_CASES[16]!, () => {
+    for (const [road, shape, base] of ROADS) {
+      const flow = pollFlow({ ...shape, breakable: true });
+      // A nested object (a shallow copy would share it) and two values JSON cannot carry (a JSON round-trip would lose them).
+      const payload: Record<string, unknown> = { ...base, seed: 1, inner: { x: 1 }, at: new Date(0), tags: new Set(['x']) };
+      const r = drive(flow, { predicates: STOP });
+      r.d.start(payload);
+      // The caller's object, written AFTER start() returned — at the top and one level down.
+      payload.writtenAfterStart = true;
+      (payload.inner as { x: number }).x = 2;
+      done(r, 'r1:work:0:0', { stop: true });
+      const v = input(r, 'r1:after:-:0') as { last: Record<string, unknown>; iterations: number };
+      equal(v.iterations, 1, `${road}, the ARRANGEMENT: round 0 broke`);
+      equal(Object.keys(v.last), [...Object.keys(base), 'seed', 'inner', 'at', 'tags'], `${road}: \`last\` has the keys the payload had AT start() — the later top-level write is not in it`);
+      equal(v.last.inner, { x: 1 }, `${road}: nor the later NESTED write — a deep copy (JP-R15 v0.27: the loop's own copy)`);
+      ok(v.last !== payload && v.last.inner !== payload.inner, `${road}: and neither it nor its parts are the caller's objects`);
+      ok(v.last.at instanceof Date && v.last.at.getTime() === 0, `${road}: a Date survives the copy — a structured clone, not a JSON round-trip`);
+      ok(v.last.tags instanceof Set && v.last.tags.has('x'), `${road}: and a Set`);
+      ok(v.last !== input(r, 'r1:work:0:0'), `${road}: and \`last\` is not the object round 0's entry was handed`);
+
+      // CONTROLS — true before W231 too: the header's copy, and what a resume hands on. What W231 changed is that the
+      // LIVE run above now agrees with them.
+      const cp = r.d.checkpoint();
+      const sch = new Fake();
+      const d = new Driver(flow, {
+        runId: 'r1', scheduler: sch, createTask: (c) => c as never, predicates: new Map(Object.entries(STOP)),
+        workers: reg.workers, nodeTypes: reg.nodeTypes, pools: reg.pools, groups: Object.keys(reg.groups ?? {}),
+        validateBoundaries: false, now: () => 1, joinPolicy: liveToken as JoinPolicy,
+      });
+      d.resume(cp);
+      const again = (sch.added.find((x) => x.id === 'r1:after:-:0')?.payload as { input?: { last?: Record<string, unknown> } } | undefined)?.input?.last;
+      equal(again?.inner, { x: 1 }, `${road}, control: the RESUMED run hands on the value as it was at start() (RN-R15, RN-R19)`);
+      equal(Object.keys(again ?? {}), Object.keys(v.last), `${road}: so the live run and its resume hand on the same \`last\``);
+    }
+  });
+
+  test(DECLARED_CASES[17]!, () => {
+    class Budget { rounds = 2; }
+    for (const [road, shape, base] of ROADS) {
+      const r = drive(pollFlow({ ...shape, from: 'budget.rounds', maxIterations: 5 }));
+      r.d.start({ ...base, budget: new Budget() });
+      done(r, 'r1:work:0:0', { ok: false });
+      done(r, 'r1:work:1:0', { ok: false });
+      equal(ids(r), ['r1:work:0:0', 'r1:work:1:0', 'r1:after:-:0'], `${road}: start() does not refuse, and two rounds run and no third — the bound is the 2 the loop's own copy holds (FD-R7 v0.59), below maxIterations 5`);
+      equal(input(r, 'r1:after:-:0'), { last: { ok: false }, iterations: 2, exhausted: true }, `${road}: exhausted at the bound the key named`);
+    }
   });
 
   test(DECLARED_CASES[DECLARED_CASES.length - 1]!, () => {

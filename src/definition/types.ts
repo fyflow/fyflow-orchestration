@@ -921,8 +921,8 @@ export interface AskNode {
 }
 
 /**
- * **Seven kinds since v0.42** (`ask`, W179). **BREAKING for an exhaustive consumer `switch`** each time a member
- * is added — `gate` at 0.6.0, `ask` at 0.8.0.
+ * **Eight kinds since v0.57** (`loop`, W228; seven since v0.42's `ask`, W179). **BREAKING for an exhaustive consumer
+ * `switch`** each time a member is added — `gate` at 0.6.0, `ask` at 0.8.0, `loop` after 0.14.0.
  */
 export type FlowNode = TaskNode | FanoutNode | MapNode | LoopNode | JoinNode | EndNode | GateNode | AskNode;
 

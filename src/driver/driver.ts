@@ -2645,7 +2645,16 @@ export class Driver {
         // instance's item. `compose` derives a branch path only for a NODE reference, which no entry names (`FD-V27`) —
         // *until W191 it derived one for ANY `needs`, and an entry map's branch task declaring one threw a raw
         // `UnresolvedBranchPath` out of `start()`: the walk has no item index to give (S-1).*
-        const received = this.compose(n, value, EMPTY_INDICES, () => cloneValue(payload), () => value);
+        //
+        // **And ONE round index, where the target is a loop's body entry** (W231, the review of P47's pull request):
+        // `FD-R4` through an entry loop holds the body entry *for ROUND 0*, and round 0's `"$iteration"` is 0 (`JP-R13`,
+        // `JP-R15`). A target inside a loop IS that loop's body entry — the walk ends at the first task and `FD-V50`
+        // makes a body's entry a task or an ask — so its innermost loop's index is 0 and no other loop encloses it on
+        // this walk. *Until W231 the walk gave none, and a VALID entry loop whose entry read `"$iteration"` threw
+        // `iterationOf`'s plain `Error` out of `start()`.*
+        const loop = innermostLoopOf(this.regions, n.id);
+        const indices = loop === undefined ? EMPTY_INDICES : withIndex(EMPTY_INDICES, loop.fanoutId, 0);
+        const received = this.compose(n, value, indices, () => cloneValue(payload), () => value);
         const fs = findings(schema, received);
         if (fs.length) {
           throw new BoundaryRefused('start', node, null, fs,
@@ -4765,13 +4774,21 @@ export class Driver {
       case 'loop': {
         const region = this.regions.find((r) => r.fanoutId === nodeId);
         if (!region) return;
-        const bound = this.loopBound(node, received);
+        // **The SEED is the loop's OWN copy, taken FIRST, and everything below reads IT** (W231; `JP-R15`: *each as its
+        // own copy … the loop keeps the value it hands on*). What `enter` is handed may be the CALLER's object — an
+        // entry loop's payload, or one reached from the entry through gates — and until W231 the loop kept that object
+        // itself: a break in round 0 handed it on as `last` with whatever the caller had since written, where a resume
+        // hands on the header's copy (`RN-R15`); and the bound was read on the caller's original, so a value
+        // `readKeyPath` refuses (a class instance) threw `FD-R7` live and resolved on a resume — `decideGate`'s reason
+        // for cloning before it reads (W93 finding 1). One clone per loop INSTANCE, not per round.
+        const seed = cloneValue(received);
+        const bound = this.loopBound(node, seed);
         const rp = this.rpathOf(region, itemIndices);
         const byPath = this.loops.get(nodeId) ?? new Map<string, LoopRun>();
         this.loops.set(nodeId, byPath);
-        byPath.set(rp, { round: 0, bound, status: 'waiting', state: received, ended: null });
+        byPath.set(rp, { round: 0, bound, status: 'waiting', state: seed, ended: null });
         this.append({ kind: 'regionEntered', regionId: nodeId, regionPath: rp });
-        this.openRound(runId, region, itemIndices, 0, received);
+        this.openRound(runId, region, itemIndices, 0, seed);
         return;
       }
 

@@ -1079,8 +1079,8 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W229's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
   test('W229`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
-    equal(count('W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7'), 16,
-      'test/driver/loop.test.ts registers its sixteen: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, a halt on every road, the lifetime, a join to an end, a lost loop resumed, "$iteration" nested, and the membership');
+    equal(count('W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7'), 19,
+      'test/driver/loop.test.ts registers its nineteen: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, a halt on every road, the lifetime, a join to an end, a lost loop resumed, "$iteration" nested, W231`s three for a loop the payload reaches (FD-R4 at round 0, the seed its own copy, the bound read from it), and the membership');
     equal(count('W229 — L5: a loop × lost, break, park-then-done, park-then-failed, cancel, stop and pause'), 2,
       'test/matrix/loop.test.ts registers its two: seven rows × three policies, and the membership');
   });

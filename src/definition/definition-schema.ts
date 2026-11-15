@@ -95,7 +95,7 @@ const DOC_DESCRIPTIONS: Readonly<Record<string, string>> = {
 /** A key's description that holds on every kind declaring it; a kind's own entry below wins over it. */
 const NODE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   id: 'The node\'s id: 1-64 characters from [A-Za-z0-9_-] (FD-V16), unique in the document (FD-V1). It is a segment of the task id the node mints.',
-  kind: 'Which of the seven node kinds this is (FD-V24). There is no "decision" kind: a decision is an edge\'s `when`, and a decision with memory is a `gate`.',
+  kind: 'Which of the eight node kinds this is (FD-V24). There is no "decision" kind: a decision is an edge\'s `when`, and a decision with memory is a `gate`.',
   edges: 'Where the run goes from here, in order. The first eligible edge whose `when` holds is taken; an edge with no `on` routes `done` only.',
   needs: 'What this node receives instead of the previous node\'s output: an object whose keys name what the node receives and whose values are references (spec/flow-definition.md section 3, FD-V26). Where each reference points is validateDefinition\'s (FD-V27-FD-V29, FD-V49).',
   settings: 'Settings, a plain object.',

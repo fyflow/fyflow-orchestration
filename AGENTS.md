@@ -144,8 +144,19 @@ a wire.
 > (`maxIterations`, optionally lowered at run time by `maxIterationsFrom`); its `join` hands on
 > `{ last, iterations, exhausted, broke? }`. An `end` inside the body is a BREAK. It takes NO join policy. Section 22
 > runs one.
-> **BREAKING after 0.14.0**: `FlowNode` gains `LoopNode`, so a `switch` exhaustive over `node.kind` no longer compiles
-> until it names `'loop'`.
+> **BREAKING after 0.14.0, in five places** — four unions WIDENED and one accessor returning less; no signature
+> changed, and every document 0.14.0 accepted is still accepted and runs as it did (the fifth shows only in a flow
+> that holds a loop):
+> 1. `FlowNode` gains `LoopNode`, so a `switch` exhaustive over `node.kind` no longer compiles until it names `'loop'`.
+> 2. `RegionSets.opensWith` gains `'loop'`. Code written `opensWith === 'map' ? … : …` compiles and treats a loop's
+>    region as a FAN-OUT's, in silence — name all three.
+> 3. `WiringShape` gains `'round'` and `'carry'` (and `WIRING_SHAPES` with them): a `switch` or a
+>    `Record<WiringShape, …>` over the shapes no longer compiles.
+> 4. `referenceTarget`'s return type gains `{ form: 'iteration' }`, with `node: null`, for `"$iteration"`: code
+>    switching exhaustively on `form` stops compiling.
+> 5. `driver.regionsForPolicies()` OMITS a loop's region, because a loop's join takes no policy. Code that listed a
+>    flow's regions through it no longer sees every region: `allRegions(buildGraph(flow), flow)` returns them all,
+>    as `RegionSets` — the definition's shape, not the policy's `Region`.
 
 > **`ask` is the seventh, and it is a node that WAITS FOR A PERSON, by design** — `spec/flow-definition.md` v0.42,
 > [ADR 0108](doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md),
@@ -607,6 +618,8 @@ for (const [ref, fix] of [[['$payload'], 'write "$payload"'], ['$payload?', 'wit
   if (!finding?.startsWith('FD-V26') || !finding.includes(fix)) throw new Error(`${JSON.stringify(ref)}: ${finding}`);
 }
 ```
+
+**BREAKING after 0.14.0** (W228): a fourth null-node variant, `{ form: 'iteration' }`, for `"$iteration"` (section 22).
 
 **BREAKING in 0.8.0** (P38 (h)): `referenceTarget`'s return type gains two variants, `{ form: 'payload' }` and
 `{ form: 'item' }`, each with `node: null` — so code switching exhaustively on `form` stops compiling, and code reading
@@ -4588,7 +4601,10 @@ start* — but on the value each transforming TASK receives, because a given val
 each element under `over`; through an entry gate, every route's target), and where the task declares `needs` (at an
 entry `"."` and, since 0.8.0, `"$payload"`) compose it first — `needs: { own: "." }` receives `{ own: value }`, and
 `needs: { run: "$payload" }` receives `{ run: payload }`, the PAYLOAD even on a map's branch, where the value is an
-element — and there `needs: { it: "$item" }` receives `{ it: element }`. Call
+element — and there `needs: { it: "$item" }` receives `{ it: element }`. Through a `loop` the payload reaches (an
+entry loop, or one behind an entry gate) the target is the loop's BODY ENTRY, held for round 0 alone: the value is
+the payload, or the seed the loop's own `needs` composes, and `needs: { round: "$iteration" }` receives
+`{ round: 0 }`. Call
 `givenVerdict(registry, flow, task, received)` on each that transforms; a fan-out, map or gate ENTRY is no task and
 gives `[]`. Start on `transform-passes`; `unchecked` (no `inputSchema`, or a language, type or worker the registry
 lacks) checked nothing. Until W170 `start()`
@@ -4639,6 +4655,9 @@ if (broken!.kind !== 'transform-fails' || !broken!.why.startsWith('the transform
 // The same, as DATA (since 0.11.0): `cause` is 'threw' — no result was produced — where the finding above is 'schema'.
 if (broken!.cause !== 'threw' || entry!.cause !== undefined) throw new Error(`a throw is cause 'threw', and a passing verdict has none — got ${broken!.cause}, ${entry!.cause}`);
 ```
+
+**BREAKING after 0.14.0** (W228): **`WiringShape` gains `'round'` and `'carry'`** (and `WIRING_SHAPES` with them) — the
+two arcs of a loop, section 22.
 
 **BREAKING in 0.8.0** (P37 decision 10): **`SampleSource` gains `'given'`**, **`WiringShape` gains
 `'given'`** (and `WIRING_SHAPES` with it), and **`WiringVerdict.producer` is optional** — absent on a
@@ -6020,7 +6039,7 @@ a path naming a key the producer cannot emit answers *no match* for ever (ADR 00
 | | |
 |---|---|
 | **a round** | one opening of the body, at its OWN branch-path segment: round 1's tasks are `r1:work:1:0`, inside a map instance `r1:work:0.1:0` (`ID-R6`) — so every id a loop mints is distinct. One round is live at a time, and the next opens in the routing step of the previous one's arrival |
-| **what a round receives** | round 0's entry the loop's value, round *i > 0* what round *i − 1* ARRIVED at the join with — each its own copy. `"$iteration"` in a body node's `needs` (or an edge's) is the round index of the INNERMOST loop |
+| **what a round receives** | round 0's entry the loop's value, round *i > 0* what round *i − 1* ARRIVED at the join with — each its own copy. `"$iteration"` in a body node's `needs` (or an edge's) is the round index of the INNERMOST loop. **The loop takes its OWN copy of the value that reached it, once, as it is entered**: where that value is your `start()` payload (the loop is the entry, or an entry gate leads to it), nothing you write to the payload afterwards reaches a round or `last`, and `maxIterationsFrom` is read on that copy — a structured clone, so a class instance is read as the plain object its clone is. `start()` holds such a loop's body entry to its worker's `inputSchema` for round 0, `"$iteration"` composed as 0 (`FD-R4`) |
 | **when it ends** | on each arrival `until` is read FIRST — it holds: **done** — then the bound — reached: **exhausted** — else the next round opens. An `end` inside the body is a **break**. A round LOST (no eligible edge) makes the join **unsatisfiable**, `onUnsatisfiableJoin` reporting `policyId: 'loop'` — the driver's answer, not a policy's; tell the two apart by the region the report names |
 | **what the join hands on** | `{ last, iterations, exhausted, broke? }` — `last` the arrival `until` held on, or the final one when exhausted; on a break, the state the breaking round STARTED with, and `broke: { at, value }` the `end`'s id and what reached it. `broke` is ABSENT otherwise |
 | **reading the rounds from outside** | as after a `map`: a node after the loop naming a body node in the ARRAY form (`needs: { all: ['work'] }`) receives every round's output in ROUND order, a round that routed around the node contributing nothing; the singular form is refused (`FD-V28`) |
