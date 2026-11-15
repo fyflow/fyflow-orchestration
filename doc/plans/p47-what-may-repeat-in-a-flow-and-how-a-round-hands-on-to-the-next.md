@@ -27,7 +27,7 @@ Items:    W228 (the definition: the `loop` kind, its refusals, the schema and th
           W230 (resume, retention and real workers: L5, L6, AGENTS.md, the measured footprint, the reply, P47's Record)
 Reserves: W228-W231, Q809-Q818, ADR 0145-0147
 Raises:   Q809 (compaction, deferred; decision 3) and Q810 (a constant in `needs`, open, W228's; decision 4)
-Measured: in a byte copy of `df60b9e` (`git archive` into C:/tmp-p47/m, node_modules copied, zero links), node 24
+Measured: in a byte copy of `df60b9e` (`git archive`, node_modules copied, zero links), node 24
 Baseline: `npm run state` on 2026-11-13 prints P47 / W227 / Q809 / ADR 0145 from the tree and W228 from the ledger.
           The disagreement is P46's: it reserved W224-W227 and SKIPPED W227 unissued (P46's Reserves line), and
           its Record says *"the next plan starts at W228, Q809 and ADR 0145"*. W227 is never reissued, so P47 starts at W228
@@ -270,7 +270,7 @@ by W230 and named so. W228 and W229 are committed locally (`7499d04`, `1d2878f`)
 | (3) a loop checkpointed mid-round resumes to the same fold, no new `FoldInput` kind, `CHECKPOINT_FORMAT` unchanged — or the measurement that refutes it | W230: measured before the spec (every element a cut, 23 and 44 cuts), then `test/driver/checkpoint-loop.test.ts` — after a round, mid-round, at a park, every element, a reading at the join; the kinds 0.14.0 wrote and format 2 asserted. **Not refuted**: no stop-and-ask | **met** |
 | (4) one L6 block, node 24 and deno: a training-shaped loop (a map in the body, `until`, a reader after the loop naming every round) and a polling loop that breaks | W230: the `W230 exit` block — training (done) and its control (exhausted), polling (break), its control (done), and a LOST run beyond the clause (Q582's *closes-when*); **2935 / 294, 0 failed**, both runtimes | **met** |
 | (5) the retained footprint MEASURED beside a map of the same task count, against `RN-R13` | W230: loop / map 0.998, 0.997, 0.996 at N = 16, 64, 256; the carried history 3.4×, 12.7×, 49.9× a reader after the loop, tracking *N(N+1)/2* — decision 1's ~125 MB for 500 rounds of 1 KiB is the formula's, and the measured 32 MiB at 256 rounds agrees with it | **met** |
-| `npm run gate:full` EXIT 0 — the LAST item runs it | W230: the first run RED (`check:docs:selftest` 45/47, retro 7); on the final tree **EXIT 0** — L1-L5 110 / 2384 in node, deno and chromium, L6 2935 / 0 failed in both runtimes, self-tests **11/11 ok** (`C:/tmp-p47/w230-gatefull-2.log`) | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W230: the first run RED (`check:docs:selftest` 45/47, retro 7); on the final tree **EXIT 0** — L1-L5 110 / 2384 in node, deno and chromium, L6 2935 / 0 failed in both runtimes, self-tests **11/11 ok** | **met** |
 
 **What the plan answered.** **Yes**: a flow may run one region's branch round after round, and the outer graph and the
 body both stay acyclic. `FD-V10` is unchanged, every task id is unique by a branch-path segment per round, and a resume
@@ -296,7 +296,7 @@ is accepted unchanged — not bumped and not released.
 | 0.15.0 — the bump, the commits, the push, the publish | **the maintainer** | this Record |
 | compaction of finished rounds | no owner — deferred | [Q809](../questions/q809.md) |
 | pass 8 #1 (an instance's pool option unset) and #3 (JSONata path functions) | not evaluated — a later plan, if the maintainer asks | the reply's Summary |
-| the byte copies and reader worktrees `C:/tmp-p47/*`, `C:/tmp-w229/*`, `C:/tmp-w230/*` and the logs | **the maintainer** — left in place, outside the repository | each item's Record |
+| the byte copies, reader worktrees and logs | **the maintainer** — left in place, outside the repository | each item's Record |
 
 **Retro.** *Section 6 pass 3, over the three items' files.*
 

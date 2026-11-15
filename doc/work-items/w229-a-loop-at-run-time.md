@@ -83,13 +83,13 @@ the body, its join firing once per round.
 | Rung | Result |
 |---|---|
 | first ladder run, before the exceptions | RED — `check:spec` C8 (the README's version cells), `check:docs` X4 (`UnresolvedLoopBound` undiscovered by AGENTS.md section 9), L6 `cross-row` (`DRIVER_FIELDS`) — the stop-and-asks that granted the Exceptions above, (a), (b1), (c1) |
-| `npm run gate` before the readers | **EXIT 0** (`C:/tmp-p47/w229-gate.log`) — node, deno and chromium 109 files, 2372 assertions (parity); L6 2923, 0 failed, both runtimes |
-| `npm run gate` after the readers' findings | **EXIT 0** (`C:/tmp-p47/w229-gate2.log`) — 109 files, **2377** assertions in node, deno and chromium (parity); L6 2923, 0 failed, both runtimes |
+| `npm run gate` before the readers | **EXIT 0** — node, deno and chromium 109 files, 2372 assertions (parity); L6 2923, 0 failed, both runtimes |
+| `npm run gate` after the readers' findings | **EXIT 0** — 109 files, **2377** assertions in node, deno and chromium (parity); L6 2923, 0 failed, both runtimes |
 | Workflow rule 8, author's | **10 of 10 RED** after the readers — the hold at `settleLoop`'s head, the policy opened on a loop, the three releases (fire, loss, halt), the join value entered outside its enclosing region, the replay's delivery gate, `"$iteration"` read as the last index and as the outermost loop's, a `null` seed defaulted — each mutated ALONE in the author's tree, `test/driver/loop.test.ts` red naming its case, both files restored byte-identical (sha256 checked) |
-| Conformity reader | **RAN** (`C:/tmp-w229/rc`) — **1 BLOCKING**, 3 NIT; everything else re-derived and conforming |
-| Adequacy reader | **RAN** (`C:/tmp-w229/ra`) — 58 mutations, 38 killed, **20 survived** (9 real gaps, 11 equivalent or unreachable), one conformity defect found by probing (D1); no strictly vacuous assertion; the copy restored byte-identical |
+| Conformity reader | **RAN** (a reader worktree) — **1 BLOCKING**, 3 NIT; everything else re-derived and conforming |
+| Adequacy reader | **RAN** (a reader worktree) — 58 mutations, 38 killed, **20 survived** (9 real gaps, 11 equivalent or unreachable), one conformity defect found by probing (D1); no strictly vacuous assertion; the copy restored byte-identical |
 | Overlap | **1** shared SUBJECT: the hold at a loop's decision — the conformity reader's F1 (and F2, its wording) by construction, the adequacy reader's D1 by probe and M20 by mutation |
-| `npm run gate:item` on the final tree | **EXIT 0** (`C:/tmp-p47/w229-gate-item.log`) — the ladder (2377 in node, deno and chromium; L6 2923, 0 failed, both runtimes) and every self-test but the register lane's, 10 of 10 ok |
+| `npm run gate:item` on the final tree | **EXIT 0** — the ladder (2377 in node, deno and chromium; L6 2923, 0 failed, both runtimes) and every self-test but the register lane's, 10 of 10 ok |
 
 ### Outputs
 

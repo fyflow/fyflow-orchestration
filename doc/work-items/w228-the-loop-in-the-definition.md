@@ -95,12 +95,12 @@ nested fan-out — a map inside a loop and a loop inside a map instance, both va
 |---|---|
 | first ladder run, before the exceptions | RED — `typecheck` (examples/l6.ts `spellingOf`), `check:spec` C4 (the README quote), `npm test` 17 failures: the driver suites running every corpus flow, and W228's own suites' tables — the stop-and-ask that granted the Exceptions below, (a) |
 | `npm run gate` before the readers | **EXIT 0** — node, deno and chromium 107 files, 2359 assertions (chromium parity); L6 2923, 0 failed, both runtimes. Two reds on the way: `check:docs` X7 (AGENTS.md's count, an exception below) and chromium's `_InvalidDefinition` (the bundle renames classes — `loopRefusal` compares by `instanceof`) |
-| `npm run gate` after the readers' findings and the maintainer's (a1), (b1), (c1), (d1) | **EXIT 0** (`C:/tmp-p47/w228-gate.log`) — 107 files, **2361** assertions in node, deno and chromium (parity); L6 2923, 0 failed, both runtimes |
+| `npm run gate` after the readers' findings and the maintainer's (a1), (b1), (c1), (d1) | **EXIT 0** — 107 files, **2361** assertions in node, deno and chromium (parity); L6 2923, 0 failed, both runtimes |
 | Workflow rule 8, author's | 3 of 3 RED before the readers (the break clause, the carry arcs, FD-V51 removed); after them, **19 of 19 RED** — every adequacy survivor below and the (a1), (b1) and F3 code, each mutated alone in the author's tree and restored byte-identical (`git status` unchanged) |
-| Conformity reader | **RAN** (`C:/tmp-p47/c`, 21 constructed loop documents, 8 wiring documents) — 0 BLOCKING, 2 SHOULD (both the SPEC's), 3 NIT; everything else re-derived and conforming |
-| Adequacy reader | **RAN** (`C:/tmp-p47/a`) — 62 mutations, 45 killed, **17 survived** (8 SHOULD, 4 NIT and equivalents), one assertion that could not fail as labelled; the copy restored and green |
+| Conformity reader | **RAN** (a reader worktree, 21 constructed loop documents, 8 wiring documents) — 0 BLOCKING, 2 SHOULD (both the SPEC's), 3 NIT; everything else re-derived and conforming |
+| Adequacy reader | **RAN** (a reader worktree) — 62 mutations, 45 killed, **17 survived** (8 SHOULD, 4 NIT and equivalents), one assertion that could not fail as labelled; the copy restored and green |
 | Overlap | **3** shared SUBJECTS, different findings on each: the break clause's scope (F2: nested ends; survivor 7: maps), `FD-V26`'s message for `"$iteration"` (F4: the grammar message; survivor 10: the fix), and the loop join's record (F1: `last`; survivors 6, 11 and the closedness assertion) |
-| `npm run gate:item` on the final tree | **RUN 1 RED** — `check:register` R8: Q810's `resolved-by` named ADR 0145 and the ADR's `resolves` was empty; `resolves: Q810` added. **RUN 2 EXIT 0** (`C:/tmp-p47/w228-gate-item-run2.log`) — the ladder (2361 in node, deno and chromium; L6 2923, 0 failed, both runtimes) and every self-test but the register lane's |
+| `npm run gate:item` on the final tree | **RUN 1 RED** — `check:register` R8: Q810's `resolved-by` named ADR 0145 and the ADR's `resolves` was empty; `resolves: Q810` added. **RUN 2 EXIT 0** — the ladder (2361 in node, deno and chromium; L6 2923, 0 failed, both runtimes) and every self-test but the register lane's |
 
 ### Outputs
 
