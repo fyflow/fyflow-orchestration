@@ -2234,6 +2234,14 @@ export class Driver {
    * (`leaveStep()`): the attempt started before any of them. Empty at rest.
    */
   private readonly attemptsPending = new Fifo<{ readonly taskId: string; readonly attemptNumber: number }>();
+  /**
+   * **Settlements heard inside the driver's own step, copied and not yet taken** (`RN-R46`, W232) — see
+   * `takeSettlements`. Empty at rest; nothing here is in the log, so a checkpoint taken while one waits holds its task
+   * in flight, as it would if the scheduler had not settled it yet.
+   */
+  private readonly settlementsPending = new Fifo<{ readonly record: OutcomeRecord; readonly runId: string; readonly nodeId: string; readonly branchPath: string }>();
+  /** `takeSettlements` is on the stack: a nested step's end leaves the queue to its loop. */
+  private takingSettlements = false;
 
   /**
    * **The dispatch hold is SHUT: a halt is on the run, and the driver dispatches and routes nothing further for it** —
@@ -2286,9 +2294,69 @@ export class Driver {
    */
   private leaveStep(): void {
     this.stepping -= 1;
-    if (this.stepping === 0 && this.attemptsPending.length > 0) this.takeAttempts();
-    while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
-    if (this.stepping === 0 && this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
+    try {
+      if (this.stepping === 0 && this.attemptsPending.length > 0) this.takeAttempts();
+      while (this.stepping === 0 && this.pausePending.length > 0) this.takePending(this.pausePending.shift()!);
+      if (this.stepping === 0 && this.stopRequest !== null && this.stopRequest.pending !== null) this.takeStop();
+    } finally {
+      // **In a `finally`** (`RN-R46`, W232's conformity reader): a take above that THROWS — a consumer's callback on an
+      // `attempted`, a `paused` or an `interrupted` element — has halted the run and is on its way to the caller, and the
+      // settlements heard on this step are still owed their elements: appended, routed nowhere, as a later-settling
+      // scheduler's would be on a halted run — or dropped, where the stop left the driver deaf. Without this they stayed
+      // queued for good. `takeSettlements` never throws, so the throw above leaves as it came.
+      if (this.stepping === 0 && !this.takingSettlements && this.settlementsPending.length > 0) this.takeSettlements();
+    }
+  }
+
+  /**
+   * **Every settlement heard INSIDE a step, taken — each as a step of its own, in the order heard** — `RN-R46`,
+   * [ADR 0146](../../doc/decisions/0146-a-settlement-heard-inside-the-drivers-own-step-is-taken-when-that-step-ends.md),
+   * [W232](../../doc/work-items/w232-a-settlement-inside-the-drivers-own-step-is-taken-when-that-step-ends.md).
+   * `SchedulerLike` lets a scheduler settle a task inside `addTask`. Until W232 that settlement was appended and routed
+   * on the stack of the step that dispatched it, which (1) grew the stack with what the RUN did — a loop's rounds — and
+   * (2) appended an order no replay regenerates, since a replay feeds each settlement at rest (`RN-R19`): a fan-out on
+   * such a scheduler was refused at resume. Here it is what a scheduler that settles LATER does to the driver: the
+   * step that dispatched ends — its attempts, a pending pause, unpause or resolution and a pending stop taken first,
+   * `leaveStep` — and then the settlement arrives.
+   *
+   * **One loop, not a recursion**: a settlement's own step ends in `leaveStep`, which finds this taking and leaves the
+   * settlements that step queued to the `while` below — so the stack is flat however many there are.
+   * **Each is a LISTENER's step** (`OR-R10`): a throw from it is reported and the run halted, and is not thrown to
+   * whoever called the driver — a scheduler that settles later would not have thrown it there either. A driver gone
+   * DEAF since (a stop taken at this step's end, `RN-R33`), or spent, hears none of them, as `onEventStep` hears none.
+   */
+  private takeSettlements(): void {
+    this.takingSettlements = true;
+    try {
+      while (this.settlementsPending.length > 0) {
+        const s = this.settlementsPending.shift()!;
+        this.stepping += 1;
+        try {
+          if (this.deaf || (this.started && this.header === null)) continue;
+          try {
+            this.settle(s.record, s.runId, s.nodeId, s.branchPath);
+          } catch (e) {
+            try {
+              this.haltOnce(e);
+            } catch {
+              // discarded — the run is halted, its element in the log, and its failure reported (`onEventStep`)
+            }
+          }
+        } finally {
+          try {
+            this.leaveStep();
+          } catch (e) {
+            try {
+              if (!this.failed) this.failRun(e);
+            } catch {
+              // discarded, as at `onEvent`
+            }
+          }
+        }
+      }
+    } finally {
+      this.takingSettlements = false;
+    }
   }
 
   /**
@@ -4091,6 +4159,16 @@ export class Driver {
 
     const record = normalizeEvent(name, detail, this.now());
     if (!record) return; // OR-R3/OR-R4: this event writes nothing
+    // **Heard INSIDE the driver's own step, it is TAKEN when that step ends** (`RN-R46`, ADR 0146, W232). `stepping`
+    // counts this listener's own step, so above 1 the driver is below us on the stack: a scheduler settled the task
+    // inside the `addTask` that handed it over. Everything above ran HERE — `ID-R4`'s tiers, and the COPY, which is
+    // what `OR-R1` asks of a listener and where `OR-R6` refuses — and only the append and the routing wait.
+    // **A `cancelled` settlement does NOT wait**: it routes nothing and HALTS the run (`RN-R28`), and a halt is taken
+    // where it is raised so that the step it lands in dispatches, routes and emits nothing further (`RN-R29`).
+    if (this.stepping > 1 && record.terminalState !== 'cancelled') {
+      this.settlementsPending.push({ record, runId, nodeId, branchPath });
+      return;
+    }
     this.settle(record, runId, nodeId, branchPath);
   }
 

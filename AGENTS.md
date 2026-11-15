@@ -144,9 +144,10 @@ a wire.
 > (`maxIterations`, optionally lowered at run time by `maxIterationsFrom`); its `join` hands on
 > `{ last, iterations, exhausted, broke? }`. An `end` inside the body is a BREAK. It takes NO join policy. Section 22
 > runs one.
-> **BREAKING after 0.14.0, in five places** — four unions WIDENED and one accessor returning less; no signature
-> changed, and every document 0.14.0 accepted is still accepted and runs as it did (the fifth shows only in a flow
-> that holds a loop):
+> **BREAKING after 0.14.0, in six places** — four unions WIDENED, one accessor returning less, and the order a
+> scheduler DOUBLE's log is appended in; no signature changed, and every document 0.14.0 accepted is still accepted
+> and, on `fyflow-scheduler`, runs as it did (the fifth shows only in a flow that holds a loop, the sixth only on a
+> scheduler that settles a task inside `addTask`):
 > 1. `FlowNode` gains `LoopNode`, so a `switch` exhaustive over `node.kind` no longer compiles until it names `'loop'`.
 > 2. `RegionSets.opensWith` gains `'loop'`. Code written `opensWith === 'map' ? … : …` compiles and treats a loop's
 >    region as a FAN-OUT's, in silence — name all three.
@@ -157,6 +158,11 @@ a wire.
 > 5. `driver.regionsForPolicies()` OMITS a loop's region, because a loop's join takes no policy. Code that listed a
 >    flow's regions through it no longer sees every region: `allRegions(buildGraph(flow), flow)` returns them all,
 >    as `RegionSets` — the definition's shape, not the policy's `Region`.
+> 6. A scheduler that settles a task INSIDE `addTask` — a test double; `fyflow-scheduler` never does — has that
+>    settlement taken when the driver's step ends, not on its stack (section 12): its log is now the one a scheduler
+>    settling later appends, in the order heard, so a fan-out's branches are all dispatched before the first settles where they
+>    interleaved, and a throw while a later task is dispatched is reported through `onRunFailure`, not thrown from
+>    `start()`. A test that pinned the old order of such a double moves.
 
 > **`ask` is the seventh, and it is a node that WAITS FOR A PERSON, by design** — `spec/flow-definition.md` v0.42,
 > [ADR 0108](doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md),
@@ -2614,6 +2620,9 @@ do either: whether you are on the stack when it is raised is what decides. A ref
 *your* call is running is thrown; one raised inside a scheduler event listener is reported, because
 `EventTarget.dispatchEvent` **never hands a listener throw back** — it resurfaces out of band, and in node
 and deno that is an UNCAUGHT exception that ends your process — and there is nobody to catch it.
+**One case looks like the first and is the second**: a scheduler that settles a task INSIDE `addTask` has that
+settlement taken when your call's step ends, as a listener's step (section 12, `RN-R46`) — a refusal raised while it is
+routed is REPORTED, though your call is still on the stack.
 
 **Thrown**, because you are on the stack and can act:
 
@@ -3629,6 +3638,21 @@ scheduler's own signature, which a `FyflowScheduler` has and a runtime's per-run
 read by `driver.cancel` and `driver.stop` alone (sections 6 and 18), so a double with only `addTask` and
 `addEventListener` still drives every run — and either over it is refused `unsupported`, by name, before anything is
 recorded. Give your double a `cancel` that returns a promise if it must cancel or stop a run.
+
+**Your scheduler may settle a task INSIDE `addTask`, and the driver treats it as one that settles later** —
+`spec/run-state.md` `RN-R46`,
+[ADR 0146](doc/decisions/0146-a-settlement-heard-inside-the-drivers-own-step-is-taken-when-that-step-ends.md).
+`fyflow-scheduler` settles asynchronously; a test double often does not. A settlement the driver hears while it is
+still on the stack of its own step — your `addTask` fired `task.completed` before returning — is COPIED there
+(mutate the detail afterwards and the record does not move) and appended and routed when that step ends: after any
+attempt, pause, unpause, resolution or stop pending on it. So the log is the one a later-settling scheduler appends, in
+the order the settlements were heard, a checkpoint cut anywhere in it resumes, a `pause()` or `stop()` from a callback is taken at that step
+and not after the run, and the stack does not grow with the run — a loop of thousands of rounds completes. Two things
+to know. **What halts the run is NOT deferred**: a `task.cancelled`, an uncloneable result or a settlement for a task
+this run never dispatched, fired inside a step, halts the run where it is heard, and the settlements still waiting are
+then appended after it, routed nowhere — the one place the log is not the later scheduler's. **And a throw while a
+deferred settlement is routed reaches `onRunFailure`, never your call** — `start()`, `resume()`, `resolve()` or
+`unpause()` returns (section 9).
 
 **A worker file can be TypeScript.** Node 24 runs it by stripping types, and Deno natively, so **one
 `.ts` worker serves Node and Deno**. *(The scheduler's own reference **used to say** a Node worker

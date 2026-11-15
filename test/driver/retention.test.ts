@@ -342,6 +342,11 @@ const DRIVER_FIELDS = [
   // value: edge-hop COPIES of results, a second copy as a region's collection is, and released where that one is (when the
   // join becomes terminal, or at a run-level halt). WALKED. The ratchet fired by name on W229's first L2 run.
   'loops',
+  // W232 — `settlementsPending`: the settlements HEARD inside the driver's own step and not yet taken (`spec/run-state.md`
+  // `RN-R46`, ADR 0146) — each a normalised record, the very object the log is handed when it is taken, so a holder for
+  // the length of one step and never a second copy; empty at rest. `takingSettlements`: one boolean, that queue's drain on
+  // the stack. Both WALKED. The ratchet fired by name on W232's first full run, naming both.
+  'settlementsPending', 'takingSettlements',
 ].sort();
 // `nodeTypes` since W59 — the ratchet firing as designed: the field was added and this list went
 // red naming it. It holds the registry's node types (consumer functions, no result) and joins

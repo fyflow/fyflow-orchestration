@@ -1,5 +1,5 @@
 /**
- * **L2 — a loop at RUN time, one way out at a time** — `spec/join-policy.md` v0.26-v0.27 `JP-R13`-`JP-R15`,
+ * **L2 — a loop at RUN time, one way out at a time** — `spec/join-policy.md` v0.26-v0.28 `JP-R13`-`JP-R15`,
  * `spec/flow-definition.md` v0.58-v0.59 `FD-R4` and `FD-R7`, P47 decisions 1, 2 and 4-6 and fact 16,
  * [W229](../../doc/work-items/w229-a-loop-at-run-time.md).
  *
@@ -38,8 +38,10 @@ function drive(flow: FlowDefinition, o: {
   policy?: boolean | JoinPolicy; predicates?: Record<string, Predicate>; onEvent?: (e: RegionEvent, d: Driver) => void;
   /** W231: a worker table of the case's own, and FD-R4's check left ON (the default) — every earlier case turns it off. */
   workers?: unknown; boundaries?: boolean;
+  /** W232: the scheduler double — `Sync` settles inside `addTask`; the default settles when a case says so. */
+  sch?: Fake;
 } = {}): Run {
-  const sch = new Fake();
+  const sch = o.sch ?? new Fake();
   const events: RegionEvent[] = [];
   const unsat: UnsatisfiableJoin[] = [];
   const failures: RunFailure[] = [];
@@ -65,6 +67,48 @@ const ids = (r: Run): string[] => r.sch.added.map((t) => t.id);
 const input = (r: Run, id: string): unknown => (r.sch.added.find((t) => t.id === id)?.payload as { input?: unknown } | undefined)?.input;
 const evs = (r: Run): string[] => r.events.map((e) => `${e.type.replace('branch.', '')}(${e.regionId}:${e.branchPath})`);
 const done = (r: Run, id: string, result: unknown): void => r.sch.settle(id, 'done', result);
+
+/** What a scripted scheduler does with one task: how it settles, or `undefined` to leave it in flight. */
+type Script = (taskId: string) => { state: 'done' | 'failed'; result: unknown } | undefined;
+
+/**
+ * **W232 — a scheduler that settles a task INSIDE `addTask`**, which `SchedulerLike` allows and `fyflow-scheduler` at the
+ * pin does not do: the settlement's listener runs on the stack of the dispatch that handed the task over, and the driver
+ * takes it when that step ends (`spec/run-state.md` `RN-R46`). The suite's `Fake` with one line added, so both doubles
+ * fire the same events with the same details.
+ */
+class Sync extends Fake {
+  private readonly script: Script;
+  constructor(script: Script) { super(); this.script = script; }
+  override addTask(t: unknown): void {
+    super.addTask(t);
+    const id = (t as { id: string }).id;
+    const s = this.script(id);
+    if (s !== undefined) this.settle(id, s.state, s.result);
+  }
+}
+
+/** The script run on a `Sync` scheduler: every settlement arrives inside the dispatch. */
+function runSync(flow: FlowDefinition, script: Script, o: Parameters<typeof drive>[1] = {}): Run {
+  const r = drive(flow, { ...o, sch: new Sync(script) });
+  r.d.start({});
+  return r;
+}
+
+/** The same script on the suite's `Fake`: each task settled LATER, at rest, in dispatch order. */
+function runLater(flow: FlowDefinition, script: Script, o: Parameters<typeof drive>[1] = {}): Run {
+  const r = drive(flow, o);
+  r.d.start({});
+  for (let i = 0; i < r.sch.added.length; i += 1) {
+    const id = r.sch.added[i]!.id;
+    const s = script(id);
+    if (s !== undefined) r.sch.settle(id, s.state, s.result);
+  }
+  return r;
+}
+
+/** The round a `work` task id names: `r1:work:<round>:0`. */
+const roundOf = (taskId: string): number => Number(taskId.split(':')[2]);
 
 /** `ingest → L(work) → J → after → done`; `until: input.ok == true`. Options add the bound key, a break and needs. */
 function pollFlow(o: {
@@ -120,6 +164,12 @@ const DECLARED_CASES = [
   'W231 FD-R4 through an ENTRY loop: the body entry reading "$iteration" is held at start() with round 0 composed, and a schema round 0 cannot satisfy refuses',
   'W231 JP-R15 for a loop the payload reaches: the seed is the loop`s OWN copy — a caller`s later write reaches nothing it hands on, live or resumed',
   'W231 FD-R7 for a loop the payload reaches: the bound is read from the copy the run holds, so a class instance in the payload resolves as its clone does',
+  // W232 — the review's finding 3: a settlement heard inside the driver's own step was routed on that stack, so a
+  // scheduler settling inside `addTask` grew the stack by a round's frames per round. `RN-R46`: it is taken when the step
+  // ends. What is not a loop's is in `settle-inside.test.ts`.
+  'W232 a scheduler that settles INSIDE addTask runs 5000 rounds: every round dispatched, the join fired, the run completed, nothing reported',
+  'W232 RN-R46 on such a scheduler: a loop`s log IS the log of one that settles later, and each round is handed what JP-R15 says — done, exhausted, a break, a lost round, a loop in a loop, a loop in a map',
+  'W232 a cancel taken on a round`s own settlement, on such a scheduler, opens no next round',
   'every case this suite declares actually ran — a deleted case fails naming itself',
 ];
 
@@ -689,6 +739,98 @@ suite(SUITE, (test) => {
       equal(ids(r), ['r1:work:0:0', 'r1:work:1:0', 'r1:after:-:0'], `${road}: start() does not refuse, and two rounds run and no third — the bound is the 2 the loop's own copy holds (FD-R7 v0.59), below maxIterations 5`);
       equal(input(r, 'r1:after:-:0'), { last: { ok: false }, iterations: 2, exhausted: true }, `${road}: exhausted at the bound the key named`);
     }
+  });
+
+  test(DECLARED_CASES[18]!, () => {
+    const ROUNDS = 5000; // the declaration's figure: far past any stack a round's frames could fill, not a measured threshold
+    const script: Script = (id) => id === 'r1:ingest:-:0' ? { state: 'done', result: { seed: 1 } }
+      : id.startsWith('r1:work:') ? { state: 'done', result: { ok: roundOf(id) === ROUNDS - 1, n: roundOf(id) } }
+      : { state: 'done', result: {} };
+    const r = runSync(pollFlow({ maxIterations: ROUNDS }), script);
+    equal(r.failures, [], 'nothing reported');
+    equal(r.sch.added.length, ROUNDS + 2, 'ingest, one task per round, and the join`s successor');
+    equal(r.sch.added[ROUNDS]!.id, `r1:work:${ROUNDS - 1}:0`, 'the last round is dispatched at its own path');
+    equal(input(r, 'r1:after:-:0'), { last: { ok: true, n: ROUNDS - 1 }, iterations: ROUNDS, exhausted: false },
+      'the join fired with the final arrival: done on the last round, not exhausted (JP-R14: until is read before the bound)');
+    equal(r.d.joinStatusOf('L'), { status: 'satisfied', describe: { iterations: ROUNDS, bound: ROUNDS } }, 'and the loop says so');
+    equal(fold(r.d.foldInputs()).outcome, 'completed', 'the fold: completed');
+  });
+
+  test(DECLARED_CASES[19]!, () => {
+    const ingest = { state: 'done' as const, result: { seed: 1 } };
+    const other = { state: 'done' as const, result: {} };
+    /** `pre → LI(work) → JI → post`, the body of `LO`: a loop in a loop, one task in flight at a time. */
+    const nested = {
+      flowId: 'w232-nested', version: 1, entry: 'ingest',
+      nodes: [
+        { id: 'ingest', kind: 'task', type: 'IngestWorker', edges: [{ to: 'LO' }] },
+        { id: 'LO', kind: 'loop', branch: 'pre', until: { path: 'input.ok', op: 'eq', value: true }, maxIterations: 3 },
+        { id: 'pre', kind: 'task', type: 'ExtractWorker', edges: [{ to: 'LI' }] },
+        { id: 'LI', kind: 'loop', branch: 'work', until: { path: 'input.ok', op: 'eq', value: true }, maxIterations: 2 },
+        { id: 'work', kind: 'task', type: 'ScoreWorker', edges: [{ to: 'JI' }] },
+        { id: 'JI', kind: 'join', of: 'LI', edges: [{ to: 'post' }] },
+        { id: 'post', kind: 'task', type: 'MergeWorker', edges: [{ to: 'JO' }] },
+        { id: 'JO', kind: 'join', of: 'LO', edges: [{ to: 'after' }] },
+        { id: 'after', kind: 'task', type: 'PublishWorker', edges: [{ to: 'done' }] },
+        { id: 'done', kind: 'end', outcome: 'completed' },
+      ],
+    } as unknown as FlowDefinition;
+    const ROWS: [string, FlowDefinition, Script, string[], Record<string, Predicate>][] = [
+      ['done on round 2', pollFlow(), (id) => id === 'r1:ingest:-:0' ? ingest : id.startsWith('r1:work:') ? { state: 'done', result: { ok: roundOf(id) === 2 } } : other,
+        ['r1:ingest:-:0', 'r1:work:0:0', 'r1:work:1:0', 'r1:work:2:0', 'r1:after:-:0'], {}],
+      ['exhausted', pollFlow(), (id) => id === 'r1:ingest:-:0' ? ingest : id.startsWith('r1:work:') ? { state: 'done', result: { ok: false } } : other,
+        ['r1:ingest:-:0', 'r1:work:0:0', 'r1:work:1:0', 'r1:work:2:0', 'r1:after:-:0'], {}],
+      ['a break in round 1', pollFlow({ breakable: true }), (id) => id === 'r1:ingest:-:0' ? ingest : id.startsWith('r1:work:') ? { state: 'done', result: { stop: roundOf(id) === 1 } } : other,
+        ['r1:ingest:-:0', 'r1:work:0:0', 'r1:work:1:0', 'r1:after:-:0'], STOP],
+      ['round 1 lost', pollFlow({ optional: true }), (id) => id === 'r1:ingest:-:0' ? ingest : id === 'r1:work:1:0' ? { state: 'failed', result: null } : id.startsWith('r1:work:') ? { state: 'done', result: { ok: false } } : other,
+        ['r1:ingest:-:0', 'r1:work:0:0', 'r1:work:1:0'], {}],
+      // The inner loop is done on its round 1 in each outer round; the outer is done on its round 1.
+      ['a loop in a loop', nested, (id) => id === 'r1:ingest:-:0' ? ingest
+        : id.startsWith('r1:work:') ? { state: 'done', result: { ok: id.split(':')[2]!.endsWith('.1') } }
+        : id.startsWith('r1:post:') ? { state: 'done', result: { ok: roundOf(id) === 1 } } : other,
+        ['r1:ingest:-:0', 'r1:pre:0:0', 'r1:work:0.0:0', 'r1:work:0.1:0', 'r1:post:0:0',
+          'r1:pre:1:0', 'r1:work:1.0:0', 'r1:work:1.1:0', 'r1:post:1:0', 'r1:after:-:0'], {}],
+    ];
+    for (const [row, flow, script, wantIds, predicates] of ROWS) {
+      const s = runSync(flow, script, { predicates });
+      const l = runLater(flow, script, { predicates });
+      equal(ids(s), wantIds, `${row}: the tasks a scheduler settling inside addTask is handed, by hand from ID-R6`);
+      equal(s.failures, [], `${row}: nothing reported`);
+      equal(s.d.foldInputs(), l.d.foldInputs(), `${row}: its log IS the log of the scheduler that settles later, element for element (RN-R46)`);
+    }
+
+    // What each ROUND is handed — a `dispatched` element carries no payload, so the log comparison above cannot see it
+    // (the first attempt's adequacy reader: a round opened from a stale state passed every case).
+    const fed = runSync(pollFlow({ maxIterations: 4 }), (id) => id === 'r1:ingest:-:0' ? ingest
+      : id.startsWith('r1:work:') ? { state: 'done', result: { ok: false, r: roundOf(id) } } : other);
+    equal([0, 1, 2, 3].map((k) => input(fed, `r1:work:${k}:0`)), [{ seed: 1 }, { ok: false, r: 0 }, { ok: false, r: 1 }, { ok: false, r: 2 }],
+      'round 0 is handed the seed and round k what round k − 1 arrived with (JP-R15)');
+    equal(input(fed, 'r1:after:-:0'), { last: { ok: false, r: 3 }, iterations: 4, exhausted: true }, 'and the join its value');
+
+    // A loop inside a MAP instance: both instances' rounds interleave as a scheduler settling later in dispatch order
+    // interleaves them, so the logs ARE compared — and the ids (ID-R6) and each instance's loop value (JP-R15) by hand.
+    const mapScript: Script = (id) => id === 'r1:ingest:-:0' ? { state: 'done', result: { items: ['a', 'b'] } }
+      : id.startsWith('r1:pre:') ? { state: 'done', result: { p: roundOf(id) } }
+      : id === 'r1:work:0.0:0' ? { state: 'done', result: { ok: false } }
+      : id.startsWith('r1:work:') ? { state: 'done', result: { ok: true } } : other;
+    const m = runSync(IN_A_MAP, mapScript);
+    equal(ids(m), ['r1:ingest:-:0', 'r1:pre:0:0', 'r1:pre:1:0', 'r1:work:0.0:0', 'r1:work:1.0:0', 'r1:work:0.1:0', 'r1:after:-:0'],
+      'a loop in a map: both instances` round 0, then instance 0`s round 1 — each id at its own path');
+    equal(input(m, 'r1:after:-:0'), { 0: { last: { ok: true }, iterations: 2, exhausted: false }, 1: { last: { ok: true }, iterations: 1, exhausted: false } },
+      'and the map`s join hands on each instance`s loop value, keyed by its item index');
+    equal(m.d.foldInputs(), runLater(IN_A_MAP, mapScript).d.foldInputs(), 'its log IS the later scheduler`s too');
+    equal(m.failures, [], 'nothing reported');
+  });
+
+  test(DECLARED_CASES[20]!, () => {
+    const script: Script = (id) => id === 'r1:ingest:-:0' ? { state: 'done', result: { seed: 1 } }
+      : id.startsWith('r1:work:') ? { state: 'done', result: { ok: false } } : { state: 'done', result: {} };
+    const r = runSync(pollFlow({ maxIterations: 5 }), script, {
+      onEvent: (e, d) => { if (e.regionId === 'L' && e.type === 'branch.arrived' && e.branchPath === '1') void d.cancel({ actor: 'ana' }); },
+    });
+    equal(ids(r), ['r1:ingest:-:0', 'r1:work:0:0', 'r1:work:1:0'], 'rounds 0 and 1 ran; the cancel on round 1`s arrival opened no round 2');
+    equal(evs(r), ['opened(L:0)', 'arrived(L:0)', 'opened(L:1)', 'arrived(L:1)'], 'and no further region event (JP-R14: a halted run decides nothing)');
+    ok(!r.d.foldInputs().some((e) => e.kind === 'joinSettled'), 'nor a joinSettled');
   });
 
   test(DECLARED_CASES[DECLARED_CASES.length - 1]!, () => {

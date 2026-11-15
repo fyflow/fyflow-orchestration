@@ -16893,6 +16893,11 @@ if (rowCosts.length !== EXPECTED.length) {
     // waits the state and arrival it holds — copies, released where a region's collection is. WALKED. No ROW here runs a
     // loop: W230's block does, and it is not a row, so the walk over `reports` reads `loops` empty.
     'loops',
+    // `settlementsPending` and `takingSettlements` since W232 (`spec/run-state.md` `RN-R46`, ADR 0146): the settlements
+    // heard inside the driver's own step and not yet taken, and whether that queue's drain is on the stack. Empty and
+    // false at rest, and on every run here — `fyflow-scheduler` settles no task inside `addTask`. No second copy; both
+    // WALKED; examples/run-flow.ts' NOT_RUN_STATE is unchanged.
+    'settlementsPending', 'takingSettlements',
   ].sort();
   const anyRun = reports[0]!;
   check('cross-row', 'the byte measurement WALKS every growing structure the driver has and skips ' +
