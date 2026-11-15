@@ -133,8 +133,19 @@ their schemas buy you before a run**.
 
 ## 3. The flow definition
 
-**Seven** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
+**Eight** node kinds. A definition is JSON: no functions, so it can be stored, versioned and sent over
 a wire.
+
+> **`loop` is the eighth, and it is a region whose ONE branch runs ROUND AFTER ROUND** — `spec/flow-definition.md`
+> v0.57-v0.58 and `spec/join-policy.md` v0.26,
+> [ADR 0145](doc/decisions/0145-a-loop-is-a-region-that-runs-its-one-branch-round-after-round.md),
+> [P47](doc/plans/p47-what-may-repeat-in-a-flow-and-how-a-round-hands-on-to-the-next.md). It names its body's entry
+> (`branch`), a condition read on what each round ARRIVES with (`until`, an `if` gate's subset) and a REQUIRED bound
+> (`maxIterations`, optionally lowered at run time by `maxIterationsFrom`); its `join` hands on
+> `{ last, iterations, exhausted, broke? }`. An `end` inside the body is a BREAK. It takes NO join policy. Section 22
+> runs one.
+> **BREAKING after 0.14.0**: `FlowNode` gains `LoopNode`, so a `switch` exhaustive over `node.kind` no longer compiles
+> until it names `'loop'`.
 
 > **`ask` is the seventh, and it is a node that WAITS FOR A PERSON, by design** — `spec/flow-definition.md` v0.42,
 > [ADR 0108](doc/decisions/0108-an-ask-is-a-seventh-node-kind-with-a-task-id-and-no-dispatch.md),
@@ -293,6 +304,7 @@ if (!noGroups.some((f) => f.rule === 'FD-V31' && f.at === 'score')) {
 | `join` | `of: '<fanout id>'`. Fires when its policy says so | it does not have **exactly one** edge, or that edge carries `when` or `on` (`FD-V7`) |
 | `end` | terminal. `outcome` is **your label**, never interpreted | — |
 | `ask` | waits for a PERSON — `edges`, and optionally `settings` (opaque), `answerSchema` (what a `done` answer must satisfy) and `needs` (what reaches it). Never dispatched, and has a task id; its answer is its output. A run PARKS at one and takes the person's answer at `resolve()` (section 7) | it has no `edges`, or **no edge of it is eligible for `done`** (`FD-V7`, as a task); `settings` that is not a plain object (`FD-V21`); a key only a task declares — `type`, `pool`, `optional`, `retryPolicy`, `workerGroups`, `transform` — one finding per key (`FD-V47`); an `answerSchema` outside the schema subset (`FD-V48`) |
+| `loop` | `branch: '<node id>'`, `until` (a condition on what a round ARRIVED with, `input` its one root), `maxIterations` (an integer >= 1, REQUIRED) and optionally `maxIterationsFrom` (a key path on the loop's value that may only LOWER the bound). **One** branch, opened once per ROUND, one round at a time; dispatches nothing itself. A body node may read `"$iteration"`, the round index (section 22) | any `edges` at all, a `branch` that is not a `task` or an `ask`, a `maxIterations` that is not an integer >= 1, or a `maxIterationsFrom` that is not a key path (`FD-V50`); `"$iteration"` read where no loop contains the reader (`FD-V51`); and at run time a `maxIterationsFrom` naming no integer >= 1 stops the run with an `UnresolvedLoopBound` (`FD-R7`) |
 | `gate` | `type: '<gate type>'`, optional `settings`, and `edges` of `{ to, route? }` — routes the branch that reaches it and hands on what reached it. `settings.key` is a dotted key path over that value — `series.id`, and since 0.12.0 an array element by a bracket index, `files[0].series` (a plain `xs.1` is still a KEY, never an index). Built in: `distinct`, `if` and `switch`. Run by the driver where a branch enters it (section 19) | its `type` is not a registered gate type, or its type's `routesFor` throws or returns a malformed route set for this gate, or its `settingsProblem` throws or returns neither a message nor `null` (`FD-V39`); its `settings` are not a plain object its type's schema accepts, its type's `settingsProblem` returns a message, they cannot be copied for the type, or its `key` is not a key path (`FD-V40`); a route is unwired, wired twice, or not its type's, or a gate edge carries `when`, `on` or `needs` (`FD-V41`) — and `route` on any other node's edge is `FD-V41` too |
 
 **A `task` node — and an `ask` — must have an edge that can be taken when it succeeds.** A node whose only edge is
@@ -5995,3 +6007,106 @@ a path naming a key the producer cannot emit answers *no match* for ever (ADR 00
 > lists, a named instance reaches `config` and `pool` (its options, `residentGroups` included: a transform-only pool
 > CAN now hold a resident group, [Q626](doc/questions/q626.md)), a `retryPolicy` goes on the NODE, and `inline` and
 > `groups` are reachable by no road a consumer can write ([Q457](doc/questions/q457.md)). Measured at W110 and W165.
+
+---
+
+## 22. A flow that REPEATS — a `loop` region
+
+**A training loop, a polling loop, a refine-until-accepted loop: one body run round after round** —
+[P47](doc/plans/p47-what-may-repeat-in-a-flow-and-how-a-round-hands-on-to-the-next.md),
+[ADR 0145](doc/decisions/0145-a-loop-is-a-region-that-runs-its-one-branch-round-after-round.md), `spec/join-policy.md`
+`JP-R13`-`JP-R15`. A `loop` is a region of ONE branch, the body; its `join` is the one way out.
+
+| | |
+|---|---|
+| **a round** | one opening of the body, at its OWN branch-path segment: round 1's tasks are `r1:work:1:0`, inside a map instance `r1:work:0.1:0` (`ID-R6`) — so every id a loop mints is distinct. One round is live at a time, and the next opens in the routing step of the previous one's arrival |
+| **what a round receives** | round 0's entry the loop's value, round *i > 0* what round *i − 1* ARRIVED at the join with — each its own copy. `"$iteration"` in a body node's `needs` (or an edge's) is the round index of the INNERMOST loop |
+| **when it ends** | on each arrival `until` is read FIRST — it holds: **done** — then the bound — reached: **exhausted** — else the next round opens. An `end` inside the body is a **break**. A round LOST (no eligible edge) makes the join **unsatisfiable**, `onUnsatisfiableJoin` reporting `policyId: 'loop'` — the driver's answer, not a policy's; tell the two apart by the region the report names |
+| **what the join hands on** | `{ last, iterations, exhausted, broke? }` — `last` the arrival `until` held on, or the final one when exhausted; on a break, the state the breaking round STARTED with, and `broke: { at, value }` the `end`'s id and what reached it. `broke` is ABSENT otherwise |
+| **reading the rounds from outside** | as after a `map`: a node after the loop naming a body node in the ARRAY form (`needs: { all: ['work'] }`) receives every round's output in ROUND order, a round that routed around the node contributing nothing; the singular form is refused (`FD-V28`) |
+| **a join policy** | none — the driver decides a loop's join. A flow whose only regions are loops needs no `joinPolicy`; a `fanout` or `map` beside one still does |
+
+```ts run
+import { Driver, fold, type FlowDefinition } from 'fyflow-orchestration';
+
+const flow: FlowDefinition = {
+  flowId: 'poll', version: 1, entry: 'ingest',
+  nodes: [
+    { id: 'ingest', kind: 'task', type: 'Work', edges: [{ to: 'L' }] },
+    // Up to three rounds of `check`, until a round ARRIVES with `ready: true`.
+    { id: 'L', kind: 'loop', branch: 'check', until: { path: 'input.ready', op: 'eq', value: true }, maxIterations: 3 },
+    { id: 'check', kind: 'task', type: 'Work', needs: { state: '.', round: '$iteration' }, edges: [
+      { when: { path: 'outcome.result.giveUp', op: 'eq', value: true }, to: 'stopped' },   // a BREAK
+      { to: 'J' },
+    ] },
+    { id: 'stopped', kind: 'end', outcome: 'stopped' },
+    { id: 'J', kind: 'join', of: 'L', edges: [{ to: 'report' }] },
+    // After the loop: the join value under '.', and every round's `check` in ROUND order.
+    { id: 'report', kind: 'task', type: 'Work', needs: { result: '.', checks: ['check'] }, edges: [{ to: 'done' }] },
+    { id: 'done', kind: 'end', outcome: 'completed' },
+  ],
+};
+
+function run(results: unknown[]) {
+  const listeners = new Map<string, ((e: { detail: unknown }) => void)[]>();
+  const added: { id: string; payload: { input: unknown } }[] = [];
+  const driver = new Driver(flow, {
+    runId: 'r1',
+    scheduler: {
+      addTask(t: unknown) { added.push(t as { id: string; payload: { input: unknown } }); },
+      addEventListener(type: string, fn: (e: { detail: unknown }) => void) { listeners.set(type, [...(listeners.get(type) ?? []), fn]); },
+    },
+    createTask: (config) => config,
+    predicates: new Map(),
+    workers: { w: { url: 'worker.js' } }, nodeTypes: { Work: { worker: 'w' } },
+    // No `joinPolicy`: a loop's join is the driver's.
+  });
+  driver.start({});
+  const settle = (id: string, result: unknown) => {
+    for (const fn of listeners.get('task.completed') ?? []) fn({ detail: { id, state: 'done', result } });
+  };
+  settle('r1:ingest:-:0', { seed: 1 });
+  results.forEach((r, i) => settle(`r1:check:${i}:0`, r));
+  const report = added.find((t) => t.id === 'r1:report:-:0');
+  if (report) settle(report.id, { published: true });
+  return { driver, ids: added.map((t) => t.id), round1: added.find((t) => t.id === 'r1:check:1:0')?.payload.input, reportInput: report?.payload.input };
+}
+
+// DONE on round 1: until holds on what round 1 arrived with.
+const a = run([{ ready: false }, { ready: true }]);
+if (a.ids.join() !== 'r1:ingest:-:0,r1:check:0:0,r1:check:1:0,r1:report:-:0') throw new Error(`ids: ${a.ids.join()}`);
+// Round 1 received round 0's arrival as its state, and its own index.
+if (JSON.stringify(a.round1) !== '{"state":{"ready":false},"round":1}') throw new Error(`round 1: ${JSON.stringify(a.round1)}`);
+const doneWanted = JSON.stringify({
+  result: { last: { ready: true }, iterations: 2, exhausted: false },
+  checks: [{ ready: false }, { ready: true }],
+});
+if (JSON.stringify(a.reportInput) !== doneWanted) throw new Error(`done: ${JSON.stringify(a.reportInput)}`);
+if (fold(a.driver.foldInputs()).outcome !== 'completed') throw new Error('the run completes');
+
+// EXHAUSTED: three rounds, until never holding — `last` is the final arrival.
+const b = run([{ ready: false, n: 0 }, { ready: false, n: 1 }, { ready: false, n: 2 }]);
+const bResult = (b.reportInput as { result: unknown }).result;
+if (JSON.stringify(bResult) !== '{"last":{"ready":false,"n":2},"iterations":3,"exhausted":true}') throw new Error(`exhausted: ${JSON.stringify(bResult)}`);
+
+// A BREAK in round 1: `last` is the state round 1 STARTED with, and `broke` names the end and what reached it.
+const c = run([{ ready: false, n: 0 }, { giveUp: true }]);
+const cResult = (c.reportInput as { result: unknown }).result;
+if (JSON.stringify(cResult) !== '{"last":{"ready":false,"n":0},"iterations":2,"exhausted":false,"broke":{"at":"stopped","value":{"giveUp":true}}}') {
+  throw new Error(`break: ${JSON.stringify(cResult)}`);
+}
+if (JSON.stringify(c.driver.joinStatusOf('L')) !== '{"status":"satisfied","describe":{"iterations":2,"bound":3}}') {
+  throw new Error(`joinStatusOf answers for a loop: ${JSON.stringify(c.driver.joinStatusOf('L'))}`);
+}
+```
+
+**What a loop KEEPS is what a `map` of the same task count keeps** — every round's settlement, for the life of the run
+(`spec/run-state.md` section 7, *A loop's footprint*: measured within 0.4% of a map's bytes at N = 16, 64 and 256). So
+**do not carry a history in the state**: a round that returns every summary so far is kept round after round, *N(N+1)/2*
+summaries over N rounds — measured at about 32 MiB for 256 rounds of 1 KiB, where a node after the loop naming the body
+node in the array form holds 0.65 MiB. Carry what is FIXED in size — the best so far, a count, a reference — and read the rounds
+from outside. `node examples/loop-footprint.ts` re-takes both tables.
+
+**A loop RESUMES like anything else** (section 18): nothing it decides is recorded, so the replay regenerates every
+round's opening, the `until` decision and the bound from the stored settlements — measured at every cut of a run, no
+new event kind and the checkpoint format unchanged (`spec/run-state.md` section 9).

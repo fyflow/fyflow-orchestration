@@ -330,10 +330,13 @@ suite('W73 — the L6 corpus census, as an EQUALITY, and every arc shape reached
     // **Every shape but `given`** (W166): `given` is the value a caller hands `tryTransform`, which `checkWiring`
     // never produces — so the census reaches the five ARC shapes and that one is asserted absent by name.
     // **And but a LOOP's two** (v0.57, W228): `round` and `carry` are reached by the L4 corpus's loop flows (asserted
-    // there, below), and the L6 corpus holds no loop until W230's — which REMOVES this list, as W192 and W212 removed
-    // `examples/l6.ts`'s `NOT_YET_AT_L6`, and is red here until it does, because a shape it reaches is then listed twice.
+    // there, below). **A loop RUNS at L6 since W230, and this list STAYS** — W228 wrote that W230 would remove it, on the
+    // reading that W230's L6 flows would be files here. They are not: P47's exit block writes its flows in
+    // `examples/l6.ts`, as W192's, W212's and W222's do, so no corpus-derived count moves — and THIS census reads the FILE
+    // corpus, `examples/registry.json` and `examples/flows/`, which holds no loop. Held both ways still: a loop flow added
+    // under `examples/flows/` makes this red, a shape then listed twice.
     const NOT_YET_IN_L6: readonly WiringShape[] = ['round', 'carry'];
-    for (const s of NOT_YET_IN_L6) ok(!seen.has(s), `${s} is not in the L6 census yet - W230 adds the loop flow and removes it from this list`);
+    for (const s of NOT_YET_IN_L6) ok(!seen.has(s), `${s} is not in the L6 FILE corpus - a loop flow under examples/flows/ reaches it; remove it from this list then`);
     equal([...seen].sort(), WIRING_SHAPES.filter((s) => s !== 'given' && !NOT_YET_IN_L6.includes(s)).sort(), 'the five arc shapes L6 reaches, both ways');
     ok(!seen.has('given'), 'and never `given`, which is not an arc');
     // And no arc's sample carries the caller's source: every transformed arc of the census (5 passes, 2 fails,

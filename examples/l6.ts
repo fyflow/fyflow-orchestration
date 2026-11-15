@@ -97,6 +97,7 @@
  * | **W218 — what a join hands on, keyed by each branch's OWN key, and a key path's bracket index into it** | **P44's EXIT ARTIFACT clause (3): ADR 0138's own keys and `CHECKPOINT_FORMAT` 2, and ADR 0137's `[n]`, on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 5 flow: a `fanout` over `prep` and `side`, `prep` holding a `map` over `xs` whose join `inner` and the fan-out's `outer` both fire; item 0's `work` held back, so `side` settles first and the map's instance 1 before 0; then `check` (an echo), two `if` and two `distinct` gates, the ask `confirm`, `done`. (1) The COLLECTION: `check`'s result and `confirm`'s input are `{"prep":{"0":1,"1":2},"side":{"xs":[1,2]}}` byte for byte. (2) The IF on `input.prep.1 eq 2` routes `then`; its CONTROL `input.0.0.1` `else`. (3) The INDEX `side.xs[1]` routes `first` with key 2; its CONTROL `side.xs.1` `nokey`. (4) The OWN KEY `prep.1` routes `first` with key 2; its CONTROL `prep[1]` `nokey`. (5) The IF on an INDEX `input.side.xs[1] eq 2` routes `then`; its CONTROL `input.side.xs.1` `else`. (6) FORMAT 1 REFUSED: the run's store with `format: 1` refused `format` by `runtime.resume` on a fresh runtime once the first is shut down; its CONTROL the same store as written resuming there and completing. SIX runs. Its registry is written in the block, not `registry.json` |
  * | **W222 — a comparison against ANOTHER key path, `valueFrom`** | **P45's EXIT ARTIFACT clause (3): ADR 0140's `valueFrom` on real workers in both runtimes.** Per pool, THREADED and INLINE, fyflow-app's pass 6 flow (`sizeLimit` moved in front of `stat`; `stat`'s guarded edge pass 6's verbatim) behind an entry `if`: `ab` (an `if` on `input.a lt <right>`) → `abThen` / `abElse` → `sizeLimit` (returns `{ max: 100 }`) → `stat` (returns `{ size }`), whose edge to `copy` is `outcome.result.size lte <right>` with `needs: { limit: "sizeLimit" }`, default `skip`. EIGHT runs per pool: (A) `valueFrom: "needs.limit.max"` / `"input.b"`, size 50, `{a:1,b:2}` → `copy`, `then`; (B) the same, size 150, `{a:3,b:2}` → `skip`, `else`; (C, D) the LITERAL CONTROL, `value: 100` / `2`, the roads A and B took; (E) the ABSENT CONTROL, `needs.limit.nope` / `input.b` absent, size 50, `{a:1}` → `skip`, `else`; (F, G) the BOUNDARY, size 100 and `{a:2,b:2}` → `copy`, `else`, by `valueFrom` and by the literal; (H) the ABSENT CONTROL under `gt` → `skip`, `else`. Each edge claim reads the workers' results and the pool's realm, each `if` claim the payload handed on. Eleven claims per pool. SIXTEEN runs. Its registry and flow are written in the block, not under `examples/flows/` (no corpus-derived count moves) |
  * | **W226 — which UNITS a type's worker holds, resident and per task** | **P46's EXIT ARTIFACT clause (3): the scheduler's `grants` through the envelope, on real workers in both runtimes.** One registry DOCUMENT declaring a built-in `UnitGroup` `gpu` over `['u0','u1']` (ADR 0143) and a `ConcurrentLimitGroup` `slots`, and one TYPE's worker (a `data:` module) returning what it read of `workerContext.grants` in its constructor, in `setup()` and in `run()`, and of `context.grants`. Per pool, THREADED and INLINE, EIGHT runs, each on its own runtime: (A) a fan-out of two tasks on a pool holding `{ gpu: 1 }` resident, the two held together by a BARRIER (each task waits until it hears the other) — two workers, resident grants `['u0']` and `['u1']` as a SET from the constructor on, each task's `context.grants` its worker's; (A') the same with `slots` resident — `{}` everywhere; (B) a NAMED instance's request `{ cost: 1, from: ['u1'] }` reaching the scheduler — `['u1']`; (B') the same instance at `{ gpu: 1 }` — `['u0']`; (C) the type holding `gpu` per TASK (`groups`), `createTask` setting `units: { gpu: { from: ['u1'] } }` — `context.grants` `{ gpu: ['u1'] }`, the worker's `{}`; (C') the same `createTask` without `units` — `['u0']`; (D) `gpu` held RESIDENT from `['u0']` AND per task asking `['u1']` — the task's own `['u1']` wins the clash in `context.grants`; (D') no task-held hold — the worker's `['u0']`. `context.grants` asserted frozen. Nine claims per pool. SIXTEEN runs. Its registry and flows are written in the block |
+ * | **W230 — a LOOP, round after round** | **P47's EXIT ARTIFACT (4): the `loop` node kind on real workers in both runtimes.** Per pool, THREADED and INLINE, two flows: a TRAINING loop (`maxIterationsFrom` read off `ingest`, a `map` inside the body whose `rollout` declares `"$item"` and `"$iteration"` — run here, its input asserted at L2 — `until` on `evaluate`'s score, and a reader AFTER the loop naming `fit` in the array form) at budget 3 — two rounds, done — and its CONTROL at budget 1 — one round, exhausted; and a POLLING loop whose `check` reads `"$iteration"` and reaches an `end` inside the body on round 2 — a BREAK, the join value carrying `broke` and `last` the state the breaking round started with — and its CONTROL, done on round 1 with no `broke`; and a third polling run LOST on round 1 — no eligible edge, the loop's join unsatisfiable, the run `stuck`. Each claim reads the dispatched ids as a set and the reader's handed value by its keys; a sixth per pool holds every id the five runs minted distinct and the pool's realm. Six claims per pool. TEN runs. Its registry and flows are written in the block |
  * | **W67 — the shim run** | **P18's sample shim's own call, and no row could make it**: `runtime.start(flow, payload)` with NO options. The runtime MINTS the run id and defaults the join policy (decision 10), and both defaults were replaceable by a `throw` for ZERO until this run existed — every row names the ids it expects and the policy it is about. The flow is `p1-routed-away` at LOW, where the two candidate policies DISAGREE: `live-token` satisfies the join and the run completes, `arrival-count` waits for an arrival that cannot come. So *the run completed* IS *the default is `live-token`*, observed rather than named |
  */
 import {
@@ -5999,6 +6000,20 @@ assertThat('cross-row', 'ADR 0048 rule 5 was observed on tasks the scheduler act
   `${reports.reduce((n, r) => n + r.tasksHeld, 0)} tasks held, ${reports.reduce((n, r) => n + r.settlementsSeen, 0)} settlements seen`);
 
 const CROSS_ROW_SUBJECTS = [
+  // **W230**: P47's exit-artifact block — twelve subjects, six per pool: the training loop and its control, the polling
+  // loop's break, its control and its loss, and every id distinct with the realm.
+  'W230 exit (threaded): the TRAINING loop —',
+  'W230 exit (threaded): the TRAINING loop`s CONTROL —',
+  'W230 exit (threaded): the POLLING loop BREAKS —',
+  'W230 exit (threaded): the POLLING loop`s CONTROL —',
+  'W230 exit (threaded): the POLLING loop is LOST —',
+  'W230 exit (threaded): every id the five runs minted DISTINCT —',
+  'W230 exit (inline): the TRAINING loop —',
+  'W230 exit (inline): the TRAINING loop`s CONTROL —',
+  'W230 exit (inline): the POLLING loop BREAKS —',
+  'W230 exit (inline): the POLLING loop`s CONTROL —',
+  'W230 exit (inline): the POLLING loop is LOST —',
+  'W230 exit (inline): every id the five runs minted DISTINCT —',
   // **W226**: P46's exit-artifact block — eighteen subjects, nine per pool: the resident grant, the task seeing its
   // worker's, the resident control, the named instance's request and its control, the task-held grant and its control,
   // the clash and its control (the last two since the readers, F1/A1).
@@ -6680,7 +6695,7 @@ const spellingOf = (ref: unknown): string => {
     case 'self': return '.';
     case 'payload': return '"$payload"';
     case 'item': return '"$item"';
-    // **`"$iteration"`, v0.57 (W228)** — a loop round's index; run at L6 by W230.
+    // **`"$iteration"`, v0.57 (W228)** — a loop round's index; run at L6 since W230, on a node's `needs` in its block.
     case 'iteration': return '"$iteration"';
     // **The `!error` part, v0.49 (W209)**: spelled apart, so section 3's `!error` row is its own spellings and not
     // `"n"`'s again — by `part`, the parse's own field.
@@ -6689,23 +6704,12 @@ const spellingOf = (ref: unknown): string => {
   }
 };
 
-/**
- * **`NOT_YET_AT_L6` is BACK a third time — W228, by the maintainer's (a) to its stop-and-ask** (2026-11-14), as W209 held
- * it: the rows of section 3's table no L6 run names yet, by the census BUCKET. `'iteration'` is v0.57's `"$iteration"` row
- * ([ADR 0145](../doc/decisions/0145-a-loop-is-a-region-that-runs-its-one-branch-round-after-round.md)), whose L6 run is
- * P47's exit artifact (4). **W230's L6 block must RUN the form and REMOVE this list again**, as W192 and W212 did — the
- * two reference censuses below set it aside on the table's side, and the set clause names it, so a form L6 starts running
- * while still listed appears twice and is red.
- */
-const NOT_YET_AT_L6: readonly string[] = ['iteration'];
-/** A spelling of a row `NOT_YET_AT_L6` exempts — the `"$iteration"` row's one. */
-const exemptSpelling = (s: string): boolean => NOT_YET_AT_L6.includes('iteration') && s === '"$iteration"';
-
-// **`NOT_YET_AT_L6` stood here from W190 to W192, and again from W209 to W212** — the rows of section 3's table no L6 run
+// **`NOT_YET_AT_L6` stood here from W190 to W192, again from W209 to W212, and a third time from W228 to W230** — the rows of section 3's table no L6 run
 // named: `"$payload"` (v0.44) and `"$item"` (v0.45), then `"n!error"` (v0.49, ADR 0131), held both ways by the two
 // reference censuses. P38's W192 runs the first two and P43's W212 the third — all four of its spellings, on `why`'s
 // `needs` — and the censuses read the flows each block STARTED beside EXPECTED's, so the list is removed rather than left
-// empty: an empty exemption is a place to put the next one without a census noticing.
+// empty: an empty exemption is a place to put the next one without a census noticing. **W228 named `"$iteration"`
+// (v0.57, ADR 0145) there; P47's W230 block runs it — on `plan`, `rollout`, `evaluate` and `check` — and removed it.**
 
 async function referenceSpellingsInSpecAsync(): Promise<string[]> {
   const deno = (globalThis as Record<string, unknown>).Deno as
@@ -7064,7 +7068,9 @@ const declaresConstruction = (text: string): boolean => text.includes(CONSTRUCTO
  */
 // **And `./map-cost.ts` since W197** — P39's exit clause (2): the app's repro IS a `Driver` over a scheduler double, so the
 // file that re-takes it builds one, and declares it in its own text.
-const CONSTRUCTION_PRICED: readonly string[] = ['./map-cost.ts', './settlement-cost.ts'];
+// **And `./loop-footprint.ts` since W230** — P47's exit artifact (5): what a loop retains is the DRIVER's structures on a
+// double, so the file that measures it builds one, and declares it in its own text.
+const CONSTRUCTION_PRICED: readonly string[] = ['./loop-footprint.ts', './map-cost.ts', './settlement-cost.ts'];
 
 /**
  * **The positive fixture, assembled from parts** — as `REACH_CASES` is, and for the same reason: the
@@ -7249,20 +7255,19 @@ const everyKindAtL6 = async (alsoRan: readonly FlowDefinition[]): Promise<void> 
   // fifth went with the disjunct it tested. W182's block is not a ROW, so this clause reads the flows it STARTED
   // (`alsoRan`, the header above).
   //
-  // **`loop` IS exempt from W228 to W230, a THIRD time in W92's form** — W228 (`spec/flow-definition.md` v0.57, ADR 0145) put
-  // two valid loop documents into the corpus while no `Driver` can run one (W229 builds the rounds) and no L6 block runs
-  // one (W230, P47's exit artifact (4)). So the exemption is back with BOTH its expiry inputs: a kind exempt and PRESENT at
-  // L6 is flagged — W230's block makes this red on its first run and removes the list — and a kind exempt and in NO corpus
-  // flow is flagged, so the list cannot outlive the kind's corpus documents either.
-  const KINDS_NOT_YET_AT_L6: readonly string[] = ['loop'];
+  // **`loop` WAS exempt from W228 to W230, a THIRD time in W92's form, and that exemption EXPIRED LOUDLY too** — W228
+  // (`spec/flow-definition.md` v0.57, ADR 0145) put two valid loop documents into the corpus while no `Driver` could run
+  // one, so `KINDS_NOT_YET_AT_L6 = ['loop']` flagged a kind exempt and PRESENT here, and one exempt and in no corpus flow.
+  // **W230's block — P47's exit artifact (4) — made it red on its first run** (W230's item file), and the exemption was
+  // then removed: nothing is exempt again. The fifth input's meaning changed with it, as the third's and fourth's did — now
+  // `loop` taken back OUT of L6 must be named — and the sixth went with the disjunct it tested.
   const flagged = (corpus: ReadonlySet<string>, atL6: ReadonlySet<string>) =>
-    [...new Set([...corpus, ...KINDS_NOT_YET_AT_L6])].sort()
-      .filter((k) => KINDS_NOT_YET_AT_L6.includes(k) ? atL6.has(k) || !corpus.has(k) : !atL6.has(k));
+    [...corpus].sort().filter((k) => !atL6.has(k));
   check('cross-row', 'L6 runs a flow containing every node kind the spec corpus expresses',
     [flagged(kindsInCorpus, kindsAtL6), flagged(new Set([...kindsInCorpus, 'phantom']), kindsAtL6), flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'gate'))),
       flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'ask'))),
-      flagged(kindsInCorpus, new Set([...kindsAtL6, 'loop'])), flagged(new Set([...kindsInCorpus].filter((k) => k !== 'loop')), kindsAtL6)],
-    [[], ['phantom'], ['gate'], ['ask'], ['loop'], ['loop']]);
+      flagged(kindsInCorpus, new Set([...kindsAtL6].filter((k) => k !== 'loop')))],
+    [[], ['phantom'], ['gate'], ['ask'], ['loop']]);
   // The negative control: the set is non-empty, so the clause above is not vacuous
   // on an empty corpus read. Without it a `listDir` that returns nothing passes.
   assertThat('cross-row', 'and the corpus read found node kinds at all — the clause`s own negative control',
@@ -11775,8 +11780,215 @@ if (askBlock !== null) {
   check(key, 'W182 exit (7): CONTROL — the same answer on a run NOT paused hands the successor on inside the answer`s own call',
     r.g3, [true, ['w182pc:draft:-:0', 'w182pc:publish:-:0'], 'completed']);
 }
-// **The every-kind clause, here and not where it is written** — it reads the flows the block above STARTED.
-await everyKindAtL6(askBlock?.flows ?? []);
+/**
+ * **W230 — a LOOP on real workers in both runtimes: P47's EXIT ARTIFACT (4)** —
+ * [W230](../doc/work-items/w230-a-loop-resumed-measured-and-on-real-workers.md),
+ * [P47](../doc/plans/p47-what-may-repeat-in-a-flow-and-how-a-round-hands-on-to-the-next.md),
+ * [ADR 0145](../doc/decisions/0145-a-loop-is-a-region-that-runs-its-one-branch-round-after-round.md)
+ * (`spec/join-policy.md` v0.26 `JP-R13`-`JP-R15`, `spec/flow-definition.md` v0.58) — fyflow-app's *pass 8* #2.
+ *
+ * **Two flows per pool, five runs**, THREADED and INLINE, each on its own runtime and run id, written here and not under
+ * `examples/flows/` so no corpus-derived count moves. One worker module (`loopOp`) branching on its node's
+ * `settings.op`, every task counting itself on its realm's `globalThis` as W222's block does:
+ *
+ * - **TRAINING** — `ingest` (returns `{ budget: { rounds } }`) → the loop `train` (`until: input.score gte 0.9`,
+ *   `maxIterations: 50`, `maxIterationsFrom: "budget.rounds"`) whose body is `plan` (`needs: { round: "$iteration" }`,
+ *   returns the items `["a","b"]` and its round) → a `map` `envs` over them, `rollout` reading `{ item: "$item", round:
+ *   "$iteration" }` → `collected` → `fit` (returns the round its collection carried) → `evaluate` (`needs: { round:
+ *   "$iteration" }`, scoring 0.5 in round 0 and 0.95 from round 1) → `trained`, the loop's join → `promote`, a reader
+ *   AFTER the loop, `needs: { result: ".", fits: ["fit"] }`. Budget 3: `until` holds on round 1's arrival, so **two
+ *   rounds, done** — and its CONTROL, budget 1: **one round, exhausted** by the bound `maxIterationsFrom` lowered.
+ * - **POLLING** — `ingest` → the loop `poll` (`until: input.ready eq true`, `maxIterations: 5`) whose body is `check`
+ *   (`needs: { round: "$iteration" }`, returning `{ ready, stop, round }` from its settings' `readyAt` and `stopAt`), whose
+ *   first edge goes to the `end` `stopped` when `outcome.result.stop` is true — a BREAK — and whose default edge to
+ *   `pollJ`, the join → `publish`, `needs: { result: ".", checks: ["check"] }`. `stopAt: 2`, `readyAt: 99`: rounds 0 and 1
+ *   arrive and round 2 **breaks** — and its CONTROL, `readyAt: 1`, `stopAt: 99`: **done on round 1**, no `broke`.
+ *   And a THIRD polling run, LOST: `lostAt: 1` makes `check` OPTIONAL and throws from round 1, and a failed optional
+ *   task with no `on: ["failed"]` edge has no eligible edge — the loop's join **unsatisfiable**, the run `stuck` (P47
+ *   decision 2; the conformity reader's finding that [Q582](../doc/questions/q582.md)'s *closes-when* names every way
+ *   out on real workers and the four runs above take three of them).
+ *
+ * **Every expected value is written by hand from the spec**: the ids from `ID-R6` (a round is ONE segment, an item one
+ * more), the join value from `JP-R15` (`last` the arrival `until` held on, the final one when exhausted, and on a break
+ * the state the breaking round STARTED with — round 1's arrival; `iterations` the rounds opened; `broke` only on a
+ * break), and a reader after the loop from P47 decision 1 (b′): every round's output in ROUND order. **Six claims per
+ * pool**: each of the five runs, and every id the five minted distinct with the pool's realm. TEN runs.
+ *
+ * **What is NOT observed here**: what `rollout` received. It declares `{ item: "$item", round: "$iteration" }` and
+ * returns its input unread by any claim, so `"$item"` inside a loop's map is RUN at L6 and asserted at L2 (W229's
+ * nesting case), and the carried value `"."` is asserted at L2 and by `AGENTS.md` section 22's snippet — the workers
+ * here read `"$iteration"`, never `"."`.
+ *
+ * **No order across tasks is asserted**: a round's map instances run together, and every claim reads ids as a SET (a
+ * sorted list) and values by their keys.
+ */
+const W230_DEADLINE_MS = 30_000;
+const W230_REALM = '__w230InlineTasks';
+const W230_WORKER = 'export default class { async setup() {} async run(p) { const s = p.settings || {}; const i = p.input; ' +
+  `globalThis.${W230_REALM} = (globalThis.${W230_REALM} || 0) + 1; ` +
+  'switch (s.op) { ' +
+  "case 'out': return s.out; " +
+  "case 'plan': return { items: ['a', 'b'], round: i.round }; " +
+  "case 'fit': return { fit: i['0'].round }; " +
+  "case 'eval': return { score: i.round >= 1 ? 0.95 : 0.5, round: i.round }; " +
+  "case 'check': if (s.lostAt !== undefined && i.round >= s.lostAt) throw new Error('w230: lost'); " +
+  "return { ready: i.round >= s.readyAt, stop: i.round >= s.stopAt, round: i.round }; " +
+  'default: return i; } } }';
+const w230RealmCount = () => ((globalThis as Record<string, unknown>)[W230_REALM] as number | undefined) ?? 0;
+const w230Doc = () => ({
+  workers: { loopOp: { url: rcUrl(W230_WORKER) } },
+  nodeTypes: {
+    LoopThreaded: { worker: 'loopOp', inline: false, pool: { maxThreads: 4, idleTimeout: 0 } },
+    LoopInline: { worker: 'loopOp', inline: true, pool: { maxConcurrentTasks: 8 } },
+  },
+});
+const w230Training = (pool: 'threaded' | 'inline', rounds: number) => {
+  const type = pool === 'threaded' ? 'LoopThreaded' : 'LoopInline';
+  return {
+    flowId: `w230-training-${pool}-${rounds}`, version: 1, entry: 'ingest',
+    nodes: [
+      { id: 'ingest', kind: 'task', type, settings: { op: 'out', out: { budget: { rounds } } }, edges: [{ to: 'train' }] },
+      { id: 'train', kind: 'loop', branch: 'plan', until: { path: 'input.score', op: 'gte', value: 0.9 },
+        maxIterations: 50, maxIterationsFrom: 'budget.rounds' },
+      { id: 'plan', kind: 'task', type, settings: { op: 'plan' }, needs: { round: '$iteration' }, edges: [{ to: 'envs' }] },
+      { id: 'envs', kind: 'map', over: 'items', branch: 'rollout' },
+      { id: 'rollout', kind: 'task', type, needs: { item: '$item', round: '$iteration' }, edges: [{ to: 'collected' }] },
+      { id: 'collected', kind: 'join', of: 'envs', edges: [{ to: 'fit' }] },
+      { id: 'fit', kind: 'task', type, settings: { op: 'fit' }, edges: [{ to: 'evaluate' }] },
+      { id: 'evaluate', kind: 'task', type, settings: { op: 'eval' }, needs: { round: '$iteration' }, edges: [{ to: 'trained' }] },
+      { id: 'trained', kind: 'join', of: 'train', edges: [{ to: 'promote' }] },
+      { id: 'promote', kind: 'task', type, needs: { result: '.', fits: ['fit'] }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+const w230Polling = (pool: 'threaded' | 'inline', readyAt: number, stopAt: number, lostAt?: number) => {
+  const type = pool === 'threaded' ? 'LoopThreaded' : 'LoopInline';
+  return {
+    flowId: `w230-polling-${pool}-${readyAt}-${stopAt}${lostAt === undefined ? '' : `-lost${lostAt}`}`, version: 1, entry: 'ingest',
+    nodes: [
+      { id: 'ingest', kind: 'task', type, settings: { op: 'out', out: {} }, edges: [{ to: 'poll' }] },
+      { id: 'poll', kind: 'loop', branch: 'check', until: { path: 'input.ready', op: 'eq', value: true }, maxIterations: 5 },
+      // With lostAt, `check` is OPTIONAL and THROWS from that round on: a failed optional task with no `on: ["failed"]`
+      // edge has NO eligible edge (FD-V7 holds every task to a default edge for `done`, so a loss is a failure's road).
+      { id: 'check', kind: 'task', type, settings: { op: 'check', readyAt, stopAt, ...(lostAt === undefined ? {} : { lostAt }) },
+        ...(lostAt === undefined ? {} : { optional: true }), needs: { round: '$iteration' }, edges: [
+          { when: { path: 'outcome.result.stop', op: 'eq', value: true }, to: 'stopped' },
+          { to: 'pollJ' },
+        ] },
+      { id: 'stopped', kind: 'end', outcome: 'stopped' },
+      { id: 'pollJ', kind: 'join', of: 'poll', edges: [{ to: 'publish' }] },
+      { id: 'publish', kind: 'task', type, needs: { result: '.', checks: ['check'] }, edges: [{ to: 'done' }] },
+      { id: 'done', kind: 'end', outcome: 'completed' },
+    ],
+  } as unknown as FlowDefinition;
+};
+let lpBlock: { runs: string[]; flows: FlowDefinition[]; r: Record<string, unknown> } | null = null;
+try {
+  const runs: string[] = [];
+  const flows: FlowDefinition[] = [];
+  const r: Record<string, unknown> = {};
+  const lpClause = async (n: string, body: () => Promise<void>) => {
+    try { await body(); } catch (err) {
+      failures.push(`W230 exit (${n})\n      the clause THREW, so its claims below read nothing: ` +
+        `${err instanceof Error ? `${err.name}: ${err.message.slice(0, 240)}` : String(err)}`);
+    }
+  };
+  /** A task's outcome result, or a named absence. */
+  const resultOf = (inputs: readonly FoldInput[], taskId: string): unknown => {
+    const o = inputs.find((i) => i.kind === 'outcome' && i.record.taskId === taskId);
+    return o === undefined || o.kind !== 'outcome' || o.record.kind !== 'outcome' ? 'NO RECORD' : o.record.result;
+  };
+  for (const pool of ['threaded', 'inline'] as const) {
+    const RUNS: [string, FlowDefinition, string][] = [
+      ['training', w230Training(pool, 3), 'promote'],
+      ['trainingControl', w230Training(pool, 1), 'promote'],
+      ['polling', w230Polling(pool, 99, 2), 'publish'],
+      ['pollingControl', w230Polling(pool, 1, 99), 'publish'],
+      ['pollingLost', w230Polling(pool, 99, 99, 1), 'publish'],
+    ];
+    const ids: string[] = [];
+    let realm = 0;
+    for (const [tag, flow, reader] of RUNS) {
+      await lpClause(`${pool}, ${tag}`, async () => {
+        const runId = `w230${tag.slice(0, 1)}${tag.endsWith('Control') ? 'c' : tag.endsWith('Lost') ? 'l' : ''}${pool[0]}`;
+        const rt = createRuntime(w230Doc() as never);
+        try {
+          const realm0 = w230RealmCount();
+          const h = rt.start(flow, {}, { runId });
+          runs.push(`${flow.flowId} ${runId}`);
+          flows.push(flow);
+          const won = await settleWithin(h.done, W230_DEADLINE_MS);
+          const inputs = h.driver.foldInputs();
+          const dispatched = inputs.flatMap((i) => (i.kind === 'dispatched' ? [i.taskId] : []));
+          ids.push(...dispatched);
+          realm += w230RealmCount() - realm0;
+          const read = resultOf(inputs, `${runId}:${reader}:-:0`);
+          r[`${tag}${pool}`] = [
+            won.by === 'done' ? won.value.outcome : 'NEVER SETTLED',
+            dispatched.map((t) => t.slice(runId.length + 1)).sort(),
+            read,
+          ];
+          if (tag === 'pollingLost') r[`${tag}${pool}Join`] = h.driver.joinStatusOf('poll');
+        } finally {
+          await rt.shutdown();
+        }
+      });
+    }
+    r[`ids${pool}`] = [ids.length, new Set(ids).size, realm];
+  }
+  lpBlock = { runs, flows, r };
+} catch (err) {
+  // **A crash is not a detection** — W141's guard, for the same reason.
+  failures.push(`W230 exit\n      the block THREW before any assertion could run — a crash is not a detection: ` +
+    `${err instanceof Error ? err.message.slice(0, 240) : String(err)}`);
+}
+if (lpBlock !== null) {
+  const key = 'cross-row';
+  const r = lpBlock.r;
+  for (const pool of ['threaded', 'inline'] as const) {
+    check(key, `W230 exit (${pool}): the TRAINING loop — budget 3, until holding on round 1: TWO rounds, each a plan, two ` +
+      'rollouts at round.item, a fit and an evaluate, then promote — handed the join value { last: round 1`s arrival, ' +
+      'iterations 2, exhausted false } and, read after the loop, every round`s fit in ROUND order; completed',
+    r[`training${pool}`], ['completed',
+      ['evaluate:0:0', 'evaluate:1:0', 'fit:0:0', 'fit:1:0', 'ingest:-:0', 'plan:0:0', 'plan:1:0', 'promote:-:0',
+        'rollout:0.0:0', 'rollout:0.1:0', 'rollout:1.0:0', 'rollout:1.1:0'],
+      { result: { last: { score: 0.95, round: 1 }, iterations: 2, exhausted: false }, fits: [{ fit: 0 }, { fit: 1 }] }]);
+    check(key, `W230 exit (${pool}): the TRAINING loop\`s CONTROL — budget 1, maxIterationsFrom lowering maxIterations 50: ` +
+      'ONE round, EXHAUSTED at the bound before until could hold — last round 0`s arrival, one fit',
+    r[`trainingControl${pool}`], ['completed',
+      ['evaluate:0:0', 'fit:0:0', 'ingest:-:0', 'plan:0:0', 'promote:-:0', 'rollout:0.0:0', 'rollout:0.1:0'],
+      { result: { last: { score: 0.5, round: 0 }, iterations: 1, exhausted: true }, fits: [{ fit: 0 }] }]);
+    check(key, `W230 exit (${pool}): the POLLING loop BREAKS — stopAt 2: rounds 0 and 1 arrive, round 2 reaches the end ` +
+      '`stopped` inside the body, a BREAK; publish handed { last: the state round 2 STARTED with — round 1`s arrival, ' +
+      'iterations 3, exhausted false, broke: { at: "stopped", value: what reached it } } and every round`s check; completed',
+    r[`polling${pool}`], ['completed',
+      ['check:0:0', 'check:1:0', 'check:2:0', 'ingest:-:0', 'publish:-:0'],
+      { result: { last: { ready: false, stop: false, round: 1 }, iterations: 3, exhausted: false,
+        broke: { at: 'stopped', value: { ready: false, stop: true, round: 2 } } },
+      checks: [{ ready: false, stop: false, round: 0 }, { ready: false, stop: false, round: 1 }, { ready: false, stop: true, round: 2 }] }]);
+    check(key, `W230 exit (${pool}): the POLLING loop\`s CONTROL — readyAt 1, stopAt 99: DONE on round 1, until holding, ` +
+      'no break — the join value WITHOUT broke',
+    r[`pollingControl${pool}`], ['completed',
+      ['check:0:0', 'check:1:0', 'ingest:-:0', 'publish:-:0'],
+      { result: { last: { ready: true, stop: false, round: 1 }, iterations: 2, exhausted: false },
+        checks: [{ ready: false, stop: false, round: 0 }, { ready: true, stop: false, round: 1 }] }]);
+    check(key, `W230 exit (${pool}): the POLLING loop is LOST — lostAt 1: round 0 arrives, the OPTIONAL check of round 1 fails ` +
+      'with no failed edge, so NO eligible edge (P47 decision 2, JP-R14): the loop`s join UNSATISFIABLE, joinStatusOf answering it with the rounds ' +
+      'opened and the bound, publish never dispatched, the run stuck',
+    [r[`pollingLost${pool}`], r[`pollingLost${pool}Join`]], [['stuck',
+      ['check:0:0', 'check:1:0', 'ingest:-:0'],
+      'NO RECORD'], { status: 'unsatisfiable', describe: { iterations: 2, bound: 5 } }]);
+    // 12 + 7 + 5 + 4 + 3 tasks; the realm count is every one of them inline and none on a worker thread.
+    check(key, `W230 exit (${pool}): every id the five runs minted DISTINCT — a round is its own segment (ID-R6) — and ` +
+      `${pool === 'threaded' ? 'NONE' : 'ALL 31'} of their tasks ran in this realm`,
+    r[`ids${pool}`], [31, 31, pool === 'threaded' ? 0 : 31]);
+  }
+}
+
+// **The every-kind clause, here and not where it is written** — it reads the flows the blocks above STARTED: W182's
+// asks, and since W230 its loops, the one place a `loop` runs at L6.
+await everyKindAtL6([...(askBlock?.flows ?? []), ...(lpBlock?.flows ?? [])]);
 
 /**
  * **W188 — a task's ATTRIBUTION and what SURVIVES A RESUME, on real workers in both runtimes: P36's EXIT ARTIFACT** —
@@ -14796,7 +15008,7 @@ if (grBlock !== null) {
 // **And `+ grBlock.runs.length` since W226**: its SIXTEEN runs — per pool, threaded and inline, each on its own runtime: the
 // resident fan-out and its control, the named instance and its control, the task-held run and its control, the clash and
 // its control (twelve before the readers' F1/A1 added the clash).
-const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0) + (vfBlock?.runs.length ?? 0) + (grBlock?.runs.length ?? 0);
+const pairRunCount =pairResults.reduce((n, { runs }) => n + runs.length, 0) + 1 + (consumerRoad?.runs.length ?? 0) + (checkOff?.runs.length ?? 0) + (killResume?.runs.length ?? 0) + (gateKill?.runs.length ?? 0) + (setupFails?.runs.length ?? 0) + (cancelBlock?.runs.length ?? 0) + (keyedBlock?.runs.length ?? 0) + (exitBlock?.runs.length ?? 0) + (rcBlock?.runs.length ?? 0) + (askBlock?.runs.length ?? 0) + (attBlock?.runs.length ?? 0) + (piBlock?.runs.length ?? 0) + (lsBlock?.runs.length ?? 0) + (rxBlock?.runs.length ?? 0) + (shBlock?.runs.length ?? 0) + (inBlock?.runs.length ?? 0) + (erBlock?.runs.length ?? 0) + (okBlock?.runs.length ?? 0) + (vfBlock?.runs.length ?? 0) + (grBlock?.runs.length ?? 0) + (lpBlock?.runs.length ?? 0);
 console.log(`\n  ladder L6 — ${reports.length + pairRunCount} real runs on fyflow-scheduler ${SCHEDULER_VERSION}, on ${runtime}\n`);
 /**
  * **Every region of the run, in the row's declared order** — W23's conformity
@@ -15167,7 +15379,7 @@ const PER_PLAIN_ROW = 22;
 // and inline, the resident grant, the task seeing its worker's, the resident control, the named instance's request and its
 // control, the task-held grant and its control, the clash and its control — all cross-row because the block is outside
 // the row loop. 572 + 18 = 590. *(586 / fourteen before the readers' F1/A1 added the clash.)*
-const CROSS_ROW = 590;
+const CROSS_ROW = 602;
 const base = (shape: string) => (shape === 'region' ? PER_REGION_ROW : PER_PLAIN_ROW);
 for (const [key, shape, cost, extras] of rowCosts) {
   if (cost !== base(shape) + extras) {
@@ -15329,7 +15541,8 @@ if (rowCosts.length !== EXPECTED.length) {
   // `"$payload"` or a `"$item"` runs at L6 (W182's every-kind clause reads its block's flows the same way). Read only
   // because the block RECORDED each as it started it, so a block that crashed first leaves its forms uncounted and the
   // clauses below name them.
-  for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? []), ...(erBlock?.flows ?? [])]) {
+  // **And W230's** — the one place `"$iteration"` runs at L6 (P47's exit artifact (4)).
+  for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? []), ...(erBlock?.flows ?? []), ...(lpBlock?.flows ?? [])]) {
     for (const n of definition.nodes) {
       const sites = [(n as { needs?: Record<string, unknown> }).needs,
         ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
@@ -15369,17 +15582,18 @@ if (rowCosts.length !== EXPECTED.length) {
   // against it. The claim is corrected rather than the bound removed, because the
   // bound is right for the reason that survives.
   check('cross-row', 'L6 runs one reference form per row of spec/flow-definition.md section 3`s table',
-    [...forms].length + NOT_YET_AT_L6.length, referenceFormsInSpec());
+    [...forms].length, referenceFormsInSpec());
   // And WHICH seven (six until v0.49's `!error` row), so an eighth bucket appearing is a finding rather than a silently
   // absorbed one — the same both-ways shape `test/definition/needs.test.ts` uses at
   // L1, and the half a count cannot see on its own.
   check('cross-row', 'and they are the table`s rows, not seven of something else — `payload` since v0.44 (W190) and `item` since v0.45 (W191), run since W192; `error` since v0.49 (W209), run since W212',
-    [...forms, ...NOT_YET_AT_L6].sort(), ['all', 'error', 'item', 'iteration', 'one', 'payload', 'self', 'suffix']);
+    [...forms].sort(), ['all', 'error', 'item', 'iteration', 'one', 'payload', 'self', 'suffix']);
   // **`NOT_YET_AT_L6` is GONE — W192.** W190 named `"$payload"`'s row there and W191 `"$item"`'s, each held both ways by the
   // two clauses above (the count added the list, the set compared the concatenation, so a form L6 started running while still
   // listed appeared twice), because no L6 run named either until P38's exit artifact. W192's block runs both — on nodes and
   // on edges — and the clauses read its flows, so nothing is subtracted and nothing is exempt. **And GONE AGAIN — W212**: W209
-  // named the `!error` row there (`'error'`), and P43's exit artifact runs it, all four spellings on `why`'s `needs`.
+  // named the `!error` row there (`'error'`), and P43's exit artifact runs it, all four spellings on `why`'s `needs`. **And
+  // GONE A THIRD TIME — W230**: W228 named `"$iteration"` (`'iteration'`), and P47's exit artifact runs it.
 
   /**
    * **`FD-V29`'s REFUSAL, made observable at L6 — W47, and it is this item's
@@ -15489,8 +15703,8 @@ if (rowCosts.length !== EXPECTED.length) {
    */
   {
     const l6Spellings = new Set<string>();
-    // EXPECTED's flows and the flows W192's block STARTED — the `forms` census's two sources above.
-    for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? []), ...(erBlock?.flows ?? [])]) {
+    // EXPECTED's flows and the flows W192's, W212's and W230's blocks STARTED — the `forms` census's sources above.
+    for (const definition of [...EXPECTED.map((e) => e.definition), ...(piBlock?.flows ?? []), ...(erBlock?.flows ?? []), ...(lpBlock?.flows ?? [])]) {
       for (const n of definition.nodes) {
         const sites = [(n as { needs?: Record<string, unknown> }).needs,
           ...((n as { edges?: { needs?: Record<string, unknown> }[] }).edges ?? []).map((x) => x.needs)];
@@ -15504,10 +15718,10 @@ if (rowCosts.length !== EXPECTED.length) {
     // **Since v0.49 (W209) a SECOND row carries more than one spelling**: the `!error` row names FOUR — the part on each of
     // the plain row's and the `?` row's — so `+ 1` for the `?` modifier and `+ 3` for the `!error` row. Set aside on both
     // sides from W209 to W212 (`NOT_YET_AT_L6`); compared whole since W212, whose block runs all four.
-    // Over the rows L6 runs: `NOT_YET_AT_L6`'s row and its one spelling (W228's `"$iteration"`) set aside on both sides.
-    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC.filter((s) => !exemptSpelling(s));
+    // Compared whole again since W230, which runs W228's `"$iteration"` — set aside on both sides from W228 to W230.
+    const runSpellings = REFERENCE_SPELLINGS_IN_SPEC;
     check('cross-row', 'section 3`s table names exactly one more SPELLING than it has rows for the `?` modifier, and three more for the `!error` row`s four',
-      runSpellings.length, referenceFormsInSpec() - NOT_YET_AT_L6.length + 1 + 3);
+      runSpellings.length, referenceFormsInSpec() + 1 + 3);
     assertThat('cross-row', 'and the conditional ARRAY spelling is one the table actually NAMES, ' +
       'so the set equality below is over every spelling and not one fewer',
       REFERENCE_SPELLINGS_IN_SPEC.includes('["n"]?'),
@@ -16676,8 +16890,8 @@ if (rowCosts.length !== EXPECTED.length) {
     // serialize call over every walked field. examples/run-flow.ts' NOT_RUN_STATE is unchanged. In W195's row.
     'taskLog',
     // `loops` since W229 (`spec/join-policy.md` v0.26): each loop instance's round, bound and status, and while its join
-    // waits the state and arrival it holds — copies, released where a region's collection is. WALKED. No row here runs a
-    // loop until W230.
+    // waits the state and arrival it holds — copies, released where a region's collection is. WALKED. No ROW here runs a
+    // loop: W230's block does, and it is not a row, so the walk over `reports` reads `loops` empty.
     'loops',
   ].sort();
   const anyRun = reports[0]!;
@@ -17428,14 +17642,19 @@ check('cross-row', 'every cross-row SUBJECT this file declares was asserted abou
 // **2923 / 284 since W226 — P46's EXIT ARTIFACT clause (3), +18 and sixteen runs**, DERIVED: the grants block's eighteen
 // cross-row assertions (`CROSS_ROW` 572 -> 590) over its sixteen runs (2919 / 280 before the readers' F1/A1 added the
 // clash and its control). No row moved (P46 prediction 3).
-const DECLARED_TOTAL = 2923;
+// **2935 / 294 since W230 — P47's EXIT ARTIFACT (4), +12 and ten runs**, DERIVED: the loop block's twelve cross-row
+// assertions (`CROSS_ROW` 590 -> 602) over its ten runs (2933 / 292 before the conformity reader's finding added the
+// LOST run per pool); removing `NOT_YET_AT_L6` and
+// `KINDS_NOT_YET_AT_L6` added no assertion (the every-kind clause's sixth constructed input went with its disjunct,
+// inside one check). No row moved.
+const DECLARED_TOTAL = 2935;
 // **And the RUN count, declared outright beside it — W96.** It was printed on every gate run and written nowhere, so the
 // copies of it in `README.md` and `examples/README.md` had nothing to be compared against: `check-docs`' `X10` reads
 // BOTH declarations and holds each current copy to them ([Q171](../doc/questions/q171.md), named by P20's retro and built
 // by none of the four plans after it). Checked here the way `DECLARED_TOTAL` is — a mismatch is a named failure and NOT a
 // counted assertion, so neither number moves the other — though, like `DECLARED_TOTAL`'s own guard, a mismatch run prints
 // a total one higher, because the report adds `failures.length` (W96's adequacy reader).
-const DECLARED_RUNS = 284;
+const DECLARED_RUNS = 294;
 if (passed + failures.length !== DECLARED_TOTAL) {
   failures.push(
     'gate\n      the assertion count is not the number this file declares outright\n' +

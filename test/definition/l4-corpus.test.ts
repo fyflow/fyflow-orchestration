@@ -425,6 +425,9 @@ const SUITES = [
 
 /** The rest of the census, split only so neither literal is unreadably long. */
 const LATE_SUITES = [
+  // W230 — P47 exit artifact (3), `spec/run-state.md` v0.37 section 9: a loop RESUMED from its settlements — L2 in
+  // `test/driver/checkpoint-loop.test.ts`; counted below.
+  'W230 — L2: a loop resumed from its settlements — after a round, mid-round, at a park, at every element, and read at its join',
   // W229 — P47 decisions 2, 4-6 and fact 16: a loop at RUN time — L2 in `test/driver/loop.test.ts`, L5 in
   // `test/matrix/loop.test.ts`; both counted below. (W228's three driver splits, which asserted the driver's refusal until
   // this item, are deleted with their lines here — W229's declared exception.)
@@ -1067,11 +1070,17 @@ suite('L1 — every suite this tree declares actually RAN', (test) => {
   // **W221's two suites, counted the same way and for the same reason** — W220's adequacy reader's D4b/D4c/D5 class: a
   // case deleted WITH its `DECLARED_CASES` line, or a suite emptied at load, leaves `npm test` at exit 0 without a count.
   // **W225's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
+  // **W230's suite, counted the same way and for the same reason** — a suite emptied at load is still a suite.
+  test('W230`s suite still REGISTERS the cases it declares — an emptied suite fails here', () => {
+    const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
+    equal(count('W230 — L2: a loop resumed from its settlements — after a round, mid-round, at a park, at every element, and read at its join'), 6,
+      'test/driver/checkpoint-loop.test.ts registers its six: after round 0, mid-round 1, at a park, every element, the reading at the join, and the membership');
+  });
   // **W229's two suites, counted the same way and for the same reason** — a suite emptied at load is still a suite.
   test('W229`s two suites still REGISTER the cases they declare — an emptied suite fails here', () => {
     const count = (name: string) => collected().filter((s) => s.suite === name).reduce((n, s) => n + s.cases.length, 0);
     equal(count('W229 — L2: a loop at run time, one way out at a time — its rounds, its decision, its join value and FD-R7'), 16,
-      'test/driver/loop.test.ts registers its eleven: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, and the membership');
+      'test/driver/loop.test.ts registers its sixteen: done, exhausted, break, lost, the bound, FD-R7, "$iteration", the reader after, a loop in a map, no policy, a halt on every road, the lifetime, a join to an end, a lost loop resumed, "$iteration" nested, and the membership');
     equal(count('W229 — L5: a loop × lost, break, park-then-done, park-then-failed, cancel, stop and pause'), 2,
       'test/matrix/loop.test.ts registers its two: seven rows × three policies, and the membership');
   });

@@ -7,7 +7,7 @@ item: W228
 raised-by: P47
 supersedes: ""
 amends: ""
-resolves: Q810
+resolves: Q810, Q582
 ---
 
 # ADR 0145 — A loop is a region that runs its one branch round after round, read from outside as a map is

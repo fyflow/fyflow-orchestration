@@ -1,6 +1,6 @@
 # P47 — What may repeat in a flow, and how does one round hand on to the next?
 
-**Status:** planning — drafted 2026-11-13 on `65111af` and committed as `df60b9e`; declared 2026-11-14 on `df60b9e`
+**Status:** complete and retro'd 2026-11-14 — W228-W230 done; `gate:full` on W230's final tree (the Record); the retro raises no stop-and-ask; the reply written and NOT sent, 0.15.0 not bumped, nothing pushed — the maintainer's. Earlier: drafted 2026-11-13 on `65111af` and committed as `df60b9e`; declared 2026-11-14 on `df60b9e`
 (the tree clean, `main` at 0.14.0) with facts 12-16 MEASURED in a byte copy (section *Measured at this declaration*),
 Q809 and Q810 raised, [Q582](../questions/q582.md) reopened and W228-W230's files written. Decisions 1-7 are the
 maintainer's, taken one by one on 2026-11-13 against fyflow-app's *pass 8* #2, each *"as recommended"*; decision 1
@@ -249,10 +249,82 @@ P23 fact 1 is the measurement it rests on for every region that exists today.
 
 ## Record
 
-*Filled in at the join, after the work items are merged.*
+*Written 2026-11-14 by W230's author over W230's tree. Every figure is read from the three items' own files or measured
+by W230 and named so. W228 and W229 are committed locally (`7499d04`, `1d2878f`) and NOT pushed; W230 is uncommitted.
+`gate:full`'s cell is filled on the final tree.*
+
+**The items.** Each row is its own file's Record.
+
+| item | built | spec | readers (overlap) | L1-L5 / L6 after | confirming gate |
+|---|---|---|---|---|---|
+| **W228** `7499d04` | the `loop` kind and its keys; `FD-V50`, `FD-V51`; `"$iteration"`; decision 1's map reading; `definitionSchema`; the wiring check's `round` and `carry` arcs and a breakable loop's seed `record` arc; ADR 0145; Q810 declined | flow-definition **v0.57**, task-id (`ID-R6` widened) | conformity 0 BLOCKING, 2 SHOULD, 3 NIT; adequacy 62 mutations, 17 survived. **Overlap 3** | 107 / 2361; 2923 / 284 | `gate:item` EXIT 0 on run 2 (run 1 `check:register` R8) |
+| **W229** `1d2878f` | a round opened, carried, decided, broken and lost; the join value; every round read from outside; `FD-R7`; no policy on a loop; a halted run decides nothing | join-policy **v0.26** (`JP-R13`-`JP-R15`), flow-definition **v0.58** | conformity 1 BLOCKING, 3 NIT; adequacy 58 mutations, 20 survived. **Overlap 1** | 109 / 2377; 2923 / 284 | `gate:item` EXIT 0 |
+| **W230** uncommitted | resume measured and tested; the footprint measured (`examples/loop-footprint.ts`); the L6 block, five runs per pool; `AGENTS.md` section 22; the reply; Q582 resolved | run-state **v0.37** (sections 7, 9) | conformity 0 defects, 3 false or unbacked claims, 5 imprecisions; adequacy 27 mutants, none past every suite, 1 real gap. **Overlap 2** | 110 / 2384; **2935 / 294** | `gate:full` **EXIT 0** on the final tree (the second run) |
 
 **Exit artifact.**
 
-**What the plan answered.**
+| the exit sentence's clause | what was built and measured | verdict |
+|---|---|---|
+| (1) an L2 suite routing a `loop` to each of its five ways out — continue, done, exhausted, break, lost — every expected value from the decisions and the spec | W229: `test/driver/loop.test.ts`, 16 cases, a case per way out and the halt on every road | **met** |
+| (2) L5's matrix extended by a loop × lost / break / park / cancel / stop / pause | W229: `test/matrix/loop.test.ts` — lost, break, park-then-done, park-then-failed, cancel, stop, pause, every row × every policy by hand | **met** |
+| (3) a loop checkpointed mid-round resumes to the same fold, no new `FoldInput` kind, `CHECKPOINT_FORMAT` unchanged — or the measurement that refutes it | W230: measured before the spec (every element a cut, 23 and 44 cuts), then `test/driver/checkpoint-loop.test.ts` — after a round, mid-round, at a park, every element, a reading at the join; the kinds 0.14.0 wrote and format 2 asserted. **Not refuted**: no stop-and-ask | **met** |
+| (4) one L6 block, node 24 and deno: a training-shaped loop (a map in the body, `until`, a reader after the loop naming every round) and a polling loop that breaks | W230: the `W230 exit` block — training (done) and its control (exhausted), polling (break), its control (done), and a LOST run beyond the clause (Q582's *closes-when*); **2935 / 294, 0 failed**, both runtimes | **met** |
+| (5) the retained footprint MEASURED beside a map of the same task count, against `RN-R13` | W230: loop / map 0.998, 0.997, 0.996 at N = 16, 64, 256; the carried history 3.4×, 12.7×, 49.9× a reader after the loop, tracking *N(N+1)/2* — decision 1's ~125 MB for 500 rounds of 1 KiB is the formula's, and the measured 32 MiB at 256 rounds agrees with it | **met** |
+| `npm run gate:full` EXIT 0 — the LAST item runs it | W230: the first run RED (`check:docs:selftest` 45/47, retro 7); on the final tree **EXIT 0** — L1-L5 110 / 2384 in node, deno and chromium, L6 2935 / 0 failed in both runtimes, self-tests **11/11 ok** (`C:/tmp-p47/w230-gatefull-2.log`) | **met** |
 
-**Retro.**
+**What the plan answered.** **Yes**: a flow may run one region's branch round after round, and the outer graph and the
+body both stay acyclic. `FD-V10` is unchanged, every task id is unique by a branch-path segment per round, and a resume
+replays the rounds from their settlements alone. A loop is a `map` run one round after another: read from outside as a
+map is, retaining what a map of the same task count retains, and resuming as a map does — so the claim the plan existed
+to test rather than assume held at every measurement. What it did NOT need: a new fold input, a format change, a new
+`needs` form (Q810, declined), `flowAttempt` (Q16, untouched) or a clock (decision 7). What it leaves: compaction
+([Q809](../questions/q809.md), deferred), a map or fanout as a body's entry and `onLost: "exit"` (both additive later),
+and fyflow-app's pass 8 #1 and #3, not evaluated. [Q582](../questions/q582.md) is resolved.
+
+**The counts across the plan**: L1-L5 **106 / 2334 → 110 / 2384** in node, deno and chromium; L6 **2923 / 284 → 2935 /
+294** in node and deno; spec/flow-definition **v0.56 → v0.58**, spec/join-policy **v0.25 → v0.26**, spec/run-state
+**v0.36 → v0.37**; ADR 0145; **`CHECKPOINT_FORMAT` 2, unmoved**; **intended as 0.15.0**, BREAKING only in
+three exported unions widened — `FlowNode` (`LoopNode`), `RegionSets.opensWith` (`'loop'`) and `WiringShape`
+(`'round'`, `'carry'`) — so code exhaustive over any of them stops compiling; no signature changed, every 0.14.0 document
+is accepted unchanged — not bumped and not released.
+
+**Handed on**, each with its owner:
+
+| hand-off | owner | where |
+|---|---|---|
+| the reply to fyflow-app's pass 8 — written, NOT sent | **the maintainer** | `../fyflow-app/.scratch/mu-upstream-adoption/requests/fyflow-orchestration.pass8.reply.md` |
+| 0.15.0 — the bump, the commits, the push, the publish | **the maintainer** | this Record |
+| compaction of finished rounds | no owner — deferred | [Q809](../questions/q809.md) |
+| pass 8 #1 (an instance's pool option unset) and #3 (JSONata path functions) | not evaluated — a later plan, if the maintainer asks | the reply's Summary |
+| the byte copies and reader worktrees `C:/tmp-p47/*`, `C:/tmp-w229/*`, `C:/tmp-w230/*` and the logs | **the maintainer** — left in place, outside the repository | each item's Record |
+
+**Retro.** *Section 6 pass 3, over the three items' files.*
+
+1. **The asks.** Decisions 1-7 were the maintainer's, taken one by one *as recommended*, decision 1 revised (a) → (b′)
+   before declaration; every Exceptions row in the three items was asked before its edit. Decision 1's revision held:
+   reading a loop as a map cost no rule beyond `ID-R6`'s widening, and W230 measured the retention argument it rested on.
+2. **The readers.** Overlaps **3, 1, 2** — inside the 0-4 band. Briefs were written to differ (W230's conformity reader
+   given the spec and the reply, its adequacy reader the rule ids), and the overlaps were shared SUBJECTS with different
+   findings on each, as section 6 expects.
+3. **A check that went red twice for one reason — no change.** `check:register` R8 refused W228's first confirming gate
+   (Q810 ↔ ADR 0145) and W230's first ladder (Q582 ↔ ADR 0145): a `resolved-by` naming an ADR whose `resolves` did not
+   name the question. Two occurrences in different items — but the rule exists and is mechanical, and it caught both at
+   the first rung for the cost of one re-run. A written rule beside it would restate the check. **No change.**
+4. **The sharpest finding: a claim from a scratch spike written into a reply.** W230's *7/7 and 13/13* quiescent cuts were
+   true and in no file the tree carries — the conformity reader could not check them. Section 6's conformity pass covering
+   the REPLY, and not only the tree, is what caught it; the reply is outside the repository and on no check. **No new
+   rule**: one occurrence, and the remedy — a reply cites what the tree carries — is CLAUDE.md's *a written claim nobody
+   ran* applied to a file outside the tree. Named here so a second occurrence makes it two.
+5. **A closes-when wider than the exit artifact.** Q582's *closes-when* (written at P47's declaration) named every way
+   out on real workers; exit artifact (4) listed two. The conformity reader found the gap after the item thought itself
+   done; W230 widened the block rather than narrowing the question. **Rung**: none — no check reads a *closes-when*
+   against an exit artifact. One occurrence; **no change**.
+6. **The heredoc hazard, once more** — in a scratch script, not the tree; caught by Python's parser. CLAUDE.md
+   already says it. **No change.**
+7. **A green ladder and a red `gate:full`, for an undeclared ratchet.** W230 added a `run` snippet and did not raise
+   `check:docs`'s `RUN_FLOOR`; `npm run gate` stays green over a floor one BELOW the count, so only the self-test's
+   *snippet deleted* probe noticed, at the plan's last rung — ADR 0070's split working as designed, at the cost of a
+   second `gate:full`. The same run caught a snippet whose `throw` ended a multi-line `if`, which the *assertions
+   deleted* probe needs on its own line. Five earlier items moved the floor inside their `Owns` or Exceptions; W230's
+   declaration listed `AGENTS.md` and not the script the snippet moves. **Rung**: the self-test, as intended; **no
+   change** — one occurrence, and the item template's Exceptions table is where the next author looks.
